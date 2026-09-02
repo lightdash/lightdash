@@ -1,3 +1,10 @@
+# [2.98.0](https://github.com/lightdash/lightdash/compare/2.97.1...2.98.0) (2026-09-02)
+
+
+### Features
+
+* **jira:** add OAuth integration ([#28510](https://github.com/lightdash/lightdash/issues/28510)) ([831ca58](https://github.com/lightdash/lightdash/commit/831ca5819301291aa4d1fb264ffd9238eb2dd590))
+
 ## [2.97.1](https://github.com/lightdash/lightdash/compare/2.97.0...2.97.1) (2026-09-02)
 
 

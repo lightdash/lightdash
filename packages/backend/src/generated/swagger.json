@@ -50735,6 +50735,123 @@
                 "required": ["name", "id"],
                 "type": "object"
             },
+            "JiraInstallUrl": {
+                "properties": {
+                    "installUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["installUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_JiraInstallUrl_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/JiraInstallUrl"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiJiraInstallUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_JiraInstallUrl_"
+            },
+            "JiraOAuthCredentials": {
+                "properties": {
+                    "clientSecret": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["clientSecret", "clientId"],
+                "type": "object"
+            },
+            "JiraInstallation": {
+                "properties": {
+                    "requiresSiteSelection": {
+                        "type": "boolean"
+                    },
+                    "siteUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "siteName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "siteId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requiresSiteSelection",
+                    "siteUrl",
+                    "siteName",
+                    "siteId",
+                    "clientId",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "JiraSite": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "name", "id"],
+                "type": "object"
+            },
+            "JiraProject": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "key", "id"],
+                "type": "object"
+            },
+            "JiraIssueType": {
+                "properties": {
+                    "subtask": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["subtask", "name", "id"],
+                "type": "object"
+            },
             "InviteLinkAuthenticationOptions": {
                 "properties": {
                     "ssoProviders": {
@@ -58813,7 +58930,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.97.1",
+        "version": "2.98.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -87151,6 +87268,304 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/jira/install": {
+            "post": {
+                "operationId": "installJiraIntegration",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJiraInstallUrlResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start Jira OAuth with the organization's own Atlassian OAuth 2.0 app",
+                "summary": "Connect Jira",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/JiraOAuthCredentials"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "reconnectJiraIntegration",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Jira OAuth"
+                    }
+                },
+                "description": "Restart Jira OAuth with the credentials already saved for the organization",
+                "summary": "Reconnect Jira",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/oauth/callback": {
+            "get": {
+                "operationId": "jiraOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Finish Jira OAuth and return to Ask AI settings",
+                "summary": "Jira OAuth callback",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/jira": {
+            "get": {
+                "operationId": "getJiraInstallation",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/JiraInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the Jira site connected to the organization",
+                "summary": "Get Jira installation",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/sites": {
+            "get": {
+                "operationId": "getJiraSites",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraSite"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira sites available through the connection",
+                "summary": "List Jira sites",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/site": {
+            "put": {
+                "operationId": "selectJiraSite",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/JiraInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Select the Jira site used by the organization",
+                "summary": "Select Jira site",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "siteId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["siteId"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/jira/projects": {
+            "get": {
+                "operationId": "getJiraProjects",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraProject"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira projects accessible through the connection",
+                "summary": "List Jira projects",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/issue-types": {
+            "get": {
+                "operationId": "getJiraIssueTypes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraIssueType"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira issue types available in a project",
+                "summary": "List Jira issue types",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/jira/uninstall": {
+            "delete": {
+                "operationId": "uninstallJiraIntegration",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Uninstall Jira integration from the organization",
+                "summary": "Uninstall Jira integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/invite-links/{inviteLinkCode}": {
