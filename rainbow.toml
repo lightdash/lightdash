@@ -47,10 +47,16 @@ routes = ["/", "/login"]           # pre-served so the first preview is instant
 rebuild = "pnpm install --frozen-lockfile"
 preset = "pnpm"                     # lockfile globs; explicit files win
 
+# common-build is a *rebuild* rung, not a run rung: the TypeScript builds it
+# runs need more memory than the guest has beside the dev stack, so running
+# them inside a fork OOM-killed the app and pinned the env's whole 8 GB on the
+# host (2026-09-02, rainbowmachines system-description/cache-tiers.md). As a
+# rebuild it runs on the host, once: the mainline parent invests on merge, and
+# a PR that touches these packages gets a branch parent built for it.
 [[tier]]
 name = "common-build"
 files = ["packages/common/**", "packages/warehouses/**"]
-run = "pnpm common-build && pnpm warehouses-build"
+rebuild = "pnpm common-build && pnpm warehouses-build"
 
 [[tier]]
 name = "migrate"
