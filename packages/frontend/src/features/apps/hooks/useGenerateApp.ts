@@ -17,6 +17,8 @@ export type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
     template?: DataAppTemplate;
+    // Organization template (uploaded package) to seed the build from.
+    templateSlug?: string;
     creationExperience: DataAppCreationExperience;
     fileIds?: string[];
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
@@ -40,6 +42,7 @@ const generateApp = async ({
     projectUuid,
     prompt,
     template,
+    templateSlug,
     creationExperience,
     fileIds,
     appUuid,
@@ -58,6 +61,7 @@ const generateApp = async ({
         body: JSON.stringify({
             prompt,
             template,
+            templateSlug,
             creationExperience,
             fileIds,
             appUuid,

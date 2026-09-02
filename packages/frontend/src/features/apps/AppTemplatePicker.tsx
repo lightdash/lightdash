@@ -1,16 +1,24 @@
-import { FeatureFlags, type DataAppTemplate } from '@lightdash/common';
+import {
+    type DataAppTemplate,
+    type DataAppTemplateSummary,
+} from '@lightdash/common';
 import { Stack, Text, ThemeIcon } from '@mantine/core';
 import { IconTemplate, type Icon as TablerIcon } from '@tabler/icons-react';
 import { useState, type CSSProperties, type FC } from 'react';
 import { PolymorphicPaperButton } from '../../components/common/PolymorphicPaperButton';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import classes from './AppTemplatePicker.module.css';
+import { useTemplateGallery } from './hooks/useTemplateGallery';
 import TemplateGalleryModal from './TemplateGalleryModal';
-import { getGalleryTemplates, getPickerTemplates } from './templates';
+import { getPickerTemplates } from './templates';
 
 type Props = {
     selected: DataAppTemplate | null;
     onSelectedChange: (template: DataAppTemplate | null) => void;
+    // Organization template picked in the gallery; exclusive with `selected`.
+    selectedOrgTemplate: DataAppTemplateSummary | null;
+    onSelectedOrgTemplateChange: (
+        template: DataAppTemplateSummary | null,
+    ) => void;
 };
 
 // Fan geometry, derived from the card count. The fan keeps a FIXED footprint
@@ -86,28 +94,23 @@ const FanCard: FC<{ card: FanCardContent; index: number; count: number }> = ({
     );
 };
 
-const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => {
-    const templatesFlag = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppTemplates,
-    );
+const AppTemplatePicker: FC<Props> = ({
+    selected,
+    onSelectedChange,
+    selectedOrgTemplate,
+    onSelectedOrgTemplateChange,
+}) => {
+    const gallery = useTemplateGallery();
     const [galleryOpen, setGalleryOpen] = useState(false);
-    if (templatesFlag.isLoading) {
-        // Hold the fan until the flag is known: painting the ungated cards
-        // and then re-fanning when the flag resolves reads as the last card
-        // popping in late. The empty fan keeps the layout height reserved,
-        // and AppGenerate gates its first paint on this same query, so in
-        // practice the cache is settled before we mount.
+    if (gallery.isLoading) {
+        // Hold the fan until the gallery's availability is known: painting
+        // the built-in cards and then re-fanning when it resolves reads as
+        // the last card popping in late. The empty fan keeps the layout
+        // height reserved, and AppGenerate gates its first paint on these
+        // same queries, so in practice the cache is settled before we mount.
         return <div className={classes.fan} />;
     }
-    const enabledFlags = new Set(
-        templatesFlag.data?.enabled
-            ? [FeatureFlags.EnableDataAppTemplates]
-            : [],
-    );
-    const pickerTemplates = getPickerTemplates(enabledFlags);
-    const galleryTemplates = getGalleryTemplates(enabledFlags);
-    const selectedGalleryTemplate =
-        galleryTemplates.find((t) => t.id === selected) ?? null;
+    const pickerTemplates = getPickerTemplates();
 
     const cards: FanCardContent[] = pickerTemplates.map((template) => ({
         key: template.id,
@@ -115,21 +118,23 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => {
         description: template.description,
         icon: template.icon,
         pressed: selected === template.id,
-        onClick: () =>
-            onSelectedChange(selected === template.id ? null : template.id),
+        onClick: () => {
+            onSelectedOrgTemplateChange(null);
+            onSelectedChange(selected === template.id ? null : template.id);
+        },
     }));
-    if (galleryTemplates.length > 0) {
+    if (gallery.templates.length > 0) {
         // The gallery's entry point rides the fan as a synthetic card: it
         // never selects itself, it opens the gallery, and it reflects the
         // gallery selection (pressed state + the chosen template's name).
         cards.push({
             key: 'from-template',
             title: 'From Template',
-            description: selectedGalleryTemplate
-                ? selectedGalleryTemplate.title
+            description: selectedOrgTemplate
+                ? selectedOrgTemplate.name
                 : 'Start from a ready-made app in the template gallery.',
             icon: IconTemplate,
-            pressed: selectedGalleryTemplate !== null,
+            pressed: selectedOrgTemplate !== null,
             onClick: () => setGalleryOpen(true),
         });
     }
@@ -149,11 +154,14 @@ const AppTemplatePicker: FC<Props> = ({ selected, onSelectedChange }) => {
             <TemplateGalleryModal
                 opened={galleryOpen}
                 onClose={() => setGalleryOpen(false)}
-                templates={galleryTemplates}
-                selected={selectedGalleryTemplate?.id ?? null}
-                onSelect={(templateId) => {
-                    onSelectedChange(
-                        selected === templateId ? null : templateId,
+                templates={gallery.templates}
+                selectedSlug={selectedOrgTemplate?.slug ?? null}
+                onSelect={(template) => {
+                    onSelectedChange(null);
+                    onSelectedOrgTemplateChange(
+                        selectedOrgTemplate?.slug === template.slug
+                            ? null
+                            : template,
                     );
                     setGalleryOpen(false);
                 }}

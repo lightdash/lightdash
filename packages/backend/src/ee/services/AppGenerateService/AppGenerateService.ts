@@ -305,10 +305,7 @@ import {
 import { getTemplateInstructions } from './templates';
 import {
     buildOrgTemplateInstructions,
-    getTemplateBindInstructions,
-    getTemplateSource,
     shouldSeedOrgTemplate,
-    shouldSeedTemplateSource,
 } from './templateSources';
 
 /**
@@ -2931,7 +2928,6 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
-        seedTemplateSource: boolean,
         orgTemplate?: { organizationUuid: string; slug: string; seed: boolean },
     ): Promise<{
         durationMs: number;
@@ -2996,41 +2992,13 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        // Deterministic starter templates: seed the workspace with the
-        // template's source so the agent binds it (template.json edits
-        // against the real explores) instead of regenerating an app. The tar
-        // overwrites the scaffold's overlapping files and leaves the rest of
-        // the scaffold (src/lib, src/components/ui, css) untouched.
-        if (seedTemplateSource && template) {
-            const sourceFiles = getTemplateSource(template);
-            if (sourceFiles) {
-                await sandbox.files.write(
-                    '/tmp/template-src.tar',
-                    await AppGenerateService.packModelFiles(sourceFiles),
-                );
-                // The extract runs as the exec user while the coding agent
-                // may run as another; open up the seeded paths so the agent
-                // can edit src/template.json (its whole job in bind mode).
-                const seededRoots = [
-                    ...new Set(
-                        sourceFiles.map(
-                            (file) => `/app/${file.filename.split('/')[0]}`,
-                        ),
-                    ),
-                ].join(' ');
-                await sandbox.commands.run(
-                    `tar -xf /tmp/template-src.tar -C /app && chmod -R a+rwX ${seededRoots} && rm -f /tmp/template-src.tar`,
-                    { timeoutMs: 60_000 },
-                );
-                this.logger.info(
-                    `App ${appUuid}: seeded ${sourceFiles.length} starter-template files (template=${template})`,
-                );
-            }
-        }
-
-        // Organization template: same seeding mechanism, source read from
-        // the org's template storage. The package's AGENTS.md is not a
-        // sandbox file; it travels as the template's prompt instructions.
+        // Organization template: seed the workspace with the template's
+        // source from the org's template storage so the agent binds it
+        // (template.json edits against the real explores) instead of
+        // regenerating an app. The tar overwrites the scaffold's overlapping
+        // files and leaves the rest of the scaffold (src/lib,
+        // src/components/ui, css) untouched. The package's AGENTS.md is not
+        // a sandbox file; it travels as the template's prompt instructions.
         let orgTemplateInstructions: string | null = null;
         if (orgTemplate) {
             const resolved = await this.dataAppTemplateService.getSourceFiles(
@@ -3109,9 +3077,8 @@ export class AppGenerateService extends BaseService {
         }
 
         // Viz instructions come from the app's stored template (reliable on
-        // iterate/retry, where payload.template is absent); starter-template
-        // instructions seed only the initial generate. Both resolve through the
-        // same exhaustive switch.
+        // iterate/retry, where payload.template is absent); an org template's
+        // instructions replace the flavour pack entirely.
         const instructionsTemplate = isDataAppViz
             ? DATA_APP_VIZ_TEMPLATE
             : template;
@@ -3119,9 +3086,7 @@ export class AppGenerateService extends BaseService {
             finalPrompt = `${orgTemplateInstructions}\n\n${finalPrompt}`;
         } else if (instructionsTemplate) {
             const templateInstructions =
-                (seedTemplateSource
-                    ? getTemplateBindInstructions(instructionsTemplate)
-                    : null) ?? getTemplateInstructions(instructionsTemplate);
+                getTemplateInstructions(instructionsTemplate);
             if (templateInstructions) {
                 finalPrompt = `${templateInstructions}\n\n${finalPrompt}`;
             }
@@ -5188,10 +5153,6 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
-                    shouldSeedTemplateSource(template, {
-                        version,
-                        wasResumed,
-                    }),
                     orgTemplateSlug
                         ? {
                               organizationUuid: payload.organizationUuid,

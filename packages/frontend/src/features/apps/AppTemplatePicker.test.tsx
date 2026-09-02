@@ -1,7 +1,34 @@
 // AppTemplatePicker.test.tsx
+import { type DataAppTemplateSummary } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
+import { useTemplateGallery } from './hooks/useTemplateGallery';
+
+vi.mock('./hooks/useTemplateGallery', () => ({
+    useTemplateGallery: vi.fn(),
+}));
+
+const FORECASTER: DataAppTemplateSummary = {
+    templateUuid: 'tpl-1',
+    organizationUuid: 'org-1',
+    slug: 'metric-forecaster',
+    name: 'Metric Forecaster',
+    description: 'A live what-if forecast.',
+    category: 'Forecasting',
+    questions: [{ key: 'metric', label: 'What should we forecast?' }],
+    fileCount: 3,
+    createdByUserUuid: 'user-1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+};
+
+const mockGallery = (templates: DataAppTemplateSummary[]) =>
+    vi.mocked(useTemplateGallery).mockReturnValue({
+        isLoading: false,
+        enabled: templates.length > 0,
+        templates,
+    });
 
 // The picker reads the templates flag through react-query; the fan under
 // test is the ungated one, so resolve the flag as off without a client.
@@ -20,20 +47,30 @@ const setup = (
         | 'custom'
         | 'data_app_viz'
         | null,
-    onSelectedChange = vi.fn(),
+    {
+        onSelectedChange = vi.fn(),
+        selectedOrgTemplate = null as DataAppTemplateSummary | null,
+        onSelectedOrgTemplateChange = vi.fn(),
+    } = {},
 ) => {
     render(
         <MantineProvider env="test">
             <AppTemplatePicker
                 selected={selected}
                 onSelectedChange={onSelectedChange}
+                selectedOrgTemplate={selectedOrgTemplate}
+                onSelectedOrgTemplateChange={onSelectedOrgTemplateChange}
             />
         </MantineProvider>,
     );
-    return { onSelectedChange };
+    return { onSelectedChange, onSelectedOrgTemplateChange };
 };
 
 describe('AppTemplatePicker', () => {
+    beforeEach(() => {
+        mockGallery([]);
+    });
+
     it('renders the app starting points, no viz template, no Lets go button', () => {
         setup(null);
         expect(
@@ -54,6 +91,13 @@ describe('AppTemplatePicker', () => {
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /Let's go/i }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('offers no From Template card when the org has no templates', () => {
+        setup(null);
+        expect(
+            screen.queryByRole('button', { name: /From Template/i }),
         ).not.toBeInTheDocument();
     });
 
@@ -80,5 +124,25 @@ describe('AppTemplatePicker', () => {
         const { onSelectedChange } = setup('dashboard');
         fireEvent.click(screen.getByRole('button', { name: /Dashboard/i }));
         expect(onSelectedChange).toHaveBeenCalledWith(null);
+    });
+
+    it('opens the gallery of org templates behind From Template and reports the pick', () => {
+        mockGallery([FORECASTER]);
+        const { onSelectedOrgTemplateChange, onSelectedChange } = setup(null);
+        fireEvent.click(screen.getByRole('button', { name: /From Template/i }));
+        fireEvent.click(
+            screen.getByRole('button', { name: /Metric Forecaster/i }),
+        );
+        expect(onSelectedOrgTemplateChange).toHaveBeenCalledWith(FORECASTER);
+        // A gallery pick clears any flavour selection.
+        expect(onSelectedChange).toHaveBeenCalledWith(null);
+    });
+
+    it('shows the chosen org template on the From Template card', () => {
+        mockGallery([FORECASTER]);
+        setup(null, { selectedOrgTemplate: FORECASTER });
+        expect(
+            screen.getByRole('button', { name: /Metric Forecaster/i }),
+        ).toHaveAttribute('aria-pressed', 'true');
     });
 });

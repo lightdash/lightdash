@@ -14,6 +14,8 @@ import { type GenerateAppParams } from '../hooks/useGenerateApp';
 export type AppBuildRequest = {
     prompt: string;
     template: DataAppTemplate | undefined;
+    // Organization template to build from; `template` is ignored when set.
+    templateSlug?: string;
     fileIds: string[] | undefined;
     appUuid: string;
     charts: AppChartReference[] | undefined;
@@ -42,6 +44,7 @@ export const toAppGeneratePayload = (
     projectUuid,
     prompt: request.prompt,
     template: request.template,
+    templateSlug: request.templateSlug,
     creationExperience: 'app_builder',
     fileIds: request.fileIds,
     appUuid: request.appUuid,

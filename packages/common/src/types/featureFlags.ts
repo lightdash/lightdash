@@ -103,9 +103,8 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
-     * Show gated data app templates (e.g. Forecaster) on the app-create
-     * picker. Gates new template registry entries only; the original
-     * templates are always offered.
+     * Organization data app templates: the upload API and the app builder's
+     * "From Template" gallery. The built-in flavours are always offered.
      */
     EnableDataAppTemplates = 'enable-data-app-templates',
 
