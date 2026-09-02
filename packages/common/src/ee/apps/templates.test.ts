@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FeatureFlags } from '../../types/featureFlags';
 import { DATA_APP_TEMPLATE_DEFINITIONS } from './templates';
 import { DATA_APP_TEMPLATES } from './types';
 
@@ -12,6 +13,14 @@ describe('data app template registry', () => {
             expect(def.description.length).toBeGreaterThan(0);
             expect(def.category.length).toBeGreaterThan(0);
         }
+    });
+
+    it('includes forecaster, surfaced in the gallery behind the templates flag', () => {
+        expect(DATA_APP_TEMPLATES).toContain('forecaster');
+        const def = DATA_APP_TEMPLATE_DEFINITIONS.forecaster;
+        expect(def.inPicker).toBe(false);
+        expect(def.inGallery).toBe(true);
+        expect(def.requiredFlag).toBe(FeatureFlags.EnableDataAppTemplates);
     });
 
     it('keeps the original five templates ungated', () => {

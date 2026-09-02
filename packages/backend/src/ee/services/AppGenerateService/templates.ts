@@ -47,6 +47,17 @@ Wire the standard data-point action: when \`useVizContext().underlyingData.enabl
 
 You are done when the chart renders for real and the declaration you emit is the one that skill describes: every field and every config option the component reads, and nothing a viewer would plausibly want different left hardcoded.`;
 
+const FORECASTER_INSTRUCTIONS = `[Starter template: Forecaster]
+Build a scenario-forecast app for one monthly metric:
+- Query a monthly history series from the semantic layer: a month-grain time dimension plus the metric being forecast. When the user names a limit (committed spend, capacity, budget), bind it as a second "ceiling" metric and forecast against it.
+- Derive defaults from the data, never hardcode them: fit a monthly growth rate to the history and derive a calendar-month seasonal index from the actuals.
+- Offer scenario levers wired through \`useUrlState\` so every scenario is a shareable link: growth %, and a planned step change (which month it lands and its size - it raises the ceiling when one is bound, otherwise the value). Seed lever defaults from the fitted values and provide a reset-to-baseline control.
+- Project 18-30 months ahead with a pure in-app function of history + levers, and always draw the scenario against the untouched baseline.
+- Report outcomes fit for the binding: with a ceiling, months-until-limit and when the next step is needed (90% threshold); without one, projected run rate and the next-12-months total vs baseline.
+- Chart: actuals first, then the projection in a visually distinct future zone, baseline dashed; ceiling and threshold lines when bound. Every axis gets a tickFormatter.
+- Close with a copyable plain-text plan summary of the assumptions and the outcome.
+- Every number traces to governed semantic-layer metrics: no hardcoded history, no invented data.`;
+
 // Exhaustive by construction: a new DataAppTemplate value fails to compile
 // until its instructions (or an explicit null, for free-form templates) are
 // registered here.
@@ -56,6 +67,7 @@ const TEMPLATE_INSTRUCTIONS: Record<DataAppTemplate, string | null> = {
     pdf: PDF_REPORT_INSTRUCTIONS,
     custom: null,
     data_app_viz: DATA_APP_VIZ_INSTRUCTIONS,
+    forecaster: FORECASTER_INSTRUCTIONS,
 };
 
 export const getTemplateInstructions = (

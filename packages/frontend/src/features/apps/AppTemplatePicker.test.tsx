@@ -3,6 +3,15 @@ import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
 
+// The picker reads the templates flag through react-query; the fan under
+// test is the ungated one, so resolve the flag as off without a client.
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        isLoading: false,
+        data: { enabled: false },
+    }),
+}));
+
 const setup = (
     selected:
         | 'dashboard'

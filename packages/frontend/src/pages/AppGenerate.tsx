@@ -720,6 +720,12 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    // Fetched in parallel with EnableDataApps and included in the page gate
+    // below, so the first paint always has the template set settled and the
+    // fan renders fully populated with the page — no late card pop-in.
+    const templatesFlag = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppTemplates,
+    );
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     const ability = useAbilityContext();
@@ -1285,7 +1291,7 @@ const AppGenerate: FC = () => {
         };
     }, []);
 
-    if (dataAppsFlag.isLoading) {
+    if (dataAppsFlag.isLoading || templatesFlag.isLoading) {
         return null;
     }
     if (!dataAppsFlag.data?.enabled) {
