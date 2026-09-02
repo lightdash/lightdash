@@ -36,18 +36,21 @@ vi.mock('../../../../hooks/useSpaces', () => ({
     }),
 }));
 
-vi.mock('./TargetSpaceSelect', () => ({
+vi.mock('../../../../components/common/SpaceSelector/SpaceSelector', () => ({
     default: ({
         spaces,
-        onChange,
+        onSelectSpace,
     }: {
         spaces: { uuid: string; name: string }[];
-        onChange: (uuid: string) => void;
+        onSelectSpace: (uuid: string) => void;
     }) => (
         <ul>
             {spaces.map((space) => (
                 <li key={space.uuid}>
-                    <button type="button" onClick={() => onChange(space.uuid)}>
+                    <button
+                        type="button"
+                        onClick={() => onSelectSpace(space.uuid)}
+                    >
                         {space.name}
                     </button>
                 </li>

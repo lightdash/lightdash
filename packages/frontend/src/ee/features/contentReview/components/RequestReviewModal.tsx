@@ -1,7 +1,9 @@
 import {
     ContentType,
     DEFAULT_USER_SPACES_PARENT_NAME,
+    ResourceViewItemType,
     type ContentReviewContentType,
+    type SpaceSummary,
 } from '@lightdash/common';
 import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -10,6 +12,7 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { IconBox } from '../../../../components/common/ResourceIcon';
+import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
 import {
     usePersonalSpace,
     useSpaceSummaries,
@@ -17,7 +20,6 @@ import {
 import { useCreateContentReviewRequest } from '../hooks/useContentReviewRequests';
 import { getContentTypeColor, getContentTypeIcon } from '../utils';
 import classes from './RequestReviewModal.module.css';
-import TargetSpaceSelect, { type TargetSpaceOption } from './TargetSpaceSelect';
 
 type Props = {
     projectUuid: string;
@@ -30,11 +32,16 @@ type Props = {
 
 type Step = 'space' | 'note';
 
+type TargetSpaceOption = Pick<
+    SpaceSummary,
+    'uuid' | 'name' | 'parentSpaceUuid'
+>;
+
 // Personal spaces, and the folder that holds them, are never review targets
-const getTargetSpaces = (
-    spaces: TargetSpaceOption[],
+const getTargetSpaces = <T extends TargetSpaceOption>(
+    spaces: T[],
     personalSpaceUuid: string | undefined,
-): TargetSpaceOption[] => {
+): T[] => {
     const personalRoots = new Set(
         spaces
             .filter((space) => space.name === DEFAULT_USER_SPACES_PARENT_NAME)
@@ -112,7 +119,7 @@ const RequestReviewModal: FC<Props> = ({
             opened={opened}
             onClose={handleClose}
             icon={IconSend}
-            size="md"
+            size="lg"
             leftActions={
                 isSpaceStep ? null : (
                     <Button variant="subtle" onClick={() => setStep('space')}>
@@ -148,13 +155,19 @@ const RequestReviewModal: FC<Props> = ({
                             review this {typeLabel} and move it there when they
                             approve.
                         </Text>
-                        <TargetSpaceSelect
+                        <SpaceSelector
+                            projectUuid={projectUuid}
+                            selectedSpaceUuid={form.values.targetSpaceUuid}
                             spaces={targetSpaces}
-                            value={form.values.targetSpaceUuid}
-                            onChange={(spaceUuid) =>
+                            isLoading={isLoadingSpaces}
+                            itemType={
+                                contentType === ContentType.CHART
+                                    ? ResourceViewItemType.CHART
+                                    : ResourceViewItemType.DASHBOARD
+                            }
+                            onSelectSpace={(spaceUuid) =>
                                 form.setFieldValue('targetSpaceUuid', spaceUuid)
                             }
-                            disabled={isLoadingSpaces}
                         />
                     </Stack>
                 ) : (
@@ -168,7 +181,7 @@ const RequestReviewModal: FC<Props> = ({
                                 icon={getContentTypeIcon(contentType)}
                                 color={getContentTypeColor(contentType)}
                                 boxSize={28}
-                                size="md"
+                                size="lg"
                             />
                             <Text fz="sm" fw={500} lineClamp={1}>
                                 {contentName}
