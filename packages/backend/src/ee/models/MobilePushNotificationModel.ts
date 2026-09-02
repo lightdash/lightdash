@@ -171,7 +171,6 @@ export class MobilePushNotificationModel {
                 MobilePushInstallationsTableName,
             )
                 .where({
-                    platform: args.platform,
                     environment: args.environment,
                     device_token_fingerprint: fingerprint,
                 })

@@ -181,6 +181,45 @@ describe('MobilePushNotificationModel', () => {
         );
     });
 
+    it('releases a device token fingerprint held by the other platform', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.insert(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                installation_uuid: 'android-installation-uuid',
+                organization_uuid: 'organization-uuid',
+                user_uuid: 'user-uuid',
+                platform: 'android',
+                environment: 'production',
+            },
+        ]);
+
+        await model.upsertInstallation({
+            installationUuid: 'android-installation-uuid',
+            organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
+            platform: 'android',
+            environment: 'production',
+            deviceToken: 'shared-device-token',
+        });
+
+        const cleanup = tracker.history.delete.find((query) =>
+            query.sql.includes(MobilePushInstallationsTableName),
+        );
+        expect(cleanup?.sql).toContain('"environment" = $');
+        expect(cleanup?.sql).toContain('"device_token_fingerprint" = $');
+        expect(cleanup?.sql).not.toContain('"platform"');
+        expect(cleanup?.bindings).toEqual(
+            expect.arrayContaining([
+                'production',
+                'android-installation-uuid',
+                expect.stringMatching(/^[a-f0-9]{64}$/),
+            ]),
+        );
+    });
+
     it('preserves pending, retryable, and sent attempts during same-installation token rotation', async () => {
         tracker.on.any(/pg_advisory_xact_lock/).response([]);
         tracker.on.select(MobilePushInstallationsTableName).responseOnce([
