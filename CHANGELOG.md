@@ -1,3 +1,15 @@
+# [2.96.0](https://github.com/lightdash/lightdash/compare/2.95.2...2.96.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **backend:** allow adding warehouse credentials to a project created without them ([#28517](https://github.com/lightdash/lightdash/issues/28517)) ([6f793bd](https://github.com/lightdash/lightdash/commit/6f793bdc00450319d3bb42dff7ebdba80a131056))
+
+
+### Features
+
+* translate embedded parameter labels ([#28521](https://github.com/lightdash/lightdash/issues/28521)) ([92980ae](https://github.com/lightdash/lightdash/commit/92980aee7e5c34ad4d92e244233b19151a5f74b2))
+
 ## [2.95.2](https://github.com/lightdash/lightdash/compare/2.95.1...2.95.2) (2026-09-02)
 
 
