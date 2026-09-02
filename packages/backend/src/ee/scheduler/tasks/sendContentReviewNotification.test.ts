@@ -1,7 +1,7 @@
 import {
+    ContentReviewContentType,
     ContentReviewNotificationEvent,
     ContentReviewRequestStatus,
-    ContentType,
     type ContentReviewRequest,
     type SendContentReviewNotificationPayload,
 } from '@lightdash/common';
@@ -18,7 +18,7 @@ import { sendContentReviewNotification } from './sendContentReviewNotification';
 const request: ContentReviewRequest = {
     uuid: 'request-uuid',
     projectUuid: 'project-uuid',
-    contentType: ContentType.CHART,
+    contentType: ContentReviewContentType.CHART,
     contentUuid: 'chart-uuid',
     sourceSpaceUuid: 'personal-space',
     targetSpaceUuid: 'shared-space',

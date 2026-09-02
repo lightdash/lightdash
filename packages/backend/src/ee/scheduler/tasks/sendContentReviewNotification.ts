@@ -1,7 +1,7 @@
 import {
     assertUnreachable,
+    ContentReviewContentType,
     ContentReviewNotificationEvent,
-    ContentType,
     getContentReviewRequestPath,
     getErrorMessage,
     OpenIdIdentityIssuerType,
@@ -56,19 +56,33 @@ const getHeader = (event: ContentReviewNotificationEvent): string => {
     }
 };
 
+const findRequestLocations = (
+    deps: SendContentReviewNotificationDeps,
+    request: ContentReviewRequest,
+) => {
+    const uuids = [request.contentUuid];
+    switch (request.contentType) {
+        case ContentReviewContentType.CHART:
+            return deps.contentReviewRequestModel.findChartLocations(uuids);
+        case ContentReviewContentType.SQL_CHART:
+            return deps.contentReviewRequestModel.findSqlChartLocations(uuids);
+        case ContentReviewContentType.DASHBOARD:
+            return deps.contentReviewRequestModel.findDashboardLocations(uuids);
+        default:
+            return assertUnreachable(
+                request.contentType,
+                'Unknown review content type',
+            );
+    }
+};
+
 const getCopy = async (
     deps: SendContentReviewNotificationDeps,
     payload: SendContentReviewNotificationPayload,
     request: ContentReviewRequest,
 ): Promise<NotificationCopy> => {
     const [locations, spaces, project] = await Promise.all([
-        request.contentType === ContentType.CHART
-            ? deps.contentReviewRequestModel.findChartLocations([
-                  request.contentUuid,
-              ])
-            : deps.contentReviewRequestModel.findDashboardLocations([
-                  request.contentUuid,
-              ]),
+        findRequestLocations(deps, request),
         deps.contentReviewRequestModel.findSpaceInfo(
             request.targetSpaceUuid === null
                 ? [request.sourceSpaceUuid]

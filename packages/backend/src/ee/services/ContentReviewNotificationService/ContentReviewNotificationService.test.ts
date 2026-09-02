@@ -1,7 +1,7 @@
 import {
+    ContentReviewContentType,
     ContentReviewNotificationEvent,
     ContentReviewRequestStatus,
-    ContentType,
     EE_SCHEDULER_TASKS,
     SpaceMemberRole,
     type ContentReviewRequestListItem,
@@ -25,7 +25,7 @@ const ADMIN = 'admin-uuid';
 const item: ContentReviewRequestListItem = {
     uuid: 'request-uuid',
     projectUuid: PROJECT,
-    contentType: ContentType.CHART,
+    contentType: ContentReviewContentType.CHART,
     contentUuid: 'chart-uuid',
     sourceSpaceUuid: 'personal-space',
     targetSpaceUuid: 'shared-space',
