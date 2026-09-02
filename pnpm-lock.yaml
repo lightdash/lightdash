@@ -1083,6 +1083,9 @@ importers:
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula
+      '@lightdash/learn-ui':
+        specifier: workspace:*
+        version: link:../learn-ui
       '@mantine/code-highlight':
         specifier: 8.3.18
         version: 8.3.18(@mantine/core@8.3.18(@mantine/hooks@8.3.18(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@8.3.18(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)

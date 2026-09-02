@@ -33,6 +33,7 @@
         "@hello-pangea/dnd": "16.5.0",
         "@lightdash/common": "workspace:*",
         "@lightdash/formula": "workspace:*",
+        "@lightdash/learn-ui": "workspace:*",
         "@mantine/code-highlight": "8.3.18",
         "@mantine/core": "8.3.18",
         "@mantine/dates": "8.3.18",
