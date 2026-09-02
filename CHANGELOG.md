@@ -1,3 +1,10 @@
+# [2.84.0](https://github.com/lightdash/lightdash/compare/2.83.0...2.84.0) (2026-09-02)
+
+
+### Features
+
+* ChartRegistryClient + read-only invariant for registry apps ([#28374](https://github.com/lightdash/lightdash/issues/28374)) ([e4d7bb5](https://github.com/lightdash/lightdash/commit/e4d7bb5b56f87286dc9d618621c46fc38d29d95b)), closes [#28373](https://github.com/lightdash/lightdash/issues/28373)
+
 # [2.83.0](https://github.com/lightdash/lightdash/compare/2.82.2...2.83.0) (2026-09-02)
 
 
