@@ -1432,6 +1432,13 @@ export type MobilePushNotificationsConfig = {
         | undefined;
 };
 
+export type MobileAppAssociationConfig = {
+    appleTeamId: string;
+    appleBundleId: string;
+    androidPackageName: string;
+    androidCertificateFingerprints: string[];
+};
+
 export type LightdashConfig = {
     /** Always equals `lightdashSecrets.active`; kept for compatibility */
     lightdashSecret: string;
@@ -1459,6 +1466,7 @@ export type LightdashConfig = {
     mode: LightdashMode;
     mobile: HealthState['mobile'];
     mobilePushNotifications: MobilePushNotificationsConfig;
+    mobileAppAssociation: MobileAppAssociationConfig;
     license: {
         licenseKey: string | null;
         licenseCertificate: string | null;
@@ -2606,6 +2614,12 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value disables the flag.
 ];
 
+const parseCertificateFingerprints = (value: string | undefined): string[] =>
+    (value ?? '')
+        .split(',')
+        .map((fingerprint) => fingerprint.trim())
+        .filter((fingerprint) => fingerprint.length > 0);
+
 const parseMobilePushCredential = (
     environment: 'SANDBOX' | 'PRODUCTION',
 ): MobilePushNotificationsConfig['sandbox'] => {
@@ -2820,6 +2834,17 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
                 ),
             },
+        },
+        mobileAppAssociation: {
+            appleTeamId: process.env.MOBILE_APPLE_TEAM_ID ?? 'AF5SF5H727',
+            appleBundleId:
+                process.env.MOBILE_APPLE_BUNDLE_ID ?? 'com.lightdash.mobile',
+            androidPackageName:
+                process.env.MOBILE_ANDROID_PACKAGE_NAME ??
+                'com.lightdash.mobile',
+            androidCertificateFingerprints: parseCertificateFingerprints(
+                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS,
+            ),
         },
         mobilePushNotifications: {
             enabled:

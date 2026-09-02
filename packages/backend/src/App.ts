@@ -80,6 +80,10 @@ import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
 import {
+    createAndroidAssetLinksHandler,
+    createAppleAppSiteAssociationHandler,
+} from './routers/mobileAppAssociation';
+import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
@@ -863,6 +867,25 @@ export default class App {
         expressApp.get(
             '/.well-known/oauth-protected-resource/api/v1/mcp',
             oauthProtectedResourceHandler,
+        );
+
+        const appleAppSiteAssociationHandler =
+            createAppleAppSiteAssociationHandler(
+                this.lightdashConfig.mobileAppAssociation,
+            );
+        expressApp.get(
+            '/.well-known/apple-app-site-association',
+            appleAppSiteAssociationHandler,
+        );
+        expressApp.get(
+            '/apple-app-site-association',
+            appleAppSiteAssociationHandler,
+        );
+        expressApp.get(
+            '/.well-known/assetlinks.json',
+            createAndroidAssetLinksHandler(
+                this.lightdashConfig.mobileAppAssociation,
+            ),
         );
 
         // OpenAI Apps domain verification: serves the portal-issued token so
