@@ -1,19 +1,23 @@
 import {
     ContentType,
-    ResourceViewItemType,
+    DEFAULT_USER_SPACES_PARENT_NAME,
     type ContentReviewContentType,
 } from '@lightdash/common';
-import { Button, LoadingOverlay, Stack, Text, Textarea } from '@mantine/core';
+import { Button, Group, Stack, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconSend } from '@tabler/icons-react';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { IconArrowRight, IconFolder, IconSend } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
+import { IconBox } from '../../../../components/common/ResourceIcon';
 import {
     usePersonalSpace,
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import { useCreateContentReviewRequest } from '../hooks/useContentReviewRequests';
+import { getContentTypeColor, getContentTypeIcon } from '../utils';
+import classes from './RequestReviewModal.module.css';
+import TargetSpaceSelect, { type TargetSpaceOption } from './TargetSpaceSelect';
 
 type Props = {
     projectUuid: string;
@@ -22,8 +26,29 @@ type Props = {
     contentName: string;
     opened: boolean;
     onClose: () => void;
-    // Slot for the similar-content nudge
-    aside?: ReactNode;
+};
+
+type Step = 'space' | 'note';
+
+// Personal spaces, and the folder that holds them, are never review targets
+const getTargetSpaces = (
+    spaces: TargetSpaceOption[],
+    personalSpaceUuid: string | undefined,
+): TargetSpaceOption[] => {
+    const personalRoots = new Set(
+        spaces
+            .filter((space) => space.name === DEFAULT_USER_SPACES_PARENT_NAME)
+            .map((space) => space.uuid),
+    );
+    return spaces.filter(
+        (space) =>
+            space.uuid !== personalSpaceUuid &&
+            !personalRoots.has(space.uuid) &&
+            !(
+                space.parentSpaceUuid &&
+                personalRoots.has(space.parentSpaceUuid)
+            ),
+    );
 };
 
 const RequestReviewModal: FC<Props> = ({
@@ -33,15 +58,15 @@ const RequestReviewModal: FC<Props> = ({
     contentName,
     opened,
     onClose,
-    aside,
 }) => {
+    const [step, setStep] = useState<Step>('space');
     const { data: personalSpace } = usePersonalSpace(projectUuid, {
         enabled: opened,
     });
     const { data: spaces = [], isInitialLoading: isLoadingSpaces } =
         useSpaceSummaries(projectUuid, true, { enabled: opened });
     const targetSpaces = useMemo(
-        () => spaces.filter((space) => space.uuid !== personalSpace?.uuid),
+        () => getTargetSpaces(spaces, personalSpace?.uuid),
         [personalSpace?.uuid, spaces],
     );
     const { mutateAsync: createRequest, isLoading: isSubmitting } =
@@ -50,79 +75,127 @@ const RequestReviewModal: FC<Props> = ({
     const form = useForm<{ targetSpaceUuid: string | null; note: string }>({
         initialValues: { targetSpaceUuid: null, note: '' },
     });
+    const targetSpace = targetSpaces.find(
+        (space) => space.uuid === form.values.targetSpaceUuid,
+    );
 
     const handleClose = () => {
         form.reset();
+        setStep('space');
         onClose();
     };
 
     const handleSubmit = form.onSubmit(async (values) => {
         if (values.targetSpaceUuid === null) return;
+        const note = values.note.trim();
         await createRequest({
             contentType,
             contentUuid,
             targetSpaceUuid: values.targetSpaceUuid,
-            note: values.note.trim().length > 0 ? values.note.trim() : null,
+            note: note.length > 0 ? note : null,
             similarContent: [],
         });
         handleClose();
     });
 
     const typeLabel = contentType === ContentType.CHART ? 'chart' : 'dashboard';
+    const isSpaceStep = step === 'space';
 
     return (
         <MantineModal
             title="Request review"
+            subtitle={
+                isSpaceStep
+                    ? 'Step 1 of 2. Where it belongs'
+                    : 'Step 2 of 2. Why it belongs there'
+            }
             opened={opened}
             onClose={handleClose}
             icon={IconSend}
-            size="xl"
+            size="md"
+            leftActions={
+                isSpaceStep ? null : (
+                    <Button variant="subtle" onClick={() => setStep('space')}>
+                        Back
+                    </Button>
+                )
+            }
             actions={
-                <Button
-                    type="submit"
-                    form="request-review-form"
-                    loading={isSubmitting}
-                    disabled={form.values.targetSpaceUuid === null}
-                >
-                    Request review
-                </Button>
+                isSpaceStep ? (
+                    <Button
+                        disabled={form.values.targetSpaceUuid === null}
+                        onClick={() => setStep('note')}
+                    >
+                        Continue
+                    </Button>
+                ) : (
+                    <Button
+                        type="submit"
+                        form="request-review-form"
+                        loading={isSubmitting}
+                        disabled={form.values.targetSpaceUuid === null}
+                    >
+                        Request review
+                    </Button>
+                )
             }
         >
             <form id="request-review-form" onSubmit={handleSubmit}>
-                <LoadingOverlay visible={isLoadingSpaces} />
-                <Stack gap="md">
-                    <Text fz="sm">
-                        Pick the shared space this {typeLabel} belongs in. The
-                        people who can edit that space will review{' '}
-                        <Text component="span" fw={600}>
-                            "{contentName}"
-                        </Text>{' '}
-                        and move it there when they approve.
-                    </Text>
-                    <SpaceSelector
-                        projectUuid={projectUuid}
-                        selectedSpaceUuid={form.values.targetSpaceUuid}
-                        spaces={targetSpaces}
-                        isLoading={isLoadingSpaces}
-                        itemType={
-                            contentType === ContentType.CHART
-                                ? ResourceViewItemType.CHART
-                                : ResourceViewItemType.DASHBOARD
-                        }
-                        onSelectSpace={(spaceUuid) =>
-                            form.setFieldValue('targetSpaceUuid', spaceUuid)
-                        }
-                    />
-                    <Textarea
-                        label="Note for reviewers"
-                        description="What does it show, and who is it for?"
-                        autosize
-                        minRows={2}
-                        maxRows={6}
-                        {...form.getInputProps('note')}
-                    />
-                    {aside}
-                </Stack>
+                {isSpaceStep ? (
+                    <Stack gap="md">
+                        <Text fz="sm" c="dimmed">
+                            The people who can edit the space you pick will
+                            review this {typeLabel} and move it there when they
+                            approve.
+                        </Text>
+                        <TargetSpaceSelect
+                            spaces={targetSpaces}
+                            value={form.values.targetSpaceUuid}
+                            onChange={(spaceUuid) =>
+                                form.setFieldValue('targetSpaceUuid', spaceUuid)
+                            }
+                            disabled={isLoadingSpaces}
+                        />
+                    </Stack>
+                ) : (
+                    <Stack gap="md">
+                        <Group
+                            gap="sm"
+                            wrap="nowrap"
+                            className={classes.summary}
+                        >
+                            <IconBox
+                                icon={getContentTypeIcon(contentType)}
+                                color={getContentTypeColor(contentType)}
+                                boxSize={28}
+                                size="md"
+                            />
+                            <Text fz="sm" fw={500} lineClamp={1}>
+                                {contentName}
+                            </Text>
+                            <MantineIcon icon={IconArrowRight} color="dimmed" />
+                            <Group
+                                gap={4}
+                                wrap="nowrap"
+                                className="ld-shrink-0"
+                            >
+                                <MantineIcon icon={IconFolder} color="dimmed" />
+                                <Text fz="sm" fw={500}>
+                                    {targetSpace?.name ?? 'Shared space'}
+                                </Text>
+                            </Group>
+                        </Group>
+                        <Textarea
+                            label="Note for reviewers"
+                            description="What does it show, and who is it for?"
+                            autosize
+                            minRows={3}
+                            maxRows={6}
+                            data-autofocus
+                            {...form.getInputProps('note')}
+                        />
+                    </Stack>
+                )}
             </form>
         </MantineModal>
     );
