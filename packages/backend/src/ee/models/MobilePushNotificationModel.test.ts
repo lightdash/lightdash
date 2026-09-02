@@ -49,6 +49,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
         });
@@ -105,6 +106,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'new-organization-uuid',
             userUuid: 'new-user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });
@@ -154,6 +156,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });
@@ -175,6 +178,45 @@ describe('MobilePushNotificationModel', () => {
         expect(insert?.sql).toContain('"push_to_start_token_fingerprint" = $');
         expect(insert?.bindings.filter((value) => value === null)).toHaveLength(
             2,
+        );
+    });
+
+    it('releases a device token fingerprint held by the other platform', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.insert(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                installation_uuid: 'android-installation-uuid',
+                organization_uuid: 'organization-uuid',
+                user_uuid: 'user-uuid',
+                platform: 'android',
+                environment: 'production',
+            },
+        ]);
+
+        await model.upsertInstallation({
+            installationUuid: 'android-installation-uuid',
+            organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
+            platform: 'android',
+            environment: 'production',
+            deviceToken: 'shared-device-token',
+        });
+
+        const cleanup = tracker.history.delete.find((query) =>
+            query.sql.includes(MobilePushInstallationsTableName),
+        );
+        expect(cleanup?.sql).toContain('"environment" = $');
+        expect(cleanup?.sql).toContain('"device_token_fingerprint" = $');
+        expect(cleanup?.sql).not.toContain('"platform"');
+        expect(cleanup?.bindings).toEqual(
+            expect.arrayContaining([
+                'production',
+                'android-installation-uuid',
+                expect.stringMatching(/^[a-f0-9]{64}$/),
+            ]),
         );
     });
 

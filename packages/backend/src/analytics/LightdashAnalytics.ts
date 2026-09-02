@@ -3450,6 +3450,7 @@ export type MobilePushNotificationEvent =
           properties: {
               organizationId: string;
               installationId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
           };
       })
@@ -3478,6 +3479,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
               state: 'working' | 'waiting_for_you' | 'idle';
               activityEvent: 'update' | 'end';
@@ -3495,6 +3497,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
               outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
           };

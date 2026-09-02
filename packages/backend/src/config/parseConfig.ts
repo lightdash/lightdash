@@ -1430,6 +1430,13 @@ export type MobilePushNotificationsConfig = {
               privateKey: string;
           }
         | undefined;
+    fcm:
+        | {
+              projectId: string;
+              clientEmail: string;
+              privateKey: string;
+          }
+        | undefined;
 };
 
 export type MobileAppAssociationConfig = {
@@ -2620,6 +2627,20 @@ const parseCertificateFingerprints = (value: string | undefined): string[] =>
         .map((fingerprint) => fingerprint.trim())
         .filter((fingerprint) => fingerprint.length > 0);
 
+const parseMobilePushFcmCredential = ():
+    | MobilePushNotificationsConfig['fcm']
+    | undefined => {
+    const projectId = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID;
+    const clientEmail = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL;
+    const privateKey = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY;
+
+    return projectId === undefined ||
+        clientEmail === undefined ||
+        privateKey === undefined
+        ? undefined
+        : { projectId, clientEmail, privateKey };
+};
+
 const parseMobilePushCredential = (
     environment: 'SANDBOX' | 'PRODUCTION',
 ): MobilePushNotificationsConfig['sandbox'] => {
@@ -2767,6 +2788,7 @@ export const parseConfig = (): LightdashConfig => {
     const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
     const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
     const mobilePushTeamId = process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID;
+    const mobilePushFcm = parseMobilePushFcmCredential();
     const motherduckInstanceCache = {
         enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
         projectUuids: getArrayFromCommaSeparatedList(
@@ -2849,15 +2871,17 @@ export const parseConfig = (): LightdashConfig => {
         mobilePushNotifications: {
             enabled:
                 lightdashCloudInstance !== undefined &&
-                mobilePushTeamId !== undefined &&
-                (mobilePushSandbox !== undefined ||
-                    mobilePushProduction !== undefined),
+                ((mobilePushTeamId !== undefined &&
+                    (mobilePushSandbox !== undefined ||
+                        mobilePushProduction !== undefined)) ||
+                    mobilePushFcm !== undefined),
             bundleId:
                 process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_BUNDLE_ID ??
                 'com.lightdash.mobile',
             teamId: mobilePushTeamId,
             sandbox: mobilePushSandbox,
             production: mobilePushProduction,
+            fcm: mobilePushFcm,
         },
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {

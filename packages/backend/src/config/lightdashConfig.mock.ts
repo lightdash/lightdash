@@ -248,6 +248,7 @@ export const lightdashConfigMock: LightdashConfig = {
         teamId: undefined,
         sandbox: undefined,
         production: undefined,
+        fcm: undefined,
     },
     license: {
         licenseKey: null,
