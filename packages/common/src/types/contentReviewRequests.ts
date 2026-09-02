@@ -1,12 +1,15 @@
-import { type ContentType } from './content';
 import {
     type DirectAccessPrincipalRef,
     type DirectAccessResourceType,
 } from './directAccess';
 
-export type ContentReviewContentType =
-    | ContentType.CHART
-    | ContentType.DASHBOARD;
+// Review-specific so SQL charts can be reviewed without widening the
+// global content type
+export enum ContentReviewContentType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+    SQL_CHART = 'sql_chart',
+}
 
 export enum ContentReviewRequestStatus {
     PENDING = 'pending',

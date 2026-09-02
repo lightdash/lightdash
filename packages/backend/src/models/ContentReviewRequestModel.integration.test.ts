@@ -1,6 +1,6 @@
 import {
+    ContentReviewContentType,
     ContentReviewRequestStatus,
-    ContentType,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     SEED_ORG_1_ADMIN,
@@ -104,7 +104,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         overrides: Partial<CreateContentReviewRequest> = {},
     ): CreateContentReviewRequest => ({
         projectUuid,
-        contentType: ContentType.CHART,
+        contentType: ContentReviewContentType.CHART,
         contentUuid: randomUUID(),
         sourceSpaceUuid: personalSpaceUuid,
         targetSpaceUuid: sharedSpaceUuid,
@@ -139,7 +139,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
 
         expect(
             await model.findPendingByContent(
-                ContentType.CHART,
+                ContentReviewContentType.CHART,
                 input.contentUuid,
             ),
         ).toEqual(request);
@@ -164,7 +164,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
             verifiedOnApprove: true,
             movedContent: [
                 {
-                    contentType: ContentType.CHART,
+                    contentType: ContentReviewContentType.CHART,
                     contentUuid: input.contentUuid,
                     name: 'Weekly revenue',
                 },
@@ -178,7 +178,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         expect(approved.movedContent).toHaveLength(1);
         expect(
             await model.findPendingByContent(
-                ContentType.CHART,
+                ContentReviewContentType.CHART,
                 input.contentUuid,
             ),
         ).toBeNull();
@@ -257,23 +257,24 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         const bCreated = await model.create(b);
         await model.cancel(bCreated.uuid);
 
-        const found = await model.findPendingByContentUuids(ContentType.CHART, [
-            a.contentUuid,
-            b.contentUuid,
-            randomUUID(),
-        ]);
+        const found = await model.findPendingByContentUuids(
+            ContentReviewContentType.CHART,
+            [a.contentUuid, b.contentUuid, randomUUID()],
+        );
         expect([...found.keys()]).toEqual([a.contentUuid]);
     });
 
     test('cancelPendingContentReviewRequests cancels pending rows for deleted content', async () => {
         const a = buildRequest();
-        const b = buildRequest({ contentType: ContentType.DASHBOARD });
+        const b = buildRequest({
+            contentType: ContentReviewContentType.DASHBOARD,
+        });
         const aCreated = await model.create(a);
         const bCreated = await model.create(b);
 
         const count = await cancelPendingContentReviewRequests(
             transaction,
-            ContentType.CHART,
+            ContentReviewContentType.CHART,
             [a.contentUuid, b.contentUuid],
         );
 

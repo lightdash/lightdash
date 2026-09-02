@@ -83,7 +83,7 @@ export async function up(knex: Knex): Promise<void> {
     await knex.raw(`
         ALTER TABLE ${REQUESTS_TABLE}
         ADD CONSTRAINT content_review_requests_content_type_check
-        CHECK (content_type IN ('chart', 'dashboard'))
+        CHECK (content_type IN ('chart', 'dashboard', 'sql_chart'))
     `);
     await knex.raw(`
         ALTER TABLE ${REQUESTS_TABLE}
