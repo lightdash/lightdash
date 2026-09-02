@@ -19,7 +19,10 @@ export const getContentTypeIcon = (contentType: ContentReviewContentType) => {
         case ContentReviewContentType.DASHBOARD:
             return IconLayoutDashboard;
         default:
-            return assertUnreachable(contentType, 'Unknown review content type');
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
     }
 };
 
@@ -33,7 +36,10 @@ export const getContentTypeColor = (
         case ContentReviewContentType.DASHBOARD:
             return 'green.6';
         default:
-            return assertUnreachable(contentType, 'Unknown review content type');
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
     }
 };
 
@@ -49,7 +55,10 @@ export const getContentTypeNoun = (
         case ContentReviewContentType.DASHBOARD:
             return 'dashboard';
         default:
-            return assertUnreachable(contentType, 'Unknown review content type');
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
     }
 };
 
@@ -72,7 +81,10 @@ export const getContentHref = (
         case ContentReviewContentType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${content.slug}`;
         default:
-            return assertUnreachable(contentType, 'Unknown review content type');
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
     }
 };
 
@@ -87,6 +99,9 @@ export const getContentTypeLabel = (
         case ContentReviewContentType.DASHBOARD:
             return 'Dashboard';
         default:
-            return assertUnreachable(contentType, 'Unknown review content type');
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
     }
 };
