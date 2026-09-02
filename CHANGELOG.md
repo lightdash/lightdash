@@ -1,3 +1,11 @@
+## [2.82.2](https://github.com/lightdash/lightdash/compare/2.82.1...2.82.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **spotlight:** keep the metric explore modal inside laptop viewports ([#28471](https://github.com/lightdash/lightdash/issues/28471)) ([9e10c96](https://github.com/lightdash/lightdash/commit/9e10c9693e94b03293dd40c57e109fb413bbd47d))
+* **sql-runner:** editor top padding and unclipped, wider autocomplete ([#28470](https://github.com/lightdash/lightdash/issues/28470)) ([ae3c3a5](https://github.com/lightdash/lightdash/commit/ae3c3a581c76ecac61ef0835ea54862af4675ace))
+
 ## [2.82.1](https://github.com/lightdash/lightdash/compare/2.82.0...2.82.1) (2026-09-02)
 
 
