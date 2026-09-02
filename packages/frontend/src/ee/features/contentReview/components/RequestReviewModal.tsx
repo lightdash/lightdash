@@ -84,7 +84,7 @@ const RequestReviewModal: FC<Props> = ({
             opened={opened}
             onClose={handleClose}
             icon={IconSend}
-            size="xl"
+            size="lg"
             actions={
                 <Button
                     type="submit"
@@ -101,15 +101,24 @@ const RequestReviewModal: FC<Props> = ({
         >
             <form id="request-review-form" onSubmit={handleSubmit}>
                 <LoadingOverlay visible={isLoadingSpaces} />
-                <Stack gap="md">
-                    <Text fz="sm">
-                        Pick the shared space this {typeLabel} belongs in. The
-                        people who can edit that space will review{' '}
-                        <Text component="span" fw={600}>
-                            "{contentName}"
-                        </Text>{' '}
-                        and move it there when they approve.
-                    </Text>
+                <Stack gap="lg">
+                    <Stack gap={4}>
+                        <Text fz="sm" fw={500}>
+                            Where does this {typeLabel} belong?
+                        </Text>
+                        <Text fz="sm" c="dimmed">
+                            The people who can edit the space you pick will
+                            review{' '}
+                            <Text component="span" fw={500} c="text">
+                                "{contentName}"
+                            </Text>{' '}
+                            and move it there when they approve.
+                        </Text>
+                    </Stack>
+                    <SimilarContentPanel
+                        projectUuid={projectUuid}
+                        items={similarContent}
+                    />
                     <SpaceSelector
                         projectUuid={projectUuid}
                         selectedSpaceUuid={form.values.targetSpaceUuid}
@@ -123,10 +132,7 @@ const RequestReviewModal: FC<Props> = ({
                         onSelectSpace={(spaceUuid) =>
                             form.setFieldValue('targetSpaceUuid', spaceUuid)
                         }
-                    />
-                    <SimilarContentPanel
-                        projectUuid={projectUuid}
-                        items={similarContent}
+                        treeHeight={240}
                     />
                     <Textarea
                         label="Note for reviewers"

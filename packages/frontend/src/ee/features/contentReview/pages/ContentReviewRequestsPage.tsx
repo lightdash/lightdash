@@ -2,21 +2,20 @@ import { subject } from '@casl/ability';
 import {
     ContentReviewRequestStatus,
     ContentReviewRequestView,
-    ContentType,
     getContentReviewRequestPath,
-    getContentReviewRequestsPath,
     type ContentReviewRequestListItem,
 } from '@lightdash/common';
 import {
     Anchor,
-    Badge,
+    Button,
     Group,
     SegmentedControl,
     Select,
     Stack,
     Text,
+    Title,
 } from '@mantine/core';
-import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
+import { IconFolder, IconInbox, IconSettings } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
@@ -26,14 +25,20 @@ import {
 } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import Page from '../../../../components/common/Page/Page';
-import PageBreadcrumbs from '../../../../components/common/PageBreadcrumbs';
+import { IconBox } from '../../../../components/common/ResourceIcon';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import useApp from '../../../../providers/App/useApp';
 import ContentReviewStatusBadge from '../components/ContentReviewStatusBadge';
+import ContentReviewUserChip from '../components/ContentReviewUserChip';
 import { useContentReviewAvailability } from '../hooks/useContentReviewAvailability';
 import { useContentReviewRequests } from '../hooks/useContentReviewRequests';
-import { getContentHref, getContentTypeLabel } from '../utils';
+import {
+    getContentHref,
+    getContentTypeColor,
+    getContentTypeIcon,
+    getContentTypeLabel,
+} from '../utils';
 
 const PAGE_SIZE = 200;
 
@@ -51,7 +56,7 @@ const STATUS_OPTIONS: {
 const RequestedAgo: FC<{ createdAt: Date }> = ({ createdAt }) => {
     const ago = useTimeAgo(new Date(createdAt));
     return (
-        <Text fz="sm" c="ldGray.7">
+        <Text fz="sm" c="dimmed">
             {ago}
         </Text>
     );
@@ -99,59 +104,44 @@ const ContentReviewRequestsPage: FC = () => {
                     accessorKey: 'content',
                     header: 'Content',
                     enableSorting: false,
-                    size: 260,
+                    size: 320,
                     Cell: ({ row }) => {
                         const { content, contentType } = row.original;
-                        if (!content || !projectUuid) {
-                            return (
-                                <Text fz="sm" c="ldGray.6" fs="italic">
-                                    Deleted content
-                                </Text>
-                            );
-                        }
                         return (
-                            <Anchor
-                                component={Link}
-                                to={getContentHref(
-                                    projectUuid,
-                                    contentType,
-                                    content,
-                                )}
-                                fz="sm"
-                                fw={500}
-                                truncate="end"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {content.name}
-                            </Anchor>
-                        );
-                    },
-                },
-                {
-                    accessorKey: 'contentType',
-                    header: 'Type',
-                    enableSorting: false,
-                    size: 120,
-                    Cell: ({ row }) => {
-                        const isChart =
-                            row.original.contentType === ContentType.CHART;
-                        return (
-                            <Badge
-                                variant="light"
-                                color={isChart ? 'blue' : 'violet'}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={
-                                            isChart
-                                                ? IconChartBar
-                                                : IconLayoutDashboard
-                                        }
-                                        size="sm"
-                                    />
-                                }
-                            >
-                                {getContentTypeLabel(row.original.contentType)}
-                            </Badge>
+                            <Group gap="sm" wrap="nowrap">
+                                <IconBox
+                                    icon={getContentTypeIcon(contentType)}
+                                    color={getContentTypeColor(contentType)}
+                                    boxSize={28}
+                                    size="md"
+                                />
+                                <Stack gap={0} miw={0}>
+                                    {content && projectUuid ? (
+                                        <Anchor
+                                            component={Link}
+                                            to={getContentHref(
+                                                projectUuid,
+                                                contentType,
+                                                content,
+                                            )}
+                                            fz="sm"
+                                            fw={500}
+                                            c="text"
+                                            truncate="end"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            {content.name}
+                                        </Anchor>
+                                    ) : (
+                                        <Text fz="sm" c="dimmed" fs="italic">
+                                            Deleted content
+                                        </Text>
+                                    )}
+                                    <Text fz="xs" c="dimmed">
+                                        {getContentTypeLabel(contentType)}
+                                    </Text>
+                                </Stack>
+                            </Group>
                         );
                     },
                 },
@@ -159,23 +149,26 @@ const ContentReviewRequestsPage: FC = () => {
                     accessorKey: 'requestedBy',
                     header: 'Requested by',
                     enableSorting: false,
-                    size: 160,
+                    size: 180,
                     Cell: ({ row }) => (
-                        <Text fz="sm" c="ldGray.7">
-                            {row.original.requestedBy.firstName}{' '}
-                            {row.original.requestedBy.lastName}
-                        </Text>
+                        <ContentReviewUserChip
+                            user={row.original.requestedBy}
+                        />
                     ),
                 },
                 {
                     accessorKey: 'targetSpaceName',
-                    header: 'Target space',
+                    header: 'Moving to',
                     enableSorting: false,
-                    size: 160,
+                    size: 180,
                     Cell: ({ row }) => (
-                        <Text fz="sm" c="ldGray.7">
-                            {row.original.targetSpaceName ?? 'Deleted space'}
-                        </Text>
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon icon={IconFolder} color="dimmed" />
+                            <Text fz="sm" truncate="end">
+                                {row.original.targetSpaceName ??
+                                    'Deleted space'}
+                            </Text>
+                        </Group>
                     ),
                 },
                 {
@@ -214,7 +207,6 @@ const ContentReviewRequestsPage: FC = () => {
         state: { isLoading: isInitialLoading },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(items.length),
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => {
@@ -225,11 +217,19 @@ const ContentReviewRequestsPage: FC = () => {
             },
         }),
         renderEmptyRowsFallback: () => (
-            <Text fz="sm" c="ldGray.6" ta="center" py="xl">
-                {view === ContentReviewRequestView.TO_REVIEW
-                    ? 'Nothing waiting for your review'
-                    : 'You have not requested any reviews yet'}
-            </Text>
+            <Stack align="center" gap="xs" py="xl">
+                <MantineIcon icon={IconInbox} size="xl" color="dimmed" />
+                <Text fz="sm" fw={500}>
+                    {view === ContentReviewRequestView.TO_REVIEW
+                        ? 'Nothing waiting for your review'
+                        : 'You have not requested any reviews yet'}
+                </Text>
+                <Text fz="xs" c="dimmed" ta="center" maw={360}>
+                    {view === ContentReviewRequestView.TO_REVIEW
+                        ? 'Requests to move content into spaces you can edit will show up here.'
+                        : 'Open a chart or dashboard in your personal space and choose Request review.'}
+                </Text>
+            </Stack>
         ),
     });
 
@@ -244,16 +244,27 @@ const ContentReviewRequestsPage: FC = () => {
             withCenteredContent
             withXLargePaddedContent
         >
-            <Stack gap="md">
-                <PageBreadcrumbs
-                    items={[
-                        {
-                            title: 'Review requests',
-                            to: getContentReviewRequestsPath(projectUuid),
-                            active: true,
-                        },
-                    ]}
-                />
+            <Stack gap="lg">
+                <Group justify="space-between" align="flex-start">
+                    <Stack gap={4}>
+                        <Title order={3}>Review requests</Title>
+                        <Text fz="sm" c="dimmed">
+                            Charts and dashboards waiting to move from a
+                            personal space into a shared one.
+                        </Text>
+                    </Stack>
+                    {canManageSettings && (
+                        <Button
+                            component={Link}
+                            to={`/generalSettings/projectManagement/${projectUuid}/reviewRequests`}
+                            variant="default"
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconSettings} />}
+                        >
+                            Review settings
+                        </Button>
+                    )}
+                </Group>
                 <Group justify="space-between">
                     <SegmentedControl
                         value={view}
@@ -277,31 +288,19 @@ const ContentReviewRequestsPage: FC = () => {
                             },
                         ]}
                     />
-                    <Group gap="sm">
-                        {canManageSettings && (
-                            <Anchor
-                                component={Link}
-                                to={`/generalSettings/projectManagement/${projectUuid}/reviewRequests`}
-                                fz="sm"
-                            >
-                                Review settings
-                            </Anchor>
-                        )}
-                        <Select
-                            size="xs"
-                            w={160}
-                            value={status}
-                            onChange={(value) =>
-                                setStatus(
-                                    (value as
-                                        | ContentReviewRequestStatus
-                                        | 'all') ?? 'all',
-                                )
-                            }
-                            data={STATUS_OPTIONS}
-                            allowDeselect={false}
-                        />
-                    </Group>
+                    <Select
+                        size="xs"
+                        w={160}
+                        value={status}
+                        onChange={(value) =>
+                            setStatus(
+                                (value as ContentReviewRequestStatus | 'all') ??
+                                    'all',
+                            )
+                        }
+                        data={STATUS_OPTIONS}
+                        allowDeselect={false}
+                    />
                 </Group>
                 <ContentTable table={table} />
             </Stack>

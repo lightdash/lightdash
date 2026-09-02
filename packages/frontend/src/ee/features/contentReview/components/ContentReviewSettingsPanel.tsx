@@ -11,10 +11,13 @@ import {
     Stack,
     Switch,
     Text,
+    Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { IconArrowUpRight } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { SettingsGridCard } from '../../../../components/common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
@@ -47,11 +50,22 @@ const SettingsForm: FC<{
 
     const groupOptions = useMemo(
         () => [
-            { value: SPACE_EDITORS, label: 'Editors of the target space' },
-            ...groups.map((group) => ({
-                value: group.uuid,
-                label: group.name,
-            })),
+            {
+                group: 'Default',
+                items: [
+                    {
+                        value: SPACE_EDITORS,
+                        label: 'Editors of the target space',
+                    },
+                ],
+            },
+            {
+                group: 'Organization groups',
+                items: groups.map((group) => ({
+                    value: group.uuid,
+                    label: group.name,
+                })),
+            },
         ],
         [groups],
     );
@@ -69,10 +83,10 @@ const SettingsForm: FC<{
                 });
             })}
         >
-            <Stack gap="md">
+            <Stack gap="lg">
                 <Select
                     label="Who reviews requests"
-                    description="Requests go to these people. They must also be able to edit the target space."
+                    description="A group needs access to this project, and its members must be able to edit the target space."
                     data={groupOptions}
                     rightSection={isLoadingGroups ? <Loader size="xs" /> : null}
                     allowDeselect={false}
@@ -80,7 +94,7 @@ const SettingsForm: FC<{
                 />
                 <Switch
                     label="Verify content when approving"
-                    description="Reviewers can still untick it per request"
+                    description="Ticked by default on every request. Reviewers can still untick it."
                     {...form.getInputProps('verifyOnApproveDefault', {
                         type: 'checkbox',
                     })}
@@ -95,19 +109,33 @@ const SettingsForm: FC<{
                         }
                     />
                 ) : (
-                    <Text fz="xs" c="ldGray.6">
-                        Connect Slack in organization settings to post new
-                        requests to a channel.
-                    </Text>
+                    <Stack gap={2}>
+                        <Text fz="sm" fw={500}>
+                            Slack channel for new requests
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            <Anchor
+                                component={Link}
+                                to="/generalSettings/integrations"
+                                fz="xs"
+                            >
+                                Connect Slack
+                            </Anchor>{' '}
+                            to post new requests to a channel and send decisions
+                            as direct messages.
+                        </Text>
+                    </Stack>
                 )}
                 <Group justify="space-between">
-                    <Anchor
+                    <Button
                         component={Link}
                         to={getContentReviewRequestsPath(projectUuid)}
-                        fz="sm"
+                        variant="subtle"
+                        size="xs"
+                        rightSection={<MantineIcon icon={IconArrowUpRight} />}
                     >
                         Open the review queue
-                    </Anchor>
+                    </Button>
                     <Button
                         type="submit"
                         loading={isSaving}
@@ -131,8 +159,8 @@ const ContentReviewSettingsPanel: FC<{ projectUuid: string }> = ({
     return (
         <SettingsGridCard>
             <Stack gap="xs">
-                <Text fw={600}>Review requests</Text>
-                <Text c="ldGray.6" fz="xs">
+                <Title order={5}>Review requests</Title>
+                <Text c="dimmed" fz="xs">
                     People submit charts and dashboards from their personal
                     space. Approving moves the content to the shared space they
                     picked.

@@ -30,6 +30,7 @@ type SpaceSelectorProps = {
     itemType: ResourceViewItemType | undefined;
     onSelectSpace: (spaceUuid: string | null) => void;
     isRootSelectionEnabled?: boolean;
+    treeHeight?: number;
 };
 
 const SpaceSelector = ({
@@ -40,6 +41,7 @@ const SpaceSelector = ({
     onSelectSpace,
     children,
     isRootSelectionEnabled,
+    treeHeight = 400,
 }: React.PropsWithChildren<SpaceSelectorProps>) => {
     const { user } = useApp();
 
@@ -113,7 +115,7 @@ const SpaceSelector = ({
                 placeholder="Search spaces"
             />
 
-            <Paper w="100%" h={400} className={styles.treeContainer}>
+            <Paper w="100%" h={treeHeight} className={styles.treeContainer}>
                 <Tree
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
