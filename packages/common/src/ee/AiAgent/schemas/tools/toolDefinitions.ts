@@ -21,6 +21,7 @@ import {
     type ToolDefinitionInstance,
     type ToolDefinitionWithMcpOutput,
     type ToolDefinitionWithoutMcpOutput,
+    type ToolDescriptionContext,
 } from '../defineTool';
 import {
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
@@ -560,7 +561,12 @@ export const generateVisualizationToolDefinition: ToolDefinitionWithoutMcpOutput
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 
-const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = `${TOOL_RUN_QUERY_DESCRIPTION}\nFilter expression syntax:\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = (
+    context: ToolDescriptionContext,
+): string =>
+    `${TOOL_RUN_QUERY_DESCRIPTION(
+        context,
+    )}\nFilter expression syntax:\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
 
 export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateVisualization',
@@ -585,7 +591,7 @@ export const runQueryToolDefinition: ToolDefinitionWithMcpOutput<
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
     name: 'runQuery',
-    title: 'Run query',
+    title: 'Run metric query',
     description: TOOL_RUN_QUERY_DESCRIPTION,
     availability: ['agent', 'mcp'],
     // MCP contract: formula-only table calcs (template calls fail at the
@@ -610,7 +616,7 @@ export const runQueryFilterExpressionToolDefinition: ToolDefinitionWithMcpOutput
     typeof mcpRunMetricQueryStructuredOutputSchema
 > = defineTool({
     name: 'runQuery',
-    title: 'Run query',
+    title: 'Run metric query',
     description: TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION,
     availability: ['agent', 'mcp'],
     // Match the legacy MCP boundary: formula-only table calculations and

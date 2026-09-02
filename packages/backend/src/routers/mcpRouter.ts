@@ -23,6 +23,7 @@ import {
     ExtraContext,
     isProjectScopedMcpTool,
     McpService,
+    type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
@@ -154,18 +155,26 @@ function extractProtocolVersionFromHeader(
 }
 
 /**
- * Only single-message bodies are inspected: an initialize inside a JSON-RPC
- * batch array is missed (batching was removed in protocol 2025-06-18, so this
- * only affects older clients).
+ * Only single-message bodies are inspected: a method inside a JSON-RPC batch
+ * array is missed (batching was removed in protocol 2025-06-18, so this only
+ * affects older clients).
  */
-function isInitializeRequest(req: express.Request): boolean {
+function getJsonRpcMethod(req: express.Request): string | undefined {
     const { body }: { body: unknown } = req;
-    return (
-        typeof body === 'object' &&
+    return typeof body === 'object' &&
         body !== null &&
         'method' in body &&
-        body.method === 'initialize'
-    );
+        typeof body.method === 'string'
+        ? body.method
+        : undefined;
+}
+
+function isInitializeRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'initialize';
+}
+
+function isToolsListRequest(req: express.Request): boolean {
+    return getJsonRpcMethod(req) === 'tools/list';
 }
 
 const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
@@ -387,7 +396,7 @@ mcpRouter.all(
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
-                const mcpServer = await mcpService.createServer({
+                const toolOptions: McpServerToolOptions = {
                     projectPinned: pinnedProjectUuid !== undefined,
                     // The run_ai_writeback tool is always registered now that
                     // AI writeback has graduated from its dark-launch flag.
@@ -397,7 +406,8 @@ mcpRouter.all(
                     runSqlEnabled,
                     runMetricQueryEnabled,
                     filterExpressionsEnabled,
-                });
+                };
+                const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
                     sessionIdGenerator: undefined,
@@ -475,7 +485,16 @@ mcpRouter.all(
                     };
                 }
 
-                return await transport.handleRequest(authReq, res, req.body);
+                const startedAt = Date.now();
+                await transport.handleRequest(authReq, res, req.body);
+                if (authReq.auth && isToolsListRequest(req)) {
+                    mcpService.recordToolList({
+                        catalogue: toolOptions,
+                        authInfo: authReq.auth,
+                        durationMs: Date.now() - startedAt,
+                    });
+                }
+                return undefined;
             }
 
             res.status(405).json({ error: 'Method not allowed' });
