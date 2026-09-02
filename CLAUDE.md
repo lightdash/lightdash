@@ -141,6 +141,23 @@ pnpm generate:chart-as-code-schema
 pnpm check:chart-as-code-schema
 ```
 
+**MCP Tool Snapshot:**
+
+The committed `packages/common/src/schemas/json/mcp-tools-1.0.json` snapshot
+represents the stable/default MCP tool surface used by release-safety checks.
+Run the generator and commit the snapshot whenever a change affects an MCP
+tool's membership, name, title, description, annotations, input schema, or
+output schema, including changes to imported schemas:
+
+```bash
+pnpm generate:mcp-tools-snapshot
+```
+
+Do not regenerate it solely for a temporary runtime-selected rollout variant.
+Regenerate it when that variant becomes the default contract. If unsure whether
+a change affects the snapshot, run `pnpm check:mcp-tools-snapshot`. Running
+`pnpm generate-api` also regenerates the MCP tool snapshot through its post-hook.
+
 **Database Migrations:**
 
 ```bash
