@@ -239,3 +239,59 @@ export const parseDataAppTemplateManifest = (
         questions: parseQuestions(manifest.questions),
     };
 };
+
+export const MAX_DATA_APP_TEMPLATE_GUARDRAILS_CHARS = 20_000;
+
+/** Save-as-template from the UI: the app to package plus the manifest fields the modal collects. */
+export type SaveAppAsTemplateRequest = {
+    projectUuid: string;
+    appUuid: string;
+    template: DataAppTemplateManifest['template'];
+    questions?: TemplateQuestion[];
+    /** Optional guidance for the agent; becomes the package's AGENTS.md. */
+    guardrails?: string;
+};
+
+/**
+ * The manifest to write when an app is saved as a template. An app built
+ * from a template already carries a manifest whose bindings, parameters,
+ * labels and theme must survive; the request owns the identity block and
+ * the questions. Anything else in the existing manifest is kept as is.
+ */
+export const buildDataAppTemplateManifest = ({
+    existing,
+    template,
+    questions,
+}: {
+    existing: string | undefined;
+    template: DataAppTemplateManifest['template'];
+    questions: TemplateQuestion[];
+}): string => {
+    let base: Record<string, unknown> = {};
+    if (existing !== undefined) {
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(existing);
+        } catch {
+            throw new DataAppTemplatePackageError(
+                `The app's ${DATA_APP_TEMPLATE_MANIFEST_PATH} is not valid JSON`,
+            );
+        }
+        if (
+            parsed === null ||
+            typeof parsed !== 'object' ||
+            Array.isArray(parsed)
+        ) {
+            throw new DataAppTemplatePackageError(
+                `The app's ${DATA_APP_TEMPLATE_MANIFEST_PATH} must be a JSON object`,
+            );
+        }
+        base = parsed as Record<string, unknown>;
+    }
+    const { templateVersion: _v, template: _t, questions: _q, ...rest } = base;
+    return `${JSON.stringify(
+        { templateVersion: 1, template, questions, ...rest },
+        null,
+        2,
+    )}\n`;
+};

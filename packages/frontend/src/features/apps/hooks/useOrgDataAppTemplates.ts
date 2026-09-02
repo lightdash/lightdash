@@ -6,7 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const ORG_DATA_APP_TEMPLATES_QUERY_KEY = 'org_data_app_templates';
+export const ORG_DATA_APP_TEMPLATES_QUERY_KEY = 'org_data_app_templates';
 
 const listOrgDataAppTemplatesApi = async () =>
     lightdashApi<ApiDataAppTemplatesResponse['results']>({

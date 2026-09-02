@@ -8,14 +8,17 @@ import {
     DATA_APP_TEMPLATE_PACKAGE_CONTENT_TYPE,
     MAX_DATA_APP_TEMPLATE_PACKAGE_BYTES,
     ParameterError,
+    SaveAppAsTemplateRequest,
 } from '@lightdash/common';
 import {
+    Body,
     Delete,
     Get,
     Hidden,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Put,
     Request,
     Response,
@@ -23,12 +26,14 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import { DataAppTemplateService } from '../services/DataAppTemplateService/DataAppTemplateService';
 
 /**
@@ -106,6 +111,43 @@ export class DataAppTemplateController extends BaseController {
             results: await this.getDataAppTemplateService().importPackage(
                 req.account,
                 { body: req, contentLength },
+            ),
+        };
+    }
+
+    /**
+     * Save a built data app as an organization template: its current source
+     * becomes the package, with the manifest identity and questions from the
+     * request. Needs view access to the app and create:DataAppTemplate.
+     * @summary Save app as data app template
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/from-app')
+    @OperationId('SaveAppAsDataAppTemplate')
+    async saveAppAsTemplate(
+        @Request() req: express.Request,
+        @Body() body: SaveAppAsTemplateRequest,
+    ): Promise<ApiDataAppTemplateImportResponse> {
+        assertRegisteredAccount(req.account);
+        const code = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getAppCode(
+                toSessionUser(req.account),
+                body.projectUuid,
+                body.appUuid,
+            );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getDataAppTemplateService().importFromApp(
+                req.account,
+                body,
+                code.files,
             ),
         };
     }
