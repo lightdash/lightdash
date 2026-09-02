@@ -37,7 +37,6 @@ export const getGoogleGeminiModel = (
 ): AiModel<typeof PROVIDER> => {
     const google = createGoogleGenerativeAI({
         apiKey: config.apiKey,
-        headers: config.customHeaders,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),
     });
     const reasoningEnabled =

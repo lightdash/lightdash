@@ -1358,9 +1358,6 @@ export const getAiConfig = () => ({
                   availableModels: getArrayFromCommaSeparatedList(
                       'GEMINI_AVAILABLE_MODELS',
                   ),
-                  customHeaders: getProviderCustomHeaders(
-                      'GEMINI_CUSTOM_HEADERS',
-                  ),
                   supportsStreaming: getProviderSupportsStreaming(
                       'GEMINI_SUPPORTS_STREAMING',
                   ),

@@ -96,7 +96,6 @@ export const aiCopilotConfigSchema = z
                     modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
-                    customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),

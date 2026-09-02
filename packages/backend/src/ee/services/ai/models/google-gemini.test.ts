@@ -69,7 +69,6 @@ describe('getGoogleGeminiModel', () => {
                 modelName: preset.name,
                 baseUrl: 'https://gateway.example/google/v1beta',
                 availableModels: [],
-                customHeaders: { 'x-gateway-tenant': 'lightdash' },
                 supportsStreaming: true,
             },
             preset,
@@ -78,7 +77,6 @@ describe('getGoogleGeminiModel', () => {
         expect(createGoogleGenerativeAI).toHaveBeenCalledWith({
             apiKey: 'fake-gemini-key',
             baseURL: 'https://gateway.example/google/v1beta',
-            headers: { 'x-gateway-tenant': 'lightdash' },
         });
         expect(mockGoogleInteractions).toHaveBeenCalledWith('gemini-3.8-flash');
     });
@@ -89,7 +87,6 @@ describe('getGoogleGeminiModel', () => {
                 apiKey: 'fake-gemini-key',
                 modelName: preset.name,
                 availableModels: [],
-                customHeaders: {},
                 supportsStreaming: true,
             },
             preset,
@@ -100,7 +97,6 @@ describe('getGoogleGeminiModel', () => {
                 apiKey: 'fake-gemini-key',
                 modelName: preset.name,
                 availableModels: [],
-                customHeaders: {},
                 supportsStreaming: true,
             },
             preset,

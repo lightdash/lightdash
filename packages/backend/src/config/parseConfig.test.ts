@@ -820,7 +820,6 @@ test('Should configure Gemini only when an explicit API key is set', () => {
         modelName: 'gemini-3.5-flash-lite',
         baseUrl: undefined,
         availableModels: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
-        customHeaders: {},
         supportsStreaming: true,
     });
 });
@@ -1098,8 +1097,6 @@ test('Should parse AI provider custom headers from env', () => {
         '{"x-lightdash-llm-provider":"openai","x-gateway-route":"responses-api"}';
     process.env.ANTHROPIC_CUSTOM_HEADERS =
         '{"x-lightdash-llm-provider":"anthropic","x-gateway-route":"messages-api"}';
-    process.env.GEMINI_CUSTOM_HEADERS =
-        '{"x-lightdash-llm-provider":"google","x-gateway-route":"interactions-api"}';
     process.env.OPENROUTER_CUSTOM_HEADERS =
         '{"x-lightdash-llm-provider":"openrouter","x-gateway-route":"router-api"}';
     process.env.AZURE_AI_CUSTOM_HEADERS =
@@ -1118,12 +1115,6 @@ test('Should parse AI provider custom headers from env', () => {
             customHeaders: {
                 'x-lightdash-llm-provider': 'anthropic',
                 'x-gateway-route': 'messages-api',
-            },
-        },
-        google: {
-            customHeaders: {
-                'x-lightdash-llm-provider': 'google',
-                'x-gateway-route': 'interactions-api',
             },
         },
         openrouter: {

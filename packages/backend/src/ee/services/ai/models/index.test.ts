@@ -438,7 +438,6 @@ describe('Google Gemini models', () => {
                 apiKey: 'fake-gemini-key',
                 modelName: 'gemini-3.8-flash',
                 availableModels: undefined,
-                customHeaders: {},
                 supportsStreaming: true,
             },
         },
@@ -942,7 +941,6 @@ describe('getFastModelForAccessibleKey', () => {
                     google: {
                         apiKey: 'fake-gemini-key',
                         modelName: 'gemini-3.8-flash',
-                        customHeaders: {},
                         supportsStreaming: true,
                     },
                 },
