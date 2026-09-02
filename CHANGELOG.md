@@ -1,3 +1,10 @@
+## [2.101.2](https://github.com/lightdash/lightdash/compare/2.101.1...2.101.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **query-history:** correct cache-hit totals, trigger counts and metric-card trigger ([#28550](https://github.com/lightdash/lightdash/issues/28550)) ([c95c8de](https://github.com/lightdash/lightdash/commit/c95c8dee3cff274febd34f7fa7bb82c4ea6403ae))
+
 ## [2.101.1](https://github.com/lightdash/lightdash/compare/2.101.0...2.101.1) (2026-09-02)
 
 
