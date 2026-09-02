@@ -8,6 +8,10 @@
         "mcp-run-metric-query-formula-only-table-calcs": {
             "reason": "The MCP run_metric_query tool no longer accepts template table calculations (running_total, percent_of_previous_value, etc.) in queryConfig.tableCalculations; only formula table calculations are accepted. MCP clients that send template-shaped payloads (scripted callers or agents replaying stored arguments) get an input validation error after upgrading and must switch to equivalent formulas. Agent-generated payloads self-correct because clients re-read the advertised schema.",
             "requiredStop": false
+        },
+        "coding-agent-onboarding-feature-flag-removed": {
+            "reason": "The graduated CodingAgentOnboarding member is removed from the public FeatureFlags enum. Downstream TypeScript consumers that still reference this rollout-only member must remove that reference and use CodingAgent for coding-agent availability checks.",
+            "requiredStop": false
         }
     }
 }

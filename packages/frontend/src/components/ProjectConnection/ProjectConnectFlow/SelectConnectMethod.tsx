@@ -21,14 +21,14 @@ import { ConnectMethod } from './types';
 
 interface SelectConnectMethodProps {
     isCreatingFirstProject: boolean;
-    isCodingAgentOnboardingEnabled: boolean;
+    isCodingAgentEnabled: boolean;
     onBack: () => void;
     onSelect: (method: ConnectMethod) => void;
 }
 
 const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
     isCreatingFirstProject,
-    isCodingAgentOnboardingEnabled,
+    isCodingAgentEnabled,
     onSelect,
     onBack,
 }) => {
@@ -66,7 +66,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     </Text>
 
                     <Stack>
-                        {isCodingAgentOnboardingEnabled && (
+                        {isCodingAgentEnabled && (
                             <OnboardingButton
                                 onClick={() => {
                                     track({

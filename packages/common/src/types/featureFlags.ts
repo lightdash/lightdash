@@ -224,12 +224,6 @@ export enum FeatureFlags {
     CodingAgent = 'ai-coding-agent',
 
     /**
-     * Show the coding-agent project onboarding flow. This gates only the UI;
-     * the CLI, APIs, and installed skills remain available independently.
-     */
-    CodingAgentOnboarding = 'coding-agent-onboarding',
-
-    /**
      * Allow storing long-lived GitHub personal access tokens as GitHub MCP
      * credentials (guided connect flow and generic bearer endpoints targeting
      * the hosted GitHub MCP URL). Off by default — orgs should authenticate

@@ -16,12 +16,10 @@ const AgentOnboardingStartPage: FC = () => {
     const { health } = useApp();
     const { data: project, isInitialLoading: isLoadingProject } =
         useProject(projectUuid);
-    const codingAgentOnboardingFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
+    const codingAgentFlag = useServerFeatureFlag(FeatureFlags.CodingAgent);
 
     if (
-        codingAgentOnboardingFlag.isInitialLoading ||
+        codingAgentFlag.isInitialLoading ||
         isLoadingProject ||
         health.isInitialLoading
     ) {
@@ -29,7 +27,7 @@ const AgentOnboardingStartPage: FC = () => {
     }
 
     if (
-        codingAgentOnboardingFlag.data?.enabled !== true ||
+        codingAgentFlag.data?.enabled !== true ||
         !project ||
         !project.warehouseConnection ||
         !health.data

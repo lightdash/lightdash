@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
@@ -5,7 +6,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import AgentOnboardingStartPage from './AgentOnboardingStartPage';
 
 const state = vi.hoisted(() => ({
-    isFlagEnabled: true,
+    isCodingAgentEntitled: true,
     project: {
         projectUuid: 'project-uuid',
         warehouseConnection: { type: 'postgres' },
@@ -17,8 +18,12 @@ vi.mock('../../../hooks/useProject', () => ({
 }));
 
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: state.isFlagEnabled },
+    useServerFeatureFlag: (featureFlag: FeatureFlags) => ({
+        data: {
+            enabled:
+                featureFlag === FeatureFlags.CodingAgent &&
+                state.isCodingAgentEntitled,
+        },
         isInitialLoading: false,
     }),
 }));
@@ -73,7 +78,7 @@ const renderPage = () =>
 
 describe('AgentOnboardingStartPage', () => {
     beforeEach(() => {
-        state.isFlagEnabled = true;
+        state.isCodingAgentEntitled = true;
         state.project = {
             projectUuid: 'project-uuid',
             warehouseConnection: { type: 'postgres' },
@@ -89,8 +94,8 @@ describe('AgentOnboardingStartPage', () => {
         expect(screen.getByText('Run it for me')).toBeInTheDocument();
     });
 
-    it('redirects to project settings when the flag is disabled', () => {
-        state.isFlagEnabled = false;
+    it('redirects to project settings without coding-agent entitlement', () => {
+        state.isCodingAgentEntitled = false;
 
         renderPage();
 

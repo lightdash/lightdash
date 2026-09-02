@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    type CodingAgentOnboardingEnablement,
     type HomepageBuilderEnablement,
     type LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
@@ -53,23 +52,6 @@ export const provisionOnboardingOrgFlags = async ({
         homepageBuilderEnablement = 'failed';
     }
 
-    let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
-    try {
-        codingAgentOnboardingEnablement =
-            await featureFlagService.ensureOrganizationOverrideEnabled({
-                user,
-                featureFlagId: FeatureFlags.CodingAgentOnboarding,
-            });
-    } catch (error) {
-        Sentry.captureException(error);
-        Logger.error(
-            `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
-                error instanceof Error ? error.message : String(error)
-            }`,
-        );
-        codingAgentOnboardingEnablement = 'failed';
-    }
-
     analytics.track({
         event: 'onboarding_org_flags.provisioned',
         userId: user.userUuid,
@@ -77,7 +59,6 @@ export const provisionOnboardingOrgFlags = async ({
             organizationId: organizationUuid,
             onboardingFlow: 'new',
             homepageBuilderEnablement,
-            codingAgentOnboardingEnablement,
         },
     });
 };

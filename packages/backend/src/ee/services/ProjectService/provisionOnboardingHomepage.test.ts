@@ -11,7 +11,6 @@ import {
     type ProjectHomepage,
     type SessionUser,
 } from '@lightdash/common';
-import Logger from '../../../logging/logger';
 import {
     provisionOnboardingHomepage,
     type ProvisionOnboardingHomepageArguments,
@@ -167,16 +166,11 @@ describe('provisionOnboardingHomepage', () => {
 
         await provisionOnboardingHomepage(mocks.args);
 
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledTimes(
-            2,
-        );
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
+        expect(
+            mocks.ensureOrganizationOverrideEnabled,
+        ).toHaveBeenCalledExactlyOnceWith({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
-            user,
-            featureFlagId: FeatureFlags.CodingAgentOnboarding,
         });
         expect(mocks.listHomepages).not.toHaveBeenCalled();
         expect(mocks.createHomepage).not.toHaveBeenCalled();
@@ -189,7 +183,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'kept_disabled',
-                codingAgentOnboardingEnablement: 'kept_disabled',
                 reason: 'homepage_builder_flag_disabled',
             },
         });
@@ -217,7 +210,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'failed',
-                codingAgentOnboardingEnablement: 'failed',
                 reason: 'homepage_builder_flag_disabled',
             },
         });
@@ -245,7 +237,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'legacy',
                 homepageBuilderEnablement: null,
-                codingAgentOnboardingEnablement: null,
                 reason: 'new_onboarding_flag_disabled',
             },
         });
@@ -267,7 +258,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
                 reason: 'homepage_already_exists',
             },
         });
@@ -294,7 +284,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: null,
-                codingAgentOnboardingEnablement: null,
                 reason: 'not_first_project',
             },
         });
@@ -330,7 +319,6 @@ describe('provisionOnboardingHomepage', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
             },
         });
     });
@@ -367,7 +355,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
                 errorType: 'Error',
             },
         });
@@ -389,7 +376,6 @@ describe('provisionOnboardingHomepage', () => {
                 projectId: PROJECT_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
                 errorType: 'Error',
             },
         });
@@ -404,16 +390,11 @@ describe('provisionOnboardingHomepage', () => {
             user,
             featureFlagId: FeatureFlags.NewOnboarding,
         });
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledTimes(
-            2,
-        );
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
+        expect(
+            mocks.ensureOrganizationOverrideEnabled,
+        ).toHaveBeenCalledExactlyOnceWith({
             user,
             featureFlagId: CommercialFeatureFlags.HomepageBuilder,
-        });
-        expect(mocks.ensureOrganizationOverrideEnabled).toHaveBeenCalledWith({
-            user,
-            featureFlagId: FeatureFlags.CodingAgentOnboarding,
         });
         expect(mocks.getFeatureFlag).toHaveBeenCalledWith({
             user,
@@ -441,7 +422,6 @@ describe('provisionOnboardingHomepage', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'enabled',
             },
         });
     });
@@ -483,71 +463,6 @@ describe('provisionOnboardingHomepage', () => {
                 homepageUuid: HOMEPAGE_UUID,
                 onboardingFlow: 'new',
                 homepageBuilderEnablement: 'already_enabled',
-                codingAgentOnboardingEnablement: 'already_enabled',
-            },
-        });
-    });
-
-    it('provisions when coding agent onboarding enablement fails', async () => {
-        const errorSpy = vi
-            .spyOn(Logger, 'error')
-            .mockImplementation(() => Logger);
-        try {
-            const mocks = buildArguments();
-            mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-                async ({ featureFlagId }) => {
-                    if (featureFlagId === FeatureFlags.CodingAgentOnboarding) {
-                        throw new Error('Enable failed');
-                    }
-                    return 'enabled';
-                },
-            );
-
-            await provisionOnboardingHomepage(mocks.args);
-
-            expect(mocks.createHomepage).toHaveBeenCalled();
-            expect(mocks.publishHomepage).toHaveBeenCalled();
-            expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-                event: 'onboarding_homepage.provisioned',
-                userId: USER_UUID,
-                properties: {
-                    organizationId: ORGANIZATION_UUID,
-                    projectId: PROJECT_UUID,
-                    homepageUuid: HOMEPAGE_UUID,
-                    onboardingFlow: 'new',
-                    homepageBuilderEnablement: 'enabled',
-                    codingAgentOnboardingEnablement: 'failed',
-                },
-            });
-            expect(errorSpy).toHaveBeenCalled();
-        } finally {
-            errorSpy.mockRestore();
-        }
-    });
-
-    it('provisions when coding agent onboarding remains disabled', async () => {
-        const mocks = buildArguments();
-        mocks.ensureOrganizationOverrideEnabled.mockImplementation(
-            async ({ featureFlagId }) =>
-                featureFlagId === FeatureFlags.CodingAgentOnboarding
-                    ? 'kept_disabled'
-                    : 'enabled',
-        );
-
-        await provisionOnboardingHomepage(mocks.args);
-
-        expect(mocks.createHomepage).toHaveBeenCalled();
-        expect(mocks.publishHomepage).toHaveBeenCalled();
-        expect(mocks.track).toHaveBeenCalledExactlyOnceWith({
-            event: 'onboarding_homepage.provisioned',
-            userId: USER_UUID,
-            properties: {
-                organizationId: ORGANIZATION_UUID,
-                projectId: PROJECT_UUID,
-                homepageUuid: HOMEPAGE_UUID,
-                onboardingFlow: 'new',
-                homepageBuilderEnablement: 'enabled',
-                codingAgentOnboardingEnablement: 'kept_disabled',
             },
         });
     });

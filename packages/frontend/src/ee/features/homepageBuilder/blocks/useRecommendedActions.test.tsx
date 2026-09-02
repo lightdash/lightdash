@@ -404,7 +404,7 @@ describe('useRecommendedActions', () => {
             ).toStrictEqual('Resume');
         });
 
-        it('keeps the settings link when coding-agent onboarding is disabled', () => {
+        it('keeps the settings link without coding-agent entitlement', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 (flag) =>
                     settled({
@@ -427,7 +427,7 @@ describe('useRecommendedActions', () => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 (flag) =>
                     settled({
-                        enabled: flag === FeatureFlags.CodingAgentOnboarding,
+                        enabled: flag === FeatureFlags.CodingAgent,
                     }) as ReturnType<typeof useServerFeatureFlag>,
             );
 

@@ -7,7 +7,6 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    type CodingAgentOnboardingEnablement,
     type HomepageBuilderEnablement,
     type LightdashAnalytics,
     type OnboardingFlow,
@@ -58,8 +57,6 @@ export const provisionOnboardingHomepage = async ({
         ? 'new'
         : 'legacy';
     let homepageBuilderEnablement: HomepageBuilderEnablement | null = null;
-    let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null =
-        null;
     const trackSkipped = (reason: OnboardingHomepageSkippedReason) => {
         analytics.track({
             event: 'onboarding_homepage.skipped',
@@ -69,7 +66,6 @@ export const provisionOnboardingHomepage = async ({
                 projectId: projectUuid,
                 onboardingFlow,
                 homepageBuilderEnablement,
-                codingAgentOnboardingEnablement,
                 reason,
             },
         });
@@ -106,22 +102,6 @@ export const provisionOnboardingHomepage = async ({
                 }`,
             );
             homepageBuilderEnablement = 'failed';
-        }
-
-        try {
-            codingAgentOnboardingEnablement =
-                await featureFlagService.ensureOrganizationOverrideEnabled({
-                    user,
-                    featureFlagId: FeatureFlags.CodingAgentOnboarding,
-                });
-        } catch (error) {
-            Sentry.captureException(error);
-            Logger.error(
-                `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
-            );
-            codingAgentOnboardingEnablement = 'failed';
         }
 
         const homepageBuilderFlag = await featureFlagService.get({
@@ -167,7 +147,6 @@ export const provisionOnboardingHomepage = async ({
                 homepageUuid: homepage.homepageUuid,
                 onboardingFlow,
                 homepageBuilderEnablement,
-                codingAgentOnboardingEnablement,
             },
         });
     } catch (error) {
@@ -179,7 +158,6 @@ export const provisionOnboardingHomepage = async ({
                 projectId: projectUuid,
                 onboardingFlow,
                 homepageBuilderEnablement,
-                codingAgentOnboardingEnablement,
                 errorType: error instanceof Error ? error.name : 'Unknown',
             },
         });

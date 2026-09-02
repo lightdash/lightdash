@@ -378,6 +378,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userService: repository.getUserService(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    featureFlagService: repository.getFeatureFlagService(),
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({

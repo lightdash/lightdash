@@ -33,9 +33,7 @@ const CreateProject: FC = () => {
 
     const { method } = useParams<{ method: ConnectMethod }>();
     const projectUuid = useSearchParams('projectUuid');
-    const codingAgentOnboardingFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
+    const codingAgentFlag = useServerFeatureFlag(FeatureFlags.CodingAgent);
 
     const [warehouse, setWarehouse] = useState<SelectedWarehouse>();
 
@@ -44,15 +42,14 @@ const CreateProject: FC = () => {
         !health ||
         isLoadingOrganization ||
         !organization ||
-        codingAgentOnboardingFlag.isInitialLoading
+        codingAgentFlag.isInitialLoading
     ) {
         return <PageSpinner />;
     }
 
-    const isCodingAgentOnboardingEnabled =
-        codingAgentOnboardingFlag.data?.enabled === true;
+    const isCodingAgentEnabled = codingAgentFlag.data?.enabled === true;
 
-    if (method === ConnectMethod.AGENT && !isCodingAgentOnboardingEnabled) {
+    if (method === ConnectMethod.AGENT && !isCodingAgentEnabled) {
         return <Navigate to="/createProject" replace />;
     }
 
@@ -86,8 +83,8 @@ const CreateProject: FC = () => {
                                         isCreatingFirstProject={
                                             isCreatingFirstProject
                                         }
-                                        isCodingAgentOnboardingEnabled={
-                                            isCodingAgentOnboardingEnabled
+                                        isCodingAgentEnabled={
+                                            isCodingAgentEnabled
                                         }
                                         onSelect={(newMethod) => {
                                             void navigate(

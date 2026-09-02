@@ -225,13 +225,11 @@ const useActionStatuses = (
     const githubConfigQuery = useGithubConfig();
     const slackQuery = useGetSlack();
     const newOnboardingFlag = useServerFeatureFlag(FeatureFlags.NewOnboarding);
-    const codingAgentOnboardingFlag = useServerFeatureFlag(
-        FeatureFlags.CodingAgentOnboarding,
-    );
+    const codingAgentFlag = useServerFeatureFlag(FeatureFlags.CodingAgent);
     const areFlagsSettled =
-        newOnboardingFlag.isFetched && codingAgentOnboardingFlag.isFetched;
+        newOnboardingFlag.isFetched && codingAgentFlag.isFetched;
     const hasAgentSemanticLayerEntry =
-        isFlagOn(newOnboardingFlag) && isFlagOn(codingAgentOnboardingFlag);
+        isFlagOn(newOnboardingFlag) && isFlagOn(codingAgentFlag);
 
     const activeAgentRunQuery = useActiveAgentOnboardingRun(
         projectUuid ?? undefined,

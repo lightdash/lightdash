@@ -947,7 +947,6 @@ type OnboardingHomepageProvisionedEvent = BaseTrack & {
         homepageUuid: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
 
@@ -989,7 +988,6 @@ type OnboardingHomepageSkippedEvent = BaseTrack & {
         projectId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         reason: OnboardingHomepageSkippedReason;
     };
 };
@@ -1002,7 +1000,6 @@ type OnboardingHomepageFailedEvent = BaseTrack & {
         projectId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement | null;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
         errorType: string;
     };
 };
@@ -1014,15 +1011,10 @@ type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
         organizationId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
     };
 };
 
 export type HomepageBuilderEnablement =
-    | EnsureOrganizationOverrideOutcome
-    | 'failed';
-
-export type CodingAgentOnboardingEnablement =
     | EnsureOrganizationOverrideOutcome
     | 'failed';
 

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     getConnectionDefaults,
     getErrorMessage,
@@ -20,6 +21,7 @@ import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
+import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
 import { type PromptService } from '../../../services/PromptService/PromptService';
 import { type UserService } from '../../../services/UserService';
@@ -88,6 +90,7 @@ type Dependencies = {
     promptService: PromptService;
     userService: UserService;
     schedulerClient: CommercialSchedulerClient;
+    featureFlagService: Pick<FeatureFlagService, 'get'>;
     sandboxManager?: SandboxManager;
     fileStore?: OnboardingAgentFileStore;
 };
@@ -134,6 +137,8 @@ export class OnboardingAgentService extends BaseService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
+
     private readonly fileStore: OnboardingAgentFileStore;
 
     private sandboxManager: SandboxManager | undefined;
@@ -149,12 +154,25 @@ export class OnboardingAgentService extends BaseService {
         this.promptService = dependencies.promptService;
         this.userService = dependencies.userService;
         this.schedulerClient = dependencies.schedulerClient;
+        this.featureFlagService = dependencies.featureFlagService;
         this.fileStore =
             dependencies.fileStore ??
             new OnboardingAgentFileStore({
                 lightdashConfig: dependencies.lightdashConfig,
             });
         this.sandboxManager = dependencies.sandboxManager;
+    }
+
+    private async assertCodingAgentEnabled(user: SessionUser): Promise<void> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.CodingAgent,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Coding agent onboarding is not available',
+            );
+        }
     }
 
     private async assertCanViewProject(
@@ -199,6 +217,7 @@ export class OnboardingAgentService extends BaseService {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        await this.assertCodingAgentEnabled(args.user);
         const { organizationUuid } = await this.assertCanManageProject(
             args.user,
             args.projectUuid,
@@ -248,6 +267,7 @@ export class OnboardingAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<AgentOnboardingRun | null> {
+        await this.assertCodingAgentEnabled(user);
         await this.assertCanViewProject(user, projectUuid);
         const run =
             await this.agentOnboardingRunModel.findActiveRunForProject(
@@ -279,6 +299,7 @@ export class OnboardingAgentService extends BaseService {
         projectUuid: string,
         agentOnboardingRunUuid: string,
     ): Promise<DbAgentOnboardingRun> {
+        await this.assertCodingAgentEnabled(user);
         const run = await this.findOrganizationScopedRun(
             user,
             agentOnboardingRunUuid,
