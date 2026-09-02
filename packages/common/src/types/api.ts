@@ -222,6 +222,14 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import {
+    type ApiLearnAskResponse,
+    type ApiLearnBadgesResponse,
+    type ApiLearnCatalogueResponse,
+    type ApiLearnCourseResponse,
+    type ApiLearnEventsResponse,
+    type ApiLearnProgressResponse,
+} from './learn';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -1305,6 +1313,12 @@ type ApiResults =
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiLearnCatalogueResponse['results']
+    | ApiLearnCourseResponse['results']
+    | ApiLearnProgressResponse['results']
+    | ApiLearnEventsResponse['results']
+    | ApiLearnBadgesResponse['results']
+    | ApiLearnAskResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory
