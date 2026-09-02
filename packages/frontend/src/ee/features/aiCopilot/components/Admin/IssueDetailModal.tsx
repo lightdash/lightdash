@@ -1,4 +1,8 @@
-import { capitalize, type AiAgentReviewItemSummary } from '@lightdash/common';
+import {
+    capitalize,
+    getLinearIssueIdentifier,
+    type AiAgentReviewItemSummary,
+} from '@lightdash/common'; // pragma: allowlist secret
 import {
     Anchor,
     Box,
@@ -211,9 +215,7 @@ export const IssueDetailModal: FC<Props> = ({
                                 {targetAnchor && (
                                     <Tooltip
                                         label={targetAnchor}
-                                        withArrow
                                         openDelay={300}
-                                        multiline
                                         maw={340}
                                     >
                                         <Text className={styles.targetChip}>
@@ -410,6 +412,25 @@ export const IssueDetailModal: FC<Props> = ({
                                             <Text className={styles.railText}>
                                                 {seenValue}
                                             </Text>
+                                        </RailRow>
+                                    )}
+                                    {item.linkedIssueUrl && (
+                                        <RailRow label="Linear">
+                                            <Anchor
+                                                href={item.linkedIssueUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={styles.railLink}
+                                            >
+                                                <MantineIcon
+                                                    icon={IconExternalLink}
+                                                    size={14}
+                                                    stroke={1.4}
+                                                />
+                                                {getLinearIssueIdentifier(
+                                                    item.linkedIssueUrl,
+                                                ) ?? 'Open in Linear'}
+                                            </Anchor>
                                         </RailRow>
                                     )}
                                     {item.linkedPrUrl && (

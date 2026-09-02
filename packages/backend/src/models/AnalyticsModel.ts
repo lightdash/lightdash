@@ -162,11 +162,7 @@ export class AnalyticsModel {
         userUuid: string,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            // TODO add sql views table for tracking user views
-            /*  await trx(AnalyticsSqlChartViewsTableName).insert({
-                chart_uuid: chartUuid,
-                user_uuid: userUuid,
-            }); */
+            // TODO: persist per-user SQL chart views once a views table exists
             await trx(SavedSqlTableName)
                 .update({
                     views_count: trx.raw(
@@ -309,6 +305,7 @@ export class AnalyticsModel {
                 first_name: string;
                 last_name: string;
                 dashboard_uuid: string;
+                dashboard_slug: string;
                 dashboard_name: string;
                 count: number;
             }[];
@@ -346,6 +343,7 @@ export class AnalyticsModel {
                     lastName: row.last_name,
                     count: row.count,
                     dashboardUuid: row.dashboard_uuid,
+                    dashboardSlug: row.dashboard_slug,
                     dashboardName: row.dashboard_name,
                 }),
             ),

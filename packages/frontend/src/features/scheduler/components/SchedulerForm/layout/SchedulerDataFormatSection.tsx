@@ -124,7 +124,6 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                 <Group gap="xs" wrap="nowrap">
                     {isApp ? (
                         <SegmentedControl
-                            radius="md"
                             fullWidth
                             data={[
                                 {
@@ -171,7 +170,6 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         />
                     ) : (
                         <SegmentedControl
-                            radius="md"
                             fullWidth
                             data={[
                                 { label: '.csv', value: SchedulerFormat.CSV },
@@ -198,12 +196,12 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     )}
                 </Group>
                 {isApp && appQueryCountCaption && (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         {appQueryCountCaption}
                     </Text>
                 )}
                 {isImageDisabled && (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         You must enable the
                         <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
                             {' '}
@@ -271,7 +269,6 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     <Tooltip
                         label="You must have at least one email recipient to attach a file to emails"
                         position="top-start"
-                        withinPortal
                         disabled={(form.values.emailTargets?.length || 0) > 0}
                     >
                         <Box display="flex" w="fit-content">

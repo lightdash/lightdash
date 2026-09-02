@@ -31,6 +31,7 @@ import {
     mockMetricQuery,
     mockMetricQueryWithMultipleIndexColumns,
 } from './derivePivotConfigFromChart.mock';
+import { normalizeIndexColumns } from './utils';
 
 describe('derivePivotConfigurationFromChart', () => {
     describe('data app visualizations', () => {
@@ -1744,11 +1745,10 @@ describe('derivePivotConfigurationFromChart', () => {
         });
     });
 
-    describe('sort-only dimensions for Table charts', () => {
-        it('puts a hidden helper dimension in sortOnlyColumns instead of indexColumn', () => {
-            // orders_status is hidden (visible: false) but used for sort order.
-            // payments_payment_method is the pivot dimension (groupByColumn).
-            // Result: orders_status must appear in sortOnlyColumns, NOT in indexColumn.
+    describe('hidden row dimensions for Table charts', () => {
+        it('keeps a sorted hidden dimension in indexColumn', () => {
+            // Hidden row dimensions must remain structural index columns so
+            // records that differ only by the hidden value stay separate.
             const chartConfig = {
                 type: ChartType.TABLE,
                 config: {
@@ -1785,27 +1785,14 @@ describe('derivePivotConfigurationFromChart', () => {
 
             expect(result).toBeDefined();
 
-            // orders_status must NOT appear in indexColumn
-            let indexRefs: string[];
-            if (Array.isArray(result?.indexColumn)) {
-                indexRefs = result!.indexColumn.map((c) => c.reference);
-            } else if (result?.indexColumn) {
-                indexRefs = [result.indexColumn.reference];
-            } else {
-                indexRefs = [];
-            }
-            expect(indexRefs).not.toContain('orders_status');
-
-            // orders_status MUST appear in sortOnlyColumns
-            expect(result?.sortOnlyColumns).toEqual(
-                expect.arrayContaining([
-                    expect.objectContaining({ reference: 'orders_status' }),
-                ]),
+            const indexRefs = normalizeIndexColumns(result?.indexColumn).map(
+                (column) => column.reference,
             );
+            expect(indexRefs).toContain('orders_status');
+            expect(result?.sortOnlyColumns ?? []).toEqual([]);
         });
 
-        it('does not add a hidden dim to sortOnlyColumns when it is not in sorts', () => {
-            // If hidden but not in sorts, it should simply not appear anywhere.
+        it('keeps an unsorted hidden dimension in indexColumn', () => {
             const chartConfig = {
                 type: ChartType.TABLE,
                 config: {
@@ -1844,17 +1831,16 @@ describe('derivePivotConfigurationFromChart', () => {
             );
 
             expect(result).toBeDefined();
-            // sortOnlyColumns should be empty or undefined (no hidden sort dim)
+            const indexRefs = normalizeIndexColumns(result?.indexColumn).map(
+                (column) => column.reference,
+            );
+            expect(indexRefs).toContain('orders_status');
             expect(result?.sortOnlyColumns ?? []).toEqual([]);
         });
 
-        it('routes a hidden row dim with no sort entry to passthroughDimensions (PROD-7873)', () => {
-            // Hidden + not sorted row dim used to be dropped from the query
-            // entirely, breaking richText / image templates on visible fields
-            // that referenced the hidden field via `row.<table>.<field>.raw`.
-            // Now it routes through passthroughDimensions: removed from
-            // indexColumn rendering, but its values survive `group_by_query`
-            // SELECT/GROUP BY so they reach the result rows.
+        it('does not duplicate a hidden row dimension as a query passthrough', () => {
+            // The converter registers hidden index values as render-only
+            // passthrough columns after using them for SQL row identity.
             const chartConfig = {
                 type: ChartType.TABLE,
                 config: {
@@ -1890,30 +1876,12 @@ describe('derivePivotConfigurationFromChart', () => {
 
             expect(result).toBeDefined();
 
-            // orders_status must NOT appear in indexColumn (still hidden from
-            // rendered row labels).
-            let indexRefs: string[];
-            if (Array.isArray(result?.indexColumn)) {
-                indexRefs = result!.indexColumn.map((c) => c.reference);
-            } else if (result?.indexColumn) {
-                indexRefs = [result.indexColumn.reference];
-            } else {
-                indexRefs = [];
-            }
-            expect(indexRefs).not.toContain('orders_status');
-
-            // Not a sort target → not in sortOnlyColumns.
-            const sortOnlyRefs = (result?.sortOnlyColumns ?? []).map(
-                (c) => c.reference,
+            const indexRefs = normalizeIndexColumns(result?.indexColumn).map(
+                (column) => column.reference,
             );
-            expect(sortOnlyRefs).not.toContain('orders_status');
+            expect(indexRefs).toContain('orders_status');
             expect(result?.sortOnlyColumns ?? []).toEqual([]);
-
-            // passthroughDimensions carries the hidden row dim through SQL
-            // so cross-field templates can reference it.
-            expect(result?.passthroughDimensions).toEqual([
-                { reference: 'orders_status' },
-            ]);
+            expect(result?.passthroughDimensions).toBeUndefined();
         });
     });
 });

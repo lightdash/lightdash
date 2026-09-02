@@ -6,7 +6,7 @@ import {
     type FlexProps,
     type MantineTransition,
 } from '@mantine/core';
-import { type FC } from 'react';
+import { useLayoutEffect, useRef, type FC } from 'react';
 import useSidebarResize from '../../../hooks/useSidebarResize';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
@@ -20,6 +20,7 @@ import { SidebarPosition, type SidebarWidthProps } from './types';
 
 type Props = {
     isOpen?: boolean;
+    keepMounted?: boolean;
     isCollapsed?: boolean;
     collapsible?: boolean;
     collapsedContent?: React.ReactNode;
@@ -47,6 +48,7 @@ const ResizeHandle: FC<{
 
 const Sidebar: FC<React.PropsWithChildren<Props>> = ({
     isOpen = true,
+    keepMounted = false,
     isCollapsed = false,
     collapsible = false,
     collapsedContent,
@@ -72,6 +74,19 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
             onResizeStart,
             onResizeEnd,
         });
+
+    // The row may flex the open sidebar below sidebarWidth. Closing slides the
+    // paper out from the width it actually rendered at (and must not animate
+    // width, or it eases in from sidebarWidth), so it never snaps back to the
+    // full width mid-animation.
+    const renderedWidthRef = useRef(sidebarWidth);
+    useLayoutEffect(() => {
+        if (isOpen && sidebarRef.current) {
+            renderedWidthRef.current =
+                sidebarRef.current.getBoundingClientRect().width;
+        }
+    });
+    const paperWidth = isOpen ? sidebarWidth : renderedWidthRef.current;
 
     // Collapsible sidebars drop out of the page flow when collapsed and
     // reveal as a floating overlay when the edge trigger (or panel) is hovered.
@@ -122,22 +137,17 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
         );
     }
 
+    // Both positions collapse with a negative inline-start margin. A right
+    // sidebar closed with a negative margin-right keeps its box hanging past
+    // the page edge for the length of the animation, which shows a horizontal
+    // scrollbar on every toggle.
     const transition: MantineTransition = {
-        in: {
-            opacity: 1,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: 0 }
-                : { marginRight: 0 }),
-        },
-        out: {
-            opacity: 0,
-            ...(position === SidebarPosition.LEFT
-                ? { marginLeft: -sidebarWidth }
-                : { marginRight: -sidebarWidth }),
-        },
-        transitionProperty: isResizing
-            ? 'opacity, margin'
-            : 'opacity, margin, width',
+        in: { opacity: 1, marginLeft: 0 },
+        out: { opacity: 0, marginLeft: -paperWidth },
+        transitionProperty:
+            isResizing || !isOpen
+                ? 'opacity, margin'
+                : 'opacity, margin, width',
     };
 
     return (
@@ -146,23 +156,26 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                 ref={sidebarRef}
                 direction="column"
                 className={classes.sidebarContainer}
+                style={{
+                    '--sidebar-width': `${paperWidth}px`,
+                    '--sidebar-min-width': `${minWidth}px`,
+                }}
                 {...containerProps}
             >
                 <Transition
                     mounted={isOpen}
+                    keepMounted={keepMounted}
                     duration={SIDEBAR_ANIMATION_DURATION}
                     transition={transition}
                 >
                     {(style) => (
                         <>
                             <Paper
-                                shadow="lg"
+                                withBorder={false}
                                 radius={0}
                                 className={classes.sidebarPaper}
-                                style={{
-                                    ...style,
-                                    '--sidebar-width': `${sidebarWidth}px`,
-                                }}
+                                style={style}
+                                data-position={position}
                                 data-no-padding={noSidebarPadding}
                                 data-testid="common-sidebar"
                             >

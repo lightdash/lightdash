@@ -102,6 +102,7 @@ const selectedAgent: AiAgentWithContext = {
     adminOnly: false,
     modelConfig: null,
     version: 1,
+    threadRetentionHours: null,
     context: {
         uuid: 'agent-uuid',
         projectUuid,
@@ -206,7 +207,7 @@ const makeMcpService = () => {
         aiAgentService,
         aiAgentToolsService,
         aiOrganizationSettingsService: {
-            isAiAgentsVisible: vi.fn().mockResolvedValue(true),
+            isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
         },
         aiRouterService,
         aiWritebackService: {},

@@ -47,7 +47,6 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     return (
         <>
             <Tooltip
-                withinPortal
                 maw={130}
                 label={
                     scheduler.enabled
@@ -90,10 +89,9 @@ const SendNowButton: FC<{ schedulerUuid: string }> = ({ schedulerUuid }) => {
     const { track } = useTracking();
 
     return (
-        <Tooltip withinPortal label="Sync now">
+        <Tooltip label="Sync now">
             <ActionIcon
                 variant="light"
-                radius="md"
                 color="ldDark.9"
                 disabled={isLoading}
                 onClick={() => {
@@ -151,7 +149,7 @@ export const SyncModalView: FC<Props> = ({
             {schedulers.length > 0 ? (
                 <Box
                     mah={400}
-                    style={{ overflowY: 'auto' }}
+                    className="ld-scroll-y"
                     onScroll={
                         onScrollBottom
                             ? (e) => {
@@ -193,10 +191,7 @@ export const SyncModalView: FC<Props> = ({
                                 <Paper
                                     key={sync.schedulerUuid}
                                     p="sm"
-                                    withBorder
-                                    style={{
-                                        overflow: 'hidden',
-                                    }}
+                                    className="ld-overflow-hidden"
                                 >
                                     <Group
                                         wrap="nowrap"
@@ -207,7 +202,7 @@ export const SyncModalView: FC<Props> = ({
                                                 {sync.name}
                                             </Text>
 
-                                            <Text size="xs" c="ldGray.6">
+                                            <Text size="xs" c="dimmed">
                                                 {getHumanReadableCronExpression(
                                                     sync.cron,
                                                     sync.timezone ||
@@ -228,13 +223,9 @@ export const SyncModalView: FC<Props> = ({
                                                     }
                                                 />
 
-                                                <Tooltip
-                                                    withinPortal
-                                                    label="Edit"
-                                                >
+                                                <Tooltip label="Edit">
                                                     <ActionIcon
                                                         variant="light"
-                                                        radius="md"
                                                         color="ldDark.9"
                                                         onClick={() => {
                                                             setAction(
@@ -252,14 +243,10 @@ export const SyncModalView: FC<Props> = ({
                                                     </ActionIcon>
                                                 </Tooltip>
 
-                                                <Tooltip
-                                                    withinPortal
-                                                    label="Delete"
-                                                >
+                                                <Tooltip label="Delete">
                                                     <ActionIcon
                                                         variant="light"
                                                         color="red"
-                                                        radius="md"
                                                         onClick={() => {
                                                             setAction(
                                                                 SyncModalAction.DELETE,
@@ -290,10 +277,10 @@ export const SyncModalView: FC<Props> = ({
                 </Box>
             ) : (
                 <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
-                    <Text fz="sm" fw={450} c="ldGray.7">
+                    <Text fz="sm" fw={500} c="ldGray.7">
                         This {resourceLabel} has no Syncs set up yet
                     </Text>
-                    <Text fz="xs" fw={400} c="ldGray.6">
+                    <Text fz="xs" fw={400} c="dimmed">
                         Get started by clicking 'Create new Sync' to seamlessly
                         integrate your {resourceLabel} data with Google Sheets
                     </Text>

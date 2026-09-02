@@ -118,24 +118,22 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                         align="flex-start"
                         wrap="nowrap"
                     >
-                        <Stack gap={2} style={{ minWidth: 0 }}>
+                        <Stack gap={2} miw={0}>
                             {isExample && (
                                 <Badge
                                     size="xs"
-                                    radius="sm"
                                     variant="default"
-                                    color="gray"
                                     w="fit-content"
                                 >
                                     Example
                                 </Badge>
                             )}
-                            <Text fz="sm" fw={550} lineClamp={2}>
+                            <Text fz="sm" fw={500} lineClamp={2}>
                                 {title}
                             </Text>
                             {targetAnchor && (
                                 <Code
-                                    fz={10}
+                                    fz="xs"
                                     c="dimmed"
                                     w="fit-content"
                                     maw="100%"
@@ -153,11 +151,7 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                                     item.lastSeenAt,
                                 )}`}
                             >
-                                <Text
-                                    fz="xs"
-                                    c="dimmed"
-                                    style={{ whiteSpace: 'nowrap' }}
-                                >
+                                <Text fz="xs" c="dimmed" className="ld-nowrap">
                                     {formatRelativeReviewDate(item.lastSeenAt)}
                                 </Text>
                             </Tooltip>
@@ -261,8 +255,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                     <Button
                         data-tour="reviews-pr"
                         size="compact-xs"
-                        radius="md"
-                        variant="filled"
                         disabled
                         leftSection={<MantineIcon icon={IconBolt} size={12} />}
                         className={styles.startAction}
@@ -272,8 +264,6 @@ export const ReviewKanbanCard: FC<Props> = ({ item, isSelected, onSelect }) => {
                 ) : (
                     <Button
                         size="compact-xs"
-                        radius="md"
-                        variant="filled"
                         leftSection={
                             <MantineIcon
                                 icon={isRetry ? IconRefresh : IconBolt}

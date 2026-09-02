@@ -220,7 +220,7 @@ export const AgentOnboardingLaunchPanel: FC<
                             >
                                 <MantineIcon icon={IconSparkles} size="lg" />
                             </ThemeIcon>
-                            <Stack gap={6} style={{ flex: 1 }}>
+                            <Stack gap={6} flex={1}>
                                 <Title order={3}>
                                     Let Lightdash build it for you
                                 </Title>

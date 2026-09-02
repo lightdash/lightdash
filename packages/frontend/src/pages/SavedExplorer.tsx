@@ -1,10 +1,14 @@
+import { Button } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
+import ChangeChartExploreModal from '../components/common/modal/ChangeChartExploreModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
+import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
 import {
@@ -15,9 +19,11 @@ import {
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
+import { getCandidateExploreNames } from '../utils/exploreSplitError';
 
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
@@ -26,6 +32,9 @@ const LazyExplorePanel = lazy(
 const SavedExplorerContent = memo(() => {
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
+    const rightSidebarProps = useChartGalleryRightSidebar({
+        enabled: isEditMode,
+    });
 
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
@@ -40,6 +49,7 @@ const SavedExplorerContent = memo(() => {
                 </Suspense>
             }
             isSidebarOpen={isEditMode}
+            {...rightSidebarProps}
             withFullHeight
             withPaddedContent
         >
@@ -51,9 +61,9 @@ const SavedExplorerContent = memo(() => {
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, projectUuid, mode } = useParams<{
+    const projectUuid = useProjectUuid();
+    const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
         mode?: string;
     }>();
 
@@ -64,7 +74,10 @@ const SavedExplorer = () => {
     const { data, isInitialLoading, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
         projectUuid,
+        includeUnpublishedDraft: true,
     });
+    const [isChangeExploreModalOpen, changeExploreModalHandlers] =
+        useDisclosure(false);
 
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
@@ -73,6 +86,7 @@ const SavedExplorer = () => {
             setDashboardChartInfo({
                 name: data.dashboardName,
                 dashboardUuid: data.dashboardUuid,
+                dashboardSlug: data.dashboardSlug ?? undefined,
             });
         }
     }, [data, setDashboardChartInfo]);
@@ -108,7 +122,40 @@ const SavedExplorer = () => {
 
     // Check for error first
     if (error) {
-        return <ErrorState error={error.error} />;
+        const exploreName = error.error.data?.exploreName;
+        const candidateExploreNames = getCandidateExploreNames(
+            error.error.data,
+        );
+        const isSplitExploreError =
+            error.error.statusCode === 404 &&
+            typeof exploreName === 'string' &&
+            candidateExploreNames.length >= 2;
+
+        return (
+            <>
+                <ErrorState
+                    error={error.error}
+                    action={
+                        isSplitExploreError ? (
+                            <Button onClick={changeExploreModalHandlers.open}>
+                                Change explore
+                            </Button>
+                        ) : undefined
+                    }
+                />
+                {isSplitExploreError && projectUuid && savedQueryUuid && (
+                    <ChangeChartExploreModal
+                        opened={isChangeExploreModalOpen}
+                        onClose={changeExploreModalHandlers.close}
+                        projectUuid={projectUuid}
+                        chartUuid={savedQueryUuid}
+                        currentExploreName={exploreName}
+                        candidateExploreNames={candidateExploreNames}
+                        hasUnsavedChanges={false}
+                    />
+                )}
+            </>
+        );
     }
 
     // Early return if no data yet

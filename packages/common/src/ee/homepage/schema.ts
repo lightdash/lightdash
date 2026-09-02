@@ -53,6 +53,7 @@ const collectionBlockSchema = z.object({
                 'pinned',
                 'favorites',
                 'recently-viewed',
+                'verified',
             ])
             .optional(),
         verifiedOnly: z.boolean().optional(),
@@ -104,6 +105,12 @@ const quickActionSchema = z
             dashboardUuid: z.string(),
             label: z.string(),
         }),
+        z.object({
+            type: z.literal('space'),
+            spaceUuid: z.string(),
+            label: z.string(),
+        }),
+        z.object({ type: z.literal('my-space') }),
     ])
     .and(z.object({ primary: z.boolean().optional() }));
 
@@ -123,6 +130,12 @@ const ctaTargetSchema = z.discriminatedUnion('type', [
         dashboardUuid: z.string(),
         label: z.string(),
     }),
+    z.object({
+        type: z.literal('space'),
+        spaceUuid: z.string(),
+        label: z.string(),
+    }),
+    z.object({ type: z.literal('my-space') }),
     z.object({ type: z.literal('link'), url: z.string() }),
 ]);
 

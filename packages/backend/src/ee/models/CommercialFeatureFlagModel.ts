@@ -14,37 +14,22 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
+            [CommercialFeatureFlags.DirectAccess]:
+                this.getDirectAccessFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
-            [CommercialFeatureFlags.MultipleRoles]:
-                this.getMultipleRolesFlag.bind(this),
         };
     }
 
-    // Default-off; enabled per-org via DB-backed overrides, and only when
-    // custom roles are available (env config or the CustomRoles flag).
-    // Gates management surfaces only — persisted extra roles are always
-    // effective at runtime, mirroring custom roles.
-    private async getMultipleRolesFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        if (!user) {
-            return { id: featureFlagId, enabled: false };
+    // Default-off with standard override precedence (user > org > default),
+    // consistent with the other commercial flags: a staff-written user-level
+    // override can enable direct access past an organization disable.
+    private async getDirectAccessFlag(args: FeatureFlagLogicArgs) {
+        if (!args.user) {
+            return { id: args.featureFlagId, enabled: false };
         }
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        if (!dbResult?.enabled) {
-            return { id: featureFlagId, enabled: false };
-        }
-        const customRolesEnabled =
-            this.lightdashConfig.customRoles.enabled ||
-            (
-                await this.get(
-                    { user, featureFlagId: CommercialFeatureFlags.CustomRoles },
-                    { recordCheck: false },
-                )
-            ).enabled;
-        return { id: featureFlagId, enabled: customRolesEnabled };
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
     // Default-off; enabled per-org via DB-backed overrides.

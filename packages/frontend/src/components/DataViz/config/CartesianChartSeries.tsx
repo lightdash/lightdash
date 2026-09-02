@@ -170,7 +170,6 @@ export const CartesianChartSeries = ({
                         <Config.Group>
                             <Config.Label>{`Stacking`}</Config.Label>
                             <SegmentedControl
-                                radius="md"
                                 fz="sm"
                                 disabled={!canStack}
                                 data={[

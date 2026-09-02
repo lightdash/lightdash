@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
 export const TOOL_EDIT_REPO_DESCRIPTION = [
     'Make a code change to one of the repositories your organization can write to, and open (or update) a pull request with it.',
@@ -108,21 +109,7 @@ export type ToolEditRepoArgs = z.infer<typeof toolEditRepoArgsSchema>;
 
 export type ToolEditRepoOutput = z.infer<typeof toolEditRepoOutputSchema>;
 
-type ToolEditRepoResultLike = {
-    toolType: string;
-    toolName: string;
-    metadata: ToolEditRepoOutput['metadata'] | Record<string, unknown> | null;
-};
-
-type ToolEditRepoResult = ToolEditRepoResultLike & {
-    toolType: 'built-in';
-    toolName: 'editRepo';
-    metadata: ToolEditRepoOutput['metadata'];
-};
-
-export const isToolEditRepoResult = <T extends ToolEditRepoResultLike>(
-    result: T,
-): result is T & ToolEditRepoResult =>
-    result.toolType === 'built-in' &&
-    result.toolName === 'editRepo' &&
-    toolEditRepoOutputSchema.shape.metadata.safeParse(result.metadata).success;
+export const isToolEditRepoResult = makeBuiltInToolResultGuard(
+    'editRepo',
+    toolEditRepoOutputSchema.shape.metadata,
+);

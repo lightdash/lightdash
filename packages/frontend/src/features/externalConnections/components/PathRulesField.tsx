@@ -61,7 +61,7 @@ export const PathRulesField: FC<Props> = ({
         />
         {mode === 'restricted' && (
             <Stack gap="xs" mt="xs">
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Apps may only call paths that start with one of these
                     prefixes.
                 </Text>
@@ -87,7 +87,6 @@ export const PathRulesField: FC<Props> = ({
                         />
                         <ActionIcon
                             color="red"
-                            variant="subtle"
                             disabled={disabled}
                             onClick={() =>
                                 onPrefixesChange(
@@ -110,7 +109,7 @@ export const PathRulesField: FC<Props> = ({
                     variant="subtle"
                     size="compact-sm"
                     leftSection={<MantineIcon icon={IconPlus} />}
-                    style={{ alignSelf: 'flex-start' }}
+                    className="ld-self-start"
                     disabled={disabled}
                     onClick={() =>
                         onPrefixesChange([...prefixes, makePathPrefix()])

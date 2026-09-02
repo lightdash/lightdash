@@ -28,7 +28,6 @@ import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
-import compactStyles from '../mantineTheme.module.css';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -396,9 +395,6 @@ export const Layout: FC = memo(() => {
 
                             <Switch
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 label="Custom region"
                                 checked={isCustomMap}
                                 onChange={(e) => {

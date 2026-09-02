@@ -17,6 +17,7 @@ import {
     DashboardAvailableFilters,
     DashboardDAO,
     DashboardFilters,
+    DATA_APP_VIZ_TEMPLATE,
     DateGranularity,
     DateZoom,
     DecodedEmbed,
@@ -111,9 +112,10 @@ import { EmbedModel } from '../../models/EmbedModel';
 import { ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { getBundleServableChecker } from '../AppGenerateService/appBundleStorage';
 import {
+    assertDataAppVizPreviewVersionAllowed,
+    getDataAppVizVersionPin,
     resolveDataAppVisualizationForRender,
     resolveDataAppVizRenderMetadata,
-    resolveRenderableDataAppVizVersion,
 } from '../AppGenerateService/dataAppVizRender';
 
 const escapeEmbedJwtUserAttributeValue = (value: string): string =>
@@ -732,6 +734,7 @@ export class EmbedService extends BaseService {
                 allFilterableFields: [],
                 allFilterableMetrics: [],
                 savedQueryMetricFilters: {},
+                defaultTimeDimensions: {},
             };
         }
 
@@ -766,9 +769,9 @@ export class EmbedService extends BaseService {
                         chart.spaceUuid === writeSpaceUuid
                     ) {
                         const spaceAccessContext =
-                            await this.spacePermissionService.getSpaceAccessContext(
+                            await this.spacePermissionService.resolveAccess(
                                 embedWriteUser.userUuid,
-                                chart.spaceUuid,
+                                { type: 'space', spaceUuid: chart.spaceUuid },
                             );
                         const auditedAbility =
                             this.createAuditedAbility(embedWriteUser);
@@ -806,18 +809,27 @@ export class EmbedService extends BaseService {
         }
 
         const exploreCacheKeys: Record<string, boolean> = {};
-        const exploreCache: Record<string, Explore | ExploreError> = {};
+        const exploreCache: Record<string, Explore | ExploreError | undefined> =
+            {};
 
         const explorePromises = savedCharts.reduce<
-            Promise<{ key: string; explore: Explore | ExploreError }>[]
+            Promise<{
+                key: string;
+                explore: Explore | ExploreError | undefined;
+            }>[]
         >((acc, chart) => {
             const key = chart.tableName;
             if (!exploreCacheKeys[key]) {
                 const exploreId = chart.tableName;
-                const cachedExplore = this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    exploreId,
-                );
+                const cachedExplore = this.projectModel
+                    .getExploreFromCache(projectUuid, exploreId)
+                    // A chart pointing at a deleted/renamed explore must not
+                    // fail the whole request; it contributes no filters, same
+                    // as the direct-app path (ProjectService.findExplores).
+                    .catch((e) => {
+                        if (e instanceof NotFoundError) return undefined;
+                        throw e;
+                    });
                 acc.push(cachedExplore.then((explore) => ({ key, explore })));
                 exploreCacheKeys[key] = true;
             }
@@ -834,7 +846,7 @@ export class EmbedService extends BaseService {
 
         const filterPromises = savedCharts.map(async (savedChart) => {
             const explore = exploreCache[savedChart.tableName];
-            if (isExploreError(explore))
+            if (!explore || isExploreError(explore))
                 return { uuid: savedChart.uuid, filters: [] };
             const filters = getDimensions(explore).filter(
                 (field) => isFilterableDimension(field) && !field.hidden,
@@ -881,6 +893,7 @@ export class EmbedService extends BaseService {
             allFilterableFields,
             allFilterableMetrics: [],
             savedQueryMetricFilters: {},
+            defaultTimeDimensions: {},
         };
     }
 
@@ -1813,7 +1826,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        return dataAppViz;
+        return { dataAppViz, chart };
     }
 
     async getEmbedDataAppVizRenderMetadata(
@@ -1822,16 +1835,19 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizRenderMetadata> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        const pinnedVersion = getDataAppVizVersionPin(chart.chartConfig);
         return resolveDataAppVizRenderMetadata(
             this.appModel,
             dataAppViz.app_id,
             getBundleServableChecker(this.lightdashConfig.appRuntime.s3),
+            pinnedVersion,
         );
     }
 
@@ -1842,16 +1858,18 @@ export class EmbedService extends BaseService {
         dataAppVizUuid: string,
         version: number,
     ): Promise<string> {
-        const dataAppViz = await this.getAuthorizedDataAppVizForEmbed(
-            account,
-            projectUuid,
-            savedChartUuid,
-            dataAppVizUuid,
-        );
-        await resolveRenderableDataAppVizVersion(
+        const { dataAppViz, chart } =
+            await this.getAuthorizedDataAppVizForEmbed(
+                account,
+                projectUuid,
+                savedChartUuid,
+                dataAppVizUuid,
+            );
+        await assertDataAppVizPreviewVersionAllowed(
             this.appModel,
             dataAppViz.app_id,
             version,
+            getDataAppVizVersionPin(chart.chartConfig),
         );
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,
@@ -2331,8 +2349,8 @@ export class EmbedService extends BaseService {
         limit,
         filters,
         forceRefresh,
-        tableName: fallbackTableName,
-        fieldId: fallbackFieldId,
+        tableName: requestedTableName,
+        fieldId: requestedFieldId,
         timezone: sessionTimezoneParam,
         parameters,
     }: {
@@ -2351,92 +2369,153 @@ export class EmbedService extends BaseService {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const { dashboardUuid } = account.access.content;
+        let dashboard: DashboardDAO | undefined;
+        let resolvedTableName: string;
+        let resolvedFieldId: string;
+        let organizationUuid: string;
 
-        if (!dashboardUuid) {
-            throw new ParameterError(
-                'Dashboard ID is required for this operation',
+        if (dashboardUuid) {
+            this.checkDashboardPermissions(
+                {
+                    dashboardUuids,
+                    allowAllDashboards,
+                },
+                dashboardUuid,
             );
-        }
+            dashboard = await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                projectUuid,
+            });
+            organizationUuid = dashboard.organizationUuid;
+            const filter = dashboard.filters.dimensions.find(
+                (dashboardFilter) => dashboardFilter.id === filterUuid,
+            );
 
-        this.checkDashboardPermissions(
-            {
-                dashboardUuids,
-                allowAllDashboards,
-            },
-            dashboardUuid,
-        );
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
-        );
-        const dashboardFilters = dashboard.filters.dimensions;
-        const filter = dashboardFilters.find((f) => f.id === filterUuid);
+            // For SDK-injected filters, the UUID is dynamically generated and
+            // won't exist in saved dashboard filters. Fall back to tableName/fieldId
+            // from the request body, but only if the field is within the dashboard's
+            // explores (to prevent arbitrary field enumeration).
+            resolvedTableName = filter?.target.tableName ?? '';
+            resolvedFieldId = filter?.target.fieldId ?? '';
 
-        // For SDK-injected filters, the UUID is dynamically generated and
-        // won't exist in saved dashboard filters. Fall back to tableName/fieldId
-        // from the request body, but only if the field is within the dashboard's
-        // explores (to prevent arbitrary field enumeration).
-        let resolvedTableName = filter?.target.tableName;
-        let resolvedFieldId = filter?.target.fieldId;
+            if (!resolvedTableName || !resolvedFieldId) {
+                if (!requestedTableName || !requestedFieldId) {
+                    throw new ParameterError(
+                        `Filter ${filterUuid} not found and no fallback field provided`,
+                    );
+                }
 
-        if (!resolvedTableName || !resolvedFieldId) {
-            if (!fallbackTableName || !fallbackFieldId) {
-                throw new ParameterError(
-                    `Filter ${filterUuid} not found and no fallback field provided`,
+                // Validate the fallback field is within the dashboard's explores
+                const chartTiles = dashboard.tiles.filter(
+                    isDashboardChartTileType,
                 );
-            }
-
-            // Validate the fallback field is within the dashboard's explores
-            const chartTiles = dashboard.tiles.filter(isDashboardChartTileType);
-            const savedChartUuids = [
-                ...new Set(
-                    chartTiles
-                        .map((tile) => tile.properties.savedChartUuid)
-                        .filter(Boolean),
-                ),
-            ];
-            const savedCharts =
-                await this.savedChartModel.getInfoForAvailableFilters(
-                    savedChartUuids as string[],
-                );
-            const explores = await Promise.all(
-                [...new Set(savedCharts.map((chart) => chart.tableName))].map(
-                    (tableName) =>
+                const savedChartUuids = [
+                    ...new Set(
+                        chartTiles
+                            .map((tile) => tile.properties.savedChartUuid)
+                            .filter(Boolean),
+                    ),
+                ];
+                const savedCharts =
+                    await this.savedChartModel.getInfoForAvailableFilters(
+                        savedChartUuids as string[],
+                    );
+                const explores = await Promise.all(
+                    [
+                        ...new Set(savedCharts.map((chart) => chart.tableName)),
+                    ].map((tableName) =>
                         this.projectModel.getExploreFromCache(
                             projectUuid,
                             tableName,
                         ),
-                ),
-            );
+                    ),
+                );
 
-            const isFieldInDashboardExplores = explores.some(
-                (explore) =>
-                    !isExploreError(explore) &&
-                    fallbackTableName in explore.tables &&
-                    fallbackFieldId in
-                        getDimensionMapFromTables(explore.tables),
-            );
+                const isFieldInDashboardExplores = explores.some(
+                    (explore) =>
+                        !isExploreError(explore) &&
+                        requestedTableName in explore.tables &&
+                        requestedFieldId in
+                            getDimensionMapFromTables(explore.tables),
+                );
 
-            if (!isFieldInDashboardExplores) {
+                if (!isFieldInDashboardExplores) {
+                    throw new ParameterError(
+                        `Field ${requestedFieldId} is not available on this dashboard`,
+                    );
+                }
+
+                resolvedTableName = requestedTableName;
+                resolvedFieldId = requestedFieldId;
+            }
+        } else {
+            if (!requestedTableName || !requestedFieldId) {
                 throw new ParameterError(
-                    `Field ${fallbackFieldId} is not available on this dashboard`,
+                    'Table and field are required for embedded Explore filters',
                 );
             }
-
-            resolvedTableName = fallbackTableName;
-            resolvedFieldId = fallbackFieldId;
+            resolvedTableName = requestedTableName;
+            resolvedFieldId = requestedFieldId;
+            ({ organizationUuid } =
+                await this.projectModel.getSummary(projectUuid));
         }
 
-        const { metricQuery, explore, field, staticResults } =
-            await this.projectService._getFieldValuesMetricQuery({
-                projectUuid,
-                table: resolvedTableName,
-                initialFieldId: resolvedFieldId,
-                search,
-                limit,
-                filters,
-                organizationUuid: dashboard.organizationUuid,
-            });
+        const {
+            metricQuery,
+            explore,
+            field,
+            initialExplore,
+            initialField,
+            labelFieldId,
+            staticResults,
+        } = await this.projectService._getFieldValuesMetricQuery({
+            projectUuid,
+            table: resolvedTableName,
+            initialFieldId: resolvedFieldId,
+            search,
+            limit,
+            filters,
+            organizationUuid,
+            authorizeInitialExplore: dashboard
+                ? undefined
+                : (initialExploreForAuthorization) =>
+                      this.assertCanQueryExplore(
+                          account,
+                          organizationUuid,
+                          projectUuid,
+                          initialExploreForAuthorization.name,
+                      ),
+        });
+
+        if (!dashboard) {
+            const { userAttributes } = this.getAccessControls(account);
+            const filteredInitialExplore = getFilteredExplore(
+                initialExplore,
+                userAttributes,
+            );
+            const filteredSourceExplore = getFilteredExplore(
+                explore,
+                userAttributes,
+            );
+            const initialFieldId = getItemId(initialField);
+            const sourceFieldId = getItemId(field);
+            const sourceDimensions = getDimensionMapFromTables(
+                filteredSourceExplore.tables,
+            );
+            if (
+                !(initialField.table in filteredInitialExplore.tables) ||
+                !(
+                    initialFieldId in
+                    getDimensionMapFromTables(filteredInitialExplore.tables)
+                ) ||
+                !(field.table in filteredSourceExplore.tables) ||
+                !(sourceFieldId in sourceDimensions) ||
+                (labelFieldId !== null && !(labelFieldId in sourceDimensions))
+            ) {
+                throw new ForbiddenError(
+                    'You do not have permission to search values for this field',
+                );
+            }
+        }
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) instead of running a distinct-value scan.
@@ -2458,13 +2537,13 @@ export class EmbedService extends BaseService {
             projectUuid,
             explore,
             acceptedUserParameters,
-            getDashboardParametersValuesMap(dashboard),
+            dashboard ? getDashboardParametersValuesMap(dashboard) : {},
         );
 
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({
                 userUuid: user?.userUuid ?? account.user.id,
-                organizationUuid: dashboard.organizationUuid,
+                organizationUuid,
             });
 
         const projectTimezone =
@@ -2481,15 +2560,15 @@ export class EmbedService extends BaseService {
         });
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
-            projectUuid: dashboard.projectUuid,
+            projectUuid,
             metricQuery,
             explore,
             queryTags: {
                 embed: 'true',
                 external_id: account.user.id,
                 project_uuid: projectUuid,
-                organization_uuid: dashboard.organizationUuid,
-                dashboard_uuid: dashboardUuid,
+                organization_uuid: organizationUuid,
+                ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
                 explore_name: explore.name,
                 query_context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
             },
@@ -2540,17 +2619,18 @@ export class EmbedService extends BaseService {
                         embedWriteUserPromise,
                     ]);
 
-                const embedWriteContext = await this.getEmbedWriteContext(
-                    decodedToken,
-                    embedWriteUser,
-                    projectUuid,
-                );
-
                 if (!content) {
                     throw new NotFoundError(
                         'Cannot verify JWT. Content not found',
                     );
                 }
+
+                const embedWriteContext = await this.getEmbedWriteContext(
+                    decodedToken,
+                    embedWriteUser,
+                    projectUuid,
+                    content,
+                );
 
                 // Secure-by-default: a standalone data app embed is honoured
                 // only when the project opted the app in — via the broad
@@ -2567,6 +2647,20 @@ export class EmbedService extends BaseService {
                         throw new ForbiddenError(
                             'This data app is not authorized for standalone embedding',
                         );
+                    }
+                    // Custom chart types are chart-rendering content, not
+                    // standalone apps — `allowAllApps` and stale allowlist
+                    // entries must not make them embeddable as apps. Chart
+                    // embeds render vizs through the viz-specific endpoints.
+                    if (content.appUuid !== undefined) {
+                        const app = await this.appModel.findAppByUuid(
+                            content.appUuid,
+                        );
+                        if (app?.template === DATA_APP_VIZ_TEMPLATE) {
+                            throw new ForbiddenError(
+                                'Custom chart types cannot be embedded as standalone data apps',
+                            );
+                        }
                     }
                 }
 
@@ -2619,6 +2713,7 @@ export class EmbedService extends BaseService {
         decodedToken: CreateEmbedJwt,
         embedWriteUser: SessionUser | undefined,
         projectUuid: string,
+        content: EmbedContent,
     ): Promise<AnonymousAccount['embedWriteContext']> {
         const { writeActions } = decodedToken;
         if (!writeActions || !embedWriteUser) {
@@ -2630,13 +2725,15 @@ export class EmbedService extends BaseService {
 
         try {
             const spaceAccessContext =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.resolveAccess(
                     embedWriteUser.userUuid,
-                    writeActions.spaceUuid,
+                    { type: 'space', spaceUuid: writeActions.spaceUuid },
                 );
 
             if (spaceAccessContext.projectUuid !== projectUuid) {
                 return {
+                    canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
@@ -2645,6 +2742,37 @@ export class EmbedService extends BaseService {
             }
 
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const canUpdateDashboard =
+                content.type === 'dashboard' &&
+                content.dashboardUuid !== undefined &&
+                auditedAbility.can(
+                    'update',
+                    subject('Dashboard', {
+                        ...spaceAccessContext,
+                        metadata: {
+                            dashboardUuid: content.dashboardUuid,
+                        },
+                    }),
+                );
+            const savedChartUuid =
+                content.type === 'chart' ? content.chartUuids[0] : undefined;
+            const savedChart = savedChartUuid
+                ? await this.savedChartModel.get(savedChartUuid)
+                : undefined;
+            const canUpdateSavedChart =
+                savedChart !== undefined &&
+                savedChart.spaceUuid === writeActions.spaceUuid &&
+                auditedAbility.can(
+                    'update',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            spaceAccessContext.inheritsFromOrgOrProject,
+                        access: spaceAccessContext.access,
+                        metadata: { savedChartUuid },
+                    }),
+                );
             const canCreateSavedChart = auditedAbility.can(
                 'create',
                 subject('SavedChart', {
@@ -2672,6 +2800,8 @@ export class EmbedService extends BaseService {
                 canViewProject;
 
             return {
+                canUpdateDashboard,
+                canUpdateSavedChart,
                 canCreateSavedChart,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
@@ -2689,6 +2819,8 @@ export class EmbedService extends BaseService {
                 error instanceof NotFoundError
             ) {
                 return {
+                    canUpdateDashboard: false,
+                    canUpdateSavedChart: false,
                     canCreateSavedChart: false,
                     canUseAiAgent: false,
                     aiAgentErrorMessage:

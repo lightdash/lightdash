@@ -485,7 +485,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fz="sm" fw={400} c="ldGray.6">
+                        <Text fz="sm" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}

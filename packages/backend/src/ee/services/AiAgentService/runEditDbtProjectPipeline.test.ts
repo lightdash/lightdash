@@ -73,6 +73,7 @@ const buildService = (overrides: {
     const promptFound = overrides.promptFound ?? true;
     const updateToolResult = vi.fn().mockResolvedValue(undefined);
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
+    const setPromptNeedsUserInput = vi.fn().mockResolvedValue(true);
     const addReaction = vi.fn().mockResolvedValue(undefined);
     const postMessage = vi.fn().mockResolvedValue(undefined);
     const hasToolResult = vi.fn().mockResolvedValue(true);
@@ -114,6 +115,7 @@ const buildService = (overrides: {
             ),
         updateToolResult,
         updateModelResponse,
+        setPromptNeedsUserInput,
         hasToolResult,
         getToolResultsForPrompt: vi
             .fn()
@@ -176,6 +178,7 @@ const buildService = (overrides: {
         service,
         updateToolResult,
         updateModelResponse,
+        setPromptNeedsUserInput,
         addReaction,
         postMessage,
         hasToolResult,
@@ -210,6 +213,42 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                     prAction: 'opened',
                     commitSha: 'abc123',
                 }),
+            }),
+        );
+    });
+
+    it('keeps the selected additional dbt source through the worker pipeline', async () => {
+        const primaryResult = {
+            ...WRITEBACK_RESULT,
+            repository: 'acme/primary-analytics',
+            output: 'Updated models/orders.yml with primary orders.',
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000001',
+        };
+        const additionalResult = {
+            ...WRITEBACK_RESULT,
+            repository: 'acme/additional-analytics',
+            output: 'Updated models/orders.yml with additional orders.',
+            dbtSourceUuid: '00000000-0000-0000-0000-000000000002',
+        };
+        const run = vi
+            .fn()
+            .mockImplementation(async (args) =>
+                args.dbtSourceUuid === additionalResult.dbtSourceUuid
+                    ? additionalResult
+                    : primaryResult,
+            );
+        const { service, updateToolResult } = buildService({ run });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            dbtSourceUuid: additionalResult.dbtSourceUuid,
+        });
+
+        expect(updateToolResult).toHaveBeenCalledWith(
+            'prompt-1',
+            'tool-call-1',
+            expect.objectContaining({
+                result: expect.stringContaining('acme/additional-analytics'),
             }),
         );
     });
@@ -432,9 +471,12 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             needsDbtSourceSelection: true,
             dbtSourceOptions: options,
         });
-        const { service, updateToolResult, updateModelResponse } = buildService(
-            { run, getRunStatus: getRunStatusMock('error') },
-        );
+        const {
+            service,
+            updateToolResult,
+            updateModelResponse,
+            setPromptNeedsUserInput,
+        } = buildService({ run, getRunStatus: getRunStatusMock('error') });
 
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
@@ -453,6 +495,45 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect.objectContaining({
                 promptUuid: 'prompt-1',
                 response: expect.stringContaining('jaffle-2'),
+            }),
+        );
+        expect(setPromptNeedsUserInput).toHaveBeenCalledWith({
+            promptUuid: 'prompt-1',
+            needsUserInput: true,
+            metadata: {
+                gate: 'structured',
+                reason: 'writeback_source_selection',
+            },
+        });
+    });
+
+    it('posts the dbt source selection question to Slack', async () => {
+        const run = vi.fn().mockResolvedValue({
+            ...WRITEBACK_RESULT,
+            prUrl: null,
+            prAction: null,
+            needsDbtSourceSelection: true,
+            dbtSourceOptions: [
+                { name: 'jaffle-2', repository: null, isPrimary: false },
+            ],
+        });
+        const { service, postMessage } = buildService({
+            isSlack: true,
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                text: expect.stringContaining('jaffle-2'),
+                blocks: expect.arrayContaining([expect.anything()]),
             }),
         );
     });

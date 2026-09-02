@@ -1,6 +1,10 @@
 import merge from 'lodash/merge';
 import partition from 'lodash/partition';
 import {
+    getManifestNamespaceKey,
+    qualifyManifestNames,
+} from '../dbt/qualifiedName';
+import {
     buildModelGraph,
     convertColumnMetric,
     convertModelMetric,
@@ -151,19 +155,26 @@ const convertFilterAutocomplete = (
         ({ value }, index, allValues) =>
             allValues.findIndex((item) => item.value === value) === index,
     );
-    const warnings =
-        duplicateValues && duplicateValues.length > 0
-            ? [
-                  {
-                      type: InlineErrorType.FIELD_ERROR,
-                      message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
-                          ...new Set(duplicateValues),
-                      ].join(
-                          ', ',
-                      )}. Keeping the first value and ignoring duplicates.`,
-                  },
-              ]
-            : [];
+    const warnings: InlineError[] = [];
+    if (duplicateValues && duplicateValues.length > 0) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Duplicate filter autocomplete values found for dimension "${dimensionName}" in dbt model "${modelName}": ${[
+                ...new Set(duplicateValues),
+            ].join(', ')}. Keeping the first value and ignoring duplicates.`,
+        });
+    }
+
+    const optionsFromDimension = filterAutocomplete.options_from_dimension;
+    if (
+        optionsFromDimension &&
+        filterAutocomplete.fetch_from_warehouse === false
+    ) {
+        warnings.push({
+            type: InlineErrorType.FIELD_ERROR,
+            message: `Dimension "${dimensionName}" in dbt model "${modelName}" sets both "options_from_dimension" and "fetch_from_warehouse: false". Curated values are used and "options_from_dimension" is ignored.`,
+        });
+    }
 
     return {
         filterAutocomplete: {
@@ -171,6 +182,20 @@ const convertFilterAutocomplete = (
             fetchFromWarehouse: filterAutocomplete.fetch_from_warehouse ?? true,
             ...(filterAutocomplete.label_dimension
                 ? { labelDimension: filterAutocomplete.label_dimension }
+                : {}),
+            ...(optionsFromDimension
+                ? {
+                      optionsFromDimension: {
+                          model: optionsFromDimension.model,
+                          dimension: optionsFromDimension.dimension,
+                          ...(optionsFromDimension.label_dimension
+                              ? {
+                                    labelDimension:
+                                        optionsFromDimension.label_dimension,
+                                }
+                              : {}),
+                      },
+                  }
                 : {}),
         },
         warnings,
@@ -1070,6 +1095,9 @@ export const convertTable = (
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
         ...(model.package_name ? { dbtPackageName: model.package_name } : {}),
+        ...(model.lightdash_source_uuid
+            ? { dbtSourceUuid: model.lightdash_source_uuid }
+            : {}),
         ...(model.patch_path
             ? { ymlPath: patchPathParts(model.patch_path).path }
             : {}),
@@ -1120,7 +1148,72 @@ export const convertExplores = async (
         allowPartialCompilation,
         postProcessors,
     } = options ?? {};
-    const tableLineage = translateDbtModelsToTableLineage(models);
+    const resolvedNamesByUniqueId = qualifyManifestNames(
+        models.map((model) => ({
+            uniqueId: model.unique_id,
+            name: model.name,
+            lightdash_source_name: model.lightdash_source_name,
+            package_name: model.package_name,
+        })),
+        'model',
+    );
+    const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
+    models.forEach((model) => {
+        const namespaceKey = getManifestNamespaceKey(model, model.name);
+        if (namespaceKey !== undefined) {
+            modelsByNamespaceAndName.set(namespaceKey, model);
+        }
+    });
+    const resolveJoins = (
+        model: DbtModelNode,
+        joins: DbtModelNode['meta']['joins'],
+    ): DbtModelNode['meta']['joins'] =>
+        joins?.map((join) => {
+            const namespaceKey = getManifestNamespaceKey(model, join.join);
+            if (namespaceKey === undefined) {
+                return join;
+            }
+            const joinedModel = modelsByNamespaceAndName.get(namespaceKey);
+            const resolvedJoinName = joinedModel
+                ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
+                : undefined;
+            if (!resolvedJoinName || resolvedJoinName === join.join) {
+                return join;
+            }
+            return {
+                ...join,
+                join: resolvedJoinName,
+                alias: join.alias ?? join.join,
+            };
+        });
+    const resolvedModels = models.map((model) => {
+        const resolvedName =
+            resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
+        const metaJoins = resolveJoins(model, model.meta.joins);
+        const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
+        return {
+            ...model,
+            name: resolvedName,
+            meta:
+                metaJoins === model.meta.joins
+                    ? model.meta
+                    : { ...model.meta, joins: metaJoins },
+            config:
+                configMetaJoins === model.config?.meta?.joins
+                    ? model.config
+                    : {
+                          ...model.config,
+                          meta: {
+                              ...model.config?.meta,
+                              joins: configMetaJoins,
+                          },
+                      },
+        };
+    });
+    const originalNamesByUniqueId = new Map(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+    const tableLineage = translateDbtModelsToTableLineage(resolvedModels);
     const additionalTimeIntervals = resolveAdditionalTimeIntervals(
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
@@ -1128,7 +1221,7 @@ export const convertExplores = async (
     const granularityLabels = resolveGranularityLabels(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
-    const [tables, exploreErrors] = models.reduce(
+    const [tables, exploreErrors] = resolvedModels.reduce(
         ([accTables, accErrors], model) => {
             // Config block takes priority, then meta block
             const meta = merge({}, model.meta, model.config?.meta);
@@ -1160,6 +1253,14 @@ export const convertExplores = async (
                 // add lineage
                 const tableWithLineage: Table = {
                     ...table,
+                    ...(originalNamesByUniqueId.get(model.unique_id) !==
+                    model.name
+                        ? {
+                              originalName: originalNamesByUniqueId.get(
+                                  model.unique_id,
+                              ),
+                          }
+                        : {}),
                     ...tableLineage[model.name],
                 };
 
@@ -1195,7 +1296,7 @@ export const convertExplores = async (
         (prev, table) => ({ ...prev, [table.name]: table }),
         {},
     );
-    const validModels = models.filter(
+    const validModels = resolvedModels.filter(
         (model) =>
             tableLookup[model.name] !== undefined &&
             // Seeds are compiled as tables (for join resolution) but should

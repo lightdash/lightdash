@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe('ciphertext registry', () => {
-    test('contains the full 19-field inventory', () => {
+    test('contains the full 25-field inventory', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
@@ -62,12 +62,18 @@ describe('ciphertext registry', () => {
             'ssh_key_pairs.private_key',
             'github_app_installations.encrypted_installation_id',
             'gitlab_app_installations.encrypted_installation_id',
+            'linear_app_installations.encrypted_installation_id',
+            'linear_app_installations.encrypted_access_token',
+            'linear_app_installations.encrypted_refresh_token',
             'git_user_credentials.encrypted_auth_token',
             'git_user_credentials.encrypted_refresh_token',
             'user_oauth_grants.encrypted_refresh_token',
             'organization_sso_configurations.config',
             'embedding.encoded_secret',
             'managed_agent_settings.service_account_token',
+            'mobile_push_installations.encrypted_device_token',
+            'mobile_push_installations.encrypted_push_to_start_token',
+            'ai_agent_live_activities.encrypted_push_token',
             'ai_mcp_server_credential.encrypted_credentials',
             'ai_organization_settings.encrypted_provider_api_keys',
             'external_connection_secrets.encrypted_payload',

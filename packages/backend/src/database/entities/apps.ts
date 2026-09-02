@@ -40,6 +40,12 @@ export type DbApp = {
     // app is first promoted. Lives on the preview side so a single production
     // app can be the upstream of many preview apps.
     upstream_app_uuid: string | null;
+    // Slug/URL of the registry entry this app was installed from, if any.
+    registry_slug: string | null;
+    registry_url: string | null;
+    // The app this one was forked from, and the version forked at.
+    origin_app_uuid: string | null;
+    origin_app_version: number | null;
     created_at: Date;
     created_by_user_uuid: string;
     deleted_at: Date | null;
@@ -62,6 +68,10 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'template'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
+                | 'registry_slug'
+                | 'registry_url'
+                | 'origin_app_uuid'
+                | 'origin_app_version'
             >
         >,
     Partial<
@@ -74,6 +84,10 @@ export type AppsTable = Knex.CompositeTableType<
             | 'sandbox_id'
             | 'design_uuid'
             | 'upstream_app_uuid'
+            | 'registry_slug'
+            | 'registry_url'
+            | 'origin_app_uuid'
+            | 'origin_app_version'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'views_count'
@@ -103,6 +117,8 @@ export type DbAppVersion = {
     // Token/cost spend for this version's generation. Null when the version
     // predates spend recording or never called the model.
     generation_usage: DataAppGenerationUsage | null;
+    // Registry version string this app version was installed/updated from.
+    registry_version: string | null;
     created_at: Date;
     created_by_user_uuid: string;
 };
@@ -123,6 +139,7 @@ export type DbAppActivityRow = Pick<
     | 'created_by_user_uuid'
 > & {
     app_name: string;
+    app_template: DbApp['template'];
     app_deleted_at: Date | null;
     project_uuid: string;
     project_name: string;
@@ -139,7 +156,11 @@ export type AppVersionsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAppVersion,
-                'app_version_id' | 'resources' | 'dependencies' | 'viz_schema'
+                | 'app_version_id'
+                | 'resources'
+                | 'dependencies'
+                | 'viz_schema'
+                | 'registry_version'
             >
         >,
     Partial<
@@ -153,6 +174,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'viz_schema'
             | 'data_references'
             | 'generation_usage'
+            | 'registry_version'
         >
     >
 >;

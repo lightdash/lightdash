@@ -32,6 +32,7 @@ import {
     ProjectType,
     Role,
     RoleWithScopes,
+    ServiceAccount,
     ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
@@ -63,7 +64,10 @@ import { ProjectGroupAccessCustomRolesTableName } from '../database/entities/pro
 import { ProjectMembershipCustomRolesTableName } from '../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
-import { ScopedRolesTableName } from '../database/entities/roles';
+import {
+    RolesTableName,
+    ScopedRolesTableName,
+} from '../database/entities/roles';
 import {
     DbUser,
     DbUserIn,
@@ -890,6 +894,23 @@ export class UserModel {
         return scopesRecord;
     }
 
+    /**
+     * Whether an org custom role uuid exists in `roles` (vs. missing/unknown).
+     * Scoped narrowly to the human primary-org-role empty-role check below —
+     * project roles, extra roles, and service accounts keep the legacy
+     * "no scopes entry" fallback untouched.
+     */
+    private async roleExists(
+        roleUuid: string,
+        trx: Knex = this.database,
+    ): Promise<boolean> {
+        const row = await trx(RolesTableName)
+            .select('role_uuid')
+            .where('role_uuid', roleUuid)
+            .first();
+        return row !== undefined;
+    }
+
     private async generateUserAbilityBuilder(
         user: DbUserDetails,
         trx: Knex = this.database,
@@ -1066,16 +1087,46 @@ export class UserModel {
                 ...(role.extraRoleUuids ?? []),
             ]),
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
-        const [customRoleScopes, customRolesFlag] = await Promise.all([
-            this.customRoleScopes(customRoleUuids, trx),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.CustomRoles,
-                },
-                { trx },
-            ),
-        ]);
+        const isEnterprise =
+            this.lightdashConfig.license.licenseKey !== undefined;
+        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
+            await Promise.all([
+                this.customRoleScopes(customRoleUuids, trx),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId: CommercialFeatureFlags.CustomRoles,
+                    },
+                    { trx },
+                ),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId:
+                            CommercialFeatureFlags.PatScopeAuthoritative,
+                    },
+                    { trx },
+                ),
+            ]);
+
+        // Narrow empty-role resolution: only the flagged enterprise human's
+        // primary org role uuid is checked for existence when it has no
+        // scopes entry. If the role still exists (zero scoped_roles rows),
+        // seed an authoritative empty list so it does not fall back to the
+        // system role. Service accounts, project roles and extra roles keep
+        // the legacy "missing entry falls back" behavior untouched.
+        if (
+            patScopeAuthoritativeFlag.enabled &&
+            isEnterprise &&
+            lightdashUser.roleUuid &&
+            !(lightdashUser.roleUuid in customRoleScopes)
+        ) {
+            const exists = await this.roleExists(lightdashUser.roleUuid, trx);
+            if (exists) {
+                customRoleScopes[lightdashUser.roleUuid] = [];
+            }
+        }
+
         const { builder: abilityBuilder, invalidScopes } =
             getUserAbilityBuilder({
                 user: lightdashUser,
@@ -1088,8 +1139,8 @@ export class UserModel {
                 customRolesEnabled:
                     this.lightdashConfig.customRoles.enabled ||
                     customRolesFlag.enabled,
-                isEnterprise:
-                    this.lightdashConfig.license.licenseKey !== undefined,
+                isEnterprise,
+                patScopeAuthoritative: patScopeAuthoritativeFlag.enabled,
             });
 
         if (invalidScopes.length > 0) {
@@ -1229,12 +1280,14 @@ export class UserModel {
         userUuid: string,
         { trx = this.database }: { trx?: Knex } = {},
     ): Promise<
-        | {
-              uuid: string;
-              description: string;
-              scopes: ServiceAccountScope[];
-              organizationUuid: string;
-          }
+        | Pick<
+              ServiceAccount,
+              | 'uuid'
+              | 'description'
+              | 'scopes'
+              | 'organizationUuid'
+              | 'expiresAt'
+          >
         | undefined
     > {
         const row = await trx('service_accounts')
@@ -1245,12 +1298,14 @@ export class UserModel {
                     description: string;
                     scopes: string[];
                     organization_uuid: string;
+                    expires_at: Date | null;
                 }[]
             >(
                 'service_account_uuid',
                 'description',
                 'scopes',
                 'organization_uuid',
+                'expires_at',
             )
             .first();
         if (!row) {
@@ -1261,6 +1316,7 @@ export class UserModel {
             description: row.description,
             scopes: row.scopes as ServiceAccountScope[],
             organizationUuid: row.organization_uuid,
+            expiresAt: row.expires_at,
         };
     }
 

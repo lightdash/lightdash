@@ -1,6 +1,8 @@
 import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
+    ParameterError,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -125,6 +127,102 @@ describe('UserWarehouseCredentialsModel', () => {
                     password: 'password',
                 } as never),
             ).toBeUndefined();
+        });
+    });
+
+    describe('normalizeCredentialsForPersistence', () => {
+        const normalize = (credentials: object) =>
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence({
+                name: 'Default',
+                credentials: credentials as never,
+            });
+
+        test('defaults an omitted Snowflake authentication type to password', () => {
+            expect(
+                normalize({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'user',
+                    password: 'password',
+                }).credentials,
+            ).toEqual({
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'user',
+                password: 'password',
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            });
+        });
+
+        test('preserves an explicit Snowflake authentication type', () => {
+            expect(
+                normalize({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'user',
+                    privateKey: 'private-key',
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                }).credentials,
+            ).toEqual(
+                expect.objectContaining({
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                }),
+            );
+        });
+
+        test('rejects a Snowflake private key credential with an empty key', () => {
+            expect(() =>
+                normalize({
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'user',
+                    privateKey: '',
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                }),
+            ).toThrow(ParameterError);
+        });
+
+        test('leaves other warehouse types untouched', () => {
+            const postgres = {
+                type: WarehouseTypes.POSTGRES,
+                user: 'user',
+                password: 'password',
+            };
+            expect(normalize(postgres).credentials).toEqual(postgres);
+        });
+    });
+
+    describe('mergeCredentialsForUpdate', () => {
+        const existingCredentials = {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'existing-access-key',
+            secretAccessKey: 'existing-secret-key',
+        } as const;
+
+        test('preserves the Athena secret when the access key ID is unchanged', () => {
+            expect(
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    {
+                        name: 'Renamed',
+                        credentials: {
+                            type: WarehouseTypes.ATHENA,
+                            accessKeyId: 'existing-access-key',
+                        },
+                    },
+                    existingCredentials,
+                ).credentials,
+            ).toEqual(existingCredentials);
+        });
+
+        test('requires the Athena secret when the access key ID changes', () => {
+            expect(() =>
+                UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+                    {
+                        name: 'Renamed',
+                        credentials: {
+                            type: WarehouseTypes.ATHENA,
+                            accessKeyId: 'new-access-key',
+                        },
+                    },
+                    existingCredentials,
+                ),
+            ).toThrow(ParameterError);
         });
     });
 

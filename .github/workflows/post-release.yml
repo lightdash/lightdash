@@ -235,7 +235,9 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          install: false
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -364,6 +366,119 @@ jobs:
           if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
+
+  build-linux-binary:
+    name: Build Linux x64 CLI Binary
+    needs: check-cli-changes
+    if: needs.check-cli-changes.outputs.should_build == 'true'
+    runs-on: depot-ubuntu-24.04-4
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: SocketDev/action@2d3f25590c6ed6ba11a9a14c064d962a3a04698f # v1.3.1
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/setup@84cb39b217b10273981911c288cd62326dc7c6d2 # v2.0.2
+        with:
+          install: false
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Read packageManager
+        id: package-manager
+        run: |
+          version=$(node -p 'JSON.parse(require("fs").readFileSync("package.json","utf8")).packageManager.split("+")[0]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ steps.package-manager.outputs.version }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force --network-concurrency=16
+
+      - name: Cache common build
+        id: cache-common
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: packages/common/dist
+          key: ${{ runner.os }}-common-build-${{ hashFiles('packages/common/src/**', 'packages/common/tsconfig*.json') }}
+
+      - name: Build common package
+        if: steps.cache-common.outputs.cache-hit != 'true'
+        run: pnpm common-build
+
+      - name: Cache warehouses build
+        id: cache-warehouses
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        with:
+          path: packages/warehouses/dist
+          key: ${{ runner.os }}-warehouses-build-${{ hashFiles('packages/warehouses/src/**', 'packages/warehouses/tsconfig*.json', 'packages/common/src/**') }}
+
+      - name: Build warehouses package
+        if: steps.cache-warehouses.outputs.cache-hit != 'true'
+        run: pnpm warehouses-build
+
+      - name: Build CLI package
+        working-directory: packages/cli
+        run: pnpm build
+
+      - name: Build Linux binary
+        working-directory: packages/cli
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version=$(node -p "require('./package.json').version")
+          test "${tag#v}" = "$version"
+          ./scripts/build-binaries.sh --archive --linux-only
+          sha256sum --check checksums-linux-sha256.txt
+
+      - name: Upload binary to release
+        working-directory: packages/cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          gh release upload "$tag" \
+            "lightdash-cli-${tag}-linux-x64.tar.gz" \
+            checksums-linux-sha256.txt \
+            --clobber
+
+      - name: Test published binary without Node.js
+        working-directory: packages/cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ github.event.release.tag_name }}"
+          version=$(node -p "require('./package.json').version")
+          download_dir=$(mktemp -d)
+          trap 'rm -rf "$download_dir"' EXIT
+          gh release download "$tag" \
+            --pattern "lightdash-cli-${tag}-linux-x64.tar.gz" \
+            --pattern checksums-linux-sha256.txt \
+            --dir "$download_dir"
+          (cd "$download_dir" && sha256sum --check checksums-linux-sha256.txt)
+          ./scripts/smoke-test-linux-binary.sh \
+            "$download_dir/lightdash-cli-${tag}-linux-x64.tar.gz" \
+            "$version"
 
   update-homebrew-formula:
     name: Update Homebrew Formula

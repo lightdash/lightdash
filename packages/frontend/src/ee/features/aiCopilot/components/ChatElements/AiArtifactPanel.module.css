@@ -28,14 +28,15 @@
 .floatingContent {
     height: 100%;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
-        calc(var(--mantine-spacing-md) + 40px);
+        var(--mantine-spacing-md);
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
 
-.sqlArtifactContent {
-    padding-bottom: var(--mantine-spacing-md);
+/* Room for the floating chart-type pill overlaying the content bottom. */
+.withPillClearance {
+    padding-bottom: calc(var(--mantine-spacing-md) + 40px);
 }
 
 /* Same outer chrome as the chart panel, but no pill clearance — the
@@ -46,6 +47,13 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+/* Positioned so the app inspector can overlay the preview's bottom edge. */
+.previewBody {
+    flex: 1;
+    min-height: 0;
+    position: relative;
 }
 
 .head {

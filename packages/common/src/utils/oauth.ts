@@ -5,7 +5,8 @@ export const oauthPageStyles = `
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Open Sans', 'Helvetica Neue', sans-serif;
         background-color: #f8fafc;
         margin: 0;
-        padding: 0;
+        padding: 20px;
+        box-sizing: border-box;
         min-height: 100vh;
         display: flex;
         align-items: center;
@@ -19,8 +20,10 @@ export const oauthPageStyles = `
         border: 1px solid #e9ecef;
         box-shadow: 0px 1px 2px 0px rgba(10, 13, 18, 0.05);
         padding: 24px;
-        max-width: 400px;
-        width: 90%;
+        margin: 0;
+        box-sizing: border-box;
+        max-width: 450px;
+        width: 100%;
         text-align: center;
     }
     .logo {
@@ -59,6 +62,38 @@ export const oauthPageStyles = `
         flex-direction: column;
         gap: 16px;
     }
+    .oauth-btn,
+    .button {
+        display: inline-block;
+        padding: 8px 24px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s;
+    }
+    .oauth-btn.approve,
+    .button {
+        background: #111418;
+        color: #fff;
+        border-color: #111418;
+    }
+    .oauth-btn.approve:hover,
+    .button:hover {
+        background: #2c2e33;
+        border-color: #2c2e33;
+    }
+    .oauth-btn.deny {
+        background: transparent;
+        color: #111418;
+        border-color: #e9ecef;
+    }
+    .oauth-btn.deny:hover {
+        background: #f8fafc;
+        border-color: #dee2e6;
+    }
 `;
 
 // Lightdash logo SVG
@@ -82,6 +117,7 @@ const LIGHTDASH_LOGO_SVG = `
 const OAUTH_RESPONSE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <style>{{{styles}}}</style>
     </head>
     <body>
@@ -101,13 +137,42 @@ const OAUTH_RESPONSE_TEMPLATE = `
 </html>
 `;
 
+// OAuth redirect page template. This intentionally uses a meta refresh instead
+// of an HTTP redirect: Chromium applies the authorize page's form-action CSP to
+// HTTP redirects after the consent form POST, which blocks OAuth loopback URIs.
+// Handlebars escapes redirectUrl in the refresh attribute context.
+const OAUTH_REDIRECT_TEMPLATE = `
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta http-equiv="refresh" content="0;url={{redirectUrl}}" />
+        <title>Redirecting...</title>
+        <style>{{{styles}}}</style>
+    </head>
+    <body>
+        <div class="stack">
+            <div class="container">
+                {{{logo}}}
+                <h1>Redirecting...</h1>
+                <p>{{message}}</p>
+                <a class="button" href="{{redirectUrl}}">Continue</a>
+            </div>
+        </div>
+    </body>
+</html>
+`;
+
 // OAuth authorization page template
 const OAUTH_AUTHORIZE_TEMPLATE = `
 <html>
     <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Authorize Application</title>
         <style>
             {{{styles}}}
+            body {
+                padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px) + 60px);
+            }
             .container { text-align: left; }
             .oauth-header {
                 text-align: center;
@@ -254,33 +319,6 @@ const OAUTH_AUTHORIZE_TEMPLATE = `
                 padding-top: 16px;
                 border-top: 1px solid #e9ecef;
             }
-            .oauth-btn {
-                padding: 8px 24px;
-                border: 1px solid #e9ecef;
-                border-radius: 8px;
-                font-weight: 500;
-                font-size: 14px;
-                cursor: pointer;
-                transition: background 0.15s, border-color 0.15s;
-            }
-            .oauth-btn.approve {
-                background: #111418;
-                color: #fff;
-                border-color: #111418;
-            }
-            .oauth-btn.approve:hover {
-                background: #2c2e33;
-                border-color: #2c2e33;
-            }
-            .oauth-btn.deny {
-                background: transparent;
-                color: #111418;
-                border-color: #e9ecef;
-            }
-            .oauth-btn.deny:hover {
-                background: #f8fafc;
-                border-color: #dee2e6;
-            }
         </style>
     </head>
     <body>
@@ -375,59 +413,10 @@ const OAUTH_ICONS = {
         '<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
 } as const;
 
-// OAuth redirect page template
-const OAUTH_REDIRECT_TEMPLATE = `
-<html>
-    <head>
-        <title>Redirecting...</title>
-        <style>
-            {{{styles}}}
-            .spinner {
-                width: 32px;
-                height: 32px;
-                margin: 0 auto 16px auto;
-                border: 3px solid #e9ecef;
-                border-top: 3px solid #111418;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            .redirect-link {
-                color: #111418;
-                text-decoration: none;
-                font-weight: 500;
-            }
-            .redirect-link:hover {
-                text-decoration: underline;
-            }
-        </style>
-        <script>
-            setTimeout(function() {
-                window.location.href = "{{{redirectUrl}}}";
-            }, 2000);
-        </script>
-    </head>
-    <body>
-        <div class="stack">
-            <div class="container">
-                {{{logo}}}
-                <div class="spinner"></div>
-                <h1>Redirecting...</h1>
-                <p>{{message}}</p>
-                <p>If you are not redirected automatically, <a href="{{{redirectUrl}}}" class="redirect-link">click here</a>.</p>
-            </div>
-        </div>
-    </body>
-</html>
-`;
-
 // Compile the templates once with proper type safety
 const compiledResponseTemplate = compile(OAUTH_RESPONSE_TEMPLATE);
-const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 const compiledRedirectTemplate = compile(OAUTH_REDIRECT_TEMPLATE);
+const compiledAuthorizeTemplate = compile(OAUTH_AUTHORIZE_TEMPLATE);
 
 export type OAuthResponseStatus = 'success' | 'error';
 export type OAuthIconType = keyof typeof OAUTH_ICONS;
@@ -466,6 +455,21 @@ export interface OAuthRedirectParams {
     redirectUrl: string;
     message: string;
 }
+
+const UNSAFE_REDIRECT_PROTOCOLS = new Set(
+    ['javascript', 'data', 'vbscript', 'file', 'blob'].map(
+        (scheme) => `${scheme}:`,
+    ),
+);
+
+export const isSafeRedirectScheme = (uri: string): boolean => {
+    try {
+        const { protocol } = new URL(uri);
+        return !UNSAFE_REDIRECT_PROTOCOLS.has(protocol.toLowerCase());
+    } catch {
+        return false;
+    }
+};
 
 // Scope descriptions mapping
 const SCOPE_DESCRIPTIONS: Record<string, OAuthScopeDescription> = {
@@ -560,6 +564,25 @@ export const generateOAuthErrorResponse = (
         iconType,
     );
 
+/**
+ * Generates a script-free redirect page for a previously validated OAuth URI.
+ */
+export const generateOAuthRedirectPage = (
+    params: OAuthRedirectParams,
+): string => {
+    if (!isSafeRedirectScheme(params.redirectUrl)) {
+        return generateOAuthErrorResponse('Unsupported redirect', [
+            'This application uses an unsupported redirect and cannot continue.',
+        ]);
+    }
+
+    return compiledRedirectTemplate({
+        styles: oauthPageStyles,
+        logo: LIGHTDASH_LOGO_SVG,
+        ...params,
+    });
+};
+
 const getUserInitials = (user: OAuthUser): string => {
     const initials =
         `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.trim();
@@ -581,17 +604,4 @@ export const generateOAuthAuthorizePage = (
             ...params.user,
             initials: getUserInitials(params.user),
         },
-    });
-
-/**
- * Generates an OAuth redirect page HTML using JavaScript redirect
- * This prevents CSP errors by using JavaScript-based redirection instead of HTTP redirects
- */
-export const generateOAuthRedirectPage = (
-    params: OAuthRedirectParams,
-): string =>
-    compiledRedirectTemplate({
-        styles: oauthPageStyles,
-        logo: LIGHTDASH_LOGO_SVG,
-        ...params,
     });

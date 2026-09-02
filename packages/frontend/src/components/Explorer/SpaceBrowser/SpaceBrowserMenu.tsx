@@ -45,19 +45,15 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <Menu
-            withinPortal
             position="bottom-end"
             withArrow
             arrowPosition="center"
-            shadow="md"
             closeOnItemClick
             closeOnClickOutside
         >
             <Menu.Target>
                 <Box>
-                    <ActionIcon variant="subtle" color="gray">
-                        {children}
-                    </ActionIcon>
+                    <ActionIcon>{children}</ActionIcon>
                 </Box>
             </Menu.Target>
             <Menu.Dropdown>

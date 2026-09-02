@@ -45,7 +45,7 @@ services:
         environment:
             NODE_ENV: production
             DBT_DEMO_DIR: /usr/app
-            LIGHTDASH_SEED_DBT_VERSION: v1.11
+            LIGHTDASH_SEED_DBT_VERSION: v1.12
             # Must match the preview LIGHTDASH_SECRET in
             # docker-compose.preview.yml: the seed encrypts warehouse
             # credentials with it, and a diverted preview must decrypt them
@@ -60,6 +60,7 @@ services:
             # with a license key; without it diverted previews would be
             # missing the enterprise seed data
             LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
+            LIGHTDASH_LICENSE_CERTIFICATE: ${LIGHTDASH_LICENSE_CERTIFICATE}
             # Never used by migrate/seed, but loading the knexfile parses the
             # full Lightdash config, which requires S3 settings to be present
             S3_ENDPOINT: http://unused:9000

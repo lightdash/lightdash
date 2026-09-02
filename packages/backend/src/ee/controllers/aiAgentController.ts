@@ -1,5 +1,6 @@
 import {
     AgentAsCode,
+    aiAgentSuggestionContextSchema,
     AiAgentThreadFilters,
     AiArtifactTSOACompat,
     AiClonedThreadCreatedFrom,
@@ -28,6 +29,7 @@ import {
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
+    ApiAiAgentThreadLiveStatusesResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -102,6 +104,15 @@ import Logger from '../../logging/logger';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
+
+const parseSuggestionContext = (context: string | undefined) => {
+    if (!context) return undefined;
+    try {
+        return aiAgentSuggestionContextSchema.parse(JSON.parse(context));
+    } catch {
+        throw new ParameterError('Invalid agent suggestion context');
+    }
+};
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -484,6 +495,32 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Get('/threads/live-statuses')
+    @OperationId('getAgentThreadLiveStatuses')
+    async getAgentThreadLiveStatuses(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() threadUuids: UUID[],
+    ): Promise<ApiAiAgentThreadLiveStatusesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: {
+                statuses:
+                    await this.getAiAgentService().getAgentThreadLiveStatuses(
+                        toSessionUser(req.account),
+                        projectUuid,
+                        threadUuids,
+                    ),
+                generatedAt: new Date().toISOString(),
+            },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}')
     @OperationId('getAgent')
     async getAgent(
@@ -661,6 +698,7 @@ export class AiAgentController extends BaseController {
         @Query() threadUuid?: string,
         @Query() afterMessageUuid?: string,
         @Query() enableSqlMode?: boolean,
+        @Query() context?: string,
     ): Promise<ApiAgentSuggestionsResponse> {
         this.setStatus(200);
 
@@ -686,6 +724,7 @@ export class AiAgentController extends BaseController {
                 threadUuid,
                 afterMessageUuid,
                 enableSqlMode,
+                context: parseSuggestionContext(context),
             },
         );
         return {
@@ -985,6 +1024,39 @@ export class AiAgentController extends BaseController {
                 agentUuid,
                 threadUuid,
             ),
+        };
+    }
+
+    /**
+     * Permanently delete an AI agent thread and everything derived from it.
+     * Available to the thread owner and to agent admins.
+     * @summary Delete AI agent thread
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}/threads/{threadUuid}')
+    @OperationId('deleteAgentThread')
+    async deleteAgentThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().deleteAgentThread(
+            toSessionUser(req.account),
+            agentUuid,
+            threadUuid,
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

@@ -1415,11 +1415,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         titleField &&
                                         titleMenuTarget &&
                                         renderSortMenu ? (
-                                            <Menu
-                                                shadow="md"
-                                                position="bottom-start"
-                                                withinPortal
-                                            >
+                                            <Menu position="bottom-start">
                                                 <Menu.Target>
                                                     <Box
                                                         component="span"
@@ -1591,11 +1587,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     maw={effectiveWidth}
                                 >
                                     {isClickableHeader && pivotMenuTarget ? (
-                                        <Menu
-                                            shadow="md"
-                                            position="bottom-start"
-                                            withinPortal
-                                        >
+                                        <Menu position="bottom-start">
                                             <Menu.Target>
                                                 <Box
                                                     component="span"

@@ -130,6 +130,7 @@ export class HealthService extends BaseService {
             license: this.licenseService.getLicenseStatus(),
             mode: this.lightdashConfig.mode,
             version: VERSION,
+            mobile: this.lightdashConfig.mobile,
             localDbtEnabled,
             defaultProject: undefined,
             isAuthenticated,
@@ -183,6 +184,7 @@ export class HealthService extends BaseService {
             hasGitlab:
                 this.lightdashConfig.gitlab.clientId !== undefined &&
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
+            hasLinear: true,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,
@@ -227,6 +229,10 @@ export class HealthService extends BaseService {
                     enabled:
                         !!this.lightdashConfig.auth.databricks.clientId &&
                         this.isEnterpriseEnabled(),
+                },
+                mobileLogin: {
+                    loginExperienceVersion: 1,
+                    available: this.lightdashConfig.auth.mobileLogin.enabled,
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,

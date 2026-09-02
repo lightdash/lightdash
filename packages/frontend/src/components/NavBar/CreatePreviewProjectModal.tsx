@@ -21,6 +21,8 @@ import {
     Textarea,
     TextInput,
     Tooltip,
+    type ComboboxItem,
+    type ComboboxItemGroup,
 } from '@mantine/core';
 import {
     IconExternalLink,
@@ -243,42 +245,37 @@ const CreatePreviewModal: FC<Props> = ({
         [handleGeneratePreviewName],
     );
 
-    const regularProjectList = useMemo(() => {
+    const projectItems = useMemo(() => {
         if (isLoadingProjects || !projects || !user.data) return [];
 
         return projects
             .filter((p) => p.type === ProjectType.DEFAULT)
-            .map((project) => {
-                const userCannotCreatePreview = user.data.ability.cannot(
+            .map((project) => ({
+                value: project.projectUuid,
+                label: project.name,
+                disabled: user.data.ability.cannot(
                     'create',
                     subject('Project', {
                         organizationUuid: user.data.organizationUuid,
                         upstreamProjectUuid: project.projectUuid,
                         type: ProjectType.PREVIEW,
                     }),
-                );
-
-                const item: {
-                    value: string;
-                    label: string;
-                    disabled: boolean;
-                    group?: string;
-                } = {
-                    value: project.projectUuid,
-                    label: project.name,
-                    disabled: userCannotCreatePreview,
-                };
-
-                if (userCannotCreatePreview) {
-                    item.group = 'Requires Developer Access';
-                }
-
-                return item;
-            })
-            .sort((a, b) =>
-                a.disabled === b.disabled ? 0 : a.disabled ? 1 : -1,
-            );
+                ),
+            }));
     }, [isLoadingProjects, projects, user.data]);
+
+    const regularProjectList: (ComboboxItem | ComboboxItemGroup)[] =
+        useMemo(() => {
+            const available = projectItems.filter((item) => !item.disabled);
+            const restricted = projectItems.filter((item) => item.disabled);
+
+            return restricted.length > 0
+                ? [
+                      ...available,
+                      { group: 'Requires Developer Access', items: restricted },
+                  ]
+                : available;
+        }, [projectItems]);
 
     const { data: projectDetails } = useProject(
         selectedProjectUuid ?? undefined,
@@ -297,7 +294,7 @@ const CreatePreviewModal: FC<Props> = ({
             !selectedProjectUuid &&
             projects
         ) {
-            const initialProjectValue = regularProjectList.find(
+            const initialProjectValue = projectItems.find(
                 (project) => project.value === initialProjectUuid,
             );
 
@@ -312,7 +309,7 @@ const CreatePreviewModal: FC<Props> = ({
         handleGeneratePreviewName,
         isLoadingActiveProjectUuid,
         projects,
-        regularProjectList,
+        projectItems,
         selectedProjectUuid,
     ]);
 
@@ -428,8 +425,6 @@ const CreatePreviewModal: FC<Props> = ({
             title={modalTitle}
             actions={
                 <Button
-                    color="dark"
-                    variant="filled"
                     disabled={
                         isPreviewCreating ||
                         !selectedProjectUuid ||
@@ -480,7 +475,6 @@ const CreatePreviewModal: FC<Props> = ({
                         <Tooltip label="Generate unique name">
                             <ActionIcon
                                 color="foreground.9"
-                                variant="subtle"
                                 onClick={() =>
                                     setPreviewName(handleGeneratePreviewName())
                                 }
@@ -532,7 +526,6 @@ const CreatePreviewModal: FC<Props> = ({
                                                     ?.message ||
                                                 'Failed to fetch branches'
                                             }
-                                            multiline
                                             w={250}
                                         >
                                             <ActionIcon
@@ -601,7 +594,7 @@ const CreatePreviewModal: FC<Props> = ({
                     </>
                 ) : (
                     <>
-                        <Text c="ldGray.6" fz="sm">
+                        <Text c="dimmed" fz="sm">
                             This{' '}
                             <Text span fw={600} fz="sm">
                                 {projectDetails?.dbtConnection?.type

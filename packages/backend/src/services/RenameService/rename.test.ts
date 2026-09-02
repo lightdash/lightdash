@@ -966,6 +966,49 @@ describe('renameChartConfigType', () => {
 });
 
 describe('renameSavedChart', () => {
+    test('should repoint a split explore and its field references', () => {
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: {
+                ...chartMocked,
+                tableName: 'orders',
+                metricQuery: {
+                    ...chartMocked.metricQuery,
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_amount'],
+                    sorts: [],
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    customDimensions: [],
+                },
+                tableConfig: {
+                    ...chartMocked.tableConfig,
+                    columnOrder: ['orders_amount'],
+                },
+            },
+            nameChanges: {
+                from: 'orders',
+                to: 'sourceA__orders',
+                fromReference: 'orders',
+                toReference: 'sourceA__orders',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart.tableName).toBe('sourceA__orders');
+        expect(updatedChart.metricQuery.exploreName).toBe('sourceA__orders');
+        expect(updatedChart.metricQuery.metrics).toEqual([
+            'sourceA__orders_amount',
+        ]);
+        expect(updatedChart.tableConfig.columnOrder).toEqual([
+            'sourceA__orders_amount',
+        ]);
+    });
+
     test('should rename mocked saved chart field', () => {
         const { updatedChart, hasChanges } = renameSavedChart({
             type: RenameType.FIELD,

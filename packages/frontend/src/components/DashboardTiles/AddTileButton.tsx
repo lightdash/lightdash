@@ -22,8 +22,10 @@ import {
     IconVideo,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -71,6 +73,7 @@ const AddTileButton: FC<Props> = ({
 
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
@@ -122,20 +125,14 @@ const AddTileButton: FC<Props> = ({
         },
         [onAddTiles],
     );
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
 
     return (
         <>
             {canAddTile ? (
-                <Menu
-                    position="bottom"
-                    withArrow
-                    withinPortal
-                    shadow="md"
-                    width={200}
-                >
+                <Menu position="bottom" withArrow width={200}>
                     <Menu.Target>
                         <Button
                             size="xs"
@@ -178,9 +175,10 @@ const AddTileButton: FC<Props> = ({
                                         dashboard?.name,
                                         activeTabUuid,
                                         dashboardTabs,
+                                        dashboard?.slug,
                                     );
                                     void navigate(
-                                        `/projects/${projectUuid}/tables`,
+                                        `/projects/${projectUrlIdentifier}/tables`,
                                     );
                                 }}
                                 leftSection={<MantineIcon icon={IconPlus} />}
@@ -196,7 +194,7 @@ const AddTileButton: FC<Props> = ({
                                     >
                                         <MantineIcon
                                             icon={IconInfoCircle}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                         />
                                     </Tooltip>
                                 </Group>

@@ -26,7 +26,7 @@ const MetaField: FC<{ label: string; children: React.ReactNode }> = ({
     children,
 }) => (
     <Stack gap={2}>
-        <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+        <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
             {label}
         </Text>
         {children}
@@ -55,7 +55,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                     <Stack gap={4} miw={0}>
                         <Title order={5}>{evalSummary.title}</Title>
                         {evalSummary.description && (
-                            <Text fz="sm" c="ldGray.6">
+                            <Text fz="sm" c="dimmed">
                                 {evalSummary.description}
                             </Text>
                         )}
@@ -76,7 +76,6 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                             Open eval
                         </Button>
                         <ActionIcon
-                            variant="subtle"
                             color="ldGray.7"
                             onClick={onClose}
                             aria-label="Close eval preview"
@@ -96,7 +95,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                     />
                 </MetaField>
                 <MetaField label="Project">
-                    <Text fz="sm" fw={500} c="ldGray.9">
+                    <Text fz="sm" fw={500}>
                         {evalSummary.project.name}
                     </Text>
                 </MetaField>
@@ -109,7 +108,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                     latestRun.completedAt ?? latestRun.createdAt
                                 }
                                 fz="xs"
-                                c="ldGray.6"
+                                c="dimmed"
                             />
                         </Group>
                     ) : (
@@ -122,7 +121,7 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
             <Divider color="ldGray.2" />
 
             <Box p="lg" flex={1} style={{ overflowY: 'auto', minHeight: 0 }}>
-                <Text fz={10} fw={700} c="dimmed" tt="uppercase" lts={0.4}>
+                <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.4}>
                     Prompts ({evalSummary.promptCount})
                 </Text>
                 {isInitialLoading ? (
@@ -155,17 +154,17 @@ export const EvalPreviewSidebar: FC<EvalPreviewSidebarProps> = ({
                                     c="ldGray.5"
                                     w={20}
                                     ta="right"
-                                    style={{ flexShrink: 0 }}
+                                    className="ld-shrink-0"
                                 >
                                     {index + 1}
                                 </Text>
                                 <Stack gap={2} miw={0}>
-                                    <Text fz="sm" lh={1.5} c="ldGray.9">
+                                    <Text fz="sm" lh={1.5}>
                                         {prompt.prompt ??
                                             'Prompt no longer available'}
                                     </Text>
                                     {prompt.expectedResponse && (
-                                        <Text fz="xs" c="ldGray.6" lh={1.5}>
+                                        <Text fz="xs" c="dimmed" lh={1.5}>
                                             Expected: {prompt.expectedResponse}
                                         </Text>
                                     )}

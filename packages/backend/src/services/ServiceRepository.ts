@@ -25,11 +25,14 @@ import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ContentAsCodeWritebackService } from './ContentAsCodeWritebackService/ContentAsCodeWritebackService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
+import { DirectAccessFeatureGate } from './DirectAccess/DirectAccessFeatureGate';
+import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
@@ -44,6 +47,7 @@ import { HeadlessBrowserService } from './HeadlessBrowserService';
 import { HealthService } from './HealthService/HealthService';
 import { LicenseService } from './LicenseService/LicenseService';
 import { LightdashAnalyticsService } from './LightdashAnalyticsService/LightdashAnalyticsService';
+import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
@@ -67,9 +71,6 @@ import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
-import { DuckdbQuerySource } from './QuerySourceService/sources/DuckdbQuerySource';
-import { SemanticLayerQuerySource } from './QuerySourceService/sources/SemanticLayerQuerySource';
-import { SqlQuerySource } from './QuerySourceService/sources/SqlQuerySource';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
@@ -100,6 +101,8 @@ interface ServiceManifest {
     commentService: CommentService;
     csvService: CsvService;
     dashboardService: DashboardService;
+    directAccessFeatureGate: DirectAccessFeatureGate;
+    directAccessService: DirectAccessService;
     deployService: DeployService;
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
@@ -108,6 +111,7 @@ interface ServiceManifest {
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
+    linearAppService: LinearAppService;
     gdriveService: GdriveService;
     groupService: GroupsService;
     headlessBrowserService: HeadlessBrowserService;
@@ -150,6 +154,7 @@ interface ServiceManifest {
     contentService: ContentService;
     contentVerificationService: ContentVerificationService;
     coderService: CoderService;
+    contentAsCodeWritebackService: ContentAsCodeWritebackService;
     featureFlagService: FeatureFlagService;
     funnelService: FunnelService;
     spotlightService: SpotlightService;
@@ -171,10 +176,13 @@ interface ServiceManifest {
     writebackPreviewService: unknown;
     previewDeploySetupService: unknown;
     appGenerateService: unknown;
+    externalSourceService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentCoderService: unknown;
     projectHomepageService: unknown;
+    contentReviewRequestService: unknown;
+    contentReviewNotificationService: unknown;
     aiAgentService: unknown;
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
@@ -193,6 +201,7 @@ interface ServiceManifest {
     externalConnectionCoderService: unknown;
     instanceConfigurationService: unknown;
     managedAgentService: unknown;
+    mobilePushNotificationService: unknown;
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
@@ -436,9 +445,16 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
@@ -551,6 +567,19 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getLinearAppService(): LinearAppService {
+        return this.getService(
+            'linearAppService',
+            () =>
+                new LinearAppService({
+                    linearAppInstallationsModel:
+                        this.models.getLinearAppInstallationsModel(),
+                    lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
         );
     }
@@ -805,6 +834,7 @@ export class ServiceRepository
                         this.models.getResourceViewItemModel(),
                     projectModel: this.models.getProjectModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                 }),
         );
     }
@@ -872,7 +902,9 @@ export class ServiceRepository
                         this.models.getProjectCompileLogModel(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    permissionsService: this.getPermissionsService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     organizationSettingsModel:
@@ -918,6 +950,7 @@ export class ServiceRepository
                 new AsyncQueryService({
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    contentDraftModel: this.models.getContentDraftModel(),
                     projectModel: this.models.getProjectModel(),
                     projectDbtSourcesModel:
                         this.models.getProjectDbtSourcesModel(),
@@ -971,6 +1004,7 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
                     getDataAppCustomSqlProvenance: async () => ({
@@ -984,22 +1018,10 @@ export class ServiceRepository
 
     public getQuerySourceService(): QuerySourceService {
         return this.getService('querySourceService', () => {
-            const asyncQueryService = this.getAsyncQueryService();
-            const projectService = this.getProjectService();
-            const registry = new QuerySourceRegistry();
-            registry.register(
-                new SemanticLayerQuerySource({
-                    asyncQueryService,
-                    projectService,
-                }),
-            );
-            registry.register(
-                new SqlQuerySource({
-                    asyncQueryService,
-                    projectService,
-                }),
-            );
-            registry.register(new DuckdbQuerySource({ asyncQueryService }));
+            const registry = QuerySourceRegistry.withBuiltInSources({
+                asyncQueryService: this.getAsyncQueryService(),
+                projectService: this.getProjectService(),
+            });
 
             return new QuerySourceService({
                 projectModel: this.models.getProjectModel(),
@@ -1035,6 +1057,11 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     organizationModel: this.models.getOrganizationModel(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
                 }),
         );
     }
@@ -1119,14 +1146,48 @@ export class ServiceRepository
         );
     }
 
+    public getDirectAccessFeatureGate(): DirectAccessFeatureGate {
+        return this.getService(
+            'directAccessFeatureGate',
+            () =>
+                new DirectAccessFeatureGate(
+                    this.models.getFeatureFlagModel(),
+                    this.getLicenseService(),
+                ),
+        );
+    }
+
+    public getDirectAccessService(): DirectAccessService {
+        return this.getService(
+            'directAccessService',
+            () =>
+                new DirectAccessService({
+                    directAccessModel: this.models.getDirectAccessModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                    directAccessFeatureGate: this.getDirectAccessFeatureGate(),
+                    appAccessModel: this.models.getAppAccessModel(),
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    savedChartAccessModel:
+                        this.models.getSavedChartAccessModel(),
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
+                }),
+        );
+    }
+
     public getSpacePermissionService(): SpacePermissionService {
         return this.getService(
             'spacePermissionService',
             () =>
-                new SpacePermissionService(
-                    this.models.getSpaceModel(),
-                    this.models.getSpacePermissionModel(),
-                ),
+                new SpacePermissionService({
+                    spaceModel: this.models.getSpaceModel(),
+                    spacePermissionModel: this.models.getSpacePermissionModel(),
+                    appAccessModel: this.models.getAppAccessModel(),
+                    dashboardAccessModel: this.models.getDashboardAccessModel(),
+                    savedChartAccessModel:
+                        this.models.getSavedChartAccessModel(),
+                    savedSqlAccessModel: this.models.getSavedSqlAccessModel(),
+                    directAccessFeatureGate: this.getDirectAccessFeatureGate(),
+                }),
         );
     }
 
@@ -1266,6 +1327,27 @@ export class ServiceRepository
         );
     }
 
+    public getContentAsCodeWritebackService(): ContentAsCodeWritebackService {
+        return this.getService(
+            'contentAsCodeWritebackService',
+            () =>
+                new ContentAsCodeWritebackService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
+                    gitIntegrationService: this.getGitIntegrationService(),
+                    coderService: this.getCoderService(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentAsCodeWritebackModel:
+                        this.models.getContentAsCodeWritebackModel(),
+                    contentDraftModel: this.models.getContentDraftModel(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
     public getCoderService(): CoderService {
         return this.getService(
             'coderService',
@@ -1286,6 +1368,10 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentAsCodeSnapshotModel:
+                        this.models.getContentAsCodeSnapshotModel(),
+                    contentAsCodeProjectSettingsModel:
+                        this.models.getContentAsCodeProjectSettingsModel(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectService: this.getProjectService(),
@@ -1402,6 +1488,7 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     validationModel: this.models.getValidationModel(),
                     // Only wired when EE license is active. Core builds get
                     // undefined and fail DATA_APP moves with a clear error.
@@ -1438,6 +1525,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    directAccessService: this.getDirectAccessService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     appModel: this.models.getAppModel(),
@@ -1511,6 +1599,12 @@ export class ServiceRepository
         return this.getService('appGenerateService');
     }
 
+    public getExternalSourceService<
+        ExternalSourceServiceImplT,
+    >(): ExternalSourceServiceImplT {
+        return this.getService('externalSourceService');
+    }
+
     public getProjectContextService<
         ProjectContextServiceImplT,
     >(): ProjectContextServiceImplT {
@@ -1533,6 +1627,18 @@ export class ServiceRepository
         ProjectHomepageServiceImplT,
     >(): ProjectHomepageServiceImplT {
         return this.getService('projectHomepageService');
+    }
+
+    public getContentReviewRequestService<
+        ContentReviewRequestServiceImplT,
+    >(): ContentReviewRequestServiceImplT {
+        return this.getService('contentReviewRequestService');
+    }
+
+    public getContentReviewNotificationService<
+        ContentReviewNotificationServiceImplT,
+    >(): ContentReviewNotificationServiceImplT {
+        return this.getService('contentReviewNotificationService');
     }
 
     public getHomepageRecommendedActionSkipsService<
@@ -1641,6 +1747,25 @@ export class ServiceRepository
         ManagedAgentServiceImplT,
     >(): ManagedAgentServiceImplT {
         return this.getService('managedAgentService');
+    }
+
+    public getMobilePushNotificationService<
+        MobilePushNotificationServiceImplT,
+    >(): MobilePushNotificationServiceImplT {
+        return this.getService(
+            'mobilePushNotificationService',
+            () =>
+                ({
+                    getStatus: () => ({ enabled: false, environments: [] }),
+                    registerInstallation: async () => undefined,
+                    revokeInstallation: async () => undefined,
+                    registerLiveActivity: async () => undefined,
+                    revokeLiveActivity: async () => undefined,
+                    enqueueThreadReconciliation: async () => undefined,
+                    sweepLiveActivities: async () => undefined,
+                    reconcileLiveActivity: async () => undefined,
+                }) as MobilePushNotificationServiceImplT,
+        );
     }
 
     public getMcpService<McpServiceImplT>(): McpServiceImplT {

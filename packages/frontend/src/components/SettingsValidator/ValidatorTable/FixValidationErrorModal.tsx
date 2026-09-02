@@ -365,7 +365,6 @@ export const FixValidationErrorModal: FC<Props> = ({
                                         value={oldName}
                                     />
                                     <Tooltip
-                                        withinPortal
                                         disabled={!isErrorFields}
                                         label={`Could not find any fields on explore ${savedQuery?.tableName}. Perhaps you want to replace the model instead?`}
                                     >
@@ -383,7 +382,6 @@ export const FixValidationErrorModal: FC<Props> = ({
                                                 )}
                                                 onSearchChange={setSearch}
                                                 searchValue={search}
-                                                radius="md"
                                                 data={fieldOptions}
                                                 required
                                                 disabled={isErrorFields}
@@ -467,7 +465,6 @@ export const FixValidationErrorModal: FC<Props> = ({
                             )}
                             {totalOcurrences > 1 ? (
                                 <Tooltip
-                                    withinPortal
                                     position="left"
                                     label="Check this to rename all occurrences of this field in other charts and dashboards."
                                 >

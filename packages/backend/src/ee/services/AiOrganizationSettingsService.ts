@@ -6,10 +6,13 @@ import {
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
+    FeatureFlags,
     ForbiddenError,
     getVisibleDataAppClaudeModels,
+    isValidRetentionWindowHours,
     LightdashUser,
     ParameterError,
+    RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
@@ -361,12 +364,14 @@ export class AiOrganizationSettingsService extends BaseService {
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
                 mcpContentWritesEnabled: true,
+                mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
+                threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
                 aiAgentReviewsPausedByByok,
@@ -434,6 +439,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 visibleDataAppModels: getVisibleDataAppClaudeModels(
                     dataAppModelVisibility,
                 ),
+                threadRetentionHours: null,
             };
         }
 
@@ -453,15 +459,16 @@ export class AiOrganizationSettingsService extends BaseService {
             visibleDataAppModels: getVisibleDataAppClaudeModels(
                 settings.dataAppModelVisibility,
             ),
+            threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
 
-    async isAiAgentsVisible(organizationUuid: string): Promise<boolean> {
+    async isMcpAgentsEnabled(organizationUuid: string): Promise<boolean> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.aiAgentsVisible ?? true;
+        return settings?.mcpAgentsEnabled ?? true;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -474,6 +481,40 @@ export class AiOrganizationSettingsService extends BaseService {
                 organizationUuid,
             );
         return settings?.deepResearchRawSqlEnabled ?? false;
+    }
+
+    async isThreadRetentionEnabled(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.commercialFeatureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiThreadRetention,
+        });
+        return flag.enabled;
+    }
+
+    async assertThreadRetentionWriteAllowed(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
+        threadRetentionHours: number | null,
+    ): Promise<void> {
+        if (!(await this.isThreadRetentionEnabled(user))) {
+            throw new ForbiddenError(
+                'AI thread retention is not enabled for this organization',
+            );
+        }
+        if (!isValidRetentionWindowHours(threadRetentionHours)) {
+            throw new ParameterError(RETENTION_WINDOW_HOURS_ERROR);
+        }
+    }
+
+    async getThreadRetentionCeiling(
+        organizationUuid: string,
+    ): Promise<number | null> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.threadRetentionHours ?? null;
     }
 
     async upsertSettings(
@@ -504,6 +545,19 @@ export class AiOrganizationSettingsService extends BaseService {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
         }
 
+        if (aiSettingsUpdate.threadRetentionHours !== undefined) {
+            // No-op writes stay allowed: clients that round-trip the settings
+            // object must not be rejected while the flag is off.
+            const storedRetention =
+                await this.getThreadRetentionCeiling(organizationUuid);
+            if (aiSettingsUpdate.threadRetentionHours !== storedRetention) {
+                await this.assertThreadRetentionWriteAllowed(
+                    user,
+                    aiSettingsUpdate.threadRetentionHours,
+                );
+            }
+        }
+
         // Set when hiding models orphans the org's configured default, so the
         // write can repoint it in the same upsert.
         let reconciledDefaultModelConfig: AiAgentModelConfig | null | undefined;
@@ -526,15 +580,12 @@ export class AiOrganizationSettingsService extends BaseService {
             aiSettingsUpdate.providerApiKeys !== undefined ||
             aiSettingsUpdate.modelVisibility !== undefined
         ) {
-            // BYO keys and model visibility require both AI copilot (env/ai-copilot
-            // flag) and the org-ai-provider-api-keys flag to be enabled for this org.
-            const [copilotEnabled, byoKeysEnabled] = await Promise.all([
-                this.getIsCopilotEnabled(user),
-                this.orgAiCopilotConfigResolver.isEnabled(organizationUuid),
-            ]);
-            if (!copilotEnabled || !byoKeysEnabled) {
+            // BYO keys and model visibility require AI copilot (env/ai-copilot
+            // flag) to be enabled for this org.
+            const copilotEnabled = await this.getIsCopilotEnabled(user);
+            if (!copilotEnabled) {
                 throw new ForbiddenError(
-                    'Organization AI provider API keys are not enabled',
+                    'AI copilot is not enabled for this organization',
                 );
             }
         }

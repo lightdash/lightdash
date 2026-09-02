@@ -42,7 +42,7 @@ export const MemoryStatusMenu: FC<Props> = ({
     }
 
     return (
-        <Menu width={144} position="bottom-start" shadow="sm" withinPortal>
+        <Menu width={144} position="bottom-start">
             <Menu.Target>
                 <UnstyledButton
                     className={styles.statusTrigger}

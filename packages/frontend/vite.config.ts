@@ -6,6 +6,7 @@ import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
 import { buildHashPlugin } from './vite.config.buildHash';
+import { pruneZodLocalesPlugin } from './vite.config.zodLocales';
 
 const FE_PORT = process.env.FE_PORT ? parseInt(process.env.FE_PORT) : 3000;
 const FE_HOST = process.env.FE_HOST;
@@ -25,6 +26,7 @@ export default defineConfig({
     },
     plugins: [
         buildHashPlugin(),
+        pruneZodLocalesPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/],
             algorithms: ['gzip'],
@@ -55,7 +57,6 @@ export default defineConfig({
         }),
     ],
     optimizeDeps: {
-        exclude: ['@lightdash/common'],
         include: ['react-vega'],
     },
     resolve: {

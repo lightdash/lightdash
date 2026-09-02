@@ -142,7 +142,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                         This role is currently in use. Unassign it from the
                         items below before you can delete it.
                     </Callout>
-                    <Paper withBorder radius="md">
+                    <Paper radius="md">
                         <Stack gap={0}>
                             {sortedAssignees.map((assignee, idx) => {
                                 const meta = KIND_META[assignee.kind];
@@ -164,10 +164,8 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                                             <Group
                                                 gap="sm"
                                                 wrap="nowrap"
-                                                style={{
-                                                    minWidth: 0,
-                                                    flex: 1,
-                                                }}
+                                                miw={0}
+                                                flex={1}
                                             >
                                                 <ThemeIcon
                                                     color={meta.color}
@@ -180,7 +178,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                                                         size="sm"
                                                     />
                                                 </ThemeIcon>
-                                                <Box style={{ minWidth: 0 }}>
+                                                <Box miw={0}>
                                                     {href ? (
                                                         <Anchor
                                                             component={Link}
@@ -219,11 +217,7 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
                                                     )}
                                                 </Box>
                                             </Group>
-                                            <Badge
-                                                color={meta.color}
-                                                variant="light"
-                                                size="sm"
-                                            >
+                                            <Badge color={meta.color} size="sm">
                                                 {meta.label}
                                             </Badge>
                                         </Group>

@@ -15,11 +15,13 @@ import {
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type ExternalSourceTableReference,
     type Filters,
     type ItemsMap,
     type ParametersValuesMap,
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
+    type QuerySourceTableName,
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
@@ -92,6 +94,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dataAppPreviewToken?: string;
+    customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
@@ -123,6 +126,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    includeUnpublishedDraft?: boolean;
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -179,6 +183,13 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
+};
+
+export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> external source table (name or uuid) to expose as that table. */
+    tables: Record<QuerySourceTableName, ExternalSourceTableReference>;
 };
 
 export type ExecuteAsyncMergeQueryArgs = CommonAsyncQueryArgs & {
@@ -258,6 +269,9 @@ export type RunAsyncWarehouseQueryArgs = {
     onboardingFlow: OnboardingFlow;
     queryTags: RunQueryTags;
     fieldsMap: ItemsMap;
+    /** Resolved parameter values for this execution — interpolates parameter
+     *  placeholders in column format expressions at column-build time. */
+    usedParameters: ParametersValuesMap | null;
     cacheKey: string;
     warehouseCredentialsOverrides?: {
         snowflakeVirtualWarehouse?: string;

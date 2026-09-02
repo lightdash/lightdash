@@ -10,6 +10,17 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
+    type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeUploadAdvisoryResponse,
+    type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
+    type ApiContentDraftReopenResponse,
+    type ApiContentDraftReviewResponse,
+    type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
+    type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiDashboardAsCodeUpsertResponse,
     type ApiErrorPayload,
@@ -28,6 +39,8 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeSettingsStamp,
+    type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
     type ExternalConnectionAsCode,
@@ -59,6 +72,8 @@ import {
     CODE_READ_MIDDLEWARES,
     CODE_WRITE_MIDDLEWARES,
     codeSuccess,
+    toDraftSummary,
+    toWritebackSummary,
 } from './CoderControllerUtils';
 
 type AiAgentCoder = {
@@ -119,6 +134,361 @@ export class ProjectCoderController extends BaseController {
     }
 
     /**
+     * List this instance's content-as-code write-back PRs for the project.
+     * Pass refresh=true to also re-check open PRs against the git provider
+     * (a merged PR then reads as merged instead of a stale pending badge).
+     * @summary List content-as-code write-backs
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/writebacks')
+    @OperationId('listContentAsCodeWritebacks')
+    async listContentAsCodeWritebacks(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() refresh?: boolean,
+    ): Promise<ApiContentAsCodeWritebacksResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const rows = await this.services
+            .getContentAsCodeWritebackService()
+            .listWritebacks(toSessionUser(req.account), projectUuid, {
+                refresh,
+            });
+        return codeSuccess(rows.map(toWritebackSummary));
+    }
+
+    /**
+     * Propose the current instance version of a managed chart back to the
+     * connected repo: opens (or appends to) this instance's write-back PR
+     * for the slug. The retroactive migration path for drifted content.
+     * @summary Propose chart to git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/writebacks/charts/{slug}/propose')
+    @OperationId('proposeChartToGit')
+    async proposeChartToGit(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Request() req: express.Request,
+        @Body() body?: { addToGit?: boolean },
+    ): Promise<ApiContentAsCodeProposeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const row = await this.services
+            .getContentAsCodeWritebackService()
+            .propose(toSessionUser(req.account), projectUuid, 'chart', slug, {
+                addToGit: body?.addToGit,
+            });
+        return codeSuccess(toWritebackSummary(row));
+    }
+
+    /**
+     * Propose the current instance version of a managed dashboard back to
+     * the connected repo, including its dashboard-owned tile charts. Pass
+     * addToGit to deliberately add UI-only content to the repo.
+     * @summary Propose dashboard to git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/writebacks/dashboards/{slug}/propose')
+    @OperationId('proposeDashboardToGit')
+    async proposeDashboardToGit(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Request() req: express.Request,
+        @Body() body?: { addToGit?: boolean },
+    ): Promise<ApiContentAsCodeProposeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const row = await this.services
+            .getContentAsCodeWritebackService()
+            .propose(
+                toSessionUser(req.account),
+                projectUuid,
+                'dashboard',
+                slug,
+                { addToGit: body?.addToGit },
+            );
+        return codeSuccess(toWritebackSummary(row));
+    }
+
+    /**
+     * The content_as_code flags last stamped on this project by an upload
+     * @summary Get content-as-code settings
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/sync-settings')
+    @OperationId('getContentAsCodeSettings')
+    async getContentAsCodeSettings(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getCoderService()
+                .getContentAsCodeSettings(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        );
+    }
+
+    /**
+     * Apply charts and dashboards as code from the project's repo, the in-app
+     * equivalent of `lightdash upload`
+     * @summary Pull content from git
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/pull')
+    @OperationId('pullContentAsCodeFromGit')
+    async pullContentAsCodeFromGit(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodePullResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .pullFromGit(toSessionUser(req.account), projectUuid),
+        );
+    }
+
+    /**
+     * Advisory state shown by the CLI before an upload. It never gates upload.
+     * @summary Get content-as-code upload advisory
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/upload-advisory')
+    @OperationId('getContentAsCodeUploadAdvisory')
+    async getContentAsCodeUploadAdvisory(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentAsCodeUploadAdvisoryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .getUploadAdvisory(toSessionUser(req.account), projectUuid),
+        );
+    }
+
+    /**
+     * Unpublished content drafts awaiting review
+     * @summary List content drafts
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts')
+    @OperationId('listContentDrafts')
+    async listContentDrafts(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() refresh?: boolean,
+    ): Promise<ApiContentDraftsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const drafts = await this.services
+            .getContentAsCodeWritebackService()
+            .listDrafts(toSessionUser(req.account), projectUuid, {
+                refresh,
+            });
+        return codeSuccess(drafts.map(toDraftSummary));
+    }
+
+    /**
+     * The review payload for one draft: published vs draft as canonical YAML
+     * @summary Get content draft review
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts/{draftUuid}/review')
+    @OperationId('getContentDraftReview')
+    async getContentDraftReview(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftReviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const review = await this.services
+            .getContentAsCodeWritebackService()
+            .getDraftReview(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess({
+            summary: toDraftSummary(review.draft),
+            filePath: review.filePath,
+            publishedYaml: review.publishedYaml,
+            draftYaml: review.draftYaml,
+            staleness: review.staleness,
+        });
+    }
+
+    /**
+     * What the repo and the draft each changed since the draft's base
+     * @summary Get content draft staleness
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_READ_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Get('/code/drafts/{draftUuid}/staleness')
+    @OperationId('getContentDraftStaleness')
+    async getContentDraftStaleness(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftStalenessResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return codeSuccess(
+            await this.services
+                .getContentAsCodeWritebackService()
+                .getDraftStalenessDetails(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    draftUuid,
+                ),
+        );
+    }
+
+    /**
+     * Move the caller's draft onto the repo's latest upload snapshot
+     * @summary Rebase content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/rebase')
+    @OperationId('rebaseContentDraft')
+    async rebaseContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentDraftRebaseRequest,
+    ): Promise<ApiContentDraftRebaseResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .rebaseDraft(
+                toSessionUser(req.account),
+                projectUuid,
+                draftUuid,
+                body.resolutions,
+            );
+        return codeSuccess(toDraftSummary(draft));
+    }
+
+    /**
+     * Write a reviewed draft back to the repo as a pull request
+     * @summary Write back content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/write-back')
+    @OperationId('writeBackContentDraft')
+    async writeBackContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftWriteBackResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .writeBackDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess(toDraftSummary(draft));
+    }
+
+    /**
+     * Dismiss a draft without writing it back
+     * @summary Dismiss content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/dismiss')
+    @OperationId('dismissContentDraft')
+    async dismissContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getContentAsCodeWritebackService()
+            .dismissDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Reopen the caller's dismissed draft without creating another record
+     * @summary Reopen content draft
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/drafts/{draftUuid}/reopen')
+    @OperationId('reopenContentDraft')
+    async reopenContentDraft(
+        @Path() projectUuid: string,
+        @Path() draftUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiContentDraftReopenResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const draft = await this.services
+            .getContentAsCodeWritebackService()
+            .reopenDraft(toSessionUser(req.account), projectUuid, draftUuid);
+        return codeSuccess(toDraftSummary(draft));
+    }
+
+    /**
+     * Persist the repo's content_as_code flags as project-level state.
+     * Called by the CLI at upload time so the instance learns what the
+     * repo has opted into (Git-backed tracking and write-back).
+     * @summary Stamp content-as-code settings
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/sync-settings')
+    @OperationId('stampContentAsCodeSettings')
+    async stampContentAsCodeSettings(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentAsCodeSettingsStamp,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getCoderService()
+            .stampContentAsCodeSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Get charts in code representation
      * @summary List charts as code
      */
@@ -139,7 +509,7 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getCoderService()
-                .getCharts(
+                .getChartsForExport(
                     toSessionUser(req.account),
                     projectUuid,
                     ids,
@@ -170,7 +540,7 @@ export class ProjectCoderController extends BaseController {
         return codeSuccess(
             await this.services
                 .getCoderService()
-                .getDashboards(
+                .getDashboardsForExport(
                     toSessionUser(req.account),
                     projectUuid,
                     ids,
@@ -556,6 +926,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             chartConfig: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
@@ -572,6 +943,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
                     spaceNames: chart.spaceNames,
+                    filePath: chart.filePath,
                 },
             ),
         );
@@ -638,6 +1010,7 @@ export class ProjectCoderController extends BaseController {
             spaceNames?: Record<string, string>;
             tiles: AnyType;
             description?: string | null;
+            filePath?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiDashboardAsCodeUpsertResponse> {
@@ -657,6 +1030,7 @@ export class ProjectCoderController extends BaseController {
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,
                     spaceNames: dashboard.spaceNames,
+                    filePath: dashboard.filePath,
                 },
             ),
         );

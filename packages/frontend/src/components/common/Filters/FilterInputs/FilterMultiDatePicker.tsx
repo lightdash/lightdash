@@ -145,8 +145,6 @@ const FilterMultiDatePicker: FC<Props> = ({
 
     return (
         <Popover
-            shadow="sm"
-            withinPortal
             {...popoverProps}
             opened={opened}
             onChange={handlePopoverChange}

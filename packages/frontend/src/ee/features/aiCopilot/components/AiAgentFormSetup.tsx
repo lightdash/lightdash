@@ -1,5 +1,10 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type AiAgentModelConfig } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MAX_RETENTION_WINDOW_HOURS,
+    MIN_RETENTION_WINDOW_HOURS,
+    type AiAgentModelConfig,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -71,14 +76,15 @@ import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
+import { ThreadRetentionSelect } from './ThreadRetentionSelect';
 
 const formSchema = z.object({
-    name: z.string().min(1),
+    name: z.string().min(1, 'Name is required'),
     description: z.string().nullable(),
     integrations: z.array(
         z.object({
             type: z.literal('slack'),
-            channelId: z.string().min(1),
+            channelId: z.string().min(1, 'Channel is required'),
         }),
     ),
     tags: z.array(z.string()).nullable(),
@@ -96,6 +102,12 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
+    threadRetentionHours: z
+        .number()
+        .int()
+        .min(MIN_RETENTION_WINDOW_HOURS)
+        .max(MAX_RETENTION_WINDOW_HOURS)
+        .nullable(),
 });
 
 type CommitOnBlurTextareaProps = Omit<
@@ -125,15 +137,11 @@ const SwitchLabel = ({
         <Tooltip
             label={help}
             events={{ hover: true, focus: true, touch: true }}
-            withArrow
-            withinPortal
-            multiline
             position="right"
             maw="300px"
         >
             <ActionIcon
                 type="button"
-                variant="subtle"
                 color="ldGray"
                 size="xs"
                 aria-label={help}
@@ -256,6 +264,10 @@ export const AiAgentFormSetup = ({
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
+    );
+
+    const threadRetentionFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiThreadRetention,
     );
 
     const isGroupsEnabled =
@@ -867,6 +879,35 @@ export const AiAgentFormSetup = ({
                             </Text>
                         </AgentSettingsSubsection>
 
+                        {threadRetentionFlagQuery.data?.enabled && (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="Thread retention"
+                                    description={`Delete this agent's threads after a period of inactivity. Active threads are never cut off.${
+                                        aiOrganizationSettings?.threadRetentionHours !=
+                                        null
+                                            ? ' The organization retention policy caps this setting.'
+                                            : ''
+                                    }`}
+                                >
+                                    <ThreadRetentionSelect
+                                        value={form.values.threadRetentionHours}
+                                        ceilingHours={
+                                            aiOrganizationSettings?.threadRetentionHours ??
+                                            null
+                                        }
+                                        onChange={(hours) =>
+                                            form.setFieldValue(
+                                                'threadRetentionHours',
+                                                hours,
+                                            )
+                                        }
+                                    />
+                                </AgentSettingsSubsection>
+                            </>
+                        )}
+
                         <Divider />
 
                         <AgentSettingsSubsection title="Who can use it">
@@ -918,9 +959,6 @@ export const AiAgentFormSetup = ({
                                                         </Text>
                                                         <Tooltip
                                                             label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            withArrow
-                                                            withinPortal
-                                                            multiline
                                                             position="right"
                                                             maw="250px"
                                                         >

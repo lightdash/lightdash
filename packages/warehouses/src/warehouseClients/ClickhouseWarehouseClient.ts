@@ -251,10 +251,27 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+const DEFAULT_MAX_OPEN_CONNECTIONS = 10;
+
+// The client is cached per project and shared by all concurrent query jobs;
+// when jobs outnumber sockets they queue and report inflated exec times.
+export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
+    Number.isInteger(maxOpenConnections)
+        ? Math.max(maxOpenConnections as number, DEFAULT_MAX_OPEN_CONNECTIONS)
+        : DEFAULT_MAX_OPEN_CONNECTIONS;
+
+export type ClickhouseWarehouseClientOptions = {
+    /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
+    maxOpenConnections?: number;
+};
+
 export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickhouseCredentials> {
     client: ClickHouseClient;
 
-    constructor(credentials: CreateClickhouseCredentials) {
+    constructor(
+        credentials: CreateClickhouseCredentials,
+        options?: ClickhouseWarehouseClientOptions,
+    ) {
         super(credentials, new ClickhouseSqlBuilder(credentials.startOfWeek));
 
         const protocol = credentials.secure ? 'https' : 'http';
@@ -266,6 +283,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
+            max_open_connections: getMaxOpenConnections(
+                options?.maxOpenConnections,
+            ),
         });
     }
 

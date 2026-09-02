@@ -19,7 +19,7 @@ import {
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import FilterInputComponent from '../../../common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../../common/Filters/FiltersProvider';
@@ -44,7 +44,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
     onChangeRuleOperator,
     onRemoveRule,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(ruleIndex === 0);
 
@@ -75,27 +75,14 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                         Condition {ruleIndex + 1}
                     </Text>
                     {hasRemove && hovered && (
-                        <Tooltip
-                            label="Remove condition"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={onRemoveRule}
-                            >
+                        <Tooltip label="Remove condition" position="left">
+                            <ActionIcon onClick={onRemoveRule}>
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>
                     )}
                 </Group>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => setIsOpen(!isOpen)}
-                    size="sm"
-                >
+                <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
                     <MantineIcon
                         icon={isOpen ? IconChevronUp : IconChevronDown}
                     />

@@ -80,7 +80,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 p={`${theme.spacing.sm} ${theme.spacing.md}`}
                 wrap="nowrap"
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     {!hideSearchFilter && (
                         <>
                             <SearchFilter
@@ -92,9 +92,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{
-                                    alignSelf: 'center',
-                                }}
+                                className="ld-self-center"
                             />
                         </>
                     )}
@@ -114,9 +112,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{
-                                    alignSelf: 'center',
-                                }}
+                                className="ld-self-center"
                             />
                         </>
                     )}
@@ -147,11 +143,9 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 {hasActiveFilters && (
                     <Tooltip label="Clear all filters">
                         <ActionIcon
-                            variant="subtle"
                             size="sm"
-                            color="gray"
                             onClick={resetFilters}
-                            style={{ flexShrink: 0 }}
+                            className="ld-shrink-0"
                         >
                             <MantineIcon icon={IconTrash} />
                         </ActionIcon>

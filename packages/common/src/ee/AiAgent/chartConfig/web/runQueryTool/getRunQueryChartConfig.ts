@@ -1,9 +1,12 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ChartConfig } from '../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformed } from '../../../schemas';
-import { getTableChartConfig } from '../generateTableVizConfigTool/getTableChartConfig';
+import {
+    isCustomChartTypeSlugChartConfig,
+    type ToolRunQueryArgsTransformed,
+} from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
+import { getTableChartConfig } from '../shared/getTableChartConfig';
 import { type AiAgentChartTypeOption } from '../types';
 import { getBarChartConfig } from './viz/bar';
 import { getFunnelChartConfig } from './viz/funnel';
@@ -27,15 +30,24 @@ export const getRunQueryChartConfig = ({
     fieldsMap: ItemsMap;
     overrideChartType?: AiAgentChartTypeOption;
 }): ChartConfig => {
+    const { chartConfig } = queryTool;
+
+    // Custom chart type answers render through a dedicated path driven by
+    // the artifact envelope; this table config is a safe no-op for any
+    // caller that feeds the verbatim tool args through here.
+    if (isCustomChartTypeSlugChartConfig(chartConfig)) {
+        return getTableChartConfig();
+    }
+
     const chartType =
-        overrideChartType ?? queryTool.chartConfig?.defaultVizType ?? 'table';
+        overrideChartType ?? chartConfig?.defaultVizType ?? 'table';
 
     if (!canRenderAsChart(chartType, metricQuery)) {
         // Fallback to table if chart type is not valid
         return getTableChartConfig();
     }
 
-    const { chartConfig } = queryTool;
+    const builtinQueryTool = { ...queryTool, chartConfig };
     const metadata = {
         title: queryTool.title,
         description: queryTool.description,
@@ -47,7 +59,7 @@ export const getRunQueryChartConfig = ({
 
         case 'bar':
             return getBarChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
                 fieldsMap,
                 chartConfig,
@@ -56,7 +68,7 @@ export const getRunQueryChartConfig = ({
 
         case 'horizontal':
             return getHorizontalBarChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
                 fieldsMap,
                 chartConfig,
@@ -65,7 +77,7 @@ export const getRunQueryChartConfig = ({
 
         case 'line':
             return getLineChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
                 fieldsMap,
                 chartConfig,
@@ -74,7 +86,7 @@ export const getRunQueryChartConfig = ({
 
         case 'scatter':
             return getScatterChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
                 fieldsMap,
                 chartConfig,
@@ -83,13 +95,13 @@ export const getRunQueryChartConfig = ({
 
         case 'pie':
             return getPieChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
             });
 
         case 'funnel':
             return getFunnelChartConfig({
-                queryTool,
+                queryTool: builtinQueryTool,
                 metricQuery,
             });
 

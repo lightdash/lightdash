@@ -16,7 +16,7 @@ describe('Space', () => {
         const timestamp = new Date().toISOString();
         let privateSpaceUrl: string;
         let privateSpaceUuid: string;
-        let privateChartUuid: string;
+        let privateChartIdentifier: string;
         let privateDashboardUuid: string;
 
         // Create private space
@@ -77,9 +77,9 @@ describe('Space', () => {
 
         cy.contains('Success! Chart was saved.').should('exist');
         cy.url()
-            .should('match', /\/saved\/[0-9a-f-]{36}\/view$/)
+            .should('match', /\/saved\/[^/]+\/view$/)
             .then((url) => {
-                privateChartUuid = url.split('/').at(-2)!;
+                privateChartIdentifier = url.split('/').at(-2)!;
             });
 
         cy.then(() =>
@@ -111,14 +111,18 @@ describe('Space', () => {
 
         return cy.then(() => ({
             privateSpaceUuid,
-            privateChartUuid,
+            privateChartIdentifier,
             privateDashboardUuid,
         }));
     };
 
     it('Another non-admin user cannot see private content', () => {
         createPrivateSpace().then(
-            ({ privateSpaceUuid, privateChartUuid, privateDashboardUuid }) => {
+            ({
+                privateSpaceUuid,
+                privateChartIdentifier,
+                privateDashboardUuid,
+            }) => {
                 cy.loginWithPermissions('member', [
                     {
                         role: 'editor',
@@ -146,7 +150,7 @@ describe('Space', () => {
 
                 for (const url of [
                     `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpaceUuid}`,
-                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/saved/${privateChartUuid}`,
+                    `/api/v2/projects/${SEED_PROJECT.project_uuid}/saved/${privateChartIdentifier}`,
                     `/api/v2/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboardUuid}`,
                 ]) {
                     cy.request({ url, failOnStatusCode: false })
@@ -219,8 +223,10 @@ describe('Admin access to spaces', () => {
             cy.contains(spaceName);
         }
 
-        cy.contains('Parent Space 4').click();
-        cy.contains('Child Space 4.1');
+        cy.get('.mantine-Modal-body').within(() => {
+            cy.contains('Parent Space 4').click();
+            cy.contains('Child Space 4.1');
+        });
     });
 });
 
@@ -304,6 +310,15 @@ describe('Viewer access to spaces', () => {
 describe('Editor can create content', () => {
     beforeEach(() => {
         cy.loginAsEditor();
+    });
+
+    it('can create a dashboard from the global New menu', () => {
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
+
+        cy.get('[data-testid="ExploreMenu/NewButton"]').click();
+        cy.get('[data-testid="ExploreMenu/NewDashboardButton"]').should(
+            'be.visible',
+        );
     });
 
     it('can create a new space', () => {

@@ -4,9 +4,9 @@ import {
     type ToolName,
 } from '@lightdash/common';
 import {
+    IconAppWindow,
     IconChartDots3,
     IconChartHistogram,
-    IconChartLine,
     IconDatabase,
     IconFileCode,
     IconFileDiff,
@@ -27,6 +27,7 @@ import {
     IconSearch,
     IconSelector,
     IconSend,
+    IconStack2,
     IconUserEdit,
     IconTable,
     IconTerminal2,
@@ -39,6 +40,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
         {
             findExplores: IconDatabase,
+            findCustomChartTypes: IconChartDots3,
             findFields: IconSearch,
             searchSemanticLayer: IconBooks,
             analyzeFieldImpact: IconChartDots3,
@@ -46,9 +48,6 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             grepFields: IconTerminal2,
             getMetadata: IconListDetails,
             searchFieldValues: IconSelector,
-            generateBarVizConfig: IconChartHistogram,
-            generateTimeSeriesVizConfig: IconChartLine,
-            generateTableVizConfig: IconTable,
             generateDashboard: IconLayoutDashboard,
             generateHashes: IconSelector,
             generateUuids: IconSelector,
@@ -67,6 +66,8 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             loadSkill: IconBook2,
             loadProjectContext: IconVocabulary,
             loadMcpTools: IconPlugConnected,
+            generateDataApp: IconAppWindow,
+            iterateDataApp: IconAppWindow,
             editDbtProject: IconPencil,
             editProjectContext: IconVocabulary,
             editRepo: IconPencil,
@@ -83,6 +84,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             runContentQuery: IconPlayerPlay,
             runSavedChart: IconChartHistogram,
             runSql: IconTerminal2,
+            runComposerQueries: IconStack2,
             listWarehouseTables: IconDatabase,
             describeWarehouseTable: IconDatabase,
             listKnowledgeDocuments: IconBooks,

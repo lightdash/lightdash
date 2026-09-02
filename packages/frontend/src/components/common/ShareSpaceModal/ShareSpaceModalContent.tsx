@@ -30,6 +30,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useSpaceAccess } from '../../../hooks/useSpaceAccess';
 import {
@@ -136,7 +137,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                                     user.isInternal,
                                 )}
                                 {isSessionUser ? (
-                                    <Text fw={400} fz="sm" span c="ldGray.6">
+                                    <Text fw={400} fz="sm" span c="dimmed">
                                         {' '}
                                         (you)
                                     </Text>
@@ -147,7 +148,6 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
 
                         <Badge
                             size="sm"
-                            variant="light"
                             color={`${roleColor}.${roleShade}`}
                             radius="xl"
                         >
@@ -167,7 +167,7 @@ const UserAccessAuditList: FC<UserAccessAuditListProps> = ({
                     hasPreviousPage={page > 1}
                     onNextPage={handleNextPage}
                     onPreviousPage={handlePreviousPage}
-                    style={{ alignSelf: 'flex-end' }}
+                    className="ld-self-end"
                 />
             )}
         </Stack>
@@ -181,6 +181,9 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     onClose: externalOnClose,
 }) => {
     const navigate = useNavigate();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const shareSpaceModalSearchParam = useSearchParams('shareSpaceModal');
     const { user: sessionUser } = useApp();
     const { showToastError } = useToaster();
@@ -254,9 +257,16 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
             setInternalIsOpen(true);
-            void navigate(`/projects/${projectUuid}/spaces/${space.uuid}`);
+            void navigate(
+                `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
+            );
         }
-    }, [navigate, projectUuid, shareSpaceModalSearchParam, space.uuid]);
+    }, [
+        navigate,
+        projectUrlIdentifier,
+        shareSpaceModalSearchParam,
+        space.uuid,
+    ]);
 
     const { mutate: unshareSpaceMutation } = useDeleteSpaceShareMutation(
         projectUuid,
@@ -534,7 +544,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
                                     {effectiveGroupsAccess.length > 0 && (
                                         <Stack gap="xs">
-                                            <Text fw={400} c="ldGray.6" fz="sm">
+                                            <Text fw={400} c="dimmed" fz="sm">
                                                 Groups
                                             </Text>
                                             <GroupsAccessList
@@ -556,7 +566,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                         <Stack gap="xs">
                                             <Text
                                                 fw={400}
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 fz="sm"
                                                 mt={
                                                     effectiveGroupsAccess.length >

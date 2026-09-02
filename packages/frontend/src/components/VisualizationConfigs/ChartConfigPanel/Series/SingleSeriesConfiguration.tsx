@@ -31,7 +31,6 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
-import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -80,13 +79,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
     return (
         <Box>
             <Group justify="space-between">
-                <Group
-                    gap="two"
-                    ref={ref}
-                    style={{
-                        flexGrow: 1,
-                    }}
-                >
+                <Group gap="two" ref={ref} className="ld-grow">
                     {isGrouped && (
                         <GrabIcon
                             dragHandleProps={dragHandleProps}
@@ -127,11 +120,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {!isSingle && isGrouped && (
-                        <Box
-                            style={{
-                                flexGrow: 1,
-                            }}
-                        >
+                        <Box className="ld-grow">
                             <EditableText
                                 disabled={series.hidden}
                                 defaultValue={seriesValue}
@@ -151,8 +140,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 <Group gap="one">
                     {isGrouped && (
                         <ActionIcon
-                            variant="subtle"
-                            color="gray"
                             onClick={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -166,11 +153,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         </ActionIcon>
                     )}
                     {isCollapsable && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={toggleIsOpen}
-                        >
+                        <ActionIcon onClick={toggleIsOpen}>
                             <MantineIcon
                                 color="ldGray.7"
                                 icon={isOpen ? IconChevronUp : IconChevronDown}
@@ -237,17 +220,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             ]}
                             rightSection={
                                 series.label?.show ? (
-                                    <Popover
-                                        position="bottom-end"
-                                        shadow="md"
-                                        withinPortal
-                                    >
+                                    <Popover position="bottom-end">
                                         <Popover.Target>
-                                            <ActionIcon
-                                                color="gray"
-                                                variant="subtle"
-                                                size="xs"
-                                            >
+                                            <ActionIcon size="xs">
                                                 <MantineIcon
                                                     icon={IconSettings}
                                                     color="gray.6"
@@ -258,9 +233,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                             <Stack gap="xs">
                                                 <Checkbox
                                                     size="xs"
-                                                    classNames={{
-                                                        label: compactStyles.compactCheckboxLabel,
-                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showValue ?? true
@@ -282,9 +254,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
-                                                    classNames={{
-                                                        label: compactStyles.compactCheckboxLabel,
-                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showLabel ?? false
@@ -305,9 +274,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
-                                                    classNames={{
-                                                        label: compactStyles.compactCheckboxLabel,
-                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showSeriesName ??
@@ -368,9 +334,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         <Group gap="xs">
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={Boolean(series.showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -382,9 +345,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             />
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={series.smooth}
                                 label="Smooth"
                                 onChange={() => {

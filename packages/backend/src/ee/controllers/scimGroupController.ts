@@ -1,4 +1,5 @@
 import {
+    ScimCreateGroupRequest,
     ScimErrorPayload,
     ScimGroup,
     ScimListResponse,
@@ -145,7 +146,8 @@ export class ScimGroupController extends BaseController {
     @Post('/')
     async createScimGroup(
         @Request() req: express.Request,
-        @Body() body: ScimUpsertGroup,
+        // Keep the existing shape as a union member so TSOA generates an additive anyOf.
+        @Body() body: ScimUpsertGroup | ScimCreateGroupRequest,
     ): Promise<ScimGroup> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         return this.getScimService().createGroup(

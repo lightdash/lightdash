@@ -1,13 +1,15 @@
 import * as assert from 'assert';
 import {
     buildMarker,
-    declarationSourcePaths,
     detectMigrations,
     GitChange,
+    isAiReviewEligible,
+    isDeterministicallyRollingUpdateSafe,
     MARKER_SCHEMA_VERSION,
     ownExpandContractFloor,
     parseArgs,
 } from './gen-release-safety';
+import type { MigrationOperation } from './release-safety-migrations';
 
 let passed = 0;
 const failures: string[] = [];
@@ -79,6 +81,13 @@ const migrationDetails = [
         },
     },
 ];
+const compatibleOperations: MigrationOperation[] = [
+    'create-index-concurrently',
+    'drop-index-concurrently-if-exists',
+    'set-statement-timeout',
+    'reset-statement-timeout',
+    'select-invalid-index',
+];
 
 test('parses an explicit generated MCP snapshot pair', () => {
     const args = parseArgs([
@@ -136,9 +145,7 @@ test('detectMigrations surfaces deleted history without counting it', () => {
     ]);
     assert.strictEqual(result.present, false);
     assert.strictEqual(result.count, 0);
-    assert.deepStrictEqual(result.deletedHistorical, [
-        '20200101000000_old.ts',
-    ]);
+    assert.deepStrictEqual(result.deletedHistorical, ['20200101000000_old.ts']);
 });
 
 test('fully checked release without migrations is safe', () => {
@@ -182,6 +189,180 @@ test('migration release stays unknown without a definitive review', () => {
     assert.strictEqual(marker.migrations.eeCount, 0);
 });
 
+test('provably compatible migration operations are deterministically safe', () => {
+    const input = {
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        migrationOperations: compatibleOperations,
+        migrationMetadataComplete: true,
+        declarationMetadataComplete: true,
+        ...checkedSurfaces,
+    };
+    assert.strictEqual(isDeterministicallyRollingUpdateSafe(input), true);
+    assert.strictEqual(
+        buildMarker(input).compatibility.rollingUpdateSafe,
+        true,
+    );
+});
+
+test('unsupported and mixed migration operations stay unknown', () => {
+    for (const migrationOperations of [
+        ['create-unique-index-concurrently'] as MigrationOperation[],
+        ['create-index-concurrently', 'unknown'] as MigrationOperation[],
+        [] as MigrationOperation[],
+    ]) {
+        const input = {
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            migrationOperations,
+            ...checkedSurfaces,
+        };
+        assert.strictEqual(
+            isDeterministicallyRollingUpdateSafe(input),
+            false,
+        );
+        assert.strictEqual(
+            buildMarker(input).compatibility.rollingUpdateSafe,
+            'unknown',
+        );
+    }
+});
+
+test('a newly added operation cannot silently become safe at runtime', () => {
+    const input = {
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        migrationOperations: ['future-operation' as MigrationOperation],
+        migrationMetadataComplete: true,
+        declarationMetadataComplete: true,
+        ...checkedSurfaces,
+    };
+    assert.strictEqual(isDeterministicallyRollingUpdateSafe(input), false);
+    assert.strictEqual(
+        buildMarker(input).compatibility.rollingUpdateSafe,
+        'unknown',
+    );
+});
+
+test('incomplete migration metadata blocks deterministic safety', () => {
+    const input = {
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        migrationOperations: compatibleOperations,
+        migrationMetadataComplete: false,
+        ...checkedSurfaces,
+    };
+    assert.strictEqual(isDeterministicallyRollingUpdateSafe(input), false);
+    assert.strictEqual(
+        buildMarker(input).compatibility.rollingUpdateSafe,
+        'unknown',
+    );
+});
+
+test('existing deterministic false verdicts cannot be loosened', () => {
+    const inputs = [
+        {
+            sqlLint: {
+                ran: true,
+                breaking: true,
+                findings: ['unsupported SQL'],
+            },
+        },
+        {
+            config: {
+                checked: true,
+                breaking: true as const,
+                changes: [],
+            },
+        },
+        {
+            declaredBreaks: [
+                {
+                    id: 'old-code-breaks',
+                    reason: 'Old code cannot use the new schema.',
+                    requiredStop: false,
+                },
+            ],
+        },
+    ];
+    for (const override of inputs) {
+        const input = {
+            ...base,
+            migrations: migration,
+            migrationDetails,
+            migrationOperations: compatibleOperations,
+            migrationMetadataComplete: true,
+            declarationMetadataComplete: true,
+            ...checkedSurfaces,
+            ...override,
+        };
+        assert.strictEqual(isDeterministicallyRollingUpdateSafe(input), false);
+        assert.strictEqual(
+            buildMarker(input).compatibility.rollingUpdateSafe,
+            false,
+        );
+    }
+});
+
+test('a definitive AI false overrides deterministic migration safety', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        migrationOperations: compatibleOperations,
+        migrationMetadataComplete: true,
+        declarationMetadataComplete: true,
+        ...checkedSurfaces,
+        aiReview: {
+            rollingUpdateSafe: false,
+            recommendedStrategy: 'Recreate',
+            summary: 'unsafe',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
+});
+
+test('AI eligibility skips only a proven-safe migration-only review', () => {
+    const safeMigrationInput = {
+        migrations: migration,
+        migrationOperations: compatibleOperations,
+        migrationMetadataComplete: true,
+        declarationMetadataComplete: true,
+        ...checkedSurfaces,
+    };
+    assert.strictEqual(isAiReviewEligible(safeMigrationInput), false);
+    assert.strictEqual(
+        isAiReviewEligible({
+            ...safeMigrationInput,
+            restApi: {
+                ...checkedSurfaces.restApi,
+                breaking: true,
+                changes: ['removed endpoint'],
+                breakingCount: 1,
+            },
+        }),
+        true,
+    );
+    assert.strictEqual(
+        isAiReviewEligible({
+            ...safeMigrationInput,
+            migrationOperations: ['unknown'],
+        }),
+        true,
+    );
+    assert.strictEqual(
+        isAiReviewEligible({
+            ...safeMigrationInput,
+            migrations: noMigrations,
+        }),
+        false,
+    );
+});
+
 test('definitive AI review can prove a migration safe', () => {
     const marker = buildMarker({
         ...base,
@@ -195,6 +376,40 @@ test('definitive AI review can prove a migration safe', () => {
         },
     });
     assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
+});
+
+test('incomplete declaration metadata stays unknown after a definitive AI verdict', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: migration,
+        migrationDetails,
+        ...checkedSurfaces,
+        declarationMetadataComplete: false,
+        aiReview: {
+            rollingUpdateSafe: true,
+            recommendedStrategy: 'RollingUpdate',
+            summary: 'verified',
+        },
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, 'unknown');
+});
+
+test('a declared break stays unsafe when declaration metadata is incomplete', () => {
+    const marker = buildMarker({
+        ...base,
+        migrations: noMigrations,
+        migrationDetails: [],
+        ...checkedSurfaces,
+        declarationMetadataComplete: false,
+        declaredBreaks: [
+            {
+                id: 'old-workers-read-new-rows',
+                reason: 'Old workers cannot read the new rows.',
+                requiredStop: false,
+            },
+        ],
+    });
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, false);
 });
 
 test('config changes force an unsafe verdict', () => {
@@ -227,10 +442,10 @@ test('declared break uses the frozen shape and contributes a required stop', () 
         ...checkedSurfaces,
         declaredBreaks: [
             {
-                file: `${core}/${migration.files[0]}`,
-                line: 3,
+                id: 'old-workers-read-new-rows',
                 reason: 'old workers cannot read the new rows',
                 requiredStop: true,
+                migration: `${core}/${migration.files[0]}`,
             },
         ],
     });
@@ -238,20 +453,17 @@ test('declared break uses the frozen shape and contributes a required stop', () 
     assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
 });
 
-test('declaration source paths match the gate production-source scope', () => {
-    assert.deepStrictEqual(
-        declarationSourcePaths([
-            change('M', 'packages/backend/src/controllers/project.ts'),
-            change('A', 'packages/common/src/types/api.ts'),
-            change('M', 'packages/backend/src/controllers/project.test.ts'),
-            change('D', 'packages/common/src/types/deleted.ts'),
-            change('M', 'packages/frontend/src/App.tsx'),
-        ]),
-        [
-            'packages/backend/src/controllers/project.ts',
-            'packages/common/src/types/api.ts',
-        ],
-    );
+test('a spent required stop is not pinned again by a later marker', () => {
+    const marker = buildMarker({
+        ...base,
+        version: '1.116.0',
+        migrations: noMigrations,
+        migrationDetails: [],
+        ...checkedSurfaces,
+        declaredBreaks: [],
+        requiredStops: ['1.115.0'],
+    });
+    assert.deepStrictEqual(marker.upgrade.requiredStops, ['1.115.0']);
 });
 
 test('schema v2 omits capabilities, notes, and per-migration transaction data', () => {
@@ -271,6 +483,11 @@ test('schema v2 omits capabilities, notes, and per-migration transaction data', 
     assert.strictEqual(
         'transaction' in
             (marker.migrations.files[0] as unknown as Record<string, unknown>),
+        false,
+    );
+    assert.strictEqual(
+        'operations' in
+            (marker.migrations as unknown as Record<string, unknown>),
         false,
     );
 });
@@ -313,6 +530,7 @@ test('ownExpandContractFloor matches the marker floor', () => {
     const marker = buildMarker(input);
     assert.strictEqual(ownExpandContractFloor(input), '1.100.0');
     assert.strictEqual(marker.upgrade.minPreviousVersion, '1.100.0');
+    assert.strictEqual(marker.compatibility.rollingUpdateSafe, true);
 });
 
 if (failures.length > 0) {

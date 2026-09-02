@@ -23,6 +23,7 @@ import { ConfigTabs as SankeyConfigTabs } from '../../VisualizationConfigs/Sanke
 import { ConfigTabs as TableConfigTabs } from '../../VisualizationConfigs/TableConfigPanel/TableConfigTabs';
 import { ConfigTabs as TreemapConfigTabs } from '../../VisualizationConfigs/TreemapConfig/TreemapConfigTabs';
 import VisualizationCardOptions from '../VisualizationCardOptions';
+import classes from './VisualizationConfig.module.css';
 
 // Lazy load CustomVisConfig as it includes the heavy Monaco editor
 const CustomVisConfigTabsLazy = lazy(() =>
@@ -34,9 +35,16 @@ const CustomVisConfigTabsLazy = lazy(() =>
 type Props = {
     chartType: ChartType;
     onClose: () => void;
+    withHeader?: boolean;
+    withChartTypePicker?: boolean;
 };
 
-const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
+const VisualizationConfig: FC<Props> = ({
+    chartType,
+    onClose,
+    withHeader = true,
+    withChartTypePicker = true,
+}) => {
     const ConfigTab = useMemo(() => {
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -76,38 +84,41 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
     return (
         <>
-            <Group justify="space-between">
-                <Text fz={16} fw={600}>
-                    Configure chart
-                </Text>
+            {withHeader ? (
+                <>
+                    <Group justify="space-between">
+                        <Text fz="md" fw={600}>
+                            Configure chart
+                        </Text>
 
-                <Tooltip label="Close visualization config" position="right">
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        onClick={onClose}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
+                        <Tooltip
+                            label="Close visualization config"
+                            position="right"
+                        >
+                            <ActionIcon size="sm" onClick={onClose}>
+                                <MantineIcon icon={IconX} />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Group>
 
-            <Divider />
+                    <Divider />
+                </>
+            ) : null}
 
-            <Group>
-                <Text fw={600}>Chart type</Text>
-
-                <VisualizationCardOptions />
-            </Group>
+            {withChartTypePicker ? (
+                <Group>
+                    <Text fw={600}>Chart type</Text>
+                    <VisualizationCardOptions />
+                </Group>
+            ) : null}
 
             <ScrollArea
+                className={classes.scrollArea}
                 offsetScrollbars
                 scrollbars="y"
                 classNames={{
                     content: scrollAreaClasses.verticalContent,
                 }}
-                style={{ flex: 1 }}
                 type="hover"
                 scrollbarSize={8}
             >

@@ -22,8 +22,6 @@ const PreAggregateCacheSwitch: FC<Props> = memo(({ size }) => {
             label="Route queries through pre-aggregate cache when available"
             position="bottom"
             refProp="rootRef"
-            withArrow
-            withinPortal
         >
             <Switch
                 size={size}

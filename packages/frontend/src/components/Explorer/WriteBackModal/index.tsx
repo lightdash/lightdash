@@ -18,12 +18,12 @@ import {
 import { IconGitBranch } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { memo, useMemo, useState } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import CodeBlock from '../../common/CodeBlock/CodeBlock';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineModal from '../../common/MantineModal';
@@ -397,13 +397,7 @@ const MultipleItemsModalContent = ({
                         {capitalize(texts[type].baseName)} YAML to be created:
                     </Text>
 
-                    <Paper
-                        h="100%"
-                        withBorder
-                        style={{
-                            overflowY: 'auto',
-                        }}
-                    >
+                    <Paper h="100%" className="ld-scroll-y">
                         <CodeBlock
                             code={error || previewCode}
                             language="yaml"
@@ -422,9 +416,7 @@ export const WriteBackModal = memo(() => {
     );
     const dispatch = useExplorerDispatch();
 
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
 
     const toggleModal = () => dispatch(explorerActions.toggleWriteBackModal());
 

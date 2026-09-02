@@ -23,6 +23,7 @@ import {
     ProjectMemberRole,
     ServiceAccountScope,
     SpaceMemberRole,
+    USER_MANAGED_EXPLORE_TYPES,
     WarehouseTypes,
 } from '@lightdash/common';
 import { MotherduckInstanceCache } from '@lightdash/warehouses';
@@ -37,11 +38,13 @@ import { ProjectGroupAccessTableName } from '../../database/entities/projectGrou
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
 import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
+import { ProjectMergedManifestsTableName } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedChartSlugMappingsTableName } from '../../database/entities/savedChartSlugMappings';
 import {
     SpaceTableName,
@@ -102,6 +105,46 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('should get the primary dbt source identity', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    dbt_source_uuid: 'dbt-source-uuid',
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: 'dbt-source-uuid',
+            dbtSourceName: 'dbt_project',
+        });
+    });
+    test('should use the project uuid when the primary dbt source uuid is null', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    project_uuid: projectUuid,
+                    dbt_source_uuid: null,
+                    dbt_source_name: 'dbt_project',
+                },
+            ]);
+
+        await expect(model.getDbtSourceIdentity(projectUuid)).resolves.toEqual({
+            dbtSourceUuid: projectUuid,
+            dbtSourceName: 'dbt_project',
+        });
+    });
+    test('should throw when getting the dbt source identity for a missing project', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([]);
+
+        await expect(
+            model.getDbtSourceIdentity(projectUuid),
+        ).rejects.toBeInstanceOf(NotFoundError);
+    });
     test('should get project tables configuration', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -111,6 +154,83 @@ describe('ProjectModel', () => {
 
         expect(result).toEqual(expectedTablesConfiguration);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    describe('getExploreFromCache', () => {
+        const createQualifiedExplore = (name: string) => ({
+            ...exploreWithMetricFilters,
+            name,
+            label: name,
+            baseTable: name,
+            tables: {
+                [name]: {
+                    ...exploreWithMetricFilters.tables.payments,
+                    name,
+                    originalName: 'orders',
+                },
+            },
+        });
+
+        test('returns a structured error when an explore was split', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            const sourceBExplore = createQualifiedExplore('sourceB__orders');
+            const bystanderExplore = createQualifiedExplore(
+                'orders_with_custom_dims',
+            );
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                    [sourceBExplore.name]: sourceBExplore,
+                    [bystanderExplore.name]: bystanderExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toMatchObject({
+                name: 'NotFoundError',
+                statusCode: 404,
+                data: {
+                    exploreName: 'orders',
+                    candidateExploreNames: [
+                        'sourceA__orders',
+                        'sourceB__orders',
+                    ],
+                },
+            });
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error when no split candidates exist', async () => {
+            const findExploresFromCache = vi
+                .spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    payments: exploreWithMetricFilters,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+            expect(findExploresFromCache).toHaveBeenCalledTimes(2);
+        });
+
+        test('keeps the plain not found error for one original-name match', async () => {
+            const sourceAExplore = createQualifiedExplore('sourceA__orders');
+            vi.spyOn(model, 'findExploresFromCache')
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({
+                    [sourceAExplore.name]: sourceAExplore,
+                });
+
+            await expect(
+                model.getExploreFromCache(projectUuid, 'orders'),
+            ).rejects.toEqual(
+                new NotFoundError('Explore "orders" does not exist.'),
+            );
+        });
     });
     test('should update project tables configuration', async () => {
         tracker.on
@@ -129,6 +249,70 @@ describe('ProjectModel', () => {
         );
 
         expect(tracker.history.update).toHaveLength(1);
+    });
+
+    describe('merged manifest', () => {
+        test('inserts and atomically replaces the project artifact', async () => {
+            const firstManifest = Buffer.from('first');
+            const secondManifest = Buffer.from('second');
+            tracker.on
+                .insert(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await model.upsertMergedManifest(projectUuid, firstManifest);
+            await model.upsertMergedManifest(projectUuid, secondManifest);
+
+            expect(tracker.history.insert).toHaveLength(2);
+            expect(tracker.history.insert[0].sql).toContain(
+                'on conflict ("project_uuid") do update',
+            );
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining([projectUuid, firstManifest]),
+            );
+            expect(tracker.history.insert[1].bindings).toEqual(
+                expect.arrayContaining([projectUuid, secondManifest]),
+            );
+        });
+
+        test('returns the stored gzip bytes', async () => {
+            const storedManifest = Buffer.from('stored');
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([{ manifest: storedManifest }]);
+
+            await expect(model.getMergedManifest(projectUuid)).resolves.toEqual(
+                storedManifest,
+            );
+        });
+
+        test('reports when the project has no stored manifest', async () => {
+            tracker.on
+                .select(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response([]);
+
+            await expect(model.getMergedManifest(projectUuid)).rejects.toThrow(
+                'No merged dbt manifest has been persisted for this project',
+            );
+        });
+
+        test('deletes the stored manifest for a project', async () => {
+            tracker.on
+                .delete(({ sql }) =>
+                    sql.includes(ProjectMergedManifestsTableName),
+                )
+                .response(1);
+
+            await model.deleteMergedManifest(projectUuid);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].bindings).toEqual([projectUuid]);
+        });
     });
 
     test('invalidates the previous MotherDuck connection after a credential update', async () => {
@@ -364,6 +548,41 @@ describe('ProjectModel', () => {
         expect(insertQuery.bindings).not.toContain('source-chart-2');
     });
 
+    test('resolves the original chart UUID from preview content mapping', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_id: 22 }]);
+        tracker.on.select('preview_content').responseOnce([
+            {
+                project_uuid: 'source-project',
+                content_mapping: {
+                    charts: [{ id: 11, newId: 22 }],
+                    chartVersions: [],
+                    spaces: [],
+                    dashboards: [],
+                    dashboardVersions: [],
+                    savedSql: [],
+                    savedSqlVersions: [],
+                    aiAgents: [],
+                },
+            },
+        ]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ saved_query_uuid: 'source-chart-uuid' }]);
+
+        await expect(
+            model.getUpstreamChartUuidFromPreview(
+                'preview-project',
+                'preview-chart-uuid',
+            ),
+        ).resolves.toBe('source-chart-uuid');
+
+        expect(tracker.history.select[2].bindings).toEqual(
+            expect.arrayContaining(['source-project', 11]),
+        );
+    });
+
     describe('should convert outdated metric filters in explores', () => {
         test('should add fieldRef property when metric filters have fieldId', () => {
             expect(
@@ -378,6 +597,30 @@ describe('ProjectModel', () => {
                     exploreWithMetricFilters,
                 ),
             ).toEqual(exploreWithMetricFilters);
+        });
+    });
+
+    describe('findExploreContainingTable', () => {
+        test('returns an explore containing a joined-only table', async () => {
+            tracker.on
+                .select(
+                    queryMatcher(CachedExploreTableName, [
+                        'orders',
+                        'orders',
+                        projectUuid,
+                        1,
+                    ]),
+                )
+                .response([
+                    {
+                        explore: exploreWithMetricFilters,
+                        baseMatch: false,
+                    },
+                ]);
+
+            await expect(
+                model.findExploreContainingTable(projectUuid, 'orders'),
+            ).resolves.toEqual(exploreWithMetricFilters);
         });
     });
 
@@ -514,7 +757,10 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        bindings: [projectUuid, ExploreType.VIRTUAL],
+                        bindings: [
+                            projectUuid,
+                            [...USER_MANAGED_EXPLORE_TYPES],
+                        ],
                     }),
                 ]),
             );

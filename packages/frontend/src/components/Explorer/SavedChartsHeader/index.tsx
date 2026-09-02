@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    DirectAccessResourceType,
     ChartSourceType,
+    canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -9,6 +12,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -34,15 +38,15 @@ import {
     IconFolderSymlink,
     IconHistory,
     IconLayoutGridAdd,
+    IconLink,
     IconMaximize,
     IconMinimize,
     IconPencil,
     IconPin,
     IconPinnedOff,
     IconSend,
-    IconStar,
-    IconStarFilled,
     IconTrash,
+    IconUsers,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -53,12 +57,31 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../ee/features/contentReview';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
+import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
+import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
+import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../../../features/contentAsCode/hooks/useContentDrafts';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../features/directAccess';
 import {
     explorerActions,
     selectHasUnsavedChanges,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectIsValidQuery,
     selectSavedChart,
@@ -90,6 +113,8 @@ import {
 } from '../../../hooks/useContentVerification';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -103,6 +128,7 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import useNativeFullscreenToggle from '../../../providers/Fullscreen/useNativeFullscreenToggle';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 const ChangeChartExploreModal = lazy(
@@ -122,7 +148,19 @@ import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardM
 import SaveChartButton, {
     type VerificationSavePrompt,
 } from '../SaveChartButton';
+import ChartSlugRenameModal from './ChartSlugRenameModal';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
+
+const isChartPath = (
+    pathname: string,
+    projectUuid: string | undefined,
+    chartIdentifier: string | undefined,
+) => {
+    if (!projectUuid || !chartIdentifier) return false;
+
+    const chartPath = `/projects/${projectUuid}/saved/${chartIdentifier}`;
+    return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
+};
 
 const SavedChartsHeader: FC = () => {
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
@@ -131,9 +169,8 @@ const SavedChartsHeader: FC = () => {
     const changeChartExploreEnabled = changeChartExploreFlag?.enabled === true;
 
     const { search, pathname } = useLocation();
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
 
@@ -150,9 +187,22 @@ const SavedChartsHeader: FC = () => {
     const dispatch = useExplorerDispatch();
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    // A chart type being authored is not the chart; it finishes or cancels first.
+    const isChartTypeAuthoring = useExplorerSelector(
+        selectIsChartTypeAuthoring,
+    );
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    const { mutate: reopenDraft, isLoading: isReopeningDraft } =
+        useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        savedChart?.draftStaleness?.draftUuid,
+    );
+    const dashboardIdentifier = savedChart?.dashboardSlug ?? dashboardUuid;
 
     const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
 
@@ -200,9 +250,29 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
     const [isChangeExploreModalOpen, changeExploreModalHandlers] =
         useDisclosure();
+    const [isDirectAccessModalOpen, directAccessModalHandlers] =
+        useDisclosure(false);
+    const directAccessAvailability = useDirectAccessAvailability();
+    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+        useDisclosure(false);
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: ContentReviewContentType.CHART,
+        contentUuid: savedChart?.uuid,
+        spaceUuid: savedChart?.spaceUuid,
+    });
+    const canManageChartAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid: savedChart?.spaceUuid ?? null,
+        createdByUserUuid: null,
+        access: savedChart?.access ?? [],
+        grantRoles: [],
+    });
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
     const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
+    const [isChartSlugRenameModalOpen, chartSlugRenameModalHandlers] =
+        useDisclosure();
 
     const { user, health } = useApp();
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -315,11 +385,21 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges &&
             isEditMode &&
             !isSaveModalOpen &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
+            !isChartPath(
+                nextLocation.pathname,
+                projectUrlIdentifier,
+                savedChart?.slug,
+            ) &&
+            !isChartPath(
+                nextLocation.pathname,
+                projectUrlIdentifier,
+                savedChart?.uuid,
             ) &&
             !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
+            ) &&
+            !nextLocation.pathname.includes(
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
             )
         ) {
             return true; //blocks navigation
@@ -328,10 +408,34 @@ const SavedChartsHeader: FC = () => {
     });
 
     const userCanManageChart =
+        !!savedChart &&
+        !!user.data?.ability?.can(
+            'manage',
+            subject('SavedChart', { ...savedChart }),
+        ) &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            {
+                organizationUuid: savedChart.organizationUuid,
+                projectUuid: savedChart.projectUuid,
+            },
+            savedChart.verification,
+            user.data.userUuid,
+        );
+
+    // Manage access that does NOT rely on a direct dashboard grant. Boundary-
+    // crossing actions (moving a chart out of its dashboard) must not be
+    // offered to grant-only users, whose server-side check stays space-only.
+    const userCanManageChartViaSpace =
         savedChart &&
         user.data?.ability?.can(
             'manage',
-            subject('SavedChart', { ...savedChart }),
+            subject('SavedChart', {
+                ...savedChart,
+                access: (savedChart.access ?? []).filter(
+                    (row) => row.grantedVia === undefined,
+                ),
+            }),
         );
 
     const userCanViewContentAsCode =
@@ -416,7 +520,7 @@ const SavedChartsHeader: FC = () => {
 
     const handleGoBackClick = () => {
         void navigate({
-            pathname: `/projects/${savedChart?.projectUuid}/dashboards/${dashboardUuid}`,
+            pathname: `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
         });
     };
 
@@ -442,15 +546,24 @@ const SavedChartsHeader: FC = () => {
                 modals: defaultState.modals,
                 queryExecution: defaultQueryExecution,
                 preAggregate: defaultState.preAggregate,
+                chartSidebarStep: defaultState.chartSidebarStep,
+                chartTypeAuthoring: null,
             };
             dispatch(explorerActions.reset(resetState));
         }
 
         if (!isFromDashboard)
             void navigate({
-                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/view`,
+                pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/view`,
             });
-    }, [dispatch, isEditMode, savedChart, isFromDashboard, navigate]);
+    }, [
+        dispatch,
+        isEditMode,
+        savedChart,
+        isFromDashboard,
+        navigate,
+        projectUrlIdentifier,
+    ]);
 
     const promoteDisabled = !(
         project?.upstreamProjectUuid !== undefined && userCanPromoteChart
@@ -501,18 +614,50 @@ const SavedChartsHeader: FC = () => {
                                         spaceUuid={savedChart.spaceUuid}
                                         spaceName={savedChart.spaceName}
                                         dashboardUuid={savedChart.dashboardUuid}
+                                        dashboardSlug={savedChart.dashboardSlug}
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
-                                <Title
-                                    c="ldDark.9"
-                                    order={5}
-                                    fw={600}
-                                    maw={500}
-                                    lineClamp={1}
-                                >
+                                <Title order={5} maw={500} lineClamp={1}>
                                     {savedChart.name}
                                 </Title>
+
+                                {savedChart.hasUnpublishedChanges && (
+                                    <Tooltip
+                                        label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
+                                        maw={280}
+                                    >
+                                        <Badge
+                                            color="yellow"
+                                            variant="dot"
+                                            size="sm"
+                                        >
+                                            Unpublished changes
+                                        </Badge>
+                                    </Tooltip>
+                                )}
+
+                                {!!savedChart.draftsAwaitingReview && (
+                                    <Badge
+                                        component={Link}
+                                        to={`/generalSettings/projectManagement/${savedChart.projectUuid}/contentReview`}
+                                        color="blue"
+                                        variant="dot"
+                                        size="sm"
+                                    >
+                                        {savedChart.draftsAwaitingReview} draft
+                                        {savedChart.draftsAwaitingReview === 1
+                                            ? ''
+                                            : 's'}{' '}
+                                        to review
+                                    </Badge>
+                                )}
+
+                                {contentReview.pendingRequest && (
+                                    <PendingReviewBadge
+                                        request={contentReview.pendingRequest}
+                                    />
+                                )}
 
                                 {isChartVerified && (
                                     <Tooltip
@@ -521,8 +666,6 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        withArrow
-                                        withinPortal
                                         zIndex={10000}
                                     >
                                         <IconCircleCheckFilled
@@ -534,30 +677,21 @@ const SavedChartsHeader: FC = () => {
                                     </Tooltip>
                                 )}
 
-                                <ActionIcon
+                                <FavoriteActionIcon
                                     size="xs"
                                     variant="transparent"
-                                    color={
-                                        isChartFavorited ? 'orange' : 'ldGray.6'
-                                    }
-                                    onClick={() => {
+                                    isFavorite={isChartFavorited}
+                                    onToggle={() => {
                                         toggleFavorite({
                                             contentType: ContentType.CHART,
                                             contentUuid: savedChart.uuid,
                                         });
                                     }}
-                                >
-                                    {isChartFavorited ? (
-                                        <IconStarFilled size={16} />
-                                    ) : (
-                                        <IconStar size={16} />
-                                    )}
-                                </ActionIcon>
+                                />
 
                                 {isEditMode && userCanManageChart && (
                                     <ActionIcon
                                         size="xs"
-                                        color="ldGray.6"
                                         disabled={updateSavedChart.isLoading}
                                         onClick={() => setIsRenamingChart(true)}
                                     >
@@ -628,7 +762,7 @@ const SavedChartsHeader: FC = () => {
                                                 }
                                                 onClick={() =>
                                                     navigate({
-                                                        pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/edit`,
+                                                        pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
                                                     })
                                                 }
                                             >
@@ -641,6 +775,7 @@ const SavedChartsHeader: FC = () => {
                                     ) : (
                                         <>
                                             <SaveChartButton
+                                                disabled={isChartTypeAuthoring}
                                                 onSaveModalOpenChange={
                                                     setIsSaveModalOpen
                                                 }
@@ -652,8 +787,9 @@ const SavedChartsHeader: FC = () => {
                                                 variant="default"
                                                 size="xs"
                                                 disabled={
-                                                    isFromDashboard &&
-                                                    !hasUnsavedChanges
+                                                    isChartTypeAuthoring ||
+                                                    (isFromDashboard &&
+                                                        !hasUnsavedChanges)
                                                 }
                                                 onClick={handleCancelClick}
                                             >
@@ -667,7 +803,6 @@ const SavedChartsHeader: FC = () => {
                                                 <Tooltip
                                                     offset={-1}
                                                     label="Return to dashboard"
-                                                    withinPortal
                                                     position="bottom"
                                                 >
                                                     <ActionIcon
@@ -695,7 +830,6 @@ const SavedChartsHeader: FC = () => {
                                     ? 'Exit Fullscreen Mode'
                                     : 'Enter Fullscreen Mode'
                             }
-                            withinPortal
                             position="bottom"
                             openDelay={200}
                             transitionProps={{
@@ -710,7 +844,6 @@ const SavedChartsHeader: FC = () => {
                                         : 'Enter Fullscreen Mode'
                                 }
                                 variant="default"
-                                radius="md"
                                 onClick={handleToggleFullscreen}
                             >
                                 <MantineIcon
@@ -728,8 +861,6 @@ const SavedChartsHeader: FC = () => {
                         <Menu
                             position="bottom"
                             withArrow
-                            withinPortal
-                            shadow="md"
                             width={200}
                             disabled={!unsavedChartVersion.tableName}
                         >
@@ -772,7 +903,7 @@ const SavedChartsHeader: FC = () => {
                                             Add to dashboard
                                         </Menu.Item>
                                     )}
-                                {userCanManageChart &&
+                                {userCanManageChartViaSpace &&
                                     savedChart?.dashboardUuid && (
                                         <Menu.Item
                                             leftSection={
@@ -785,6 +916,19 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         >
                                             Move to space
+                                        </Menu.Item>
+                                    )}
+                                {contentReview.canRequest &&
+                                    !hasUnsavedChanges && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={
+                                                requestReviewModalHandlers.open
+                                            }
+                                        >
+                                            Request review
                                         </Menu.Item>
                                     )}
 
@@ -812,6 +956,22 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
+                                {directAccessAvailability.isAvailable &&
+                                    canManageChartAccess &&
+                                    !chartBelongsToDashboard &&
+                                    savedChart && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconUsers} />
+                                            }
+                                            onClick={
+                                                directAccessModalHandlers.open
+                                            }
+                                        >
+                                            Share
+                                        </Menu.Item>
+                                    )}
+
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
@@ -835,7 +995,7 @@ const SavedChartsHeader: FC = () => {
                                         }
                                         onClick={() =>
                                             navigate({
-                                                pathname: `/projects/${savedChart?.projectUuid}/saved/${savedChart?.uuid}/history`,
+                                                pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/history`,
                                             })
                                         }
                                     >
@@ -861,7 +1021,6 @@ const SavedChartsHeader: FC = () => {
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={!promoteDisabled}
-                                        withinPortal
                                     >
                                         <div>
                                             <Menu.Item
@@ -919,22 +1078,44 @@ const SavedChartsHeader: FC = () => {
                                         </Menu.Item>
                                     )}
 
-                                {userCanViewContentAsCode && savedChart && (
-                                    <>
-                                        <Menu.Divider />
-                                        <Menu.Label>Content as code</Menu.Label>
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCode} />
-                                            }
-                                            onClick={
-                                                chartAsCodeModalHandlers.open
-                                            }
-                                        >
-                                            View as code
-                                        </Menu.Item>
-                                    </>
-                                )}
+                                {savedChart &&
+                                    (userCanViewContentAsCode ||
+                                        userCanManageChart) && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Label>
+                                                Content as code
+                                            </Menu.Label>
+                                            {userCanViewContentAsCode && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconCode}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        chartAsCodeModalHandlers.open
+                                                    }
+                                                >
+                                                    View as code
+                                                </Menu.Item>
+                                            )}
+                                            {userCanManageChart && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconLink}
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        chartSlugRenameModalHandlers.open
+                                                    }
+                                                >
+                                                    Change URL slug
+                                                </Menu.Item>
+                                            )}
+                                        </>
+                                    )}
 
                                 <Menu.Divider />
                                 <Menu.Label>Integrations</Menu.Label>
@@ -962,8 +1143,7 @@ const SavedChartsHeader: FC = () => {
                                         Alerts
                                     </Menu.Item>
                                 )}
-                                {userCanManageChart &&
-                                    hasGoogleDriveEnabled &&
+                                {hasGoogleDriveEnabled &&
                                     userCanCreateDeliveriesAndAlerts && (
                                         <Can
                                             I="manage"
@@ -1027,6 +1207,35 @@ const SavedChartsHeader: FC = () => {
                 </Group>
             </PageHeader>
 
+            {savedChart?.draftOverlayError ? (
+                <DraftOverlayFailureAlert
+                    error={savedChart.draftOverlayError}
+                    contentType="chart"
+                />
+            ) : null}
+
+            {savedChart?.dismissedDraftUuid ? (
+                <DismissedDraftAlert
+                    isReopening={isReopeningDraft}
+                    onReopen={() => reopenDraft(savedChart.dismissedDraftUuid!)}
+                />
+            ) : null}
+
+            {savedChart?.draftStaleness ? (
+                <DraftStaleAlert
+                    contentLabel="chart"
+                    staleness={savedChart.draftStaleness}
+                    details={draftStalenessDetails}
+                    isUpdating={isRebasingDraft}
+                    onUpdate={(resolutions) =>
+                        rebaseDraft({
+                            draftUuid: savedChart.draftStaleness!.draftUuid,
+                            resolutions,
+                        })
+                    }
+                />
+            ) : null}
+
             {savedChart && isAddToDashboardModalOpen && projectUuid && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
@@ -1044,7 +1253,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         if (dashboardUuid) {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                             );
                         } else {
                             void navigate(`/`);
@@ -1094,7 +1303,7 @@ const SavedChartsHeader: FC = () => {
                     onConfirm={() => {
                         clearDashboardStorage();
                         void navigate(
-                            `/projects/${projectUuid}/saved/${savedChart.uuid}/edit`,
+                            `/projects/${projectUrlIdentifier}/saved/${savedChart.slug}/edit`,
                         );
                     }}
                 />
@@ -1123,6 +1332,28 @@ const SavedChartsHeader: FC = () => {
                 />
             )}
 
+            {isDirectAccessModalOpen && projectUuid && savedChart && (
+                <DirectAccessModal
+                    opened={isDirectAccessModalOpen}
+                    onClose={directAccessModalHandlers.close}
+                    projectUuid={projectUuid}
+                    resource={{
+                        resourceType: DirectAccessResourceType.CHART,
+                        resourceUuid: savedChart.uuid,
+                        name: savedChart.name,
+                    }}
+                />
+            )}
+            {isRequestReviewModalOpen && projectUuid && savedChart && (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={ContentReviewContentType.CHART}
+                    contentUuid={savedChart.uuid}
+                    contentName={savedChart.name}
+                    opened={isRequestReviewModalOpen}
+                    onClose={requestReviewModalHandlers.close}
+                />
+            )}
             {isTransferToSpaceModalOpen && projectUuid && (
                 <TransferItemsModal
                     projectUuid={projectUuid}
@@ -1188,6 +1419,26 @@ const SavedChartsHeader: FC = () => {
                     projectUuid={projectUuid}
                     chartUuid={savedChart.uuid}
                     hasUnsavedChanges={hasUnsavedChanges && isEditMode}
+                />
+            )}
+            {isChartSlugRenameModalOpen && savedChart && projectUuid && (
+                <ChartSlugRenameModal
+                    opened={isChartSlugRenameModalOpen}
+                    onClose={chartSlugRenameModalHandlers.close}
+                    onRenamed={(slug) => {
+                        chartSlugRenameModalHandlers.close();
+                        const routeMode = isEditMode ? 'edit' : 'view';
+                        void navigate(
+                            {
+                                pathname: `/projects/${projectUrlIdentifier}/saved/${slug}/${routeMode}`,
+                                search,
+                            },
+                            { replace: true },
+                        );
+                    }}
+                    projectUuid={projectUuid}
+                    projectUrlIdentifier={projectUrlIdentifier}
+                    currentSlug={savedChart.slug}
                 />
             )}
         </TrackSection>

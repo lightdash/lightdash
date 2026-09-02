@@ -1,19 +1,15 @@
 import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     TextInput,
-    CopyButton,
     Stack,
     Button,
-    ActionIcon,
     Anchor,
     Select,
     PasswordInput,
-    Tooltip,
 } from '@mantine/core';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
-import MantineIcon from '../../common/MantineIcon';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import { NumberInput } from '../../common/NumberInput';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -144,7 +140,7 @@ const RedshiftForm: FC<{
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <TextInput
                     name="warehouse.host"
                     label="Host"
@@ -189,7 +185,7 @@ const RedshiftForm: FC<{
                     disabled={disabled}
                 />
                 <FormSection isOpen={isOpen} name="advanced">
-                    <Stack style={{ marginTop: '8px' }}>
+                    <Stack mt="xs">
                         <BooleanSwitch
                             name="warehouse.requireUserCredentials"
                             label="Require users to provide their own credentials"
@@ -324,7 +320,7 @@ const RedshiftForm: FC<{
                             isOpen={showSshTunnelConfiguration}
                             name="ssh-config"
                         >
-                            <Stack style={{ marginBottom: '8px' }}>
+                            <Stack mb="xs">
                                 <TextInput
                                     name="warehouse.sshTunnelHost"
                                     label="SSH Remote Host"
@@ -365,45 +361,14 @@ const RedshiftForm: FC<{
                                         rightSectionPointerEvents="all"
                                         rightSection={
                                             <>
-                                                <CopyButton
+                                                <CopyActionIcon
                                                     value={sshTunnelPublicKey}
-                                                >
-                                                    {({ copied, copy }) => (
-                                                        <Tooltip
-                                                            label={
-                                                                copied
-                                                                    ? 'Copied'
-                                                                    : 'Copy'
-                                                            }
-                                                            withArrow
-                                                            position="right"
-                                                        >
-                                                            <ActionIcon
-                                                                aria-label="Copy SSH tunnel public key"
-                                                                onMouseDown={(
-                                                                    event,
-                                                                ) =>
-                                                                    event.preventDefault()
-                                                                }
-                                                                variant="subtle"
-                                                                color={
-                                                                    copied
-                                                                        ? 'teal'
-                                                                        : 'gray'
-                                                                }
-                                                                onClick={copy}
-                                                            >
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        copied
-                                                                            ? IconCheck
-                                                                            : IconCopy
-                                                                    }
-                                                                />
-                                                            </ActionIcon>
-                                                        </Tooltip>
-                                                    )}
-                                                </CopyButton>
+                                                    tooltipPosition="right"
+                                                    aria-label="Copy SSH tunnel public key"
+                                                    onMouseDown={(event) =>
+                                                        event.preventDefault()
+                                                    }
+                                                />
                                             </>
                                         }
                                     />

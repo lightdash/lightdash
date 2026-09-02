@@ -15,6 +15,7 @@ import {
     selectHasPaletteChanges,
     selectHasUnsavedChanges,
     selectHasVersionChanges,
+    selectIsDataAppVizVersionReadyForSave,
     selectIsValidQuery,
     selectSavedChart,
     selectUnsavedChartVersion,
@@ -69,6 +70,9 @@ const SaveChartButton: FC<{
 
     // Read isValidQuery from Redux
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
+    const isDataAppVizVersionReadyForSave = useExplorerSelector(
+        selectIsDataAppVizVersionReadyForSave,
+    );
     const spaceUuid = useSearchParams('fromSpace');
 
     // For new charts, button is enabled when query is valid
@@ -110,10 +114,19 @@ const SaveChartButton: FC<{
             preserveVerification === undefined ? {} : { preserveVerification };
 
         if (hasPaletteChanges) {
-            updateMetadata.mutate({
-                colorPaletteUuid: stagedColorPaletteUuid,
-                ...verificationUpdate,
-            });
+            updateMetadata.mutate(
+                {
+                    colorPaletteUuid: stagedColorPaletteUuid,
+                    ...verificationUpdate,
+                },
+                {
+                    onSuccess: (data) => {
+                        if (!hasVersionChanges && !hasMergeChanges) {
+                            embed.onChartSaved?.(data, 'updated');
+                        }
+                    },
+                },
+            );
         }
         if (hasVersionChanges || hasMergeChanges) {
             update.mutate(
@@ -128,7 +141,7 @@ const SaveChartButton: FC<{
                 {
                     // Lets the embed dashboard builder react to the update
                     // (e.g. close its chart editor modal)
-                    onSuccess: (data) => embed.onChartSaved?.(data),
+                    onSuccess: (data) => embed.onChartSaved?.(data, 'updated'),
                 },
             );
         }
@@ -169,6 +182,7 @@ const SaveChartButton: FC<{
         disabled ||
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
+        !isDataAppVizVersionReadyForSave ||
         foundCustomMetricWithDuplicateId ||
         !isMergeValid ||
         !!missingRequiredParameters?.length;
@@ -191,10 +205,12 @@ const SaveChartButton: FC<{
 
     const showSaveAsMenu = !!savedChart;
     const isSaveAsDisabled =
+        disabled ||
         !unsavedChartVersion.tableName ||
         // Embeds may duplicate a chart as-is (there is no other way to copy
         // one there); the main app keeps requiring changes
         (!hasUnsavedChanges && !isEmbedded) ||
+        !isDataAppVizVersionReadyForSave ||
         foundCustomMetricWithDuplicateId ||
         !isMergeValid ||
         !!missingRequiredParameters?.length;
@@ -209,8 +225,6 @@ const SaveChartButton: FC<{
                             : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                     }
                     disabled={isMergeValid && !foundCustomMetricWithDuplicateId}
-                    withinPortal
-                    multiline
                     position={'bottom'}
                     maw={300}
                 >
@@ -253,8 +267,6 @@ const SaveChartButton: FC<{
                     <Tooltip
                         label="Save as new chart"
                         position="bottom"
-                        withArrow
-                        withinPortal
                         disabled={isSaveAsDisabled}
                     >
                         <Button
@@ -288,7 +300,7 @@ const SaveChartButton: FC<{
                     onConfirm={(saved) => {
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
-                        embed.onChartSaved?.(saved);
+                        embed.onChartSaved?.(saved, 'created');
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? undefined}

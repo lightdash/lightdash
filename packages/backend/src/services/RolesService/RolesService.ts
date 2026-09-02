@@ -1644,18 +1644,22 @@ export class RolesService extends BaseService {
     // ROLE SETS (multiple roles per level)
     // =====================================
 
+    /** Role sets share the custom-roles gate: licence + config or the custom-roles flag. */
     private async assertRoleSetsEnabled(account: Account): Promise<void> {
         this.assertCustomRolesLicensed();
         assertRegisteredAccount(account);
+        if (this.lightdashConfig.customRoles.enabled) {
+            return;
+        }
         const flag = await this.featureFlagModel.get({
             user: {
                 userUuid: account.user.userUuid,
                 organizationUuid: account.organization.organizationUuid,
             },
-            featureFlagId: CommercialFeatureFlags.MultipleRoles,
+            featureFlagId: CommercialFeatureFlags.CustomRoles,
         });
         if (!flag.enabled) {
-            throw new ForbiddenError('Multiple roles are not enabled');
+            throw new ForbiddenError('Custom roles are not enabled');
         }
     }
 

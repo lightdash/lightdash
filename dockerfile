@@ -5,18 +5,20 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
+FROM ghcr.io/pnpm/pnpm:11.20.0@sha256:d77573aba1649491010d3d252214be47197c0706417793cf393ac47cc324f315 AS pnpm-cli
+
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
 FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-# Fixed world-readable path so the pnpm cache resolves under any runtime UID (non-root securityContexts)
-ENV COREPACK_HOME="/usr/local/corepack"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@11.20.0 --activate && chmod -R a+rX "$COREPACK_HOME"
+ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
+COPY --from=pnpm-cli /pnpm /pnpm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -156,14 +158,14 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
-# dbt 1.12 has no stable PyPI release yet: pin latest pre-releases, and skip
-# dbt-databricks (no release compatible with dbt-core 1.12)
+# dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install \
-    "dbt-core==1.12.0rc1" \
+    "dbt-core==1.12.0" \
     "dbt-postgres~=1.10.0" \
     "dbt-redshift~=1.10.0" \
-    "dbt-snowflake==1.12.0b2" \
-    "dbt-bigquery==1.12.0b1" \
+    "dbt-snowflake~=1.12.0" \
+    "dbt-bigquery~=1.12.0" \
+    "dbt-databricks~=1.12.3" \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
@@ -394,8 +396,7 @@ FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
 ENV PLAYGROUND_DATA_DIR=/usr/app/packages/backend/assets/playground
-# Boot must work fully offline: pnpm is baked in, never fetch it from npmjs at runtime
-ENV COREPACK_ENABLE_NETWORK=0
+# Boot works fully offline because the standalone pnpm binary is baked in.
 
 WORKDIR /usr/app
 

@@ -29,8 +29,8 @@ const getCallerOrganizationScopes = async (
         throw new ForbiddenError('You do not have permission');
     }
 
-    // Custom roles never list this scope, but the ability builder still grants
-    // it from the PAT config, so it is part of the caller's real footprint.
+    // Read off the built ability rather than the stored scope list: it
+    // already covers both a role that lists this scope and a config fallback.
     const canManagePersonalAccessToken = user.ability.can(
         'manage',
         'PersonalAccessToken',

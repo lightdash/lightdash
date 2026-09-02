@@ -1,0 +1,3 @@
+**Change-detector test** — a test that is a transformation of the code under test rather than a check on it: mocks every collaborator and verifies the call sequence, snapshots an implementation detail, asserts structure instead of result. A correct and an incorrect implementation pass it equally, and every refactor breaks it. Tell: a behaviour-preserving change needs the same mechanical edit across many tests. → assert observable behaviour at the public surface — input to output, state, or an effect a caller can see; delete the test if no behavioural assertion exists.
+
+Keep comments short. Delete any claim from comments that is derivable from the code.

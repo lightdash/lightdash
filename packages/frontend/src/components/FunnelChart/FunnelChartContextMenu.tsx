@@ -75,8 +75,6 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             opened={opened}
             onOpen={onOpen}
             onClose={onClose}
-            withinPortal
-            shadow="md"
             closeOnItemClick
             closeOnEscape
             radius={0}

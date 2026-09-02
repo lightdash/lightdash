@@ -1,5 +1,6 @@
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import { useOptionalProjectRoute } from './useProjectRoute';
 
 /**
  * We have a couple ways to derive the projectUuid:
@@ -9,10 +10,13 @@ import useEmbed from '../ee/providers/Embed/useEmbed';
  * We prioritize the URL over the embed context to facilitate the most use-cases.
  */
 export function useProjectUuid() {
+    const projectRoute = useOptionalProjectRoute();
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid: string;
     }>();
     const { projectUuid: embedProjectUuid } = useEmbed();
 
-    return projectUuidFromParams || embedProjectUuid;
+    return (
+        projectRoute?.projectUuid || projectUuidFromParams || embedProjectUuid
+    );
 }

@@ -18,7 +18,7 @@ const ImpersonationPanel: FC = () => {
                     <Text fw={500} fz="sm">
                         Enable user impersonation
                     </Text>
-                    <Text fz="xs" c="ldGray.6">
+                    <Text fz="xs" c="dimmed">
                         Allow organization admins to impersonate other users to
                         see Lightdash from their perspective.
                     </Text>
@@ -37,7 +37,7 @@ const ImpersonationPanel: FC = () => {
                 <Text fz="xs">
                     If the project requires users to provide their own warehouse
                     credentials, queries run with the impersonated user's{' '}
-                    <Text span inherit fw={700}>
+                    <Text span inherit fw={600}>
                         personal warehouse credentials
                     </Text>{' '}
                     (including SSO-backed credentials).

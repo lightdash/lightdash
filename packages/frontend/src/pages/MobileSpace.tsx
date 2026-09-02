@@ -20,14 +20,13 @@ import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useInfiniteContent } from '../hooks/useContent';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSpace, useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 
 const MobileSpace: FC = () => {
-    const { projectUuid, spaceUuid } = useParams<{
-        projectUuid: string;
-        spaceUuid: string;
-    }>();
+    const { spaceUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const {
         data: space,
         isInitialLoading,
@@ -39,6 +38,9 @@ const MobileSpace: FC = () => {
             projectUuids: projectUuid ? [projectUuid] : [],
             spaceUuids: spaceUuid ? [spaceUuid] : [],
             contentTypes: [ContentType.DATA_APP],
+            // Vizs are spaceless today, but declare the exclusion rather
+            // than rely on that invariant.
+            dataAppVizsFilter: 'exclude',
             pageSize: 100,
         },
         { enabled: !!projectUuid && !!spaceUuid },
@@ -128,8 +130,6 @@ const MobileSpace: FC = () => {
                         <ActionIcon
                             aria-label="Clear search"
                             onMouseDown={(event) => event.preventDefault()}
-                            variant="subtle"
-                            color="gray"
                             onClick={() => setSearch('')}
                         >
                             <MantineIcon icon={IconX} />

@@ -8,6 +8,9 @@ import { LightdashConfig } from './parseConfig';
 export const lightdashConfigMock: LightdashConfig = {
     allowMultiOrgs: false,
     auth: {
+        mobileLogin: {
+            enabled: true,
+        },
         pat: {
             enabled: false,
             allowedOrgRoles: Object.values(OrganizationMemberRole),
@@ -88,6 +91,12 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     lightdashCloudInstance: 'test-instance',
+    mobileAppAssociation: {
+        appleTeamId: 'TEAMID',
+        appleBundleId: 'com.lightdash.mobile',
+        androidPackageName: 'com.lightdash.mobile',
+        androidCertificateFingerprints: [],
+    },
     openaiAppsChallengeToken: undefined,
     k8s: {
         podNamespace: undefined,
@@ -227,8 +236,23 @@ export const lightdashConfigMock: LightdashConfig = {
     helpMenuUrl: undefined,
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
+    mobile: {
+        minimumSupportedVersion: {
+            android: null,
+            ios: null,
+        },
+    },
+    mobilePushNotifications: {
+        enabled: false,
+        bundleId: 'com.lightdash.mobile',
+        teamId: undefined,
+        sandbox: undefined,
+        production: undefined,
+        fcm: undefined,
+    },
     license: {
         licenseKey: null,
+        licenseCertificate: null,
     },
     groups: {
         enabled: false,
@@ -283,6 +307,9 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         agentMemory: {
             consolidationDryRun: false,
+        },
+        promptInputRequestClassifier: {
+            enabled: false,
         },
     },
     embedding: {
@@ -390,6 +417,17 @@ export const lightdashConfigMock: LightdashConfig = {
     dashboardComments: {
         enabled: true,
     },
+    externalSources: {
+        maxFileSizeBytes: 100 * 1024 * 1024,
+        maxRows: 1_000_000,
+        maxOrganizationBytes: 5 * 1024 * 1024 * 1024,
+        maxConcurrentIngestsPerOrganization: 2,
+        maxConcurrentDuckdbQueriesPerOrganization: 2,
+        googleSheetsBatchRows: 5_000,
+        stagedUploadTtlHours: 24,
+        ingestLeaseMs: 35 * 60 * 1000,
+        garbageCollectionBatchSize: 100,
+    },
     preAggregates: {
         enabled: false,
         parquetEnabled: false,
@@ -481,6 +519,7 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
+        chartRegistry: { url: null, allowInsecure: false },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

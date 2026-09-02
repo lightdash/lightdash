@@ -255,6 +255,23 @@ export type PreAggregateCheck =
           result: PreAggregateCheckResult;
       };
 
+export type ChartSidebarStep = 'choose' | 'configure';
+
+export type ChartTypeAuthoringState = {
+    /** The chart type being revised; null while a new one is authored. */
+    dataAppVizUuid: string | null;
+    /** The older version the builder previews; null follows the current one. */
+    viewedVersion: number | null;
+    /** The type was created by this session, so cancelling may discard it. */
+    createdInSession: boolean;
+    /** What the chart and the sidebar showed before, restored on cancel. */
+    previous: {
+        chartSidebarStep: ChartSidebarStep;
+        chartConfig: CreateSavedChartVersion['chartConfig'];
+        pivotConfig: CreateSavedChartVersion['pivotConfig'];
+    };
+};
+
 export interface ExplorerReduceState {
     expandedSections: ExplorerSection[];
     metadata?: {
@@ -262,6 +279,10 @@ export interface ExplorerReduceState {
         tableCalculations?: TableCalculationMetadata[];
     };
     isVisualizationConfigOpen?: boolean;
+    /** Which step the chart gallery sidebar shows when it is open. */
+    chartSidebarStep: ChartSidebarStep;
+    /** A chart type being authored in place of the chart; null otherwise. */
+    chartTypeAuthoring: ChartTypeAuthoringState | null;
     isMinimal?: boolean;
     isEditMode?: boolean;
     unsavedChartVersion: CreateSavedChartVersion;

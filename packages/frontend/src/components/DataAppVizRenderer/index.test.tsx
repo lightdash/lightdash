@@ -1,6 +1,12 @@
+import { DimensionType, FieldType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
+import { getMantineThemeOverride } from '../../theme';
+
+// Mirrors the real hook's failSilently contract: TrackingContextType | undefined.
+type TrackingMockContext = { track: (...args: unknown[]) => void } | undefined;
 
 const mocks = vi.hoisted(() => ({
     metadata: {
@@ -10,7 +16,12 @@ const mocks = vi.hoisted(() => ({
                   version: number;
                   latestBuildInProgress: boolean;
                   schema: {
-                      fields: Array<never>;
+                      fields: Array<{
+                          name: string;
+                          label: string;
+                          type: 'dimension';
+                          required: boolean;
+                      }>;
                       configOptions: Array<{
                           type: 'text';
                           name: string;
@@ -42,8 +53,14 @@ const mocks = vi.hoisted(() => ({
         current: undefined as ReturnType<typeof apiError> | undefined,
     },
     embedToken: { current: undefined as string | undefined },
-    dataAppVizUuid: { current: 'viz-uuid' as string | undefined },
-    iframePreview: vi.fn(() => null),
+    dataAppVizUuid: { current: 'viz-uuid' as string | null },
+    dataAppVizVersion: { current: 7 as number | undefined },
+    setDataAppVizVersion: vi.fn(),
+    iframePreview: vi.fn(
+        (_props: {
+            onScreenshotAvailabilityChange: (available: boolean) => void;
+        }) => null,
+    ),
     renderMetadataHook: vi.fn(),
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
@@ -52,6 +69,12 @@ const mocks = vi.hoisted(() => ({
     exploreHook: vi.fn(),
     // Extra keys merged into the useVisualizationContext mock return value.
     vizContextOverrides: { current: {} as Record<string, unknown> },
+    track: vi.fn(),
+    // undefined models no TrackingProvider mounted (e.g. /minimal routes at
+    // desktop viewports) — the real fail-silent hook returns undefined there.
+    trackingContext: {
+        current: undefined as TrackingMockContext,
+    },
 }));
 
 vi.mock('react-router', () => ({
@@ -90,6 +113,22 @@ vi.mock('../../hooks/useExplore', () => ({
         return { data: mocks.explore.current };
     },
 }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+}));
+vi.mock('../../providers/App/useApp', () => ({
+    default: () => ({
+        user: {
+            data: {
+                organizationUuid: 'organization-uuid',
+                userUuid: 'user-uuid',
+            },
+        },
+    }),
+}));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: (): TrackingMockContext => mocks.trackingContext.current,
+}));
 vi.mock('../LightdashVisualization/types', () => ({
     isDataAppVizVisualizationConfig: () => true,
 }));
@@ -97,23 +136,49 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
     useVisualizationContext: () => ({
         visualizationConfig: {
             chartConfig: {
-                validConfig: {
-                    dataAppVizUuid: mocks.dataAppVizUuid.current,
-                    fieldMapping: { category: 'orders.category' },
-                    optionValues: { title: 12 },
-                },
+                validConfig:
+                    mocks.dataAppVizUuid.current === null
+                        ? null
+                        : {
+                              dataAppVizUuid: mocks.dataAppVizUuid.current,
+                              dataAppVizVersion:
+                                  mocks.dataAppVizVersion.current,
+                              fieldMapping: { category: 'orders_category' },
+                              optionValues: { title: 12 },
+                          },
+                setDataAppVizVersion: mocks.setDataAppVizVersion,
             },
         },
         savedChartUuid: 'saved-chart-uuid',
         resultsData: {
-            rows: [{ 'orders.category': { value: { raw: 'Hardware' } } }],
+            rows: [
+                {
+                    orders_category: {
+                        value: { raw: 'Hardware', formatted: 'Hardware' },
+                    },
+                },
+            ],
             setFetchAll: mocks.setFetchAll,
+        },
+        itemsMap: {
+            orders_category: {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.STRING,
+                name: 'category',
+                label: 'Category',
+                table: 'orders',
+                tableLabel: 'Orders',
+                sql: '${TABLE}.category',
+                hidden: false,
+                colors: { Hardware: '#00ff00' },
+            },
         },
         colorPalette: ['#7162FF'],
         ...mocks.vizContextOverrides.current,
     }),
 }));
 
+import { SCREENSHOT_READY_FALLBACK_MS } from './constants';
 import DataAppVizRenderer from './index';
 
 function apiError(statusCode: number) {
@@ -128,19 +193,36 @@ function apiError(statusCode: number) {
     };
 }
 
-const renderRenderer = () =>
-    render(
-        <MantineProvider env="test">
-            <DataAppVizRenderer />
-        </MantineProvider>,
-    );
+const rendererElement = (props?: Parameters<typeof DataAppVizRenderer>[0]) => (
+    <MantineProvider env="test" theme={getMantineThemeOverride('light')}>
+        <ChartColorMappingContext.Provider value={{ colorMappings: new Map() }}>
+            <DataAppVizRenderer {...props} />
+        </ChartColorMappingContext.Provider>
+    </MantineProvider>
+);
+
+const renderRenderer = (props?: Parameters<typeof DataAppVizRenderer>[0]) =>
+    render(rendererElement(props));
+
+const announceIframeAvailable = () => {
+    const iframeProps = mocks.iframePreview.mock.lastCall?.[0];
+    if (!iframeProps) throw new Error('Expected the iframe preview to render');
+    act(() => iframeProps.onScreenshotAvailabilityChange(true));
+};
 
 const readyMetadata = () => ({
     state: 'ready' as const,
     version: 7,
     latestBuildInProgress: false,
     schema: {
-        fields: [],
+        fields: [
+            {
+                name: 'category',
+                label: 'Category',
+                type: 'dimension' as const,
+                required: true,
+            },
+        ],
         configOptions: [
             {
                 type: 'text' as const,
@@ -161,6 +243,8 @@ describe('DataAppVizRenderer', () => {
         mocks.tokenError.current = undefined;
         mocks.embedToken.current = undefined;
         mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.dataAppVizVersion.current = 7;
+        mocks.setDataAppVizVersion.mockClear();
         mocks.iframePreview.mockClear();
         mocks.renderMetadataHook.mockClear();
         mocks.previewTokenHook.mockClear();
@@ -169,10 +253,12 @@ describe('DataAppVizRenderer', () => {
         mocks.explore.current = undefined;
         mocks.exploreHook.mockClear();
         mocks.vizContextOverrides.current = {};
+        mocks.track.mockClear();
+        mocks.trackingContext.current = { track: mocks.track };
     });
 
     it('prompts for a visualization when none is selected', () => {
-        mocks.dataAppVizUuid.current = undefined;
+        mocks.dataAppVizUuid.current = null;
 
         renderRenderer();
 
@@ -229,11 +315,41 @@ describe('DataAppVizRenderer', () => {
         renderRenderer();
 
         expect(
-            screen.getByText('Custom chart type preview is unavailable.'),
+            screen.getByText(
+                'The saved custom chart type version is unavailable.',
+            ),
         ).toBeInTheDocument();
         expect(
             screen.queryByText('Custom chart type failed to generate.'),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps the generic unavailable state for a legacy unpinned saved chart', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.dataAppVizVersion.current = undefined;
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the generic unavailable state for an unsaved preview', () => {
+        mocks.metadata.current = {
+            state: 'unavailable',
+            latestBuildInProgress: false,
+        };
+        mocks.vizContextOverrides.current = { savedChartUuid: undefined };
+
+        renderRenderer();
+
+        expect(
+            screen.getByText('Custom chart type preview is unavailable.'),
+        ).toBeInTheDocument();
     });
 
     it.each([
@@ -289,6 +405,10 @@ describe('DataAppVizRenderer', () => {
                 dataAppVizContext: expect.objectContaining({
                     options: { title: 'Sales' },
                     colorPalette: ['#7162FF'],
+                    seriesColors: {},
+                    valueColors: {
+                        orders_category: { Hardware: '#00ff00' },
+                    },
                 }),
             }),
             undefined,
@@ -313,6 +433,115 @@ describe('DataAppVizRenderer', () => {
             }),
             undefined,
         );
+    });
+
+    it('pins an unsaved project chart type without requiring an SDK capability announcement', () => {
+        mocks.dataAppVizVersion.current = undefined;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+        };
+
+        renderRenderer();
+
+        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('lazily pins a legacy saved chart when it is next edited', () => {
+        mocks.dataAppVizVersion.current = undefined;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
+        expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
+    });
+
+    it('keeps an unchanged edited chart on its persisted project chart type version', () => {
+        mocks.metadata.current = { ...readyMetadata(), version: 3 };
+        mocks.dataAppVizVersion.current = 3;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        dataAppVizVersion: 3,
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: 'saved-chart-uuid',
+            },
+        );
+
+        announceIframeAvailable();
+
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
+    });
+
+    it('renders an upgraded pin through the authoring path without re-pinning', () => {
+        mocks.metadata.current = { ...readyMetadata(), version: 5 };
+        mocks.dataAppVizVersion.current = 5;
+        mocks.vizContextOverrides.current = {
+            savedChartUuid: undefined,
+            isEditMode: true,
+            savedChartReference: {
+                uuid: 'saved-chart-uuid',
+                chartConfig: {
+                    type: 'data_app_viz',
+                    config: {
+                        dataAppVizUuid: 'viz-uuid',
+                        dataAppVizVersion: 3,
+                        fieldMapping: { category: 'orders.category' },
+                    },
+                },
+            },
+        };
+
+        renderRenderer();
+
+        expect(mocks.renderMetadataHook).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            {
+                isEmbedded: false,
+                savedChartUuid: undefined,
+            },
+        );
+        expect(mocks.setDataAppVizVersion).not.toHaveBeenCalled();
     });
 
     it('renders the last good version while a newer build is running', () => {
@@ -357,6 +586,172 @@ describe('DataAppVizRenderer', () => {
                 savedChartUuid: 'saved-chart-uuid',
             },
         );
+    });
+});
+
+describe('DataAppVizRenderer screenshot-ready contract', () => {
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as {
+            onScreenshotAvailabilityChange?: (available: boolean) => void;
+        };
+
+    const announceScreenshotAvailable = () => {
+        act(() => {
+            lastIframeProps().onScreenshotAvailabilityChange?.(true);
+        });
+    };
+
+    beforeEach(() => {
+        mocks.metadata.current = readyMetadata();
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.tokenError.current = undefined;
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.iframePreview.mockClear();
+        mocks.canViewUnderlyingData.current = true;
+        mocks.explore.current = undefined;
+        mocks.vizContextOverrides.current = {};
+        mocks.trackingContext.current = { track: mocks.track };
+    });
+
+    it('does not signal ready on mount, and signals once the iframe announces with context delivered', () => {
+        const onScreenshotReady = vi.fn();
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        announceScreenshotAvailable();
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not signal on announce while the viz context is missing, then signals once it arrives', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.vizContextOverrides.current = {
+            resultsData: { rows: undefined, setFetchAll: mocks.setFetchAll },
+        };
+
+        const view = renderRenderer({ onScreenshotReady });
+        announceScreenshotAvailable();
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
+
+        mocks.vizContextOverrides.current = {};
+        view.rerender(rendererElement({ onScreenshotReady }));
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('signals after the fallback timeout when the sandbox never announces', () => {
+        vi.useFakeTimers();
+        try {
+            const onScreenshotReady = vi.fn();
+
+            renderRenderer({ onScreenshotReady });
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1);
+            });
+            expect(onScreenshotReady).not.toHaveBeenCalled();
+
+            act(() => {
+                vi.advanceTimersByTime(1);
+            });
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+
+            // A late announce must not fire the callback a second time.
+            announceScreenshotAvailable();
+            expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('re-renders with a new callback identity do not reset the fallback timeout', () => {
+        vi.useFakeTimers();
+        try {
+            const first = vi.fn();
+            const view = renderRenderer({ onScreenshotReady: first });
+
+            act(() => {
+                vi.advanceTimersByTime(SCREENSHOT_READY_FALLBACK_MS - 1000);
+            });
+            const second = vi.fn();
+            view.rerender(rendererElement({ onScreenshotReady: second }));
+            act(() => {
+                vi.advanceTimersByTime(1000);
+            });
+
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(first).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    // Terminal placeholders never mount the iframe — waiting on the announce
+    // or the fallback would stall delivery for an already-final frame.
+    it.each([
+        [
+            'no viz selected',
+            () => {
+                mocks.dataAppVizUuid.current = null;
+            },
+        ],
+        [
+            'metadata failed state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'failed',
+                    latestBuildInProgress: false,
+                };
+            },
+        ],
+        [
+            'metadata building state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'building',
+                    latestBuildInProgress: true,
+                };
+            },
+        ],
+        [
+            'metadata unavailable state',
+            () => {
+                mocks.metadata.current = {
+                    state: 'unavailable',
+                    latestBuildInProgress: false,
+                };
+            },
+        ],
+        [
+            'terminal 403 on metadata',
+            () => {
+                mocks.metadata.current = undefined;
+                mocks.metadataError.current = apiError(403);
+            },
+        ],
+    ])('%s: signals ready for the placeholder frame', (_label, arrange) => {
+        const onScreenshotReady = vi.fn();
+        arrange();
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not treat a pending metadata fetch as a terminal placeholder', () => {
+        const onScreenshotReady = vi.fn();
+        mocks.metadata.current = undefined;
+
+        renderRenderer({ onScreenshotReady });
+
+        expect(onScreenshotReady).not.toHaveBeenCalled();
     });
 });
 
@@ -410,6 +805,8 @@ describe('DataAppVizRenderer underlying-data gating', () => {
         mocks.canViewUnderlyingData.current = true;
         mocks.explore.current = { name: 'orders' };
         mocks.vizContextOverrides.current = { resultsData: happyResultsData() };
+        mocks.track.mockClear();
+        mocks.trackingContext.current = { track: mocks.track };
     });
 
     it('happy path: pushes enabled and installs the rewrite callback', () => {
@@ -461,6 +858,10 @@ describe('DataAppVizRenderer underlying-data gating', () => {
                     resultsData: happyResultsData(),
                     minimal: true,
                 };
+                // /minimal routes at desktop viewports mount no
+                // TrackingProvider — exercise the real fail-silent path
+                // rather than masking it with a working mock.
+                mocks.trackingContext.current = undefined;
             },
         ],
         [

@@ -30,6 +30,7 @@ vi.mock('../providers/Tracking/useTracking', () => ({
 
 import { lightdashApi } from '../api';
 import { useServiceAccounts } from '../ee/features/serviceAccounts/useServiceAccounts';
+import { useTestConnection } from '../features/externalConnections/hooks/useTestConnection';
 import { useTestConnectionConfig } from '../features/externalConnections/hooks/useTestConnectionConfig';
 import { useLoginWithEmailMutation } from '../features/users/hooks/useLogin';
 import { getGdriveAccessToken } from './gdrive/useGdrive';
@@ -272,6 +273,27 @@ describe('credential-bearing requests are marked sensitive', () => {
         expect(mockApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/ee/projects/project-uuid/external-connections/test-config',
+                method: 'POST',
+                sensitive: true,
+            }),
+        );
+    });
+
+    it('existing external connection test', async () => {
+        const { result } = renderHook(() => useTestConnection(), {
+            wrapper: createWrapper(),
+        });
+
+        await result.current.mutateAsync({
+            projectUuid: 'project-uuid',
+            connectionUuid: 'connection-uuid',
+            config: { secret: 'replacement-secret' },
+            path: '/',
+        });
+
+        expect(mockApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/ee/projects/project-uuid/external-connections/connection-uuid/test',
                 method: 'POST',
                 sensitive: true,
             }),

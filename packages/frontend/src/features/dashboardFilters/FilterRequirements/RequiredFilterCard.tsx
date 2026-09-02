@@ -143,7 +143,6 @@ const RequiredFilterCard: FC<Props> = ({
                             <Button
                                 size="compact-xs"
                                 variant="light"
-                                color="blue"
                                 radius="xl"
                                 w="max-content"
                                 leftSection={<MantineIcon icon={IconPlus} />}
@@ -156,7 +155,7 @@ const RequiredFilterCard: FC<Props> = ({
             )}
             {sharesRule && (
                 <Stack gap={6} className={classes.groupSection}>
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Shares a rule. Viewers can satisfy it by setting this or
                         an alternative:
                     </Text>
@@ -167,8 +166,6 @@ const RequiredFilterCard: FC<Props> = ({
                                 variant="outline"
                                 color="yellow"
                                 radius="xl"
-                                tt="none"
-                                fw={500}
                             >
                                 {getDashboardFilterRuleLabel(member, fieldsMap)}
                             </Badge>

@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AnyType,
     AuthorizationError,
+    CommercialFeatureFlags,
     DeactivatedAccountError,
     defineUserAbility,
     EmailStatus,
@@ -11,15 +12,19 @@ import {
     getUserAbilityBuilder,
     InviteLinkPurpose,
     LightdashUser,
+    LocalIssuerTypes,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    OrganizationSsoProvider,
     ParameterError,
     PasswordResetLink,
     PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
+    SnowflakeAuthenticationType,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
@@ -179,8 +184,15 @@ const projectModel = {
 };
 
 const organizationSsoModel = {
-    findEnabledMethodsForEmailDomain: vi.fn(async () => []),
-    findGoogleMethodsForEmailDomain: vi.fn(async () => []),
+    findAllPolicySummaries: vi.fn<
+        OrganizationSsoModel['findAllPolicySummaries']
+    >(async () => []),
+    findEnabledMethodsForEmailDomain: vi.fn<
+        OrganizationSsoModel['findEnabledMethodsForEmailDomain']
+    >(async () => []),
+    findGoogleMethodsForEmailDomain: vi.fn<
+        OrganizationSsoModel['findGoogleMethodsForEmailDomain']
+    >(async () => []),
 };
 
 const organizationSettingsModel = {
@@ -202,6 +214,8 @@ const sessionModel = {
 };
 
 const organizationMemberProfileModel = {
+    getOrganizationMemberByUuid:
+        vi.fn<OrganizationMemberProfileModel['getOrganizationMemberByUuid']>(),
     getOrganizationAdmins: vi.fn<
         OrganizationMemberProfileModel['getOrganizationAdmins']
     >(async () => []),
@@ -212,6 +226,7 @@ const organizationMemberProfileModel = {
 
 type UserServiceTestOverrides = {
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    userWarehouseCredentialsModel?: Partial<UserWarehouseCredentialsModel>;
     personalAccessTokenModel?: Pick<
         PersonalAccessTokenModel,
         'delete' | 'updateUsedDate'
@@ -273,7 +288,9 @@ const createUserService = (
             organizationSsoModel as unknown as OrganizationSsoModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
-        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        userWarehouseCredentialsModel:
+            (overrides.userWarehouseCredentialsModel as UserWarehouseCredentialsModel) ??
+            ({} as UserWarehouseCredentialsModel),
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
         featureFlagModel:
@@ -282,7 +299,12 @@ const createUserService = (
                 get: vi.fn<FeatureFlagModel['get']>(
                     async ({ featureFlagId }) => ({
                         id: featureFlagId,
-                        enabled: featureFlagId !== FeatureFlags.NewOnboarding,
+                        // Default to unflagged (main) behavior for the two
+                        // opt-out-shaped flags; every other flag defaults on.
+                        enabled:
+                            featureFlagId !== FeatureFlags.NewOnboarding &&
+                            featureFlagId !==
+                                CommercialFeatureFlags.PatScopeAuthoritative,
                     }),
                 ),
             } as unknown as FeatureFlagModel),
@@ -713,6 +735,111 @@ describe('UserService', () => {
         });
     });
 
+    describe('leaveOrganization', () => {
+        const organizationMember = (
+            role: OrganizationMemberRole,
+            userUuid = sessionUser.userUuid,
+        ): OrganizationMemberProfile => ({
+            userUuid,
+            userCreatedAt: new Date(),
+            userUpdatedAt: new Date(),
+            firstName: 'First',
+            lastName: 'Last',
+            email: `${userUuid}@example.com`,
+            organizationUuid: organisation.organizationUuid,
+            role,
+            roleUuid: undefined,
+            isActive: true,
+            avatarUrl: null,
+            avatarGradient: null,
+        });
+        const userDetails: LightdashUser = {
+            ...userWithoutOrg,
+            userUuid: sessionUser.userUuid,
+            organizationUuid: sessionUser.organizationUuid,
+        };
+
+        test('refuses the sole admin and emits a denied audit event', async () => {
+            const admin = organizationMember(OrganizationMemberRole.ADMIN);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(admin);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin]);
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(
+                service.leaveOrganization(sessionUser),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'leave_organization',
+                    status: 'denied',
+                    reason: 'Last admin in organization',
+                    actor: expect.objectContaining({
+                        uuid: sessionUser.userUuid,
+                    }),
+                    resource: expect.objectContaining({
+                        type: 'OrganizationMembership',
+                        organizationUuid: sessionUser.organizationUuid,
+                        metadata: { role: OrganizationMemberRole.ADMIN },
+                    }),
+                }),
+            );
+            expect(userModel.delete).not.toHaveBeenCalled();
+        });
+
+        test('allows an admin to leave when another admin remains', async () => {
+            const admin = organizationMember(OrganizationMemberRole.ADMIN);
+            const coAdmin = organizationMember(
+                OrganizationMemberRole.ADMIN,
+                'co-admin-uuid',
+            );
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(admin);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin, coAdmin]);
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                userDetails,
+            );
+            const service = createUserService(lightdashConfigMock);
+
+            await service.leaveOrganization(sessionUser);
+
+            expect(userModel.delete).toHaveBeenCalledWith(sessionUser.userUuid);
+        });
+
+        test('allows a non-admin member to leave', async () => {
+            const member = organizationMember(OrganizationMemberRole.MEMBER);
+            const admin = organizationMember(
+                OrganizationMemberRole.ADMIN,
+                'admin-uuid',
+            );
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationMemberByUuid,
+            ).mockResolvedValueOnce(member);
+            vi.mocked(
+                organizationMemberProfileModel.getOrganizationAdmins,
+            ).mockResolvedValueOnce([admin]);
+            vi.mocked(userModel.getUserDetailsByUuid).mockResolvedValueOnce(
+                userDetails,
+            );
+            const service = createUserService(lightdashConfigMock);
+            const memberUser = {
+                ...sessionUser,
+                role: OrganizationMemberRole.MEMBER,
+            };
+
+            await service.leaveOrganization(memberUser);
+
+            expect(userModel.delete).toHaveBeenCalledWith(sessionUser.userUuid);
+        });
+    });
+
     describe('registerOrActivateUser', () => {
         const createFeatureFlagModel = (enabled: boolean) => ({
             get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
@@ -953,6 +1080,27 @@ describe('UserService', () => {
             });
         });
 
+        test('requires SSO instead of activating the invited user when local authentication is disabled', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                validInviteLink,
+            );
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
+
+            await expect(
+                service.activateUserFromInviteWithoutPassword(
+                    validInviteLink.inviteCode,
+                ),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+
+            expect(
+                userModel.activateUserWithoutPassword,
+            ).not.toHaveBeenCalled();
+            expect(inviteLinkModel.deleteByCode).not.toHaveBeenCalled();
+        });
+
         test('rejects an expired invite without activating the user', async () => {
             vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
                 new ExpiredError('Invite link expired'),
@@ -1079,6 +1227,34 @@ describe('UserService', () => {
                 organizationAllowedEmailDomainsModel.findAllowedEmailDomains,
             ).not.toHaveBeenCalled();
             expect(userModel.addProjectMemberships).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getInviteLinkWithAuthenticationOptions', () => {
+        test('returns the SSO provider and disables local invite flows when SSO is required', async () => {
+            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
+                inviteLink,
+            );
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'getLoginOptions').mockResolvedValue({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri: 'https://example.com/api/v1/login/google',
+            });
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
+
+            await expect(
+                service.getInviteLinkWithAuthenticationOptions(
+                    inviteLink.inviteCode,
+                ),
+            ).resolves.toEqual({
+                ...inviteLink,
+                authentication: {
+                    allowOneClickActivation: false,
+                    allowPasswordSignup: false,
+                    ssoProviders: [OpenIdIdentityIssuerType.GOOGLE],
+                },
+            });
         });
     });
 
@@ -1767,6 +1943,329 @@ describe('UserService', () => {
         });
     });
 
+    describe('getMobileLoginPresentation', () => {
+        const configForProvider = (provider: OpenIdIdentityIssuerType) => ({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    loginPath: '/login/google',
+                    enabled: provider === OpenIdIdentityIssuerType.GOOGLE,
+                },
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    loginPath: '/login/okta',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.OKTA
+                            ? 'client-id'
+                            : undefined,
+                },
+                oneLogin: {
+                    ...lightdashConfigMock.auth.oneLogin,
+                    loginPath: '/login/oneLogin',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.ONELOGIN
+                            ? 'client-id'
+                            : undefined,
+                },
+                azuread: {
+                    ...lightdashConfigMock.auth.azuread,
+                    loginPath: '/login/azuread',
+                    oauth2ClientId:
+                        provider === OpenIdIdentityIssuerType.AZUREAD
+                            ? 'client-id'
+                            : undefined,
+                },
+                oidc: {
+                    ...lightdashConfigMock.auth.oidc,
+                    loginPath: '/login/oidc',
+                    clientId:
+                        provider === OpenIdIdentityIssuerType.GENERIC_OIDC
+                            ? 'client-id'
+                            : undefined,
+                },
+            },
+        });
+
+        it.each([
+            OpenIdIdentityIssuerType.GOOGLE,
+            OpenIdIdentityIssuerType.OKTA,
+            OpenIdIdentityIssuerType.ONELOGIN,
+            OpenIdIdentityIssuerType.AZUREAD,
+            OpenIdIdentityIssuerType.GENERIC_OIDC,
+        ])('brands the sole invariant %s provider', async (provider) => {
+            const service = createUserService(configForProvider(provider));
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'branded', provider },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral for several instance providers', async () => {
+            const service = createUserService({
+                ...configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+                auth: {
+                    ...configForProvider(OpenIdIdentityIssuerType.GOOGLE).auth,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                    },
+                },
+            });
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral when per-organization routing can replace the provider', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: OrganizationSsoProvider.AZUREAD,
+                    enabled: true,
+                },
+            ]);
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral when a disabled per-organization Google policy can suppress Google', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: OrganizationSsoProvider.GOOGLE,
+                    enabled: false,
+                },
+            ]);
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.GOOGLE),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('returns neutral for an unknown enabled provider', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockResolvedValueOnce([
+                {
+                    provider: 'future-provider' as OrganizationSsoProvider,
+                    enabled: true,
+                },
+            ]);
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('reports local email without SSO for a local-only instance', async () => {
+            const service = createUserService(lightdashConfigMock);
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+
+        it('reports no methods when local and SSO methods are disabled', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                },
+            });
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable: false,
+                },
+            );
+        });
+
+        it('fails closed to neutral when the authority query fails', async () => {
+            organizationSsoModel.findAllPolicySummaries.mockRejectedValueOnce(
+                new Error('query failed'),
+            );
+            const service = createUserService(
+                configForProvider(OpenIdIdentityIssuerType.OKTA),
+            );
+
+            await expect(service.getMobileLoginPresentation()).resolves.toEqual(
+                {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable: true,
+                },
+            );
+        });
+    });
+
+    it('suppresses an SSO-only auto-redirect for the local browser intent', async () => {
+        const service = createUserService(
+            {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                    },
+                },
+            },
+            {},
+        );
+        userModel.getOpenIdIssuers.mockResolvedValueOnce([
+            OpenIdIdentityIssuerType.OKTA,
+        ]);
+
+        await expect(
+            service.getLoginOptions('user@example.com', 'local'),
+        ).resolves.toEqual({
+            forceRedirect: false,
+            redirectUri: undefined,
+            showOptions: [],
+        });
+    });
+
+    describe('mobile login intent filtering', () => {
+        const mixedConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    loginPath: '/login/google',
+                    enabled: true,
+                },
+            },
+        };
+
+        it('filters no-email instance defaults for both intents', async () => {
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions(undefined, 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+            await expect(
+                service.getLoginOptions(undefined, 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('filters normal email options and redirects only the SSO intent', async () => {
+            userModel.getOpenIdIssuers
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE])
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.GOOGLE]);
+            userModel.hasPasswordByEmail
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(true);
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions('user@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/google?login_hint=user%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('user@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('filters the empty-result instance fallback for both intents', async () => {
+            const service = createUserService(mixedConfig);
+
+            await expect(
+                service.getLoginOptions('new@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.GOOGLE],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/google?login_hint=new%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('new@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [LocalIssuerTypes.EMAIL],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+
+        it('preserves and suppresses a sole-provider force redirect by intent', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                    okta: {
+                        ...lightdashConfigMock.auth.okta,
+                        oauth2ClientId: 'client-id',
+                        loginPath: '/login/okta',
+                    },
+                },
+            });
+            userModel.getOpenIdIssuers
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.OKTA])
+                .mockResolvedValueOnce([OpenIdIdentityIssuerType.OKTA]);
+
+            await expect(
+                service.getLoginOptions('user@example.com', 'sso'),
+            ).resolves.toEqual({
+                showOptions: [OpenIdIdentityIssuerType.OKTA],
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=user%40example.com',
+            });
+            await expect(
+                service.getLoginOptions('user@example.com', 'local'),
+            ).resolves.toEqual({
+                showOptions: [],
+                forceRedirect: false,
+                redirectUri: undefined,
+            });
+        });
+    });
+
     test('should return email and no sso (default case)', async () => {
         expect(await userService.getLoginOptions('test@lightdash.com')).toEqual(
             {
@@ -2038,6 +2537,34 @@ describe('UserService', () => {
                 redirectUri:
                     'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=user%40acme.com',
                 showOptions: ['azuread'],
+            });
+        });
+
+        test('passwordless user keeps email OTP alongside per-org SSO when local login is allowed', async () => {
+            const method = {
+                ...googleMethod,
+                organizationUuid: sessionUser.organizationUuid!,
+                allowPassword: true,
+            };
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as import('vitest').Mock
+            )
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.hasPasswordByEmail).mockResolvedValueOnce(
+                false,
+            );
+            vi.mocked(userModel.hasPassword).mockResolvedValueOnce(false);
+            vi.mocked(userModel.hasOpenIdIdentity).mockResolvedValueOnce(false);
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions(sessionUser.email)).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['emailOtp', 'google'],
             });
         });
 
@@ -2664,6 +3191,275 @@ describe('UserService', () => {
         });
     });
 
+    describe('per-organization password policy enforcement', () => {
+        type MatchingMethod = Awaited<
+            ReturnType<OrganizationSsoModel['findEnabledMethodsForEmailDomain']>
+        >[number];
+        type UserOrganization = Awaited<
+            ReturnType<UserModel['getOrganizationsForUser']>
+        >[number];
+
+        const createMatchingMethod = (
+            organizationUuid: string,
+            allowPassword: boolean,
+        ): MatchingMethod => ({
+            organizationUuid,
+            provider: OrganizationSsoProvider.AZUREAD,
+            config: {
+                oauth2ClientId: 'client-id',
+                oauth2ClientSecret: 'client-secret',
+                oauth2TenantId: 'tenant-id',
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword,
+        });
+        const createUserOrganization = (
+            organizationUuid: string,
+        ): UserOrganization => ({
+            organizationUuid,
+            organizationName: organizationUuid,
+            organizationCreatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        });
+
+        test('refuses email and email OTP when every matching member organization requires SSO', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            const organization = createUserOrganization('organization-1');
+            vi.mocked(organizationSsoModel.findEnabledMethodsForEmailDomain)
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser)
+                .mockResolvedValueOnce([organization])
+                .mockResolvedValueOnce([organization]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(false);
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(false);
+        });
+
+        test('surfaces the organization SSO message from password login', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+        });
+
+        test('surfaces the organization SSO message from email OTP login using one policy result', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.loginWithEmailOtp('user@example.com', '123456'),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('surfaces the organization SSO message from password recovery', async () => {
+            const method = createMatchingMethod('organization-1', false);
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('organization-1'),
+            ]);
+
+            await expect(
+                userService.recoverPassword({ email: 'user@example.com' }),
+            ).rejects.toThrow(
+                new ForbiddenError('Your organisation requires SSO sign-in'),
+            );
+        });
+
+        test('keeps password recovery as a no-op when no account exists', async () => {
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                undefined,
+            );
+
+            await expect(
+                userService.recoverPassword({ email: 'new@example.com' }),
+            ).resolves.toBeUndefined();
+            expect(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('allows email and email OTP when the matching method allows password', async () => {
+            const method = createMatchingMethod('organization-1', true);
+            const organization = createUserOrganization('organization-1');
+            vi.mocked(organizationSsoModel.findEnabledMethodsForEmailDomain)
+                .mockResolvedValueOnce([method])
+                .mockResolvedValueOnce([method]);
+            vi.mocked(userModel.findUserByEmail)
+                .mockResolvedValueOnce(sessionUser)
+                .mockResolvedValueOnce(sessionUser);
+            vi.mocked(userModel.getOrganizationsForUser)
+                .mockResolvedValueOnce([organization])
+                .mockResolvedValueOnce([organization]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('allows password when one of two matching member organizations allows it', async () => {
+            const firstOrganization = createUserOrganization('organization-1');
+            const secondOrganization = createUserOrganization('organization-2');
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('organization-1', false),
+                createMatchingMethod('organization-2', true),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                firstOrganization,
+                secondOrganization,
+            ]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('allows email when an SSO-only domain match belongs to another organization', async () => {
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('other-organization', false),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            vi.mocked(userModel.getOrganizationsForUser).mockResolvedValueOnce([
+                createUserOrganization('member-organization'),
+            ]);
+
+            await expect(
+                userService.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL,
+                ),
+            ).resolves.toBe(true);
+        });
+
+        test('keeps matching SSO signup available for a brand-new user', async () => {
+            vi.mocked(
+                organizationSsoModel.findEnabledMethodsForEmailDomain,
+            ).mockResolvedValueOnce([
+                createMatchingMethod('organization-1', false),
+            ]);
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                undefined,
+            );
+            vi.mocked(userModel.hasPasswordByEmail).mockResolvedValueOnce(
+                false,
+            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    azuread: {
+                        ...lightdashConfigMock.auth.azuread,
+                        loginPath: '/login/azuread',
+                    },
+                },
+            });
+
+            await expect(
+                service.getLoginOptions('new@example.com'),
+            ).resolves.toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/azuread?login_hint=new%40example.com',
+                showOptions: [OpenIdIdentityIssuerType.AZUREAD],
+            });
+        });
+
+        test('keeps instance-level password disablement enforced with its generic message', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    disablePasswordAuthentication: true,
+                },
+            });
+
+            await expect(
+                service.loginWithPassword('user@example.com', 'password'),
+            ).rejects.toThrow(
+                new ForbiddenError('Password credentials are not allowed'),
+            );
+            vi.mocked(userModel.findUserByEmail).mockResolvedValueOnce(
+                sessionUser,
+            );
+            await expect(
+                service.recoverPassword({ email: 'user@example.com' }),
+            ).rejects.toThrow(
+                new ForbiddenError('Password credentials are not allowed'),
+            );
+            await expect(
+                service.isLoginMethodAllowed(
+                    'user@example.com',
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ).resolves.toBe(false);
+        });
+    });
+
     describe('isLoginMethodAllowed Google per-org opt-out', () => {
         test('allows Google when the domain has no per-org policy', async () => {
             (
@@ -3150,11 +3946,8 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
-                organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
-                        async () => undefined,
-                    ),
-                } as unknown as OrganizationSsoModel,
+                organizationSsoModel:
+                    organizationSsoModel as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
                     get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
@@ -3231,11 +4024,8 @@ describe('UserService', () => {
                 personalAccessTokenModel: {} as PersonalAccessTokenModel,
                 organizationAllowedEmailDomainsModel:
                     {} as OrganizationAllowedEmailDomainsModel,
-                organizationSsoModel: {
-                    findOrganizationUuidByProviderAndEmailDomain: vi.fn(
-                        async () => undefined,
-                    ),
-                } as unknown as OrganizationSsoModel,
+                organizationSsoModel:
+                    organizationSsoModel as unknown as OrganizationSsoModel,
                 organizationSettingsModel: {
                     get: vi.fn(async () => ({
                         oidcLinkingEnabled: null,
@@ -3485,7 +4275,10 @@ describe('UserService', () => {
                 }).builder.build(),
             });
 
-            const buildLimitedManagerService = (patEnabled: boolean = false) =>
+            const buildLimitedManagerService = (
+                patEnabled: boolean = false,
+                patScopeAuthoritative: boolean = false,
+            ) =>
                 createUserService(
                     {
                         ...lightdashConfigMock,
@@ -3500,6 +4293,19 @@ describe('UserService', () => {
                                 .fn()
                                 .mockResolvedValue(limitedManagerRole),
                         } as unknown as RolesModel,
+                        featureFlagModel: {
+                            get: vi.fn<FeatureFlagModel['get']>(
+                                async ({ featureFlagId }) => ({
+                                    id: featureFlagId,
+                                    enabled:
+                                        featureFlagId ===
+                                        CommercialFeatureFlags.PatScopeAuthoritative
+                                            ? patScopeAuthoritative
+                                            : featureFlagId !==
+                                              FeatureFlags.NewOnboarding,
+                                }),
+                            ),
+                        },
                     },
                 );
 
@@ -3643,6 +4449,41 @@ describe('UserService', () => {
                 ).not.toHaveBeenCalled();
                 expect(
                     vi.mocked(inviteLinkModel.upsert),
+                ).not.toHaveBeenCalled();
+            });
+
+            // A caller whose own ability denies tokens must still be blocked
+            // from an invite that would carry token access from config. This
+            // ceiling never relaxes: config-derived token access is still
+            // self-escalation via an invited system role (#26771).
+            test('flag off: rejects an invite that would carry token access from config when the caller lacks it', async () => {
+                await expect(
+                    buildLimitedManagerService(
+                        true,
+                    ).createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('flag on: still rejects the same invite — the ceiling does not relax', async () => {
+                await expect(
+                    buildLimitedManagerService(
+                        true,
+                        true,
+                    ).createPendingUserAndInviteLink(
+                        limitedManagerUser(false),
+                        { ...inviteUser, role: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+
+                expect(
+                    vi.mocked(userModel.createPendingUser),
                 ).not.toHaveBeenCalled();
             });
         });
@@ -3964,6 +4805,133 @@ describe('UserService', () => {
             expect(projectModel.ensureDefaultUserSpace).toHaveBeenCalledTimes(
                 2,
             );
+        });
+    });
+
+    const createSnowflakeCredentialsModel = () => ({
+        getAllByUserUuid: vi.fn().mockResolvedValue([
+            {
+                uuid: 'password-credentials-uuid',
+                name: 'Default',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    user: 'snowflake-user',
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                },
+                project: null,
+            },
+            {
+                uuid: 'sso-credentials-uuid',
+                name: 'My Snowflake login',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                },
+                project: null,
+            },
+        ]),
+        update: vi.fn().mockResolvedValue('sso-credentials-uuid'),
+        getByUuid: vi.fn().mockResolvedValue({ uuid: 'sso-credentials-uuid' }),
+        create: vi.fn(),
+    });
+
+    describe('createSnowflakeWarehouseCredentials', () => {
+        it('updates only an existing Snowflake SSO credential', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'sso-credentials-uuid',
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'new-refresh-token',
+                    }),
+                }),
+            );
+            expect(credentialsModel.create).not.toHaveBeenCalled();
+        });
+
+        it('keeps the name the user gave the existing credential', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'sso-credentials-uuid',
+                expect.objectContaining({ name: 'My Snowflake login' }),
+            );
+        });
+
+        it('refreshes the credential queries actually resolve when duplicates exist', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            // Oldest first, matching getAllByUserUuid's ordering.
+            credentialsModel.getAllByUserUuid.mockResolvedValue([
+                {
+                    uuid: 'stale-sso-credentials-uuid',
+                    name: 'Default',
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                    },
+                    project: null,
+                },
+                {
+                    uuid: 'newest-sso-credentials-uuid',
+                    name: 'Default',
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                    },
+                    project: null,
+                },
+            ]);
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'new-refresh-token',
+            );
+
+            expect(credentialsModel.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'newest-sso-credentials-uuid',
+                expect.anything(),
+            );
+        });
+
+        it('rejects a callback without a refresh token instead of writing', async () => {
+            const credentialsModel = createSnowflakeCredentialsModel();
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel:
+                    credentialsModel as unknown as UserWarehouseCredentialsModel,
+            });
+
+            await expect(
+                service.createSnowflakeWarehouseCredentials(sessionUser, ''),
+            ).rejects.toThrow(ParameterError);
+            expect(credentialsModel.update).not.toHaveBeenCalled();
+            expect(credentialsModel.create).not.toHaveBeenCalled();
         });
     });
 

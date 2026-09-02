@@ -48,6 +48,11 @@ export type OrganizationGoogleMethod = {
     allowPassword: boolean;
 };
 
+export type OrganizationSsoPolicySummary = {
+    provider: OrganizationSsoProvider;
+    enabled: boolean;
+};
+
 /**
  * Restricts an SSO-config query to rows whose organization has verified the
  * given (already-normalized) domain. Uses an EXISTS against
@@ -174,6 +179,17 @@ export class OrganizationSsoModel {
             overrideEmailDomains: row.override_email_domains,
             emailDomains: row.email_domains ?? [],
             allowPassword: row.allow_password,
+        }));
+    }
+
+    async findAllPolicySummaries(): Promise<OrganizationSsoPolicySummary[]> {
+        const rows = await this.database(
+            OrganizationSsoConfigurationsTableName,
+        ).distinct('provider', 'enabled');
+
+        return rows.map((row) => ({
+            provider: row.provider as OrganizationSsoProvider,
+            enabled: row.enabled,
         }));
     }
 

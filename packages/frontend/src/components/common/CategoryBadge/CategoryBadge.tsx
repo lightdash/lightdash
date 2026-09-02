@@ -35,13 +35,7 @@ export const CategoryBadge: FC<CategoryBadgeProps> = ({
 }) => {
     const content =
         variant === 'token' ? (
-            <Badge
-                size="sm"
-                radius="sm"
-                variant="light"
-                color={color}
-                className={className}
-            >
+            <Badge size="sm" color={color} className={className}>
                 {label}
             </Badge>
         ) : (
@@ -62,7 +56,7 @@ export const CategoryBadge: FC<CategoryBadgeProps> = ({
     if (!tooltip) return content;
 
     return (
-        <Tooltip label={tooltip} withArrow openDelay={300}>
+        <Tooltip label={tooltip} openDelay={300}>
             {content}
         </Tooltip>
     );

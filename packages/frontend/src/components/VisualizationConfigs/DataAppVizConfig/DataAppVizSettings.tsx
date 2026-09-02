@@ -13,8 +13,6 @@ import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
 
 type Props = {
-    /** The visualization the chart points at; empty when it points at none. */
-    dataAppVizUuid: string;
     itemsMap: ItemsMap;
     /** The contract's declared slots. */
     fields: DataAppVizField[];
@@ -30,7 +28,6 @@ type Props = {
  * separates them from the build session docked below.
  */
 const DataAppVizSettings: FC<Props> = ({
-    dataAppVizUuid,
     itemsMap,
     fields,
     fieldMapping,
@@ -46,7 +43,7 @@ const DataAppVizSettings: FC<Props> = ({
 
     return (
         <Stack>
-            {dataAppVizUuid && fields.length === 0 && (
+            {fields.length === 0 && (
                 <Text c="dimmed" size="sm">
                     This chart type has no fields to map.
                 </Text>
@@ -63,7 +60,15 @@ const DataAppVizSettings: FC<Props> = ({
                         <Config.Section>
                             <Config.Heading>{field.label}</Config.Heading>
                             <FieldSelect
-                                placeholder={`Select ${field.label.toLowerCase()}`}
+                                size="xs"
+                                // A disabled, empty select says nothing on its
+                                // own; the placeholder names what the chart is
+                                // missing, as the cartesian layout does.
+                                placeholder={
+                                    items.length === 0
+                                        ? `You need at least one ${poolKeyForSlot(field)} in your chart to set this field`
+                                        : `Select ${field.label.toLowerCase()}`
+                                }
                                 disabled={items.length === 0}
                                 item={selectedItem}
                                 items={items}

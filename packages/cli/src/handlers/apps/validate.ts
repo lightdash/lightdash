@@ -3,6 +3,7 @@ import {
     buildDataAppExploreIndexFromModelFiles,
     checkDataAppDataReferences,
     computeCustomDependencies,
+    DATA_APP_VIZ_TEMPLATE,
     dataAppVizSchema,
     extractDataAppDataReferences,
     getErrorMessage,
@@ -36,6 +37,7 @@ import {
     readDependenciesFromDir,
     writeFilesToDir,
 } from './appCodeFiles';
+import { assertOutDirSafeToClear } from './pathContainment';
 import {
     loadTemplateDependencies,
     loadVendoredBuildScaffold,
@@ -80,6 +82,7 @@ export type AppValidationResult = {
     path: string;
     name: string | null;
     projectUuid: string | null;
+    template: DataAppManifest['template'] | null;
     valid: boolean;
     errors: AppsValidationIssue[];
     warnings: AppsValidationIssue[];
@@ -93,6 +96,8 @@ export type AppsValidationReport = {
     mode: 'live' | 'offline';
     summary: {
         apps: number;
+        dataApps: number;
+        chartTypes: number;
         errors: number;
         warnings: number;
         callSites: number;
@@ -371,6 +376,7 @@ export const validateDataAppBuild = async (args: {
     appDir: string;
     bundle: DataAppCode;
     runCommand?: RunDataAppBuildCommand;
+    outDir?: string;
 }): Promise<AppsValidationIssue[]> => {
     const runCommand = args.runCommand ?? runDataAppBuildCommand;
     let dependencies: Awaited<ReturnType<typeof readDependenciesFromDir>>;
@@ -483,8 +489,27 @@ export const validateDataAppBuild = async (args: {
                 ),
             ];
         }
+
+        if (args.outDir !== undefined) {
+            // Defense in depth: this deletion site must not trust that a
+            // caller already checked containment (or that outDir hasn't
+            // changed since it did). Re-resolve symlinks and refuse rather
+            // than delete anything we can't prove is safe.
+            await assertOutDirSafeToClear(args.appDir, args.outDir);
+
+            // Vite emits content-hashed chunk filenames, so a merge-only copy
+            // would leave stale chunks from a previous build behind. Clear
+            // outDir immediately before copying a successful build into it —
+            // never on the failure path, which must leave it untouched.
+            await fs.rm(args.outDir, { recursive: true, force: true });
+            await fs.cp(path.join(buildDir, 'dist'), args.outDir, {
+                recursive: true,
+            });
+        }
+
         return [];
     } catch (error) {
+        if (error instanceof ParameterError) throw error;
         return [
             issue(
                 'build',
@@ -549,6 +574,7 @@ export const validateLocalDataApp = async (
             path: appDir,
             name: null,
             projectUuid: null,
+            template: null,
             valid: false,
             errors: [issue('bundle', getErrorMessage(error))],
             warnings,
@@ -674,6 +700,7 @@ export const validateLocalDataApp = async (
         path: appDir,
         name: typeof manifest.name === 'string' ? manifest.name : null,
         projectUuid,
+        template: manifest.template ?? null,
         valid: errors.length === 0,
         errors,
         warnings,
@@ -692,12 +719,17 @@ export const buildAppsValidationReport = (
         (count, app) => count + app.warnings.length,
         0,
     );
+    const chartTypes = apps.filter(
+        (app) => app.template === DATA_APP_VIZ_TEMPLATE,
+    ).length;
     return {
         build,
         valid: errors === 0,
         mode: live ? 'live' : 'offline',
         summary: {
             apps: apps.length,
+            dataApps: apps.length - chartTypes,
+            chartTypes,
             errors,
             warnings,
             callSites: apps.reduce(
@@ -723,7 +755,7 @@ const formatCoverage = (coverage: AppsValidationCoverage): string => {
     return `Coverage: ${coverage.unanalyzed} of ${coverage.callSites} data-reference call site(s) couldn't be fully analyzed; unresolved values were skipped and are not errors.`;
 };
 
-const formatIssue = (entry: AppsValidationIssue): string => {
+export const formatIssue = (entry: AppsValidationIssue): string => {
     const prefix = entry.location
         ? `${entry.location.path}:${entry.location.line}:${entry.location.column} — `
         : '';
@@ -745,12 +777,31 @@ const formatUnanalyzedReference = (
 ): string =>
     `${reference.location.path}:${reference.location.line}:${reference.location.column} — ${referenceKindLabels[reference.kind]} (unresolved: ${reference.unresolved.join(', ')})`;
 
+/** "2 data app(s)", "1 custom chart type(s)", or both — driven by manifest templates. */
+export const describeValidatedBundles = (
+    summary: AppsValidationReport['summary'],
+): string => {
+    if (summary.chartTypes > 0 && summary.dataApps > 0) {
+        return `${summary.dataApps} data app(s) and ${summary.chartTypes} custom chart type(s)`;
+    }
+    if (summary.chartTypes > 0) {
+        return `${summary.chartTypes} custom chart type(s)`;
+    }
+    return `${summary.dataApps} data app(s)`;
+};
+
+const bundleKindLabel = (summary: AppsValidationReport['summary']): string => {
+    if (summary.chartTypes > 0 && summary.dataApps > 0) return 'App bundle';
+    if (summary.chartTypes > 0) return 'Custom chart type';
+    return 'Data app';
+};
+
 export const renderAppsValidationHuman = (
     report: AppsValidationReport,
     verbose = false,
 ): string => {
     const lines = [
-        `Validating ${report.summary.apps} data app(s) using ${
+        `Validating ${describeValidatedBundles(report.summary)} using ${
             report.mode === 'live'
                 ? 'the live project semantic layer'
                 : 'local semantic layer snapshots'
@@ -791,10 +842,10 @@ export const renderAppsValidationHuman = (
     lines.push(
         report.valid
             ? styles.success(
-                  `Validation passed for ${report.summary.apps} data app(s) with ${report.summary.warnings} warning(s).`,
+                  `Validation passed for ${describeValidatedBundles(report.summary)} with ${report.summary.warnings} warning(s).`,
               )
             : styles.error(
-                  `Validation failed with ${report.summary.errors} error(s) across ${report.summary.apps} data app(s).`,
+                  `Validation failed with ${report.summary.errors} error(s) across ${describeValidatedBundles(report.summary)}.`,
               ),
     );
     return `${lines.join('\n')}\n`;
@@ -853,7 +904,7 @@ export const appsValidateHandler = async (
 
     if (!report.valid) {
         throw new ParameterError(
-            `Data app validation failed with ${report.summary.errors} error(s).`,
+            `${bundleKindLabel(report.summary)} validation failed with ${report.summary.errors} error(s).`,
         );
     }
 };

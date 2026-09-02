@@ -62,6 +62,8 @@ export class ContentController extends BaseController {
         @Query() sortDirection?: ContentArgs['sortDirection'],
         @Query() includePersonalDataApps?: boolean,
         @Query() dataAppVizsFilter?: 'exclude' | 'only',
+        @Query() ownerUserUuids?: string[],
+        @Query() sharedWithMe?: boolean,
     ): Promise<ApiContentResponse> {
         const { user } = getAccountApiAccessContext(req.account!);
         this.setStatus(200);
@@ -77,6 +79,8 @@ export class ContentController extends BaseController {
                     search,
                     includePersonalDataApps,
                     dataAppVizsFilter,
+                    ownerUserUuids,
+                    sharedWithMe,
                 },
                 {
                     sortBy,
@@ -235,6 +239,7 @@ export class ContentController extends BaseController {
         @Query() search?: string,
         @Query() contentTypes?: ContentType[],
         @Query() deletedByUserUuids?: string[],
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiDeletedContentResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -247,6 +252,7 @@ export class ContentController extends BaseController {
                     search,
                     contentTypes,
                     deletedByUserUuids,
+                    dataAppVizsFilter,
                 },
                 {
                     page: page || 1,

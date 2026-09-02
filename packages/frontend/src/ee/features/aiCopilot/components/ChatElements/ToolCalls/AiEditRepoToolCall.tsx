@@ -64,17 +64,17 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
 
     if (!metadata.prUrl) {
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -95,7 +95,6 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
 
     return (
         <Paper
-            withBorder
             p="sm"
             radius="md"
             className={
@@ -116,16 +115,16 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                     >
                         <MantineIcon
                             icon={IconGitPullRequest}
-                            size={18}
+                            size={16}
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 Edited repository
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="ldGray.6">
+                                    <Text size="xs" c="dimmed">
                                         {summary}
                                     </Text>
                                     {shortCommitSha && (
@@ -135,7 +134,7 @@ export const AiEditRepoToolCall: FC<Props> = ({ metadata, projectUuid }) => {
                                             </Text>
                                             <Text
                                                 size="xs"
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 ff="monospace"
                                                 title={
                                                     metadata.commitSha ??

@@ -343,6 +343,40 @@ describe('join key comparability', () => {
     });
 });
 
+describe('result sources', () => {
+    const resultSource = { id: 'b', queryUuid: 'existing-query-uuid' };
+
+    test('defer structural checks the validator cannot see to the compiler', () => {
+        const errors = validateMergeQuery(
+            mergeQuery({ sources: [queryA(), resultSource] }),
+        );
+        // No fan-out or join-key-not-selected errors for the result source:
+        // its structure lives in stored metadata the compiler resolves.
+        expect(errors).toEqual([]);
+    });
+
+    test('still validates join key coverage for result sources', () => {
+        const errors = validateMergeQuery(
+            mergeQuery({
+                sources: [queryA(), resultSource],
+                joinKey: [
+                    {
+                        name: 'date_day',
+                        fieldIdBySourceId: { a: 'followers_created_date' },
+                    },
+                ],
+            }),
+        );
+        expect(errors.map((error) => error.kind)).toContain(
+            MergeQueryErrorKind.JOIN_KEY_COVERAGE,
+        );
+    });
+
+    test('contribute no unaccounted dimensions', () => {
+        expect(getUnaccountedDimensions(resultSource, dateJoinKey)).toEqual([]);
+    });
+});
+
 describe('getUnaccountedDimensions', () => {
     it('reports the dimension that would fan the merge out', () => {
         expect(

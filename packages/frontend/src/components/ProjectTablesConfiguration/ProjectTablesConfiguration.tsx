@@ -15,7 +15,8 @@ import {
     Radio,
     ScrollArea,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { z } from 'zod';
@@ -32,7 +33,7 @@ import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 
 const validationSchema = z.object({
-    type: z.nativeEnum(TableSelectionType),
+    type: z.enum(TableSelectionType),
     tags: z.array(z.string()),
     names: z.array(z.string()),
 });
@@ -192,7 +193,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             <SettingsGridCard>
                 <div>
                     <Title order={5}>Table selection</Title>
-                    <Text size="sm" c="ldGray.6" my={'xs'}>
+                    <Text size="sm" c="dimmed" my={'xs'}>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
@@ -213,7 +214,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                     title={name}
                                     truncate
                                     size="sm"
-                                    c="ldGray.6"
+                                    c="dimmed"
                                 >
                                     {name}
                                 </Text>

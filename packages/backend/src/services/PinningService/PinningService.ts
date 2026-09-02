@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    DirectAccessResourceType,
     ForbiddenError,
     ResourceViewItemType,
     type PinnedItems,
@@ -14,6 +15,7 @@ import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type PinningServiceArguments = {
@@ -27,6 +29,7 @@ type PinningServiceArguments = {
     resourceViewItemModel: ResourceViewItemModel;
     projectModel: ProjectModel;
     spacePermissionService: SpacePermissionService;
+    directAccessService: DirectAccessService;
 };
 
 export class PinningService extends BaseService {
@@ -44,6 +47,8 @@ export class PinningService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    directAccessService: DirectAccessService;
+
     constructor({
         dashboardModel,
         savedChartModel,
@@ -52,6 +57,7 @@ export class PinningService extends BaseService {
         resourceViewItemModel,
         projectModel,
         spacePermissionService,
+        directAccessService,
     }: PinningServiceArguments) {
         super();
         this.dashboardModel = dashboardModel;
@@ -61,6 +67,7 @@ export class PinningService extends BaseService {
         this.resourceViewItemModel = resourceViewItemModel;
         this.projectModel = projectModel;
         this.spacePermissionService = spacePermissionService;
+        this.directAccessService = directAccessService;
     }
 
     async getPinnedItems(
@@ -87,14 +94,36 @@ export class PinningService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const allowedSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
+        const [allowedSpaceUuids, granted] = await Promise.all([
+            this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
                 spaceUuids,
-            );
+            ),
+            // Pinned content the caller was directly granted stays visible
+            // even without any space access path.
+            user.organizationUuid
+                ? this.directAccessService.findSharedWithMeUuids(
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      [projectUuid],
+                  )
+                : undefined,
+        ]);
+        const grantedChartUuids =
+            granted?.[DirectAccessResourceType.CHART] ?? [];
+        const grantedDashboardUuids =
+            granted?.[DirectAccessResourceType.DASHBOARD] ?? [];
+        const grantedAppUuids = granted?.[DirectAccessResourceType.APP] ?? [];
 
-        if (allowedSpaceUuids.length === 0) {
+        if (
+            allowedSpaceUuids.length === 0 &&
+            grantedChartUuids.length === 0 &&
+            grantedDashboardUuids.length === 0 &&
+            grantedAppUuids.length === 0
+        ) {
             return [];
         }
 
@@ -137,6 +166,11 @@ export class PinningService extends BaseService {
             projectUuid,
             pinnedListUuid,
             allowedSpaceUuids,
+            {
+                chartUuids: grantedChartUuids,
+                dashboardUuids: grantedDashboardUuids,
+                appUuids: grantedAppUuids,
+            },
         );
 
         return [

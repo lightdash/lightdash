@@ -16,7 +16,6 @@ import {
     Stack,
     TextInput,
     Tooltip,
-    useComputedColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
@@ -41,6 +40,7 @@ import {
 } from '../../../features/explorer/store';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -57,7 +57,7 @@ export const CustomSqlDimensionModal: FC<{
     table: string;
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
-    const colorScheme = useComputedColorScheme();
+    const { ace: aceTheme } = useEditorTheme();
 
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
@@ -236,14 +236,12 @@ export const CustomSqlDimensionModal: FC<{
                             label="Label"
                             required
                             placeholder="Enter custom dimension label"
-                            style={{ flex: 1 }}
+                            flex={1}
                             {...form.getInputProps('customDimensionLabel')}
                             data-testid="CustomSqlDimensionModal/LabelInput"
                         />
                         <Select
-                            style={{
-                                alignSelf: 'flex-start',
-                            }}
+                            className="ld-self-start"
                             label="Dimension Type"
                             data={Object.values(DimensionType).map((type) => ({
                                 value: type,
@@ -256,9 +254,7 @@ export const CustomSqlDimensionModal: FC<{
                     <SqlEditor
                         mode="sql"
                         placeholder="Enter SQL"
-                        theme={
-                            colorScheme === 'dark' ? 'tomorrow_night' : 'github'
-                        }
+                        theme={aceTheme}
                         width="100%"
                         maxLines={Infinity}
                         minLines={isExpanded ? 25 : 8}

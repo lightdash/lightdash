@@ -168,7 +168,6 @@ const UpdateProjectConnection: FC<{
 
                     <Card
                         className={classes.stickyFooter}
-                        withBorder
                         shadow="sm"
                         radius="sm"
                     >
@@ -230,7 +229,13 @@ const UpdateProjectConnectionWrapper: FC<{
         return null;
     }
 
-    return <UpdateProjectConnection projectUuid={projectUuid} project={data} />;
+    return (
+        <UpdateProjectConnection
+            key={projectUuid}
+            projectUuid={projectUuid}
+            project={data}
+        />
+    );
 };
 
 export default UpdateProjectConnectionWrapper;

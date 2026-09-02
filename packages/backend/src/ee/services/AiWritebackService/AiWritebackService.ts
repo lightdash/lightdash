@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -296,7 +297,7 @@ export const mergeSourceCodeRepoAccess = (
     userToken: string | undefined,
     installationRepos: RepoListing[],
     installationToken: string,
-    projectRepoKey: string | null,
+    projectRepoKeys: Iterable<string>,
 ): Map<string, SourceCodeRepoAccess> => {
     const map = new Map<string, SourceCodeRepoAccess>();
     if (userToken) {
@@ -310,11 +311,13 @@ export const mergeSourceCodeRepoAccess = (
             });
         }
     }
-    const normalizedProjectRepoKey = projectRepoKey?.toLowerCase();
-    const projectRepos = installationRepos.filter(
-        (repo) =>
-            `${repo.owner}/${repo.repo}`.toLowerCase() ===
-            normalizedProjectRepoKey,
+    const normalizedProjectRepoKeys = new Set(
+        [...projectRepoKeys].map((key) => key.toLowerCase()),
+    );
+    const projectRepos = installationRepos.filter((repo) =>
+        normalizedProjectRepoKeys.has(
+            `${repo.owner}/${repo.repo}`.toLowerCase(),
+        ),
     );
     for (const r of projectRepos) {
         map.set(`${r.owner}/${r.repo}`.toLowerCase(), {
@@ -361,7 +364,7 @@ export const computeWritableRepoKeys = (
     installationRepos: { owner: string; repo: string }[],
     userRepos: { owner: string; repo: string }[],
     intersectWithUser: boolean,
-    projectRepoKey: string | null,
+    projectRepoKeys: Iterable<string>,
 ): Set<string> => {
     // GitHub/GitLab repo slugs are case-insensitive, and the installation vs
     // user listings can disagree on case — compare lowercased so the
@@ -370,14 +373,16 @@ export const computeWritableRepoKeys = (
     const userKeys = new Set(
         userRepos.map((r) => `${r.owner}/${r.repo}`.toLowerCase()),
     );
-    const normalizedProjectRepoKey = projectRepoKey?.toLowerCase();
+    const normalizedProjectRepoKeys = new Set(
+        [...projectRepoKeys].map((key) => key.toLowerCase()),
+    );
     return new Set(
         installationRepos
             .map((r) => `${r.owner}/${r.repo}`)
             .filter((key) => !DENYLISTED_WRITE_REPOS.has(key.toLowerCase()))
             .filter(
                 (key) =>
-                    key.toLowerCase() === normalizedProjectRepoKey ||
+                    normalizedProjectRepoKeys.has(key.toLowerCase()) ||
                     (intersectWithUser && userKeys.has(key.toLowerCase())),
             ),
     );
@@ -987,7 +992,11 @@ export class AiWritebackService extends BaseService {
             token: installationToken,
             project,
         } = await this.resolveSourceCodeInstallation({ user, projectUuid });
-        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            DbtProjectType.GITHUB,
+        );
 
         // The linked user's own GitHub token, if any, authorizes additional
         // repositories independently of the organization installation.
@@ -1029,7 +1038,7 @@ export class AiWritebackService extends BaseService {
                         userToken,
                         orgRepos,
                         installationToken,
-                        projectRepoKey,
+                        projectRepoKeys,
                     );
                 })();
             }
@@ -1114,7 +1123,11 @@ export class AiWritebackService extends BaseService {
         // the connection's host_domain so gitlab.com and self-hosted both work.
         const bareHost = hostDomain.replace(/^https?:\/\//, '');
         const instanceUrl = `https://${bareHost}`;
-        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            DbtProjectType.GITLAB,
+        );
 
         // Build the repo map once and memoise it — listRepos and
         // resolveRepoAccess share it, so the GitLab listing happens at most once.
@@ -1142,8 +1155,9 @@ export class AiWritebackService extends BaseService {
                                 return;
                             const [owner, repo] = segments;
                             if (
-                                `${owner}/${repo}`.toLowerCase() !==
-                                projectRepoKey?.toLowerCase()
+                                !projectRepoKeys.has(
+                                    `${owner}/${repo}`.toLowerCase(),
+                                )
                             ) {
                                 return;
                             }
@@ -1245,7 +1259,13 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
         });
-        const projectRepoKey = getProjectRepositoryKey(project.dbtConnection);
+        const projectRepoKeys = await this.getConfiguredRepositoryKeys(
+            projectUuid,
+            project,
+            project.dbtConnection.type === DbtProjectType.GITLAB
+                ? DbtProjectType.GITLAB
+                : DbtProjectType.GITHUB,
+        );
 
         if (project.dbtConnection.type === DbtProjectType.GITLAB) {
             const access = await this.getGitlabInstallationRepoReadAccess({
@@ -1258,7 +1278,7 @@ export class AiWritebackService extends BaseService {
                 [],
                 // GitLab: single install identity, no user-intersection.
                 false,
-                projectRepoKey,
+                projectRepoKeys,
             );
             return repos.map(({ owner, repo, defaultBranch }) => ({
                 name: repo,
@@ -1311,7 +1331,7 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
-            projectRepoKey,
+            projectRepoKeys,
         );
 
         const readableRepos = mergeSourceCodeRepoAccess(
@@ -1319,7 +1339,7 @@ export class AiWritebackService extends BaseService {
             userToken,
             installationRepos,
             installationToken,
-            projectRepoKey,
+            projectRepoKeys,
         );
         const normalizedWritableKeys = new Set(
             [...writableKeys].map((key) => key.toLowerCase()),
@@ -2789,20 +2809,20 @@ export class AiWritebackService extends BaseService {
         projectUuid: string,
         project: { projectUuid: string; dbtConnection: DbtProjectConfig },
     ): Promise<DbtTargetCandidate[]> {
+        const [identity, additional] = await Promise.all([
+            this.projectModel.getDbtSourceIdentity(projectUuid),
+            this.projectDbtSourcesModel.getSources(projectUuid),
+        ]);
         const primary: DbtTargetCandidate | null =
             AiWritebackService.isWritebackTargetable(project.dbtConnection.type)
                 ? {
                       sourceUuid: null,
-                      // The primary's client-facing id is the project uuid — the
-                      // same id the project's dbt-sources list synthesises for it.
-                      optionUuid: project.projectUuid,
-                      name: 'Project dbt connection',
+                      optionUuid: identity.dbtSourceUuid,
+                      name: identity.dbtSourceName,
                       isPrimary: true,
                       connection: project.dbtConnection,
                   }
                 : null;
-        const additional =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
         const extra = additional.flatMap<DbtTargetCandidate>((dbtSource) =>
             dbtSource.dbtConnection &&
             AiWritebackService.isWritebackTargetable(
@@ -2822,12 +2842,32 @@ export class AiWritebackService extends BaseService {
         return primary ? [primary, ...extra] : extra;
     }
 
+    private async getConfiguredRepositoryKeys(
+        projectUuid: string,
+        project: { projectUuid: string; dbtConnection: DbtProjectConfig },
+        provider: DbtProjectType.GITHUB | DbtProjectType.GITLAB,
+    ): Promise<Set<string>> {
+        const candidates = await this.listDbtTargetCandidates(
+            projectUuid,
+            project,
+        );
+        return new Set(
+            candidates
+                .filter((candidate) => candidate.connection.type === provider)
+                .map((candidate) =>
+                    getProjectRepositoryKey(candidate.connection),
+                )
+                .filter((key): key is string => key !== null)
+                .map((key) => key.toLowerCase()),
+        );
+    }
+
     /**
      * Decide which dbt source a turn targets. Precedence:
      * 1. a resumed thread stays bound to its original source (never re-infer, or
      *    a follow-up could retarget the sandbox's already-cloned repo);
-     * 2. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
-     * 3. the only source, when the project has one — unchanged behaviour;
+     * 2. the only source, when the project has one, unconditionally;
+     * 3. an explicit `dbtSourceUuid` (a UI picker, or an agent re-call);
      * 4. the source the prompt names, when exactly one matches;
      * otherwise return the candidates for the caller to choose from.
      */
@@ -2878,20 +2918,21 @@ export class AiWritebackService extends BaseService {
             return { kind: 'resolved', candidate: primary ?? candidates[0] };
         }
 
+        if (candidates.length === 1) {
+            return { kind: 'resolved', candidate: candidates[0] };
+        }
+
         if (dbtSourceUuid) {
             const chosen = candidates.find(
                 (c) => c.optionUuid === dbtSourceUuid,
             );
-            if (!chosen) {
-                throw new ParameterError(
-                    'The specified dbt source is not a valid writeback target for this project',
-                );
+            if (chosen) {
+                return { kind: 'resolved', candidate: chosen };
             }
-            return { kind: 'resolved', candidate: chosen };
-        }
-
-        if (candidates.length === 1) {
-            return { kind: 'resolved', candidate: candidates[0] };
+            return {
+                kind: 'select',
+                options: candidates.map(AiWritebackService.toDbtSourceOption),
+            };
         }
 
         // Score each candidate by how specifically the prompt names it (the
@@ -2985,8 +3026,10 @@ export class AiWritebackService extends BaseService {
                 needles.push(repoName.toLowerCase());
             }
         }
-        // Skip the synthesised primary's generic name — it names nothing useful.
-        if (!candidate.isPrimary && candidate.name.trim().length >= 3) {
+        if (
+            candidate.name !== DEFAULT_PROJECT_DBT_SOURCE_NAME &&
+            candidate.name.trim().length >= 3
+        ) {
             needles.push(candidate.name.toLowerCase());
         }
         return needles
@@ -3145,7 +3188,11 @@ export class AiWritebackService extends BaseService {
             installationRepos,
             userRepos,
             intersectWithUser,
-            getProjectRepositoryKey(project.dbtConnection),
+            await this.getConfiguredRepositoryKeys(
+                project.projectUuid,
+                project,
+                DbtProjectType.GITHUB,
+            ),
         );
         // Case-insensitive membership: `key` is user-supplied (repoTarget) and
         // may differ in case from the canonical installation listing (L1).
@@ -3227,7 +3274,11 @@ export class AiWritebackService extends BaseService {
             [],
             // GitLab: single install identity, no user-intersection.
             false,
-            getProjectRepositoryKey(project.dbtConnection),
+            await this.getConfiguredRepositoryKeys(
+                project.projectUuid,
+                project,
+                DbtProjectType.GITLAB,
+            ),
         );
         // Case-insensitive membership: `key` is user-supplied (L1).
         const writableLower = new Set(

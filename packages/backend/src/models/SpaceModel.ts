@@ -15,6 +15,7 @@ import {
     SpaceMemberRole,
     SpaceQuery,
     UpdateSpace,
+    type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -184,6 +185,28 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (row.projectMemberAccessRole as SpaceMemberRole) ?? null,
         }));
+    }
+
+    async findPersonalSpace(
+        projectUuid: string,
+        userId: number,
+    ): Promise<PersonalSpaceSummary | null> {
+        const row = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.is_default_user_space`, true)
+            .where(`${SpaceTableName}.created_by_user_id`, userId)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first<PersonalSpaceSummary | undefined>({
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: `${SpaceTableName}.name`,
+                slug: `${SpaceTableName}.slug`,
+            });
+        return row ?? null;
     }
 
     async getSpacesByProjectUuid(
@@ -1336,6 +1359,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted dashboards outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceDashboard[]> {
         const subQuery = this.database
             .table(DashboardsTableName)
@@ -1381,6 +1406,7 @@ export class SpaceModel {
                 })[]
             >([
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,
@@ -1408,7 +1434,18 @@ export class SpaceModel {
                 `${DashboardVersionsTableName}.dashboard_id as dashboard_id`,
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy([
                 {
@@ -1440,6 +1477,7 @@ export class SpaceModel {
                 name,
                 description,
                 dashboard_uuid,
+                slug,
                 created_at,
                 project_uuid,
                 user_uuid,
@@ -1457,6 +1495,7 @@ export class SpaceModel {
                 name,
                 description,
                 uuid: dashboard_uuid,
+                slug,
                 projectUuid: project_uuid,
                 updatedAt: created_at,
                 updatedByUser: {
@@ -1493,6 +1532,8 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ) {
         const {
             name: chartTable,
@@ -1501,7 +1542,18 @@ export class SpaceModel {
         } = chartsTable;
 
         let spaceChartsQuery = this.database(chartTable)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${chartTable}.${uuidColumnName}`,
+                        includeUuids,
+                    );
+                }
+            })
             .leftJoin(
                 SpaceTableName,
                 `${chartTable}.space_uuid`,
@@ -1645,6 +1697,7 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         return this.getSpaceCharts(
             {
@@ -1654,6 +1707,7 @@ export class SpaceModel {
             },
             spaceUuids,
             filters,
+            includeUuids,
         );
     }
 
@@ -1663,9 +1717,22 @@ export class SpaceModel {
             recentlyUpdated?: boolean;
             mostPopular?: boolean;
         },
+        // Directly granted charts outside the given spaces to include.
+        includeUuids?: string[],
     ): Promise<SpaceQuery[]> {
         let spaceQueriesQuery = this.database(SavedChartsTableName)
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .where((accessFilter) => {
+                void accessFilter.whereIn(
+                    `${SpaceTableName}.space_uuid`,
+                    spaceUuids,
+                );
+                if (includeUuids !== undefined && includeUuids.length > 0) {
+                    void accessFilter.orWhereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        includeUuids,
+                    );
+                }
+            })
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .leftJoin(
                 SpaceTableName,

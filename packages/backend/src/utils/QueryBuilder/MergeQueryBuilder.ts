@@ -7,6 +7,8 @@ import {
     MergeJoinType,
     SupportedDbtAdapter,
     type MergeFieldMeta,
+    type MergeFieldTypes,
+    type MergeJoinKeyPart,
     type MergeQueryColumns,
     type MergeTableCalculation,
     type MergeTerminalWrapper,
@@ -90,6 +92,44 @@ export const getMergeNullPlaceholder = (
         default:
             return assertUnreachable(meta.type, 'Unknown join key type');
     }
+};
+
+/**
+ * Dialect-dependent join-key SQL options for a merge: a typed null
+ * placeholder per key so null keys match each other, and which keys need a
+ * string cast before coalescing. One derivation for every dialect a merge
+ * compiles to — the warehouse statement and the compose join must agree on
+ * what a null key means.
+ */
+export const getMergeJoinKeySqlOptions = (
+    joinKey: MergeJoinKeyPart[],
+    fieldTypes: MergeFieldTypes,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
+): {
+    nullPlaceholderByKeyName: Record<string, string>;
+    stringJoinKeyNames: string[];
+} => {
+    const metaFor = (part: MergeJoinKeyPart): MergeFieldMeta | undefined =>
+        Object.entries(part.fieldIdBySourceId)
+            .map(([sourceId, fieldId]) => fieldTypes[sourceId]?.[fieldId])
+            .find((candidate) => candidate !== undefined);
+    return {
+        nullPlaceholderByKeyName: Object.fromEntries(
+            joinKey.flatMap((part) => {
+                const meta = metaFor(part);
+                if (meta === undefined) return [];
+                return [
+                    [
+                        part.name,
+                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
+                    ],
+                ];
+            }),
+        ),
+        stringJoinKeyNames: joinKey.flatMap((part) =>
+            metaFor(part)?.type === DimensionType.STRING ? [part.name] : [],
+        ),
+    };
 };
 
 /** One sort term over the merged result, naming a merged column. */

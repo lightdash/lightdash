@@ -4,8 +4,9 @@ import {
     type CreateInviteLink,
 } from '@lightdash/common';
 import { Button, Group, Select, TextInput } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -88,7 +89,7 @@ const InvitesModal: FC<{
                             placeholder="example@gmail.com"
                             required
                             disabled={isLoading}
-                            style={{ flex: 1 }}
+                            flex={1}
                             {...form.getInputProps('email')}
                         />
                         {user.data?.ability?.can('manage', 'Organization') && (
@@ -106,7 +107,8 @@ const InvitesModal: FC<{
                                     position: 'bottom',
                                     withinPortal: true,
                                 }}
-                                style={{ marginTop: 20, width: 180 }}
+                                mt={20}
+                                w={180}
                                 {...form.getInputProps('role')}
                             />
                         )}

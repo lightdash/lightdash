@@ -1,0 +1,90 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getSystemPromptV2 filter expressions > keeps structured field-value guidance when disabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. If \`filters\` is non-null, include \`type\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\`, using null or [] for every unused category."`;
+
+exports[`getSystemPromptV2 filter expressions > renders expression-only filter guidance 1`] = `
+"## Filter expressions
+
+For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
+
+- A non-null category contains one raw string expression.
+- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
+- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
+- Table calculations belong only in \`tableCalculations\`.
+- Each category is flat and uses AND or OR, never both.
+- The three categories combine implicitly with AND.
+- \`searchFieldValues.filters\` is one dimension expression string or null and is AND-only.
+- The tool schema is authoritative for where each string is placed.
+
+Raw placement examples:
+- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- metrics: orders_total_order_amount greaterThan=100
+- tableCalculations: rank lessThanOrEqual=10
+
+- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
+
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
+
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`
+
+## Time-based filtering
+
+If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), every requested window MUST appear as an explicit date rule in the dimension expression. Describing the window, sorting, limiting, prose, or dates observed in result data is not a substitute.
+
+- Use \`inThePast\` for relative windows and \`inBetween\` for explicit ranges.
+- Relative windows resolve against today's date, stated at the top of this prompt. Never anchor them to dates seen in field metadata or query results.
+- Date fields from joined tables work identically to base-table date fields. Prefer filtering on a joined-table date over no date rule at all.
+- For multiple granularity-aligned periods, use one multi-value \`equals\` rule when another dimension predicate must be combined with AND.
+- Arbitrary alternative ranges may use OR only when every dimension rule is truly an alternative. Never mix root AND and OR in one category.
+- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window."
+`;
+
+exports[`getSystemPromptV2 filter expressions > uses expression field-value guidance when enabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. \`searchFieldValues.filters\` is one raw dimension expression string or null and is AND-only."`;

@@ -122,8 +122,6 @@ const ResourceVerifiedInlineBadge = ({
 
     return (
         <Tooltip
-            withinPortal
-            multiline
             maw={300}
             position="bottom"
             label={
@@ -143,6 +141,7 @@ const ResourceVerifiedInlineBadge = ({
 type InfiniteResourceTableColumnNameProps = {
     item: ResourceViewItem;
     projectUuid: string;
+    projectUrlIdentifier: string;
     canUserManageValidation: boolean;
     showDataAppVersionStatus: boolean;
 };
@@ -150,6 +149,7 @@ type InfiniteResourceTableColumnNameProps = {
 const InfiniteResourceTableColumnName = ({
     item,
     projectUuid,
+    projectUrlIdentifier,
     canUserManageValidation,
     showDataAppVersionStatus,
 }: InfiniteResourceTableColumnNameProps) => {
@@ -195,7 +195,7 @@ const InfiniteResourceTableColumnName = ({
             component={Link}
             c="unset"
             underline="never"
-            to={getResourceUrl(projectUuid, item)}
+            to={getResourceUrl(projectUuid, item, projectUrlIdentifier)}
             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
                 e.stopPropagation()
             }
@@ -239,7 +239,7 @@ const InfiniteResourceTableColumnName = ({
                     </Group>
                     {showTypeAndViews && (
                         <Group gap="xs" wrap="nowrap">
-                            <Text fz={12} c="ldGray.6">
+                            <Text fz="xs" c="dimmed">
                                 {getResourceTypeName(item)} •{' '}
                                 <ViewsCountPopover
                                     resourceType={getViewStatsResourceType(

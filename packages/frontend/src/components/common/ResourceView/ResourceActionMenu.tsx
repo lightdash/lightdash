@@ -2,10 +2,13 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
+    ContentReviewContentType,
+    DirectAccessResourceType,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
     type ResourceViewItem,
+    type SpaceMemberRole,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
@@ -21,17 +24,24 @@ import {
     IconLayoutGridAdd,
     IconPin,
     IconPinnedOff,
+    IconSend,
     IconStar,
     IconStarFilled,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { useContentReviewEligibility } from '../../../ee/features/contentReview';
 import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
+import {
+    DirectAccessModal,
+    useCanManageDirectAccess,
+    useDirectAccessAvailability,
+} from '../../../features/directAccess';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -48,6 +58,7 @@ import {
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
@@ -64,6 +75,8 @@ export interface ResourceViewActionMenuCommonProps {
 interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
+    /** Roles the viewer holds on this item through direct grants. */
+    grantRoles?: SpaceMemberRole[];
     allowDelete?: boolean;
     hideVerification?: boolean;
     isOpen?: boolean;
@@ -74,6 +87,7 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
 const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     disabled = false,
     item,
+    grantRoles = [],
     allowDelete = true,
     hideVerification = false,
     isOpen,
@@ -84,14 +98,34 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { user } = useApp();
     const location = useLocation();
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
+    const [isManageAccessOpen, setIsManageAccessOpen] = useState(false);
+    const directAccessAvailability = useDirectAccessAvailability();
     const [isFavoriteSpaceModalOpen, setIsFavoriteSpaceModalOpen] =
         useState(false);
     const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
+    // Direct grants are the second path to a resource: without them the
+    // per-type checks below see an empty access list and hide every action.
+    const grantAccess = user.data?.userUuid
+        ? grantRoles.map((role) => ({ userUuid: user.data!.userUuid, role }))
+        : [];
+    const canManageAccess = useCanManageDirectAccess({
+        projectUuid,
+        spaceUuid:
+            item.type === ResourceViewItemType.SPACE
+                ? null
+                : (item.data.spaceUuid ?? null),
+        createdByUserUuid:
+            item.type === ResourceViewItemType.DATA_APP
+                ? item.data.createdByUserUuid
+                : null,
+        access: [],
+        grantRoles,
+    });
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
@@ -162,6 +196,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isSqlChart =
         item.type === ResourceViewItemType.CHART &&
         item.data.source === ChartSourceType.SQL;
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: isResourceViewItemDashboard(item)
+            ? ContentReviewContentType.DASHBOARD
+            : isSqlChart
+              ? ContentReviewContentType.SQL_CHART
+              : ContentReviewContentType.CHART,
+        contentUuid: isChartOrDashboard ? item.data.uuid : undefined,
+        spaceUuid: isChartOrDashboard ? item.data.spaceUuid : null,
+    });
 
     // Personal (space-less) data apps can't be pinned — the backend rejects it.
     const isPersonalDataApp =
@@ -175,6 +219,17 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 ? 'Add to space'
                 : 'Move to space'
             : 'Move';
+
+    const directAccessResourceType =
+        item.type === ResourceViewItemType.DASHBOARD
+            ? DirectAccessResourceType.DASHBOARD
+            : item.type === ResourceViewItemType.CHART
+              ? isSqlChart
+                  ? DirectAccessResourceType.SQL_CHART
+                  : DirectAccessResourceType.CHART
+              : item.type === ResourceViewItemType.DATA_APP
+                ? DirectAccessResourceType.APP
+                : null;
 
     const favoritesContext = useFavoritesContext();
     const isFavorited = favoritesContext?.isFavorited(item.data.uuid) ?? false;
@@ -193,7 +248,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         subject('SqlRunner', {
                             organizationUuid,
                             projectUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true &&
                     user.data?.ability?.can(
@@ -202,7 +260,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...item.data,
                             projectUuid,
                             organizationUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true;
             } else {
@@ -213,7 +274,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             ...item.data,
                             projectUuid,
                             organizationUuid,
-                            access: userAccess ? [userAccess] : [],
+                            access: [
+                                ...(userAccess ? [userAccess] : []),
+                                ...grantAccess,
+                            ],
                         }),
                     ) === true;
             }
@@ -230,7 +294,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         ...item.data,
                         projectUuid,
                         organizationUuid,
-                        access: userAccess ? [userAccess] : [],
+                        access: [
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess,
+                        ],
                     }),
                 ) === true;
             break;
@@ -261,7 +328,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     subject('DataApp', {
                         organizationUuid,
                         projectUuid,
-                        access: userAccess ? [userAccess] : [],
+                        access: [
+                            ...(userAccess ? [userAccess] : []),
+                            ...grantAccess,
+                        ],
                         createdByUserUuid: item.data.createdByUserUuid,
                     }),
                 ) === true;
@@ -317,12 +387,10 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         <>
             <Menu
                 disabled={disabled}
-                withinPortal
                 opened={isOpen}
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"
-                shadow="md"
                 offset={-4}
                 closeOnItemClick
                 closeOnClickOutside
@@ -334,8 +402,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
-                            variant="subtle"
-                            color="ldGray.6"
                         >
                             <IconDots size={16} />
                         </ActionIcon>
@@ -497,7 +563,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             project?.upstreamProjectUuid !==
                                             undefined
                                         }
-                                        withinPortal
                                     >
                                         <div>
                                             <Menu.Item
@@ -638,6 +703,24 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     </Menu.Item>
                                 )}
 
+                            {contentReview.canRequest && isChartOrDashboard && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={
+                                        <MantineIcon icon={IconSend} />
+                                    }
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.REQUEST_REVIEW,
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Request review
+                                </Menu.Item>
+                            )}
+
                             <Menu.Divider
                                 display={isSqlChart ? 'none' : 'block'}
                             />
@@ -661,6 +744,26 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             >
                                 {moveActionLabel}
                             </Menu.Item>
+
+                            {directAccessAvailability.isAvailable &&
+                                directAccessResourceType !== null &&
+                                canManageAccess && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconUsers}
+                                                size={18}
+                                            />
+                                        }
+                                        onClick={() => {
+                                            setIsManageAccessOpen(true);
+                                        }}
+                                    >
+                                        Share
+                                    </Menu.Item>
+                                )}
 
                             {item.type === ResourceViewItemType.SPACE && (
                                 <Menu.Item
@@ -746,6 +849,20 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         appUuid={item.data.uuid}
                         opened
                         onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
+            {isManageAccessOpen &&
+                projectUuid &&
+                directAccessResourceType !== null && (
+                    <DirectAccessModal
+                        opened
+                        onClose={() => setIsManageAccessOpen(false)}
+                        projectUuid={projectUuid}
+                        resource={{
+                            resourceType: directAccessResourceType,
+                            resourceUuid: item.data.uuid,
+                            name: item.data.name,
+                        }}
                     />
                 )}
             {isFavoriteSpaceModalOpen &&

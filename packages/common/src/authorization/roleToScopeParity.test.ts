@@ -82,6 +82,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'ExternalSource',
     'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
     // are `isEnterprise: true` in scopes.ts, so the scope-build path

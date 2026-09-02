@@ -13,6 +13,7 @@ import {
     hasIntersection,
     isDimension,
     isExploreError,
+    isUserManagedExplore,
     NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
@@ -44,6 +45,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { AppModel } from '../AppModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
     filterByCreatedAt,
@@ -51,10 +53,12 @@ import {
     shouldSearchForType,
 } from './utils/filters';
 import {
+    getExactOrPrefixLabelScore,
     getFullTextSearchFilterSql,
     getFullTextSearchRankCalcSql,
     getRegexFromUserQuery,
     getTableOrFieldMatchCount,
+    searchReservingVerified,
 } from './utils/search';
 
 type SearchModelArguments = {
@@ -94,6 +98,7 @@ export class SearchModel {
                 searchVectorColumn: `${SpaceTableName}.search_vector`,
                 searchQuery: query,
             },
+            nameColumn: `${SpaceTableName}.name`,
         });
 
         // Use GIN index filter to reduce rows before computing ts_rank_cd
@@ -174,6 +179,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: `${DashboardsTableName}.name`,
         });
 
         const directChartSearchRankRawSql = getFullTextSearchRankCalcSql({
@@ -183,6 +189,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: 'direct_charts.name',
         });
 
         const tileChartSearchRankRawSql = getFullTextSearchRankCalcSql({
@@ -192,6 +199,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: 'tile_charts.name',
         });
 
         // GIN index filters - these use indexes instead of computing rank for all rows
@@ -303,10 +311,15 @@ export class SearchModel {
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
                 this.database.raw(
                     `GREATEST(
-                        ${dashboardSearchRankRawSql},
-                        COALESCE(MAX(${directChartSearchRankRawSql}), 0),
-                        COALESCE(MAX(${tileChartSearchRankRawSql}), 0)
+                        ?,
+                        COALESCE(MAX(?), 0),
+                        COALESCE(MAX(?), 0)
                     ) as search_rank`,
+                    [
+                        dashboardSearchRankRawSql,
+                        directChartSearchRankRawSql,
+                        tileChartSearchRankRawSql,
+                    ],
                 ),
                 { viewsCount: `${DashboardsTableName}.views_count` },
                 { firstViewedAt: `${DashboardsTableName}.first_viewed_at` },
@@ -755,6 +768,7 @@ export class SearchModel {
                 { uuid: `${DashboardTabsTableName}.uuid` },
                 { name: `${DashboardTabsTableName}.name` },
                 { dashboardUuid: `${DashboardsTableName}.dashboard_uuid` },
+                { dashboardSlug: `${DashboardsTableName}.slug` },
                 { dashboardName: `${DashboardsTableName}.name` },
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
             )
@@ -779,7 +793,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ) {
         const { name: tableName, uuidColumnName } = searchTable;
 
@@ -790,6 +807,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: `${tableName}.name`,
         });
 
         // Use GIN index filter to reduce rows before computing ts_rank_cd
@@ -844,6 +862,7 @@ export class SearchModel {
                 {
                     chartType: `${tableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${tableName}.dashboard_uuid` },
                 { spaceUuid: `${tableName}.space_uuid` },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
                 { viewsCount: `${tableName}.views_count` },
@@ -883,6 +902,16 @@ export class SearchModel {
             filters,
         );
 
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${tableName}.${uuidColumnName}`,
+                ),
+            );
+        }
+
         const charts = await this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
@@ -915,7 +944,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<SqlChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.SQL_CHART, filters?.type)) {
             return [];
@@ -929,7 +961,7 @@ export class SearchModel {
             projectUuid,
             query,
             filters,
-            fullTextSearchOperator,
+            { fullTextSearchOperator, verifiedOnly },
         );
     }
 
@@ -937,7 +969,10 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
-        fullTextSearchOperator: 'OR' | 'AND' = 'AND',
+        {
+            fullTextSearchOperator = 'AND',
+            verifiedOnly = false,
+        }: SearchContentOptions = {},
     ): Promise<SavedChartSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.CHART, filters?.type)) {
             return [];
@@ -950,6 +985,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: `${SavedChartsTableName}.name`,
         });
 
         // Use GIN index filter to reduce rows before computing ts_rank_cd
@@ -998,11 +1034,13 @@ export class SearchModel {
             )
             .column(
                 { uuid: 'saved_query_uuid' },
+                `${SavedChartsTableName}.slug`,
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
                 {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedChartsTableName}.dashboard_uuid` },
                 { spaceUuid: 'space_uuid' },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
                 { search_rank: searchRankRawSql },
@@ -1032,6 +1070,16 @@ export class SearchModel {
             },
             filters,
         );
+
+        if (verifiedOnly) {
+            subquery = subquery.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.CHART,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                ),
+            );
+        }
 
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
@@ -1099,10 +1147,11 @@ export class SearchModel {
         }));
     }
 
-    private async searchApps(
+    async searchDataApps(
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        { fullTextSearchOperator = 'AND' }: SearchContentOptions = {},
     ): Promise<DataAppSearchResult[]> {
         if (!shouldSearchForType(SearchItemType.DATA_APP, filters?.type)) {
             return [];
@@ -1114,12 +1163,15 @@ export class SearchModel {
                 searchVectorColumn: `${AppsTableName}.search_vector`,
                 searchQuery: query,
             },
+            nameColumn: `${AppsTableName}.name`,
+            fullTextSearchOperator,
         });
 
         const searchFilterSql = getFullTextSearchFilterSql({
             database: this.database,
             searchVectorColumn: `${AppsTableName}.search_vector`,
             searchQuery: query,
+            fullTextSearchOperator,
         });
 
         // Only surface apps that have at least one ready version — apps that
@@ -1140,6 +1192,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: `${AppsTableName}.app_id` },
+                `${AppsTableName}.slug`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 { spaceUuid: `${AppsTableName}.space_uuid` },
@@ -1155,6 +1208,10 @@ export class SearchModel {
             .whereRaw(hasReadyVersionSql)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
+
+        // Custom chart types are not data apps — they have their own gallery
+        // and must not surface as "Data app" search results.
+        AppModel.applyDataAppVizsFilter(subquery, 'exclude');
 
         subquery = filterByCreatedAt(AppsTableName, subquery, filters);
         subquery = filterByCreatedByUuid(
@@ -1173,6 +1230,7 @@ export class SearchModel {
 
         return apps.map((app) => ({
             uuid: app.uuid,
+            slug: app.slug,
             name: app.name,
             description: app.description,
             spaceUuid: app.spaceUuid,
@@ -1204,6 +1262,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: `${SavedChartsTableName}.name`,
         });
 
         // GIN index filter for saved charts
@@ -1259,6 +1318,7 @@ export class SearchModel {
                 {
                     chartType: `${SavedChartsTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedChartsTableName}.dashboard_uuid` },
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
                 { search_rank: savedChartsSearchRankRawSql },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -1298,6 +1358,7 @@ export class SearchModel {
                 searchQuery: query,
             },
             fullTextSearchOperator,
+            nameColumn: `${SavedSqlTableName}.name`,
         });
 
         // GIN index filter for SQL charts
@@ -1351,6 +1412,7 @@ export class SearchModel {
                 {
                     chartType: `${SavedSqlTableName}.last_version_chart_kind`,
                 },
+                { dashboardUuid: `${SavedSqlTableName}.dashboard_uuid` },
                 { spaceUuid: `${SavedSqlTableName}.space_uuid` },
                 { search_rank: savedSqlSearchRankRawSql },
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -1437,6 +1499,7 @@ export class SearchModel {
                     name: string;
                     description: string;
                     chartType: string;
+                    dashboardUuid: string | null;
                     spaceUuid: string;
                     search_rank: number;
                     projectUuid: string;
@@ -1469,6 +1532,7 @@ export class SearchModel {
             name: result.name,
             description: result.description,
             chartType: result.chartType as ChartKind, // ChartKind type from database
+            dashboardUuid: result.dashboardUuid,
             spaceUuid: result.spaceUuid,
             search_rank: result.search_rank,
             projectUuid: result.projectUuid,
@@ -1525,14 +1589,14 @@ export class SearchModel {
                             hasIntersection(
                                 explore.tags || [],
                                 tableSelection.value || [],
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) || isUserManagedExplore(explore)
                         );
                     }
                     if (tableSelection.type === TableSelectionType.WITH_NAMES) {
                         return (
                             (tableSelection.value || []).includes(
                                 explore.name,
-                            ) || explore.type === ExploreType.VIRTUAL
+                            ) || isUserManagedExplore(explore)
                         );
                     }
                     return true;
@@ -1630,11 +1694,27 @@ export class SearchModel {
             );
 
         const sortedTables = unsortedTables
-            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .sort((a, b) => {
+                const exactDiff =
+                    getExactOrPrefixLabelScore(query, b.label) -
+                    getExactOrPrefixLabelScore(query, a.label);
+                if (exactDiff !== 0) {
+                    return exactDiff;
+                }
+                return b.regexMatchCount - a.regexMatchCount;
+            })
             .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
 
         const sortedFields = unsortedFields
-            .sort((a, b) => b.regexMatchCount - a.regexMatchCount)
+            .sort((a, b) => {
+                const exactDiff =
+                    getExactOrPrefixLabelScore(query, b.label) -
+                    getExactOrPrefixLabelScore(query, a.label);
+                if (exactDiff !== 0) {
+                    return exactDiff;
+                }
+                return b.regexMatchCount - a.regexMatchCount;
+            })
             .slice(0, SEARCH_LIMIT_PER_ITEM_TYPE);
 
         return [sortedTables, sortedFields];
@@ -1721,28 +1801,64 @@ export class SearchModel {
         query: string,
         filters?: SearchFilters,
     ): Promise<SearchResults> {
+        const verifiedOnly = filters?.verifiedOnly === true;
+        const contentOptions: SearchContentOptions = { verifiedOnly };
+
+        // Verified is only meaningful for charts and dashboards — skip every
+        // other type so the Item type filter behaves as a verified-content view.
+        if (verifiedOnly) {
+            const [dashboards, savedCharts, sqlCharts] = await Promise.all([
+                this.searchDashboards(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSavedCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+                this.searchSqlCharts(
+                    projectUuid,
+                    query,
+                    filters,
+                    contentOptions,
+                ),
+            ]);
+
+            return {
+                spaces: [],
+                dashboards,
+                savedCharts,
+                sqlCharts,
+                tables: [],
+                fields: [],
+                pages: [],
+                dashboardTabs: [],
+                dataApps: [],
+            };
+        }
+
         const spaces = await this.searchSpaces(projectUuid, query, filters);
-        const dashboards = await this.searchDashboards(
-            projectUuid,
-            query,
-            filters,
-        );
-        const savedCharts = await this.searchSavedCharts(
-            projectUuid,
-            query,
-            filters,
-        );
-        const sqlCharts = await this.searchSqlCharts(
-            projectUuid,
-            query,
-            filters,
-        );
+        const [dashboards, savedCharts, sqlCharts] = await Promise.all([
+            searchReservingVerified(false, (opts) =>
+                this.searchDashboards(projectUuid, query, filters, opts),
+            ),
+            searchReservingVerified(false, (opts) =>
+                this.searchSavedCharts(projectUuid, query, filters, opts),
+            ),
+            searchReservingVerified(false, (opts) =>
+                this.searchSqlCharts(projectUuid, query, filters, opts),
+            ),
+        ]);
         const dashboardTabs = await this.searchDashboardTabs(
             projectUuid,
             query,
             filters,
         );
-        const dataApps = await this.searchApps(projectUuid, query, filters);
+        const dataApps = await this.searchDataApps(projectUuid, query, filters);
 
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(

@@ -34,10 +34,14 @@ The command replaces these deterministic build outputs:
 
 - `packages/backend/assets/playground/jaffle_shop.duckdb`
 - `packages/backend/assets/playground/explores.json`
+- `packages/backend/assets/playground/content.json`
 - `packages/backend/assets/playground/SHA256SUMS`
 
-`explores.json` is emitted as single-line JSON. `SHA256SUMS` records both
-bundle payloads so a rebuild can be checked with
+The JSON files are emitted as single-line JSON. `content.json` carries a schema
+version and definitions for the editable charts and dashboard created during
+playground provisioning. The build checks every referenced explore and field
+against the explores it just compiled. `SHA256SUMS` records all three bundle
+payloads so a rebuild can be checked with
 `sha256sum --check packages/backend/assets/playground/SHA256SUMS`; with the
 pinned dbt versions and unchanged inputs, the committed checksums should remain
 stable.

@@ -12,24 +12,40 @@ const ORDERS: PgWireTable = {
     fields: [
         {
             fieldId: 'orders_status',
+            table: 'orders',
+            name: 'status',
             kind: 'dimension',
             type: 'string',
             description: null,
         },
         {
             fieldId: 'orders_order_date',
+            table: 'orders',
+            name: 'order_date',
             kind: 'dimension',
             type: 'date',
             description: null,
         },
         {
+            fieldId: 'orders_created_at',
+            table: 'orders',
+            name: 'created_at',
+            kind: 'dimension',
+            type: 'timestamp',
+            description: null,
+        },
+        {
             fieldId: 'orders_is_completed',
+            table: 'orders',
+            name: 'is_completed',
             kind: 'dimension',
             type: 'boolean',
             description: null,
         },
         {
             fieldId: 'orders_amount',
+            table: 'orders',
+            name: 'amount',
             kind: 'dimension',
             type: 'number',
             description: null,
@@ -37,24 +53,41 @@ const ORDERS: PgWireTable = {
         // fields from a joined table in the explore
         {
             fieldId: 'customers_first_name',
+            table: 'customers',
+            name: 'first_name',
             kind: 'dimension',
             type: 'string',
             description: null,
         },
+        // same column name as orders_amount, different table
+        {
+            fieldId: 'customers_amount',
+            table: 'customers',
+            name: 'amount',
+            kind: 'dimension',
+            type: 'number',
+            description: null,
+        },
         {
             fieldId: 'orders_total_order_amount',
+            table: 'orders',
+            name: 'total_order_amount',
             kind: 'metric',
             type: 'sum',
             description: null,
         },
         {
             fieldId: 'orders_unique_order_count',
+            table: 'orders',
+            name: 'unique_order_count',
             kind: 'metric',
             type: 'count_distinct',
             description: null,
         },
         {
             fieldId: 'orders_avg_amount',
+            table: 'orders',
+            name: 'avg_amount',
             kind: 'metric',
             type: 'average',
             description: null,
@@ -68,12 +101,16 @@ const CUSTOMERS: PgWireTable = {
     fields: [
         {
             fieldId: 'customers_customer_id',
+            table: 'customers',
+            name: 'customer_id',
             kind: 'dimension',
             type: 'number',
             description: null,
         },
         {
             fieldId: 'customers_days_since_last_order',
+            table: 'customers',
+            name: 'days_since_last_order',
             kind: 'metric',
             type: 'min',
             description: null,
@@ -158,9 +195,11 @@ describe('compileSqlToMetricQuery', () => {
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_status',
                 'orders_order_date',
+                'orders_created_at',
                 'orders_is_completed',
                 'orders_amount',
                 'customers_first_name',
+                'customers_amount',
             ]);
             expect(result.metricQuery.metrics).toEqual([
                 'orders_total_order_amount',
@@ -231,10 +270,10 @@ describe('compileSqlToMetricQuery', () => {
             );
         });
 
-        it('throws when only table calculations are selected', () => {
-            expect(() => compile('SELECT 1 + 1 AS two FROM orders')).toThrow(
-                /at least one dimension or metric/,
-            );
+        it('carries the first dimension when only table calculations are selected', () => {
+            const compiled = compile('SELECT 1 + 1 AS two FROM orders');
+            expect(compiled.metricQuery.dimensions).toEqual(['orders_status']);
+            expect(compiled.columns.map((c) => c.name)).toEqual(['two']);
         });
     });
 
@@ -1061,66 +1100,24 @@ describe('compileSqlToMetricQuery', () => {
             );
         });
 
-        it('rejects expressions without an alias', () => {
-            expect(() =>
-                compile('SELECT orders_status, orders_amount * 2 FROM orders'),
-            ).toThrow(/must have an alias/);
-        });
-
-        it('rejects plain aggregate functions with a helpful hint', () => {
-            expect(() =>
-                compile(
-                    'SELECT orders_status, sum(orders_amount) AS total FROM orders',
-                ),
-            ).toThrow(/Aggregate function "sum" is not supported/);
-            expect(() =>
-                compile('SELECT orders_status, count(*) AS n FROM orders'),
-            ).toThrow(SqlCompileError);
-        });
-
-        it('rejects references to fields not in the SELECT list', () => {
-            expect(() =>
-                compile(
-                    'SELECT orders_status, orders_amount * 2 AS doubled FROM orders',
-                ),
-            ).toThrow(/not in the SELECT list/);
-        });
-
-        it('rejects aliases that conflict with column names', () => {
-            expect(() =>
-                compile(
-                    'SELECT orders_status, orders_amount, orders_amount * 2 AS orders_status FROM orders',
-                ),
-            ).toThrow(/conflicts with an existing column/);
-        });
-
-        it('rejects duplicate aliases', () => {
-            expect(() =>
-                compile(
-                    `SELECT orders_status, orders_amount,
-                            orders_amount * 2 AS x, orders_amount * 3 AS x
-                     FROM orders`,
-                ),
-            ).toThrow(/Duplicate alias/);
-        });
-
-        it('supports filtering on table calculations', () => {
-            const result = compile(
-                `SELECT orders_status, orders_total_order_amount,
-                        orders_total_order_amount * 2 AS doubled
-                 FROM orders WHERE doubled > 100`,
+        it('names unaliased expressions like Postgres', () => {
+            const compiled = compileSqlToMetricQuery(
+                'SELECT 1, true, orders_amount, orders_amount + 1 AS amount_plus FROM orders',
+                CATALOG,
             );
-            expect(stripIds(result.metricQuery.filters)).toEqual({
-                tableCalculations: {
-                    and: [
-                        {
-                            target: { fieldId: 'doubled' },
-                            operator: FilterOperator.GREATER_THAN,
-                            values: [100],
-                        },
-                    ],
-                },
-            });
+            expect(compiled.columns.map((c) => c.name)).toEqual([
+                '?column?',
+                '?column?_2',
+                'orders_amount',
+                'amount_plus',
+            ]);
+            // constants-only probes carry the first dimension without exposing it
+            const probe = compileSqlToMetricQuery(
+                'SELECT 1 FROM orders LIMIT 1',
+                CATALOG,
+            );
+            expect(probe.columns.map((c) => c.name)).toEqual(['?column?']);
+            expect(probe.metricQuery.dimensions).toEqual(['orders_status']);
         });
     });
 
@@ -1437,5 +1434,384 @@ describe('compileSqlToMetricQuery', () => {
                 'aov',
             ]);
         });
+    });
+});
+
+describe('aggregate passthrough', () => {
+    it('treats SUM over a metric column as the metric at the query grain', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT orders_status, SUM(orders_total_order_amount) AS orders_total_order_amount FROM orders GROUP BY orders_status ORDER BY orders_total_order_amount DESC',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.dimensions).toEqual(['orders_status']);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_total_order_amount',
+        ]);
+        expect(compiled.metricQuery.tableCalculations).toEqual([]);
+        expect(compiled.columns.map((c) => c.name)).toEqual([
+            'orders_status',
+            'orders_total_order_amount',
+        ]);
+        expect(compiled.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_total_order_amount', descending: true },
+        ]);
+    });
+
+    it('passes min/max/avg through and keeps distinct aggregates rejected', () => {
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT max(orders_total_order_amount) AS m FROM orders',
+                CATALOG,
+            ).metricQuery.metrics,
+        ).toEqual(['orders_total_order_amount']);
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT sum(distinct orders_total_order_amount) AS s FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/not supported/);
+    });
+});
+
+describe('dimension aggregates', () => {
+    it('compiles the Looker Studio date-range probe', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT MIN(DATE(orders_order_date)) AS min_date, MAX(DATE(orders_order_date)) AS max_date FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.dimensions).toEqual([]);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_order_date_pgwire_min',
+            'orders_order_date_pgwire_max',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'order_date_pgwire_min',
+                table: 'orders',
+                sql: '${orders.order_date}',
+                type: 'min',
+                baseDimensionName: 'order_date',
+            },
+            {
+                name: 'order_date_pgwire_max',
+                table: 'orders',
+                sql: '${orders.order_date}',
+                type: 'max',
+                baseDimensionName: 'order_date',
+            },
+        ]);
+        expect(compiled.columns).toEqual([
+            {
+                name: 'min_date',
+                source: 'orders_order_date_pgwire_min',
+                kind: 'metric',
+                type: 'date',
+            },
+            {
+                name: 'max_date',
+                source: 'orders_order_date_pgwire_max',
+                kind: 'metric',
+                type: 'date',
+            },
+        ]);
+    });
+
+    it('compiles SUM over a numeric dimension', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT SUM(orders_amount) AS amount FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_amount_pgwire_sum',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'amount_pgwire_sum',
+                table: 'orders',
+                sql: '${orders.amount}',
+                type: 'sum',
+                baseDimensionName: 'amount',
+            },
+        ]);
+        expect(compiled.columns[0]).toEqual({
+            name: 'amount',
+            source: 'orders_amount_pgwire_sum',
+            kind: 'metric',
+            type: 'sum',
+        });
+    });
+
+    it('compiles grouped dimension aggregates and sorts by their alias', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT orders_status, SUM(orders_amount) AS amount FROM orders GROUP BY orders_status ORDER BY amount DESC',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.dimensions).toEqual(['orders_status']);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_amount_pgwire_sum',
+        ]);
+        expect(compiled.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_amount_pgwire_sum', descending: true },
+        ]);
+    });
+
+    it('maps avg/count/count distinct/median to metric types', () => {
+        const compiled = compileSqlToMetricQuery(
+            `SELECT avg(orders_amount) AS a, count(orders_status) AS c,
+                    count(distinct orders_status) AS cd, median(orders_amount) AS md
+             FROM orders`,
+            CATALOG,
+        );
+        expect(
+            compiled.metricQuery.additionalMetrics?.map((m) => m.type),
+        ).toEqual(['average', 'count', 'count_distinct', 'median']);
+        expect(compiled.columns.map((c) => c.type)).toEqual([
+            'average',
+            'count',
+            'count_distinct',
+            'median',
+        ]);
+    });
+
+    it('casts MIN(DATE(timestamp_dimension)) to a date', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT MIN(DATE(orders_created_at)) AS first_day FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'created_at_pgwire_min_date',
+                table: 'orders',
+                sql: 'CAST(${orders.created_at} AS DATE)',
+                type: 'min',
+            },
+        ]);
+        expect(compiled.columns[0].type).toBe('date');
+    });
+
+    it('unwraps ::date and CAST(... AS date) for min/max', () => {
+        for (const sql of [
+            'SELECT MAX(orders_created_at::date) AS d FROM orders',
+            'SELECT MAX(CAST(orders_created_at AS date)) AS d FROM orders',
+        ]) {
+            const compiled = compileSqlToMetricQuery(sql, CATALOG);
+            expect(compiled.metricQuery.additionalMetrics?.[0].sql).toBe(
+                'CAST(${orders.created_at} AS DATE)',
+            );
+            expect(compiled.columns[0].type).toBe('date');
+        }
+    });
+
+    it('keeps count(*) working alongside dimension aggregates', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT MIN(orders_order_date) AS m, COUNT(*) AS c FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_order_date_pgwire_min',
+            'orders_pgwire_row_count',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toHaveLength(2);
+    });
+
+    it('keeps same-named dimensions from different tables distinct', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT sum(orders_amount) AS a, sum(customers_amount) AS b FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_amount_pgwire_sum',
+            'customers_amount_pgwire_sum',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toHaveLength(2);
+        expect(
+            compiled.metricQuery.additionalMetrics?.map((m) => m.table),
+        ).toEqual(['orders', 'customers']);
+    });
+
+    it('reuses one additional metric for repeated aggregates', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT MIN(DATE(orders_order_date)) AS a, MIN(orders_order_date) AS b FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.additionalMetrics).toHaveLength(1);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_order_date_pgwire_min',
+        ]);
+        expect(compiled.columns.map((c) => c.name)).toEqual(['a', 'b']);
+    });
+
+    it('aggregates dimensions from joined explore tables', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT max(customers_first_name) AS m FROM orders',
+            CATALOG,
+        );
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'first_name_pgwire_max',
+                table: 'customers',
+                sql: '${customers.first_name}',
+                type: 'max',
+                baseDimensionName: 'first_name',
+            },
+        ]);
+        expect(compiled.columns[0].type).toBe('string');
+    });
+
+    it('allows an alias matching the dimension name', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT orders_amount, sum(orders_amount) AS orders_amount FROM orders GROUP BY orders_amount',
+            CATALOG,
+        );
+        expect(compiled.columns.map((c) => c.name)).toEqual([
+            'orders_amount',
+            'orders_amount',
+        ]);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_amount_pgwire_sum',
+        ]);
+    });
+
+    it('names unaliased dimension aggregates like Postgres', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT min(orders_order_date) FROM orders',
+            CATALOG,
+        );
+        expect(compiled.columns[0].name).toBe('min');
+    });
+
+    it('rejects aggregates that make no sense for the dimension type', () => {
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT sum(orders_status) FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/"sum" is not supported for string dimension/);
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT avg(orders_order_date) FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/"avg" is not supported for date dimension/);
+        expect(() =>
+            compileSqlToMetricQuery(
+                'SELECT sum(orders_is_completed) FROM orders',
+                CATALOG,
+            ),
+        ).toThrow(/"sum" is not supported for boolean dimension/);
+    });
+});
+
+describe('row counts', () => {
+    it('compiles count(*) to a system COUNT metric', () => {
+        const compiled = compileSqlToMetricQuery(
+            'SELECT count(*) FROM orders',
+            CATALOG,
+        );
+        expect(compiled.columns).toEqual([
+            {
+                name: 'count',
+                source: 'orders_pgwire_row_count',
+                kind: 'metric',
+                type: 'count',
+            },
+        ]);
+        expect(compiled.metricQuery.metrics).toEqual([
+            'orders_pgwire_row_count',
+        ]);
+        expect(compiled.metricQuery.additionalMetrics).toEqual([
+            {
+                name: 'pgwire_row_count',
+                table: 'orders',
+                sql: '*',
+                type: 'count',
+            },
+        ]);
+        expect(compiled.metricQuery.dimensions).toEqual([]);
+    });
+
+    it('supports count(1), aliases, filters and grouped counts', () => {
+        expect(
+            compileSqlToMetricQuery(
+                "SELECT count(1) AS n FROM orders WHERE orders_status = 'completed'",
+                CATALOG,
+            ).columns[0],
+        ).toMatchObject({ name: 'n', kind: 'metric' });
+        const grouped = compileSqlToMetricQuery(
+            'SELECT orders_status, count(*) FROM orders GROUP BY orders_status',
+            CATALOG,
+        );
+        expect(grouped.metricQuery.dimensions).toEqual(['orders_status']);
+        expect(grouped.metricQuery.metrics).toEqual([
+            'orders_pgwire_row_count',
+        ]);
+    });
+});
+
+describe('schema probes', () => {
+    it('folds a trivial subquery wrapper into the inner query', () => {
+        const wrapped = compileSqlToMetricQuery(
+            "SELECT * FROM (SELECT orders_status, orders_total_order_amount FROM orders WHERE orders_status = 'completed' LIMIT 10) AS t WHERE 1 = 0",
+            CATALOG,
+        );
+        expect(wrapped.alwaysEmpty).toBe(true);
+        expect(wrapped.columns.map((c) => c.name)).toEqual([
+            'orders_status',
+            'orders_total_order_amount',
+        ]);
+        expect(wrapped.metricQuery.filters.dimensions).toBeDefined();
+
+        const limited = compileSqlToMetricQuery(
+            'SELECT * FROM (SELECT orders_status FROM orders LIMIT 100) AS t LIMIT 5',
+            CATALOG,
+        );
+        expect(limited.alwaysEmpty).toBe(false);
+        expect(limited.metricQuery.limit).toBe(5);
+
+        // a wrapper that does real work is still rejected
+        expect(() =>
+            compileSqlToMetricQuery(
+                "SELECT * FROM (SELECT orders_status FROM orders) t WHERE orders_status = 'completed'",
+                CATALOG,
+            ),
+        ).toThrow(/FROM must reference an explore/);
+    });
+
+    it('marks WHERE 1=0 and LIMIT 0 as always empty without dropping the shape', () => {
+        const probe = compileSqlToMetricQuery(
+            'SELECT orders_status FROM orders WHERE 1 = 0',
+            CATALOG,
+        );
+        expect(probe.alwaysEmpty).toBe(true);
+        expect(probe.columns.map((c) => c.name)).toEqual(['orders_status']);
+        expect(probe.metricQuery.filters).toEqual({});
+
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT orders_status FROM orders LIMIT 0',
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+        expect(
+            compileSqlToMetricQuery(
+                'SELECT orders_status FROM orders WHERE 1 != 1',
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+        expect(
+            compileSqlToMetricQuery(
+                "SELECT orders_status FROM orders WHERE 1 = 0 AND orders_status = 'completed'",
+                CATALOG,
+            ).alwaysEmpty,
+        ).toBe(true);
+    });
+
+    it('keeps real filters non-empty and still folds tautologies', () => {
+        const query = compileSqlToMetricQuery(
+            "SELECT orders_status FROM orders WHERE 1 = 1 AND orders_status = 'completed'",
+            CATALOG,
+        );
+        expect(query.alwaysEmpty).toBe(false);
+        expect(query.metricQuery.filters.dimensions).toBeDefined();
     });
 });

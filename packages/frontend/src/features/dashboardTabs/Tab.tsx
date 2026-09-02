@@ -51,14 +51,11 @@ const DraggableTab: FC<DraggableTabProps> = ({
                 >
                     <Tooltip
                         label={tab.name}
-                        withinPortal
                         position="top"
-                        withArrow
                         openDelay={500}
                         color="dark"
                         disabled={!isTruncated}
                         maw={300}
-                        multiline
                     >
                         <Tabs.Tab
                             ref={ref}
@@ -75,9 +72,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 isEditMode ? (
                                     <ActionIcon
                                         {...provided.dragHandleProps}
-                                        variant="subtle"
                                         size="xs"
-                                        color="gray"
                                     >
                                         <MantineIcon
                                             size="md"
@@ -88,18 +83,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             }
                             rightSection={
                                 isEditMode ? (
-                                    <Menu
-                                        position="bottom"
-                                        withArrow
-                                        withinPortal
-                                        shadow="md"
-                                    >
+                                    <Menu position="bottom" withArrow>
                                         <Menu.Target>
-                                            <ActionIcon
-                                                color="gray"
-                                                variant="subtle"
-                                                size="xs"
-                                            >
+                                            <ActionIcon size="xs">
                                                 <MantineIcon
                                                     icon={IconDotsVertical}
                                                 />

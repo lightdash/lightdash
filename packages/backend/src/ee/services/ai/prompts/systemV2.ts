@@ -4,6 +4,7 @@ import {
     Explore,
     WarehouseTypes,
     type AgentSqlScope,
+    type CustomChartTypeLibrary,
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
@@ -13,12 +14,20 @@ import {
     AiAgentRequestingUser,
 } from '../types/aiAgent';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
+import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './systemV2FilterGuidance';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,
@@ -34,6 +43,7 @@ import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    availableCustomChartTypes?: CustomChartTypeLibrary;
     availableSkills?: AiAgentSkillReference[];
     knowledgeDocuments?: AiAgentDocumentContext[];
     deepResearchRuns?: AiAgentDeepResearchRunContext[];
@@ -43,6 +53,7 @@ export const getSystemPromptV2 = (args: {
     requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
+    enableFilterExpressions?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     enableCodingAgent?: boolean;
@@ -53,11 +64,15 @@ export const getSystemPromptV2 = (args: {
     // GitLab no). Defaults true; when false the prompt steers off `search`.
     repoFsSupportsCodeSearch?: boolean;
     enableContentTools?: boolean;
+    enableGenerateDataApp?: boolean;
     enableAiAgentMemory?: boolean;
     // Originating Slack channel for "this channel" scheduling targets; null on
     // web and MCP prompts.
     slackChannelId?: string | null;
     canRunSql?: boolean;
+    // When composer queries are on, the standalone runSql tool is withheld
+    // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
+    enableComposerQueries?: boolean;
     enableMergeQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
@@ -73,6 +88,7 @@ export const getSystemPromptV2 = (args: {
         requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
+        enableFilterExpressions = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         enableCodingAgent = false,
@@ -81,9 +97,11 @@ export const getSystemPromptV2 = (args: {
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
         enableContentTools = false,
+        enableGenerateDataApp = false,
         enableAiAgentMemory = false,
         slackChannelId = null,
         canRunSql = false,
+        enableComposerQueries = false,
         enableMergeQueries = false,
         warehouseType = null,
         warehouseSchema = null,
@@ -97,6 +115,9 @@ export const getSystemPromptV2 = (args: {
     if (enableMergeQueries) {
         crossExploreJoinRule =
             '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
+    } else if (enableComposerQueries) {
+        crossExploreJoinRule =
+            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
     } else if (canRunSql) {
         crossExploreJoinRule =
             '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
@@ -211,7 +232,11 @@ export const getSystemPromptV2 = (args: {
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? 'No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with runSql.'
+            ? `No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with ${
+                  enableComposerQueries
+                      ? 'runComposerQueries using a sql node'
+                      : 'runSql'
+              }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (
         args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
@@ -227,6 +252,18 @@ export const getSystemPromptV2 = (args: {
         '{{self_improvement_section}}',
         '',
     )
+        .replace(
+            '{{search_field_values_filter_guidance}}',
+            enableFilterExpressions
+                ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
+                : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+        )
+        .replace(
+            '{{filter_guidance_section}}',
+            enableFilterExpressions
+                ? FILTER_EXPRESSION_GUIDANCE_SECTION
+                : STRUCTURED_FILTER_GUIDANCE_SECTION,
+        )
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback
@@ -267,12 +304,17 @@ export const getSystemPromptV2 = (args: {
                       warehouseSchema,
                       sqlScope,
                       runSqlMaxLimit,
+                      viaComposerQueries: enableComposerQueries,
                   })
                 : '',
         )
         .replace(
             '{{content_tools_section}}',
             enableContentTools ? CONTENT_TOOLS_SECTION : '',
+        )
+        .replace(
+            '{{generate_data_app_section}}',
+            enableGenerateDataApp ? GENERATE_DATA_APP_SECTION : '',
         )
         .replace(
             '{{scheduling_tools_section}}',
@@ -295,6 +337,12 @@ export const getSystemPromptV2 = (args: {
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)
+        .replace(
+            '{{available_custom_chart_types}}',
+            renderAvailableCustomChartTypes(
+                args.availableCustomChartTypes ?? { types: [], totalCount: 0 },
+            ),
+        )
         .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 

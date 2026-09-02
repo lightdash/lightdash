@@ -99,7 +99,7 @@ export const GroupItem = forwardRef<
                             onColorChange(defaultLabel, newColor)
                         }
                     />
-                    <Box style={{ flexGrow: 1 }}>
+                    <Box className="ld-grow">
                         <EditableText
                             placeholder={defaultLabel}
                             value={label}
@@ -113,12 +113,8 @@ export const GroupItem = forwardRef<
                         />
                     </Box>
 
-                    <Tooltip label="Override value label options" withinPortal>
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            onClick={toggle}
-                        >
+                    <Tooltip label="Override value label options">
+                        <ActionIcon onClick={toggle}>
                             <MantineIcon
                                 icon={opened ? IconChevronUp : IconChevronDown}
                             />

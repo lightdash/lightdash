@@ -1,13 +1,26 @@
 import { subject } from '@casl/ability';
 import {
+    DimensionType,
+    getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
+    getFilterTypeFromItemType,
     hashStringToBase36,
     ProjectType,
     type DashboardDataAppTile,
+    type DashboardFilterRule,
+    type FilterableItem,
 } from '@lightdash/common';
-import { Box, Loader, Stack, Text } from '@mantine/core';
-import { IconAppsOff, IconCode } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    HoverCard,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine/core';
+import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
@@ -16,6 +29,7 @@ import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -31,6 +45,78 @@ type Props = Pick<
     'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
 > & { tile: DashboardDataAppTile };
 
+const DashboardFiltersIndicator: FC<{
+    filterRules: DashboardFilterRule[];
+    filterableItems: Record<string, FilterableItem>;
+}> = ({ filterRules, filterableItems }) => {
+    if (filterRules.length === 0) return null;
+
+    const labelledRules = filterRules.map((filterRule) => {
+        const filterableItem = filterableItems[filterRule.target.fieldId];
+        const labels = filterableItem
+            ? getConditionalRuleLabelFromItem(filterRule, filterableItem)
+            : getConditionalRuleLabel(
+                  filterRule,
+                  getFilterTypeFromItemType(
+                      filterRule.target.fallbackType ?? DimensionType.STRING,
+                  ),
+                  filterRule.label ?? filterRule.target.fieldId,
+              );
+
+        return { filterRule, labels };
+    });
+
+    const availableFiltersLabel = `${filterRules.length} dashboard filter${
+        filterRules.length === 1 ? '' : 's'
+    } available to this Data App`;
+
+    return (
+        <HoverCard withArrow position="bottom-end" offset={4} arrowOffset={10}>
+            <HoverCard.Dropdown>
+                <Stack gap="xs" align="flex-start">
+                    <Text c="ldGray.7" fw={500} fz="xs">
+                        Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
+                        available to this Data App:
+                    </Text>
+                    {labelledRules.map(({ filterRule, labels }) => (
+                        <Badge
+                            key={filterRule.id}
+                            variant="outline"
+                            color="ldGray.4"
+                            size="lg"
+                            fz="xs"
+                            fw="normal"
+                        >
+                            <Text fw={600} span inherit c="foreground">
+                                {labels.field}:
+                            </Text>{' '}
+                            {filterRule.disabled ? (
+                                <Text span inherit c="foreground">
+                                    is any value
+                                </Text>
+                            ) : (
+                                <>
+                                    <Text span inherit c="foreground">
+                                        {labels.operator}
+                                    </Text>{' '}
+                                    <Text fw={600} span inherit c="foreground">
+                                        {labels.value}
+                                    </Text>
+                                </>
+                            )}
+                        </Badge>
+                    ))}
+                </Stack>
+            </HoverCard.Dropdown>
+            <HoverCard.Target>
+                <ActionIcon aria-label={availableFiltersLabel} size="sm">
+                    <MantineIcon icon={IconFilter} />
+                </ActionIcon>
+            </HoverCard.Target>
+        </HoverCard>
+    );
+};
+
 const DataAppTile: FC<Props> = (props) => {
     const {
         tile: {
@@ -38,7 +124,7 @@ const DataAppTile: FC<Props> = (props) => {
             uuid,
         },
     } = props;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -63,10 +149,33 @@ const DataAppTile: FC<Props> = (props) => {
     // whose target field isn't in a given query's explore — an app may
     // query multiple explores.
     const tileDashboardFilters = useDashboardFiltersForTile(uuid);
+    const availableDashboardFilterRules = useMemo(
+        () => [
+            ...tileDashboardFilters.dimensions,
+            ...tileDashboardFilters.metrics,
+            ...tileDashboardFilters.tableCalculations,
+        ],
+        [tileDashboardFilters],
+    );
     const dashboardFiltersForApp = useMemo(
         () => convertDateDashboardFilters(tileDashboardFilters),
         [tileDashboardFilters],
     );
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
+    );
+    const filterableItems = useMemo(
+        () => ({ ...allFilterableFieldsMap, ...allFilterableMetricsMap }),
+        [allFilterableFieldsMap, allFilterableMetricsMap],
+    );
+    const hasExtraHeaderElement =
+        (!tileHasComments && !!dashboardComments) ||
+        availableDashboardFilterRules.length > 0;
+    const hasNonMenuHeaderContent =
+        !!dashboardComments || availableDashboardFilterRules.length > 0;
 
     // The dashboard refresh button bumps `refreshCounter` and flips
     // `invalidateCache` (both via `clearCacheAndFetch`). Chart tiles re-fetch
@@ -176,11 +285,22 @@ const DataAppTile: FC<Props> = (props) => {
             visibleHeaderElement={
                 tileHasComments ? dashboardComments : undefined
             }
-            extraHeaderElement={tileHasComments ? undefined : dashboardComments}
+            hasNonMenuHeaderContent={hasNonMenuHeaderContent}
+            extraHeaderElement={
+                hasExtraHeaderElement ? (
+                    <>
+                        {tileHasComments ? undefined : dashboardComments}
+                        <DashboardFiltersIndicator
+                            filterRules={availableDashboardFilterRules}
+                            filterableItems={filterableItems}
+                        />
+                    </>
+                ) : undefined
+            }
             extraMenuItems={editMenuItem}
             {...props}
         >
-            <Box className="non-draggable" style={{ flex: 1, minHeight: 0 }}>
+            <Box className="non-draggable" flex={1} mih={0}>
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}

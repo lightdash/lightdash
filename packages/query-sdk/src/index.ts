@@ -99,6 +99,8 @@ export {
     useVizContext,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
 } from './vizContext';
 export type {
     VizContext,
@@ -107,6 +109,7 @@ export type {
     VizContextPivotDetails,
     VizContextRow,
     VizUnderlyingData,
+    VizDrillDown,
     DataAppVizContextMessage,
     VizContextRequestMessage,
 } from './vizContext';

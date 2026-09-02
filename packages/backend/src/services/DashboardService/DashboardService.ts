@@ -3,6 +3,9 @@ import {
     AbilityAction,
     assertRegisteredAccount,
     BulkActionable,
+    canMutateVerifiedContent,
+    computeContentDraftStaleness,
+    ContentAsCodeType,
     ContentType,
     CreateDashboard,
     CreateDashboardWithCharts,
@@ -45,10 +48,12 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    UserDashboardsSummary,
     type Account,
     type ChartFieldUpdates,
     type ChartVersionDifference,
     type ChartVersionSummary,
+    type ContentDraftStaleness,
     type ContentVerificationInfo,
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
@@ -78,8 +83,17 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
+import {
+    ContentDraftModel,
+    pruneUnchangedDraftFields,
+    type ContentDraft,
+    type ContentDraftBase,
+} from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -97,7 +111,10 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
-import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    spaceContextsByUuid,
+    SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
@@ -114,12 +131,65 @@ type DashboardServiceArguments = {
     savedSqlModel: SavedSqlModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    contentDraftModel: ContentDraftModel;
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
     organizationModel: OrganizationModel;
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+};
+
+type ContentAsCodeDeleteOptions = SoftDeleteOptions & {
+    contentAsCodePolicyChecked?: boolean;
+};
+
+type DashboardDraftOverlay = Partial<
+    Pick<
+        DashboardDAO,
+        | 'name'
+        | 'description'
+        | 'tiles'
+        | 'filters'
+        | 'tabs'
+        | 'config'
+        | 'spaceUuid'
+    >
+>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const assertDashboardDraftOverlay: (
+    draft: unknown,
+) => asserts draft is DashboardDraftOverlay = (draft) => {
+    if (!isRecord(draft)) {
+        throw new Error('Dashboard draft must be an object');
+    }
+    const validators: Record<
+        keyof DashboardDraftOverlay,
+        (value: unknown) => boolean
+    > = {
+        name: (value) => typeof value === 'string',
+        description: (value) => typeof value === 'string',
+        tiles: Array.isArray,
+        filters: isRecord,
+        tabs: Array.isArray,
+        config: isRecord,
+        spaceUuid: (value) => typeof value === 'string',
+    };
+    for (const [field, validate] of Object.entries(validators)) {
+        if (
+            Object.prototype.hasOwnProperty.call(draft, field) &&
+            draft[field] !== undefined &&
+            !validate(draft[field])
+        ) {
+            throw new Error(`Invalid dashboard draft field: ${field}`);
+        }
+    }
 };
 
 export class DashboardService
@@ -156,7 +226,15 @@ export class DashboardService
 
     organizationModel: OrganizationModel;
 
+    organizationMemberProfileModel: OrganizationMemberProfileModel;
+
     schedulerClient: SchedulerClient;
+
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
+    contentDraftModel: ContentDraftModel;
 
     slackClient: SlackClient;
 
@@ -188,9 +266,13 @@ export class DashboardService
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
+                await this.spacePermissionService.resolveAccess(
                     account.user.userUuid,
-                    dashboard.spaceUuid,
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
                 );
 
             if (
@@ -272,10 +354,14 @@ export class DashboardService
         savedSqlModel,
         savedChartService,
         schedulerClient,
+        contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
+        contentDraftModel,
         slackClient,
         projectModel,
         catalogModel,
         organizationModel,
+        organizationMemberProfileModel,
         spacePermissionService,
         contentVerificationModel,
     }: DashboardServiceArguments) {
@@ -295,7 +381,12 @@ export class DashboardService
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
         this.organizationModel = organizationModel;
+        this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.schedulerClient = schedulerClient;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
+        this.contentDraftModel = contentDraftModel;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
@@ -429,15 +520,55 @@ export class DashboardService
         };
     }
 
+    // Draft payloads are untrusted JSON, so narrow instead of casting.
+    private static collectDraftSavedChartUuids(
+        drafts: ContentDraft[],
+    ): Set<string> {
+        const chartUuids = new Set<string>();
+        drafts.forEach(({ draft }) => {
+            const { tiles } = draft as { tiles?: unknown };
+            if (!Array.isArray(tiles)) return;
+            tiles.forEach((tile) => {
+                if (typeof tile !== 'object' || tile === null) return;
+                const { properties } = tile as { properties?: unknown };
+                if (typeof properties !== 'object' || properties === null)
+                    return;
+                const { savedChartUuid } = properties as {
+                    savedChartUuid?: unknown;
+                };
+                if (typeof savedChartUuid === 'string') {
+                    chartUuids.add(savedChartUuid);
+                }
+            });
+        });
+        return chartUuids;
+    }
+
     private async deleteOrphanedChartsInDashboards(
         user: SessionUser,
+        projectUuid: UUID,
         dashboardUuid: UUID,
     ) {
         const orphanedCharts =
             await this.dashboardModel.getOrphanedCharts(dashboardUuid);
 
+        // A chart saved into a dashboard exists before the dashboard version
+        // that references it. When the author's save was held back as a draft,
+        // no version references the chart, so the next published save would
+        // permanently delete a chart the draft still points at.
+        const draftChartUuids = DashboardService.collectDraftSavedChartUuids(
+            await this.contentDraftModel.listOpenForContent(
+                projectUuid,
+                'dashboard',
+                dashboardUuid,
+            ),
+        );
+        const deletableCharts = orphanedCharts.filter(
+            (chart) => !draftChartUuids.has(chart.uuid),
+        );
+
         await Promise.all(
-            orphanedCharts.map(async (chart) => {
+            deletableCharts.map(async (chart) => {
                 try {
                     const deletedChart =
                         await this.savedChartModel.permanentDelete(chart.uuid);
@@ -448,6 +579,8 @@ export class DashboardService
                             savedQueryId: deletedChart.uuid,
                             projectId: deletedChart.projectUuid,
                             softDelete: false,
+                            viaDashboardGrant: false,
+                            grantOnly: false,
                         },
                     });
                 } catch (error) {
@@ -480,7 +613,50 @@ export class DashboardService
         dashboardUuid: UUID;
         user: SessionUser;
     }): Promise<string> {
-        const chartToDuplicate = await this.savedChartModel.get(chartUuid);
+        const chartToDuplicate = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { projectUuid },
+        );
+        // Tile payloads can name any chart uuid; require view access on the
+        // source chart before copying it into the target dashboard. Dashboard
+        // grants only count while the copy stays inside the owning dashboard:
+        // a grant must never move content beyond the dashboard it covers.
+        const staysInOwningDashboard =
+            chartToDuplicate.dashboardUuid === dashboardUuid;
+        const sourceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            staysInOwningDashboard
+                ? {
+                      type: 'dashboard',
+                      dashboardUuid,
+                      spaceUuid: chartToDuplicate.spaceUuid,
+                  }
+                : {
+                      type: 'space',
+                      spaceUuid: chartToDuplicate.spaceUuid,
+                  },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chartToDuplicate.organizationUuid,
+                    projectUuid: chartToDuplicate.projectUuid,
+                    inheritsFromOrgOrProject:
+                        sourceContext.inheritsFromOrgOrProject,
+                    access: sourceContext.access,
+                    metadata: {
+                        spaceUuid: chartToDuplicate.spaceUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the chart being duplicated",
+            );
+        }
         if (!chartToDuplicate.dashboardUuid) {
             throw new ParameterError(
                 'We cannot duplicate a chart that is not part of a dashboard',
@@ -535,7 +711,12 @@ export class DashboardService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(duplicatedChart),
+                ...SavedChartService.getCreateEventProperties(duplicatedChart, {
+                    viaDashboardGrant: sourceContext.access.some(
+                        (row) => row.grantedVia === 'dashboard',
+                    ),
+                    grantOnly: sourceContext.directOnly,
+                }),
                 dashboardId: duplicatedChart.dashboardUuid ?? undefined,
                 duplicated: true,
                 virtualViewId:
@@ -561,11 +742,15 @@ export class DashboardService
         const spaceUuids = [
             ...new Set(dashboards.map((dashboard) => dashboard.spaceUuid)),
         ];
-        const spaceContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
+        const resolvedSpaceContexts =
+            await this.spacePermissionService.resolveAccessBatch(
                 user.userUuid,
-                spaceUuids,
+                spaceUuids.map((spaceUuid) => ({
+                    type: 'space' as const,
+                    spaceUuid,
+                })),
             );
+        const spaceContexts = spaceContextsByUuid(resolvedSpaceContexts);
 
         const dashboardsWithContext = dashboards.flatMap((dashboard) => {
             const spaceContext = spaceContexts[dashboard.spaceUuid];
@@ -605,10 +790,11 @@ export class DashboardService
         );
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -704,6 +890,24 @@ export class DashboardService
         return this.analyticsModel.getDashboardViewStats(dashboard.uuid);
     }
 
+    // The published dashboard with the caller's own unpublished draft applied
+    // on top. Only interactive read paths should use this: `getByIdOrSlug`
+    // stays published-only so machine consumers — scheduled deliveries,
+    // exports, Google Sheets syncs, AI tools — cannot serve one user's draft
+    // to everyone by forgetting to opt out.
+    async getByIdOrSlugForViewer(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<Dashboard> {
+        const dashboard = await this.getByIdOrSlug(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+        return this.applyOpenDraftOverlay(user, dashboard);
+    }
+
     async getDashboardCharts(
         user: SessionUser,
         projectUuid: UUID,
@@ -715,11 +919,14 @@ export class DashboardService
             dashboardUuidOrSlug,
             { projectUuid },
         );
-        const spaceContext =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -953,9 +1160,9 @@ export class DashboardService
                 }
 
                 const spaceAccessContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        savedChart.spaceUuid,
+                        { type: 'space', spaceUuid: savedChart.spaceUuid },
                     );
                 const auditedAbility = this.createAuditedAbility(user);
                 if (
@@ -1009,9 +1216,9 @@ export class DashboardService
                 }
 
                 const spaceAccessContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        savedSqlChart.space.uuid,
+                        { type: 'space', spaceUuid: savedSqlChart.space.uuid },
                     );
                 const auditedAbility = this.createAuditedAbility(user);
                 if (
@@ -1120,10 +1327,10 @@ export class DashboardService
         }
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                space.uuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: space.uuid,
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1145,6 +1352,14 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+        if (dashboard.ownerUserUuid) {
+            // Throws NotFoundError when the user is not an org member
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                space.organizationUuid,
+                dashboard.ownerUserUuid,
+            );
+        }
+
         const createDashboard = {
             ...dashboard,
             slug: generateSlug(dashboard.name),
@@ -1170,6 +1385,108 @@ export class DashboardService
             inheritsFromOrgOrProject,
             access,
         };
+    }
+
+    /**
+     * Summary of dashboards owned by a user across all projects, used by the
+     * offboarding flow when deleting an organization member. The caller must
+     * be able to manage dashboards in every project where the user owns any.
+     */
+    async getUserDashboardsSummary(
+        user: SessionUser,
+        targetUserUuid: UUID,
+    ): Promise<UserDashboardsSummary> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = user;
+
+        // Throws NotFoundError when the user is not an org member
+        const targetMember =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                targetUserUuid,
+            );
+
+        const summary =
+            await this.dashboardModel.getDashboardsSummaryByOwner(
+                targetUserUuid,
+            );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const accessResults = auditedAbility.canBulk(
+            'manage',
+            summary.byProject.map((project) =>
+                subject('Dashboard', {
+                    organizationUuid: targetMember.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.projectName,
+                    },
+                }),
+            ),
+        );
+        const projectsWithoutPermission = summary.byProject
+            .filter((_, index) => !accessResults[index])
+            .map((project) => project.projectName);
+
+        if (projectsWithoutPermission.length > 0) {
+            throw new ForbiddenError(
+                `You do not have permission to manage dashboards in: ${projectsWithoutPermission.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        return summary;
+    }
+
+    /**
+     * Transfers ownership of all dashboards owned by one user to another,
+     * used to keep ownership continuity when deleting an organization member.
+     */
+    async reassignUserDashboards(
+        user: SessionUser,
+        fromUserUuid: UUID,
+        newOwnerUserUuid: UUID,
+    ): Promise<{ reassignedCount: number }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = user;
+
+        // Also validates fromUser membership and the caller's per-project access
+        const summary = await this.getUserDashboardsSummary(user, fromUserUuid);
+
+        if (summary.totalCount === 0) {
+            return { reassignedCount: 0 };
+        }
+
+        // Throws NotFoundError when the new owner is not an org member
+        await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+            organizationUuid,
+            newOwnerUserUuid,
+        );
+
+        const reassignedCount = await this.dashboardModel.updateOwnerByUser(
+            fromUserUuid,
+            newOwnerUserUuid,
+            summary.byProject.map((project) => project.projectUuid),
+        );
+
+        this.analytics.track({
+            event: 'dashboard.ownership_reassigned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                fromUserUuid,
+                newOwnerUserUuid,
+                reassignedCount,
+            },
+        });
+
+        return { reassignedCount };
     }
 
     async duplicateFromAccount(
@@ -1208,10 +1525,10 @@ export class DashboardService
             );
         }
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -1219,10 +1536,10 @@ export class DashboardService
         };
         const targetSpaceUuid = options?.targetSpaceUuid ?? dashboard.spaceUuid;
         const targetSpaceAccess =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                targetSpaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'space',
+                spaceUuid: targetSpaceUuid,
+            });
         if (targetSpaceAccess.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'Target space does not belong to this project',
@@ -1457,6 +1774,259 @@ export class DashboardService
         return this.update(user, dashboardUuidOrSlug, dashboard, options);
     }
 
+    private async canManageContentAsCode(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<boolean> {
+        const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'manage',
+            subject('ContentAsCode', {
+                projectUuid: project.projectUuid,
+                organizationUuid: project.organizationUuid,
+                upstreamProjectUuid: project.upstreamProjectUuid,
+                type: project.type,
+                createdByUserUuid: project.createdByUserUuid,
+                metadata: { slug: '' },
+            }),
+        );
+    }
+
+    private async assertCanDeleteGitBackedDashboard(
+        user: SessionUser,
+        dashboard: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+    ): Promise<void> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            dashboard.projectUuid,
+        );
+        if (!settings?.syncEnabled) return;
+
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            dashboard.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            dashboard.slug,
+        );
+        if (snapshot === undefined) return;
+        if (await this.canManageContentAsCode(user, dashboard.projectUuid)) {
+            return;
+        }
+
+        throw new ForbiddenError(
+            'This dashboard is managed by Content as Code and can only be deleted by a Content as Code manager.',
+            { contentAsCodeManaged: true },
+        );
+    }
+
+    private static mergeDraftIntoDashboard<T extends DashboardDAO>(
+        dashboard: T,
+        draft: unknown,
+    ): T {
+        assertDashboardDraftOverlay(draft);
+        const fields = draft;
+        return {
+            ...dashboard,
+            ...(fields.name !== undefined && { name: fields.name }),
+            ...(fields.description !== undefined && {
+                description: fields.description,
+            }),
+            ...(fields.tiles !== undefined && { tiles: fields.tiles }),
+            ...(fields.filters !== undefined && { filters: fields.filters }),
+            ...(fields.tabs !== undefined && { tabs: fields.tabs }),
+            ...(fields.config !== undefined && { config: fields.config }),
+            ...(fields.spaceUuid !== undefined && {
+                spaceUuid: fields.spaceUuid,
+            }),
+        };
+    }
+
+    // Drafts mode: with content_as_code.sync on, every save of GIT-BACKED
+    // content becomes an unpublished draft that only its author sees, for
+    // any role; the repo is the only publisher, through a reviewed
+    // write-back and an upload. Content never uploaded as code (no
+    // last-applied snapshot row) publishes normally — drafts exist to
+    // protect the repo contract, not to intercept every save in the project.
+    private async maybeStoreDraft(
+        user: SessionUser,
+        existingDashboardDao: DashboardDAO,
+        dashboardFields: object,
+    ): Promise<Dashboard | undefined> {
+        const base = await this.resolveDraftBase(existingDashboardDao);
+        if (base === null) return undefined;
+        return this.storeDraft(
+            user,
+            existingDashboardDao,
+            dashboardFields,
+            base,
+        );
+    }
+
+    // The upload snapshot a draft starts from, or null when the save should
+    // publish normally
+    private async resolveDraftBase(
+        existingDashboardDao: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+    ): Promise<ContentDraftBase | null> {
+        const settings = await this.contentAsCodeProjectSettingsModel.get(
+            existingDashboardDao.projectUuid,
+        );
+        if (!settings?.syncEnabled) return null;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            existingDashboardDao.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            existingDashboardDao.slug,
+        );
+        if (snapshot === undefined) return null;
+        return { snapshot: snapshot.snapshot, hash: snapshot.snapshotHash };
+    }
+
+    private async storeDraft(
+        user: SessionUser,
+        existingDashboardDao: DashboardDAO,
+        dashboardFields: object,
+        base: ContentDraftBase,
+    ): Promise<Dashboard> {
+        DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            dashboardFields,
+        );
+        const stored = await this.contentDraftModel.upsertOpenDraft({
+            projectUuid: existingDashboardDao.projectUuid,
+            contentType: 'dashboard',
+            contentUuid: existingDashboardDao.uuid,
+            slug: existingDashboardDao.slug,
+            authorUserUuid: user.userUuid,
+            draft: pruneUnchangedDraftFields(
+                existingDashboardDao,
+                dashboardFields,
+            ),
+            base,
+        });
+        const overlaid = DashboardService.mergeDraftIntoDashboard(
+            existingDashboardDao,
+            stored.draft,
+        );
+        const space = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: overlaid.spaceUuid },
+        );
+        return {
+            ...overlaid,
+            inheritsFromOrgOrProject: space.inheritsFromOrgOrProject,
+            access: space.access,
+            hasUnpublishedChanges: true,
+        };
+    }
+
+    private async applyOpenDraftOverlay(
+        user: SessionUser,
+        dashboard: Dashboard,
+    ): Promise<Dashboard> {
+        try {
+            const settings = await this.contentAsCodeProjectSettingsModel.get(
+                dashboard.projectUuid,
+            );
+            if (!settings?.syncEnabled) return dashboard;
+            const draft = await this.contentDraftModel.findOpenDraft(
+                dashboard.projectUuid,
+                'dashboard',
+                dashboard.uuid,
+                user.userUuid,
+            );
+            if (draft) {
+                try {
+                    const overlaid = DashboardService.mergeDraftIntoDashboard(
+                        dashboard,
+                        draft.draft,
+                    );
+                    const draftStaleness = await this.getDraftStaleness(
+                        dashboard,
+                        draft,
+                    );
+                    return {
+                        ...overlaid,
+                        hasUnpublishedChanges: true,
+                        ...(draftStaleness && { draftStaleness }),
+                    };
+                } catch (error) {
+                    this.logger.warn(
+                        'Draft overlay failed; serving published dashboard',
+                        {
+                            projectUuid: dashboard.projectUuid,
+                            dashboardUuid: dashboard.uuid,
+                            draftUuid: draft.uuid,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    );
+                    return {
+                        ...dashboard,
+                        draftOverlayError: {
+                            code: 'invalid_dashboard_draft',
+                            draftUuid: draft.uuid,
+                        },
+                    };
+                }
+            }
+            const dismissedDraft =
+                await this.contentDraftModel.findLatestDismissedDraft(
+                    dashboard.projectUuid,
+                    'dashboard',
+                    dashboard.uuid,
+                    user.userUuid,
+                );
+            const dashboardForViewer = dismissedDraft
+                ? { ...dashboard, dismissedDraftUuid: dismissedDraft.uuid }
+                : dashboard;
+            // Reviewers get an entry point when others have open drafts here
+            if (
+                await this.canManageContentAsCode(user, dashboard.projectUuid)
+            ) {
+                const awaiting =
+                    await this.contentDraftModel.countOpenForContent(
+                        dashboard.projectUuid,
+                        'dashboard',
+                        dashboard.uuid,
+                        user.userUuid,
+                    );
+                if (awaiting > 0) {
+                    return {
+                        ...dashboardForViewer,
+                        draftsAwaitingReview: awaiting,
+                    };
+                }
+            }
+            return dashboardForViewer;
+        } catch (error) {
+            this.logger.warn('Draft overlay failed', error);
+            return dashboard;
+        }
+    }
+
+    // The repo moved past the snapshot the draft started from
+    private async getDraftStaleness(
+        dashboard: Pick<DashboardDAO, 'projectUuid' | 'slug'>,
+        draft: ContentDraft,
+    ): Promise<ContentDraftStaleness | null> {
+        if (!draft.baseSnapshotHash) return null;
+        const current = await this.contentAsCodeSnapshotModel.get(
+            dashboard.projectUuid,
+            ContentAsCodeType.DASHBOARD,
+            dashboard.slug,
+        );
+        if (!current || current.snapshotHash === draft.baseSnapshotHash) {
+            return null;
+        }
+        return computeContentDraftStaleness({
+            draftUuid: draft.uuid,
+            contentType: 'dashboard',
+            base: draft.baseSnapshot,
+            current: current.snapshot,
+            overlay: draft.draft,
+        });
+    }
+
     async update(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1471,11 +2041,14 @@ export class DashboardService
         );
         const { preserveVerification, ...dashboardFields } = dashboard;
 
-        const currentSpace =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                existingDashboardDao.spaceUuid,
-            );
+        const currentSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: existingDashboardDao.uuid,
+                spaceUuid: existingDashboardDao.spaceUuid,
+            },
+        );
         const auditedAbility = this.createAuditedAbility(user);
         const canUpdateDashboardInCurrentSpace = auditedAbility.can(
             'update',
@@ -1491,6 +2064,20 @@ export class DashboardService
             );
         }
 
+        await this.assertCanMutateVerifiedDashboard({
+            user,
+            dashboardUuid: existingDashboardDao.uuid,
+            projectUuid: existingDashboardDao.projectUuid,
+            organizationUuid: existingDashboardDao.organizationUuid,
+        });
+
+        const draftResult = await this.maybeStoreDraft(
+            user,
+            existingDashboardDao,
+            dashboardFields,
+        );
+        if (draftResult) return draftResult;
+
         const verificationAfterUpdate =
             await this.getVerificationAfterDashboardUpdate({
                 user,
@@ -1503,9 +2090,9 @@ export class DashboardService
         if (isDashboardUnversionedFields(dashboardFields)) {
             if (dashboardFields.spaceUuid) {
                 const newSpace =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboardFields.spaceUuid,
+                        { type: 'space', spaceUuid: dashboardFields.spaceUuid },
                     );
                 const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
@@ -1533,6 +2120,14 @@ export class DashboardService
                 }
             }
 
+            if (dashboardFields.ownerUserUuid) {
+                // Throws NotFoundError when the user is not an org member
+                await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                    existingDashboardDao.organizationUuid,
+                    dashboardFields.ownerUserUuid,
+                );
+            }
+
             const updatedDashboard = await this.dashboardModel.update(
                 existingDashboardDao.uuid,
                 {
@@ -1540,6 +2135,7 @@ export class DashboardService
                     description: dashboardFields.description,
                     spaceUuid: dashboardFields.spaceUuid,
                     colorPaletteUuid: dashboardFields.colorPaletteUuid,
+                    ownerUserUuid: dashboardFields.ownerUserUuid,
                 },
             );
 
@@ -1687,6 +2283,7 @@ export class DashboardService
             });
             await this.deleteOrphanedChartsInDashboards(
                 user,
+                existingDashboardDao.projectUuid,
                 existingDashboardDao.uuid,
             );
         }
@@ -1701,11 +2298,14 @@ export class DashboardService
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
         );
-        const updatedSpace =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                updatedNewDashboard.spaceUuid,
-            );
+        const updatedSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: updatedNewDashboard.uuid,
+                spaceUuid: updatedNewDashboard.spaceUuid,
+            },
+        );
 
         return {
             ...updatedNewDashboard,
@@ -1755,6 +2355,35 @@ export class DashboardService
         return null;
     }
 
+    private async assertCanMutateVerifiedDashboard({
+        user,
+        dashboardUuid,
+        projectUuid,
+        organizationUuid,
+    }: {
+        user: SessionUser;
+        dashboardUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+        if (
+            !canMutateVerifiedContent(
+                this.createAuditedAbility(user),
+                { organizationUuid, projectUuid },
+                verification,
+                user.userUuid,
+            )
+        ) {
+            throw new ForbiddenError(
+                'This dashboard is verified. You need permission to edit verified content, or ask an admin to unverify it first.',
+            );
+        }
+    }
+
     async togglePinning(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
@@ -1762,10 +2391,11 @@ export class DashboardService
         const existingDashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                existingDashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: existingDashboardDao.uuid,
+                spaceUuid: existingDashboardDao.spaceUuid,
+            });
         const existingDashboard = {
             ...existingDashboardDao,
             inheritsFromOrgOrProject,
@@ -1849,15 +2479,19 @@ export class DashboardService
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
         const auditedAbility = this.createAuditedAbility(user);
-        const userHasAccessToDashboards = await Promise.all(
+        const dashboardContexts = await Promise.all(
             dashboards.map(async (dashboardToUpdate) => {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     dashboardToUpdate.uuid,
                 );
                 const currentSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboard.spaceUuid,
+                        {
+                            type: 'dashboard',
+                            dashboardUuid: dashboard.uuid,
+                            spaceUuid: dashboard.spaceUuid,
+                        },
                     );
                 const canUpdateDashboardInCurrentSpace = auditedAbility.can(
                     'update',
@@ -1867,9 +2501,12 @@ export class DashboardService
                     }),
                 );
                 const newSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboardToUpdate.spaceUuid,
+                        {
+                            type: 'space',
+                            spaceUuid: dashboardToUpdate.spaceUuid,
+                        },
                     );
                 const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
@@ -1878,39 +2515,77 @@ export class DashboardService
                         metadata: { dashboardUuid: dashboardToUpdate.uuid },
                     }),
                 );
-                return (
-                    canUpdateDashboardInCurrentSpace &&
-                    canUpdateDashboardInNewSpace
-                );
+                return {
+                    dashboardToUpdate,
+                    dashboard,
+                    hasAccess:
+                        canUpdateDashboardInCurrentSpace &&
+                        canUpdateDashboardInNewSpace,
+                };
             }),
         );
 
-        if (userHasAccessToDashboards.some((hasAccess) => !hasAccess)) {
+        if (dashboardContexts.some(({ hasAccess }) => !hasAccess)) {
             throw new ForbiddenError(
                 "You don't have access to some of the dashboards you are trying to update.",
             );
         }
 
-        this.analytics.track({
-            event: 'dashboard.updated_multiple',
-            userId: user.userUuid,
-            properties: {
-                dashboardIds: dashboards.map((dashboard) => dashboard.uuid),
-                projectId: projectUuid,
-            },
-        });
-
-        const updatedDashboards = await this.dashboardModel.updateMultiple(
-            projectUuid,
-            dashboards,
+        await Promise.all(
+            dashboardContexts.map(async ({ dashboard }) => {
+                await this.assertCanMutateVerifiedDashboard({
+                    user,
+                    dashboardUuid: dashboard.uuid,
+                    projectUuid: dashboard.projectUuid,
+                    organizationUuid: dashboard.organizationUuid,
+                });
+            }),
         );
+
+        const draftBases = await Promise.all(
+            dashboardContexts.map(({ dashboard }) =>
+                this.resolveDraftBase(dashboard),
+            ),
+        );
+        // Draft upserts are idempotent and happen before the transactional
+        // published update, so a retry cannot duplicate or partially publish.
+        const draftResults = await Promise.all(
+            dashboardContexts.map(
+                async ({ dashboardToUpdate, dashboard }, index) => {
+                    const base = draftBases[index];
+                    return base === null
+                        ? undefined
+                        : this.storeDraft(
+                              user,
+                              dashboard,
+                              dashboardToUpdate,
+                              base,
+                          );
+                },
+            ),
+        );
+
+        const directUpdates = dashboards.filter(
+            (_dashboard, index) => draftBases[index] === null,
+        );
+        const updatedDashboards =
+            directUpdates.length > 0
+                ? await this.dashboardModel.updateMultiple(
+                      projectUuid,
+                      directUpdates,
+                  )
+                : [];
 
         const updatedDashboardsWithSpacesAccess = updatedDashboards.map(
             async (dashboard) => {
                 const dashboardSpaceContext =
-                    await this.spacePermissionService.getSpaceAccessContext(
+                    await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        dashboard.spaceUuid,
+                        {
+                            type: 'dashboard',
+                            dashboardUuid: dashboard.uuid,
+                            spaceUuid: dashboard.spaceUuid,
+                        },
                     );
                 return {
                     ...dashboard,
@@ -1921,13 +2596,32 @@ export class DashboardService
             },
         );
 
-        return Promise.all(updatedDashboardsWithSpacesAccess);
+        const directResults = await Promise.all(
+            updatedDashboardsWithSpacesAccess,
+        );
+        const directResultsByUuid = new Map(
+            directResults.map((dashboard) => [dashboard.uuid, dashboard]),
+        );
+        this.analytics.track({
+            event: 'dashboard.updated_multiple',
+            userId: user.userUuid,
+            properties: {
+                dashboardIds: dashboards.map((dashboard) => dashboard.uuid),
+                projectId: projectUuid,
+            },
+        });
+        return dashboards.map((dashboard, index) => {
+            const result =
+                draftResults[index] ?? directResultsByUuid.get(dashboard.uuid);
+            if (!result) throw new NotFoundError('Dashboard not found');
+            return result;
+        });
     }
 
     async delete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions & { projectUuid?: string },
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
@@ -1940,10 +2634,11 @@ export class DashboardService
 
         if (!options?.bypassPermissions) {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid: dashboardToDelete.uuid,
                     spaceUuid,
-                );
+                });
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -1961,7 +2656,16 @@ export class DashboardService
                     "You don't have access to the space this dashboard belongs to",
                 );
             }
+
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboardToDelete.uuid,
+                projectUuid,
+                organizationUuid,
+            });
         }
+
+        await this.assertCanDeleteGitBackedDashboard(user, dashboardToDelete);
 
         if (hasChartsInDashboard(dashboardToDelete)) {
             try {
@@ -2016,10 +2720,12 @@ export class DashboardService
         if (this.lightdashConfig.softDelete.enabled) {
             await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         } else {
             await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
+                contentAsCodePolicyChecked: true,
             });
         }
 
@@ -2037,7 +2743,7 @@ export class DashboardService
     async softDelete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -2049,10 +2755,11 @@ export class DashboardService
             });
         } else {
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    dashboard.spaceUuid,
-                );
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                });
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -2070,6 +2777,17 @@ export class DashboardService
                     "You don't have access to the space this dashboard belongs to",
                 );
             }
+
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboard.uuid,
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            });
+        }
+
+        if (!options?.contentAsCodePolicyChecked) {
+            await this.assertCanDeleteGitBackedDashboard(user, dashboard);
         }
 
         const deletedDashboard = await this.dashboardModel.softDelete(
@@ -2146,7 +2864,7 @@ export class DashboardService
     async permanentDelete(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        options?: SoftDeleteOptions,
+        options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
         // 'any' so this works whether called directly on a soft-deleted
         // dashboard (restore-then-purge flow) or via `delete()` on a
@@ -2175,6 +2893,10 @@ export class DashboardService
             ) {
                 throw new ForbiddenError();
             }
+        }
+
+        if (!options?.contentAsCodePolicyChecked) {
+            await this.assertCanDeleteGitBackedDashboard(user, dashboard);
         }
 
         await this.dashboardModel.permanentDelete(dashboard.uuid);
@@ -2380,10 +3102,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const dashboard = {
             ...dashboardDao,
             inheritsFromOrgOrProject,
@@ -2445,9 +3168,13 @@ export class DashboardService
             throw new NotFoundError('Dashboard not found');
         }
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
+            await this.spacePermissionService.resolveAccess(
                 actor.user.userUuid,
-                dashboard.spaceUuid,
+                {
+                    type: 'dashboard',
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                },
             );
 
         const auditedAbility = this.createAuditedAbility(actor.user);
@@ -2469,11 +3196,10 @@ export class DashboardService
         }
 
         if (resource.spaceUuid && dashboard.spaceUuid !== resource.spaceUuid) {
-            const newSpace =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    actor.user.userUuid,
-                    resource.spaceUuid,
-                );
+            const newSpace = await this.spacePermissionService.resolveAccess(
+                actor.user.userUuid,
+                { type: 'space', spaceUuid: resource.spaceUuid },
+            );
 
             const isActorAllowedToPerformActionInNewSpace = auditedAbility.can(
                 action,
@@ -2501,10 +3227,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -2550,10 +3277,11 @@ export class DashboardService
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -2699,10 +3427,11 @@ export class DashboardService
         }
 
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboardDao.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboardDao.uuid,
+                spaceUuid: dashboardDao.spaceUuid,
+            });
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -2842,6 +3571,15 @@ export class DashboardService
                 { user, projectUuid },
                 { dashboardUuid, spaceUuid: targetSpaceUuid },
             );
+
+            const dashboard =
+                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.assertCanMutateVerifiedDashboard({
+                user,
+                dashboardUuid: dashboard.uuid,
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            });
         }
         await this.dashboardModel.moveToSpace(
             {

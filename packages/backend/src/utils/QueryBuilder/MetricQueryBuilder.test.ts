@@ -19,6 +19,7 @@ import {
     UnitOfTime,
     VizAggregationOptions,
     VizIndexType,
+    WeekDay,
     type CompiledDimension,
     type CompiledMetric,
     type MetricFilterRule,
@@ -1137,6 +1138,69 @@ describe('Query builder', () => {
         expect(query).toContain("'mock@lightdash.com' = 'mock@lightdash.com'");
         expect(query).toContain('"table1_user_email_status"');
         expect(query).toContain('"table1_user_email_metric"');
+    });
+
+    test('Should replace user attributes in a dimension used only as a filter target', () => {
+        const explore: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        localized_shared: {
+                            type: DimensionType.STRING,
+                            name: 'localized_shared',
+                            label: 'localized_shared',
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `CASE WHEN \${lightdash.attributes.department} = 'ops' THEN \${ld.user.email} ELSE \${TABLE}.shared END`,
+                            compiledSql: `CASE WHEN \${lightdash.attributes.department} = 'ops' THEN \${ld.user.email} ELSE "table1".shared END`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+        const compiledMetricQuery: CompiledMetricQuery = {
+            ...METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'filter',
+                            target: {
+                                fieldId: 'table1_localized_shared',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['mock@lightdash.com'],
+                        },
+                    ],
+                },
+            },
+        };
+        const buildFilteredQuery = (userAttributes: Record<string, string[]>) =>
+            buildQuery({
+                explore,
+                compiledMetricQuery,
+                warehouseSqlBuilder: warehouseClientMock,
+                userAttributes,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query;
+
+        const query = buildFilteredQuery({ department: ['ops'] });
+
+        expect(query).not.toContain('${lightdash.attributes.department}');
+        expect(query).not.toContain('${ld.user.email}');
+        expect(replaceWhitespace(query)).toContain(
+            `(CASE WHEN 'ops' = 'ops' THEN 'mock@lightdash.com' ELSE "table1".shared END) IN ('mock@lightdash.com')`,
+        );
+        expect(() => buildFilteredQuery({})).toThrow(ForbiddenError);
     });
 
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
@@ -7106,9 +7170,8 @@ describe('RAW time frame naive-column rebase', () => {
         expect(query).not.toContain('::timestamptz');
     });
 
-    // The filter LHS must be rebased like the SELECT — a bare predicate would
-    // compare the naive wall clock against the instant the SELECT displays.
-    // Flag-gated: the wrap defeats partition pruning.
+    // Filter LHS keeps the bare column (wrapping it defeats partition
+    // pruning); the literal side carries any conversion.
     const rawFilterQuery = (values: string[]): CompiledMetricQuery => ({
         ...rawQuery,
         filters: {
@@ -7126,47 +7189,6 @@ describe('RAW time frame naive-column rebase', () => {
         },
     });
 
-    test('RAW filter LHS is rebased to match the SELECT (Postgres)', () => {
-        const { query } = buildQuery({
-            explore: buildRawExplore(),
-            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: 'Asia/Tokyo',
-            useTimezoneAwareDateTrunc: true,
-            columnTimezone: 'Asia/Tokyo',
-            rebaseRawTimestampFilters: true,
-        });
-        expect(query).toContain(
-            `("events".occurred_at)::timestamptz AS "events_occurred_at_raw"`,
-        );
-        const whereClause = query.slice(query.indexOf('WHERE'));
-        // LHS is the rebased instant; the offset literal now compares correctly.
-        expect(whereClause).toContain(
-            `(("events".occurred_at)::timestamptz) >`,
-        );
-        expect(whereClause).toContain(`('2024-01-15 02:00:00+00:00')`);
-    });
-
-    test('RAW filter LHS is rebased and the literal pinned to UTC (BigQuery)', () => {
-        const { query } = buildQuery({
-            explore: buildRawExplore(SupportedDbtAdapter.BIGQUERY),
-            compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
-            warehouseSqlBuilder: bigqueryClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: 'Asia/Tokyo',
-            useTimezoneAwareDateTrunc: true,
-            columnTimezone: 'Asia/Tokyo',
-            rebaseRawTimestampFilters: true,
-        });
-        const whereClause = query.slice(query.indexOf('WHERE'));
-        expect(whereClause).toContain(`(TIMESTAMP("events".occurred_at)) >`);
-        // Offset-less literal pinned to UTC so the job time_zone can't shift it.
-        expect(whereClause).toContain(
-            `TIMESTAMP('2024-01-15 02:00:00', 'UTC')`,
-        );
-    });
-
     test('convert_timezone: false keeps the RAW filter bare (matches the bare SELECT)', () => {
         const { query } = buildQuery({
             explore: buildRawExplore(SupportedDbtAdapter.POSTGRES, true),
@@ -7176,12 +7198,11 @@ describe('RAW time frame naive-column rebase', () => {
             timezone: 'Asia/Tokyo',
             useTimezoneAwareDateTrunc: true,
             columnTimezone: 'Asia/Tokyo',
-            rebaseRawTimestampFilters: true,
         });
         expect(query).not.toContain('::timestamptz');
     });
 
-    test('flag off keeps the RAW filter bare while the SELECT is rebased', () => {
+    test('RAW filter stays bare while the SELECT is rebased', () => {
         const { query } = buildQuery({
             explore: buildRawExplore(),
             compiledMetricQuery: rawFilterQuery(['2024-01-15 02:00:00']),
@@ -8271,6 +8292,481 @@ describe('Session-independent explicit path (per-column, no session pin)', () =>
         expect(query).toContain(
             `CAST(to_utc_timestamp("events".occurred_at, current_timezone()) AS TIMESTAMP_NTZ)`,
         );
+    });
+
+    test('BigQuery known-aware day grain emits the prunable DATE(col, tz) in SELECT and filter LHS', () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.BIGQUERY,
+            'aware',
+        );
+        const args = gateArgs(
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            explore,
+        );
+        const { query } = buildQuery({
+            ...args,
+            compiledMetricQuery: {
+                ...args.compiledMetricQuery,
+                filters: filterOn('events_occurred_at_day'),
+            },
+        });
+        const prunable = `DATE("events".occurred_at, 'Asia/Tokyo')`;
+        // Selected dim and filter LHS both carry the direct prunable form.
+        expect(query.split(prunable).length - 1).toBeGreaterThanOrEqual(2);
+        expect(query).not.toContain('DATETIME_TRUNC');
+    });
+
+    test('BigQuery unknown-domain day grain keeps the DATETIME round-trip', () => {
+        const { query } = buildQuery(
+            gateArgs(
+                SupportedDbtAdapter.BIGQUERY,
+                bigqueryClientMock,
+                buildNaiveExplore(SupportedDbtAdapter.BIGQUERY),
+            ),
+        );
+        expect(query).toContain(
+            `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), 'Asia/Tokyo'), DAY) AS DATE)`,
+        );
+    });
+
+    describe('BigQuery prunable DATE-domain swap (known-aware, non-UTC)', () => {
+        const TZ = 'Asia/Tokyo';
+        const DAY = `DATE("events".occurred_at, '${TZ}')`;
+        const WEEK = `DATE_TRUNC(${DAY}, WEEK(MONDAY))`;
+        const MONTH = `DATE_TRUNC(${DAY}, MONTH)`;
+        const LEGACY_DAY = `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), '${TZ}'), DAY) AS DATE)`;
+
+        const dateDim = (
+            name: string,
+            timeInterval: TimeFrames,
+        ): CompiledDimension => ({
+            type: DimensionType.DATE,
+            name,
+            label: name,
+            table: 'events',
+            tableLabel: 'events',
+            fieldType: FieldType.DIMENSION,
+            sql: `DATE_TRUNC(\${TABLE}.occurred_at, ${timeInterval})`,
+            compiledSql: `DATE_TRUNC("events".occurred_at, ${timeInterval})`,
+            tablesReferences: ['events'],
+            hidden: false,
+            timeInterval,
+            timeIntervalBaseDimensionName: 'occurred_at',
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        });
+
+        const awareExplore = (): Explore =>
+            withExtraDimension(
+                withExtraDimension(
+                    buildNaiveExplore(SupportedDbtAdapter.BIGQUERY, 'aware'),
+                    dateDim('occurred_at_week', TimeFrames.WEEK),
+                ),
+                dateDim('occurred_at_month', TimeFrames.MONTH),
+            );
+
+        const bqClient = {
+            ...bigqueryClientMock,
+            getStartOfWeek: () => WeekDay.MONDAY,
+        };
+
+        const rule = (
+            fieldId: string,
+            operator: FilterOperator,
+            values: unknown[],
+            settings?: { unitOfTime: UnitOfTime; completed: boolean },
+        ): CompiledMetricQuery['filters'] => ({
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'rule-1',
+                        target: { fieldId },
+                        operator,
+                        values,
+                        ...(settings ? { settings } : {}),
+                    },
+                ],
+            },
+        });
+
+        const compile = (
+            filters: CompiledMetricQuery['filters'],
+            explore: Explore = awareExplore(),
+            overrides: Partial<Parameters<typeof buildQuery>[0]> = {},
+            dimensions: string[] = ['events_occurred_at_day'],
+        ) => {
+            const args = gateArgs(
+                SupportedDbtAdapter.BIGQUERY,
+                bqClient,
+                explore,
+                overrides,
+            );
+            return buildQuery({
+                ...args,
+                compiledMetricQuery: {
+                    ...args.compiledMetricQuery,
+                    dimensions,
+                    filters,
+                },
+            }).query;
+        };
+
+        const whereClause = (query: string): string =>
+            query.slice(query.indexOf('WHERE'));
+
+        test.each([
+            [
+                FilterOperator.EQUALS,
+                ['2024-09-08'],
+                `(${DAY}) = ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.NOT_EQUALS,
+                ['2024-09-08'],
+                `(${DAY}) != ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.LESS_THAN,
+                ['2024-09-08'],
+                `(${DAY}) < ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.LESS_THAN_OR_EQUAL,
+                ['2024-09-08'],
+                `(${DAY}) <= ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.GREATER_THAN,
+                ['2024-09-08'],
+                `(${DAY}) > ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.GREATER_THAN_OR_EQUAL,
+                ['2024-09-08'],
+                `(${DAY}) >= ('2024-09-08')`,
+            ],
+            [
+                FilterOperator.IN_BETWEEN,
+                ['2024-09-01', '2024-09-08'],
+                `(${DAY}) >= ('2024-09-01') AND (${DAY}) <= ('2024-09-08')`,
+            ],
+        ])(
+            'absolute %s on day grain uses DATE(col, tz)',
+            (operator, values, expected) => {
+                const query = compile(
+                    rule('events_occurred_at_day', operator, values),
+                );
+                expect(whereClause(query)).toContain(expected);
+                expect(query).not.toContain('DATETIME_TRUNC');
+            },
+        );
+
+        test('multi-value equals renders an IN over DATE(col, tz)', () => {
+            const query = compile(
+                rule('events_occurred_at_day', FilterOperator.EQUALS, [
+                    '2024-09-08',
+                    '2024-09-10',
+                ]),
+            );
+            expect(whereClause(query)).toContain(
+                `(${DAY}) IN (('2024-09-08'),('2024-09-10'))`,
+            );
+        });
+
+        test('week grain keeps the configured start of week inside DATE_TRUNC', () => {
+            const query = compile(
+                rule('events_occurred_at_week', FilterOperator.EQUALS, [
+                    '2024-09-02',
+                ]),
+                awareExplore(),
+                {},
+                ['events_occurred_at_week'],
+            );
+            expect(whereClause(query)).toContain(`(${WEEK}) = ('2024-09-02')`);
+            expect(query).toContain(`${WEEK} AS \`events_occurred_at_week\``);
+        });
+
+        test('unconfigured start of week emits bare WEEK', () => {
+            const query = compile(
+                rule('events_occurred_at_week', FilterOperator.EQUALS, [
+                    '2024-09-02',
+                ]),
+                awareExplore(),
+                {
+                    warehouseSqlBuilder: {
+                        ...bigqueryClientMock,
+                        getStartOfWeek: () => undefined,
+                    },
+                },
+            );
+            expect(whereClause(query)).toContain(
+                `(DATE_TRUNC(${DAY}, WEEK)) = ('2024-09-02')`,
+            );
+        });
+
+        test('month grain uses DATE_TRUNC(DATE(col, tz), MONTH) in SELECT, GROUP BY and WHERE', () => {
+            const query = compile(
+                rule('events_occurred_at_month', FilterOperator.EQUALS, [
+                    '2024-09-01',
+                ]),
+                awareExplore(),
+                {},
+                ['events_occurred_at_month'],
+            );
+            expect(query).toContain(`${MONTH} AS \`events_occurred_at_month\``);
+            expect(whereClause(query)).toContain(`(${MONTH}) = ('2024-09-01')`);
+            expect(query).not.toContain('DATETIME_TRUNC');
+        });
+
+        describe('relative windows reuse the DATE renderer on the prunable LHS', () => {
+            beforeEach(() => {
+                vi.useFakeTimers();
+                vi.setSystemTime(new Date('2024-09-10T03:00:00Z'));
+            });
+            afterEach(() => {
+                vi.useRealTimers();
+            });
+
+            test('inThePast 7 days', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_day',
+                        FilterOperator.IN_THE_PAST,
+                        [7],
+                        {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    ),
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) >= ('2024-09-03')`,
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) <= ('2024-09-10')`,
+                );
+            });
+
+            test('inThePast 1 completed month', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_day',
+                        FilterOperator.IN_THE_PAST,
+                        [1],
+                        {
+                            unitOfTime: UnitOfTime.months,
+                            completed: true,
+                        },
+                    ),
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) >= ('2024-08-01')`,
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) < ('2024-09-01')`,
+                );
+            });
+
+            test('inTheNext 3 days', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_day',
+                        FilterOperator.IN_THE_NEXT,
+                        [3],
+                        {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    ),
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) >= ('2024-09-10')`,
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) <= ('2024-09-13')`,
+                );
+            });
+
+            test('inTheCurrent week', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_day',
+                        FilterOperator.IN_THE_CURRENT,
+                        [1],
+                        {
+                            unitOfTime: UnitOfTime.weeks,
+                            completed: false,
+                        },
+                    ),
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) >= ('2024-09-09')`,
+                );
+                expect(whereClause(query)).toContain(
+                    `(${DAY}) <= ('2024-09-15')`,
+                );
+            });
+        });
+
+        test('null checks keep the prunable LHS', () => {
+            const query = compile(
+                rule('events_occurred_at_day', FilterOperator.NULL, []),
+            );
+            expect(whereClause(query)).toContain(`(${DAY}) IS NULL`);
+        });
+
+        test('metric-embedded day filter is re-rendered with DATE(col, tz)', () => {
+            const BAKED = `(DATE_TRUNC('DAY', "events".occurred_at)) = ('2024-09-08')`;
+            const base = awareExplore();
+            const explore: Explore = {
+                ...base,
+                tables: {
+                    ...base.tables,
+                    events: {
+                        ...base.tables.events,
+                        metrics: {
+                            ...base.tables.events.metrics,
+                            recent_count: {
+                                ...base.tables.events.metrics.event_count,
+                                name: 'recent_count',
+                                label: 'recent_count',
+                                compiledSql: `COUNT(CASE WHEN (${BAKED}) THEN "events".id ELSE NULL END)`,
+                                compiledTimestampFilters: [
+                                    {
+                                        id: 'mf-1',
+                                        fieldId: 'events_occurred_at_day',
+                                        compiledSql: BAKED,
+                                    },
+                                ],
+                                filters: [
+                                    {
+                                        id: 'mf-1',
+                                        target: { fieldRef: 'occurred_at_day' },
+                                        operator: FilterOperator.EQUALS,
+                                        values: ['2024-09-08'],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            };
+            const args = gateArgs(
+                SupportedDbtAdapter.BIGQUERY,
+                bqClient,
+                explore,
+            );
+            const { query } = buildQuery({
+                ...args,
+                compiledMetricQuery: {
+                    ...args.compiledMetricQuery,
+                    metrics: ['events_recent_count'],
+                },
+            });
+            expect(query).toContain(`CASE WHEN ((${DAY}) = ('2024-09-08'))`);
+            expect(query).not.toContain('DATETIME_TRUNC');
+        });
+
+        describe("fallbacks keep today's SQL", () => {
+            test('raw grain keeps the bare column on the filter LHS', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_raw',
+                        FilterOperator.GREATER_THAN,
+                        ['2024-09-08T00:00:00Z'],
+                    ),
+                );
+                expect(whereClause(query)).toContain(
+                    `("events".occurred_at) >`,
+                );
+                expect(whereClause(query)).not.toContain('DATE(');
+            });
+
+            test('hour grain keeps the DATETIME round-trip', () => {
+                const query = compile(
+                    rule(
+                        'events_occurred_at_hour',
+                        FilterOperator.NOT_NULL,
+                        [],
+                    ),
+                );
+                expect(query).toContain(
+                    `TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at), '${TZ}'), HOUR), '${TZ}')`,
+                );
+            });
+
+            test('convert_timezone: false keeps the bare truncation in SELECT; the filter LHS (which always wraps) becomes prunable', () => {
+                const query = compile(
+                    rule('events_occurred_at_day', FilterOperator.NOT_NULL, []),
+                    buildNaiveExplore(
+                        SupportedDbtAdapter.BIGQUERY,
+                        'aware',
+                        true,
+                    ),
+                );
+                expect(query).toContain(
+                    `DATE_TRUNC('DAY', "events".occurred_at) AS \`events_occurred_at_day\``,
+                );
+                expect(whereClause(query)).toContain(`(${DAY}) IS NOT NULL`);
+            });
+
+            test('UTC project timezone keeps the existing UTC path', () => {
+                const query = compile(
+                    rule('events_occurred_at_day', FilterOperator.NOT_NULL, []),
+                    awareExplore(),
+                    { timezone: 'UTC', columnTimezone: 'UTC' },
+                );
+                expect(query).toContain(`DATE("events".occurred_at)`);
+                expect(query).not.toContain(DAY);
+            });
+
+            test('naive DATETIME base keeps the rebased round-trip', () => {
+                const query = compile(
+                    rule('events_occurred_at_day', FilterOperator.NOT_NULL, []),
+                    buildNaiveExplore(SupportedDbtAdapter.BIGQUERY, 'naive'),
+                );
+                expect(query).toContain(
+                    `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP("events".occurred_at, '${TZ}'), '${TZ}'), DAY) AS DATE)`,
+                );
+                expect(query).not.toContain(DAY);
+            });
+
+            test('unknown domain keeps the legacy round-trip', () => {
+                const query = compile(
+                    rule('events_occurred_at_day', FilterOperator.EQUALS, [
+                        '2024-09-08',
+                    ]),
+                    buildNaiveExplore(SupportedDbtAdapter.BIGQUERY),
+                );
+                expect(whereClause(query)).toContain(
+                    `(${LEGACY_DAY}) = ('2024-09-08')`,
+                );
+            });
+        });
+
+        test('non-BigQuery adapters are unchanged (Postgres aware day)', () => {
+            const args = gateArgs(
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'aware'),
+            );
+            const { query } = buildQuery({
+                ...args,
+                compiledMetricQuery: {
+                    ...args.compiledMetricQuery,
+                    filters: rule(
+                        'events_occurred_at_day',
+                        FilterOperator.EQUALS,
+                        ['2024-09-08'],
+                    ),
+                },
+            });
+            expect(query).toContain(
+                `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE '${TZ}') AS DATE)`,
+            );
+            expect(query).not.toContain(`DATE("events".occurred_at, '${TZ}')`);
+        });
     });
 
     test('unknown domains stay byte-identical to a no-domain compile (Trino)', () => {

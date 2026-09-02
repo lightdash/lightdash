@@ -45,9 +45,13 @@ import {
     EditProjectContextFn,
     EditRepoFn,
     ExploreRepoFn,
+    ExportCustomChartTypeImageFn,
     FindContentFn,
+    FindCustomChartTypesFn,
     FindExploresFn,
+    GenerateDataAppFn,
     GetDashboardChartsFn,
+    GetExploreFn,
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
     GetProjectParameterDefinitionsFn,
@@ -57,7 +61,9 @@ import {
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
+    IterateDataAppFn,
     ListContentFn,
+    ListCustomChartTypesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
@@ -67,9 +73,11 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
+    ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncMergeQueryFn,
     RunAsyncQueryFn,
+    RunComposerQueriesFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
@@ -212,6 +220,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
+    // Data apps enabled + user may create them + content tools (trusted identity).
+    enableGenerateDataApp: boolean;
     enableAiWriteback: boolean;
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
@@ -222,6 +232,7 @@ export type AiAgentArgs = AnyAiModel & {
     enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     enableMergeQueries: boolean;
+    enableFilterExpressions: boolean;
     // Whether the general-purpose coding agent (`editRepo`) is available — the
     // CodingAgent flag, the org has a writable Git installation, and (in Slack)
     // a trusted prompt identity. Independent of enableAiWriteback.
@@ -233,6 +244,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
+    // Whether the runComposerQueries tool (multi-source pipelines) is
+    // available: the MultiSourceQuery flag + data access, web chat only in v0.
+    enableComposerQueries: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -282,6 +296,7 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    getExplore: GetExploreFn;
     getProjectParameterDefinitions: GetProjectParameterDefinitionsFn;
     // The whole cached project_context document.
     getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
@@ -300,6 +315,9 @@ export type AiAgentDependencies = {
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
+    listCustomChartTypes: ListCustomChartTypesFn;
+    findCustomChartTypes: FindCustomChartTypesFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
     getVerifiedFieldUsage: GetVerifiedFieldUsageFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
@@ -307,6 +325,7 @@ export type AiAgentDependencies = {
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
+    runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
@@ -315,6 +334,7 @@ export type AiAgentDependencies = {
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
+    exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
     sendSlackBlocks: SendSlackBlocksFn;
     updateSlackMessage: UpdateSlackMessageFn;
     updatePrompt: UpdatePromptFn;
@@ -328,6 +348,8 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
+    generateDataApp: GenerateDataAppFn;
+    iterateDataApp: IterateDataAppFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;

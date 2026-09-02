@@ -74,15 +74,13 @@ const CompactionDivider = () => (
                 Summarized Conversation
             </Text>
             <Tooltip
-                withinPortal
                 maw={320}
-                multiline
                 label="Lightdash automatically summarizes earlier messages when a conversation gets long, so responses stay fast and relevant."
             >
                 <Box
                     component="span"
                     aria-label="About summarized conversations"
-                    style={{ display: 'inline-flex' }}
+                    display="inline-flex"
                 >
                     <IconInfoCircle
                         size={14}
@@ -188,9 +186,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     px={ChatElementsUtils.centeredElementProps.px}
                     pb="md"
                     gap="xl"
-                    style={{ flexGrow: 1 }}
+                    className="ld-grow"
                 >
-                    <Stack flex={1} style={{ flexGrow: 1 }}>
+                    <Stack flex={1} className="ld-grow">
                         {visibleMessages.map((message, i, xs) => (
                             <Fragment key={`${message.role}-${message.uuid}`}>
                                 {message.role === 'user' &&

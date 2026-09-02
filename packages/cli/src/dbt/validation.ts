@@ -17,10 +17,23 @@ type DbtModelsGroupedByState = {
     invalid: ExploreError[];
     skipped: DbtRawModelNode[];
 };
+
+const formatServedManifestValidationError = (message: string): string => {
+    const details = message
+        .replace(
+            / (?:Remove or update it|Update this field) in your dbt model, then deploy again\./g,
+            '',
+        )
+        .trimEnd();
+    const separator = /[.!?]$/.test(details) ? ' ' : '. ';
+    return `${details}${separator}The served manifest is outdated. Redeploy the Lightdash project, then try again.`;
+};
+
 export const validateDbtModel = async (
     adapterType: string,
     manifestVersion: DbtManifestVersion,
     models: DbtRawModelNode[],
+    servedModelIds: ReadonlySet<string> = new Set(),
 ): Promise<DbtModelsGroupedByState> => {
     GlobalState.debug(`> Validating ${models.length} models from dbt manifest`);
 
@@ -37,7 +50,9 @@ export const validateDbtModel = async (
             if (!isValid) {
                 error = {
                     type: InlineErrorType.METADATA_PARSE_ERROR,
-                    message: errorMessage,
+                    message: servedModelIds.has(model.unique_id)
+                        ? formatServedManifestValidationError(errorMessage)
+                        : errorMessage,
                 };
             } else if (isValid && Object.values(model.columns).length <= 0) {
                 error = {

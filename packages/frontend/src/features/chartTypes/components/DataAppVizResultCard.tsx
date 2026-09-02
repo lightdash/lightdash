@@ -12,7 +12,7 @@ type Props = {
 // interactive DataAppVizTestPanel instead). Required fields aren't badged —
 // required-ness is surfaced where it's actionable (the field-mapping step).
 const DataAppVizResultCard: FC<Props> = ({ schema }) => (
-    <Card withBorder radius="md" p="sm">
+    <Card radius="md" p="sm">
         <Stack gap="xs">
             <Text size="sm" fw={600}>
                 Visualization ready

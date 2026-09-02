@@ -15,8 +15,13 @@ import {
     CatalogField,
     ChartAsCode,
     CreateSchedulerAndTargetsWithoutIds,
+    CustomChartType,
+    CustomChartTypeLibrary,
     DashboardAsCode,
     DashboardSearchResult,
+    DataAppBuildTemplate,
+    DataAppSearchResult,
+    DataAppVizSchema,
     DbtProjectType,
     Explore,
     FieldImpactReport,
@@ -29,9 +34,13 @@ import {
     ParametersValuesMap,
     PreviewDeploySetupResult,
     ProjectType,
+    ReadContentType,
+    ResultColumns,
     SavedChart,
     SchedulerAndTargets,
     SlackPrompt,
+    SourceQuery,
+    SourceQuerySubmission,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -46,6 +55,7 @@ import {
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import { AiAgentSkill } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {
@@ -98,6 +108,20 @@ export type FindExploresFn = (args: {
 // Project-wide verified-chart usage per field, keyed `table_field::fieldType`.
 // Used to rank verified/governed fields first in grep discovery.
 export type GetVerifiedFieldUsageFn = () => Promise<Map<string, number>>;
+
+export type ListCustomChartTypesFn = () => Promise<CustomChartTypeLibrary>;
+
+export type FindCustomChartTypesFn = (
+    args: { query: string } | { slug: string },
+) => Promise<CustomChartType[]>;
+
+// Resolves a project-scoped custom chart type slug to the data it takes to
+// validate and persist an answer rendered through it. Null when the slug does
+// not resolve to a schema-bearing custom chart type in this project.
+export type ResolveCustomChartTypeFn = (slug: string) => Promise<{
+    dataAppVizUuid: string;
+    schema: DataAppVizSchema;
+} | null>;
 
 export type FindFieldResult = {
     fields: CatalogField[];
@@ -207,10 +231,17 @@ export type FindContentSpaceResult = {
     verification: null;
 };
 
+export type FindContentDataAppResult = DataAppSearchResult & {
+    contentType: 'data_app';
+    space: FindContentSpaceMetadata | null;
+    verification: null;
+};
+
 export type FindContentResult =
     | FindContentChartResult
     | FindContentDashboardResult
-    | FindContentSpaceResult;
+    | FindContentSpaceResult
+    | FindContentDataAppResult;
 
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
@@ -271,7 +302,7 @@ export type GetDashboardChartsFn = (args: {
 
 export type ReadContentFn = (args: {
     slug: string;
-    type: 'dashboard' | 'chart';
+    type: ReadContentType;
 }) => Promise<
     | {
           type: 'dashboard';
@@ -281,6 +312,11 @@ export type ReadContentFn = (args: {
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
+      }
+    | {
+          type: 'data_app';
+          content: DataAppRead;
           href: string;
       }
 >;
@@ -411,6 +447,12 @@ export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
+// Renders a custom chart type artifact version to a PNG buffer via the
+// headless browser, as the requesting user.
+export type ExportCustomChartTypeImageFn = (
+    artifact: AiArtifact,
+) => Promise<Buffer>;
+
 export type SendSlackBlocksFn = (args: {
     channelId: string;
     threadTs: string;
@@ -514,6 +556,40 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
     rowCount: number;
 }>;
 
+/**
+ * Per-node lifecycle event emitted while a composer pipeline executes, so the
+ * UI can show each node's status live. Best-effort: emission failures must
+ * never affect query execution.
+ */
+export type ComposerNodeStatusUpdate = {
+    nodeId: string;
+    queryUuid: string;
+    status: 'running' | 'success' | 'error';
+    errorMessage: string | null;
+};
+
+/**
+ * Submits a composer query (multi-source pipeline) and waits for the terminal
+ * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * every node; the terminal snapshot is the first page of the terminal node's
+ * results, capped at that node's limit. `onNodeStatus` receives per-node
+ * lifecycle transitions (running on submission, then success/error) while the
+ * pipeline executes.
+ */
+export type RunComposerQueriesFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
+}) => Promise<{
+    submissions: SourceQuerySubmission[];
+    terminal: {
+        queryUuid: string;
+        columns: ResultColumns;
+        rows: Record<string, AnyType>[];
+        rowCount: number;
+    };
+}>;
+
 export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
 
 export type DescribeWarehouseTableFn = (args: {
@@ -568,6 +644,26 @@ export type EditDbtProjectFn = (args: {
 }) => Promise<{
     aiWritebackRunUuid: string;
 }>;
+
+// Starts a personal data app build; the worker patches the tool result
+// (keyed by toolCallId) when the build ends.
+export type GenerateDataAppFn = (args: {
+    prompt: string;
+    template: DataAppBuildTemplate | null;
+    dashboardSlug: string | null;
+    chartSlugs: string[] | null;
+    toolCallId: string;
+}) => Promise<{ appUuid: string; version: number }>;
+
+// Starts a build that appends a version to an existing data app; the worker
+// patches the tool result (keyed by toolCallId) when the build ends.
+export type IterateDataAppFn = (args: {
+    appSlug: string;
+    prompt: string;
+    dashboardSlug: string | null;
+    chartSlugs: string[] | null;
+    toolCallId: string;
+}) => Promise<{ appUuid: string; version: number }>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.

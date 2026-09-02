@@ -130,7 +130,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconTable} color="ldGray.6" />
+                        <MantineIcon icon={IconTable} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -147,7 +147,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 160,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconCube} color="ldGray.6" />
+                        <MantineIcon icon={IconCube} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -169,7 +169,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconChartBar} color="ldGray.6" />
+                        <MantineIcon icon={IconChartBar} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -197,7 +197,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                     <Group gap="two" align="flex-start">
                         <MantineIcon
                             icon={IconLayoutDashboard}
-                            color="ldGray.6"
+                            color="dimmed"
                         />
                         {column.columnDef.header}
                     </Group>
@@ -205,7 +205,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 Cell: ({ row }) =>
                     row.original.dashboardUuid ? (
                         <Anchor
-                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardUuid}`}
+                            href={`/projects/${projectUuid}/dashboards/${row.original.dashboardSlug ?? row.original.dashboardUuid}`}
                             target="_blank"
                             size="xs"
                         >
@@ -225,7 +225,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 accessorFn: (row) => row.hitCount + row.missCount,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconTarget} color="ldGray.6" />
+                        <MantineIcon icon={IconTarget} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -276,10 +276,7 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 200,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={IconAlertTriangle} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -299,12 +296,12 @@ const PreAggregateStatsTable: FC<Props> = ({
                 size: 150,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        <MantineIcon icon={IconClock} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         {new Date(row.original.updatedAt).toLocaleString()}
                     </Text>
                 ),

@@ -22,9 +22,9 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -88,10 +88,8 @@ const SqlChartTile: FC<Props> = ({
     ...rest
 }) => {
     const { user } = useApp();
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
     const effectiveDashboardUuid = dashboardUuidOverride ?? dashboardUuid;
     const context = useSearchParams('context') || undefined;
@@ -116,6 +114,9 @@ const SqlChartTile: FC<Props> = ({
     );
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
+    );
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
     );
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
@@ -160,7 +161,6 @@ const SqlChartTile: FC<Props> = ({
                   parameters,
               },
     );
-
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
@@ -217,6 +217,28 @@ const SqlChartTile: FC<Props> = ({
         tile.uuid,
         markTileScreenshotReady,
         markTileScreenshotErrored,
+    ]);
+
+    useEffect(() => {
+        const hasLoadError = !savedSqlUuid || !!chartError;
+        const hasResultsError = !!chartResultsError;
+        const hasResults = !!chartResultsData;
+
+        if (
+            (!isChartLoading && hasLoadError) ||
+            (!isChartResultsFetching && (hasResultsError || hasResults))
+        ) {
+            markEmbedTileComplete(tile.uuid);
+        }
+    }, [
+        chartError,
+        chartResultsData,
+        chartResultsError,
+        isChartLoading,
+        isChartResultsFetching,
+        markEmbedTileComplete,
+        savedSqlUuid,
+        tile.uuid,
     ]);
 
     const userCanExportData = user.data?.ability.can(

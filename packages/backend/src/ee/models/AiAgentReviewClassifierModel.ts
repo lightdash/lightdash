@@ -2546,6 +2546,74 @@ export class AiAgentReviewClassifierModel {
             .ignore();
     }
 
+    async listUnlinkedReviewItemsForLinearExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) {
+            return [];
+        }
+
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
+    // Holds a row lock while the external issue is created so concurrent jobs
+    // for the same item cannot each create one.
+    async withReviewItemLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+
+            return run(
+                row?.linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
+    }
+
     async updateReviewItemAssignee(args: {
         fingerprint: string;
         organizationUuid: string;

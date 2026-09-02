@@ -68,11 +68,9 @@ const ChangeIndicator: FC<{
         <Tooltip
             position="bottom"
             label={getComparisonLabel(timeFrame, rollingDays)}
-            withinPortal
         >
             <Badge
-                fz={13}
-                fw={500}
+                fz="sm"
                 size="lg"
                 radius="md"
                 py="two"
@@ -208,8 +206,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     return (
         <Paper
             p="md"
-            fz={14}
-            withBorder
+            fz="sm"
             style={(theme) => ({
                 borderColor: selected
                     ? theme.colors.blue[5]
@@ -226,7 +223,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
             />
             <Stack key={data.label} gap="xs">
                 <Group justify="space-between">
-                    <Title fz={14} fw={500} c="ldGray.7">
+                    <Title fz="sm" fw={500} c="ldGray.7">
                         {title}
                     </Title>
                     <Group gap="xs" wrap="nowrap">
@@ -234,19 +231,16 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                             <Tooltip
                                 label="Add drivers from YAML"
                                 openDelay={300}
-                                withinPortal
                             >
                                 <ActionIcon
                                     size="xs"
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={handleAddDrivers}
                                     aria-label="Add YAML drivers to canvas"
                                 >
                                     <MantineIcon
                                         icon={IconHierarchy3}
                                         size={12}
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 </ActionIcon>
                             </Tooltip>

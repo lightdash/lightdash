@@ -100,13 +100,7 @@ const AppThumbnailHoverCard: FC<AppThumbnailHoverCardProps> = ({
     }, [activateOnClosestRow, targetElement]);
 
     return (
-        <Popover
-            opened={isActive && showPreview}
-            position={position}
-            withArrow
-            shadow="md"
-            withinPortal
-        >
+        <Popover opened={isActive && showPreview} position={position} withArrow>
             <Popover.Target>
                 <Box
                     ref={setTargetElement}

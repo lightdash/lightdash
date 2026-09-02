@@ -41,7 +41,7 @@ const SwatchInline: FC<{
     colors: string[];
     limit: number;
 }> = ({ icon, label, colors, limit }) => (
-    <Tooltip label={label} position="top" withinPortal>
+    <Tooltip label={label} position="top">
         <Group gap={2} wrap="nowrap">
             <MantineIcon icon={icon} size={14} color="gray" />
             <div className={classes.swatchStack}>
@@ -133,7 +133,7 @@ const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
 
 const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
     <Group gap="xs" grow align="stretch" wrap="nowrap">
-        <Tooltip label="Light mode" position="top" withinPortal>
+        <Tooltip label="Light mode" position="top">
             <Stack gap={4} className={classes.miniChartCardLight}>
                 <Group gap={4} justify="center">
                     <MantineIcon icon={IconSun} size={12} color="gray" />
@@ -142,7 +142,7 @@ const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
             </Stack>
         </Tooltip>
         {swatches.darkColors && swatches.darkColors.length > 0 && (
-            <Tooltip label="Dark mode" position="top" withinPortal>
+            <Tooltip label="Dark mode" position="top">
                 <Stack gap={4} className={classes.miniChartCardDark}>
                     <Group gap={4} justify="center">
                         <MantineIcon icon={IconMoon} size={12} color="dimmed" />

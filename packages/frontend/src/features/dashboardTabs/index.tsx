@@ -33,19 +33,22 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useActiveTabParameters } from '../../hooks/dashboard/useActiveTabParameters';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
-import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import { SectionName } from '../../types/Events';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
 import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
+import { getDateZoomSummaryLabel } from '../dateZoom/utils';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -70,6 +73,10 @@ const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
     md: [],
     sm: [],
 };
+
+const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+const SCROLL_TO_TOP_BOTTOM = 24;
+const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -313,9 +320,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const { search } = useLocation();
     const navigate = useNavigate();
-
-    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug;
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -339,6 +348,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         (c) => c.filterableFieldsByTileUuid,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -353,6 +363,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
     const isLauncherMounted = useIsLauncherMounted(projectUuid);
+    const scrollToTopBottom = isLauncherMounted
+        ? SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER
+        : SCROLL_TO_TOP_BOTTOM;
+    const dashboardGridBottomPadding =
+        DASHBOARD_GRID_BOTTOM_PADDING +
+        scrollToTopBottom -
+        SCROLL_TO_TOP_BOTTOM;
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -669,8 +686,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void navigate(
                 {
                     pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                        ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
                     search: newParams.toString(),
                 },
                 { replace: true },
@@ -775,7 +792,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                 { replace: true },
             );
 
@@ -1009,7 +1026,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                             <Button
                                                                 ml="sm"
                                                                 size="sm"
-                                                                fz={13}
+                                                                fz="sm"
                                                                 variant="subtle"
                                                                 flex="0 0 auto"
                                                                 disabled={
@@ -1049,8 +1066,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     dateZoomLabel={
                                                         isDateZoomDisabled
                                                             ? null
-                                                            : dateZoomGranularity ||
-                                                              'Default'
+                                                            : getDateZoomSummaryLabel(
+                                                                  dateZoomGranularity,
+                                                                  getUiString,
+                                                              )
                                                     }
                                                     onExpand={() =>
                                                         setIsFiltersCollapsed(
@@ -1129,7 +1148,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     />
                                 )}
 
-                                <Group grow pb={60} px="xs">
+                                <Group
+                                    grow
+                                    pb={dashboardGridBottomPadding}
+                                    px="xs"
+                                >
                                     <div
                                         ref={gridWrapperRef}
                                         className={[
@@ -1375,10 +1398,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop
-                show={isHeaderStuck}
-                bottom={isLauncherMounted ? 52 : 24}
-            />
+            <ScrollToTop show={isHeaderStuck} bottom={scrollToTopBottom} />
         </DragDropContext>
     );
 };

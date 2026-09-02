@@ -95,7 +95,7 @@ const QueryRow: FC<{
                 className={classes.queryHeader}
                 onClick={() => setExpanded((v) => !v)}
             >
-                <ActionIcon variant="subtle" size="xs" color="gray">
+                <ActionIcon size="xs">
                     {expanded ? (
                         <MantineIcon icon={IconChevronDown} size={12} />
                     ) : (
@@ -107,11 +107,7 @@ const QueryRow: FC<{
                         query.exploreName ||
                         query.queryUuid?.slice(0, 8)}
                 </Text>
-                <Badge
-                    size="xs"
-                    variant="light"
-                    color={statusColor(query.status)}
-                >
+                <Badge size="xs" color={statusColor(query.status)}>
                     {query.status}
                 </Badge>
                 {query.rowCount !== null && (
@@ -265,13 +261,9 @@ const QueryRow: FC<{
                             <Group
                                 gap={4}
                                 onClick={() => setJsonExpanded((v) => !v)}
-                                style={{ cursor: 'pointer' }}
+                                className="ld-pointer"
                             >
-                                <ActionIcon
-                                    variant="subtle"
-                                    size="xs"
-                                    color="gray"
-                                >
+                                <ActionIcon size="xs">
                                     {jsonExpanded ? (
                                         <MantineIcon
                                             icon={IconChevronDown}
@@ -296,7 +288,6 @@ const QueryRow: FC<{
                                 >
                                     {({ copied, copy }) => (
                                         <ActionIcon
-                                            variant="subtle"
                                             size="xs"
                                             color={copied ? 'green' : 'gray'}
                                             onClick={(e) => {
@@ -314,7 +305,7 @@ const QueryRow: FC<{
                             </Group>
                             <Collapse in={jsonExpanded}>
                                 <ScrollArea.Autosize mah={200}>
-                                    <Code block fz={10}>
+                                    <Code block fz="xs">
                                         {JSON.stringify(
                                             query.rawMetricQuery,
                                             null,

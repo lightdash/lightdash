@@ -28,6 +28,21 @@
     display: none;
 }
 
+/* Everything to the left of the send button. It shrinks so the send button
+   stays in view when the toolbar runs out of room on narrow viewports. */
+.toolbarSelectors {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+@media (max-width: 48em) {
+    .toolbarSelectors {
+        overflow: hidden;
+    }
+}
+
 .controlsReveal {
     transition:
         opacity 160ms ease,
@@ -63,6 +78,19 @@
         border: 1px solid var(--mantine-color-ldDark-4);
         border-top: none;
     }
+}
+
+.footerNotice {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-sm);
+}
+
+/* The notice component may render nothing (flag off, no retention window) —
+   collapse the wrapper so it leaves no stray gap below the input. */
+.footerNotice:empty {
+    display: none;
 }
 
 /* Minimal mode styles for existing threads */
@@ -133,26 +161,31 @@
     margin-bottom: rem(8px);
 }
 
-.belowComposerControls {
-    display: flex;
-    justify-content: flex-end;
-    min-height: rem(30px);
-    padding: rem(4px) rem(8px) 0;
-}
-
 @media (prefers-reduced-motion: reduce) {
     .chipReveal {
         transition: none;
     }
 }
 
-.sqlModeButton {
-    flex-shrink: 0;
+.deepResearchNudge {
     border-radius: var(--mantine-radius-xl);
+    animation: deepResearchPulse 2s ease-out infinite;
 }
 
-.sqlModeControl {
-    flex-shrink: 0;
+@keyframes deepResearchPulse {
+    from {
+        box-shadow: 0 0 0 0 var(--mantine-color-indigo-4);
+    }
+    to {
+        box-shadow: 0 0 0 8px transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .deepResearchNudge {
+        animation: none;
+        box-shadow: 0 0 0 2px var(--mantine-color-indigo-4);
+    }
 }
 
 .chipMention {

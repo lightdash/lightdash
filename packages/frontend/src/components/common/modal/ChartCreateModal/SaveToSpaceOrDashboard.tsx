@@ -23,8 +23,9 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -39,6 +40,7 @@ import {
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import {
@@ -62,7 +64,7 @@ import {
 
 const saveToSpaceOrDashboardSchema = z
     .object({
-        name: z.string().min(1),
+        name: z.string().min(1, 'Name is required'),
         description: z.string().nullable(),
     })
     // for saving to the dashboard
@@ -116,6 +118,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { user } = useApp();
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
@@ -412,8 +417,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
                 void navigate(
                     activeTabUuid
-                        ? `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
-                        : `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit`,
+                        ? `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
+                        : `/projects/${projectUrlIdentifier}/dashboards/${originatingDashboardData?.slug ?? originatingDashboard.dashboardUuid}/edit`,
                 );
                 showToastSuccess({
                     title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,
@@ -561,6 +566,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             originatingDashboard,
             originatingDashboardData,
             projectUuid,
+            projectUrlIdentifier,
             navigate,
             showToastSuccess,
             getUnsavedDashboardTiles,

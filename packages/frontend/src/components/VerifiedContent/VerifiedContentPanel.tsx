@@ -81,11 +81,11 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 250,
                 Cell: ({ row }) => {
-                    const { contentType, contentUuid, name } = row.original;
+                    const { contentType, name } = row.original;
                     const href =
                         contentType === ContentType.CHART
-                            ? `/projects/${projectUuid}/saved/${contentUuid}`
-                            : `/projects/${projectUuid}/dashboards/${contentUuid}`;
+                            ? `/projects/${projectUuid}/saved/${row.original.slug}`
+                            : `/projects/${projectUuid}/dashboards/${row.original.slug}`;
                     return (
                         <Anchor
                             component={Link}
@@ -109,7 +109,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                         row.original.contentType === ContentType.CHART;
                     return (
                         <Badge
-                            variant="light"
                             color={isChart ? 'blue' : 'violet'}
                             leftSection={
                                 <MantineIcon
@@ -172,11 +171,9 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 enableSorting: false,
                 size: 80,
                 Cell: ({ row }) => (
-                    <Menu withinPortal position="bottom-end">
+                    <Menu position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                 }}

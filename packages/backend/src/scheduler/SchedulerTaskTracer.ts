@@ -216,6 +216,19 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid ?? '',
     }),
 
+    [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'content_review_request.uuid': payload.requestUuid,
+    }),
+
+    [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid ?? '',
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -272,6 +285,20 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),
     [SCHEDULER_TASKS.SWEEP_AI_AGENT_MEMORY_THREADS]: () => ({}),
+    [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'mobile_push.live_activity_start_attempt_uuid':
+            payload.liveActivityStartAttemptUuid,
+    }),
+    [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid,
+        'mobile_push.live_activity_uuid': payload.liveActivityUuid,
+    }),
+    [SCHEDULER_TASKS.SWEEP_MOBILE_PUSH_LIVE_ACTIVITIES]: () => ({}),
     [SCHEDULER_TASKS.AI_AGENT_MEMORY_DISTILL]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,
@@ -285,6 +312,7 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: () => ({}),
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -314,6 +342,17 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
     }),
+    [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: () => ({}),
 } as const;
 
 const getTagsFromPayload = <T extends SchedulerTaskName>(

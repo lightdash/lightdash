@@ -40,6 +40,7 @@ interface VirtualizedExploreListProps {
     defaultUngroupedExplores: SummaryExplore[];
     customUngroupedExplores: SummaryExplore[];
     preAggregateExplores: SummaryExplore[];
+    externalSourceExplores: SummaryExplore[];
     searchQuery: string;
     onExploreClick: (explore: SummaryExplore) => void;
 }
@@ -68,6 +69,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     defaultUngroupedExplores,
     customUngroupedExplores,
     preAggregateExplores,
+    externalSourceExplores,
     searchQuery,
     onExploreClick,
 }) => {
@@ -159,6 +161,30 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
             });
         }
 
+        if (externalSourceExplores.length > 0) {
+            // Auto-expand while searching so matches inside the section are
+            // visible without a manual toggle.
+            const isExternalSourcesExpanded =
+                expandedSections.has('External sources') || !!searchQuery;
+            items.push({ type: 'divider', id: `divider-${itemId++}` });
+            items.push({
+                type: 'section-header',
+                id: `section-${itemId++}`,
+                label: 'External sources',
+                isExpanded: isExternalSourcesExpanded,
+            });
+            if (isExternalSourcesExpanded) {
+                for (const explore of externalSourceExplores) {
+                    items.push({
+                        type: 'explore',
+                        id: `external-source-${itemId++}`,
+                        explore,
+                        depth: 0,
+                    });
+                }
+            }
+        }
+
         if (customUngroupedExplores.length > 0) {
             const isVirtualViewsExpanded =
                 expandedSections.has('Virtual Views');
@@ -209,6 +235,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         defaultUngroupedExplores,
         customUngroupedExplores,
         preAggregateExplores,
+        externalSourceExplores,
         expandedGroupPaths,
         expandedSections,
         searchQuery,

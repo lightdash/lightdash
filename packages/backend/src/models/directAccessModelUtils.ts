@@ -1,0 +1,225 @@
+import {
+    OrganizationMemberRole,
+    type SpaceMemberRole,
+    type UUID,
+} from '@lightdash/common';
+import { type Knex } from 'knex';
+import { GroupMembershipTableName } from '../database/entities/groupMemberships';
+import { GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipCustomRolesTableName } from '../database/entities/organizationMembershipCustomRoles';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
+import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
+import { ProjectTableName } from '../database/entities/projects';
+import { UserTableName } from '../database/entities/users';
+
+export type DirectAccess = {
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    // Space the granted resource actually lives in; personal apps have no
+    // space and use their project context as the authorization baseline.
+    spaceUuid: UUID | null;
+    userRole: SpaceMemberRole | null;
+    groupRoles: SpaceMemberRole[];
+};
+
+export type DirectAccessRow = {
+    resourceUuid: UUID;
+    organizationUuid: UUID;
+    projectUuid: UUID;
+    spaceUuid: UUID | null;
+    role: SpaceMemberRole;
+    groupUuid: UUID | null;
+};
+
+export type DirectAccessMutationContext = {
+    organizationId: number;
+    organizationUuid: UUID;
+    projectId: number;
+    projectUuid: UUID;
+};
+
+export type DirectAccessMutationResult = DirectAccessMutationContext & {
+    beforeRole: SpaceMemberRole | null;
+    afterRole: SpaceMemberRole | null;
+};
+
+export type DirectAccessResetResult = DirectAccessMutationContext & {
+    revokedUsers: number;
+    revokedGroups: number;
+};
+
+/**
+ * Direct grants cannot create project membership. This predicate keeps stored
+ * grants inert unless the principal still has a current project access path.
+ */
+export const getActiveProjectMemberPredicate =
+    (trx: Knex) =>
+    (predicate: Knex.QueryBuilder): void => {
+        void predicate
+            .where(`${UserTableName}.is_active`, true)
+            .andWhere((accessPath) => {
+                void accessPath
+                    .whereNot(
+                        `${OrganizationMembershipsTableName}.role`,
+                        OrganizationMemberRole.MEMBER,
+                    )
+                    .orWhereNotNull(
+                        `${OrganizationMembershipsTableName}.role_uuid`,
+                    )
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                organization_extra_role:
+                                    OrganizationMembershipCustomRolesTableName,
+                            })
+                            .where(
+                                'organization_extra_role.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'organization_extra_role.organization_id',
+                                trx.ref(`${ProjectTableName}.organization_id`),
+                            );
+                    })
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                direct_project_membership:
+                                    ProjectMembershipsTableName,
+                            })
+                            .where(
+                                'direct_project_membership.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'direct_project_membership.project_id',
+                                trx.ref(`${ProjectTableName}.project_id`),
+                            );
+                    })
+                    .orWhereExists((subquery) => {
+                        void subquery
+                            .select('*')
+                            .from({
+                                project_group_membership:
+                                    ProjectGroupAccessTableName,
+                            })
+                            .innerJoin(
+                                {
+                                    current_project_group_membership:
+                                        GroupMembershipTableName,
+                                },
+                                'current_project_group_membership.group_uuid',
+                                'project_group_membership.group_uuid',
+                            )
+                            .where(
+                                'project_group_membership.project_uuid',
+                                trx.ref(`${ProjectTableName}.project_uuid`),
+                            )
+                            .where(
+                                'current_project_group_membership.user_id',
+                                trx.ref(`${UserTableName}.user_id`),
+                            )
+                            .where(
+                                'current_project_group_membership.organization_id',
+                                trx.ref(`${ProjectTableName}.organization_id`),
+                            );
+                    });
+            });
+    };
+
+/**
+ * A group grant is inert unless the granted group itself still holds current
+ * access to the resource's project. Without this predicate, a grant made to a
+ * project group would keep working after the group is removed from the
+ * project, for any member who retains a separate project access path.
+ */
+export const getActiveGrantedGroupPredicate =
+    (trx: Knex, groupAccessTable: string) =>
+    (predicate: Knex.QueryBuilder): void => {
+        void predicate.whereExists((subquery) => {
+            void subquery
+                .select('*')
+                .from({
+                    granted_group_project_access: ProjectGroupAccessTableName,
+                })
+                .where(
+                    'granted_group_project_access.group_uuid',
+                    trx.ref(`${groupAccessTable}.group_uuid`),
+                )
+                .where(
+                    'granted_group_project_access.project_uuid',
+                    trx.ref(`${ProjectTableName}.project_uuid`),
+                );
+        });
+    };
+
+export const validateDirectAccessUser = async (
+    trx: Knex,
+    context: DirectAccessMutationContext,
+    userUuid: string,
+): Promise<boolean> => {
+    const user = await trx(UserTableName)
+        .innerJoin(
+            OrganizationMembershipsTableName,
+            `${OrganizationMembershipsTableName}.user_id`,
+            `${UserTableName}.user_id`,
+        )
+        .innerJoin(
+            ProjectTableName,
+            `${ProjectTableName}.organization_id`,
+            `${OrganizationMembershipsTableName}.organization_id`,
+        )
+        .where(`${UserTableName}.user_uuid`, userUuid)
+        .where(`${ProjectTableName}.project_id`, context.projectId)
+        .where(getActiveProjectMemberPredicate(trx))
+        .first(`${UserTableName}.user_id`);
+
+    return user !== undefined;
+};
+
+export const validateDirectAccessGroup = async (
+    trx: Knex,
+    context: DirectAccessMutationContext,
+    groupUuid: string,
+): Promise<boolean> => {
+    const group = await trx(GroupTableName)
+        .innerJoin(
+            ProjectGroupAccessTableName,
+            `${ProjectGroupAccessTableName}.group_uuid`,
+            `${GroupTableName}.group_uuid`,
+        )
+        .where(`${GroupTableName}.group_uuid`, groupUuid)
+        .where(`${GroupTableName}.organization_id`, context.organizationId)
+        .where(
+            `${ProjectGroupAccessTableName}.project_uuid`,
+            context.projectUuid,
+        )
+        .first(`${GroupTableName}.group_uuid`);
+
+    return group !== undefined;
+};
+
+export const groupDirectAccessRows = (
+    rows: DirectAccessRow[],
+): Record<string, DirectAccess> => {
+    const accessByResource: Record<string, DirectAccess> = {};
+    for (const row of rows) {
+        const access = accessByResource[row.resourceUuid] ?? {
+            organizationUuid: row.organizationUuid,
+            projectUuid: row.projectUuid,
+            spaceUuid: row.spaceUuid,
+            userRole: null,
+            groupRoles: [],
+        };
+        if (row.groupUuid === null) {
+            access.userRole = row.role;
+        } else {
+            access.groupRoles.push(row.role);
+        }
+        accessByResource[row.resourceUuid] = access;
+    }
+    return accessByResource;
+};

@@ -34,7 +34,7 @@ export const MessageModelIndicator: FC<Props> = ({
 
     const badge = (
         // fz matches the sources toggle so the footer reads as one metadata row
-        <Badge variant="transparent" color="gray" size="sm" fz="xs">
+        <Badge variant="transparent" size="sm" fz="xs">
             {modelDisplayName}
         </Badge>
     );

@@ -88,6 +88,31 @@ export type ExternalConnection = {
 
 export type ExternalConnectionListItem = ExternalConnection & {
     linkedDataAppCount: number;
+    // Custom chart types linking this connection, counted apart from data
+    // apps so the two products' usage stays distinguishable.
+    linkedChartTypeCount: number;
+};
+
+export type ExternalConnectionLinkedApp = {
+    appUuid: string;
+    name: string;
+    slug: string;
+    kind: 'data_app' | 'project_chart_type';
+    spaceUuid: string | null;
+    spaceName: string | null;
+    aliases: string[];
+};
+
+/** Kept as an object so pagination can be added later without changing the
+ *  endpoint's top-level response shape. */
+export type ExternalConnectionLinkedApps = {
+    items: ExternalConnectionLinkedApp[];
+    total: number;
+};
+
+export type ApiListExternalConnectionLinkedAppsResponse = {
+    status: 'ok';
+    results: ExternalConnectionLinkedApps;
 };
 
 /** WRITE shape — includes the secret. */
@@ -120,6 +145,13 @@ export type AppExternalConnectionLink = {
     alias: string;
 };
 
+/** A link as the app's connection list returns it: alias plus the
+ *  connection itself, not the uuid/alias pair the link request takes. */
+export type AppExternalConnectionLinked = {
+    alias: string;
+    connection: ExternalConnection;
+};
+
 /** Server-applied defaults for the optional numeric limits. */
 export const EXTERNAL_CONNECTION_DEFAULTS = {
     responseMaxBytes: 1048576,
@@ -147,6 +179,9 @@ export type ApiTestExternalConnectionRequest = {
     path: string;
     query?: Record<string, string>;
     body?: unknown;
+    /** Optional unsaved edit values to test against the stored connection.
+     *  Blank/omitted secret keeps the stored credential when it is still valid. */
+    config?: UpdateExternalConnection;
 };
 
 /** Test an unsaved connection config (incl. plaintext secret) before creating
@@ -179,6 +214,7 @@ export type ExternalConnectionConfigProposal = {
     name: string;
     origin: string;
     type: ExternalConnectionAuthType;
+    allowBrowserImages: boolean;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
     oauthScopes: string[] | null;

@@ -1,5 +1,6 @@
 import '@mantine/core/styles.css';
 import '@mantine/code-highlight/styles.css';
+import '@mantine/dates/styles.css';
 import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
 import {
@@ -8,9 +9,12 @@ import {
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
 } from '@lightdash/common';
 import { ModalsProvider } from '@mantine/modals';
 import {
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -18,6 +22,7 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
+import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
@@ -25,10 +30,10 @@ import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
-import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import { useAccount } from '../src/hooks/user/useAccount';
 import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
@@ -65,6 +70,7 @@ type BaseProps = {
     };
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     onExplore?: (options: { chart: SavedChart }) => void;
 };
 
@@ -78,9 +84,14 @@ type DashboardBuilderProps = DashboardProps & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 };
 
+type ChartProps = Omit<BaseProps, 'filters' | 'onExplore'> & {
+    id: string;
+    isEditMode?: boolean;
+};
+
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -89,7 +100,7 @@ type AiAgentProps = Omit<
 
 type MetricsCatalogProps = Omit<
     BaseProps,
-    'contentOverrides' | 'filters' | 'onExplore'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 >;
 
 const decodeJWT = (token: string) => {
@@ -200,6 +211,28 @@ const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
               }
           }
         : undefined;
+
+const useDashboardExploreNavigation = (onExplore: BaseProps['onExplore']) => {
+    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+
+    const handleExplore = useCallback(
+        ({ chart }: { chart: EmbedExploreChart }) => {
+            if ('uuid' in chart) {
+                onExplore?.({ chart });
+            } else {
+                setExploreChart(chart);
+            }
+        },
+        [onExplore],
+    );
+
+    const handleBackToDashboard = useCallback(
+        () => setExploreChart(undefined),
+        [],
+    );
+
+    return { exploreChart, handleExplore, handleBackToDashboard };
+};
 
 const getAiAgentEmbedUrl = ({
     agentUuid,
@@ -332,12 +365,15 @@ const Dashboard: FC<DashboardProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
     onEditModeChange,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -355,13 +391,29 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                uiOverrides={uiOverrides}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <EmbedDashboard
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <EmbedDashboard
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );
@@ -416,7 +468,9 @@ const DashboardBuilderContent: FC<{
                 spaceUuid: writeActions.spaceUuid,
                 tiles: [],
                 tabs: [],
-            }).then((createdDashboard) => createdDashboard as EmbedDashboardType);
+            }).then(
+                (createdDashboard) => createdDashboard as EmbedDashboardType,
+            );
 
         dashboardBuilderCreatePromises.set(createKey, createPromise);
 
@@ -475,6 +529,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     paletteUuid,
     isEditMode,
@@ -482,6 +537,8 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     onDashboardReady,
 }) => {
     const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const { exploreChart, handleExplore, handleBackToDashboard } =
+        useDashboardExploreNavigation(onExplore);
 
     if (!tokenContext) {
         return null;
@@ -499,26 +556,45 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={getSavedChartExploreHandler(onExplore)}
+                uiOverrides={uiOverrides}
+                onExplore={handleExplore}
+                onBackToDashboard={handleBackToDashboard}
             >
-                <DashboardBuilderContent
-                    containerStyles={getDashboardContainerStyles(styles, theme)}
-                    isEditMode={isEditMode}
-                    onEditModeChange={onEditModeChange}
-                    onDashboardReady={onDashboardReady}
-                />
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <DashboardBuilderContent
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                        isEditMode={isEditMode}
+                        onEditModeChange={onEditModeChange}
+                        onDashboardReady={onDashboardReady}
+                    />
+                )}
             </EmbedProvider>
         </SdkProviders>
     );
 };
 
-const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<
+    BaseProps & { exploreId: string; savedChart: SavedChart }
+> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     theme,
     filters,
     contentOverrides,
+    uiOverrides,
     onExplore,
     exploreId,
     savedChart,
@@ -569,6 +645,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                 projectUuid={projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedExplore
@@ -581,9 +658,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -591,13 +666,67 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     );
 };
 
-const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
+const EditableChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    const { embedWriteContext } = useEmbed();
+    const account = useAccount();
+
+    if (account.isLoading) {
+        return null;
+    }
+
+    if (embedWriteContext?.canUpdateSavedChart === true) {
+        return (
+            <EmbedExplore
+                containerStyles={containerStyles}
+                allowChartUpdate
+                isEditMode={isEditMode}
+                chartView
+            />
+        );
+    }
+
+    if (isEditMode) {
+        return (
+            <SuboptimalState
+                title="Unable to edit chart"
+                description="The embed write actor does not have permission to update this chart in the configured write space."
+            />
+        );
+    }
+
+    return <EmbedChart containerStyles={containerStyles} />;
+};
+
+const ChartContent: FC<{
+    containerStyles: React.CSSProperties;
+    isEditMode?: boolean;
+}> = ({ containerStyles, isEditMode }) => {
+    // Omitting isEditMode preserves the legacy Chart renderer exactly. Passing
+    // an explicit boolean opts into the mounted view/edit explorer surface.
+    if (isEditMode === undefined) {
+        return <EmbedChart containerStyles={containerStyles} />;
+    }
+
+    return (
+        <EditableChartContent
+            containerStyles={containerStyles}
+            isEditMode={isEditMode}
+        />
+    );
+};
+
+const Chart: FC<ChartProps> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     theme,
     contentOverrides,
+    uiOverrides,
     id,
+    isEditMode,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -638,26 +767,28 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
         return null;
     }
 
+    const containerStyles = {
+        width: '100%',
+        height: '100%',
+        position: 'relative' as const,
+        overflow: 'auto',
+        backgroundColor:
+            styles?.backgroundColor ??
+            (theme ? 'var(--mantine-color-body)' : undefined),
+    };
+
     return (
         <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
                 contentOverrides={contentOverrides}
+                uiOverrides={uiOverrides}
                 savedQueryUuid={id}
             >
-                <EmbedChart
-                    containerStyles={{
-                        width: '100%',
-                        height: '100%',
-                        position: 'relative',
-                        overflow: 'auto',
-                        backgroundColor:
-                            styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
-                    }}
+                <ChartContent
+                    containerStyles={containerStyles}
+                    isEditMode={isEditMode}
                 />
             </EmbedProvider>
         </SdkProviders>
@@ -810,6 +941,8 @@ export {
     useLightdashContent,
 };
 export type {
+    SdkUiOverrides,
+    UiStringKey,
     LightdashAiAgentThread,
     LightdashAiAgentThreadResults,
     LightdashApiClientConfig,

@@ -29,35 +29,32 @@ const VirtualMissingFieldComponent: FC<VirtualMissingFieldProps> = ({
             my="xs"
             gap="xs"
             wrap="nowrap"
-            style={{ overflow: 'hidden' }}
+            className="ld-overflow-hidden"
         >
             <MantineIcon
                 icon={IconAlertTriangle}
                 color="yellow.9"
-                style={{ flexShrink: 0 }}
+                className="ld-shrink-0"
             />
 
-            <Text truncate size="sm" style={{ flex: 1, minWidth: 0 }}>
+            <Text truncate size="sm" flex={1} miw={0}>
                 {fieldId}
             </Text>
 
             <Tooltip
-                withinPortal
                 label={
                     <Text size="xs" style={{ wordBreak: 'break-all' }}>
                         Remove missing field "{fieldId}".
                     </Text>
                 }
                 maw={300}
-                multiline
             >
                 <ActionIcon
-                    color="gray"
                     variant="transparent"
-                    style={{ flexShrink: 0 }}
+                    className="ld-shrink-0"
                     onClick={handleClick}
                 >
-                    <MantineIcon icon={IconTrash} style={{ flexShrink: 0 }} />
+                    <MantineIcon icon={IconTrash} className="ld-shrink-0" />
                 </ActionIcon>
             </Tooltip>
         </Group>

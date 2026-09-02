@@ -26,9 +26,10 @@ type ProjectDbtSourcesModelArguments = {
 /**
  * Data access for `project_dbt_sources` — the additional dbt sources connected
  * to a project beyond its primary `projects.dbt_connection` (PROD-7484). Rows
- * are returned ordered by precedence so the merge fold is deterministic. The
- * primary source is not stored here; a project with no rows runs the
- * single-source path unchanged (N=0 short-circuit).
+ * are returned ordered by precedence for both the sources list and merge fold.
+ * The lowest precedence supplies manifest metadata and wins docs/macros unions;
+ * model collisions fail separately. The primary source is not stored here; a
+ * project with no rows runs the single-source path unchanged (N=0 short-circuit).
  */
 export class ProjectDbtSourcesModel {
     private readonly database: Knex;
@@ -92,6 +93,10 @@ export class ProjectDbtSourcesModel {
             isPrimary: row.is_primary,
             precedence: row.precedence,
             dbtConnection,
+            warehouseLocation: {
+                database: row.warehouse_database,
+                schema: row.warehouse_schema,
+            },
             hasCredentialError,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -121,6 +126,40 @@ export class ProjectDbtSourcesModel {
         return row !== undefined;
     }
 
+    async copySources(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+    ): Promise<void> {
+        const sources = await this.database(ProjectDbtSourcesTableName)
+            .select(
+                'name',
+                'is_primary',
+                'precedence',
+                'dbt_connection_type',
+                'dbt_connection',
+                'warehouse_database',
+                'warehouse_schema',
+            )
+            .where('project_uuid', sourceProjectUuid);
+
+        if (sources.length === 0) {
+            return;
+        }
+
+        await this.database(ProjectDbtSourcesTableName).insert(
+            sources.map((source) => ({
+                project_uuid: targetProjectUuid,
+                name: source.name,
+                is_primary: source.is_primary,
+                precedence: source.precedence,
+                dbt_connection_type: source.dbt_connection_type,
+                dbt_connection: source.dbt_connection,
+                warehouse_database: source.warehouse_database,
+                warehouse_schema: source.warehouse_schema,
+            })),
+        );
+    }
+
     async getSource(projectDbtSourceUuid: string): Promise<ProjectDbtSource> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
@@ -146,6 +185,8 @@ export class ProjectDbtSourcesModel {
                     precedence: data.precedence,
                     dbt_connection_type: data.dbtConnection?.type ?? null,
                     dbt_connection: this.encryptConnection(data.dbtConnection),
+                    warehouse_database: data.warehouseLocation.database,
+                    warehouse_schema: data.warehouseLocation.schema,
                 })
                 .returning('*');
             return this.convertRow(row);
@@ -182,6 +223,13 @@ export class ProjectDbtSourcesModel {
                               dbt_connection: this.encryptConnection(
                                   data.dbtConnection,
                               ),
+                          }
+                        : {}),
+                    ...(data.warehouseLocation !== undefined
+                        ? {
+                              warehouse_database:
+                                  data.warehouseLocation.database,
+                              warehouse_schema: data.warehouseLocation.schema,
                           }
                         : {}),
                     updated_at: new Date(),

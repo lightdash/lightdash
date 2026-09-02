@@ -1,10 +1,14 @@
 import {
     AlreadyExistsError,
+    ConflictError,
+    DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     generateSlug,
+    getAppDisplayName,
     NotFoundError,
     type CreateExternalConnection,
     type ExternalConnection,
+    type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
@@ -12,7 +16,11 @@ import {
     type UpdateExternalConnection,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
-import { AppsTableName } from '../../database/entities/apps';
+import {
+    AppsTableName,
+    type DbApp as DbDataApp,
+} from '../../database/entities/apps';
+import { SpaceTableName } from '../../database/entities/spaces';
 import { normalizeCredentialUrlOrigin } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -343,10 +351,26 @@ export class ExternalConnectionModel {
         )
             .select(
                 `${AppExternalConnectionsTableName}.external_connection_uuid`,
-                this.database.raw('COUNT(DISTINCT ??) AS ??', [
-                    `${AppsTableName}.app_id`,
-                    'linked_data_app_count',
-                ]),
+                // Chart types can link connections too — count them apart so
+                // the "linked apps" column doesn't lump them in as data apps.
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template IS DISTINCT FROM ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_data_app_count',
+                    ],
+                ),
+                this.database.raw(
+                    'COUNT(DISTINCT ??) FILTER (WHERE ??.template = ?) AS ??',
+                    [
+                        `${AppsTableName}.app_id`,
+                        AppsTableName,
+                        DATA_APP_VIZ_TEMPLATE,
+                        'linked_chart_type_count',
+                    ],
+                ),
             )
             .innerJoin(
                 AppsTableName,
@@ -382,6 +406,7 @@ export class ExternalConnectionModel {
                     DbExternalConnection & {
                         encrypted_payload: Buffer | null;
                         linked_data_app_count: string;
+                        linked_chart_type_count: string;
                     }
                 >
             >(
@@ -391,6 +416,10 @@ export class ExternalConnectionModel {
                     'linked_data_app_counts.linked_data_app_count',
                     'linked_data_app_count',
                 ]),
+                this.database.raw('COALESCE(??, 0) AS ??', [
+                    'linked_data_app_counts.linked_chart_type_count',
+                    'linked_chart_type_count',
+                ]),
             );
 
         return rows.map((row) => ({
@@ -399,7 +428,90 @@ export class ExternalConnectionModel {
                 row.encrypted_payload !== null,
             ),
             linkedDataAppCount: Number(row.linked_data_app_count),
+            linkedChartTypeCount: Number(row.linked_chart_type_count),
         }));
+    }
+
+    async listLinkedApps(
+        externalConnectionUuid: string,
+    ): Promise<ExternalConnectionLinkedApps> {
+        const rows = await this.database(AppExternalConnectionsTableName)
+            .innerJoin(
+                AppsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppExternalConnectionsTableName}.app_id`,
+            )
+            .leftJoin(SpaceTableName, function spaceJoin() {
+                void this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${AppsTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .where(
+                `${AppExternalConnectionsTableName}.external_connection_uuid`,
+                externalConnectionUuid,
+            )
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                Array<{
+                    app_id: string;
+                    name: string;
+                    slug: string;
+                    template: DbDataApp['template'];
+                    space_uuid: string | null;
+                    space_name: string | null;
+                    alias: string;
+                }>
+            >(
+                `${AppsTableName}.app_id`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
+                `${AppsTableName}.template`,
+                `${AppsTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${AppExternalConnectionsTableName}.alias`,
+            )
+            .orderBy(`${AppsTableName}.name`, 'asc')
+            .orderBy(`${AppExternalConnectionsTableName}.alias`, 'asc');
+
+        const linkedApps = new Map<
+            string,
+            ExternalConnectionLinkedApps['items'][number]
+        >();
+
+        rows.forEach((row) => {
+            const existing = linkedApps.get(row.app_id);
+            if (existing) {
+                existing.aliases.push(row.alias);
+                return;
+            }
+
+            linkedApps.set(row.app_id, {
+                appUuid: row.app_id,
+                name: row.name,
+                slug: row.slug,
+                kind:
+                    row.template === DATA_APP_VIZ_TEMPLATE
+                        ? 'project_chart_type'
+                        : 'data_app',
+                spaceUuid: row.space_uuid,
+                spaceName: row.space_name,
+                aliases: [row.alias],
+            });
+        });
+
+        const items = [...linkedApps.values()].sort((left, right) => {
+            if (left.kind !== right.kind) {
+                return left.kind === 'data_app' ? -1 : 1;
+            }
+
+            return getAppDisplayName(left.name, left.appUuid).localeCompare(
+                getAppDisplayName(right.name, right.appUuid),
+            );
+        });
+
+        return { items, total: items.length };
     }
 
     /**
@@ -796,15 +908,34 @@ export class ExternalConnectionModel {
         externalConnectionUuid: string,
         alias: string,
     ): Promise<void> {
-        // Idempotent: re-linking the same alias (e.g. on iteration) is a no-op.
-        await this.database(AppExternalConnectionsTableName)
+        const inserted = await this.database(AppExternalConnectionsTableName)
             .insert({
                 app_id: appId,
                 external_connection_uuid: externalConnectionUuid,
                 alias,
             })
             .onConflict(['app_id', 'alias'])
-            .ignore();
+            .ignore()
+            .returning('external_connection_uuid');
+
+        if (inserted.length > 0) return;
+
+        const existing = await this.database(AppExternalConnectionsTableName)
+            .where('app_id', appId)
+            .where('alias', alias)
+            .first<{ external_connection_uuid: string } | undefined>(
+                'external_connection_uuid',
+            );
+
+        // Preserve idempotency for retries of the same link, but never report
+        // success when this alias points at a different connection.
+        if (existing?.external_connection_uuid === externalConnectionUuid) {
+            return;
+        }
+
+        throw new ConflictError(
+            `Alias "${alias}" is already linked to another external connection for this app`,
+        );
     }
 
     /**

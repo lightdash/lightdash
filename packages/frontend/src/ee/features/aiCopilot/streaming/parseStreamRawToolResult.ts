@@ -1,6 +1,11 @@
 import {
     agentToolDefinitionsByName,
     isAiAgentMcpToolName,
+    parsePartialToolComposerQueriesArgs,
+    toolDashboardV2ArgsSchemaPersisted,
+    toolRunQueryArgsSchemaPersisted,
+    toolRunQueryExpressionArgsSchema,
+    toolRunQueryExpressionArgsSchemaV2,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
@@ -9,14 +14,26 @@ import { type z } from 'zod';
 type ParsedToolName = ToolName;
 type McpStreamToolName = `mcp_${string}`;
 
-type ToolArgs<TName extends ToolName> = z.infer<
-    (typeof agentToolDefinitionsByName)[TName]['inputSchema']
->;
+// Streamed args can be wider than the advertised (formula-only) contract:
+// merge-disabled runtimes advertise the wide V2 query contract and models
+// resuming old threads may echo legacy template table calcs the backend still
+// executes. Parse those tools with the wide persisted schemas so they render.
+const wideInputSchemaOverrides = {
+    generateVisualization: toolRunQueryArgsSchemaPersisted
+        .or(toolRunQueryExpressionArgsSchema)
+        .or(toolRunQueryExpressionArgsSchemaV2),
+    generateDashboard: toolDashboardV2ArgsSchemaPersisted,
+} as const;
+
+type ToolArgs<TName extends ToolName> =
+    TName extends keyof typeof wideInputSchemaOverrides
+        ? z.infer<(typeof wideInputSchemaOverrides)[TName]>
+        : z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>;
 type ToolOutputSchema<TName extends ToolName> =
     (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
         string,
         z.ZodObject<z.ZodRawShape>,
-        z.ZodTypeAny,
+        z.ZodType,
         infer TOutputSchema
     >
         ? TOutputSchema
@@ -35,6 +52,12 @@ type BuiltInToolCall = {
         toolArgs: ToolArgs<K>;
         toolResult?: ToolResult<K> | null;
         isPreliminary?: boolean;
+        /**
+         * True while the model is still streaming this call's input: toolArgs
+         * is a lenient reconstruction of the partial JSON, good for live
+         * rendering but not final (e.g. SQL strings may be cut off).
+         */
+        isArgsPartial?: boolean;
     };
 }[ParsedToolName];
 
@@ -52,6 +75,7 @@ type McpToolCall = {
     toolArgs: object;
     toolResult?: unknown;
     isPreliminary?: boolean;
+    isArgsPartial?: boolean;
 };
 
 type McpToolResult = {
@@ -87,8 +111,16 @@ const parseMcpToolArgs = (toolArgs: unknown): object =>
         ? toolArgs
         : {};
 
+const hasWideInputSchema = (
+    toolName: ParsedToolName,
+): toolName is keyof typeof wideInputSchemaOverrides =>
+    toolName in wideInputSchemaOverrides;
+
 const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
-    agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
+    (hasWideInputSchema(toolName)
+        ? wideInputSchemaOverrides[toolName]
+        : agentToolDefinitionsByName[toolName].inputSchema
+    ).safeParse(toolArgs);
 
 const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
     const outputSchema =
@@ -117,6 +149,31 @@ export const parseStreamRawToolCall = (
         toolArgs: toolArgs.data,
         isPreliminary: toolCall.isPreliminary,
     } as AiAgentToolCall;
+};
+
+/**
+ * Parse a tool call whose input is still streaming. Strict parsing usually
+ * fails on partial JSON, so tools with a lenient partial parser (today only
+ * runComposerQueries) fall back to it — letting the pipeline render node by
+ * node while the model writes it. Returns null for tools without partial
+ * support whose partial args don't yet satisfy the strict schema.
+ */
+export const parseStreamRawPartialToolCall = (
+    toolCall: StreamRawToolCall,
+): AiAgentToolCall | null => {
+    if (toolCall.toolName !== 'runComposerQueries') return null;
+
+    const strict = parseStreamRawToolCall(toolCall);
+    if (strict) return { ...strict, isArgsPartial: true };
+
+    const partialArgs = parsePartialToolComposerQueriesArgs(toolCall.toolArgs);
+    if (!partialArgs) return null;
+    return {
+        toolName: 'runComposerQueries',
+        toolArgs: partialArgs,
+        isPreliminary: toolCall.isPreliminary,
+        isArgsPartial: true,
+    };
 };
 
 export const parseStreamRawToolResult = (

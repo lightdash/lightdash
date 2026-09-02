@@ -157,8 +157,9 @@ export function validateExternalConnectionConfig(
         }
     });
 
-    // --- methods: non-empty, supported only ---
-    if (config.allowedMethods.length === 0) {
+    // Browser images are loaded directly, so an image-only connection does not
+    // need to allow any methods through the external-fetch proxy.
+    if (config.allowedMethods.length === 0 && !config.allowBrowserImages) {
         throw new ParameterError('At least one allowed method is required');
     }
     config.allowedMethods.forEach((method) => {
@@ -171,11 +172,6 @@ export function validateExternalConnectionConfig(
         if (config.type !== 'none') {
             throw new ParameterError(
                 'Browser image loading is only available for no-auth connections',
-            );
-        }
-        if (!config.allowedMethods.includes('GET')) {
-            throw new ParameterError(
-                'Browser image loading requires GET to be allowed',
             );
         }
     }

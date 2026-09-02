@@ -8,6 +8,7 @@ const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 const SITE_URL = 'https://lightdash.example.com';
 
 const anthropic = vi.hoisted(() => ({
+    constructorOptions: vi.fn(),
     beta: {
         agents: {
             create: vi.fn(),
@@ -29,6 +30,10 @@ const anthropic = vi.hoisted(() => ({
 
 vi.mock('@anthropic-ai/sdk', () => ({
     default: class MockAnthropic {
+        constructor(options: unknown) {
+            anthropic.constructorOptions(options);
+        }
+
         beta = anthropic.beta;
     },
 }));
@@ -80,6 +85,16 @@ describe('ManagedAgentClient.syncAgent', () => {
         });
         anthropic.beta.vaults.create.mockResolvedValue({ id: 'new-vault-id' });
         anthropic.beta.vaults.credentials.create.mockResolvedValue({});
+    });
+
+    it('pins managed-agent traffic to the public Anthropic endpoint', async () => {
+        await createClient().syncAgent(createSessionConfig());
+
+        expect(anthropic.constructorOptions).toHaveBeenCalledWith({
+            apiKey: 'anthropic-api-key',
+            authToken: null,
+            baseURL: 'https://api.anthropic.com',
+        });
     });
 
     it('refreshes the vault with the project-specific MCP URL when agent config changes', async () => {

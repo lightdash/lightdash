@@ -3,6 +3,7 @@ import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
@@ -14,6 +15,7 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
 import {
@@ -56,7 +58,8 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../features/a
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
-    const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const { agentUuid, threadUuid, promptUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
@@ -158,7 +161,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         },
     );
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadUuid!,
         refetch,
@@ -351,7 +354,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
@@ -409,6 +412,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     <AgentChatInput
                         disabled={inputDisabled}
                         disabledReason={inputDisabledReason}
+                        footerNotice={
+                            <ThreadRetentionNotice
+                                agentThreadRetentionHours={
+                                    agent.threadRetentionHours ?? null
+                                }
+                            />
+                        }
                         loading={isBusy}
                         onSubmit={handleSubmit}
                         onStartDeepResearch={

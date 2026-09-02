@@ -47,7 +47,7 @@ const CreateProjectJobProgress: FC<{ job: Job }> = ({ job }) => {
     );
 
     return (
-        <Paper withBorder radius="md" p="md">
+        <Paper radius="md" p="md">
             <Stack gap="sm">
                 <Group gap="xs" wrap="nowrap">
                     {!hasFailed && !isDone && <Loader color="gray" size="sm" />}

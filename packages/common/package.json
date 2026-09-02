@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "1.203.1",
+  "version": "2.95.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,6 +24,8 @@
     "fix-format": "oxfmt ./src",
     "generate:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts && pnpm run formatter --write src/types/filterGrammar.parser.ts",
     "check:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts --check",
+    "generate:filter-expression-parser": "tsx scripts/generateFilterExpressionParser.ts && pnpm run formatter --write src/ee/AiAgent/schemas/filterExpressions/parser.ts",
+    "check:filter-expression-parser": "tsx scripts/generateFilterExpressionParser.ts --check",
     "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/chart-as-code-1.0.json",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
     "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
@@ -52,8 +54,8 @@
     "dependency-graph": "0.11.0",
     "echarts": "5.6.0",
     "handlebars": "4.7.9",
-    "js-yaml": "4.3.0",
-    "liquidjs": "10.27.1",
+    "js-yaml": "4.3.1",
+    "liquidjs": "10.27.2",
     "lodash": "4.18.1",
     "moment": "2.29.4",
     "moment-timezone": "0.5.45",
@@ -64,8 +66,7 @@
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "3.25.55",
-    "zod-to-json-schema": "3.25.1"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",
@@ -74,6 +75,7 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
+    "js-tiktoken": "1.0.16",
     "oxlint": "1.75.0",
     "oxlint-tsgolint": "7.0.2001",
     "typescript": "7.0.2",

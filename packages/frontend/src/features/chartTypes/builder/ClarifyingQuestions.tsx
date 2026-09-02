@@ -47,7 +47,7 @@ const ClarifyingQuestions: FC<Props> = ({
             aria-label="Questions before building"
         >
             <Box className={classes.sheetHeader}>
-                <MantineIcon icon={IconSparkles} size={14} color="ldGray.6" />
+                <MantineIcon icon={IconSparkles} size={14} color="dimmed" />
                 <Text
                     className={classes.sheetPrompt}
                     fz="xs"
@@ -57,9 +57,8 @@ const ClarifyingQuestions: FC<Props> = ({
                 >
                     {prompt}
                 </Text>
-                <Tooltip withArrow label="Edit the prompt instead">
+                <Tooltip label="Edit the prompt instead">
                     <ActionIcon
-                        variant="subtle"
                         color="ldGray"
                         size="xs"
                         aria-label="Edit the prompt instead"

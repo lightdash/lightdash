@@ -2,7 +2,7 @@
 name: frontend-style-guide
 metadata:
   internal: true
-description: Apply the Lightdash frontend style guide when working on React components, migrating Mantine v6 to v8, or styling frontend code. Use when editing TSX files, fixing styling issues, or when user mentions Mantine, styling, or CSS modules.
+description: Apply the Lightdash frontend style guide and design principles when working on React components or styling frontend code. Use when editing TSX files, building or reviewing UI, fixing styling issues, or when the user mentions Mantine, design, styling, or CSS modules.
 allowed-tools: Read, Edit, Write, Glob, Grep
 ---
 
@@ -10,16 +10,35 @@ allowed-tools: Read, Edit, Write, Glob, Grep
 
 Apply these rules when working on any frontend component in `packages/frontend/`.
 
-## Mantine 8 Migration
+## Mantine 8
 
-**CRITICAL**: We are migrating from Mantine 6 to 8. Always upgrade v6 components when you encounter them.
+The app runs on Mantine 8 (`@mantine/core`), with the theme in `src/theme/`.
+
+## Design principles
+
+The theme is neutral and quiet, in the spirit of shadcn, Radix and Kumo: one ink accent, flat surfaces, soft borders, a tight type scale. Most of what "looks right" comes from using the defaults. Check each rule before you add a colour, a shadow or a size.
+
+1. **One accent, and it is ink.** The primary action on a surface is the theme primary (near-black in light, near-white in dark). Never colour a Button or ActionIcon `blue`, `dark`, `indigo` or `ldDark` for emphasis. Colour on a control means state: `red` destructive, `yellow` warning, `teal` "copied", `orange` favourite, `green` only for the existing verify/merge actions. Indigo belongs to AI surfaces. Links are the only blue text.
+2. **Hierarchy comes from variant, not colour.** `filled` is the one primary action per card, header or modal footer. `default` (bordered) is secondary. `light` is a tertiary or toggle-like action ("Add filter"). `subtle` is for icon buttons and inline actions; it is the ActionIcon default. If a surface has two filled buttons, one of them is wrong.
+3. **Surfaces are flat.** Paper and Card are bordered with no shadow and a 12px radius by default; shadows only on floating layers (Menu and Popover `md`, Modal `lg`). Do not pass `withBorder`, `shadow` or `radius` to restate that. Empty or placeholder sections use `<Paper variant="dotted">`.
+4. **Neutrals are tokens, never hand-picked pairs.** `--mantine-color-body` (surface), `--ld-color-page` (canvas), `default-border`, `default-hover`, `text`, `dimmed`, `placeholder`. `ldGray.N` already resolves per scheme (0 canvas, 1 muted fill, 2 border, 3 strong border, 5 tertiary text, 6 = dimmed, 7 label, 9 text), so `light-dark(ldGray-x, ldDark-y)` and `@mixin dark` blocks for neutrals are always a smell. Secondary text is `c="dimmed"`.
+5. **Type is a scale, not a slider.** Body is 14/20. Headings are 600 on `Title` orders 1 to 6 (28 to 14px); labels and table headers are 500; everything else 400. Use `fz="xs|sm|md"`, never `fz={13}`. Card and section titles are `Title order={5}`; page tops use `PageHeader`.
+6. **Space on the token grid.** Card padding `md`, group gaps `xs`/`sm`, section gaps `lg`, page gutters `lg`/`xl`. No pixel margins; if a layout needs `margin-top: 20px` it is `mt="lg"`.
+7. **Icons are quiet.** `MantineIcon` at stroke 1.5, 16px next to text and 14px in xs controls, coloured `dimmed` when they are secondary. Every icon-only button has an `aria-label` and a Tooltip.
+8. **Inputs are calm.** Default variant, soft border, focus is a darker border with no ring. `size="xs"` controls carry compact secondary labels automatically. Selects mark the selected option with a check; filter value pickers are the standard combobox, not a custom list.
+9. **Motion is functional.** Dropdowns pop from their anchor and modals fade, both from the theme. Nothing else animates unless it shows progress.
+10. **Dark mode is designed, not derived.** Check both schemes before you finish. Never read `useMantineColorScheme` to pick a colour; use a token. Editors take `useEditorTheme()`; only JS consumers with no CSS (ECharts, Leaflet) read `useComputedColorScheme`.
+11. **States are shared components.** `EmptyStateLoader` for loading, `InlineErrorState` for a failed section, `SuboptimalState` for a failed page, `<Paper variant="dotted">` for "nothing here".
+12. **Before writing CSS, look for the thing that already exists:** a variant, a token, an `ld-*` utility class, or a shared control (`CopyActionIcon`, `FavoriteActionIcon`, `ConfirmDeleteButton`, `TruncatedText`, `FilterFacet`, `NumberInput`, `MantineModal`).
+
+**Self-review before you hand a screen over:** open it in light and dark; count filled buttons per surface (max one); look for blue that is not a link; look for a shadow on a card; look for a font size or grey that is not a token; look for an icon button without a tooltip. The Explorer page is the reference surface when in doubt.
 
 ## Component Checklist
 
 When creating/updating components:
 
-- [ ] Use `@mantine-8/core` imports
-- [ ] No `style` or `styles` or `sx` props
+- [ ] Use `@mantine/core` imports
+- [ ] No `style` or `styles` props
 - [ ] Check Mantine docs/types for available component props
 - [ ] Use inline-style component props for styling when available (and follow <=3 props rule)
 - [ ] Use CSS modules when component props aren't available or when more than 3 inline-style props are needed
@@ -34,32 +53,6 @@ When creating/updating components:
     - `--mantine-color-${color}-outline`: for outlines
     - `--mantine-color-${color}-outline-hover`: for outlines on hover
 
-## Quick Migration Guide
-
-```tsx
-// ❌ Mantine 6
-import { Button, Group } from '@mantine/core';
-
-<Group spacing="xs" noWrap>
-    <Button sx={{ mt: 20 }}>Click</Button>
-</Group>;
-
-// ✅ Mantine 8
-import { Button, Group } from '@mantine-8/core';
-
-<Group gap="xs" wrap="nowrap">
-    <Button mt={20}>Click</Button>
-</Group>;
-```
-
-## Key Prop Changes
-
-- `spacing` → `gap`
-- `noWrap` → `wrap="nowrap"`
-- `sx` → Component props (e.g., `mt`, `w`, `c`) or CSS modules
-- `leftIcon` → `leftSection`
-- `rightIcon` → `rightSection`
-
 ## Styling Best Practices
 
 ### Core Principle: Theme First
@@ -68,34 +61,38 @@ import { Button, Group } from '@mantine-8/core';
 
 ### Styling Hierarchy
 
-1. **Best**: No custom styles (use theme defaults)
-2. **Theme extension**: For repeated patterns, add to `mantine8Theme.ts`
+1. **Best**: No custom styles (use theme defaults and variants)
+2. **Theme extension**: For repeated patterns, add a variant or rule in `src/theme/components/<Component>.module.css` (registered in `src/theme/components/index.ts`)
 3. **Component props**: Simple overrides (1-3 props like `mt="xl" w={240}`)
-4. **CSS modules**: Complex styling or more than 3 props
+4. **Utility class**: a single layout rule Mantine has no prop for (`ld-shrink-0`, `ld-grow`, `ld-self-center`, `ld-pointer`, `ld-nowrap`, `ld-pre-wrap`, `ld-overflow-hidden`, `ld-scroll-y` in `src/styles/global.css`)
+5. **CSS modules**: Complex styling or more than 3 props
 
 ### NEVER Use
 
 - `styles` prop (always use CSS modules instead)
-- `sx` prop (it's a v6 prop)
 - `style` prop (inline styles)
 
 ### Theme Extensions (For Repeated Patterns)
 
-If you find yourself applying the same style override multiple times, add it to the theme in `mantine8Theme.ts`:
+If you find yourself applying the same style override multiple times, put it in the theme. Each component has a CSS module in `src/theme/components/` and an entry in `src/theme/components/index.ts`:
 
-```tsx
-// In src/mantine8Theme.ts - inside the components object
-components: {
-    Button: Button.extend({
-        styles: {
-            root: {
-                minWidth: '120px',
-                fontWeight: 600,
-            }
-        }
-    }),
+```css
+/* src/theme/components/Badge.module.css */
+.root[data-variant='light'] {
+    text-transform: none;
+    font-weight: 500;
 }
 ```
+
+```tsx
+// src/theme/components/index.ts
+Badge: Badge.extend({
+    defaultProps: { variant: 'light', color: 'gray' },
+    classNames: badgeClasses,
+}),
+```
+
+Reach for the `vars` callback only when Mantine writes the value inline (button and badge colours, NavLink fill, input font size), because CSS cannot override an inline custom property.
 
 ### Context-Specific Overrides
 
@@ -144,57 +141,61 @@ import styles from './Component.module.css';
 
 ## Color Guidelines
 
-**Prefer default component colors** - Mantine handles theme switching automatically.
-
-When you need custom colors, use our custom scales for dark mode compatibility:
+**Prefer default component colors.** Buttons, ActionIcons and Badges get the right neutral or ink from the theme; a `color` prop on a control should only ever name a state (see Design principles).
 
 ```tsx
-// ❌ Bad - Standard Mantine colors (poor dark mode support)
-<Text c="gray.6">Secondary text</Text>
+// ❌ Bad - restates the theme, and is a near-black button in dark mode
+<Button color="dark">Apply</Button>
+<ActionIcon color="ldGray.6" variant="subtle" />
 
-// ✅ Good - ldGray for borders and neutral elements
+// ✅ Good - the theme already renders these
+<Button>Apply</Button>
+<ActionIcon />
+
+// ❌ Bad - hand-picked grey
 <Text c="ldGray.6">Secondary text</Text>
 
-// ✅ Good - ldDark for elements that appear dark in light mode
-<Button bg="ldDark.8" c="ldDark.0">Dark button</Button>
-
-// ✅ Good - Foreground/background variables
-<Text c="foreground">Primary text</Text>
-<Box bg="background">Main background</Box>
+// ✅ Good - semantic token
+<Text c="dimmed">Secondary text</Text>
 ```
 
-### Custom Color Scales
+### Neutral tokens
 
-| Token        | Purpose                                            |
-| ------------ | -------------------------------------------------- |
-| `ldGray.0-9` | Borders, subtle text, neutral UI elements          |
-| `ldDark.0-9` | Buttons/badges with dark backgrounds in light mode |
-| `background` | Page/card backgrounds                              |
-| `foreground` | Primary text color                                 |
+| Token | Purpose |
+| ----- | ------- |
+| `--mantine-color-body` | Surface (cards, inputs, menus) |
+| `--ld-color-page` | Page canvas behind surfaces |
+| `--mantine-color-default-border` / `default-hover` | Borders and hover fills of neutral controls |
+| `--mantine-color-text` / `dimmed` / `placeholder` | Primary, secondary and tertiary text |
+| `ldGray.0-9` | Same role in both schemes: 0 canvas, 1 muted fill, 2 border, 3 strong border, 4 faint icon, 5 tertiary text, 6 dimmed, 7 label, 9 text |
 
 ### Dark Mode in CSS Modules
 
-Use `@mixin dark` for theme-specific overrides:
+Neutrals need no dark-mode branch: the tokens and `ldGray.N` already resolve per scheme.
 
 ```css
-.clickableRow {
-    &:hover {
-        background-color: var(--mantine-color-ldGray-0);
+/* ❌ Bad */
+.row:hover {
+    background-color: var(--mantine-color-ldGray-0);
 
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-5);
-        }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-5);
     }
+}
+
+/* ✅ Good */
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
 }
 ```
 
-Alternative: use CSS `light-dark()` function for single-line theme switching:
+Use `light-dark()` only for a non-neutral pair that has no token, such as an accent tint:
 
 ```css
-.clickableRow:hover {
+.highlight {
     background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-5)
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-indigo-9)
     );
 }
 ```
@@ -208,10 +209,6 @@ Alternative: use CSS `light-dark()` function for single-line theme switching:
 // ✅ Good - Theme tokens
 <Box p="md" mt="lg">
 ```
-
-## Beware of dependencies
-
-If a component is migrated to use Mantine 8 Menu.Item, ensure its parent also uses Mantine 8 Menu
 
 ## Remove Dead Styles
 
@@ -258,31 +255,29 @@ as **global CSS variables** so CSS modules can use them directly:
 **Source of truth:** the numeric values live in their `*/constants.ts` files
 (e.g. `components/common/Page/constants.ts`,
 `components/common/Dashboard/dashboard.constants.ts`) and are registered as CSS
-variables in **`src/mantine8CssVariablesResolver.ts`** (wired into `Mantine8Provider`
+variables in **`src/theme/cssVariablesResolver.ts`** (wired into the Mantine provider
 via Mantine's `cssVariablesResolver`). Read that file for the full list of available
 `var(--...)` names before defining your own.
 
 **To add a new shared layout constant:** add the number to the relevant
-`constants.ts`, register it in `mantine8CssVariablesResolver.ts`, then reference
+`constants.ts`, register it in `src/theme/cssVariablesResolver.ts`, then reference
 `var(--your-name)` in CSS. Don't re-declare the literal in a `.module.css` file and
 don't pass it through an inline `style`. Keep using the numeric constant directly in
 TS where you need it as a JS value (e.g. a Mantine `h=` prop).
 
 ## Theme-Aware Component Logic
 
-For JavaScript logic that needs to know the current theme:
+Do not read the colour scheme to pick a colour; pass a token and let CSS resolve it. The two legitimate readers are code editors and chart libraries that consume plain JS values:
 
 ```tsx
-import { useMantineColorScheme } from '@mantine/core';
+// Monaco / Ace theme names
+const { monaco, ace } = useEditorTheme();
 
-const MyComponent = () => {
-    const { colorScheme } = useMantineColorScheme();
-    const iconColor = colorScheme === 'dark' ? 'blue.4' : 'blue.6';
-    // ...
-};
+// ECharts, Leaflet and other non-CSS consumers
+const isDark = useComputedColorScheme('light') === 'dark';
 ```
 
-## Keep using mantine/core's clsx utility until we migrate to Mantine 8 fully
+## Use the clsx utility exported by @mantine/core
 
 ```tsx
 import { clsx } from '@mantine/core';
@@ -294,7 +289,7 @@ const MyComponent = () => {
 };
 ```
 
-## Select/MultiSelect grouping has a different structure on Mantine 8
+## Select/MultiSelect grouping
 
 ```tsx
 <Select
@@ -316,6 +311,13 @@ const MyComponent = () => {
 - For forms inside modals: use `id` on the form and `form="form-id"` on the submit button
 - For alerts inside modals: use `Callout` with variants `danger`, `warning`, `info`
 
+### Shared controls
+
+- **Copy to clipboard**: `CopyActionIcon` from `components/common/CopyActionIcon` (`value`, optional `copyLabel`/`copiedLabel`/`icon`/`tooltipPosition`, plus ActionIcon props). Never hand-roll `CopyButton` + `ActionIcon` + icon swap.
+- **Favourite toggle**: `FavoriteActionIcon` from `components/common/FavoriteActionIcon` (`isFavorite`, `onToggle`, optional `name` for the label).
+- **Two-click delete**: `ConfirmDeleteButton` from `components/common/ConfirmDeleteButton` (`onConfirm`, `aria-label`, optional `tooltip`); arms on first click, fires on the second, disarms on blur or timeout.
+- **Faceted filters** (popover with search, counts, groups, select all): `FilterFacet` from `components/common/FilterFacet`.
+
 ### Callouts
 
 - Use `Callout` from `components/common/Callout`
@@ -323,7 +325,7 @@ const MyComponent = () => {
 
 ### Empty / Unavailable Sections (dotted style)
 
-- **`<Paper variant="dotted">`** (also `Card`) renders a dashed `ldGray.3` border with a transparent background — the house style for empty, placeholder, or unavailable sections. Defined in `mantine8Theme.ts` (`paperDottedStyles`); used by e.g. `FavoritesPanel` and `AiAgentKnowledgeFilesSection`.
+- **`<Paper variant="dotted">`** (also `Card`) renders a dashed border with a transparent background — the house style for empty, placeholder, or unavailable sections. Defined in `src/theme/components/Paper.module.css`; used by e.g. `FavoritesPanel` and `AiAgentKnowledgeFilesSection`.
 - **Section failed to load**: use `InlineErrorState` from `components/common/InlineErrorState` — a dotted Paper with a muted message and optional `onRetry` button. Keep it quiet; a failing secondary panel shouldn't shout.
 - **Placeholder values** (stat tiles etc. with no data): render an em dash (`—`) in `ldGray.5` inside a dotted container rather than fake zeros or endless skeletons. Skeletons mean "loading", dotted means "nothing here".
 - Reserve `ErrorState` / `SuboptimalState` for whole-page failures.

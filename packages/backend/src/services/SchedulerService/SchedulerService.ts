@@ -3,6 +3,7 @@ import {
     assertIsAccountWithOrg,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    DATA_APP_VIZ_TEMPLATE,
     ForbiddenError,
     getErrorMessage,
     getSchedulerResourceTypeAndId,
@@ -45,6 +46,7 @@ import {
     SchedulerRunStatus,
     SchedulerTaskName,
     SchedulerWithLogs,
+    SendNowScheduler,
     SessionUser,
     UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
@@ -185,7 +187,7 @@ export class SchedulerService extends BaseService {
     }
 
     public async getSchedulerProjectContext(
-        scheduler: Scheduler | CreateSchedulerAndTargets,
+        scheduler: Scheduler | CreateSchedulerAndTargets | SendNowScheduler,
     ): Promise<{
         projectUuid: string;
         organizationUuid: string;
@@ -388,14 +390,16 @@ export class SchedulerService extends BaseService {
     ) {
         const auditedAbility = this.createAuditedAbility(user);
         if (scheduler.savedChartUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
+            const { organizationUuid, spaceUuid, projectUuid, dashboardUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'chart',
+                    chartUuid: scheduler.savedChartUuid,
+                    dashboardUuid,
                     spaceUuid,
-                );
+                });
             if (
                 auditedAbility.cannot(
                     'view',
@@ -412,15 +416,20 @@ export class SchedulerService extends BaseService {
             )
                 throw new ForbiddenError();
         } else if (scheduler.dashboardUuid) {
-            const { organizationUuid, spaceUuid, projectUuid } =
-                await this.dashboardModel.getByIdOrSlug(
-                    scheduler.dashboardUuid,
-                );
+            const {
+                uuid: dashboardUuid,
+                organizationUuid,
+                spaceUuid,
+                projectUuid,
+            } = await this.dashboardModel.getByIdOrSlug(
+                scheduler.dashboardUuid,
+            );
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'dashboard',
+                    dashboardUuid,
                     spaceUuid,
-                );
+                });
 
             if (
                 auditedAbility.cannot(
@@ -447,10 +456,11 @@ export class SchedulerService extends BaseService {
             const spaceUuid = sqlChart.space.uuid;
 
             const { inheritsFromOrgOrProject, access } =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
+                await this.spacePermissionService.resolveAccess(user.userUuid, {
+                    type: 'sqlChart',
+                    savedSqlUuid: scheduler.savedSqlUuid,
                     spaceUuid,
-                );
+                });
             if (
                 auditedAbility.cannot(
                     'view',
@@ -472,9 +482,9 @@ export class SchedulerService extends BaseService {
                 throw new NotFoundError(`App not found: ${scheduler.appUuid}`);
             }
             const spaceContext = app.space_uuid
-                ? await this.spacePermissionService.getSpaceAccessContext(
+                ? await this.spacePermissionService.resolveAccess(
                       user.userUuid,
-                      app.space_uuid,
+                      { type: 'space', spaceUuid: app.space_uuid },
                   )
                 : {};
             if (
@@ -628,10 +638,10 @@ export class SchedulerService extends BaseService {
         }
         const auditedAbility = this.createAuditedAbility(user);
         const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  app.space_uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: app.space_uuid,
+              })
             : {};
         if (
             auditedAbility.cannot(
@@ -670,9 +680,28 @@ export class SchedulerService extends BaseService {
     async getAppSchedulers(
         user: SessionUser,
         appUuid: string,
+        includeLatestRun?: boolean,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkAppScheduledDeliveryAccess(user, appUuid);
-        return this.schedulerModel.getAppSchedulers(appUuid);
+        const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
+        // Same narrowing as the chart/SQL chart lists — without `manage` you
+        // only see the deliveries you created, not other users' recipients.
+        const canManageAll = this.createAuditedAbility(user).can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+            }),
+        );
+        const schedulers = await this.schedulerModel.getAppSchedulers(
+            appUuid,
+            canManageAll ? undefined : user.userUuid,
+        );
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulerList(schedulers);
     }
 
     async createAppScheduler(
@@ -691,6 +720,15 @@ export class SchedulerService extends BaseService {
         },
     ): Promise<SchedulerAndTargets> {
         const app = await this.checkAppScheduledDeliveryAccess(user, appUuid);
+
+        // Chart types render inside charts, so chart/dashboard schedulers
+        // already cover them — a standalone delivery of a chart type has
+        // nothing to deliver. The UI never offers this; guard the API too.
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            throw new ParameterError(
+                'Custom chart types cannot have scheduled deliveries',
+            );
+        }
 
         SchedulerService.validateAppSchedulerDelivery(newScheduler);
         if (!isValidFrequency(newScheduler.cron)) {
@@ -1668,10 +1706,7 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.setJobStatus(jobId, status);
     }
 
-    async sendScheduler(
-        user: SessionUser,
-        scheduler: CreateSchedulerAndTargets,
-    ) {
+    async sendScheduler(user: SessionUser, scheduler: SendNowScheduler) {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

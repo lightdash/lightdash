@@ -31,23 +31,29 @@ import {
     useDashboardQuery,
     useDashboardVersionRollbackMutation,
 } from '../hooks/dashboard/useDashboard';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
-    const { dashboardUuid, projectUuid } = useParams<{
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { dashboardUuid: routeDashboardIdentifier } = useParams<{
         dashboardUuid: string;
-        projectUuid: string;
     }>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const [selectedVersionUuid, setSelectedVersionUuid] = useState<string>();
 
     const dashboardQuery = useDashboardQuery({
-        uuidOrSlug: dashboardUuid,
+        uuidOrSlug: routeDashboardIdentifier,
         projectUuid,
     });
+    const dashboardUuid = dashboardQuery.data?.uuid;
+    const dashboardIdentifier =
+        dashboardQuery.data?.slug ?? routeDashboardIdentifier;
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
@@ -86,7 +92,7 @@ const DashboardHistory = () => {
                             items={[
                                 {
                                     title: 'Dashboard',
-                                    to: `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                    to: `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
@@ -115,11 +121,7 @@ const DashboardHistory = () => {
                                     <>
                                         {index === 0 && (
                                             <Tooltip label="This is the current version.">
-                                                <Badge
-                                                    size="xs"
-                                                    variant="light"
-                                                    color="green"
-                                                >
+                                                <Badge size="xs" color="green">
                                                     current
                                                 </Badge>
                                             </Tooltip>
@@ -134,20 +136,15 @@ const DashboardHistory = () => {
                                                     })}
                                                 >
                                                     <Menu
-                                                        withinPortal
                                                         position="bottom-start"
                                                         withArrow
                                                         arrowPosition="center"
-                                                        shadow="md"
                                                         offset={-4}
                                                         closeOnItemClick
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon
-                                                                variant="subtle"
-                                                                color="gray"
-                                                            >
+                                                            <ActionIcon>
                                                                 <IconDots
                                                                     size={16}
                                                                 />
@@ -193,6 +190,7 @@ const DashboardHistory = () => {
         >
             {selectedVersionUuid ? (
                 <DashboardVersionComparison
+                    dashboard={dashboardQuery.data}
                     dashboardUuid={dashboardUuid}
                     projectUuid={projectUuid}
                     versionUuid={selectedVersionUuid}
@@ -220,7 +218,7 @@ const DashboardHistory = () => {
                                     onSuccess: () => {
                                         setIsRollbackModalOpen(false);
                                         void navigate(
-                                            `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                                            `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
                                         );
                                     },
                                 });

@@ -191,7 +191,12 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         const resolverArgs = {
             projectUuid,
             queryUuid,
-            metricQuery: resolveArgs.metricQuery,
+            metricQuery: {
+                ...resolveArgs.metricQuery,
+                customDimensions: preAggregateUtils.getActiveCustomDimensions(
+                    resolveArgs.metricQuery,
+                ),
+            },
             timezone: resolveArgs.timezone,
             dateZoom: resolveArgs.dateZoom,
             parameters: resolveArgs.parameters,
@@ -233,8 +238,8 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         };
     }
 
-    createExecutionWarehouseClient(): WarehouseClient {
-        return this.duckDbClient.createExecutionWarehouseClient();
+    createExecutionWarehouseClient(scope?: string): WarehouseClient {
+        return this.duckDbClient.createExecutionWarehouseClient(scope);
     }
 
     recordStats(params: {
@@ -303,6 +308,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     chartName: row.chartName,
                     dashboardUuid: row.dashboardUuid,
                     dashboardName: row.dashboardName,
+                    dashboardSlug: row.dashboardSlug,
                     queryContext: row.queryContext,
                     hitCount: row.hitCount,
                     missCount: row.missCount,

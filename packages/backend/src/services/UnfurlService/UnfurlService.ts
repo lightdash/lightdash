@@ -35,10 +35,12 @@ import {
     snakeCaseName,
     UnexpectedServerError,
     validateSelectedTabs,
+    type AiArtifact,
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
     type ParametersValuesMap,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -81,6 +83,7 @@ import { countPdfPages } from './countPdfPages';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
+const uuidExactRegex = new RegExp(`^${uuid}$`);
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const shareUrlRegex = new RegExp(`/share/(${nanoid})`);
@@ -228,11 +231,19 @@ const bigNumberViewport = {
     height: 500,
 };
 
+// Fixed-frame AI artifact card, captured @2x for crisp Slack rendering.
+const aiArtifactViewport = {
+    width: 800,
+    height: 600,
+    deviceScaleFactor: 2,
+} as const;
+
 export enum ScreenshotContext {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     SLACK = 'slack',
     EXPORT_DASHBOARD = 'export_dashboard',
     EXPORT_CHART = 'export_chart',
+    EXPORT_AI_ARTIFACT = 'export_ai_artifact',
 }
 
 // Default values
@@ -573,6 +584,12 @@ export class UnfurlService extends BaseService {
                     organizationUuid: app.organization_uuid,
                     resourceUuid: app.app_id,
                 };
+            case LightdashPage.AI_ARTIFACT:
+                // Never produced by parseUrl; artifact exports go through
+                // exportAiAgentArtifact, not unfurls.
+                throw new ParameterError(
+                    `AI artifact pages cannot be unfurled: ${parsedUrl.url}`,
+                );
             case undefined:
                 throw new Error(`Unrecognized page for URL ${parsedUrl.url}`);
             default:
@@ -586,8 +603,12 @@ export class UnfurlService extends BaseService {
     async unfurlDetails(
         originUrl: string,
         selectedTabs: string[] | null,
+        organizationUuidContext?: string,
     ): Promise<Unfurl | undefined> {
-        const parsedUrl = await this.parseUrl(originUrl);
+        const parsedUrl = await this.parseUrl(
+            originUrl,
+            organizationUuidContext,
+        );
 
         if (
             !parsedUrl.isValid ||
@@ -718,38 +739,11 @@ export class UnfurlService extends BaseService {
 
         let imageUrl;
         if (imageBuffer) {
-            if (this.fileStorageClient.isEnabled()) {
-                imageUrl = await this.fileStorageClient.uploadImage(
-                    imageBuffer,
-                    imageId,
-                );
-
-                if (details?.organizationUuid) {
-                    const previewId = useNanoid();
-                    await this.slackUnfurlImageModel.create({
-                        nanoid: previewId,
-                        s3Key: `${imageId}.png`,
-                        organizationUuid: details.organizationUuid,
-                    });
-                    imageUrl = new URL(
-                        `/api/v1/slack/preview/${previewId}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href;
-                }
-            } else {
-                const filePath = `/tmp/${imageId}.png`;
-                const downloadFileId = useNanoid();
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.IMAGE,
-                );
-
-                imageUrl = new URL(
-                    `/api/v1/slack/image/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
+            imageUrl = await this.hostImage(
+                imageBuffer,
+                imageId,
+                details?.organizationUuid,
+            );
         }
 
         let pdfFile;
@@ -761,6 +755,51 @@ export class UnfurlService extends BaseService {
             imageUrl,
             pdfFile,
         };
+    }
+
+    /**
+     * Hosts a screenshot buffer and returns a fetchable URL. With storage +
+     * an org, the stable Lightdash preview URL; with storage only, the raw
+     * storage URL; otherwise a local /tmp-backed download URL.
+     */
+    private async hostImage(
+        imageBuffer: Buffer,
+        imageId: string,
+        organizationUuid: string | undefined,
+    ): Promise<string> {
+        if (this.fileStorageClient.isEnabled()) {
+            let imageUrl = await this.fileStorageClient.uploadImage(
+                imageBuffer,
+                imageId,
+            );
+
+            if (organizationUuid) {
+                const previewId = useNanoid();
+                await this.slackUnfurlImageModel.create({
+                    nanoid: previewId,
+                    s3Key: `${imageId}.png`,
+                    organizationUuid,
+                });
+                imageUrl = new URL(
+                    `/api/v1/slack/preview/${previewId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
+            }
+            return imageUrl;
+        }
+
+        const filePath = `/tmp/${imageId}.png`;
+        const downloadFileId = useNanoid();
+        await this.downloadFileModel.createDownloadFile(
+            downloadFileId,
+            filePath,
+            DownloadFileType.IMAGE,
+        );
+
+        return new URL(
+            `/api/v1/slack/image/${downloadFileId}`,
+            this.lightdashConfig.siteUrl,
+        ).href;
     }
 
     /**
@@ -931,10 +970,11 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                dashboard.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);
 
@@ -1030,10 +1070,12 @@ export class UnfurlService extends BaseService {
             projectUuid ? { projectUuid } : undefined,
         );
         const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                chart.spaceUuid,
-            );
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'chart',
+                chartUuid: chart.uuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1076,6 +1118,154 @@ export class UnfurlService extends BaseService {
         }
         this.logger.info(`Chart "${chart.name}" exported successfully`);
         return unfurlImage.imageUrl;
+    }
+
+    /**
+     * Renders a custom chart type AI artifact version to a hosted PNG under
+     * the acting user's identity (one-time login grant). The caller must
+     * resolve `artifact` — and the project/agent refs it passes — via
+     * AiAgentService.getArtifact for the same user, which enforces the
+     * agent + thread access chain. Returns the buffer beside the hosted URL
+     * so callers with their own delivery path (e.g. Slack file send) don't
+     * need to fetch the image back.
+     */
+    async exportAiAgentArtifact(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifact,
+        }: {
+            projectUuid: UUID;
+            agentUuid: UUID;
+            artifact: AiArtifact;
+        },
+    ): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
+        const { artifactUuid, versionUuid } = artifact;
+        if (artifact.chartConfig?.source !== 'customChartType') {
+            throw new ParameterError(
+                `Artifact version ${artifactUuid}/${versionUuid} is not a custom chart type answer`,
+            );
+        }
+
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/ai-agents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting AI artifact to hosted image`, {
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(user.userUuid);
+        const imageId = `ai-artifact-image_${snakeCaseName(
+            artifact.title ?? 'chart',
+        )}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid: user.userUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.AI_ARTIFACT,
+            organizationUuid: user.organizationUuid,
+            resourceUuid: versionUuid,
+            resourceName: artifact.title ?? undefined,
+            context: ScreenshotContext.EXPORT_AI_ARTIFACT,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError(
+                'Unable to export AI artifact image',
+            );
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            user.organizationUuid,
+        );
+        this.logger.info(`AI artifact exported successfully`, {
+            userUuid: user.userUuid,
+            artifactUuid,
+            versionUuid,
+        });
+        return { imageBuffer: result.imageBuffer, imageUrl };
+    }
+
+    /**
+     * Renders a data app's minimal page to a hosted PNG under the acting
+     * user's identity (one-time login grant). The caller is responsible for
+     * verifying the user may see the app. Returns the buffer beside the
+     * hosted URL so callers with their own delivery path (e.g. Slack file
+     * upload) don't need to fetch the image back.
+     */
+    async exportDataApp({
+        projectUuid,
+        appUuid,
+        appName,
+        authUserUuid,
+        organizationUuid,
+        context,
+        contextId,
+    }: {
+        projectUuid: UUID;
+        appUuid: UUID;
+        appName: string;
+        authUserUuid: UUID;
+        organizationUuid: UUID;
+        context: ScreenshotContext;
+        contextId?: unknown;
+    }): Promise<{ imageBuffer: Buffer; imageUrl: string }> {
+        const minimalUrl = new URL(
+            `/minimal/projects/${projectUuid}/apps/${appUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        ).href;
+
+        this.logger.info(`Exporting data app to hosted image`, {
+            userUuid: authUserUuid,
+            organizationUuid,
+            projectUuid,
+            appUuid,
+            minimalUrl,
+        });
+
+        const cookie = await this.getUserCookie(authUserUuid);
+        const imageId = `app-image_${snakeCaseName(appName)}_${useNanoid()}`;
+
+        const result = await this.saveScreenshot({
+            authUserUuid,
+            imageId,
+            cookie,
+            url: minimalUrl,
+            lightdashPage: LightdashPage.APP,
+            organizationUuid,
+            resourceUuid: appUuid,
+            resourceName: appName,
+            context,
+            contextId,
+            selectedTabs: null,
+        });
+        if (!result?.imageBuffer) {
+            throw new UnexpectedServerError('Unable to export data app image');
+        }
+
+        const imageUrl = await this.hostImage(
+            result.imageBuffer,
+            imageId,
+            organizationUuid,
+        );
+        this.logger.info(`Data app exported successfully`, {
+            userUuid: authUserUuid,
+            appUuid,
+        });
+        return { imageBuffer: result.imageBuffer, imageUrl };
     }
 
     /**
@@ -1355,6 +1545,12 @@ export class UnfurlService extends BaseService {
                             ...appViewport,
                             width: gridWidth ?? appViewport.width,
                         };
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed frame: never widened by gridWidth or content.
+                        initialViewport = {
+                            width: aiArtifactViewport.width,
+                            height: aiArtifactViewport.height,
+                        };
                     } else {
                         initialViewport = {
                             ...viewport,
@@ -1362,17 +1558,23 @@ export class UnfurlService extends BaseService {
                         };
                     }
 
-                    const browserConnectionEndpoint =
-                        lightdashPage === LightdashPage.APP
-                            ? getAppBrowserEndpoint(
-                                  browserEndpoint,
-                                  initialViewport,
-                                  this.screenshotTimeoutMs +
-                                      BROWSERLESS_SESSION_BUFFER_MS,
-                                  this.lightdashConfig.headlessBrowser
-                                      .internalLightdashHost,
-                              )
-                            : browserEndpoint;
+                    // Both page types host the sandboxed iframe SDK, which
+                    // needs the app-style launch args (window sizing + secure
+                    // context).
+                    const usesAppLaunchArgs =
+                        lightdashPage === LightdashPage.APP ||
+                        lightdashPage === LightdashPage.AI_ARTIFACT;
+
+                    const browserConnectionEndpoint = usesAppLaunchArgs
+                        ? getAppBrowserEndpoint(
+                              browserEndpoint,
+                              initialViewport,
+                              this.screenshotTimeoutMs +
+                                  BROWSERLESS_SESSION_BUFFER_MS,
+                              this.lightdashConfig.headlessBrowser
+                                  .internalLightdashHost,
+                          )
+                        : browserEndpoint;
 
                     browser = await playwright.chromium.connectOverCDP(
                         browserConnectionEndpoint,
@@ -1404,6 +1606,12 @@ export class UnfurlService extends BaseService {
 
                     page = await browser.newPage({
                         viewport: initialViewport,
+                        ...(lightdashPage === LightdashPage.AI_ARTIFACT
+                            ? {
+                                  deviceScaleFactor:
+                                      aiArtifactViewport.deviceScaleFactor,
+                              }
+                            : {}),
                         serviceWorkers: 'block',
                         // Allow self-signed / untrusted certs when the
                         // internal Lightdash host is reached through an
@@ -1420,6 +1628,13 @@ export class UnfurlService extends BaseService {
                             page,
                             initialViewport,
                             `unfurlId: ${imageId}`,
+                        );
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        await this.overrideCdpViewport(
+                            page,
+                            initialViewport,
+                            `unfurlId: ${imageId}`,
+                            aiArtifactViewport.deviceScaleFactor,
                         );
                     }
 
@@ -2057,23 +2272,27 @@ export class UnfurlService extends BaseService {
                         }
                     }
 
-                    const fullPage = await page.locator(finalSelector);
-                    const fullPageSize = await fullPage?.boundingBox({
-                        timeout: this.screenshotTimeoutMs,
-                    });
-
-                    if (
-                        chartType !== ChartType.BIG_NUMBER &&
-                        lightdashPage !== LightdashPage.APP &&
-                        fullPageSize?.height
-                    ) {
-                        await page.setViewportSize({
-                            width: gridWidth ?? viewport.width,
-                            height: Math.round(fullPageSize.height),
+                    // AI artifacts keep their fixed frame: no content
+                    // measurement, no viewport resize.
+                    if (lightdashPage !== LightdashPage.AI_ARTIFACT) {
+                        const fullPage = await page.locator(finalSelector);
+                        const fullPageSize = await fullPage?.boundingBox({
+                            timeout: this.screenshotTimeoutMs,
                         });
-                        // Viewport changes can trigger layout shifts - wait for things to settle
-                        // before taking the shot 📸
-                        await page.waitForTimeout(100);
+
+                        if (
+                            chartType !== ChartType.BIG_NUMBER &&
+                            lightdashPage !== LightdashPage.APP &&
+                            fullPageSize?.height
+                        ) {
+                            await page.setViewportSize({
+                                width: gridWidth ?? viewport.width,
+                                height: Math.round(fullPageSize.height),
+                            });
+                            // Viewport changes can trigger layout shifts - wait for things to settle
+                            // before taking the shot 📸
+                            await page.waitForTimeout(100);
+                        }
                     }
 
                     // Helper: generate PDF from the current page state
@@ -2257,6 +2476,13 @@ export class UnfurlService extends BaseService {
                                     timeout: this.screenshotTimeoutMs,
                                 });
                         }
+                    } else if (lightdashPage === LightdashPage.AI_ARTIFACT) {
+                        // Fixed-frame capture at the declared viewport.
+                        imageBuffer = await page.screenshot({
+                            path,
+                            animations: 'disabled',
+                            timeout: this.screenshotTimeoutMs,
+                        });
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({
@@ -2401,13 +2627,14 @@ export class UnfurlService extends BaseService {
         page: playwright.Page,
         size: { width: number; height: number },
         logContext: string,
+        deviceScaleFactor = 1,
     ): Promise<void> {
         try {
             const cdp = await page.context().newCDPSession(page);
             await cdp.send('Emulation.setDeviceMetricsOverride', {
                 width: size.width,
                 height: size.height,
-                deviceScaleFactor: 1,
+                deviceScaleFactor,
                 mobile: false,
             });
         } catch (cdpErr) {
@@ -2544,21 +2771,73 @@ export class UnfurlService extends BaseService {
         return fullUrl;
     }
 
-    async parseUrl(linkUrl: string): Promise<ParsedUrl> {
+    private async resolveProjectUuid(
+        projectIdentifier: string,
+        organizationUuid?: string,
+    ): Promise<string> {
+        const decodedIdentifier = decodeURIComponent(projectIdentifier);
+        if (uuidExactRegex.test(decodedIdentifier)) {
+            return decodedIdentifier;
+        }
+        if (!organizationUuid) {
+            throw new NotFoundError(
+                `Cannot resolve project slug without an organization`,
+            );
+        }
+
+        return this.projectModel.getUuidBySlug(
+            organizationUuid,
+            decodedIdentifier,
+        );
+    }
+
+    async parseUrl(
+        linkUrl: string,
+        organizationUuid?: string,
+    ): Promise<ParsedUrl> {
         const url = matchShareUrlNanoid(linkUrl)
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
 
-        const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
-        const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
+        const projectMatch = url.match(/\/projects\/([^/?#]+)/);
+        let resolvedUrl = url;
+        if (projectMatch) {
+            const [, projectIdentifier] = projectMatch;
+            try {
+                const projectUuid = await this.resolveProjectUuid(
+                    projectIdentifier,
+                    organizationUuid,
+                );
+                resolvedUrl = url.replace(
+                    `/projects/${projectIdentifier}`,
+                    `/projects/${projectUuid}`,
+                );
+            } catch (e) {
+                this.logger.debug(
+                    `Project ${projectIdentifier} did not resolve: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                return {
+                    isValid: false,
+                    url,
+                    minimalUrl: url,
+                };
+            }
+        }
+
+        const dashboardUrl = new RegExp(
+            `/projects/(${uuid})/dashboards/([^/?#]+)`,
+        );
+        const chartUrl = new RegExp(`/projects/(${uuid})/saved/([^/?#]+)`);
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
         const sqlChartUrl = new RegExp(
             `/projects/(${uuid})/sql-runner/([^/?#]+)`,
         );
         const appUrl = new RegExp(`/projects/${uuid}/apps/${uuid}`);
 
-        if (url.match(appUrl) !== null) {
-            const [projectUuid, appUuid] = url.match(uuidRegex) || [];
+        if (resolvedUrl.match(appUrl) !== null) {
+            const [projectUuid, appUuid] = resolvedUrl.match(uuidRegex) || [];
             return {
                 isValid: true,
                 lightdashPage: LightdashPage.APP,
@@ -2571,41 +2850,82 @@ export class UnfurlService extends BaseService {
                 appUuid,
             };
         }
-        if (url.match(dashboardUrl) !== null) {
-            const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
+        const dashboardMatch = resolvedUrl.match(dashboardUrl);
+        if (dashboardMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = dashboardMatch;
+            try {
+                const dashboardIdentifier =
+                    decodeURIComponent(encodedIdentifier);
+                const dashboardUuid = uuidExactRegex.test(dashboardIdentifier)
+                    ? dashboardIdentifier
+                    : (
+                          await this.dashboardModel.getByIdOrSlug(
+                              dashboardIdentifier,
+                              { projectUuid },
+                          )
+                      ).uuid;
 
-            const { searchParams } = new URL(url);
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.DASHBOARD,
-                url,
-                minimalUrl: `${
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost
-                }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
-                projectUuid,
-                dashboardUuid,
-            };
+                const { searchParams } = new URL(url);
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.DASHBOARD,
+                    url,
+                    minimalUrl: `${
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost
+                    }/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}?${searchParams.toString()}`,
+                    projectUuid,
+                    dashboardUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Dashboard ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
         }
-        if (url.match(chartUrl) !== null) {
-            const [projectUuid, chartUuid] = url.match(uuidRegex) || [];
-            return {
-                isValid: true,
-                lightdashPage: LightdashPage.CHART,
-                url,
-                minimalUrl: new URL(
-                    `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
-                    this.lightdashConfig.headlessBrowser.internalLightdashHost,
-                ).href,
-                projectUuid,
-                chartUuid,
-            };
-        }
-        if (url.match(exploreUrl) !== null) {
-            const [projectUuid] = url.match(uuidRegex) || [];
+        const chartMatch = resolvedUrl.match(chartUrl);
+        if (chartMatch !== null) {
+            const [, projectUuid, encodedIdentifier] = chartMatch;
+            try {
+                const chartIdentifier = decodeURIComponent(encodedIdentifier);
+                const chartUuid = uuidExactRegex.test(chartIdentifier)
+                    ? chartIdentifier
+                    : (
+                          await this.savedChartModel.get(
+                              chartIdentifier,
+                              undefined,
+                              { projectUuid },
+                          )
+                      ).uuid;
 
-            const urlWithoutParams = url.split('?')[0];
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    url,
+                    minimalUrl: new URL(
+                        `/minimal/projects/${projectUuid}/saved/${chartUuid}`,
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost,
+                    ).href,
+                    projectUuid,
+                    chartUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `Chart ${encodedIdentifier} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            }
+        }
+        if (resolvedUrl.match(exploreUrl) !== null) {
+            const [projectUuid] = resolvedUrl.match(uuidRegex) || [];
+
+            const urlWithoutParams = resolvedUrl.split('?')[0];
             const exploreModel = urlWithoutParams.split('/tables/')[1];
-            const internalUrl = url.replace(
+            const internalUrl = resolvedUrl.replace(
                 this.lightdashConfig.siteUrl,
                 this.lightdashConfig.headlessBrowser.internalLightdashHost,
             );
@@ -2618,7 +2938,7 @@ export class UnfurlService extends BaseService {
                 exploreModel,
             };
         }
-        const sqlChartMatch = url.match(sqlChartUrl);
+        const sqlChartMatch = resolvedUrl.match(sqlChartUrl);
         if (sqlChartMatch !== null) {
             const [, projectUuid, slug] = sqlChartMatch;
             try {
@@ -2753,11 +3073,20 @@ export class UnfurlService extends BaseService {
             return;
         }
 
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
-                const details = await this.unfurlDetails(l.url, null);
+                const details = await this.unfurlDetails(
+                    l.url,
+                    null,
+                    organizationUuid,
+                );
 
                 if (details) {
                     this.analytics.track({

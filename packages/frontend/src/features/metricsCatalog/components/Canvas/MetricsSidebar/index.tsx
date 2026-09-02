@@ -68,7 +68,7 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
                             c="ldGray.7"
                             fw={500}
                             truncate
-                            style={{ flex: 1 }}
+                            flex={1}
                             ref={ref}
                         >
                             {title}
@@ -163,7 +163,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
                                 </ActionIcon>
                             </Group>
 
-                            <ScrollArea style={{ flex: 1 }} offsetScrollbars>
+                            <ScrollArea flex={1} offsetScrollbars>
                                 <Stack gap="xs">
                                     {nodes.length > 0
                                         ? nodes.map((node) => (

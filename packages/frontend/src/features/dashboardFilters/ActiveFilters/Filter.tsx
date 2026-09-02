@@ -35,6 +35,7 @@ import {
     getFilterRuleTables,
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
@@ -65,7 +66,7 @@ type Props = {
 const Filter: FC<Props> = ({
     isEditMode,
     isOrphaned,
-    orphanedTooltip = 'This filter is not applied to any tiles',
+    orphanedTooltip,
     isTemporary,
     field,
     filterRule,
@@ -172,9 +173,15 @@ const Filter: FC<Props> = ({
         );
     }, [dashboard, filterRule]);
 
+    const getUiString = useUiStrings();
+
     const filterRuleLabels = useMemo(() => {
         if (field) {
-            return getConditionalRuleLabelFromItem(filterRule, field);
+            return getConditionalRuleLabelFromItem(
+                filterRule,
+                field,
+                getUiString,
+            );
         } else {
             const column = Object.values(sqlChartTilesMetadata)
                 .flatMap((tileMetadata) => tileMetadata.columns)
@@ -186,6 +193,7 @@ const Filter: FC<Props> = ({
                     filterRule,
                     getFilterTypeFromItemType(column.type),
                     column.reference,
+                    getUiString,
                 );
             }
             return getConditionalRuleLabel(
@@ -194,9 +202,10 @@ const Filter: FC<Props> = ({
                     filterRule.target.fallbackType ?? DimensionType.STRING,
                 ),
                 filterRule.target.fieldId,
+                getUiString,
             );
         }
-    }, [filterRule, field, sqlChartTilesMetadata]);
+    }, [filterRule, field, sqlChartTilesMetadata, getUiString]);
 
     const filterRuleTables = useMemo(() => {
         if (!field || !allFilterableFields) return;
@@ -204,14 +213,18 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
-    // Determine if this is a date/timestamp filter that shouldn't use truncated display
-    // Date filters have formatted values like "2 months" that shouldn't be truncated
-    const isDateFilter = useMemo(() => {
+    // Date values carry units ("2 months") and boolean values have localized
+    // labels, so both render the composed rule label instead of raw values
+    const showsComposedValue = useMemo(() => {
         const type =
             field?.type ??
             filterRule.target.fallbackType ??
             DimensionType.STRING;
-        return type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+        return (
+            type === DimensionType.DATE ||
+            type === DimensionType.TIMESTAMP ||
+            type === DimensionType.BOOLEAN
+        );
     }, [field?.type, filterRule.target.fallbackType]);
 
     // Truncated values display - show max 2 values with "+N" badge
@@ -219,10 +232,10 @@ const Filter: FC<Props> = ({
         () =>
             getTruncatedValuesDisplay(
                 filterRule.values,
-                isDateFilter,
+                showsComposedValue,
                 filterRule.operator,
             ),
-        [filterRule.values, filterRule.operator, isDateFilter],
+        [filterRule.values, filterRule.operator, showsComposedValue],
     );
 
     const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =
@@ -265,10 +278,8 @@ const Filter: FC<Props> = ({
                 disabled={disabled || isReadOnlyLocked}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
-                shadow="md"
                 offset={1}
                 arrowOffset={14}
-                withinPortal
                 classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
@@ -277,11 +288,10 @@ const Filter: FC<Props> = ({
                         label={
                             isReadOnlyLocked
                                 ? 'Locked by the dashboard editor — switch to edit mode to change it'
-                                : orphanedTooltip
+                                : (orphanedTooltip ??
+                                  getUiString('filters.notAppliedToAnyTiles'))
                         }
                         disabled={!isOrphaned && !isReadOnlyLocked}
-                        withinPortal
-                        multiline
                         maw={300}
                     >
                         <Button
@@ -314,7 +324,6 @@ const Filter: FC<Props> = ({
                                                 fz="xs"
                                                 label={requirementTooltip}
                                                 disabled={!isRequirementUnmet}
-                                                withinPortal
                                             >
                                                 <MantineIcon
                                                     icon={IconAsterisk}
@@ -356,16 +365,13 @@ const Filter: FC<Props> = ({
                                                               ? 'Lock filter on this tab'
                                                               : 'Lock filter'
                                                     }
-                                                    withinPortal
                                                 >
                                                     <ActionIcon
                                                         onClick={
                                                             handleLockToggle
                                                         }
                                                         size="xs"
-                                                        color="dark"
                                                         radius="xl"
-                                                        variant="subtle"
                                                         aria-label={
                                                             isLocked
                                                                 ? hasTabs
@@ -391,11 +397,11 @@ const Filter: FC<Props> = ({
                                     {!isEditMode && isLocked && (
                                         <span
                                             className={classes.lockSlotActive}
-                                            aria-label={
+                                            aria-label={getUiString(
                                                 hasTabs
-                                                    ? 'Filter is locked on this tab'
-                                                    : 'Filter is locked'
-                                            }
+                                                    ? 'filters.filterIsLockedOnTab'
+                                                    : 'filters.filterIsLocked',
+                                            )}
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -408,9 +414,7 @@ const Filter: FC<Props> = ({
                                         <ActionIcon
                                             onClick={onRemove}
                                             size="xs"
-                                            color="dark"
                                             radius="xl"
-                                            variant="subtle"
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -437,7 +441,6 @@ const Filter: FC<Props> = ({
                             >
                                 <Text fz="xs" truncate>
                                     <Tooltip
-                                        withinPortal
                                         position="top-start"
                                         disabled={
                                             isPopoverOpen ||
@@ -447,9 +450,12 @@ const Filter: FC<Props> = ({
                                         offset={8}
                                         label={
                                             <Text>
-                                                {filterRuleTables?.length === 1
-                                                    ? 'Table: '
-                                                    : 'Tables: '}
+                                                {getUiString(
+                                                    filterRuleTables?.length ===
+                                                        1
+                                                        ? 'filters.tableLabel'
+                                                        : 'filters.tablesLabel',
+                                                )}
                                                 <Text span fw={600}>
                                                     {filterRuleTables?.join(
                                                         ', ',
@@ -468,8 +474,8 @@ const Filter: FC<Props> = ({
                                         isEmptyDashboardFilterRule(
                                             filterRule,
                                         )) ? (
-                                        <Text span c="ldGray.6" truncate>
-                                            is any value
+                                        <Text span c="dimmed" truncate>
+                                            {getUiString('filters.isAnyValue')}
                                         </Text>
                                     ) : (
                                         <>
@@ -488,7 +494,6 @@ const Filter: FC<Props> = ({
                                             </Text>
                                             {truncatedValuesDisplay.hasMore && (
                                                 <HoverCard
-                                                    withinPortal
                                                     position="bottom"
                                                     classNames={{
                                                         dropdown:
@@ -496,12 +501,7 @@ const Filter: FC<Props> = ({
                                                     }}
                                                 >
                                                     <HoverCard.Target>
-                                                        <Badge
-                                                            size="sm"
-                                                            variant="light"
-                                                            color="gray"
-                                                            ml={4}
-                                                        >
+                                                        <Badge size="sm" ml={4}>
                                                             +
                                                             {
                                                                 truncatedValuesDisplay

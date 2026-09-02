@@ -11,6 +11,8 @@ export type DbProjectDbtSource = {
     precedence: number;
     dbt_connection_type: DbtProjectType | null;
     dbt_connection: Buffer | null;
+    warehouse_database: string | null;
+    warehouse_schema: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -23,6 +25,8 @@ type CreateDbProjectDbtSource = Pick<
     | 'precedence'
     | 'dbt_connection_type'
     | 'dbt_connection'
+    | 'warehouse_database'
+    | 'warehouse_schema'
 >;
 
 type UpdateDbProjectDbtSource = Partial<
@@ -32,6 +36,8 @@ type UpdateDbProjectDbtSource = Partial<
         | 'precedence'
         | 'dbt_connection_type'
         | 'dbt_connection'
+        | 'warehouse_database'
+        | 'warehouse_schema'
         | 'updated_at'
     >
 >;

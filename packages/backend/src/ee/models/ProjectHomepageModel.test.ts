@@ -1,15 +1,22 @@
 import {
+    AnnouncementCategory,
     ConflictError,
     NotFoundError,
     type HomepageConfig,
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
+import { DatabaseError } from 'pg';
+import { UserTableName } from '../../database/entities/users';
 import {
     AnnouncementsTableName,
+    HomepageAssignmentsTableName,
     HomepagesTableName,
 } from '../database/entities/projectHomepages';
-import { ProjectHomepageModel } from './ProjectHomepageModel';
+import {
+    ProjectHomepageModel,
+    rankGroupPriorities,
+} from './ProjectHomepageModel';
 
 // Covers only behavior beyond a thin Knex wrapper: NotFoundError
 // contracts and the publish draft→published copy the service depends on.
@@ -230,6 +237,139 @@ describe('ProjectHomepageModel', () => {
                 model.publishProjectDraftAnnouncements(PROJECT_UUID),
             ).resolves.toEqual([]);
         });
+
+        it('hydrates authorName from the creating user', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on.update(AnnouncementsTableName).responseOnce([
+                makeDbAnnouncement({
+                    created_by_user_uuid: 'user-1',
+                }),
+            ]);
+            tracker.on.select(UserTableName).responseOnce([
+                {
+                    user_uuid: 'user-1',
+                    first_name: 'Ana',
+                    last_name: 'Silva',
+                },
+            ]);
+
+            const result =
+                await model.publishProjectDraftAnnouncements(PROJECT_UUID);
+
+            expect(result[0]?.announcement.authorName).toBe('Ana Silva');
+        });
+    });
+
+    describe('createAnnouncement', () => {
+        it('hydrates authorName from the creating user', async () => {
+            tracker.on.insert(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-new',
+                    project_uuid: PROJECT_UUID,
+                    title: 'Launch',
+                    body: null,
+                    category: 'launch',
+                    pinned: false,
+                    created_by_user_uuid: 'user-1',
+                    created_at: new Date('2026-01-01T00:00:00Z'),
+                    updated_at: new Date('2026-01-01T00:00:00Z'),
+                    published_at: new Date('2026-01-01T00:00:00Z'),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                },
+            ]);
+            tracker.on.select(UserTableName).responseOnce([
+                {
+                    user_uuid: 'user-1',
+                    first_name: 'Ana',
+                    last_name: 'Silva',
+                },
+            ]);
+
+            const result = await model.createAnnouncement({
+                projectUuid: PROJECT_UUID,
+                title: 'Launch',
+                body: null,
+                category: AnnouncementCategory.LAUNCH,
+                createdByUserUuid: 'user-1',
+                pendingSlackChannelId: 'C1',
+                published: true,
+                scheduledPublishAt: null,
+            });
+
+            expect(result.authorName).toBe('Ana Silva');
+        });
+    });
+
+    describe('publishPendingAnnouncements', () => {
+        it('hydrates authorName and leaves it null when the user cannot be resolved', async () => {
+            tracker.on.select(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    pending_slack_channel_id: 'C1',
+                },
+            ]);
+            tracker.on.update(AnnouncementsTableName).responseOnce([
+                {
+                    announcement_uuid: 'ann-1',
+                    project_uuid: PROJECT_UUID,
+                    title: 'Launch',
+                    body: null,
+                    category: null,
+                    pinned: false,
+                    created_by_user_uuid: 'user-missing',
+                    created_at: new Date('2026-01-01T00:00:00Z'),
+                    updated_at: new Date('2026-01-01T00:00:00Z'),
+                    published_at: new Date('2026-01-03T00:00:00Z'),
+                    pending_slack_channel_id: null,
+                    scheduled_publish_at: null,
+                },
+            ]);
+            tracker.on.select(UserTableName).responseOnce([]);
+
+            const result = await model.publishPendingAnnouncements({
+                announcementUuid: 'ann-1',
+                onlyDue: false,
+            });
+
+            expect(result[0]?.announcement.authorName).toBeNull();
+            expect(result[0]?.slackChannelId).toBe('C1');
+        });
+    });
+
+    describe('getRecentlyViewed', () => {
+        const USER_UUID = '00000000-0000-0000-0000-000000000020';
+
+        it('returns no items when the query hits the statement timeout', async () => {
+            const timeout = new DatabaseError(
+                'canceling statement due to statement timeout',
+                0,
+                'error',
+            );
+            timeout.code = '57014';
+            tracker.on.any(/statement_timeout/).responseOnce([]);
+            tracker.on.any(/analytics_chart_views/).simulateErrorOnce(timeout);
+
+            await expect(
+                model.getRecentlyViewed(PROJECT_UUID, USER_UUID),
+            ).resolves.toEqual([]);
+        });
+
+        it('rethrows other database errors', async () => {
+            tracker.on.any(/statement_timeout/).responseOnce([]);
+            tracker.on
+                .any(/analytics_chart_views/)
+                .simulateErrorOnce(new Error('connection reset'));
+
+            await expect(
+                model.getRecentlyViewed(PROJECT_UUID, USER_UUID),
+            ).rejects.toThrow('connection reset');
+        });
     });
 
     describe('getPublishedDefault', () => {
@@ -240,5 +380,97 @@ describe('ProjectHomepageModel', () => {
                 model.getPublishedDefault(PROJECT_UUID),
             ).resolves.toBeUndefined();
         });
+    });
+
+    describe('resolvePublished', () => {
+        it('breaks group-priority ties by created_at then assignment_uuid', async () => {
+            tracker.on.select(HomepageAssignmentsTableName).responseOnce([]);
+            tracker.on.select(HomepagesTableName).responseOnce([]);
+
+            await model.resolvePublished(PROJECT_UUID, {
+                groupUuids: ['group-a', 'group-b'],
+                role: undefined,
+            });
+
+            const selectQuery = tracker.history.select[0];
+            expect(selectQuery.sql).toContain('priority');
+            expect(selectQuery.sql).toContain('created_at');
+            expect(selectQuery.sql).toContain('assignment_uuid');
+        });
+    });
+});
+
+describe('rankGroupPriorities', () => {
+    const assignment = (
+        groupUuid: string,
+        priority: number,
+        createdAt: string,
+        assignmentUuid: string,
+    ) => ({
+        groupUuid,
+        priority,
+        createdAt: new Date(createdAt),
+        assignmentUuid,
+    });
+
+    it('assigns unique sequential priorities to the full project set', () => {
+        const ranked = rankGroupPriorities(
+            [
+                assignment('group-a', 0, '2026-01-01T00:00:00Z', 'aaa'),
+                assignment('group-b', 0, '2026-01-02T00:00:00Z', 'bbb'),
+                assignment('group-c', 1, '2026-01-03T00:00:00Z', 'ccc'),
+            ],
+            ['group-c'],
+        );
+
+        expect(ranked).toEqual([
+            { groupUuid: 'group-c', priority: 0 },
+            { groupUuid: 'group-a', priority: 1 },
+            { groupUuid: 'group-b', priority: 2 },
+        ]);
+    });
+
+    it('honors the requested order and appends omitted groups', () => {
+        const ranked = rankGroupPriorities(
+            [
+                assignment('group-a', 2, '2026-01-01T00:00:00Z', 'aaa'),
+                assignment('group-b', 0, '2026-01-01T00:00:00Z', 'bbb'),
+                assignment('group-c', 1, '2026-01-01T00:00:00Z', 'ccc'),
+            ],
+            ['group-c', 'group-a'],
+        );
+
+        expect(ranked.map((row) => row.groupUuid)).toEqual([
+            'group-c',
+            'group-a',
+            'group-b',
+        ]);
+        expect(ranked.map((row) => row.priority)).toEqual([0, 1, 2]);
+    });
+
+    it('breaks remaining ties by created_at then assignment uuid', () => {
+        const ranked = rankGroupPriorities(
+            [
+                assignment('group-z', 3, '2026-01-01T00:00:00Z', 'zzz'),
+                assignment('group-a', 3, '2026-01-01T00:00:00Z', 'aaa'),
+                assignment('group-m', 3, '2026-01-02T00:00:00Z', 'mmm'),
+            ],
+            [],
+        );
+
+        expect(ranked.map((row) => row.groupUuid)).toEqual([
+            'group-a',
+            'group-z',
+            'group-m',
+        ]);
+    });
+
+    it('ignores unknown and duplicate requested group uuids', () => {
+        const ranked = rankGroupPriorities(
+            [assignment('group-a', 0, '2026-01-01T00:00:00Z', 'aaa')],
+            ['missing', 'group-a', 'group-a'],
+        );
+
+        expect(ranked).toEqual([{ groupUuid: 'group-a', priority: 0 }]);
     });
 });

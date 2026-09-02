@@ -9,9 +9,14 @@ import {
     setActiveAgent,
 } from '../../store/aiAgentLauncherSlice';
 import {
+    selectDataAppPreview,
+    selectSavedChartPreview,
+} from '../../store/aiArtifactSlice';
+import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
 import {
@@ -59,9 +64,8 @@ const AiAgentsLauncherInner: FC = () => {
     const activeAgentUuid = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeAgentUuid,
     );
-    const savedChartPreview = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.savedChart,
-    );
+    const savedChartPreview = useAiAgentStoreSelector(selectSavedChartPreview);
+    const dataAppPreview = useAiAgentStoreSelector(selectDataAppPreview);
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
@@ -151,6 +155,16 @@ const AiAgentsLauncherInner: FC = () => {
     }
     const transitionSavedChartPreview =
         activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
+    const activeDataAppPreview =
+        dataAppPreview?.projectUuid === activeProjectUuid
+            ? dataAppPreview
+            : null;
+    const lastDataAppPreviewRef = useRef(activeDataAppPreview);
+    if (activeDataAppPreview) {
+        lastDataAppPreviewRef.current = activeDataAppPreview;
+    }
+    const transitionDataAppPreview =
+        activeDataAppPreview ?? lastDataAppPreviewRef.current;
     const isDashboardPage = currentDashboard?.projectUuid === activeProjectUuid;
 
     if (!isAllowed || !activeProjectUuid) return null;
@@ -188,6 +202,26 @@ const AiAgentsLauncherInner: FC = () => {
                         >
                             <AiSavedChartPreviewPanel
                                 savedChartPreview={transitionSavedChartPreview}
+                            />
+                        </Box>
+                    )}
+                </Transition>
+            )}
+            {transitionDataAppPreview && (
+                <Transition
+                    mounted={isPanelOpenSafe && activeDataAppPreview !== null}
+                    transition="slide-up"
+                    duration={180}
+                    timingFunction="ease"
+                >
+                    {(transitionStyle) => (
+                        <Box
+                            className={styles.previewPanel}
+                            style={transitionStyle}
+                        >
+                            <AiDataAppPreviewPanel
+                                dataAppPreview={transitionDataAppPreview}
+                                showInspector={false}
                             />
                         </Box>
                     )}

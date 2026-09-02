@@ -1,6 +1,7 @@
 import { Menu } from '@mantine/core';
 import { IconPhoto } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useUiString } from '../../ee/providers/Embed/useUiStrings';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
@@ -10,6 +11,7 @@ export const DashboardExportImage: FC<{
     isMinimal: boolean;
 }> = ({ onClick, isMinimal }) => {
     const { track } = useTracking();
+    const exportImageLabel = useUiString('tileMenu.exportImage');
 
     return (
         <Menu.Item
@@ -21,7 +23,7 @@ export const DashboardExportImage: FC<{
                 onClick();
             }}
         >
-            Export image
+            {exportImageLabel}
         </Menu.Item>
     );
 };

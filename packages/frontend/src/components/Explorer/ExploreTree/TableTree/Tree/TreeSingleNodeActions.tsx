@@ -134,8 +134,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     return isHovered || isSelected || isOpened ? (
         <Menu
             withArrow
-            withinPortal
-            shadow="lg"
             position="bottom-end"
             arrowOffset={12}
             offset={-4}
@@ -510,7 +508,6 @@ const TreeSingleNodeActions: FC<Props> = ({
                     >
                         <ActionIcon
                             aria-label="View options"
-                            color="gray"
                             variant="transparent"
                         >
                             <MantineIcon

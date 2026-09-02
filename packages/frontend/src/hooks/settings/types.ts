@@ -60,7 +60,6 @@ export type SettingsContext = {
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
-    isLeaveOrganizationEnabled: boolean;
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
     isOrganizationRoadmapEnabled: boolean;
@@ -79,12 +78,15 @@ export type SettingsContext = {
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    externalSourcesFlag: FeatureFlag | undefined;
+    isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
     isGitProject: boolean;
+    isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
     isUserLoading: boolean;

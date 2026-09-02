@@ -404,9 +404,8 @@ export type DuckdbCredentials =
     | DuckdbEmbeddedCredentials;
 
 /**
- * Rows created before the connectionType field was introduced are
- * MotherDuck-shaped DuckDB credentials. Default the field at decrypt time
- * so the discriminated union narrows correctly without a data migration.
+ * Normalize legacy credential values at decrypt time so callers receive a
+ * valid discriminated union without requiring data migrations.
  */
 export const normalizeWarehouseCredentials = <
     T extends CreateWarehouseCredentials,
@@ -423,6 +422,16 @@ export const normalizeWarehouseCredentials = <
             connectionType: DuckdbConnectionType.MOTHERDUCK,
         };
     }
+
+    if (credentials.type === WarehouseTypes.SNOWFLAKE) {
+        const { timeoutSeconds } = credentials as {
+            timeoutSeconds?: number | string | null;
+        };
+        if (timeoutSeconds === '' || timeoutSeconds === null) {
+            return { ...credentials, timeoutSeconds: undefined };
+        }
+    }
+
     return credentials;
 };
 
@@ -900,9 +909,7 @@ export const DBT_VERSION_SUPPORTED_WAREHOUSES: Record<
     [SupportedDbtVersions.V1_9]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_10]: dbtWarehousesExcept(),
     [SupportedDbtVersions.V1_11]: dbtWarehousesExcept(),
-    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(
-        WarehouseTypes.DATABRICKS,
-    ),
+    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(),
 };
 
 export const getDbtVersionSupportedWarehouses = (
@@ -915,7 +922,7 @@ export const isWarehouseSupportedByDbtVersion = (
 ): boolean => DBT_VERSION_SUPPORTED_WAREHOUSES[version].includes(warehouseType);
 
 export const LATEST_SUPPORTED_DBT_VERSION: SupportedDbtVersions =
-    SupportedDbtVersions.V1_11;
+    SupportedDbtVersions.V1_12;
 
 export const getLatestSupportDbtVersion = (): SupportedDbtVersions =>
     LATEST_SUPPORTED_DBT_VERSION;
@@ -1013,6 +1020,17 @@ export type DbtProjectConfig =
     | DbtManifestProjectConfig;
 
 /**
+ * Where in the warehouse a set of models lives — the two levels of a table
+ * reference, whatever a given warehouse calls them (BigQuery project and
+ * dataset, Snowflake database and schema, Databricks catalog and schema). A
+ * null field means "inherit from the project's warehouse connection".
+ */
+export type WarehouseLocation = {
+    database: string | null;
+    schema: string | null;
+};
+
+/**
  * One dbt source connected to a project (PROD-7484 multiple dbt sources). The
  * project's own `dbt_connection` is the primary source (precedence 0); when a
  * project has no source rows it runs the single-source path unchanged (N=0
@@ -1035,9 +1053,26 @@ export type ProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
     createdAt: Date;
     updatedAt: Date;
+};
+
+export const DEFAULT_PROJECT_DBT_SOURCE_NAME = 'dbt_project';
+export const PROJECT_DBT_SOURCE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
+export const PROJECT_DBT_SOURCE_NAME_MAX_LENGTH = 64;
+
+export const validateProjectDbtSourceName = (name: string): string | null => {
+    if (!name) return 'Name is required';
+    if (!PROJECT_DBT_SOURCE_NAME_PATTERN.test(name)) {
+        return 'Use only letters, numbers, and underscores';
+    }
+    if (name.length > PROJECT_DBT_SOURCE_NAME_MAX_LENGTH) {
+        return `Name must be ${PROJECT_DBT_SOURCE_NAME_MAX_LENGTH} characters or fewer`;
+    }
+    if (name.includes('__')) return 'Name cannot contain "__"';
+    return null;
 };
 
 export type CreateProjectDbtSource = {
@@ -1045,12 +1080,14 @@ export type CreateProjectDbtSource = {
     isPrimary: boolean;
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
+    warehouseLocation: WarehouseLocation;
 };
 
 export type UpdateProjectDbtSource = {
     name?: string;
     precedence?: number;
     dbtConnection?: DbtProjectConfig | null;
+    warehouseLocation?: WarehouseLocation;
 };
 
 /**
@@ -1062,6 +1099,10 @@ export type UpdateProjectDbtSource = {
  *
  * `hasCredentialError` is always `false` for the synthesised primary source.
  * See `ProjectDbtSource` for what it means on an additional source.
+ *
+ * `warehouseLocation` is where this source's models live in the project's
+ * warehouse. For the primary source it is the location the project's warehouse
+ * connection already points at.
  */
 export type ProjectDbtSourceSummary = {
     projectDbtSourceUuid: string;
@@ -1072,12 +1113,14 @@ export type ProjectDbtSourceSummary = {
     repository: string | null;
     branch: string | null;
     projectSubPath: string | null;
+    warehouseLocation: WarehouseLocation;
     hasCredentialError: boolean;
 };
 
 export type ApiCreateProjectDbtSource = {
     name: string;
     dbtConnection: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export type ApiProjectDbtSourcesResponse = {
@@ -1107,6 +1150,7 @@ export type ApiProjectDbtSourceWithConnectionResponse = {
 export type ApiUpdateProjectDbtSource = {
     name?: string;
     dbtConnection?: DbtProjectConfig;
+    warehouseLocation?: WarehouseLocation;
 };
 
 export const isGitProjectType = (
@@ -1161,6 +1205,7 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
 export type Project = {
     organizationUuid: string;
     projectUuid: string;
+    slug?: string;
     name: string;
     type: ProjectType;
     dbtConnection: DbtProjectConfig;
@@ -1188,6 +1233,7 @@ export type ProjectSummary = Pick<
     Project,
     | 'name'
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'upstreamProjectUuid'

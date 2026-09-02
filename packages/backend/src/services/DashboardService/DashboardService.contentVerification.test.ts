@@ -12,6 +12,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -110,8 +111,13 @@ describe('DashboardService - Content Verification', () => {
         } as unknown as ProjectModel,
         slackClient: {} as unknown as SlackClient,
         schedulerClient: {} as unknown as SchedulerClient,
+        contentAsCodeProjectSettingsModel: { get: vi.fn() } as never,
+        contentAsCodeSnapshotModel: { get: vi.fn() } as never,
+        contentDraftModel: { findOpenDraft: vi.fn() } as never,
         catalogModel: {} as unknown as CatalogModel,
         organizationModel: {} as unknown as OrganizationModel,
+        organizationMemberProfileModel:
+            {} as unknown as OrganizationMemberProfileModel,
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,

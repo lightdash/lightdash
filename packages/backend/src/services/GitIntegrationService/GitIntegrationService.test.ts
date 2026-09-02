@@ -1,9 +1,15 @@
-import { DbtProjectType, SupportedDbtVersions } from '@lightdash/common';
+import {
+    DbtProjectType,
+    NotFoundError,
+    SupportedDbtVersions,
+} from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     createBranch,
     createPullRequest,
+    findOpenPullRequestByHead,
     getFileContent,
+    getLastCommit,
     updateFile,
 } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -39,6 +45,7 @@ vi.mock('../../clients/github/Github.ts', () => ({
         title: 'Adds custom metric',
         number: 1,
     }),
+    findOpenPullRequestByHead: vi.fn().mockResolvedValue(null),
     getOrRefreshToken: vi.fn().mockImplementation((token, refreshToken) => ({
         token,
         refreshToken,
@@ -116,6 +123,41 @@ describe('GitIntegrationService', () => {
             expect(updateFile.mock.calls[0][0].content).toEqual(
                 EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
             );
+        });
+    });
+
+    describe('findOpenPullRequestForBranch', () => {
+        it('returns the open PR the provider has for the branch', async () => {
+            vi.mocked(findOpenPullRequestByHead).mockResolvedValueOnce({
+                number: 12,
+                url: 'https://example.com/pull/12',
+            });
+
+            await expect(
+                service.findOpenPullRequestForBranch(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'projectUuid',
+                    'lightdash/write-back/host/slug',
+                ),
+            ).resolves.toEqual({
+                prNumber: 12,
+                prUrl: 'https://example.com/pull/12',
+            });
+            expect(findOpenPullRequestByHead).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    head: 'lightdash/write-back/host/slug',
+                }),
+            );
+        });
+
+        it('returns null when the branch has no open PR', async () => {
+            await expect(
+                service.findOpenPullRequestForBranch(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'projectUuid',
+                    'lightdash/write-back/host/slug',
+                ),
+            ).resolves.toBeNull();
         });
     });
 
@@ -220,6 +262,32 @@ describe('GitIntegrationService', () => {
                 }),
             ).rejects.toThrow(
                 'Explore write-back cannot determine which dbt source owns this model on a project with multiple git-backed dbt sources: "Project dbt connection", "Additional source"',
+            );
+
+            expect(createBranch).not.toHaveBeenCalled();
+            expect(getFileContent).not.toHaveBeenCalled();
+            expect(updateFile).not.toHaveBeenCalled();
+            expect(createPullRequest).not.toHaveBeenCalled();
+        });
+
+        it('explains a missing project branch instead of a generic server error', async () => {
+            vi.mocked(getLastCommit).mockRejectedValueOnce(
+                new NotFoundError('Branch "main" not found in owner/repo'),
+            );
+
+            const promise = service.createPullRequest(
+                writebackUser,
+                'projectUuid',
+                "'",
+                { type: 'customMetrics', fields: [CUSTOM_METRIC] },
+            );
+
+            await expect(promise).rejects.toBeInstanceOf(NotFoundError);
+            await expect(promise).rejects.toThrow(
+                'Branch "main" not found in owner/repo',
+            );
+            await expect(promise).rejects.toThrow(
+                "Check the branch configured in the project's dbt connection settings.",
             );
 
             expect(createBranch).not.toHaveBeenCalled();

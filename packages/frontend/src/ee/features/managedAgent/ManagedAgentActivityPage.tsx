@@ -81,7 +81,6 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
@@ -99,6 +98,7 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -284,9 +284,7 @@ const SetupSection: FC<{
                         <Box className={classes.setupOrb}>
                             <IconTarget size={16} />
                         </Box>
-                        <Title order={4} fw={700}>
-                            Autopilot
-                        </Title>
+                        <Title order={4}>Autopilot</Title>
                         <Box className={classes.activeBadge}>
                             <Box
                                 className={
@@ -320,9 +318,7 @@ const SetupSection: FC<{
                         <ActionIcon
                             aria-label="Run Autopilot now"
                             variant="default"
-                            color="dark"
                             size="md"
-                            radius="md"
                             onClick={onRunNow}
                             disabled={!enabled || isRunNowLoading || isRunning}
                             loading={isRunNowLoading || isRunning}
@@ -332,7 +328,6 @@ const SetupSection: FC<{
                     </Tooltip>
                     <Button
                         variant={settingsOpen ? 'light' : 'default'}
-                        color="dark"
                         size="xs"
                         leftSection={<IconSettings size={14} />}
                         onClick={onOpenSettings}
@@ -421,7 +416,7 @@ const formatAbsoluteTimestamp = (dateStr: string) =>
 // --- Detail Sidebar ---
 
 const MetadataLabel: FC<{ label: string }> = ({ label }) => (
-    <Text fz={10} fw={600} c="dimmed" tt="uppercase" lts={0.5}>
+    <Text fz="xs" fw={600} c="dimmed" tt="uppercase" lts={0.5}>
         {label}
     </Text>
 );
@@ -437,7 +432,7 @@ const MetadataFieldList: FC<{ label: string; fields: string[] }> = ({
                 {fields.map((f) => (
                     <Text
                         key={f}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPill}
                     >
@@ -473,7 +468,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
             <Group gap="lg">
                 {chartType && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Type
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -483,7 +478,7 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
                 )}
                 {exploreName && (
                     <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             Explore
                         </Text>
                         <Text fz="xs" fw={500}>
@@ -587,7 +582,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.removed.map((f) => (
                     <Text
                         key={`removed-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillRemoved}
                     >
@@ -597,7 +592,7 @@ const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
                 {diff.added.map((f) => (
                     <Text
                         key={`added-${f}`}
-                        fz={11}
+                        fz="xs"
                         ff="monospace"
                         className={classes.fieldPillAdded}
                     >
@@ -770,7 +765,6 @@ const ContentContextDetails: FC<{
                             label={formatAbsoluteTimestamp(
                                 new Date(context.updatedAt).toISOString(),
                             )}
-                            withinPortal
                         >
                             <span>
                                 {formatDistanceToNowStrict(
@@ -849,10 +843,7 @@ const ProjectContextDetails: FC<{
                 )}
                 {createdAt && (
                     <InfoRow icon={IconClock} label="Created">
-                        <Tooltip
-                            label={formatAbsoluteTimestamp(createdAt)}
-                            withinPortal
-                        >
+                        <Tooltip label={formatAbsoluteTimestamp(createdAt)}>
                             <span>{formatTimestamp(createdAt)}</span>
                         </Tooltip>
                     </InfoRow>
@@ -1035,7 +1026,7 @@ const DetailSidebar: FC<{
                         tooltip={config.tooltip}
                     />
                     <Group gap={2}>
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom-end">
                             <Menu.Target>
                                 <UnstyledButton className={classes.closeBtn}>
                                     <IconDots size={14} />
@@ -1066,7 +1057,7 @@ const DetailSidebar: FC<{
                     <TargetIcon
                         size={16}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                     <TruncatedText maxWidth={260} fz="sm" fw={600}>
                         {action.targetName}
@@ -1079,10 +1070,7 @@ const DetailSidebar: FC<{
                                 target="_blank"
                                 rel="noreferrer"
                                 aria-label={`Open ${action.targetType}`}
-                                variant="subtle"
-                                color="gray"
                                 size="sm"
-                                radius="md"
                                 className={classes.titleAction}
                             >
                                 <MantineIcon
@@ -1172,8 +1160,6 @@ const DetailSidebar: FC<{
                     ) : (
                         <Tooltip
                             label="This fix was recorded before revert support. Restore manually via chart history."
-                            withinPortal
-                            multiline
                             w={240}
                         >
                             <Button
@@ -1561,7 +1547,7 @@ const SettingsSidebar: FC<{
                                             <Text fz="xs" fw={500}>
                                                 {capability.label}
                                             </Text>
-                                            <Text fz={11} c="dimmed">
+                                            <Text fz="xs" c="dimmed">
                                                 {capability.description}
                                             </Text>
                                         </Stack>
@@ -1673,7 +1659,7 @@ const SettingsSidebar: FC<{
                                             </Button>
                                         </Group>
                                     )}
-                                    <Text fz={11} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         {spaceScopeSummary}{' '}
                                         {policy.spaceScopeMode === 'only'
                                             ? 'New spaces are not monitored until added here. Selections include child spaces.'
@@ -1841,7 +1827,7 @@ const SettingsSidebar: FC<{
                                     <Text fz="xs" fw={500}>
                                         Protect verified content
                                     </Text>
-                                    <Text fz={11} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         Autopilot can report on verified charts
                                         and dashboards but never changes or
                                         deletes them.
@@ -1908,7 +1894,7 @@ const ActionRow: FC<{
                     <TargetIcon
                         size={14}
                         color="var(--mantine-color-dimmed)"
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     />
                     <TruncatedText maxWidth={220} fz="xs" fw={500}>
                         {action.targetName}
@@ -1994,9 +1980,8 @@ const RunHeaderRow: FC<{
                     ) : (
                         <Tooltip
                             label={TRIGGERED_BY_ICON[run.triggeredBy].tooltip}
-                            withinPortal
                         >
-                            <Box style={{ display: 'inline-flex' }}>
+                            <Box display="inline-flex">
                                 <MantineIcon
                                     icon={
                                         TRIGGERED_BY_ICON[run.triggeredBy].icon
@@ -2007,7 +1992,7 @@ const RunHeaderRow: FC<{
                             </Box>
                         </Tooltip>
                     )}
-                    <Text fz={11} fw={700} tt="uppercase" c="bright" lts={0.4}>
+                    <Text fz="xs" fw={600} tt="uppercase" c="bright" lts={0.4}>
                         Run
                     </Text>
                     {variant !== 'live' && (
@@ -2019,7 +2004,6 @@ const RunHeaderRow: FC<{
                                 label={formatAbsoluteTimestamp(
                                     run.startedAt.toString(),
                                 )}
-                                withinPortal
                             >
                                 <Text fz="xs" c="dimmed">
                                     {formatTimestamp(run.startedAt.toString())}
@@ -2040,7 +2024,7 @@ const RunHeaderRow: FC<{
                 </Group>
                 <Group gap={6} wrap="nowrap">
                     {variant === 'completed-empty' ? (
-                        <Text fz={11} c="dimmed">
+                        <Text fz="xs" c="dimmed">
                             No actions
                         </Text>
                     ) : run.actionCount > 0 ? (
@@ -2053,20 +2037,13 @@ const RunHeaderRow: FC<{
                                         ];
                                     if (!cfg || !count) return null;
                                     return (
-                                        <Tooltip
-                                            key={type}
-                                            label={cfg.label}
-                                            withinPortal
-                                        >
+                                        <Tooltip key={type} label={cfg.label}>
                                             <span
                                                 className={classes.runCountPill}
                                             >
                                                 <Box
                                                     className={classes.dot}
-                                                    style={{
-                                                        backgroundColor:
-                                                            cfg.dotColor,
-                                                    }}
+                                                    bg={cfg.dotColor}
                                                 />
                                                 {count}
                                             </span>
@@ -2074,7 +2051,7 @@ const RunHeaderRow: FC<{
                                     );
                                 },
                             )}
-                            <Text fz={11} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 {run.actionCount}{' '}
                                 {run.actionCount === 1 ? 'action' : 'actions'}
                             </Text>
@@ -2188,7 +2165,6 @@ const QuietRunsGroup: FC<{
                     label={`${runs.length} quiet ${
                         runs.length === 1 ? 'run' : 'runs'
                     }`}
-                    withinPortal
                 >
                     <Box style={{ display: 'flex', justifyContent: 'center' }}>
                         <MantineIcon
@@ -2219,7 +2195,7 @@ const QuietRunsGroup: FC<{
                                 />
                                 <Group gap={4} wrap="nowrap">
                                     <Text
-                                        fz={10}
+                                        fz="xs"
                                         fw={600}
                                         tt="uppercase"
                                         c="dimmed"
@@ -2227,7 +2203,7 @@ const QuietRunsGroup: FC<{
                                     >
                                         Run
                                     </Text>
-                                    <Text fz={10} c="dimmed">
+                                    <Text fz="xs" c="dimmed">
                                         ·{' '}
                                         {formatTimestamp(
                                             run.startedAt.toString(),
@@ -2235,7 +2211,7 @@ const QuietRunsGroup: FC<{
                                     </Text>
                                 </Group>
                             </Group>
-                            <Text fz={10} c="dimmed">
+                            <Text fz="xs" c="dimmed">
                                 No actions
                             </Text>
                         </Group>
@@ -2348,10 +2324,10 @@ const FilterChipMultiSelect: FC<{
     );
 
     return (
-        <Menu position="bottom-start" shadow="md" closeOnItemClick={false}>
+        <Menu position="bottom-start" closeOnItemClick={false}>
             <Menu.Target>
                 {selectedLabels.length > 1 ? (
-                    <Tooltip label={selectedLabels.join(', ')} withinPortal>
+                    <Tooltip label={selectedLabels.join(', ')}>
                         {chipButton}
                     </Tooltip>
                 ) : (
@@ -2414,7 +2390,6 @@ const FilterChipDateRange: FC<{
     return (
         <Menu
             position="bottom-start"
-            shadow="md"
             opened={isOpen}
             onOpen={menuHandlers.open}
             onClose={menuHandlers.close}
@@ -2462,7 +2437,6 @@ const ActionFilterBar: FC<{
             <TextInput
                 className={classes.filterSearch}
                 size="xs"
-                radius="md"
                 placeholder="Search actions…"
                 leftSection={<MantineIcon icon={IconSearch} size={14} />}
                 value={filters.search}
@@ -2605,8 +2579,8 @@ const FilteredActionsView: FC<{
                             <Table.Tr className={classes.dayHeaderRow}>
                                 <Table.Td colSpan={3}>
                                     <Text
-                                        fz={11}
-                                        fw={700}
+                                        fz="xs"
+                                        fw={600}
                                         tt="uppercase"
                                         c="dimmed"
                                         lts={0.4}
@@ -2634,7 +2608,7 @@ const FilteredActionsView: FC<{
 };
 
 const ManagedAgentActivityPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { user } = useApp();
     const canManageAutopilot =
@@ -2843,11 +2817,7 @@ const ManagedAgentActivityPage: FC = () => {
     }
 
     return (
-        <Stack
-            h={`calc(100vh - ${NAVBAR_HEIGHT}px)`}
-            gap={0}
-            style={{ flex: 1 }}
-        >
+        <Stack h={`calc(100vh - ${NAVBAR_HEIGHT}px)`} gap={0} flex={1}>
             <PanelGroup direction="horizontal">
                 <Panel
                     id="activity-table"

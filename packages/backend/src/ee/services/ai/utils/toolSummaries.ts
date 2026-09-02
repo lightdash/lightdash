@@ -76,6 +76,10 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
             return 'Reading project details';
         case 'editDbtProject':
             return 'Preparing change proposal';
+        case 'generateDataApp':
+            return 'Starting a data app build';
+        case 'iterateDataApp':
+            return 'Iterating on a data app';
         case 'editRepo':
             return 'Editing repository';
         default:

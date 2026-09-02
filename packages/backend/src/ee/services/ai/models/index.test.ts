@@ -42,6 +42,20 @@ const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
     },
 });
 
+const copilotConfigWithZeroDataRetention = () => {
+    const config = copilotConfigWithStreaming(true);
+    return {
+        ...config,
+        providers: {
+            ...config.providers,
+            openai: {
+                ...config.providers.openai,
+                zeroDataRetention: true,
+            },
+        },
+    };
+};
+
 describe('getDefaultModel', () => {
     it('returns the default model when the configured provider is present', () => {
         expect(getDefaultModel(baseCopilotConfig)).toEqual({
@@ -93,8 +107,60 @@ describe('getModel', () => {
         expect(providerOptions.openai.parallelToolCalls).toBe(false);
     });
 
-    it('keeps preset-specific provider options while staying sequential', () => {
+    it('uses low OpenAI reasoning without summaries when extended reasoning is disabled', () => {
+        const { callOptions, providerOptions } = getModel(
+            copilotConfigWithStreaming(true),
+            {
+                enableReasoning: false,
+                modelName: 'gpt-5.5',
+            },
+        );
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(callOptions).toEqual({});
+        expect(providerOptions.openai.reasoningEffort).toBe('low');
+        expect(providerOptions.openai.reasoningSummary).toBeUndefined();
+    });
+
+    it.each([false, true])(
+        'keeps OpenAI zero data retention stateless when extended reasoning is %s',
+        (enableReasoning) => {
+            const { providerOptions } = getModel(
+                copilotConfigWithZeroDataRetention(),
+                {
+                    enableReasoning,
+                    modelName: 'gpt-5.5',
+                },
+            );
+
+            if (!providerOptions || !('openai' in providerOptions)) {
+                throw new Error('expected openai provider options');
+            }
+            expect(providerOptions.openai.store).toBe(false);
+            expect(providerOptions.openai.include).toEqual([
+                'reasoning.encrypted_content',
+            ]);
+        },
+    );
+
+    it('enables OpenAI reasoning only when requested', () => {
         const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            enableReasoning: true,
+            modelName: 'gpt-5.5',
+        });
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.reasoningEffort).toBe('medium');
+        expect(providerOptions.openai.reasoningSummary).toBe('auto');
+    });
+
+    it('keeps preset-specific reasoning effort when enabled', () => {
+        const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            enableReasoning: true,
             modelName: 'gpt-5-mini',
         });
 

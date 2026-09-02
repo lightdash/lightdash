@@ -34,6 +34,8 @@ export enum QuerySourceType {
      * step of a multi-source pipeline.
      */
     DUCKDB = 'duckdb',
+    /** Durable external tables queried with DuckDB; enterprise only. */
+    EXTERNAL = 'external',
 }
 
 /**
@@ -139,6 +141,24 @@ export type DuckdbSourceQuery = {
 };
 
 /**
+ * External table SQL name or UUID.
+ * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
+ */
+export type ExternalSourceTableReference = string;
+
+/** DuckDB SQL over named durable external tables. */
+export type ExternalSourceQuery = {
+    sourceType: QuerySourceType.EXTERNAL;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    sql: string;
+    limit?: number;
+    tables:
+        | ExternalSourceTableReference[]
+        | Record<QuerySourceTableName, ExternalSourceTableReference>;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -146,7 +166,8 @@ export type DuckdbSourceQuery = {
 export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
-    | DuckdbSourceQuery;
+    | DuckdbSourceQuery
+    | ExternalSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {

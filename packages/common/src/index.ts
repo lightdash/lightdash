@@ -46,6 +46,7 @@ dayjs.extend(utc);
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
+export { canMutateVerifiedContent } from './authorization/canMutateVerifiedContent';
 export {
     defineUserAbility,
     getUserAbilityBuilder,
@@ -57,6 +58,7 @@ export { getOrganizationMemberRolePermissions } from './authorization/organizati
 export { projectMemberAbilities } from './authorization/projectMemberAbility';
 export * from './authorization/parseAccount';
 export * from './authorization/roleToScopeMapping';
+export * from './authorization/rolePresets';
 export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
@@ -78,11 +80,13 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
+export * from './dbt/projectMergedManifest';
 export * from './dbt/validation';
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
 export * from './pivot/deriveDataAppVizPivotConfig';
+export * from './pivot/pivotColumnName';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
@@ -101,6 +105,7 @@ export * from './types/any';
 export * from './types/api';
 export * from './types/api/comments';
 export * from './types/api/errors';
+export * from './types/api/mobilePushNotifications';
 export * from './types/api/notifications';
 export * from './types/api/paginatedQuery';
 export * from './types/api/parameters';
@@ -117,8 +122,10 @@ export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentSlug';
+export * from './types/contentReviewRequests';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/directAccess';
 export * from './types/emailWhitelabel';
 export * from './types/dataTimezonePreview';
 export * from './types/fieldImpact';
@@ -128,11 +135,14 @@ export * from './types/downloadFile';
 export * from './types/email';
 export * from './types/errors';
 export * from './types/explore';
+export * from './types/externalSources';
 export * from './types/favorites';
 export * from './featureFlags/previewFeatureFlags';
+export * from './types/dataRetention';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
+export * from './types/resultsCacheProjectSettings';
 export * from './types/upstreamDiff';
 export * from './types/field';
 export * from './types/ci';
@@ -142,6 +152,7 @@ export * from './types/funnel';
 export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
+export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
@@ -179,6 +190,7 @@ export {
     buildSafeDbtEnvironmentVariables,
     DatabricksAuthenticationType,
     DBT_VERSION_SUPPORTED_WAREHOUSES,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -191,6 +203,9 @@ export {
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
     isDbtVersion110OrHigher,
+    PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
+    PROJECT_DBT_SOURCE_NAME_PATTERN,
+    validateProjectDbtSourceName,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -300,9 +315,11 @@ export type {
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,
+    WarehouseLocation,
 } from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
+export * from './types/queryHistoryList';
 export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
@@ -364,8 +381,11 @@ export * from './utils/i18n/chartAsCode';
 export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
+export * from './utils/i18n/uiStrings';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
+export * from './utils/queryHistoryList';
+export * from './utils/resultColumns';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
@@ -388,8 +408,10 @@ export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
+export * from './utils/externalSourceExplore';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
+export * from './utils/warehouseLocation';
 export * from './utils/warehouseResourceLimits';
 export * from './visualizations/BigNumberDataModel';
 export * from './visualizations/CartesianChartDataModel';
@@ -438,12 +460,18 @@ export const getEmailSchema = () =>
             message: 'Email address must not contain whitespaces',
         });
 
+export const PASSWORD_REQUIREMENT_MESSAGES = [
+    'must be at least 8 characters long',
+    'must contain a letter',
+    'must contain a number or symbol',
+] as const;
+
 export const getPasswordSchema = () =>
     z
         .string()
-        .min(8, { message: 'must be at least 8 characters long' })
-        .regex(/[a-zA-Z]/, { message: 'must contain a letter' })
-        .regex(/[\d\W_]/, { message: 'must contain a number or symbol' });
+        .min(8, { error: PASSWORD_REQUIREMENT_MESSAGES[0] })
+        .regex(/[a-zA-Z]/, { error: PASSWORD_REQUIREMENT_MESSAGES[1] })
+        .regex(/[\d\W_]/, { error: PASSWORD_REQUIREMENT_MESSAGES[2] });
 
 export const validatePassword = (password: string): boolean =>
     getPasswordSchema().safeParse(password).success;

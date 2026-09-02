@@ -3,15 +3,29 @@ import {
     TimeFrames,
     UnitOfTime,
     type FilterableField,
+    type UiStringResolver,
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 
-const allPeriodOptions = [
-    { value: UnitOfTime.years, label: 'years to date' },
-    { value: UnitOfTime.quarters, label: 'quarters to date' },
-    { value: UnitOfTime.months, label: 'months to date' },
-    { value: UnitOfTime.weeks, label: 'weeks to date' },
+const getAllPeriodOptions = (getUiString: UiStringResolver) => [
+    {
+        value: UnitOfTime.years,
+        label: getUiString('filters.periodToDateSelect.years'),
+    },
+    {
+        value: UnitOfTime.quarters,
+        label: getUiString('filters.periodToDateSelect.quarters'),
+    },
+    {
+        value: UnitOfTime.months,
+        label: getUiString('filters.periodToDateSelect.months'),
+    },
+    {
+        value: UnitOfTime.weeks,
+        label: getUiString('filters.periodToDateSelect.weeks'),
+    },
 ];
 
 /**
@@ -52,7 +66,9 @@ const FilterPeriodToDateSelect: FC<Props> = ({
     onChange,
     popoverProps,
 }) => {
+    const getUiString = useUiStrings();
     const options = useMemo(() => {
+        const allPeriodOptions = getAllPeriodOptions(getUiString);
         if (!field || !isDimension(field) || !field.timeInterval) {
             return allPeriodOptions;
         }
@@ -63,7 +79,7 @@ const FilterPeriodToDateSelect: FC<Props> = ({
             const optIndex = unitOrder.indexOf(opt.value as UnitOfTime);
             return optIndex >= minIndex;
         });
-    }, [field]);
+    }, [field, getUiString]);
 
     return (
         <Select
@@ -71,7 +87,7 @@ const FilterPeriodToDateSelect: FC<Props> = ({
             w="100%"
             size="xs"
             disabled={disabled}
-            placeholder="Select period"
+            placeholder={getUiString('filters.selectPeriodPlaceholder')}
             comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
             onDropdownOpen={popoverProps?.onOpen}
             onDropdownClose={popoverProps?.onClose}

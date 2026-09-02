@@ -1,0 +1,12 @@
+.root {
+    color: var(--mantine-color-dimmed);
+    border-radius: var(--mantine-radius-sm);
+    transition:
+        color 120ms ease,
+        background-color 120ms ease;
+}
+
+.root:hover:not([data-disabled]) {
+    color: var(--mantine-color-text);
+    background-color: var(--mantine-color-default-hover);
+}

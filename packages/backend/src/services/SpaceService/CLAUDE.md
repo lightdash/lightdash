@@ -103,6 +103,19 @@ flowchart TB
 - **SpacePermissionService**: Orchestrates the flow and delegates the final check to CASL.
   Keeps authorization logic in the service layer where it belongs.
 
+**Dashboard direct grants — the boundary rule.** A direct grant on a dashboard
+authorizes operations whose effect stays **inside** that dashboard; reading,
+moving, or copying content **beyond** it needs real space access. This turns on
+one distinction: a chart **owned by** a dashboard (`saved_queries.dashboard_uuid`
+set, `space_id` null) inherits the dashboard's grants, while a chart that merely
+**lives in a space** does not. The single choke point is
+`resolveAccess(userUuid, target)` — its doc comment is the canonical
+explanation. Pass a `dashboard` or ownership-aware `chart` target for operations
+that stay within the owning dashboard; pass a `space` target at every
+boundary-crossing call site so grants never count (the `expectNoGrantRows` test
+guards those). See the `/ld-permissions` skill for the full rule and the
+grant-aware-vs-space-only site list.
+
 </importantToKnow>
 
 <links>

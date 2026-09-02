@@ -53,10 +53,16 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
     useEffect(() => {
         const list = listRef.current;
         if (!list) return;
-        list.querySelector('[data-active]')?.scrollIntoView({
-            block: 'nearest',
-            inline: 'nearest',
-        });
+        // Scrolled by hand: `scrollIntoView` would also nudge every
+        // scrollable ancestor, including clipped panels that cannot scroll back.
+        const active = list.querySelector<HTMLElement>('[data-active]');
+        if (active) {
+            const start = active.offsetLeft - list.offsetLeft;
+            const end = start + active.offsetWidth;
+            if (start < list.scrollLeft) list.scrollLeft = start;
+            else if (end > list.scrollLeft + list.clientWidth)
+                list.scrollLeft = end - list.clientWidth;
+        }
         const observer = new ResizeObserver(measure);
         observer.observe(list);
         list.addEventListener('scroll', measure, { passive: true });
@@ -91,7 +97,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                             <MantineIcon
                                 icon={IconChevronLeft}
                                 size={14}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         </UnstyledButton>
                     </Box>
@@ -106,7 +112,7 @@ const OverflowTabsList: FC<Props> = ({ children, className, ...boxProps }) => {
                             <MantineIcon
                                 icon={IconChevronRight}
                                 size={14}
-                                color="ldGray.6"
+                                color="dimmed"
                             />
                         </UnstyledButton>
                     </Box>

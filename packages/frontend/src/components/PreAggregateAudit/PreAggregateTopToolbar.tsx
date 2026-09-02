@@ -76,11 +76,9 @@ const PreAggregateTopToolbar: FC<Props> = ({
             {hasActiveFilters && (
                 <Tooltip label="Reset filters">
                     <ActionIcon
-                        variant="subtle"
                         size="sm"
-                        color="gray"
                         onClick={resetFilters}
-                        style={{ flexShrink: 0 }}
+                        className="ld-shrink-0"
                     >
                         <MantineIcon icon={IconFilterOff} />
                     </ActionIcon>

@@ -12,6 +12,7 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../../../../hooks/useProject';
+import { useVerifiedContentForHomepage } from '../../../../hooks/useVerifiedContentList';
 import { useCollectionContent } from './useCollectionContent';
 import { useRecentContents } from './useRecentContents';
 
@@ -64,6 +65,9 @@ export const useCollectionSourceContent = (
     const recent = useRecentContents(
         source === 'recently-viewed' ? projectUuid : undefined,
     );
+    const verified = useVerifiedContentForHomepage(
+        source === 'verified' ? projectUuid : undefined,
+    );
 
     // The uuid-driven sources resolve to real content through one shared
     // endpoint, so their cards carry the same metadata manual ones do.
@@ -82,13 +86,15 @@ export const useCollectionSourceContent = (
             case 'favorites':
                 // Favourites are ResourceViewItems: the uuid is on `data`.
                 return (favorites.data ?? []).map((item) => item.data.uuid);
+            case 'verified':
+                return (verified.data ?? []).map((item) => item.uuid);
             case 'manual':
             case 'recently-viewed':
                 return [];
             default:
                 return assertUnreachable(source, 'Unknown collection source');
         }
-    }, [source, popular.data, pinned.data, favorites.data]);
+    }, [source, popular.data, pinned.data, favorites.data, verified.data]);
 
     const derived = useCollectionContent(projectUuid, derivedUuids);
 
@@ -108,9 +114,12 @@ export const useCollectionSourceContent = (
         const byType = typeFilter
             ? resolved.filter((content) => typeFilter.has(content.contentType))
             : resolved;
-        const filtered = config.verifiedOnly
-            ? byType.filter(isVerified)
-            : byType;
+        // `verified` source is already verified-only; verifiedOnly still applies
+        // as a modifier on every other source.
+        const filtered =
+            source !== 'verified' && config.verifiedOnly
+                ? byType.filter(isVerified)
+                : byType;
         return filtered.slice(0, limit);
     }, [resolved, source, config.contentTypes, config.verifiedOnly, limit]);
 
@@ -118,6 +127,7 @@ export const useCollectionSourceContent = (
         source === 'manual'
             ? manual.isInitialLoading
             : (source === 'recently-viewed' && recent.isLoading) ||
+              (source === 'verified' && verified.isInitialLoading) ||
               popular.isInitialLoading ||
               pinned.isInitialLoading ||
               favorites.isInitialLoading ||

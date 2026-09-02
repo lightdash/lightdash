@@ -212,7 +212,6 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 footer={
                     healthData?.hasCacheAutocompleResults ? (
                         <Tooltip
-                            withinPortal
                             position="left"
                             label="Click here to refresh cache filter values"
                         >

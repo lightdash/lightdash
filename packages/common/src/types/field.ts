@@ -492,6 +492,13 @@ export type TableCalculationTemplate =
           type: TableCalculationTemplateType.RUNNING_TOTAL;
           /** Field ID to apply the template to */
           fieldId: string;
+          // undefined = legacy: follows the results-table sort at query time; [] = explicitly unordered.
+          // Never normalize undefined to [] — it changes the SQL of every pre-existing running total.
+          /** Fields to order by for the running total */
+          orderBy?: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
       }
     | {
           /** Type of template calculation */
@@ -707,7 +714,23 @@ export type FilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetchFromWarehouse: boolean;
     labelDimension?: string;
+    optionsFromDimension?: {
+        model: string;
+        dimension: string;
+        labelDimension?: string;
+    };
 };
+
+/**
+ * The label source follows the value source: when values come from another
+ * model, only that lookup's own label dimension is in scope.
+ */
+export const getFilterAutocompleteLabelDimension = (
+    filterAutocomplete: FilterAutocompleteConfig | undefined,
+): string | undefined =>
+    filterAutocomplete?.optionsFromDimension
+        ? filterAutocomplete.optionsFromDimension.labelDimension
+        : filterAutocomplete?.labelDimension;
 
 /**
  * There is nothing to autocomplete: warehouse fetching is off and no curated
@@ -866,6 +889,10 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
+
+export const isCompiledDimension = (
+    field: ItemsMap[string] | AdditionalMetric | undefined,
+): field is CompiledDimension => isDimension(field) && 'compiledSql' in field;
 
 export const isTimeBasedDimension = (
     item: ItemsMap[string] | AdditionalMetric | undefined,

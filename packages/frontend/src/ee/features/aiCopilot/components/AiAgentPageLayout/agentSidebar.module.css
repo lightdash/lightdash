@@ -74,3 +74,13 @@
         }
     }
 }
+
+.threadDeleteButton {
+    opacity: 0;
+    transition: opacity 150ms ease;
+
+    .threadNavLink:hover &,
+    &:focus-visible {
+        opacity: 1;
+    }
+}

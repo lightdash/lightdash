@@ -70,7 +70,7 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    createExecutionWarehouseClient(): WarehouseClient;
+    createExecutionWarehouseClient(scope?: string): WarehouseClient;
 
     recordStats(params: {
         projectUuid: string;

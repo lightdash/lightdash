@@ -1,0 +1,75 @@
+# rainbow.toml — how Lightdash runs on Rainbow.
+# Everything here describes the app. How Rainbow forks it in ~160ms is not your
+# concern: the kernel, the network pool, the guest-access transport, the paint
+# and warm harnesses, and the per-env IP/origin/secret values all live with the
+# platform (design/repo-config-and-ownership.md §6, §7), not in this file.
+
+[[app.service]]
+name = "backend"
+command = "pnpm -F backend dev"
+port = 8080
+
+[[app.service]]
+name = "frontend"
+command = "pnpm -F frontend dev"
+port = 3000
+serve = true                       # the port a browser hits; exactly one service sets it
+
+[resources]
+cpu = 8
+memory = "8gb"                      # a starting guess; the measured working set corrects an over-guess
+
+# No [runtime] block: node comes from .nvmrc, pnpm from package.json's
+# packageManager field, and postgresql-16 from [datastores] below. Add
+# [runtime] only to override a pin or to list an OS package nothing else owns.
+
+[datastores]
+postgres = true                    # provisioned, localhost, seeded once
+
+[seed]
+run = "pnpm -F backend seed"       # the migrate tier below has already run by now
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # dummy: the backend config loads it; enables nothing
+
+# Readiness — truths about the app, in the app's own frame (localhost, not the
+# guest IP). The platform decides when each runs: http polls during boot and
+# re-runs at the snapshot gate; paints drives headless Chrome at the gate and
+# records first_paint_ms so a slow-parent regression becomes a tracked number.
+[ready]
+http = "http://localhost:8080/api/v1/health"
+paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
+
+[warm]
+routes = ["/", "/login"]           # pre-served so the first preview is instant
+
+# The cache-tier ladder (cache-tiers.md), deepest first. The apply verb is the
+# key that carries the command; the list is ordered and first-match-wins.
+[[tier]]
+rebuild = "pnpm install --frozen-lockfile"
+preset = "pnpm"                     # lockfile globs; explicit files win
+
+[[tier]]
+name = "common-build"
+files = ["packages/common/**", "packages/warehouses/**"]
+run = "pnpm common-build && pnpm warehouses-build"
+
+[[tier]]
+name = "migrate"
+files = ["packages/backend/src/database/migrations/**"]
+run = "pnpm -F backend migrate"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+
+[[tier]]
+name = "app"
+watch = ["**"]                     # Vite HMR / tsx watch notice the write; bottom catch-all
+
+# The browser learns its origin from one field of one response (results.siteUrl),
+# so the ingress corrects it in flight and forks stay fast. No service carries
+# restart_on_inject: Lightdash previews are stub-only and patch-based, so nothing
+# is re-execed on fork.
+[origin]
+vars = ["SITE_URL"]
+patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
+
+[secrets]
+LIGHTDASH_SECRET = "app-secret"
+PGPASSWORD = "postgres-password"

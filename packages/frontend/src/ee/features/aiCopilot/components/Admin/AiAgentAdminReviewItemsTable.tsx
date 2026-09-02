@@ -239,11 +239,7 @@ const ExpandableText = ({
 };
 
 const SuggestedStep = ({ children }: { children: string }) => (
-    <Tooltip
-        label={`Suggested next step: ${children}`}
-        withArrow
-        openDelay={300}
-    >
+    <Tooltip label={`Suggested next step: ${children}`} openDelay={300}>
         <Group gap={4} wrap="nowrap" className={styles.suggestedStep}>
             <MantineIcon
                 icon={IconArrowRight}
@@ -303,13 +299,7 @@ const rootCauseHelpOrder: AiAgentRootCause[] =
     ]);
 
 const ReviewConceptHelp = () => (
-    <HoverCard
-        width={380}
-        shadow="md"
-        position="bottom-start"
-        withArrow
-        openDelay={150}
-    >
+    <HoverCard width={380} position="bottom-start" withArrow openDelay={150}>
         <HoverCard.Target>
             <Box className={styles.headerHelpIcon}>
                 <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
@@ -320,12 +310,12 @@ const ReviewConceptHelp = () => (
                 <Stack gap={4}>
                     <Text fz="xs" c="dimmed">
                         A{' '}
-                        <Text span fw={600} c="ldGray.9">
+                        <Text span fw={600}>
                             turn
                         </Text>{' '}
                         is one question and answer. When a turn shows a clear
                         issue, it becomes a{' '}
-                        <Text span fw={600} c="ldGray.9">
+                        <Text span fw={600}>
                             finding
                         </Text>{' '}
                         so you can review it here and decide what to fix next.
@@ -333,7 +323,7 @@ const ReviewConceptHelp = () => (
                 </Stack>
                 <Divider />
                 <Stack gap={6}>
-                    <Text fz="xs" fw={600} c="ldGray.9">
+                    <Text fz="xs" fw={600}>
                         What went wrong
                     </Text>
                     {rootCauseHelpOrder.map((cause) => (
@@ -377,7 +367,7 @@ const FindingCell = ({
 }: {
     reviewItem: AiAgentReviewItemSummary;
 }) => (
-    <Text fw={700} fz="sm" c="ldGray.9" lineClamp={2}>
+    <Text fw={600} fz="sm" lineClamp={2}>
         {getIssueTitle(reviewItem)}
     </Text>
 );
@@ -816,7 +806,7 @@ const AiAgentAdminReviewItemsTable = ({
                             wrap="nowrap"
                             className={styles.toolbarHeading}
                         >
-                            <Text fz="sm" fw={700} c="ldGray.9">
+                            <Text fz="sm" fw={600}>
                                 Issues
                             </Text>
                             <ReviewConceptHelp />
@@ -880,7 +870,6 @@ const AiAgentAdminReviewItemsTable = ({
                                 variant="subtle"
                                 color="gray"
                                 size="xs"
-                                radius="md"
                                 leftSection={
                                     <MantineIcon icon={IconFilterX} size="xs" />
                                 }
@@ -949,7 +938,7 @@ const AiAgentAdminReviewItemsTable = ({
                 size: 170,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconTag} color="ldGray.6" />
+                        <MantineIcon icon={IconTag} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -989,7 +978,7 @@ const AiAgentAdminReviewItemsTable = ({
                 size: 700,
                 Header: ({ column }) => (
                     <Group gap="two">
-                        <MantineIcon icon={IconListCheck} color="ldGray.6" />
+                        <MantineIcon icon={IconListCheck} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -1005,18 +994,13 @@ const AiAgentAdminReviewItemsTable = ({
                 size: 190,
                 Header: ({ column }) => (
                     <Group gap={4}>
-                        <MantineIcon icon={IconArrowRight} color="ldGray.6" />
+                        <MantineIcon icon={IconArrowRight} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
                 Cell: ({ row }) =>
                     isExampleReviewItem(row.original.uuid) ? (
-                        <Button
-                            size="compact-xs"
-                            radius="md"
-                            variant="default"
-                            disabled
-                        >
+                        <Button size="compact-xs" variant="default" disabled>
                             Create PR
                         </Button>
                     ) : (
@@ -1037,7 +1021,7 @@ const AiAgentAdminReviewItemsTable = ({
                     size: 110,
                     Header: ({ column }) => (
                         <Group gap="two" wrap="nowrap">
-                            <MantineIcon icon={IconTag} color="ldGray.6" />
+                            <MantineIcon icon={IconTag} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -1062,12 +1046,11 @@ const AiAgentAdminReviewItemsTable = ({
                                 />
                                 <Tooltip
                                     label={`${signal.confidence} confidence`}
-                                    withArrow
                                 >
                                     <Box className={styles.confidenceIcon}>
                                         <MantineIcon
                                             icon={ConfidenceIcon}
-                                            color="ldGray.6"
+                                            color="dimmed"
                                             size="xs"
                                         />
                                     </Box>
@@ -1083,10 +1066,7 @@ const AiAgentAdminReviewItemsTable = ({
                     size: 300,
                     Header: ({ column }) => (
                         <Group gap="two">
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={IconInfoCircle} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -1130,10 +1110,7 @@ const AiAgentAdminReviewItemsTable = ({
                     size: 300,
                     Header: ({ column }) => (
                         <Group gap="two">
-                            <MantineIcon
-                                icon={IconListCheck}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={IconListCheck} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -1141,12 +1118,7 @@ const AiAgentAdminReviewItemsTable = ({
                         const signal = row.original;
                         return (
                             <Stack gap={2}>
-                                <Text
-                                    fw={600}
-                                    fz="sm"
-                                    c="ldGray.9"
-                                    lineClamp={1}
-                                >
+                                <Text fw={600} fz="sm" lineClamp={1}>
                                     {signal.prompt}
                                 </Text>
                                 <ExpandableText lineClamp={1}>
@@ -1165,10 +1137,7 @@ const AiAgentAdminReviewItemsTable = ({
                     size: 100,
                     Header: ({ column }) => (
                         <Group gap="two">
-                            <MantineIcon
-                                icon={IconRobotFace}
-                                color="ldGray.6"
-                            />
+                            <MantineIcon icon={IconRobotFace} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -1190,10 +1159,10 @@ const AiAgentAdminReviewItemsTable = ({
                             <Group gap="two" wrap="nowrap">
                                 <MantineIcon
                                     icon={IconBox}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                     size="sm"
                                 />
-                                <Text fz="sm" c="ldGray.9" lineClamp={1}>
+                                <Text fz="sm" lineClamp={1}>
                                     {project?.name ?? 'Unknown agent'}
                                 </Text>
                             </Group>
@@ -1207,7 +1176,7 @@ const AiAgentAdminReviewItemsTable = ({
                     size: 150,
                     Header: ({ column }) => (
                         <Group gap="two">
-                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            <MantineIcon icon={IconClock} color="dimmed" />
                             {column.columnDef.header}
                         </Group>
                     ),
@@ -1222,13 +1191,8 @@ const AiAgentAdminReviewItemsTable = ({
                                 <Text fz="xs" c="ldGray.7" fw={500}>
                                     {formatReviewDate(signal.createdAt)}
                                 </Text>
-                                <Tooltip
-                                    label="Open AI thread preview"
-                                    withArrow
-                                >
+                                <Tooltip label="Open AI thread preview">
                                     <ActionIcon
-                                        variant="subtle"
-                                        color="gray"
                                         size="sm"
                                         aria-label="Open AI thread preview"
                                         className={styles.threadIcon}

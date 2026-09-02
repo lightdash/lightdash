@@ -22,6 +22,7 @@ import {
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useInfiniteVerifiedArtifacts } from '../../hooks/useAiAgentAdmin';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
@@ -36,7 +37,8 @@ export const VerifiedArtifactsTable: FC<Props> = ({
     selectedArtifactVersionUuid,
 }) => {
     const theme = useMantineTheme();
-    const { projectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const canManageAgent = useAiAgentPermission({
         action: 'manage',
@@ -115,7 +117,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
             //         const isChart = row.original.artifactType === 'chart';
             //         return (
             //             <Badge
-            //                 variant="light"
+            //
             //                 color={isChart ? 'blue' : 'violet'}
             //                 leftSection={
             //                     <MantineIcon
@@ -146,7 +148,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                 {title}
                             </Text>
                             {row.original.description && (
-                                <Text fz="xs" c="ldGray.6" maw={200} truncate>
+                                <Text fz="xs" c="dimmed" maw={200} truncate>
                                     {row.original.description}
                                 </Text>
                             )}
@@ -203,11 +205,9 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 Cell: ({ row }) => {
                     if (!canManageAgent) return null;
                     return (
-                        <Menu withinPortal position="bottom-end">
+                        <Menu position="bottom-end">
                             <Menu.Target>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                     }}
@@ -347,7 +347,7 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
+                        <Text fz="xs" fw={400} c="dimmed">
                             {hasNextPage
                                 ? `(${artifacts.length} of ${totalResults} loaded)`
                                 : `(${artifacts.length})`}

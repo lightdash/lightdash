@@ -30,8 +30,10 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
@@ -45,14 +47,18 @@ interface Props {
     projectUuid: string;
 }
 
-const getFavoriteItemUrl = (projectUuid: string, item: ResourceViewItem) => {
+const getFavoriteItemUrl = (
+    projectUuid: string,
+    projectUrlIdentifier: string,
+    item: ResourceViewItem,
+) => {
     switch (item.type) {
         case ResourceViewItemType.DASHBOARD:
-            return `/projects/${projectUuid}/dashboards/${item.data.uuid}/view`;
+            return `/projects/${projectUrlIdentifier}/dashboards/${item.data.slug}/view`;
         case ResourceViewItemType.CHART:
-            return `/projects/${projectUuid}/saved/${item.data.uuid}`;
+            return `/projects/${projectUrlIdentifier}/saved/${item.data.slug}`;
         case ResourceViewItemType.SPACE:
-            return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+            return `/projects/${projectUrlIdentifier}/spaces/${item.data.uuid}`;
         case ResourceViewItemType.DATA_APP:
             return `/projects/${projectUuid}/apps/${item.data.uuid}/view`;
         default:
@@ -76,6 +82,9 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
 };
 
 const BrowseMenu: FC<Props> = ({ projectUuid }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     // Track if menu has ever been opened to defer loading spaces
     const [hasBeenOpened, setHasBeenOpened] = useState(false);
     const [spacesExpanded, setSpacesExpanded] = useState(false);
@@ -111,7 +120,6 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
-            shadow="lg"
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
@@ -129,7 +137,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     size="xs"
                     fz="sm"
                     leftSection={
-                        <MantineIcon color="ldGray.6" icon={IconCategory} />
+                        <MantineIcon color="dimmed" icon={IconCategory} />
                     }
                 >
                     Browse
@@ -139,7 +147,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
             <Menu.Dropdown>
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/spaces`}
+                    to={`/projects/${projectUrlIdentifier}/spaces`}
                     leftSection={<MantineIcon icon={IconFolders} />}
                 >
                     All Spaces
@@ -147,7 +155,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/dashboards`}
+                    to={`/projects/${projectUrlIdentifier}/dashboards`}
                     leftSection={<MantineIcon icon={IconLayoutDashboard} />}
                 >
                     All dashboards
@@ -155,7 +163,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
 
                 <Menu.Item
                     component={Link}
-                    to={`/projects/${projectUuid}/saved`}
+                    to={`/projects/${projectUrlIdentifier}/saved`}
                     leftSection={<MantineIcon icon={IconChartAreaLine} />}
                 >
                     All saved charts
@@ -185,6 +193,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
 
+                <ReviewRequestsMenuItem projectUuid={projectUuid} />
+
                 {hasFavorites ? (
                     <>
                         <Menu.Divider />
@@ -204,6 +214,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                         component={Link}
                                         to={getFavoriteItemUrl(
                                             projectUuid,
+                                            projectUrlIdentifier,
                                             item,
                                         )}
                                         leftSection={
@@ -238,7 +249,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 Spaces
                             </Text>
                             <MantineIcon
-                                color="ldGray.6"
+                                color="dimmed"
                                 size={14}
                                 icon={
                                     spacesExpanded
@@ -272,7 +283,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                                 <Menu.Item
                                                     key={space.uuid}
                                                     component={Link}
-                                                    to={`/projects/${projectUuid}/spaces/${space.uuid}`}
+                                                    to={`/projects/${projectUrlIdentifier}/spaces/${space.uuid}`}
                                                     leftSection={
                                                         <MantineIcon
                                                             icon={IconFolder}

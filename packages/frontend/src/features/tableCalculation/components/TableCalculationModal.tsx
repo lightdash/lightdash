@@ -55,7 +55,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -72,6 +71,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
@@ -169,7 +169,7 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
 
@@ -626,11 +626,7 @@ const TableCalculationModal: FC<Props> = ({
             size={isExpanded ? 'auto' : 'xl'}
             headerActions={
                 <Tooltip label={isExpanded ? 'Collapse' : 'Expand'}>
-                    <ActionIcon
-                        variant="subtle"
-                        onClick={toggleExpanded}
-                        color="gray"
-                    >
+                    <ActionIcon onClick={toggleExpanded}>
                         <MantineIcon
                             icon={isExpanded ? IconMinimize : IconMaximize}
                         />
@@ -679,12 +675,11 @@ const TableCalculationModal: FC<Props> = ({
                                         withArrow
                                         width={320}
                                         position="bottom-start"
-                                        shadow="md"
                                         openDelay={100}
                                         closeDelay={150}
                                     >
                                         <HoverCard.Target>
-                                            <Box style={{ display: 'flex' }}>
+                                            <Box display="flex">
                                                 <MantineIcon
                                                     icon={IconAlertTriangle}
                                                     color="red.6"
@@ -745,8 +740,6 @@ const TableCalculationModal: FC<Props> = ({
                         {showConvertToFormulaButton && (
                             <Tooltip
                                 label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
-                                withArrow
-                                multiline
                                 w={260}
                                 disabled={showConversionPreview}
                             >
@@ -791,6 +784,7 @@ const TableCalculationModal: FC<Props> = ({
                         isTemplateTableCalculation(tableCalculation) ? (
                             <TemplateViewer
                                 template={editedTemplate ?? template}
+                                excludedFieldId={tableCalculation.name}
                                 readOnly={false}
                                 onTemplateChange={handleTemplateChange}
                             />
@@ -825,7 +819,6 @@ const TableCalculationModal: FC<Props> = ({
                                         <Popover
                                             position="bottom-end"
                                             withArrow
-                                            shadow="md"
                                             width={300}
                                         >
                                             <Popover.Target>

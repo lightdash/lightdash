@@ -10,7 +10,6 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { useMergeCompiledSql } from '../features/mergeQuery/hooks/useMergeCompiledSql';
 import {
     getLightdashMonacoTheme,
@@ -20,6 +19,7 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import Editor, { type BeforeMount, type EditorProps } from './MonacoEditor';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
@@ -37,7 +37,7 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     selectedView = 'query',
 }) => {
     const { colorScheme } = useMantineColorScheme();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: project } = useProject(projectUuid);
     const language = useMemo(
         () => getMonacoLanguage(project?.warehouseConnection?.type),

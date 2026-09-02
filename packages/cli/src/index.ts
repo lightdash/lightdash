@@ -16,6 +16,7 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { appsBuildHandler } from './handlers/apps/build';
 import { createAppHandler } from './handlers/apps/createApp';
 import { appsPreviewHandler } from './handlers/apps/preview';
 import {
@@ -55,8 +56,9 @@ import { setWarehouseHandler } from './handlers/setWarehouse';
 import { slugUpdateHandler } from './handlers/slugUpdate';
 import { sqlHandler } from './handlers/sql';
 import { registerUpgradeCheckCommand } from './handlers/upgradeCheck';
-import { validateHandler } from './handlers/validate';
+import { validateHandler, VALIDATION_SEVERITIES } from './handlers/validate';
 import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
+import { parseRefsArgument } from './refsArgument';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -579,6 +581,10 @@ program
         'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
     )
     .option(
+        '--no-combine',
+        'Skip combining the preview manifest with the manifest served by Lightdash',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -601,10 +607,10 @@ program
         '--organization-credentials <name>',
         'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use the new batched deploy feature to upload explores in batches',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
@@ -717,6 +723,10 @@ program
         'Path or http(s) URL to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
     )
     .option(
+        '--no-combine',
+        'Skip combining the preview manifest with the manifest served by Lightdash',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -736,10 +746,10 @@ program
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use the new batched deploy feature to upload explores in batches',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
@@ -831,38 +841,54 @@ const downloadCommand = program
     .option(
         '-c, --charts <charts...>',
         'specify chart slugs, uuids, or urls to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs, uuids or urls to download',
+        parseRefsArgument,
         [],
     )
-    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--agents <slugs...>',
+        'specify AI agent slugs to download',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--include-agents',
         "include all of the project's AI agents (enterprise)",
         false,
     )
-    .option('--alerts <slugs...>', 'specify alert slugs to download', [])
+    .option(
+        '--alerts <slugs...>',
+        'specify alert slugs to download',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--virtual-views <slugs...>',
         'specify virtual view slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to download',
+        parseRefsArgument,
         [],
     )
     .option(
         '--external-connections <slugs...>',
         'specify external connection slugs to download (enterprise)',
+        parseRefsArgument,
         [],
     )
     .option(
@@ -937,6 +963,7 @@ const downloadCommand = program
     .option(
         '--apps <appReferences...>',
         'Download only the specified data apps, by slug, app URL, or UUID (enterprise). Works for apps not added to a space.',
+        parseRefsArgument,
     )
     .option(
         '--include-apps',
@@ -954,6 +981,26 @@ const downloadCommand = program
         false,
     )
     .option(
+        '--chart-types <chartTypeReferences...>',
+        'Download only the specified custom chart types, by slug, URL, or UUID (enterprise).',
+        parseRefsArgument,
+    )
+    .option(
+        '--include-chart-types',
+        "Include all of the project's custom chart types (enterprise), capped at --chart-types-limit (default: 50)",
+        false,
+    )
+    .option(
+        '--chart-types-limit <number>',
+        'Maximum number of custom chart types downloaded by --include-chart-types or --include-all (default: 50)',
+        undefined,
+    )
+    .option(
+        '--chart-types-only',
+        "Download only custom chart types (implies --skip-charts --skip-dashboards --skip-spaces). Bare --chart-types-only downloads all the project's chart types; pass --chart-types <chartTypeReferences...> to select.",
+        false,
+    )
+    .option(
         '--organization',
         'download all organization-scoped resources, including Data App themes, without selecting a project',
         false,
@@ -968,33 +1015,49 @@ const uploadCommand = program
     .option(
         '-c, --charts <charts...>',
         'specify chart slugs to force upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs to force upload',
+        parseRefsArgument,
         [],
     )
-    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
-    .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
+    .option(
+        '--agents <slugs...>',
+        'specify AI agent slugs to upload',
+        parseRefsArgument,
+        [],
+    )
+    .option(
+        '--alerts <slugs...>',
+        'specify alert slugs to upload',
+        parseRefsArgument,
+        [],
+    )
     .option(
         '--virtual-views <slugs...>',
         'specify virtual view slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to upload',
+        parseRefsArgument,
         [],
     )
     .option(
         '--external-connections <slugs...>',
         'specify external connection slugs to upload (enterprise)',
+        parseRefsArgument,
         [],
     )
     .option(
@@ -1064,6 +1127,7 @@ const uploadCommand = program
     .option(
         '--apps <appReferences...>',
         'Upload only the specified data apps, by slug (the app folder name), app URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
+        parseRefsArgument,
     )
     .option(
         '--include-apps',
@@ -1073,6 +1137,21 @@ const uploadCommand = program
     .option(
         '--apps-only',
         'Upload only data apps, skipping charts, dashboards, and space reconciliation. Bare --apps-only uploads every app folder; pass --apps <appReferences...> to select.',
+        false,
+    )
+    .option(
+        '--chart-types <chartTypeReferences...>',
+        'Upload only the specified custom chart types, by slug (the chart type folder name), URL, or UUID (enterprise). URL and UUID refs are resolved against the target project.',
+        parseRefsArgument,
+    )
+    .option(
+        '--include-chart-types',
+        'Upload all chart type folders on disk (enterprise).',
+        false,
+    )
+    .option(
+        '--chart-types-only',
+        'Upload only custom chart types, skipping charts, dashboards, and space reconciliation. Bare --chart-types-only uploads every chart type folder; pass --chart-types <chartTypeReferences...> to select.',
         false,
     )
     .option(
@@ -1161,7 +1240,7 @@ appsProgram
 appsProgram
     .command('validate [paths...]')
     .description(
-        'Validate data app source, manifests, dependencies, and semantic-layer references locally.',
+        'Validate data app and custom chart type source, manifests, dependencies, and semantic-layer references locally.',
     )
     .option(
         '--live',
@@ -1180,6 +1259,17 @@ appsProgram
     )
     .option('--verbose', undefined, false)
     .action(appsValidateHandler);
+appsProgram
+    .command('build [path]')
+    .description(
+        'Build a data app or custom chart type with the same Vite production build as Lightdash Cloud, and keep the output.',
+    )
+    .option(
+        '--out-dir <dir>',
+        'Directory to write the built dist output to. Relative paths resolve against the current working directory (default: <path>/dist)',
+    )
+    .option('--verbose', undefined, false)
+    .action(appsBuildHandler);
 
 program
     .command('deploy')
@@ -1286,10 +1376,10 @@ program
         parseDisableTimestampConversionOption,
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
-        'Use batched deploy for large projects (sends explores in batches)',
-        false,
+        'Use batched deploy to upload explores in batches',
     )
     .option(
         '--batch-size <number>',
@@ -1391,10 +1481,19 @@ program
             .argParser(parseDisableTimestampConversionOption)
             .hideHelp(),
     )
-    .option(
-        '--show-chart-configuration-warnings',
-        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default.',
-        false,
+    .addOption(
+        new Option(
+            '--severity <level>',
+            'Minimum issue level that fails the command. "error" (default) only fails on errors. "warning" shows chart configuration warnings and treats them as errors.',
+        )
+            .choices([...VALIDATION_SEVERITIES])
+            .default('error'),
+    )
+    .addOption(
+        new Option(
+            '--show-chart-configuration-warnings',
+            '(deprecated) Alias for --severity warning. Shows chart configuration warnings and treats them as errors.',
+        ),
     )
     .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
@@ -2030,7 +2129,9 @@ const successHandler = () => {
         process.exit(0);
     }
     console.error(`Done 🕶`);
-    process.exit(0);
+    // Handlers report partial failures (e.g. some uploads failed) via
+    // process.exitCode; an unconditional exit(0) would wipe it.
+    process.exit(process.exitCode ?? 0);
 };
 
 program.parseAsync().then(successHandler).catch(errorHandler);

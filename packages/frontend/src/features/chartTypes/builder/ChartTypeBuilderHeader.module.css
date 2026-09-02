@@ -26,10 +26,13 @@
     flex-shrink: 0;
 }
 
-.name {
-    max-width: 280px;
+.nameCluster {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
 }
 
-.provenance {
-    max-width: 260px;
+.name {
+    max-width: 280px;
 }

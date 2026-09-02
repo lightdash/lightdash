@@ -154,7 +154,7 @@ const compileWindowFunctionTemplate = (
 export const compileTableCalculationFromTemplate = (
     template: TableCalculationTemplate,
     warehouseSqlBuilder: WarehouseSqlBuilder,
-    sortFields: MetricQuery['sorts'],
+    _sortFields: MetricQuery['sorts'],
     customBinDimensionIds: Set<string> = new Set(),
 ): string => {
     const quoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -193,6 +193,16 @@ export const compileTableCalculationFromTemplate = (
     };
 
     const orderByClause = buildOrderByClause(template);
+    const legacyOrderByClause = (_sortFields ?? [])
+        .map((sort) => {
+            const fieldId = customBinDimensionIds.has(sort.fieldId)
+                ? `${sort.fieldId}_order`
+                : sort.fieldId;
+            return `${quoteChar}${fieldId}${quoteChar} ${
+                sort.descending ? 'DESC' : 'ASC'
+            }`;
+        })
+        .join(', ');
 
     const buildPartitionByClause = (
         calcTemplate: TableCalculationTemplate,
@@ -236,21 +246,11 @@ export const compileTableCalculationFromTemplate = (
             return `RANK() OVER (ORDER BY ${quotedFieldId} ASC)`;
 
         case TableCalculationTemplateType.RUNNING_TOTAL: {
-            const orderByArgumentsSql = (sortFields || [])
-                .map((sort) => {
-                    const sortFieldReference = customBinDimensionIds.has(
-                        sort.fieldId,
-                    )
-                        ? `${sort.fieldId}_order`
-                        : sort.fieldId;
-                    return `${quoteChar}${sortFieldReference}${quoteChar} ${
-                        sort.descending ? 'DESC' : 'ASC'
-                    }`;
-                })
-                .join(', ');
-            const orderByClauseSql =
-                orderByArgumentsSql && `ORDER BY ${orderByArgumentsSql} `; // trailing space intentional
-            return `SUM(${quotedFieldId}) OVER (${orderByClauseSql}ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
+            const runningTotalOrderByClause =
+                template.orderBy !== undefined
+                    ? orderByClause
+                    : legacyOrderByClause && `ORDER BY ${legacyOrderByClause} `;
+            return `SUM(${quotedFieldId}) OVER (${runningTotalOrderByClause}ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)`;
         }
 
         case TableCalculationTemplateType.WINDOW_FUNCTION:

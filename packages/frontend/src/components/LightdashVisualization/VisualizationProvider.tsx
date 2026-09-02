@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     FeatureFlags,
-    isDimension,
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
@@ -31,7 +30,9 @@ import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useC
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import {
+    calculateFallbackSeriesColors,
     calculateSeriesLikeIdentifier,
+    getDimensionValueColor,
     isGroupedSeries,
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -39,7 +40,10 @@ import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import Context from './context';
+import Context, {
+    type EmbeddedDashboardInteractivity,
+    type SavedChartReference,
+} from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
 import VisualizationCartesianConfig from './VisualizationConfigCartesian';
@@ -76,6 +80,7 @@ export type VisualizationProviderProps = {
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
     onPivotRowsChange?: (value: string[] | undefined) => void;
     savedChartUuid?: string;
+    savedChartReference?: SavedChartReference;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
     colorPalette: string[];
@@ -87,6 +92,7 @@ export type VisualizationProviderProps = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
     hasExplorerStore?: boolean;
     dateZoom?: DateZoom;
 };
@@ -108,6 +114,7 @@ const VisualizationProvider: FC<
     onPivotRowsChange,
     children,
     savedChartUuid,
+    savedChartReference,
     dashboardFilters,
     invalidateCache,
     colorPalette,
@@ -121,6 +128,7 @@ const VisualizationProvider: FC<
     containerHeight,
     isDashboard,
     isEditMode,
+    embeddedDashboardInteractivity,
     hasExplorerStore = true,
     dateZoom,
 }) => {
@@ -212,15 +220,7 @@ const VisualizationProvider: FC<
                 ? computedSeries
                 : chartConfig.config.eChartsConfig.series;
 
-        const sortedSeriesIdentifiers = (allSeries ?? [])
-            .map((series) => calculateSeriesLikeIdentifier(series).join('|'))
-            .sort((a, b) => b.localeCompare(a));
-
-        return Object.fromEntries(
-            sortedSeriesIdentifiers.map((identifier, i) => {
-                return [identifier, colorPalette[i % colorPalette.length]];
-            }),
-        );
+        return calculateFallbackSeriesColors(allSeries ?? [], colorPalette);
     }, [chartConfig, colorPalette, computedSeries]);
 
     const handleChartConfigChange = useCallback(
@@ -245,13 +245,12 @@ const VisualizationProvider: FC<
     const getGroupColor = useCallback(
         (groupPrefix: string, identifier: string) => {
             if (itemsMap) {
-                const dimension = itemsMap[groupPrefix];
-                if (dimension && isDimension(dimension)) {
-                    const colors = dimension.colors;
-                    if (colors && colors[identifier]) {
-                        return colors[identifier];
-                    }
-                }
+                const fixedColor = getDimensionValueColor(
+                    itemsMap,
+                    groupPrefix,
+                    identifier,
+                );
+                if (fixedColor) return fixedColor;
             }
 
             return calculateKeyColorAssignment(groupPrefix, identifier);
@@ -292,17 +291,12 @@ const VisualizationProvider: FC<
             }
             if (itemsMap && pivot) {
                 const { field, value } = pivot;
-                const dimension = itemsMap[field];
-                if (
-                    dimension &&
-                    isDimension(dimension) &&
-                    typeof value === 'string'
-                ) {
-                    const colors = dimension.colors;
-                    if (colors && colors[value]) {
-                        return colors[value];
-                    }
-                }
+                const fixedColor = getDimensionValueColor(
+                    itemsMap,
+                    field,
+                    value,
+                );
+                if (fixedColor) return fixedColor;
             }
 
             /**
@@ -362,11 +356,13 @@ const VisualizationProvider: FC<
         getSeriesColor,
         chartConfig,
         savedChartUuid,
+        savedChartReference,
         parameters,
         containerWidth,
         containerHeight,
         isDashboard,
         isEditMode,
+        embeddedDashboardInteractivity,
         hasExplorerStore,
         isTouchDevice,
         resolvedTimezone: lastValidResultsData?.resolvedTimezone,

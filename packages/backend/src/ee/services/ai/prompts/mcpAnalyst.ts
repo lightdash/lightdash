@@ -8,13 +8,53 @@ const RUN_SQL_GUIDANCE = `### When to Use run_sql vs run_metric_query
 
 `;
 
+const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
+`;
+
+const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
+
+This session cannot run queries. Answer from saved content the user can access.
+
+1. \`get_context\`: pick the project; pass its \`projectUuid\` to project-scoped tools
+2. \`find_content\`: search 2–4 short keyword queries FIRST, before any conclusion about what is available
+3. \`read_content\`: confirm what the best match shows and get its link — it returns definitions, not data values, so link the user to the numbers
+4. \`list_content\`: browse spaces when search misses
+
+Rules:
+- Never say information is unavailable before searching saved content
+- No workarounds: never suggest raw SQL, elevated permissions, tools not in this session, or UI actions the user may not have (editing or exploring charts)
+- If nothing matches, say so plainly
+- Page parameters are numbers — never \`NaN\` or \`"null"\`
+`;
+
+const SQL_ONLY_PROMPT = `# Lightdash MCP — SQL Runner Mode
+
+Governed metric execution (\`run_metric_query\`) is not available in this session, so the semantic layer cannot answer questions here. \`run_sql\` is the only way to execute queries.
+
+## Query Workflow
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool
+1. **Confirm the schema**: Semantic-layer discovery tools are not available in this session. If the user's request does not include the warehouse tables and columns you need, ask for the missing identifiers — never guess or invent them
+2. **Run queries**: Call \`run_sql\` with the raw SQL
+   - Defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+   - Use the SQL dialect appropriate for the connected warehouse
+3. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+4. **Browse content**: Use \`list_content\` to browse accessible spaces and \`find_content\` to search dashboards, charts, and Data Apps — \`read_content\` returns definitions and links, not data values
+
+## Rules
+
+- When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
+- Page parameters are numbers — never \`NaN\` or \`"null"\`
+`;
+
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
 ): string => `# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
 1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
    - Search with business terms and synonyms, not long natural-language phrases
    - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
@@ -27,11 +67,14 @@ const buildMcpAnalystPrompt = (
 3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries${runSqlEnabled ? ', or `run_sql` for custom SQL' : ''}
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
-6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
 7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
-8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
 
 ## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
 
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
@@ -60,10 +103,11 @@ ${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}### Time Filtering
 - Always provide axis labels
 
 ### Table Calculations
-Use table calculations for:
-- Aggregating already-aggregated metrics (e.g., average of monthly totals)
-- Row comparisons: % of total, period-over-period change, rankings, running totals
-- "Top N per group" patterns: create \`row_number\` with \`partitionBy\`, then filter
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
 
 ### Custom Metrics
 - Use when the explore lacks a needed aggregation
@@ -73,47 +117,17 @@ Use table calculations for:
 
 export const getMcpAnalystPrompt = (args?: {
     runSqlEnabled?: boolean;
+    runMetricQueryEnabled?: boolean;
 }): string => {
     const runSqlEnabled = args?.runSqlEnabled ?? true;
+    const runMetricQueryEnabled = args?.runMetricQueryEnabled ?? true;
+    if (!runSqlEnabled && !runMetricQueryEnabled) {
+        return CONTENT_ONLY_PROMPT;
+    }
+    if (!runMetricQueryEnabled) {
+        return SQL_ONLY_PROMPT;
+    }
     return buildMcpAnalystPrompt(runSqlEnabled);
 };
 
 export const MCP_ANALYST_PROMPT = getMcpAnalystPrompt();
-
-export const getMcpAnalystPromptWithContext = (context: {
-    agentName: string | null;
-    instruction: string | null;
-    explores: string[];
-    verifiedQuestions: string[];
-    runSqlEnabled?: boolean;
-}): string => {
-    const sections: string[] = [
-        getMcpAnalystPrompt({
-            runSqlEnabled: context.runSqlEnabled,
-        }),
-    ];
-
-    if (context.agentName) {
-        sections.push(`## Active Agent: ${context.agentName}`);
-    }
-
-    if (context.instruction) {
-        sections.push(
-            `## Agent Instructions\nFollow these domain-specific rules:\n${context.instruction}`,
-        );
-    }
-
-    if (context.explores.length > 0) {
-        sections.push(
-            `## Available Explores\nThe active agent has access to these explores. Prefer these when searching:\n${context.explores.map((e) => `- ${e}`).join('\n')}`,
-        );
-    }
-
-    if (context.verifiedQuestions.length > 0) {
-        sections.push(
-            `## Verified Questions\nThese are curated example queries that demonstrate correct usage of the data model. Use them as patterns for building similar queries:\n${context.verifiedQuestions.map((q) => `- "${q}"`).join('\n')}`,
-        );
-    }
-
-    return sections.join('\n\n');
-};

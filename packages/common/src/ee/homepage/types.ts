@@ -54,7 +54,8 @@ export type HomepageCollectionSource =
     | 'recently-updated'
     | 'pinned'
     | 'favorites'
-    | 'recently-viewed';
+    | 'recently-viewed'
+    | 'verified';
 
 /** Sources whose content differs for every viewer, so an admin previewing as
  * someone else must not see the target's data. */
@@ -167,7 +168,10 @@ export type HomepageQuickActionTarget =
     | { type: 'run-query' }
     | { type: 'browse-dashboards' }
     | { type: 'browse-spaces' }
-    | { type: 'dashboard'; dashboardUuid: string; label: string };
+    | { type: 'dashboard'; dashboardUuid: string; label: string }
+    | { type: 'space'; spaceUuid: string; label: string }
+    /** Resolves per viewer to their personal space; hidden when they have none. */
+    | { type: 'my-space' };
 
 /** Any quick action can be promoted to the row's primary one, which renders
  * as the same chip inverted. Optional so older configs still load. */

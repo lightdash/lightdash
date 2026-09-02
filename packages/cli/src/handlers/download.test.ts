@@ -4,6 +4,7 @@ import {
     ContentAsCodeType,
     DashboardAsCode,
     LightdashError,
+    PromotionAction,
     SpaceAsCodeAction,
     SpaceMemberRole,
     type AnyType,
@@ -17,6 +18,7 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { vi } from 'vitest';
+import { LightdashAnalytics } from '../analytics/analytics';
 import GlobalState from '../globalState';
 import {
     getDataAppUploadFilter,
@@ -34,6 +36,7 @@ import {
     uploadHandler,
     type DownloadHandlerOptions,
 } from './download';
+import { logUploadChanges } from './spacesAsCode';
 
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: {
@@ -71,6 +74,7 @@ const {
     downloadLinkedVirtualViews,
     downloadSpaces,
     extractChartTableNames,
+    extractChartTypeRefsFromCharts,
     getDashboardAppSlugs,
     getDashboardChartSlugs,
     getFlatSpaceFileNames,
@@ -78,22 +82,85 @@ const {
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     isVirtualViewsUnavailableError,
+    countChangeDelta,
     downloadAiAgents,
     isFilteredWithNoDashboards,
     readAiAgentFiles,
     readSpaceFiles,
     readSpaceNames,
+    reportOpenDraftsForUpload,
     sanitizeChartForDownload,
     shouldFallBackToEmbeddedSpaces,
     shouldDownloadAiAgents,
     summarizeUploadChanges,
     upsertAiAgents,
     upsertExternalConnections,
+    upsertResources,
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
     writeSpaceFiles,
 } = testHelpers;
+
+describe('reportOpenDraftsForUpload', () => {
+    beforeEach(() => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('stays quiet when the project has no open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 0,
+        } as never);
+
+        await reportOpenDraftsForUpload('project-uuid');
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'GET',
+            url: '/api/v1/projects/project-uuid/code/upload-advisory',
+            body: undefined,
+        });
+        expect(GlobalState.log).not.toHaveBeenCalled();
+    });
+
+    it('warns without blocking when the project has multiple open drafts', async () => {
+        vi.mocked(lightdashApi).mockResolvedValueOnce({
+            openDraftCount: 3,
+        } as never);
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('3 open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+
+    it('warns without blocking when the draft count cannot be loaded', async () => {
+        vi.mocked(lightdashApi).mockRejectedValueOnce(
+            new Error('draft table unavailable'),
+        );
+
+        await expect(
+            reportOpenDraftsForUpload('project-uuid'),
+        ).resolves.toBeUndefined();
+
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Could not check for open content drafts'),
+        );
+        expect(GlobalState.log).toHaveBeenCalledWith(
+            expect.stringContaining('Upload will continue'),
+        );
+    });
+});
 
 const makeDownloadHandlerOptions = (
     overrides: Partial<DownloadHandlerOptions> = {},
@@ -365,6 +432,92 @@ const makeChart = (series: Series[]): ChartAsCode =>
         dashboardSlug: undefined,
     }) as ChartAsCode;
 
+const writeFolderChart = async (baseDir: string, slug: string) => {
+    const yaml = `contentType: chart\nname: ${slug}\nslug: ${slug}\nspaceSlug: test-space\ntableName: orders\nversion: 1\n`;
+    await fs.writeFile(path.join(baseDir, 'charts', `${slug}.yml`), yaml);
+};
+
+describe('upload summary counts', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        vi.spyOn(GlobalState, 'log').mockImplementation(() => undefined);
+        vi.spyOn(GlobalState, 'debug').mockImplementation(() => undefined);
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'download-test-'));
+        await fs.mkdir(path.join(tmpDir, 'charts'));
+        await fs.mkdir(path.join(tmpDir, 'dashboards'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('counts only the uploaded type, not the spaces and tiles echoed by the API', async () => {
+        await writeFolderChart(tmpDir, 'chart-a');
+        await writeFolderChart(tmpDir, 'chart-b');
+        await writeFolderDashboard(tmpDir, 'dash', ['chart-a', 'chart-b']);
+        const noChanges = { action: PromotionAction.NO_CHANGES };
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+            url.includes('/code/charts/')
+                ? ({
+                      charts: [{ action: PromotionAction.UPDATE }],
+                      spaces: [noChanges],
+                      dashboards: [],
+                  } as never)
+                : ({
+                      dashboards: [{ action: PromotionAction.UPDATE }],
+                      charts: [noChanges, noChanges],
+                      spaces: [noChanges],
+                  } as never),
+        );
+        const summarySpy = vi
+            .spyOn(console, 'info')
+            .mockImplementation(() => undefined);
+
+        const changes: Record<string, number> = {};
+        const chartsResult = await upsertResources<ChartAsCode>(
+            'charts',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        const afterCharts = { ...chartsResult.changes };
+        expect(summarizeUploadChanges({}, afterCharts).detail).toBe(
+            '2 updated',
+        );
+
+        const dashboardsResult = await upsertResources<DashboardAsCode>(
+            'dashboards',
+            'project-uuid',
+            changes,
+            false,
+            [],
+            true,
+            tmpDir,
+        );
+        expect(
+            summarizeUploadChanges(afterCharts, dashboardsResult.changes)
+                .detail,
+        ).toBe('1 updated');
+        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        expect(dashboardsResult.changes).toEqual({
+            'charts updated': 2,
+            'dashboards updated': 1,
+        });
+
+        logUploadChanges(dashboardsResult.changes);
+        expect(summarySpy.mock.calls.map(([message]) => message)).toEqual([
+            'Total charts updated: 2 ',
+            'Total dashboards updated: 1 ',
+        ]);
+    });
+});
+
 describe('getDashboardChartSlugs', () => {
     let tmpDir: string;
 
@@ -493,6 +646,35 @@ describe('extractChartTableNames', () => {
         expect(
             extractChartTableNames([chart(undefined), chart(''), chart('one')]),
         ).toEqual(['one']);
+    });
+});
+
+describe('extractChartTypeRefsFromCharts', () => {
+    const vizChart = (config: AnyType): AnyType => ({
+        slug: 'a-chart',
+        chartConfig: { type: 'data_app_viz', config },
+    });
+
+    it('collects slugs from viz charts, deduped, ignoring other chart types', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                vizChart({ dataAppVizSlug: 'heatmap', fieldMapping: {} }),
+                {
+                    slug: 'bar-chart',
+                    chartConfig: { type: 'cartesian', config: {} },
+                } as AnyType,
+            ]),
+        ).toEqual(['heatmap']);
+    });
+
+    it('falls back to the legacy uuid and skips configless charts', () => {
+        expect(
+            extractChartTypeRefsFromCharts([
+                vizChart({ dataAppVizUuid: 'viz-uuid', fieldMapping: {} }),
+                vizChart(undefined),
+            ]),
+        ).toEqual(['viz-uuid']);
     });
 });
 
@@ -1228,6 +1410,110 @@ describe('AI agent downloads', () => {
     });
 });
 
+describe('countChangeDelta', () => {
+    it('sums positive deltas across change keys', () => {
+        expect(
+            countChangeDelta(
+                { 'AI agents created': 1, 'charts skipped': 2 },
+                {
+                    'AI agents created': 3,
+                    'AI agents updated': 1,
+                    'charts skipped': 2,
+                },
+            ),
+        ).toBe(3);
+    });
+
+    it('returns 0 when nothing changed', () => {
+        expect(
+            countChangeDelta({ 'charts created': 1 }, { 'charts created': 1 }),
+        ).toBe(0);
+    });
+});
+
+describe('downloadHandler analytics', () => {
+    beforeEach(() => {
+        vi.mocked(LightdashAnalytics.track).mockClear();
+        vi.mocked(lightdashApi).mockReset();
+    });
+
+    it('records per-type counts on download.completed, including agents', async () => {
+        const tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'agents-download-analytics-'),
+        );
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.startsWith('/api/v1/health')) {
+                return { version: '0.0.0' } as never;
+            }
+            if (url === '/api/v1/projects/project-uuid') {
+                return { name: 'Test project' } as never;
+            }
+            if (url.includes('/code/aiAgents')) {
+                return {
+                    agents: [
+                        {
+                            contentType: ContentAsCodeType.AI_AGENT,
+                            version: 1,
+                            agentVersion: 2,
+                            slug: 'sales-agent',
+                            name: 'Sales agent',
+                            description: null,
+                            imageUrl: null,
+                            instruction: null,
+                            tags: null,
+                            enableDataAccess: true,
+                            enableSelfImprovement: false,
+                            enableContentTools: false,
+                            enableUserContext: false,
+                            modelConfig: null,
+                        },
+                    ],
+                    missingIds: [],
+                    offset: 1,
+                    total: 1,
+                } as never;
+            }
+            throw new Error(`Unexpected request: ${url}`);
+        });
+
+        try {
+            await downloadHandler(
+                makeDownloadHandlerOptions({
+                    includeAgents: true,
+                    skipAlerts: true,
+                    skipGoogleSheets: true,
+                    skipScheduledDeliveries: true,
+                    skipVirtualViews: true,
+                    skipExternalConnections: true,
+                    path: tmpDir,
+                    project: 'project-uuid',
+                }),
+            );
+
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        projectId: 'project-uuid',
+                        agentsNum: 1,
+                    }),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.not.objectContaining({
+                        chartsNum: expect.anything(),
+                        dashboardsNum: expect.anything(),
+                    }),
+                }),
+            );
+        } finally {
+            await fs.rm(tmpDir, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('downloadHandler failures', () => {
     const unavailableError = new LightdashError({
         message:
@@ -1294,6 +1580,20 @@ describe('downloadHandler failures', () => {
             expect(vi.mocked(lightdashApi)).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: expect.stringContaining('/code/scheduledDeliveries'),
+                }),
+            );
+            expect(LightdashAnalytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'download.completed',
+                    properties: expect.objectContaining({
+                        agentsNum: 0,
+                        alertsNum: 0,
+                        scheduledDeliveriesNum: 0,
+                        googleSheetsNum: 0,
+                        virtualViewsNum: 0,
+                        externalConnectionsNum: 0,
+                        appsNum: 0,
+                    }),
                 }),
             );
         } finally {

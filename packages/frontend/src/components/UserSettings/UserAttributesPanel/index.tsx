@@ -83,27 +83,25 @@ const UserAttributesPanel: FC = () => {
                                 </Text>
                                 {attribute.description && (
                                     <Tooltip
-                                        multiline
                                         maw={300}
-                                        withArrow
                                         label={attribute.description}
                                     >
                                         <Box>
                                             <MantineIcon
                                                 icon={IconInfoCircle}
-                                                color="ldGray.6"
+                                                color="dimmed"
                                             />
                                         </Box>
                                     </Tooltip>
                                 )}
                             </Group>
                             <Group gap="sm">
-                                <Text fz="xs" c="ldGray.6">
+                                <Text fz="xs" c="dimmed">
                                     {attribute.users.length} user
                                     {attribute.users.length !== 1 ? 's' : ''}
                                 </Text>
                                 {isGroupManagementEnabled && (
-                                    <Text fz="xs" c="ldGray.6">
+                                    <Text fz="xs" c="dimmed">
                                         {attribute.groups.length} group
                                         {attribute.groups.length !== 1
                                             ? 's'
@@ -132,13 +130,9 @@ const UserAttributesPanel: FC = () => {
                                 e.preventDefault();
                             }}
                         >
-                            <Menu withinPortal position="bottom-end">
+                            <Menu position="bottom-end">
                                 <Menu.Target>
-                                    <ActionIcon
-                                        variant="transparent"
-                                        size="sm"
-                                        color="ldGray.6"
-                                    >
+                                    <ActionIcon variant="transparent" size="sm">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -244,11 +238,11 @@ const UserAttributesPanel: FC = () => {
         ),
         renderEmptyRowsFallback: () =>
             searchQuery.trim() ? (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     No attributes match your search.
                 </Text>
             ) : (
-                <Text fz="sm" c="ldGray.6" ta="center" py="xl">
+                <Text fz="sm" c="dimmed" ta="center" py="xl">
                     There's no user attributes defined yet. <br /> To learn how
                     to define user attributes, check out our{' '}
                     <Anchor

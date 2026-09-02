@@ -79,7 +79,6 @@ export const SuggestionList = forwardRef<
                             fz="xs"
                             label="User doesn't have access to this Dashboard's space"
                             disabled={!item.disabled}
-                            withinPortal
                             position="right"
                         >
                             <Button

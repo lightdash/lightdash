@@ -18,7 +18,7 @@ const escapeDuckdbStructKey = (value: string): string =>
 export const quoteDuckdbIdentifier = (value: string): string =>
     `"${escapeDuckdbStructKey(value)}"`;
 
-const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
+export const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
     switch (type) {
         case DimensionType.NUMBER:
             return 'DOUBLE';

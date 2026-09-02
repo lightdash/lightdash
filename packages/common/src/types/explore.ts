@@ -4,6 +4,7 @@ import {
     type LineageGraph,
     type SupportedDbtAdapter,
 } from './dbt';
+import { type ExternalSourceRef } from './externalSources';
 import {
     type CompiledDimension,
     type CompiledMetric,
@@ -61,7 +62,25 @@ export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
     PRE_AGGREGATE = 'pre_aggregate',
+    EXTERNAL_SOURCE = 'external_source',
 }
+
+/**
+ * Explores created and owned by users in the app rather than compiled from
+ * dbt. They live only in the explore cache and must survive dbt recompiles.
+ */
+export const USER_MANAGED_EXPLORE_TYPES = [
+    ExploreType.VIRTUAL,
+    ExploreType.EXTERNAL_SOURCE,
+] as const;
+
+export const isUserManagedExplore = (explore: {
+    type?: ExploreType;
+}): boolean =>
+    explore.type !== undefined &&
+    (USER_MANAGED_EXPLORE_TYPES as readonly ExploreType[]).includes(
+        explore.type,
+    );
 
 export enum InlineErrorType {
     // Fatal error types (ExploreError - explore is broken)
@@ -128,6 +147,8 @@ export type Explore = {
     savedParameterValues?: ParametersValuesMap; // Parameter values stored with virtual views
     preAggregates?: PreAggregateDef[];
     preAggregateSource?: PreAggregateSource;
+    /** Present ⇒ generated from an external source table (CSV upload, Google Sheet). */
+    externalSource?: ExternalSourceRef;
     /**
      * Non-fatal compilation or validation warnings (e.g. fields that failed to
      * compile, warehouse-rejected column references). The explore is still usable.
@@ -148,6 +169,24 @@ export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
 
+export const getExploreSplitCandidates = (
+    exploreName: string,
+    explores: (Explore | ExploreError)[],
+): string[] => {
+    const candidates = explores.flatMap((explore) => {
+        if (isExploreError(explore)) return [];
+        const baseTable = explore.tables[explore.baseTable];
+        // Package names can contain `__`, so match the qualified suffix rather
+        // than treating the separator as something we can parse.
+        return baseTable?.originalName === exploreName &&
+            explore.name.endsWith(`__${exploreName}`)
+            ? [explore.name]
+            : [];
+    });
+
+    return [...new Set(candidates)].sort();
+};
+
 type SummaryExploreFields =
     | 'name'
     | 'label'
@@ -156,6 +195,7 @@ type SummaryExploreFields =
     | 'groups'
     | 'type'
     | 'preAggregateSource'
+    | 'externalSource'
     | 'aiHint'
     | 'warnings';
 type SummaryExploreErrorFields =

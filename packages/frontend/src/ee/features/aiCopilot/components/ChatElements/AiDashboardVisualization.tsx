@@ -1,7 +1,7 @@
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -17,7 +17,7 @@ import { IconX } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { clearArtifact } from '../../store/aiArtifactSlice';
+import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
 import styles from './AiDashboardVisualization.module.css';
@@ -27,7 +27,7 @@ type Props = {
     artifactData: AiArtifact;
     projectUuid: string;
     agentUuid: string;
-    dashboardConfig: ToolDashboardArgs;
+    dashboardConfig: ToolDashboardV2Args;
     message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
 };
@@ -75,9 +75,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                             {showCloseButton && (
                                 <ActionIcon
                                     size="sm"
-                                    variant="subtle"
-                                    color="gray"
-                                    onClick={() => dispatch(clearArtifact())}
+                                    onClick={() => dispatch(clearPreview())}
                                 >
                                     <MantineIcon icon={IconX} color="gray" />
                                 </ActionIcon>
@@ -95,7 +93,7 @@ export const AiDashboardVisualization: FC<Props> = memo(
                         flexDirection: 'column',
                     }}
                 >
-                    <Stack gap="md" style={{ minHeight: 'min-content' }}>
+                    <Stack gap="md" mih="min-content">
                         {dashboardConfig.visualizations.map(
                             (visualization, index) => (
                                 <Card

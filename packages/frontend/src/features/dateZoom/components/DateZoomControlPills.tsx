@@ -26,6 +26,7 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { getGranularityLabel } from '../utils';
@@ -37,6 +38,7 @@ type Props = {
 };
 
 export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+    const getUiString = useUiStrings();
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const controlGranularities = useDashboardContext(
@@ -69,11 +71,16 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                     getGranularityLabel(
                         a,
                         availableCustomGranularities,
+                        getUiString,
                     ).localeCompare(
-                        getGranularityLabel(b, availableCustomGranularities),
+                        getGranularityLabel(
+                            b,
+                            availableCustomGranularities,
+                            getUiString,
+                        ),
                     ),
                 ),
-        [dateZoomGranularities, availableCustomGranularities],
+        [dateZoomGranularities, availableCustomGranularities, getUiString],
     );
 
     const [editingControl, setEditingControl] = useState<DateZoomControl>();
@@ -152,7 +159,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                             <Popover.Target>
                                 <Box>
                                     <Menu
-                                        withinPortal
                                         withArrow
                                         position="bottom-end"
                                         offset={1}
@@ -179,6 +185,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                 {getGranularityLabel(
                                                     activeGranularity,
                                                     availableCustomGranularities,
+                                                    getUiString,
                                                 )}
                                             </Button>
                                         </Menu.Target>
@@ -203,6 +210,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                         {getGranularityLabel(
                                                             granularity,
                                                             availableCustomGranularities,
+                                                            getUiString,
                                                         )}
                                                     </Menu.Item>
                                                 ),
@@ -234,6 +242,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                                 {getGranularityLabel(
                                                                     granularity,
                                                                     availableCustomGranularities,
+                                                                    getUiString,
                                                                 )}
                                                             </Menu.Item>
                                                         ),
@@ -318,7 +327,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                             ? 'Hidden from viewers. Click to show.'
                                             : 'Visible to viewers. Click to hide.'
                                     }
-                                    withinPortal
                                 >
                                     <Button
                                         aria-label="Toggle zoom control visibility for viewers"

@@ -22,9 +22,7 @@ export const Display: React.FC = () => {
                     <Group gap="xs">
                         <Config.Heading>Minimum section size</Config.Heading>
                         <Tooltip
-                            withinPortal={true}
                             maw={350}
-                            multiline
                             label="Any sections smaller than this will not be displayed. You can zoom in to see smaller sections."
                         >
                             <MantineIcon
@@ -49,9 +47,7 @@ export const Display: React.FC = () => {
                     <Group gap="xs">
                         <Config.Heading>Max leaf depth</Config.Heading>
                         <Tooltip
-                            withinPortal={true}
                             maw={350}
-                            multiline
                             label="The maximum depth of the treemap. If set, deeper levels can be viewed by clicking on nodes."
                         >
                             <MantineIcon

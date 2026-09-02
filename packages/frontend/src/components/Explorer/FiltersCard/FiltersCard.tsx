@@ -255,7 +255,7 @@ const QueryAFiltersCard: FC = memo(() => {
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
                             <>
                                 {' '}
-                                <Text span fw={700}>
+                                <Text span fw={600}>
                                     {labels.value}
                                 </Text>
                             </>
@@ -306,7 +306,7 @@ const QueryAFiltersCard: FC = memo(() => {
                                 <span key={`${path}-${item.id}`}>
                                     {index > 0 ? (
                                         <>
-                                            <Text span c="dimmed" fw={700}>
+                                            <Text span c="dimmed" fw={600}>
                                                 {expression.operator.toUpperCase()}
                                             </Text>{' '}
                                         </>
@@ -337,7 +337,7 @@ const QueryAFiltersCard: FC = memo(() => {
                         <Text
                             key={`${path}-${index}-operator`}
                             c="dimmed"
-                            fw={700}
+                            fw={600}
                             style={{ paddingLeft: itemDepth * 12 }}
                         >
                             {expression.operator.toUpperCase()}
@@ -410,12 +410,7 @@ const QueryAFiltersCard: FC = memo(() => {
                             }
                             position="bottom-start"
                         >
-                            <Badge
-                                color="gray"
-                                variant="light"
-                                tt="none"
-                                fw={500}
-                            >
+                            <Badge>
                                 {totalActiveFilters} active filter
                                 {totalActiveFilters === 1 ? '' : 's'}
                             </Badge>

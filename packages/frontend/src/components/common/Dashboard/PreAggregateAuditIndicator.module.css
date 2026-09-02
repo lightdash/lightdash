@@ -57,9 +57,6 @@
 .ineligibleTile {
     padding: 4px 8px;
     color: var(--mantine-color-ldGray-5);
-    @mixin dark {
-        color: var(--mantine-color-ldGray-6);
-    }
 }
 
 /* Tab blocks — vertical line nav */
@@ -73,9 +70,6 @@
 
 .tabBlock[data-active] {
     border-left-color: var(--mantine-color-ldGray-5);
-    @mixin dark {
-        border-left-color: var(--mantine-color-ldDark-4);
-    }
 }
 
 .tabLabel {
@@ -88,9 +82,6 @@
 
 .tabLabel:hover {
     background: var(--mantine-color-ldGray-0);
-    @mixin dark {
-        background: var(--mantine-color-ldDark-5);
-    }
 }
 
 .tabLabel[data-active] {

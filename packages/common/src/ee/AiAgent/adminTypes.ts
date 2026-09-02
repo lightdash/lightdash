@@ -412,6 +412,7 @@ export type AiOrganizationSettings = {
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
     mcpContentWritesEnabled: boolean;
+    mcpAgentsEnabled: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -421,6 +422,7 @@ export type AiOrganizationSettings = {
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
+    threadRetentionHours?: number | null;
 };
 
 export type CreateAiOrganizationSettings = Omit<
@@ -437,11 +439,13 @@ export type UpdateAiOrganizationSettings = {
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
+    mcpAgentsEnabled?: boolean;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
+    threadRetentionHours?: number | null;
 };
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<
@@ -459,6 +463,9 @@ export type AiOrganizationRuntimeSettings = {
     defaultAiAgentModelOptions: AiModelOption[];
     dataAppCodingAgent: DataAppCodingAgent;
     visibleDataAppModels: DataAppClaudeModel[];
+    // Org retention ceiling, surfaced so agent editors can see what caps
+    // their agent-level window. Optional for backwards compatibility.
+    threadRetentionHours?: number | null;
 };
 
 export type ApiAiOrganizationRuntimeSettingsResponse =
@@ -466,3 +473,16 @@ export type ApiAiOrganizationRuntimeSettingsResponse =
 
 export type ApiUpdateAiOrganizationSettingsResponse =
     ApiSuccess<AiOrganizationSettings>;
+
+/**
+ * What an org-level retention window of `retentionHours` would delete on the
+ * next cleanup run. Backs the confirmation dialog shown before lowering the
+ * org ceiling.
+ */
+export type AiThreadRetentionPreview = {
+    threadCount: number;
+    agentCount: number;
+};
+
+export type ApiAiThreadRetentionPreviewResponse =
+    ApiSuccess<AiThreadRetentionPreview>;

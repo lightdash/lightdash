@@ -147,7 +147,7 @@ describe('useClarificationRound', () => {
         expect(onBuild).toHaveBeenCalledWith(request(), []);
     });
 
-    it('hands the prompt back when the round is abandoned mid-flight', async () => {
+    it('hands the request back when the round is abandoned mid-flight', async () => {
         let resolveClarify: (value: { questions: string[] }) => void = () => {};
         clarify.mockReturnValue(
             new Promise<{ questions: string[] }>((resolve) => {
@@ -161,11 +161,11 @@ describe('useClarificationRound', () => {
             'show revenue split by team',
         );
 
-        let abandoned: string | null = null;
+        let abandoned: TestRequest | null = null;
         act(() => {
             abandoned = result.current.abandon();
         });
-        expect(abandoned).toBe('show revenue split by team');
+        expect(abandoned).toEqual(request());
 
         // The request goes with it: nobody is waiting on that answer.
         expect(clarify.mock.lastCall?.[0].signal.aborted).toBe(true);

@@ -47,6 +47,7 @@ export type ResourceViewDashboardItem = {
     data: Pick<
         DashboardBasicDetails,
         | 'uuid'
+        | 'slug'
         | 'spaceUuid'
         | 'description'
         | 'name'
@@ -58,6 +59,7 @@ export type ResourceViewDashboardItem = {
         | 'updatedByUser'
         | 'validationErrors'
         | 'verification'
+        | 'owner'
     >;
     category?: ResourceItemCategory;
 };
@@ -244,6 +246,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     userUuid: updatedByUser.uuid,
                 },
                 verification: content.verification,
+                owner: content.owner,
                 projectUuid: content.project.uuid,
                 organizationUuid: content.organization.uuid,
             };

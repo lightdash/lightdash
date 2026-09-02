@@ -215,6 +215,16 @@ describe('PostgresWarehouseClient statement timeout', () => {
         expect(sessionStatement).toContain('SET statement_timeout = 540000');
     });
 
+    it('omits the competing pg query_timeout from the pool', async () => {
+        const queryMock = respondingQueryMock();
+        mockPoolWithQuery(queryMock);
+        const warehouse = new PostgresWarehouseClient(credentials);
+        await warehouse.runQuery('select 1');
+
+        const poolConfig = (pg.Pool as unknown as Mock).mock.lastCall?.[0];
+        expect(poolConfig).not.toHaveProperty('query_timeout');
+    });
+
     it('honors a configured timeoutSeconds for the statement_timeout', async () => {
         const queryMock = respondingQueryMock();
         mockPoolWithQuery(queryMock);

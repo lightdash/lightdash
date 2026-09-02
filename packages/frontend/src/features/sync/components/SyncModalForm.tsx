@@ -73,7 +73,7 @@ export const SyncModalForm: FC<Props> = ({
                         >
                             <TimeZonePicker
                                 size="sm"
-                                style={{ flexGrow: 1 }}
+                                className="ld-grow"
                                 placeholder={`Project Default ${
                                     projectDefaultOffsetString
                                         ? `(UTC ${projectDefaultOffsetString})`
@@ -105,7 +105,7 @@ export const SyncModalForm: FC<Props> = ({
                 )}
 
                 {isApp && (
-                    <Text size="xs" c="ldGray.6">
+                    <Text size="xs" c="dimmed">
                         Each query in the app is written to its own tab, named
                         after the query.
                     </Text>
@@ -123,14 +123,12 @@ export const SyncModalForm: FC<Props> = ({
                             <Tooltip
                                 label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
                                 This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
-                                multiline
-                                withinPortal
                                 position="right"
                                 maw={400}
                             >
                                 <MantineIcon
                                     icon={IconInfoCircle}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </Tooltip>
                         </Group>

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define -- expressions, subqueries and FROM items evaluate each other recursively */
 import { assertUnreachable } from '@lightdash/common';
+import { threadCpuUsage } from 'node:process';
 import {
     type DataTypeDef,
     type Expr,
@@ -19,7 +20,7 @@ import {
     MAX_INTERMEDIATE_TUPLES,
     MAX_PATTERN_LENGTH,
     MAX_PATTERN_SUBJECT_LENGTH,
-    MAX_STATEMENT_MS,
+    MAX_STATEMENT_CPU_MS,
     MAX_WORK_UNITS,
     tooExpensive,
     unitsForLength,
@@ -328,13 +329,16 @@ const readRef = (resolved: ResolvedRef): CatalogValue =>
 
 type Evaluator = {
     context: EvaluatorContext;
-    /** remaining work units and the wall-clock deadline for this statement */
-    budget: { remaining: number; deadline: number; sinceClock: number };
+    budget: {
+        remaining: number;
+        cpuStartedAt: ReturnType<typeof threadCpuUsage>;
+        sinceCpuSample: number;
+        threadCpuUsage: typeof threadCpuUsage;
+    };
     regexCache: Map<string, RE2JS>;
 };
 
-/** Units between wall-clock checks: cheap enough to run often, rare enough not to matter */
-const CLOCK_SAMPLE_UNITS = 2_048;
+const CPU_SAMPLE_UNITS = 2_048;
 
 const spend = (evaluator: Evaluator, units: number): void => {
     const { budget } = evaluator;
@@ -342,10 +346,11 @@ const spend = (evaluator: Evaluator, units: number): void => {
     if (budget.remaining < 0) {
         throw tooExpensive('is too expensive');
     }
-    budget.sinceClock += units;
-    if (budget.sinceClock >= CLOCK_SAMPLE_UNITS) {
-        budget.sinceClock = 0;
-        if (Date.now() > budget.deadline) {
+    budget.sinceCpuSample += units;
+    if (budget.sinceCpuSample >= CPU_SAMPLE_UNITS) {
+        budget.sinceCpuSample = 0;
+        const cpuUsage = budget.threadCpuUsage(budget.cpuStartedAt);
+        if (cpuUsage.user + cpuUsage.system > MAX_STATEMENT_CPU_MS * 1_000) {
             throw new PgWireServerError(
                 'canceling statement due to statement timeout',
                 '57014',
@@ -1816,15 +1821,18 @@ function evaluateSelect(
 export const evaluateCatalogSelect = (
     context: EvaluatorContext,
     statement: SelectStatement,
+    getThreadCpuUsage: typeof threadCpuUsage = threadCpuUsage,
 ): EvaluatedRelation => {
     try {
+        const cpuStartedAt = getThreadCpuUsage();
         return evaluateSelect(
             {
                 context,
                 budget: {
                     remaining: MAX_WORK_UNITS,
-                    deadline: Date.now() + MAX_STATEMENT_MS,
-                    sinceClock: 0,
+                    cpuStartedAt,
+                    sinceCpuSample: 0,
+                    threadCpuUsage: getThreadCpuUsage,
                 },
                 regexCache: new Map(),
             },

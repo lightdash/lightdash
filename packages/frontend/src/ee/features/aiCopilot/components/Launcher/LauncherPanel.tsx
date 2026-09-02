@@ -337,7 +337,7 @@ const NewThreadPanel: FC<{
                 >
                     {isAuto ? (
                         <Avatar size="lg" color="ldGray" radius="xl">
-                            <Text size="sm" fw={700} c="ldGray.6">
+                            <Text size="sm" fw={600} c="dimmed">
                                 AI
                             </Text>
                         </Avatar>
@@ -403,7 +403,6 @@ const NewThreadPanel: FC<{
                     projectUuid={projectUuid}
                     agentUuid={concreteAgent?.uuid}
                     fullWidth
-                    showDeepResearchBelowComposer
                     sqlMode={sqlModeAvailable && !isAuto ? sqlMode : undefined}
                     onSqlModeChange={
                         sqlModeAvailable && !isAuto
@@ -445,12 +444,7 @@ const LauncherAgentPicker: FC<{
                             {candidate.name}
                         </Box>
                         {candidate.isRecommended && (
-                            <Badge
-                                size="xs"
-                                color="violet"
-                                variant="light"
-                                radius="sm"
-                            >
+                            <Badge size="xs" color="violet">
                                 Recommended
                             </Badge>
                         )}
@@ -478,7 +472,7 @@ const ExistingThreadPanel: FC<{
         refetch,
     } = useAiAgentThread(projectUuid, agent.uuid, threadId);
 
-    const { isStreaming, isPending } = usePendingThreadRefetch(
+    const { isStreaming, isThreadPending } = usePendingThreadRefetch(
         thread,
         threadId,
         refetch,
@@ -536,7 +530,7 @@ const ExistingThreadPanel: FC<{
     const isBusy = Boolean(
         isCreatingMessage ||
         isStreaming ||
-        isPending ||
+        isThreadPending ||
         startDeepResearch.isLoading,
     );
     const isInputDisabled =

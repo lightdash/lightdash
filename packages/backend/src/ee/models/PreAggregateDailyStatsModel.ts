@@ -34,6 +34,7 @@ export type PreAggregateDailyStatRow = {
     chartName: string | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    dashboardSlug: string | null;
     queryContext: string;
     hitCount: number;
     missCount: number;
@@ -51,6 +52,7 @@ type DbJoinedRow = {
     chart_name: string | null;
     dashboard_uuid: string | null;
     dashboard_name: string | null;
+    dashboard_slug: string | null;
     query_context: string;
     hit_count: number;
     miss_count: number;
@@ -69,6 +71,7 @@ function convertDbRow(row: DbJoinedRow): PreAggregateDailyStatRow {
         chartName: row.chart_name,
         dashboardUuid: row.dashboard_uuid,
         dashboardName: row.dashboard_name,
+        dashboardSlug: row.dashboard_slug,
         queryContext: row.query_context,
         hitCount: row.hit_count,
         missCount: row.miss_count,
@@ -172,6 +175,7 @@ export class PreAggregateDailyStatsModel {
                 this.database.raw('sq.name as chart_name'),
                 `${stats}.dashboard_uuid`,
                 this.database.raw('d.name as dashboard_name'),
+                this.database.raw('d.slug as dashboard_slug'),
                 `${stats}.query_context`,
                 `${stats}.hit_count`,
                 `${stats}.miss_count`,

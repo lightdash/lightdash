@@ -1,6 +1,11 @@
-import { type SavedChart } from '@lightdash/common';
+import { ChartType, type SavedChart } from '@lightdash/common';
 import { explorerActions, explorerReducer } from './explorerSlice';
-import { selectHasPaletteChanges } from './selectors';
+import {
+    selectChartSidebarStep,
+    selectHasPaletteChanges,
+    selectIsChartTypeAuthoring,
+    selectIsDataAppVizVersionReadyForSave,
+} from './selectors';
 
 const PALETTE_UUID = '55555555-5555-4555-8555-555555555555';
 
@@ -47,5 +52,52 @@ describe('selectHasPaletteChanges', () => {
         );
 
         expect(selectHasPaletteChanges({ explorer })).toBe(true);
+    });
+});
+
+describe('chart type authoring selectors', () => {
+    it('read the sidebar step and the authoring session', () => {
+        const idle = explorerReducer(undefined, { type: 'init' });
+        expect(selectChartSidebarStep({ explorer: idle })).toBe('configure');
+        expect(selectIsChartTypeAuthoring({ explorer: idle })).toBe(false);
+
+        const explorer = explorerReducer(
+            explorerReducer(
+                idle,
+                explorerActions.setChartSidebarStep('choose'),
+            ),
+            explorerActions.startChartTypeAuthoring({
+                dataAppVizUuid: 'viz-1',
+            }),
+        );
+        expect(selectChartSidebarStep({ explorer })).toBe('configure');
+        expect(selectIsChartTypeAuthoring({ explorer })).toBe(false);
+        expect(
+            selectIsChartTypeAuthoring({
+                explorer: explorerReducer(
+                    explorer,
+                    explorerActions.setIsEditMode(true),
+                ),
+            }),
+        ).toBe(true);
+    });
+});
+
+describe('selectIsDataAppVizVersionReadyForSave', () => {
+    it('waits for an unsaved project chart type to capture its previewed version', () => {
+        const explorer = explorerReducer(
+            undefined,
+            explorerActions.setChartConfig({
+                chartConfig: {
+                    type: ChartType.DATA_APP_VIZ,
+                    config: {
+                        dataAppVizUuid: 'viz-1',
+                        fieldMapping: {},
+                    },
+                },
+            }),
+        );
+
+        expect(selectIsDataAppVizVersionReadyForSave({ explorer })).toBe(false);
     });
 });

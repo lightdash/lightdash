@@ -104,6 +104,8 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
+    /** Limit this DuckDB secret to one trusted S3 URI or prefix. */
+    scope?: string;
 };
 
 export type DuckdbResourceLimits = {
@@ -152,6 +154,8 @@ export type DuckdbWarehouseClientOptions = {
     embeddedQueryTimeoutMs?: number;
     enableInstanceCache?: boolean;
     projectUuid?: string;
+    /** Process-local per-organization cap for isolated S3 query clients. */
+    organizationConcurrencyLimit?: number;
 };
 
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
@@ -290,6 +294,11 @@ class AsyncSemaphore {
 class ConcurrencyBudget {
     private active = 0;
 
+    private pendingAcquires: Array<{
+        resolve: (acquired: boolean) => void;
+        timeout?: ReturnType<typeof setTimeout>;
+    }> = [];
+
     constructor(private readonly limit: number) {}
 
     tryAcquire(): boolean {
@@ -301,7 +310,44 @@ class ConcurrencyBudget {
         return true;
     }
 
+    acquire(timeoutMs: number): Promise<boolean> {
+        if (this.tryAcquire()) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise<boolean>((resolve) => {
+            const pendingAcquire: (typeof this.pendingAcquires)[number] = {
+                resolve,
+            };
+            const timeout = setTimeout(() => {
+                const index = this.pendingAcquires.indexOf(pendingAcquire);
+                if (index === -1) {
+                    return;
+                }
+
+                this.pendingAcquires.splice(index, 1);
+                resolve(false);
+            }, timeoutMs);
+            timeout.unref();
+            pendingAcquire.timeout = timeout;
+            this.pendingAcquires.push(pendingAcquire);
+        });
+    }
+
     release(): void {
+        if (this.active === 0) {
+            return;
+        }
+
+        const pendingAcquire = this.pendingAcquires.shift();
+        if (pendingAcquire) {
+            if (pendingAcquire.timeout) {
+                clearTimeout(pendingAcquire.timeout);
+            }
+            pendingAcquire.resolve(true);
+            return;
+        }
+
         this.active -= 1;
     }
 
@@ -311,6 +357,13 @@ class ConcurrencyBudget {
 
     reset(): void {
         this.active = 0;
+        const pendingAcquires = this.pendingAcquires.splice(0);
+        pendingAcquires.forEach(({ resolve, timeout }) => {
+            if (timeout) {
+                clearTimeout(timeout);
+            }
+            resolve(false);
+        });
     }
 }
 
@@ -363,9 +416,35 @@ const EMBEDDED_RESOURCE_LIMITS: Required<DuckdbResourceLimits> = {
 
 const EMBEDDED_QUERY_TIMEOUT_MS = 10_000;
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES = 2;
+const getPositiveIntegerEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const environmentValue = process.env[name]?.trim();
+    if (!environmentValue || !/^\d+$/.test(environmentValue)) {
+        return defaultValue;
+    }
 
-const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION = 1;
+    const value = Number(environmentValue);
+    return Number.isSafeInteger(value) && value > 0 ? value : defaultValue;
+};
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES = getPositiveIntegerEnvironmentVariable(
+    'PLAYGROUND_MAX_CONCURRENT_QUERIES',
+    8,
+);
+
+const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION',
+        4,
+    );
+
+const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
+    getPositiveIntegerEnvironmentVariable(
+        'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
+        15_000,
+    );
 
 const resolveEmbeddedDatabasePath = (dataset: string): string => {
     if (!EMBEDDED_DATASET_PATTERN.test(dataset)) {
@@ -431,6 +510,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ConcurrencyBudget
     >();
 
+    private static readonly organizationConcurrencyBudgets = new Map<
+        string,
+        ConcurrencyBudget
+    >();
+
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
     private readonly databasePath: string;
@@ -460,6 +544,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly enableInstanceCache: boolean;
 
     private readonly projectUuid?: string;
+
+    private readonly organizationConcurrencyLimit?: number;
 
     private allowsPreAggregateFileReads = false;
 
@@ -580,6 +666,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.embeddedQueryTimeoutMs ?? EMBEDDED_QUERY_TIMEOUT_MS;
         this.enableInstanceCache = options?.enableInstanceCache ?? false;
         this.projectUuid = options?.projectUuid;
+        this.organizationConcurrencyLimit =
+            options?.organizationConcurrencyLimit;
     }
 
     private static hashDucklakeConfig(
@@ -630,16 +718,28 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         return this.instanceCacheKey;
     }
 
-    private static tryAcquireEmbeddedConcurrency(
+    private static async tryAcquireEmbeddedConcurrency(
         organizationUuid?: string,
-    ): (() => void) | undefined {
-        if (!DuckdbWarehouseClient.embeddedConcurrencyBudget.tryAcquire()) {
+    ): Promise<(() => void) | undefined> {
+        const acquireDeadline =
+            Date.now() + EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS;
+        const globalAcquired =
+            await DuckdbWarehouseClient.embeddedConcurrencyBudget.acquire(
+                EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS,
+            );
+        if (!globalAcquired) {
             return undefined;
         }
 
         if (!organizationUuid) {
-            return () =>
+            let released = false;
+            return () => {
+                if (released) {
+                    return;
+                }
+                released = true;
                 DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
+            };
         }
 
         const organizationBudget =
@@ -654,17 +754,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             organizationBudget,
         );
 
-        if (!organizationBudget.tryAcquire()) {
+        const organizationAcquired = await organizationBudget.acquire(
+            Math.max(0, acquireDeadline - Date.now()),
+        );
+        if (!organizationAcquired) {
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             return undefined;
         }
 
+        let released = false;
         return () => {
+            if (released) {
+                return;
+            }
+            released = true;
             organizationBudget.release();
             DuckdbWarehouseClient.embeddedConcurrencyBudget.release();
             if (organizationBudget.isIdle()) {
                 DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.delete(
                     organizationUuid,
+                );
+            }
+        };
+    }
+
+    private static tryAcquireOrganizationConcurrency(
+        organizationUuid: string,
+        limit: number,
+    ): (() => void) | undefined {
+        const key = `${limit}:${organizationUuid}`;
+        const budget =
+            DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
+            new ConcurrencyBudget(limit);
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.set(key, budget);
+        if (!budget.tryAcquire()) return undefined;
+        return () => {
+            budget.release();
+            if (budget.isIdle()) {
+                DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
+                    key,
                 );
             }
         };
@@ -966,6 +1094,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceResourceLimits.clear();
         DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
+            (budget) => budget.reset(),
+        );
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
     }
 
@@ -1209,6 +1340,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const secretClause = s3Config.secretKey
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
+        const scopeClause = s3Config.scope
+            ? `SCOPE '${escape(s3Config.scope)}',`
+            : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
@@ -1217,6 +1351,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             ${secretClause}
             ENDPOINT '${escape(s3Config.endpoint)}',
             ${regionClause}
+            ${scopeClause}
             URL_STYLE '${s3Config.forcePathStyle ? 'path' : 'vhost'}',
             USE_SSL ${s3Config.useSsl}
         );`;
@@ -1512,41 +1647,64 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             durationMs: number,
         ) => void,
     ): Promise<T> {
-        if (this.embeddedConfig) {
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
+        const releaseOrganizationConcurrency =
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit
+                ? DuckdbWarehouseClient.tryAcquireOrganizationConcurrency(
+                      organizationUuid,
+                      this.organizationConcurrencyLimit,
+                  )
+                : undefined;
+        if (
+            !this.embeddedConfig &&
+            organizationUuid &&
+            this.organizationConcurrencyLimit &&
+            !releaseOrganizationConcurrency
+        ) {
+            throw new WarehouseQueryError(
+                'External source query capacity is full. Try again shortly.',
             );
         }
-
-        if (this.isMotherduck()) {
-            if (
-                this.enableInstanceCache &&
-                this.credentials.requireUserCredentials !== true
-            ) {
-                return this.withMotherduckCachedSession(
+        try {
+            if (this.embeddedConfig) {
+                return await this.withDirectSession(
                     callback,
-                    retryable,
+                    organizationUuid,
                     onPhaseTiming,
                 );
             }
-            return this.withDirectSession(
-                callback,
-                organizationUuid,
-                onPhaseTiming,
-            );
-        }
 
-        if (this.hasResourceLimits()) {
-            return this.withIsolatedSession(callback);
-        }
+            if (this.isMotherduck()) {
+                if (
+                    this.enableInstanceCache &&
+                    this.credentials.requireUserCredentials !== true
+                ) {
+                    return await this.withMotherduckCachedSession(
+                        callback,
+                        retryable,
+                        onPhaseTiming,
+                    );
+                }
+                return await this.withDirectSession(
+                    callback,
+                    organizationUuid,
+                    onPhaseTiming,
+                );
+            }
 
-        if (this.instanceCacheKey) {
-            return this.withSharedSession(callback);
-        }
+            if (this.hasResourceLimits()) {
+                return await this.withIsolatedSession(callback);
+            }
 
-        return this.withEphemeralQuerySession(callback);
+            if (this.instanceCacheKey) {
+                return await this.withSharedSession(callback);
+            }
+
+            return await this.withEphemeralQuerySession(callback);
+        } finally {
+            releaseOrganizationConcurrency?.();
+        }
     }
 
     private async withMotherduckCachedSession<T>(
@@ -1669,7 +1827,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const sessionStart = performance.now();
 
         const releaseEmbeddedConcurrency = this.embeddedConfig
-            ? DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
+            ? await DuckdbWarehouseClient.tryAcquireEmbeddedConcurrency(
                   organizationUuid,
               )
             : undefined;

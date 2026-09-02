@@ -42,13 +42,15 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     organizationCredentials?: string;
     assumeYes?: boolean;
     warehouseCredentials?: boolean;
-    useBatchedDeploy?: boolean;
+    batchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
     expiresIn?: string;
     disableTimestampConversion?: boolean;
     validateWarehouseColumns: boolean;
     partialCompilation?: boolean;
+    combine?: boolean;
+    combineManifestProjectUuid?: string;
 };
 
 type StopPreviewHandlerOptions = {
@@ -207,6 +209,7 @@ export const previewHandler = async (
     let contentCopySkipReason: string | undefined;
 
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Validate upstream project before attempting to copy permissions or content
     let upstreamProjectValid = false;
@@ -483,6 +486,7 @@ export const startPreviewHandler = async (
 
     const projectName = options.name;
     const config = await getConfig();
+    options.combineManifestProjectUuid = config.context?.project;
 
     // Log current source project info if copying content
     if (!options.skipCopyContent && config.context?.project) {
@@ -624,11 +628,16 @@ export const startPreviewHandler = async (
         const url = await projectUrl(project);
 
         if (!hasContentCopy) {
-            console.error(
-                styles.warning(
-                    `\n\nDeveloper preview deployed without any copied content!\n`,
-                ),
-            );
+            let errorMessage = `\n\nDeveloper preview deployed without any copied content!`;
+            if (results?.contentCopyError) {
+                errorMessage += `\nError: ${results.contentCopyError}`;
+            } else if (options.skipCopyContent) {
+                errorMessage += `\nReason: --skip-copy-content flag was used`;
+            } else if (!config.context?.project) {
+                errorMessage += `\nReason: No upstream project configured`;
+            }
+            errorMessage += '\n';
+            console.error(styles.warning(errorMessage));
         }
 
         console.error(`New project created on ${url}`);

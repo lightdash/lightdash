@@ -6,11 +6,20 @@ import {
 } from '@lightdash/common';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
+/**
+ * The chart's binding to a picked viz; null while it points at none.
+ * Deliberately not Required<DataAppVizChart>: the as-code-only
+ * dataAppVizSlug never participates in runtime state.
+ */
+export type SelectedDataAppViz = Pick<
+    DataAppVizChart,
+    'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
+> &
+    Required<Pick<DataAppVizChart, 'optionValues'>>;
+
 export interface DataAppVizVisualizationConfigAndData {
-    validConfig: DataAppVizChart;
-    dataAppVizUuid: string;
-    fieldMapping: DataAppVizFieldMapping;
-    optionValues: DataAppVizOptionValues;
+    validConfig: SelectedDataAppViz | null;
+    dataAppVizUuid: string | null;
     /**
      * `fieldMapping` is the caller's binding for the newly selected viz —
      * computed from its contract and the query's result columns. Passed in
@@ -20,6 +29,19 @@ export interface DataAppVizVisualizationConfigAndData {
         dataAppVizUuid: string,
         fieldMapping: DataAppVizFieldMapping,
     ) => void;
+    setDataAppVizVersion: (dataAppVizVersion: number) => void;
+    /**
+     * Move the chart to a newer version of its type. The caller reconciles
+     * the binding and options against that version's contract, for the same
+     * reason `setDataAppVizUuid` takes its mapping ready-made.
+     */
+    upgradeDataAppVizVersion: (
+        dataAppVizVersion: number,
+        fieldMapping: DataAppVizFieldMapping,
+        optionValues: DataAppVizOptionValues,
+    ) => void;
+    /** Back to pointing at no viz; bindings and options go with it. */
+    clearDataAppViz: () => void;
     setField: (fieldName: string, fieldId: string | null) => void;
     /** `dataAppVizUuid` is the viz the edited control belonged to. */
     setOption: (
@@ -29,20 +51,39 @@ export interface DataAppVizVisualizationConfigAndData {
     ) => void;
 }
 
+// Charts saved while '' stood in for "no viz yet" still carry that value,
+// and a config from a URL may carry no uuid at all.
+export const readDataAppVizUuid = (
+    chartConfig: DataAppVizChart | undefined,
+): string | null => {
+    const uuid = chartConfig?.dataAppVizUuid;
+    return typeof uuid === 'string' && uuid !== '' ? uuid : null;
+};
+
+const toSelected = (
+    chartConfig: DataAppVizChart | undefined,
+): SelectedDataAppViz | null => {
+    const dataAppVizUuid = readDataAppVizUuid(chartConfig);
+    return chartConfig !== undefined && dataAppVizUuid !== null
+        ? {
+              dataAppVizUuid,
+              dataAppVizVersion: chartConfig.dataAppVizVersion,
+              fieldMapping: chartConfig.fieldMapping,
+              optionValues: chartConfig.optionValues ?? {},
+          }
+        : null;
+};
+
 // Local state for a data-app-viz chart (selected viz + field mapping + config
 // option values); setters push each change up via `onConfigChange`. Mirrors
 // useCustomVisualizationConfig. Only options the user explicitly changed are
 // stored — declared defaults are resolved at render time.
 const useDataAppVizVisualizationConfig = (
     initialChartConfig: DataAppVizChart | undefined,
-    onConfigChange?: (config: DataAppVizChart) => void,
+    onConfigChange?: (config: SelectedDataAppViz | null) => void,
 ): DataAppVizVisualizationConfigAndData => {
-    const [config, setConfigState] = useState<Required<DataAppVizChart>>(
-        () => ({
-            dataAppVizUuid: initialChartConfig?.dataAppVizUuid ?? '',
-            fieldMapping: initialChartConfig?.fieldMapping ?? {},
-            optionValues: initialChartConfig?.optionValues ?? {},
-        }),
+    const [config, setConfigState] = useState<SelectedDataAppViz | null>(() =>
+        toSelected(initialChartConfig),
     );
 
     // Track the committed config in a ref so setters called within a single
@@ -62,7 +103,25 @@ const useDataAppVizVisualizationConfig = (
         };
     }, []);
 
-    const commit = useCallback((next: Required<DataAppVizChart>) => {
+    // A viz switched from outside this hook (the chart gallery goes through
+    // the store) arrives as a new initial config while the hook stays mounted.
+    const externalDataAppVizUuid = readDataAppVizUuid(initialChartConfig);
+    const externalDataAppVizVersion = initialChartConfig?.dataAppVizVersion;
+    useLayoutEffect(() => {
+        const currentUuid = configRef.current?.dataAppVizUuid ?? null;
+        const currentVersion = configRef.current?.dataAppVizVersion;
+        if (
+            externalDataAppVizUuid === currentUuid &&
+            externalDataAppVizVersion === currentVersion
+        ) {
+            return;
+        }
+        const next = toSelected(initialChartConfig);
+        configRef.current = next;
+        setConfigState(next);
+    }, [externalDataAppVizUuid, externalDataAppVizVersion, initialChartConfig]);
+
+    const commit = useCallback((next: SelectedDataAppViz | null) => {
         configRef.current = next;
         setConfigState(next);
         onConfigChangeRef.current?.(next);
@@ -82,15 +141,51 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
+    const clearDataAppViz = useCallback(() => commit(null), [commit]);
+
+    const setDataAppVizVersion = useCallback(
+        (dataAppVizVersion: number) => {
+            const selected = configRef.current;
+            if (
+                selected === null ||
+                selected.dataAppVizVersion === dataAppVizVersion
+            ) {
+                return;
+            }
+            commit({ ...selected, dataAppVizVersion });
+        },
+        [commit],
+    );
+
+    const upgradeDataAppVizVersion = useCallback(
+        (
+            dataAppVizVersion: number,
+            fieldMapping: DataAppVizFieldMapping,
+            optionValues: DataAppVizOptionValues,
+        ) => {
+            const selected = configRef.current;
+            if (selected === null) return;
+            commit({
+                ...selected,
+                dataAppVizVersion,
+                fieldMapping,
+                optionValues,
+            });
+        },
+        [commit],
+    );
+
     const setField = useCallback(
         (fieldName: string, fieldId: string | null) => {
-            const nextMapping = { ...configRef.current.fieldMapping };
+            const selected = configRef.current;
+            if (selected === null) return;
+            const nextMapping = { ...selected.fieldMapping };
             if (fieldId === null) {
                 delete nextMapping[fieldName];
             } else {
                 nextMapping[fieldName] = fieldId;
             }
-            commit({ ...configRef.current, fieldMapping: nextMapping });
+            commit({ ...selected, fieldMapping: nextMapping });
         },
         [commit],
     );
@@ -105,13 +200,12 @@ const useDataAppVizVisualizationConfig = (
             // point the edit can belong to a config that no longer owns the
             // chart, or to a viz the user has switched away from.
             if (!isOwningChartConfigRef.current) return;
-            if (dataAppVizUuid !== configRef.current.dataAppVizUuid) return;
+            const selected = configRef.current;
+            if (selected === null || dataAppVizUuid !== selected.dataAppVizUuid)
+                return;
             commit({
-                ...configRef.current,
-                optionValues: {
-                    ...configRef.current.optionValues,
-                    [optionName]: value,
-                },
+                ...selected,
+                optionValues: { ...selected.optionValues, [optionName]: value },
             });
         },
         [commit],
@@ -119,10 +213,11 @@ const useDataAppVizVisualizationConfig = (
 
     return {
         validConfig: config,
-        dataAppVizUuid: config.dataAppVizUuid,
-        fieldMapping: config.fieldMapping,
-        optionValues: config.optionValues,
+        dataAppVizUuid: config?.dataAppVizUuid ?? null,
         setDataAppVizUuid,
+        setDataAppVizVersion,
+        upgradeDataAppVizVersion,
+        clearDataAppViz,
         setField,
         setOption,
     };

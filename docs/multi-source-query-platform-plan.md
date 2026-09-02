@@ -9,6 +9,89 @@ The standard table format already exists and is universal: every query path retu
 `ResultColumns` (`Record<string, {reference, type}>`) + rows, addressed by a `queryUuid`
 (`query_history` row → S3 results file).
 
+## Status (2026-08-20)
+
+Shipped on `claude/composer-queries-agent-plan-oyckgn` (PR #27792; plan doc:
+[composer-queries-agent-plan.md](composer-queries-agent-plan.md)):
+
+- **Agent chat surface** — done (v0): the `runComposerQueries` agent tool wraps
+  `QuerySourceService.executeSourceQueries` behind the `multi-source-query` flag (standard web
+  chat only — not Slack, not deep research). `sql` nodes go through the per-thread human approval
+  gate and inherit the agent SQL scope via the AI execution context; semanticLayer/duckdb-only
+  pipelines need no approval. Results return to the model as the terminal `ResultColumns` + CSV
+  preview plus per-node queryUuids, and any node's queryUuid can be referenced by a later
+  submission (map form of `references`) without re-running it — the iterative
+  source-once/duckdb-many explore loop.
+- **Composer chart artifact** — done (v0): each run stores `{source: 'composer', schemaVersion: 1,
+  queries, terminalNodeId, lastQueryUuid}` and the thread renders the terminal result as a table
+  straight from `lastQueryUuid`, with a designed expired-results empty state. The artifact
+  serializes only the final submission; cross-call queryUuid references stay opaque (see
+  copy-on-save expansion below).
+- **runSql superseded** — when the flag is on, the standalone `runSql` tool is withheld and raw
+  warehouse SQL runs as a single `sql` node under the same approval/scope/select-only rules; the
+  system prompt teaches sql-via-composer. Deep research keeps `runSql` (its worker/coordinator
+  toolsets depend on it).
+
+### Agent-chat follow-up work (deliberately deferred)
+
+- **Copy-on-save pipeline expansion**: the v0 artifact stores only the final submission, so a
+  pipeline whose duckdb node references earlier calls' queryUuids stops being replayable once
+  those results expire. Every compose query's `query_history` row stores its `requestParameters`
+  including the resolved references map (and sql/semanticLayer rows store their own request
+  params), so a save step can recursively walk queryUuid references through query history and
+  materialise the full source-query graph — it must run at save time, while the referenced rows
+  still exist. This is the composer instance of the saved-objects copy-on-save below, and the
+  precondition for re-execution-as-viewer and sharing.
+- **Inline "tool executing" metadata UI**: while a pipeline runs, the chat shows a generic tool
+  chip plus a "Running composer queries..." progress line. Improve the inline metadata: render
+  the pipeline's nodes as they execute (node id, source type, per-node status from the batch
+  status endpoint) so a multi-node run reads as a pipeline, not a spinner.
+- **Artifact "under the hood" explorer**: the composer artifact renders only the terminal table.
+  Add an artifact UI for inspecting the pipeline behind it — per node, the raw SQL (warehouse or
+  duckdb) or metric-query definition, the data source configuration it ran against, and its
+  result. The stored `queries` array already carries everything needed for the final submission;
+  full upstream visibility arrives with copy-on-save expansion.
+- The remaining v0 exclusions (re-execution fallback as the viewer, model-generated chart
+  configs, save/share) are tracked in
+  [composer-queries-agent-plan.md](composer-queries-agent-plan.md#follow-ups-explicitly-not-v0-unblocked-by-the-artifact-shape).
+
+### Plan: DuckDB-WASM execution in the browser
+
+Goal: when the agent is used from the web app, `duckdb` steps over already-materialised results
+should not need a server round trip (submit → poll → results fetch). DuckDB-WASM in the frontend
+executes those transforms locally over data the browser already has (or can stream), making
+duckdb-over-results iteration effectively instant and taking load off the shared server instance.
+
+Where it applies — the execution split matters:
+
+- **Presentation-layer transforms (pure client)**: re-slicing/re-aggregating a fetched result for
+  viz (chart-type switching, the artifact "under the hood" explorer, user-driven follow-up
+  transforms in the UI). These produce no `queryUuid` and never need one — run them fully local.
+- **Agent-loop `duckdb` nodes (server-canonical, optionally client-optimistic)**: the model runs
+  server-side and consumes the result there, and a canonical `queryUuid` is what makes results
+  reusable across calls and artifacts renderable — so agent submissions keep executing on the
+  server. A live web session can additionally execute the same duckdb SQL locally over
+  already-fetched referenced results to paint the artifact table immediately, reconciling with
+  the server result when it lands.
+
+Build items:
+
+- **Ship DuckDB-WASM in the frontend** with the referenced results registered as tables: v1 feeds
+  it rows the browser already fetched through the standard paginated results endpoint (same authz
+  as today — the client can only transform what it could read anyway); parquet range reads over
+  signed URLs come with the results store/serve upgrade below, and inherit its open decision on
+  handing URLs to clients.
+- **Dialect/version parity**: pin the wasm bundle to the same DuckDB version as the server
+  (`@duckdb/node-api` 1.5.x today) and reuse the same select-only validation, so SQL written for
+  one target runs identically on the other and optimistic local results match the canonical run.
+- **Trust boundary**: client-computed results are untrusted — never persisted as `query_history`
+  rows or artifact snapshots. Anything that needs identity (reuse by reference, artifacts,
+  saving) is the server run's job; local execution is a latency optimisation, not a source of
+  truth.
+- **Row-volume guardrail**: local execution only when every referenced result is small enough to
+  hold in the page (respecting the existing page-size caps); otherwise fall through to
+  server-side execution transparently.
+
 ## Status (2026-08-18)
 
 Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
@@ -29,7 +112,8 @@ Shipped on `claude/query-dag-agent-ergonomics-p6s957` (see
 - **Saved objects** — not started; the submission body is the serialization format for now
   (node-id references make an interactive session replayable verbatim).
 - **Source management, results store upgrades (parquet/range reads), structural caching, MCP
-  tools, usage/cost capture, viz binding to bare queryUuids** — not started.
+  tools (the `run_composer_queries` tool definition exists but is not yet registered on the MCP
+  server), usage/cost capture, viz binding to bare queryUuids** — not started.
 
 One deliberate divergence from the v1 plan below: no opaque handle table — references are
 `queryUuid`s (or in-submission node ids) directly. Revisit handle minting when copy-on-save or

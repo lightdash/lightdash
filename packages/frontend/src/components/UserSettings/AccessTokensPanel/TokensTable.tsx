@@ -6,7 +6,6 @@ import {
 import {
     ActionIcon,
     Button,
-    CopyButton,
     Group,
     Menu,
     Paper,
@@ -19,7 +18,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
-    IconCheck,
     IconCopy,
     IconDots,
     IconInfoCircle,
@@ -41,6 +39,7 @@ import {
     useRotateAccessToken,
 } from '../../../hooks/useAccessToken';
 import Callout from '../../common/Callout';
+import { CopyActionIcon } from '../../common/CopyActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
@@ -66,7 +65,6 @@ const TokenItem: FC<{
                     <span>
                         {expiresAt ? (
                             <Tooltip
-                                withinPortal
                                 position="top"
                                 maw={350}
                                 label={formatTimestamp(expiresAt)}
@@ -80,7 +78,6 @@ const TokenItem: FC<{
 
                     {rotatedAt && (
                         <Tooltip
-                            withinPortal
                             position="top"
                             maw={350}
                             label={`Last rotated at ${formatTimestamp(
@@ -89,7 +86,7 @@ const TokenItem: FC<{
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="dimmed"
                                 size="md"
                             />
                         </Tooltip>
@@ -99,7 +96,6 @@ const TokenItem: FC<{
             <Table.Td>
                 {lastUsedAt && (
                     <Tooltip
-                        withinPortal
                         position="top"
                         maw={350}
                         label={formatTimestamp(lastUsedAt)}
@@ -109,13 +105,9 @@ const TokenItem: FC<{
                 )}
             </Table.Td>
             <Table.Td w="1%">
-                <Menu withinPortal position="bottom-end">
+                <Menu position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon
-                            variant="transparent"
-                            size="sm"
-                            color="ldGray.6"
-                        >
+                        <ActionIcon variant="transparent" size="sm">
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
@@ -212,24 +204,10 @@ const RotateTokenForm: FC<{
                     className="sentry-block ph-no-capture"
                     value={rotatedTokenData.token}
                     rightSection={
-                        <CopyButton value={rotatedTokenData.token}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy'}
-                                    withArrow
-                                    position="right"
-                                >
-                                    <ActionIcon
-                                        color={copied ? 'teal' : 'gray'}
-                                        onClick={copy}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={rotatedTokenData.token}
+                            tooltipPosition="right"
+                        />
                     }
                 />
 
@@ -299,7 +277,7 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Paper className="ld-overflow-hidden">
                 <Table
                     className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 >
@@ -374,31 +352,19 @@ export const TokensTable = () => {
                     </Callout>
 
                     <Group gap="sm">
-                        <Paper p="xs" withBorder bg="ldGray.0">
+                        <Paper p="xs" bg="ldGray.0">
                             <Text ff="monospace" size="sm">
                                 {tokenToCopy?.uuid}
                             </Text>
                         </Paper>
-                        <CopyButton value={tokenToCopy?.uuid ?? ''}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied!' : 'Copy UUID'}
-                                    withArrow
-                                    position="top"
-                                >
-                                    <ActionIcon
-                                        size="sm"
-                                        onClick={copy}
-                                        variant={copied ? 'filled' : 'light'}
-                                        color={copied ? 'teal' : 'blue'}
-                                    >
-                                        <MantineIcon
-                                            icon={copied ? IconCheck : IconCopy}
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
+                        <CopyActionIcon
+                            value={tokenToCopy?.uuid ?? ''}
+                            copyLabel="Copy UUID"
+                            copiedLabel="Copied!"
+                            tooltipPosition="top"
+                            size="sm"
+                            variant="light"
+                        />
                     </Group>
                 </Stack>
             </MantineModal>

@@ -24,6 +24,7 @@ export type TileBaseProps<T> = {
     children?: ReactNode;
     extraHeaderElement?: ReactNode;
     visibleHeaderElement?: ReactNode;
+    hasNonMenuHeaderContent?: boolean;
     minimal?: boolean;
     tabs?: DashboardTab[];
     lockHeaderVisibility?: boolean;

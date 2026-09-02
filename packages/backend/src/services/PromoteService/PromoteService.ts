@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
+    ChartType,
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
@@ -235,18 +236,33 @@ export class PromoteService extends BaseService {
         if (cachedUpstreamChart !== undefined) {
             upstreamChart = cachedUpstreamChart;
         } else {
-            const upstreamCharts = await this.savedChartModel.find({
-                projectUuid: upstreamProjectUuid,
-                slug: savedChart.slug,
-                includeOrphanChartsWithinDashboard,
-            });
-            if (upstreamCharts.length > 1) {
-                throw new AlreadyExistsError(
-                    `There are multiple charts with the same identifier ${savedChart.slug}`,
+            const mappedUpstreamChartUuid =
+                savedChart.projectUuid === upstreamProjectUuid
+                    ? null
+                    : await this.projectModel.getUpstreamChartUuidFromPreview(
+                          savedChart.projectUuid,
+                          savedChart.uuid,
+                      );
+            if (mappedUpstreamChartUuid) {
+                upstreamChart = await this.savedChartModel.get(
+                    mappedUpstreamChartUuid,
+                    undefined,
+                    { projectUuid: upstreamProjectUuid },
                 );
+            } else {
+                const upstreamCharts = await this.savedChartModel.find({
+                    projectUuid: upstreamProjectUuid,
+                    slug: savedChart.slug,
+                    includeOrphanChartsWithinDashboard,
+                });
+                if (upstreamCharts.length > 1) {
+                    throw new AlreadyExistsError(
+                        `There are multiple charts with the same identifier ${savedChart.slug}`,
+                    );
+                }
+                upstreamChart =
+                    upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
             }
-            upstreamChart =
-                upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
         }
 
         const upstreamSpaces = await this.spaceModel.find({
@@ -261,11 +277,10 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
         let upstreamCtx: SpaceAccessContextForCasl | undefined;
         if (upstreamSpace === undefined) {
             upstreamCtx = undefined;
@@ -274,11 +289,10 @@ export class PromoteService extends BaseService {
             // space, so the access context is identical — skip the re-query.
             upstreamCtx = promotedCtx;
         } else {
-            upstreamCtx =
-                await this.spacePermissionService.getSpaceAccessContext(
-                    user.userUuid,
-                    upstreamSpace.uuid,
-                );
+            upstreamCtx = await this.spacePermissionService.resolveAccess(
+                user.userUuid,
+                { type: 'space', spaceUuid: upstreamSpace.uuid },
+            );
         }
 
         return {
@@ -355,16 +369,15 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
         const upstreamCtx = upstreamSpace
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  upstreamSpace.uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: upstreamSpace.uuid,
+              })
             : undefined;
 
         return {
@@ -806,7 +819,8 @@ export class PromoteService extends BaseService {
         return (
             promotedChart.updatedAt > upstreamChart.updatedAt ||
             promotedChart.name !== upstreamChart.name ||
-            promotedChart.description !== upstreamChart.description
+            promotedChart.description !== upstreamChart.description ||
+            promotedChart.slug !== upstreamChart.slug
         );
     }
 
@@ -834,25 +848,9 @@ export class PromoteService extends BaseService {
             (change) => change.action === PromotionAction.NO_CHANGES,
         );
 
-        await Promise.all(
-            charts
-                .filter((change) => change.action === PromotionAction.UPDATE)
-                .map((chartChange) => {
-                    const changeChart = chartChange.data;
-                    // We also update chart name and description if they have changed
-                    return this.savedChartModel.update(changeChart.uuid, {
-                        name: changeChart.name,
-                        description: changeChart.description,
-                        spaceUuid: isChartWithinDashboard(changeChart)
-                            ? undefined
-                            : changeChart.spaceUuid,
-                    });
-                }),
-        );
-
         const updatedChartPromises = charts
             .filter((change) => change.action === PromotionAction.UPDATE)
-            .map((chartChange) => {
+            .map(async (chartChange) => {
                 const changeChart = chartChange.data;
 
                 const chartData =
@@ -871,14 +869,54 @@ export class PromoteService extends BaseService {
                               updatedByUser: user,
                               slug: changeChart.slug,
                           };
-                return this.savedChartModel
-                    .createVersion(changeChart.uuid, chartData, user)
-                    .then((updatedChart) => ({
-                        ...updatedChart,
-                        oldUuid: changeChart.oldUuid,
-                        spaceSlug: changeChart.spaceSlug,
-                        spacePath: changeChart.spacePath,
-                    }));
+                const currentChart = await this.savedChartModel.get(
+                    changeChart.uuid,
+                    undefined,
+                    { projectUuid: changeChart.projectUuid },
+                );
+
+                await this.savedChartModel.transaction(async (transaction) => {
+                    if (currentChart.slug !== changeChart.slug) {
+                        await this.savedChartModel.renameSlug(
+                            {
+                                projectUuid: changeChart.projectUuid,
+                                savedChartUuid: changeChart.uuid,
+                                from: currentChart.slug,
+                                to: changeChart.slug,
+                            },
+                            transaction,
+                        );
+                    }
+                    await this.savedChartModel.updateInTransaction(
+                        changeChart.uuid,
+                        {
+                            name: changeChart.name,
+                            description: changeChart.description,
+                            spaceUuid: isChartWithinDashboard(changeChart)
+                                ? undefined
+                                : changeChart.spaceUuid,
+                        },
+                        transaction,
+                    );
+                    await this.savedChartModel.createVersion(
+                        changeChart.uuid,
+                        chartData,
+                        user,
+                        transaction,
+                    );
+                });
+
+                const updatedChart = await this.savedChartModel.get(
+                    changeChart.uuid,
+                    undefined,
+                    { projectUuid: changeChart.projectUuid },
+                );
+                return {
+                    ...updatedChart,
+                    oldUuid: changeChart.oldUuid,
+                    spaceSlug: changeChart.spaceSlug,
+                    spacePath: changeChart.spacePath,
+                };
             });
         const updatedCharts = await Promise.all(updatedChartPromises);
 
@@ -1105,37 +1143,49 @@ export class PromoteService extends BaseService {
     private static getDataAppUuidsFromChanges(
         promotionChanges: PromotionChanges,
     ): string[] {
-        return Array.from(
-            promotionChanges.dashboards.reduce<Set<string>>(
-                (acc, dashboardChange) => {
-                    dashboardChange.data.tiles.forEach((tile) => {
-                        if (
-                            isDashboardDataAppTileType(tile) &&
-                            tile.properties.appUuid
-                        ) {
-                            acc.add(tile.properties.appUuid);
-                        }
-                    });
-                    return acc;
-                },
-                new Set<string>(),
-            ),
+        const appUuids = promotionChanges.dashboards.reduce<Set<string>>(
+            (acc, dashboardChange) => {
+                dashboardChange.data.tiles.forEach((tile) => {
+                    if (
+                        isDashboardDataAppTileType(tile) &&
+                        tile.properties.appUuid
+                    ) {
+                        acc.add(tile.properties.appUuid);
+                    }
+                });
+                return acc;
+            },
+            new Set<string>(),
         );
+        // Charts bound to a custom chart type reference it via chartConfig —
+        // the viz must promote with the chart or the upstream copy points at
+        // a viz that only exists in the preview.
+        promotionChanges.charts.forEach((chartChange) => {
+            const { chartConfig } = chartChange.data;
+            if (
+                chartConfig.type === ChartType.DATA_APP_VIZ &&
+                chartConfig.config?.dataAppVizUuid
+            ) {
+                appUuids.add(chartConfig.config.dataAppVizUuid);
+            }
+        });
+        return Array.from(appUuids);
     }
 
     /**
-     * Promote the data apps referenced by a dashboard's DATA_APP tiles into the
-     * upstream project, then remap each tile's `appUuid` to the freshly promoted
-     * upstream app — the data-app equivalent of `upsertCharts`/`upsertSqlCharts`.
+     * Promote the apps a promotion references — DATA_APP dashboard tiles and
+     * the custom chart types bound by charts' DATA_APP_VIZ configs — into the
+     * upstream project, then remap each tile's `appUuid` and each chart's
+     * `dataAppVizUuid` to the freshly promoted upstream app.
      *
-     * Runs after the upstream dashboard exists but before `updateDashboard`
-     * persists the tiles, so the upstream `apps` row is in place before the
-     * `dashboard_tile_data_apps` FK references it.
+     * Must run before `upsertCharts` persists chart configs and before
+     * `updateDashboard` persists the tiles, so the remapped references (and
+     * the `dashboard_tile_data_apps` FK) point at rows that exist upstream.
      *
      * The actual app promotion (S3 copy, versioning, permission checks) lives in
      * the EE AppGenerateService, reached via the injected accessor. Apps whose
      * referenced row no longer exists (soft-deleted placeholder tiles) are left
-     * untouched rather than failing the whole dashboard promotion.
+     * untouched rather than failing the whole promotion.
      */
     async upsertDataApps(
         user: SessionUser,
@@ -1164,6 +1214,12 @@ export class PromoteService extends BaseService {
             promotedApps.map(({ sourceAppUuid, upstreamAppUuid }) => [
                 sourceAppUuid,
                 upstreamAppUuid,
+            ]),
+        );
+        const appVersionMap = new Map(
+            promotedApps.map(({ sourceAppUuid, upstreamAppVersion }) => [
+                sourceAppUuid,
+                upstreamAppVersion,
             ]),
         );
 
@@ -1201,9 +1257,58 @@ export class PromoteService extends BaseService {
             }),
         );
 
+        const updatedCharts = promotionChanges.charts.map((chartChange) => {
+            const { chartConfig } = chartChange.data;
+            if (
+                chartConfig.type !== ChartType.DATA_APP_VIZ ||
+                !chartConfig.config?.dataAppVizUuid
+            ) {
+                return chartChange;
+            }
+            const upstreamAppUuid = appUuidMap.get(
+                chartConfig.config.dataAppVizUuid,
+            );
+            const upstreamAppVersion = appVersionMap.get(
+                chartConfig.config.dataAppVizUuid,
+            );
+            // Keep a skipped viz's original reference, but never carry its
+            // project-local version number across.
+            if (!upstreamAppUuid || upstreamAppVersion === undefined) {
+                const {
+                    dataAppVizVersion: _dataAppVizVersion,
+                    ...configWithoutVersion
+                } = chartConfig.config;
+                return {
+                    ...chartChange,
+                    data: {
+                        ...chartChange.data,
+                        chartConfig: {
+                            ...chartConfig,
+                            config: configWithoutVersion,
+                        },
+                    },
+                };
+            }
+            return {
+                ...chartChange,
+                data: {
+                    ...chartChange.data,
+                    chartConfig: {
+                        ...chartConfig,
+                        config: {
+                            ...chartConfig.config,
+                            dataAppVizUuid: upstreamAppUuid,
+                            dataAppVizVersion: upstreamAppVersion,
+                        },
+                    },
+                },
+            };
+        });
+
         return {
             ...promotionChanges,
             dashboards: updatedDashboards,
+            charts: updatedCharts,
         };
     }
 
@@ -1289,6 +1394,14 @@ export class PromoteService extends BaseService {
                 promotionChanges,
             );
 
+            // Promote the chart's custom chart type (if any) and remap the
+            // viz binding before the chart config is persisted upstream.
+            promotionChanges = await this.upsertDataApps(
+                user,
+                promotionChanges,
+                projectUuid,
+            );
+
             promotionChanges = await this.upsertCharts(user, promotionChanges);
 
             await this.trackAnalytics(
@@ -1341,8 +1454,16 @@ export class PromoteService extends BaseService {
             upstreamChart,
         );
 
+        // A chart bound to a custom chart type promotes that viz with it.
+        const dataApps = await this.getDataAppDiffChanges(
+            user,
+            projectUuid,
+            promotionChanges,
+        );
+
         return {
             ...promotionChanges,
+            dataApps,
             spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
         };
     }
@@ -1609,6 +1730,7 @@ export class PromoteService extends BaseService {
             promotedDashboard.spaceUuid,
             {
                 ...promotedDashboard,
+                ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
                 forceSlug: true,
             },
             user,
@@ -1667,6 +1789,7 @@ export class PromoteService extends BaseService {
                 name: promotedDashboard.name,
                 description: promotedDashboard.description,
                 spaceUuid: promotedDashboard.spaceUuid,
+                ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
             });
         }
 
@@ -2452,11 +2575,10 @@ export class PromoteService extends BaseService {
             );
         }
 
-        const promotedCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                promotedSpace.uuid,
-            );
+        const promotedCtx = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            { type: 'space', spaceUuid: promotedSpace.uuid },
+        );
 
         const promotedDashboard: PromotedDashboard = {
             dashboard,
@@ -2469,10 +2591,10 @@ export class PromoteService extends BaseService {
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
         const upstreamCtx = upstreamSpace
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  upstreamSpace.uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(user.userUuid, {
+                  type: 'space',
+                  spaceUuid: upstreamSpace.uuid,
+              })
             : undefined;
 
         const upstreamDashboard: UpstreamDashboard = {
@@ -2568,6 +2690,16 @@ export class PromoteService extends BaseService {
                 promotionChanges,
             );
 
+            // Promote embedded data apps and chart types, remapping tiles and
+            // chart viz bindings. Must run before upsertCharts persists chart
+            // configs and before updateDashboard persists tiles (the tile FK
+            // needs the upstream apps row).
+            promotionChanges = await this.upsertDataApps(
+                user,
+                promotionChanges,
+                dashboard.projectUuid,
+            );
+
             // Update or create charts
             // and return the list of dashboard.tiles updates with the new chart uuids
             promotionChanges = await this.upsertCharts(
@@ -2580,14 +2712,6 @@ export class PromoteService extends BaseService {
                 user,
                 promotionChanges,
                 sqlChanges,
-            );
-
-            // Promote embedded data apps and remap their tiles. Must run before
-            // updateDashboard so the upstream apps row exists for the tile FK.
-            promotionChanges = await this.upsertDataApps(
-                user,
-                promotionChanges,
-                dashboard.projectUuid,
             );
 
             promotionChanges = await this.updateDashboard(

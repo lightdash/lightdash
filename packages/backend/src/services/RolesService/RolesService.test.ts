@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    CommercialFeatureFlags,
     CreateRole,
     CustomRoleAsCode,
     defineUserAbility,
@@ -73,7 +74,9 @@ const limitedOrganizationManagerAccount = () => {
 describe('RolesService', () => {
     const buildService = (licenseValid = true) =>
         new RolesService({
-            lightdashConfig: {} as LightdashConfig,
+            lightdashConfig: {
+                customRoles: { enabled: false },
+            } as LightdashConfig,
             licenseService: {
                 getLicenseStatus: () => ({
                     hasLicenseKey: licenseValid,
@@ -845,7 +848,7 @@ describe('RolesService', () => {
 
         beforeEach(() => {
             mockFeatureFlagModel.get.mockResolvedValue({
-                id: 'multiple-roles',
+                id: 'custom-roles',
                 enabled: true,
             });
             mockRolesModel.getOrganizationUserRoleSet.mockResolvedValue({
@@ -875,9 +878,9 @@ describe('RolesService', () => {
             );
         });
 
-        it('rejects role-set writes when the multiple-roles flag is off', async () => {
+        it('rejects role-set writes when custom roles are disabled', async () => {
             mockFeatureFlagModel.get.mockResolvedValue({
-                id: 'multiple-roles',
+                id: 'custom-roles',
                 enabled: false,
             });
             await expect(
@@ -1789,6 +1792,108 @@ describe('RolesService', () => {
                         { roleId: mockCustomRoleWithScopes.roleUuid },
                     ),
                 ).rejects.toThrow(ForbiddenError);
+            });
+        });
+
+        describe('upsertOrganizationUserRoleAssignment ceiling stays strict regardless of pat-scope-authoritative', () => {
+            // Mirrors limitedOrganizationManagerAccount's own ceiling: covers
+            // MEMBER's base scopes but never manage:PersonalAccessToken. The
+            // service no longer reads this flag for the ceiling decision — both
+            // mock values must still reject (config-derived token access is
+            // still self-escalation via an invited/assigned role: #26771).
+            const buildPatScopeService = (patScopeAuthoritative: boolean) =>
+                new RolesService({
+                    lightdashConfig: {
+                        customRoles: { enabled: false },
+                        auth: {
+                            pat: {
+                                enabled: true,
+                                allowedOrgRoles: Object.values(
+                                    OrganizationMemberRole,
+                                ),
+                            },
+                        },
+                    } as LightdashConfig,
+                    licenseService: {
+                        getLicenseStatus: () => ({
+                            hasLicenseKey: true,
+                            valid: true,
+                        }),
+                    } as LicenseService,
+                    analytics: mockAnalytics as unknown as LightdashAnalytics,
+                    rolesModel: mockRolesModel as unknown as RolesModel,
+                    userModel: mockUserModel as unknown as UserModel,
+                    organizationModel:
+                        mockOrganizationModel as unknown as OrganizationModel,
+                    groupsModel: mockGroupsModel as unknown as GroupsModel,
+                    projectModel: mockProjectModel as unknown as ProjectModel,
+                    emailClient: mockEmailClient as unknown as EmailClient,
+                    adminNotificationService:
+                        mockAdminNotificationService as unknown as AdminNotificationService,
+                    inviteLinkModel:
+                        mockInviteLinkModel as unknown as InviteLinkModel,
+                    organizationMemberProfileModel:
+                        mockOrganizationMemberProfileModel as unknown as OrganizationMemberProfileModel,
+                    featureFlagModel: {
+                        get: vi.fn(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                CommercialFeatureFlags.PatScopeAuthoritative
+                                    ? patScopeAuthoritative
+                                    : true,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                });
+
+            it('flag off: rejects a config-token-carrying system role for a token-restricted caller', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    roleUuid: 'limited-org-manager-role',
+                    organizationUuid,
+                    level: 'organization',
+                    scopes: getOrganizationMemberRolePermissions(
+                        OrganizationMemberRole.MEMBER,
+                    ),
+                });
+
+                await expect(
+                    buildPatScopeService(
+                        false,
+                    ).upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertOrganizationUserRoleAssignment,
+                ).not.toHaveBeenCalled();
+            });
+
+            it('flag on: still rejects the same token-restricted caller — the ceiling does not relax', async () => {
+                mockRolesModel.getRoleWithScopesByUuid.mockResolvedValue({
+                    roleUuid: 'limited-org-manager-role',
+                    organizationUuid,
+                    level: 'organization',
+                    scopes: getOrganizationMemberRolePermissions(
+                        OrganizationMemberRole.MEMBER,
+                    ),
+                });
+
+                await expect(
+                    buildPatScopeService(
+                        true,
+                    ).upsertOrganizationUserRoleAssignment(
+                        limitedOrganizationManagerAccount(),
+                        organizationUuid,
+                        userUuid,
+                        { roleId: OrganizationMemberRole.MEMBER },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    mockRolesModel.upsertOrganizationUserRoleAssignment,
+                ).not.toHaveBeenCalled();
             });
         });
 

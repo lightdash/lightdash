@@ -3,6 +3,7 @@ import {
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
+    DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
@@ -100,6 +101,7 @@ vi.mock('../../../clients/github/Github', () => ({
 }));
 
 const ORG = 'org-1';
+const PRIMARY_SOURCE_UUID = 'primary-source-uuid';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
@@ -108,11 +110,19 @@ const PR_9 = 'https://github.com/acme/analytics/pull/9';
 // it so the card can pin CI and show the diff stat; no-change turns return nulls.
 const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 
-const buildService = (overrides: Record<string, AnyType> = {}) =>
-    new AiWritebackService({
+const buildService = (overrides: Record<string, AnyType> = {}) => {
+    const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
+    return new AiWritebackService({
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
-        projectModel: { get: vi.fn() } as AnyType,
+        projectModel: {
+            get: vi.fn(),
+            getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                dbtSourceName: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            }),
+            ...projectModelOverride,
+        } as AnyType,
         // Default: no additional dbt sources, so the single-source (primary)
         // path is taken unless a test overrides this.
         projectDbtSourcesModel: {
@@ -149,8 +159,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         pullRequestsModel: {} as AnyType,
         ciService: { mergePullRequest: vi.fn() } as AnyType,
         projectService: { scheduleCompileProject: vi.fn() } as AnyType,
-        ...overrides,
+        ...otherOverrides,
     });
+};
 
 // A stand-in GitProvider so applyAgentChanges/run stay provider-agnostic in
 // tests — the host-specific behaviour is covered by the provider unit tests.
@@ -832,7 +843,27 @@ describe('AiWritebackService dbt source targeting', () => {
         });
         expect(result).toMatchObject({
             kind: 'resolved',
-            candidate: { sourceUuid: null, isPrimary: true, optionUuid: 'p1' },
+            candidate: {
+                sourceUuid: null,
+                isPrimary: true,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                name: DEFAULT_PROJECT_DBT_SOURCE_NAME,
+            },
+        });
+    });
+
+    it('resolves the only source before validating an explicit dbtSourceUuid', async () => {
+        const result = await resolve(serviceWithSources([]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: {
+                sourceUuid: null,
+                optionUuid: PRIMARY_SOURCE_UUID,
+                isPrimary: true,
+            },
         });
     });
 
@@ -850,9 +881,9 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('treats the project uuid as an explicit choice of the primary source', async () => {
+    it('treats the primary source identity uuid as an explicit choice', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
-            dbtSourceUuid: 'p1',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
         });
         expect(result).toMatchObject({
             kind: 'resolved',
@@ -860,12 +891,35 @@ describe('AiWritebackService dbt source targeting', () => {
         });
     });
 
-    it('rejects an explicit dbtSourceUuid that is not a target', async () => {
-        await expect(
-            resolve(serviceWithSources([marketingSource()]), {
-                dbtSourceUuid: 'does-not-exist',
-            }),
-        ).rejects.toThrow(ParameterError);
+    it('asks the caller to choose when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
+        expect(result.options).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
+                    isPrimary: true,
+                }),
+                expect.objectContaining({
+                    projectDbtSourceUuid: 'src-marketing',
+                    repository: 'acme/marketing',
+                }),
+            ]),
+        );
+    });
+
+    it('does not infer a prompt-named source when an explicit dbtSourceUuid is not a target', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: 'add a spend metric to the marketing models',
+            dbtSourceUuid: 'does-not-exist',
+        });
+
+        expect(result.kind).toBe('select');
+        expect(result.options).toHaveLength(2);
     });
 
     it('infers the source from the prompt when exactly one matches', async () => {
@@ -940,7 +994,7 @@ describe('AiWritebackService dbt source targeting', () => {
         expect(result.options).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
-                    projectDbtSourceUuid: 'p1',
+                    projectDbtSourceUuid: PRIMARY_SOURCE_UUID,
                     isPrimary: true,
                 }),
                 expect.objectContaining({
@@ -951,11 +1005,20 @@ describe('AiWritebackService dbt source targeting', () => {
         );
     });
 
+    it('does not infer the primary from the unrenamed default source name', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            prompt: `update ${DEFAULT_PROJECT_DBT_SOURCE_NAME}`,
+        });
+
+        expect(result).toMatchObject({ kind: 'select' });
+    });
+
     it('keeps a resumed thread bound to its original source, ignoring the prompt', async () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             // The prompt names the primary repo, but the thread is bound to the
             // additional source — binding wins so the resumed sandbox stays put.
             prompt: 'change something in analytics',
+            dbtSourceUuid: PRIMARY_SOURCE_UUID,
             existingRow: { project_dbt_source_uuid: 'src-marketing' },
         });
         expect(result).toMatchObject({
@@ -968,6 +1031,17 @@ describe('AiWritebackService dbt source targeting', () => {
         const result = await resolve(serviceWithSources([marketingSource()]), {
             existingRow: { project_dbt_source_uuid: 'deleted-source' },
         });
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null, isPrimary: true },
+        });
+    });
+
+    it('keeps a resumed thread with a null source binding on the primary', async () => {
+        const result = await resolve(serviceWithSources([marketingSource()]), {
+            existingRow: { project_dbt_source_uuid: null },
+        });
+
         expect(result).toMatchObject({
             kind: 'resolved',
             candidate: { sourceUuid: null, isPrimary: true },
@@ -1640,6 +1714,96 @@ describe('AiWritebackService repo read access', () => {
             ]);
         });
 
+        it('authorizes primary and configured additional source repositories without exposing unrelated installation repositories', async () => {
+            const sharedModelIdentity = {
+                modelName: 'orders',
+                ymlPath: 'models/orders.yml',
+            };
+            const project = {
+                ...githubProject(),
+                dbtSourceUuid: PRIMARY_SOURCE_UUID,
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'primary orders',
+                },
+            };
+            const additionalSource = {
+                projectDbtSourceUuid: 'additional-source-uuid',
+                projectUuid: 'p1',
+                name: 'Additional source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                    authorization_method: 'installation_id',
+                    repository: 'acme/additional-analytics',
+                    branch: 'additional-main',
+                    project_sub_path: 'transform/dbt',
+                },
+                sourceFixture: {
+                    ...sharedModelIdentity,
+                    observableValue: 'additional orders',
+                },
+                createdAt: new Date('2026-08-27T00:00:00.000Z'),
+                updatedAt: new Date('2026-08-27T00:00:00.000Z'),
+            };
+            const { service } = buildWithInstallation(project);
+            (service as AnyType).projectDbtSourcesModel = {
+                getSources: vi.fn().mockResolvedValue([additionalSource]),
+            };
+            (
+                listReposAccessibleToInstallation as import('vitest').Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'secret-infrastructure',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+
+            await expect(access.listRepos()).resolves.toEqual([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'additional-analytics',
+                    defaultBranch: 'additional-main',
+                    private: true,
+                },
+            ]);
+            await expect(
+                access.resolveRepoAccess('acme', 'additional-analytics'),
+            ).resolves.toEqual({
+                branch: 'additional-main',
+                token: 'install-token',
+            });
+            await expect(
+                access.resolveRepoAccess('acme', 'secret-infrastructure'),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('unions the linked user repos with the org repos (org wins on collision)', async () => {
             const project = githubProject();
             project.dbtConnection.repository = 'acme/shared';
@@ -2129,7 +2293,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             undefined,
             [u('acme', 'analytics'), u('acme', 'secret-infrastructure')],
             'inst-token',
-            'acme/analytics',
+            ['acme/analytics'],
         );
         expect([...map.keys()]).toEqual(['acme/analytics']);
         expect(map.get('acme/analytics')?.token).toBe('inst-token');
@@ -2141,7 +2305,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             'user-token',
             [u('acme', 'shared'), u('acme', 'data')],
             'inst-token',
-            'acme/shared',
+            ['acme/shared'],
         );
         expect([...map.keys()].sort()).toEqual(['acme/shared', 'me/personal']);
         expect(map.get('me/personal')?.token).toBe('user-token');
@@ -2154,7 +2318,7 @@ describe('mergeSourceCodeRepoAccess', () => {
             'user-token',
             [u('Acme', 'Analytics')],
             'inst-token',
-            'acme/analytics',
+            ['acme/analytics'],
         );
 
         expect([...map.values()]).toEqual([
@@ -2200,7 +2364,7 @@ describe('computeWritableRepoKeys', () => {
             [r('acme', 'a'), r('acme', 'b')],
             [],
             false,
-            'acme/a',
+            ['acme/a'],
         );
         expect([...keys]).toEqual(['acme/a']);
     });
@@ -2210,7 +2374,7 @@ describe('computeWritableRepoKeys', () => {
             [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
             [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
             true,
-            'acme/a',
+            ['acme/a'],
         );
         expect([...keys].sort()).toEqual(['acme/a', 'acme/b', 'acme/c']);
     });
@@ -2220,7 +2384,7 @@ describe('computeWritableRepoKeys', () => {
             [r('lightdash', 'lightdash'), r('acme', 'a')],
             [],
             false,
-            'acme/a',
+            ['acme/a'],
         );
         expect(keys.has('lightdash/lightdash')).toBe(false);
         expect(keys.has('acme/a')).toBe(true);
@@ -2231,7 +2395,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Lightdash', 'Lightdash')],
             [],
             false,
-            'Lightdash/Lightdash',
+            ['Lightdash/Lightdash'],
         );
         expect(keys.size).toBe(0);
     });
@@ -2241,7 +2405,7 @@ describe('computeWritableRepoKeys', () => {
             [r('Acme', 'Web-App')],
             [r('acme', 'web-app')],
             true,
-            null,
+            [],
         );
         // The slug differs only by case across the two listings — it must still
         // intersect (L1), and the output keeps the installation's casing.

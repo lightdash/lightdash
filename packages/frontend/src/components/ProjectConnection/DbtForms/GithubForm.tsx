@@ -12,6 +12,7 @@ import {
     Avatar,
     Tooltip,
 } from '@mantine/core';
+import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -51,18 +52,20 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         }
     }, [config?.installationId, form]);
 
-    useEffect(() => {
-        if (
-            repos &&
-            repos.length > 0 &&
-            form.values.dbt.type === DbtProjectType.GITHUB &&
-            form.values.dbt.repository === ''
-        ) {
-            form.setFieldValue('dbt.repository', repos[0].fullName);
-        }
-    }, [repos, form]);
-
     const { showToastSuccess } = useToaster();
+    const installationPolling = useInterval(() => {
+        void refetch()
+            .then((status) => {
+                if (status.status === 'success' && status.data.installationId) {
+                    showToastSuccess({
+                        title: 'Successfully connected to GitHub',
+                    });
+                    installationPolling.stop();
+                    void refetchRepos();
+                }
+            })
+            .catch(() => {});
+    }, 2000);
 
     const repositoryField = form.getInputProps('dbt.repository');
 
@@ -77,6 +80,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             required
                             w="90%"
                             label="Repository"
+                            placeholder="Select a repository"
                             disabled={disabled}
                             data={repos.map((repo) => ({
                                 value: repo.fullName,
@@ -84,10 +88,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             }))}
                             footer={
                                 <Tooltip
-                                    withinPortal
                                     position="left"
                                     w={300}
-                                    multiline
                                     label="Click here to open your Github installation page to add more repositories."
                                 >
                                     <Text
@@ -124,9 +126,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
                         <Tooltip label="Refresh repositories after updating access on Github">
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                mt="20px"
+                                mt="lg"
                                 onClick={() => refetchRepos()}
                                 disabled={!isValidGithubInstallation}
                             >
@@ -158,24 +158,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         '_blank',
                         'popup=true,width=600,height=700',
                     );
-                    // Poll the API to check if the installation is successful
-                    const interval = setInterval(() => {
-                        refetch()
-                            .then((s) => {
-                                if (
-                                    s.status === 'success' &&
-                                    s.data.installationId
-                                ) {
-                                    showToastSuccess({
-                                        title: 'Successfully connected to GitHub',
-                                    });
-
-                                    clearInterval(interval);
-                                    void refetchRepos();
-                                }
-                            })
-                            .catch(() => {});
-                    }, 2000);
+                    installationPolling.start();
                 }}
             >
                 Sign in with GitHub
@@ -203,9 +186,10 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
     disabled,
 }) => {
-    const { savedProject } = useProjectFormContext();
+    const { savedProject, isDbtSource } = useProjectFormContext();
     const form = useFormContext();
     const requireSecrets: boolean =
+        !isDbtSource &&
         savedProject?.dbtConnection.type !== DbtProjectType.GITHUB;
 
     return (
@@ -214,19 +198,24 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
                 name="dbt.personal_access_token"
                 label="Personal access token"
                 description={
-                    <p>
-                        This is used to access your repo.
-                        <Anchor
-                            inherit
-                            target="_blank"
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
-                            rel="noreferrer"
-                        >
-                            {' '}
-                            Click to open documentation
-                        </Anchor>
-                        .
-                    </p>
+                    <>
+                        {isDbtSource && (
+                            <p>Required for private repositories</p>
+                        )}
+                        <p>
+                            This is used to access your repo.
+                            <Anchor
+                                inherit
+                                target="_blank"
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
+                                rel="noreferrer"
+                            >
+                                {' '}
+                                Click to open documentation
+                            </Anchor>
+                            .
+                        </p>
+                    </>
                 }
                 required={requireSecrets}
                 {...form.getInputProps('dbt.personal_access_token')}
@@ -280,7 +269,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     return (
         <>
-            <Stack style={{ marginTop: '8px' }}>
+            <Stack mt="xs">
                 <Group gap="sm">
                     <Select
                         allowDeselect={false}

@@ -120,6 +120,23 @@
             "required": ["type", "sql", "table", "name"],
             "type": "object"
         },
+        "AndFilterGroup": {
+            "properties": {
+                "and": {
+                    "description": "Array of filters or nested groups combined with AND logic",
+                    "items": {
+                        "$ref": "#/$defs/FilterGroupItem"
+                    },
+                    "type": "array"
+                },
+                "id": {
+                    "description": "Unique identifier for the filter group",
+                    "type": "string"
+                }
+            },
+            "required": ["and", "id"],
+            "type": "object"
+        },
         "AndFilterGroupInput": {
             "properties": {
                 "and": {
@@ -414,7 +431,7 @@
             "enum": ["line", "bar", "scatter", "area"],
             "type": "string"
         },
-        "ChartConfig": {
+        "ChartAsCodeConfig": {
             "anyOf": [
                 {
                     "$ref": "#/$defs/BigNumberConfig"
@@ -441,15 +458,16 @@
                     "$ref": "#/$defs/GaugeChartConfig"
                 },
                 {
-                    "$ref": "#/$defs/DataAppVizChartConfig"
-                },
-                {
                     "$ref": "#/$defs/MapChartConfig"
                 },
                 {
                     "$ref": "#/$defs/SankeyChartConfig"
+                },
+                {
+                    "$ref": "#/$defs/DataAppVizChartConfigAsCode"
                 }
-            ]
+            ],
+            "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
         },
         "ChartType.BIG_NUMBER": {
             "enum": ["big_number"],
@@ -1176,32 +1194,32 @@
             "required": ["type"],
             "type": "object"
         },
-        "DataAppVizChart": {
-            "properties": {
-                "dataAppVizUuid": {
-                    "description": "The reusable data app viz this chart renders with (by reference).",
-                    "type": "string"
+        "DataAppVizChartAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/Omit_DataAppVizChart.dataAppVizUuid-or-dataAppVizVersion_"
                 },
-                "fieldMapping": {
-                    "$ref": "#/$defs/DataAppVizFieldMapping"
-                },
-                "optionValues": {
-                    "$ref": "#/$defs/DataAppVizOptionValues",
-                    "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                {
+                    "properties": {
+                        "dataAppVizSlug": {
+                            "type": "string"
+                        },
+                        "dataAppVizUuid": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
                 }
-            },
-            "required": ["fieldMapping", "dataAppVizUuid"],
-            "type": "object"
+            ],
+            "description": "The as-code shape of a custom chart type binding. Files carry the viz's\nproject-scoped slug — portable across projects/instances — and upload\nresolves it to the target project's viz uuid. Exactly one identity is\npresent: `dataAppVizSlug` in every file written today; `dataAppVizUuid`\nonly in legacy files that predate slugs (accepted on upload, never\nemitted)."
         },
-        "DataAppVizChartConfig": {
+        "DataAppVizChartConfigAsCode": {
             "properties": {
                 "config": {
-                    "$ref": "#/$defs/DataAppVizChart",
-                    "description": "Reference to a data app viz plus its field mapping."
+                    "$ref": "#/$defs/DataAppVizChartAsCode"
                 },
                 "type": {
-                    "$ref": "#/$defs/ChartType.DATA_APP_VIZ",
-                    "description": "Type of chart visualization"
+                    "$ref": "#/$defs/ChartType.DATA_APP_VIZ"
                 }
             },
             "required": ["type"],
@@ -1360,6 +1378,16 @@
             "required": ["fieldId"],
             "type": "object"
         },
+        "FilterGroup": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/OrFilterGroup"
+                },
+                {
+                    "$ref": "#/$defs/AndFilterGroup"
+                }
+            ]
+        },
         "FilterGroupInput": {
             "anyOf": [
                 {
@@ -1367,6 +1395,16 @@
                 },
                 {
                     "$ref": "#/$defs/AndFilterGroupInput"
+                }
+            ]
+        },
+        "FilterGroupItem": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/FilterGroup"
+                },
+                {
+                    "$ref": "#/$defs/FilterRule"
                 }
             ]
         },
@@ -1405,6 +1443,52 @@
             ],
             "type": "string"
         },
+        "FilterRule": {
+            "additionalProperties": true,
+            "properties": {
+                "caseSensitive": {
+                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
+                    "type": "boolean"
+                },
+                "disabled": {
+                    "description": "Whether this filter is disabled",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Unique identifier for the filter",
+                    "type": "string"
+                },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
+                "operator": {
+                    "$ref": "#/$defs/FilterOperator",
+                    "description": "Filter operator"
+                },
+                "required": {
+                    "description": "Whether this filter is required",
+                    "type": "boolean"
+                },
+                "settings": {
+                    "$ref": "#/$defs/AnyType",
+                    "description": "Additional settings for date/time filters"
+                },
+                "target": {
+                    "$ref": "#/$defs/FieldTarget",
+                    "description": "Target field for the filter"
+                },
+                "values": {
+                    "description": "Values to filter by",
+                    "items": {
+                        "$ref": "#/$defs/AnyType"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["operator", "id", "target"],
+            "type": "object"
+        },
         "FilterRuleInput": {
             "allOf": [
                 {
@@ -1420,6 +1504,23 @@
                 }
             ],
             "description": "Permissive filter types for chart-as-code uploads where `id` may be omitted.\nFilter IDs are auto-generated during upsert if absent.\nAfter normalization these become the strict runtime types (FilterGroup, Filters)."
+        },
+        "Filters": {
+            "properties": {
+                "dimensions": {
+                    "$ref": "#/$defs/FilterGroup",
+                    "description": "Dimension filter group"
+                },
+                "metrics": {
+                    "$ref": "#/$defs/FilterGroup",
+                    "description": "Metric filter group"
+                },
+                "tableCalculations": {
+                    "$ref": "#/$defs/FilterGroup",
+                    "description": "Table calculation filter group"
+                }
+            },
+            "type": "object"
         },
         "FiltersInput": {
             "properties": {
@@ -2117,6 +2218,42 @@
             "required": ["uuid"],
             "type": "object"
         },
+        "MergeJoinKeyPart": {
+            "description": "One column of the join key. Sources name the same real-world key differently\n(`orders.order_date` vs `users.created_date`), so the mapping is explicit per\nsource rather than positional.",
+            "properties": {
+                "fieldIdBySourceId": {
+                    "$ref": "#/$defs/Record_string.FieldId_",
+                    "description": "The field each source joins on. Every source must have an entry."
+                },
+                "name": {
+                    "description": "Column name this key part takes in the merged result.",
+                    "type": "string"
+                }
+            },
+            "required": ["fieldIdBySourceId", "name"],
+            "type": "object"
+        },
+        "MergeJoinType": {
+            "description": "How unmatched keys survive the merge. Mirrors the SQL join it compiles to.",
+            "enum": ["full", "left", "inner"],
+            "type": "string"
+        },
+        "MergeTableCalculation": {
+            "description": "A calculation over the *merged* result, which is the only place a row-wise\ncalculation across two queries can correctly live. References name a source\nand one of its fields, `${sourceId.fieldId}`, because the merged statement\nrenames columns to keep two sources from colliding.",
+            "properties": {
+                "displayName": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                }
+            },
+            "required": ["sql", "displayName", "name"],
+            "type": "object"
+        },
         "MetricFilterRule": {
             "additionalProperties": true,
             "description": "Filter rule for metrics, targeting fields by reference",
@@ -2178,6 +2315,103 @@
             "properties": {},
             "type": "object"
         },
+        "MetricQuery": {
+            "properties": {
+                "additionalMetrics": {
+                    "description": "Custom metrics defined inline (ad-hoc metrics not in the dbt model)",
+                    "items": {
+                        "$ref": "#/$defs/AdditionalMetric"
+                    },
+                    "type": "array"
+                },
+                "customDimensions": {
+                    "description": "Custom dimensions defined inline",
+                    "items": {
+                        "$ref": "#/$defs/CustomDimension"
+                    },
+                    "type": "array"
+                },
+                "dimensionOverrides": {
+                    "$ref": "#/$defs/DimensionOverrides",
+                    "description": "Override formatting options for existing dimensions"
+                },
+                "dimensions": {
+                    "description": "List of dimension field IDs to include",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "exploreName": {
+                    "description": "The name of the explore to query",
+                    "type": "string"
+                },
+                "filters": {
+                    "$ref": "#/$defs/Filters",
+                    "description": "Filter rules to apply to the query"
+                },
+                "limit": {
+                    "description": "Maximum number of rows to return",
+                    "format": "double",
+                    "type": "number"
+                },
+                "metadata": {
+                    "properties": {
+                        "hasADateDimension": {
+                            "$ref": "#/$defs/Pick_CompiledDimension.label-or-name-or-table_"
+                        }
+                    },
+                    "required": ["hasADateDimension"],
+                    "type": "object"
+                },
+                "metricOverrides": {
+                    "$ref": "#/$defs/MetricOverrides",
+                    "description": "Override formatting options for existing metrics"
+                },
+                "metrics": {
+                    "description": "List of metric field IDs to include",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "pivotDimensions": {
+                    "description": "Dimension field IDs used as pivot columns (from chart's pivotConfig.columns).\nUsed by row_total() to determine non-pivot dimensions for GROUP BY.",
+                    "items": {
+                        "$ref": "#/$defs/FieldId"
+                    },
+                    "type": "array"
+                },
+                "sorts": {
+                    "description": "Sort configuration for query results",
+                    "items": {
+                        "$ref": "#/$defs/SortField"
+                    },
+                    "type": "array"
+                },
+                "tableCalculations": {
+                    "description": "Custom calculations to perform on query results",
+                    "items": {
+                        "$ref": "#/$defs/TableCalculation"
+                    },
+                    "type": "array"
+                },
+                "timezone": {
+                    "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "tableCalculations",
+                "limit",
+                "sorts",
+                "filters",
+                "metrics",
+                "dimensions",
+                "exploreName"
+            ],
+            "type": "object"
+        },
         "MetricType": {
             "enum": [
                 "percentile",
@@ -2212,6 +2446,10 @@
             ],
             "type": "string"
         },
+        "Omit_DataAppVizChart.dataAppVizUuid-or-dataAppVizVersion_": {
+            "$ref": "#/$defs/Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__",
+            "description": "Construct a type with the properties of T except for those in type K."
+        },
         "Omit_FilterRule.id_": {
             "$ref": "#/$defs/Pick_FilterRule.Exclude_keyofFilterRule.id__",
             "description": "Construct a type with the properties of T except for those in type K."
@@ -2219,6 +2457,23 @@
         "Omit_MetricQuery.filters_": {
             "$ref": "#/$defs/Pick_MetricQuery.Exclude_keyofMetricQuery.filters__",
             "description": "Construct a type with the properties of T except for those in type K."
+        },
+        "OrFilterGroup": {
+            "properties": {
+                "id": {
+                    "description": "Unique identifier for the filter group",
+                    "type": "string"
+                },
+                "or": {
+                    "description": "Array of filters or nested groups combined with OR logic",
+                    "items": {
+                        "$ref": "#/$defs/FilterGroupItem"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["or", "id"],
+            "type": "object"
         },
         "OrFilterGroupInput": {
             "properties": {
@@ -2403,9 +2658,39 @@
             },
             "type": "object"
         },
+        "Pick_CompiledDimension.label-or-name-or-table_": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "table": {
+                    "type": "string"
+                }
+            },
+            "required": ["name", "label", "table"],
+            "type": "object"
+        },
         "Pick_CompiledDimension.name-or-label-or-table_": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {},
+            "type": "object"
+        },
+        "Pick_DataAppVizChart.Exclude_keyofDataAppVizChart.dataAppVizUuid-or-dataAppVizVersion__": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "fieldMapping": {
+                    "$ref": "#/$defs/DataAppVizFieldMapping"
+                },
+                "optionValues": {
+                    "$ref": "#/$defs/DataAppVizOptionValues",
+                    "description": "Only options the user explicitly changed — declared defaults are never\nseeded here, they're resolved at render time. Absent on charts saved\nbefore config options shipped."
+                }
+            },
+            "required": ["fieldMapping"],
             "type": "object"
         },
         "Pick_Dimension.formatOptions_": {
@@ -2733,6 +3018,14 @@
             "properties": {},
             "type": "object"
         },
+        "Record_string.FieldId_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.MapFieldConfig_": {
             "additionalProperties": {
                 "$ref": "#/$defs/MapFieldConfig"
@@ -2846,6 +3139,78 @@
             "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source→target pairs, no chaining",
             "enum": ["multi-step", "merged", "direct"],
             "type": "string"
+        },
+        "SavedMergeQuery": {
+            "description": "Canonical, scalable representation of a merge stored on a chart version.",
+            "properties": {
+                "joinKey": {
+                    "items": {
+                        "$ref": "#/$defs/MergeJoinKeyPart"
+                    },
+                    "type": "array"
+                },
+                "joinType": {
+                    "$ref": "#/$defs/MergeJoinType"
+                },
+                "primarySourceId": {
+                    "description": "Source whose rows a LEFT merge preserves.",
+                    "type": "string"
+                },
+                "sources": {
+                    "items": {
+                        "$ref": "#/$defs/SavedMergeQuerySource"
+                    },
+                    "type": "array"
+                },
+                "tableCalculations": {
+                    "items": {
+                        "$ref": "#/$defs/MergeTableCalculation"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "tableCalculations",
+                "joinType",
+                "joinKey",
+                "sources",
+                "primarySourceId"
+            ],
+            "type": "object"
+        },
+        "SavedMergeQuerySource": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "kind": {
+                            "enum": ["chart"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["kind", "id"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "id": {
+                            "type": "string"
+                        },
+                        "kind": {
+                            "enum": ["query"],
+                            "type": "string"
+                        },
+                        "metricQuery": {
+                            "$ref": "#/$defs/MetricQuery"
+                        }
+                    },
+                    "required": ["metricQuery", "kind", "id"],
+                    "type": "object"
+                }
+            ],
+            "description": "A persisted merge source.\n\nThe chart source is a reference: its metric query already lives on the chart\nversion. Every additional source owns its query. This keeps one source of\ntruth while allowing more sources without adding `thirdQuery`, `fourthQuery`,\nand so on."
         },
         "Series": {
             "properties": {
@@ -3180,6 +3545,23 @@
                         "fieldId": {
                             "description": "Field ID to apply the template to",
                             "type": "string"
+                        },
+                        "orderBy": {
+                            "description": "Fields to order by for the running total",
+                            "items": {
+                                "properties": {
+                                    "fieldId": {
+                                        "type": "string"
+                                    },
+                                    "order": {
+                                        "enum": ["asc", "desc", null],
+                                        "type": ["string", "null"]
+                                    }
+                                },
+                                "required": ["order", "fieldId"],
+                                "type": "object"
+                            },
+                            "type": "array"
                         },
                         "type": {
                             "$ref": "#/$defs/TableCalculationTemplateType.RUNNING_TOTAL",
@@ -3523,7 +3905,6 @@
     "description": "From T, pick a set of properties whose keys are in the union K",
     "properties": {
         "chartConfig": {
-            "description": "Visualization configuration for the chart",
             "discriminator": {
                 "propertyName": "type"
             },
@@ -3643,20 +4024,6 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/DataAppVizChart",
-                            "description": "Reference to a data app viz plus its field mapping."
-                        },
-                        "type": {
-                            "const": "data_app_viz",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
                             "$ref": "#/$defs/MapChart",
                             "description": "Chart-type-specific configuration"
                         },
@@ -3677,6 +4044,18 @@
                         "type": {
                             "const": "sankey",
                             "description": "Type of chart visualization"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "config": {
+                            "$ref": "#/$defs/DataAppVizChartAsCode"
+                        },
+                        "type": {
+                            "const": "data_app_viz"
                         }
                     },
                     "required": ["type"],
@@ -3709,6 +4088,21 @@
             "description": "Timestamp when this chart was downloaded from Lightdash",
             "format": "date-time",
             "type": "string"
+        },
+        "merge": {
+            "anyOf": [
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/SavedMergeQuery"
+                        }
+                    ],
+                    "description": "Second query this chart's query is merged with, when it has one. Absent\non the overwhelming majority of charts."
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
         "metricQuery": {
             "allOf": [
@@ -3815,10 +4209,10 @@
     "required": [
         "name",
         "tableName",
-        "chartConfig",
         "slug",
         "spaceSlug",
         "version",
+        "chartConfig",
         "metricQuery"
     ],
     "title": "Lightdash Chart as Code",

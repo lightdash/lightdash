@@ -263,7 +263,6 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 position="top"
                 width={300}
                 withArrow
-                withinPortal
                 trapFocus={!hasOpenSubPopover}
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
@@ -309,9 +308,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                             gap={2}
                             w="100%"
                             mah={140}
-                            style={{
-                                overflowY: 'auto',
-                            }}
+                            className="ld-scroll-y"
                         >
                             {filteredExistingCategories.map((category) => (
                                 <MetricCatalogCategoryFormItem

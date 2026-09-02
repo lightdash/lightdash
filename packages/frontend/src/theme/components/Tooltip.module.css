@@ -1,0 +1,16 @@
+/* Inverted: ink on light, paper on dark. */
+.tooltip {
+    --tooltip-bg: light-dark(
+        var(--mantine-color-gray-9),
+        var(--mantine-color-gray-1)
+    );
+    --tooltip-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-gray-9)
+    );
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-xs);
+    font-weight: 500;
+    padding: rem(5px) rem(8px);
+    box-shadow: var(--mantine-shadow-md);
+}

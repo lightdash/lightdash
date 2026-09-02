@@ -56,6 +56,8 @@ export type DbtNode = {
     unique_id: string;
     resource_type: string;
     config?: DbtNodeConfig;
+    lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtRawModelNode = Omit<
     CompiledModelNode,
@@ -67,6 +69,8 @@ export type DbtRawModelNode = Omit<
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
+    lightdash_source_name?: string;
+    lightdash_source_uuid?: string;
 };
 export type DbtModelNode = DbtRawModelNode & {
     database: string;
@@ -240,6 +244,11 @@ export type DbtFilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetch_from_warehouse?: boolean;
     label_dimension?: string;
+    options_from_dimension?: {
+        model: string;
+        dimension: string;
+        label_dimension?: string;
+    };
 };
 
 export type DbtColumnLightdashDimension = {

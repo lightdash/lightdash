@@ -10,8 +10,8 @@ import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 
 interface DataAppTileFormProps {
     form: UseFormReturnType<DashboardDataAppTileProperties['properties']>;
@@ -23,7 +23,7 @@ const fetchDataAppContent = (projectUuid: string, search: string) => {
     const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
     return lightdashApi<ApiContentResponse['results']>({
         version: 'v2',
-        url: `/content?projectUuids=${projectUuid}&contentTypes=${ContentType.DATA_APP}&pageSize=${DATA_APP_PICKER_PAGE_SIZE}&page=1${searchParam}`,
+        url: `/content?projectUuids=${projectUuid}&contentTypes=${ContentType.DATA_APP}&dataAppVizsFilter=exclude&pageSize=${DATA_APP_PICKER_PAGE_SIZE}&page=1${searchParam}`,
         method: 'GET',
         body: undefined,
     });
@@ -38,7 +38,7 @@ const useProjectDataApps = (projectUuid: string | undefined, search: string) =>
     });
 
 const DataAppTileForm = ({ form }: DataAppTileFormProps) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchValue, 300);
     const { data, isLoading, isFetching, error } = useProjectDataApps(

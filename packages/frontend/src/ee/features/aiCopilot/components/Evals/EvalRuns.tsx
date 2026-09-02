@@ -92,7 +92,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                 color={evalStatus.color}
                                 variant="dot"
                                 size="sm"
-                                radius="sm"
                                 c="ldGray.7"
                                 style={{ border: 'none' }}
                             >
@@ -116,7 +115,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                             <Tooltip label="No assessments available">
                                 <MantineIcon
                                     icon={IconCircleDotted}
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             </Tooltip>
                         ) : (
@@ -164,7 +163,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                             : '-';
                         return (
                             <Tooltip
-                                withinPortal
                                 position="left-start"
                                 label={
                                     <Text size="xs">
@@ -178,7 +176,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                     </Text>
                                 }
                             >
-                                <Text fz="sm" c="ldGray.6">
+                                <Text fz="sm" c="dimmed">
                                     {createdAt}
                                 </Text>
                             </Tooltip>
@@ -206,7 +204,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                                   .format('mm[m]ss[s]')
                             : '-';
                         return (
-                            <Text fz="sm" c="ldGray.6">
+                            <Text fz="sm" c="dimmed">
                                 {runDuration}
                             </Text>
                         );
@@ -292,7 +290,7 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
 
     return (
         <Stack gap="xs">
-            <Title order={5} c="ldGray.9" fw={500}>
+            <Title order={5} fw={500}>
                 Previous Runs
             </Title>
 
@@ -300,7 +298,6 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                 <Paper
                     variant="dotted"
                     p="xl"
-                    shadow="subtle"
                     component={Stack}
                     gap="xxs"
                     align="center"

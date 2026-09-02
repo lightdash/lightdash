@@ -1,3 +1,4 @@
+import { type UiStringKey } from '@lightdash/common';
 import { createContext } from 'react';
 import { type EmbedContext, type EmbedExploreChart } from './types';
 
@@ -10,7 +11,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     embedWriteContext: undefined,
     paletteUuid: undefined,
     languageMap: undefined,
-    t: (_input: string) => undefined,
+    t: (_input: UiStringKey) => undefined,
     onExplore: (_options: { chart: EmbedExploreChart }) => {},
     savedChart: undefined,
     onBackToDashboard: undefined,

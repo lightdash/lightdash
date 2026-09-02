@@ -1,15 +1,15 @@
 import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
+    FeatureFlags,
     mcpToolDefinitions,
     OrganizationMemberRole,
     ProjectMemberRole,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import type { ZodRawShape, ZodTypeAny } from 'zod';
+import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     getMcpAnalystPrompt,
@@ -24,7 +24,7 @@ type RegisteredMcpTool = {
         description: string;
         inputSchema: ZodRawShape;
         annotations: Record<string, unknown>;
-        outputSchema?: ZodRawShape | ZodTypeAny;
+        outputSchema?: ZodRawShape | ZodType;
         _meta?: Record<string, unknown>;
     };
 };
@@ -82,21 +82,30 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
 }));
 
 const schemaToJson = (
-    schema: ZodTypeAny | ZodRawShape | undefined,
+    schema: ZodType | ZodRawShape | undefined,
+    io: 'input' | 'output',
 ): unknown => {
     if (!schema) {
         return null;
     }
 
-    return zodToJsonSchema(
+    return z.toJSONSchema(
         schema instanceof z.ZodType ? schema : z.object(schema),
         {
-            target: 'jsonSchema7',
+            target: 'draft-07',
+            io,
+            reused: 'inline',
+            cycles: 'throw',
         },
     );
 };
 
-const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
+const makeMcpService = (
+    mcpContentWritesEnabled = true,
+    featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    },
+): McpService =>
     new McpService({
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: vi.fn() },
@@ -112,7 +121,7 @@ const makeMcpService = (mcpContentWritesEnabled = true): McpService =>
         catalogService: {},
         contentService: {},
         contentVerificationService: {},
-        featureFlagService: {},
+        featureFlagService,
         lightdashConfig: {
             mcp: {
                 runSqlMaxLimit: 500,
@@ -164,6 +173,19 @@ describe('MCP tool contracts', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
+    it('resolves the filter-expression feature flag for the request user', async () => {
+        const get = vi.fn().mockResolvedValue({ enabled: true });
+        const mcpService = makeMcpService(true, { get });
+
+        await expect(
+            mcpService.isFilterExpressionsEnabled(defaultSessionUser),
+        ).resolves.toBe(true);
+        expect(get).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            featureFlagId: FeatureFlags.AiFilterExpressions,
+        });
+    });
+
     it('uses the grep-fields MCP analyst prompt', () => {
         const prompt = getMcpAnalystPrompt();
 
@@ -171,6 +193,16 @@ describe('MCP tool contracts', () => {
         expect(prompt).toContain('get_metadata');
         expect(prompt).not.toContain('find_explores');
         expect(prompt).not.toContain('find_fields');
+    });
+
+    it('skips semantic discovery for complete raw SQL', () => {
+        const guidance =
+            'follow step 0, then skip steps 1–3 and call `run_sql`';
+
+        expect(getMcpAnalystPrompt()).toContain(guidance);
+        expect(getMcpAnalystPrompt({ runSqlEnabled: false })).not.toContain(
+            guidance,
+        );
     });
 
     it('matches the current MCP tool and prompt contract snapshot', async () => {
@@ -188,7 +220,7 @@ describe('MCP tool contracts', () => {
             name,
             title: config.title,
             description: config.description,
-            argsSchema: schemaToJson(config.argsSchema),
+            argsSchema: schemaToJson(config.argsSchema, 'input'),
             prompt: name === 'lightdash-analyst' ? MCP_ANALYST_PROMPT : null,
         }));
         const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
@@ -198,9 +230,9 @@ describe('MCP tool contracts', () => {
             title: config.title,
             description: config.description,
             annotations: config.annotations,
-            inputSchema: schemaToJson(config.inputSchema),
+            inputSchema: schemaToJson(config.inputSchema, 'input'),
             ...(config.outputSchema
-                ? { outputSchema: schemaToJson(config.outputSchema) }
+                ? { outputSchema: schemaToJson(config.outputSchema, 'output') }
                 : {}),
         }));
 
@@ -213,6 +245,104 @@ describe('MCP tool contracts', () => {
         ).toEqual([]);
 
         expect({ prompts, tools }).toMatchSnapshot();
+    });
+
+    it('does not register semantic-layer tools without runMetricQueryEnabled', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            runSqlEnabled: false,
+            runMetricQueryEnabled: false,
+        });
+
+        const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
+        expect(registeredNames).not.toContain(McpToolName.LIST_EXPLORES);
+        expect(registeredNames).not.toContain(McpToolName.GREP_FIELDS);
+        expect(registeredNames).not.toContain(McpToolName.GET_METADATA);
+        expect(registeredNames).not.toContain(McpToolName.SEARCH_FIELD_VALUES);
+        expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
+        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
+        expect(registeredNames).not.toContain(McpToolName.GET_QUERY_RESULT);
+        expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
+        expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
+    });
+
+    it('registers only SQL execution tools when metric queries are disabled', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            aiWritebackEnabled: true,
+            runSqlEnabled: true,
+            runMetricQueryEnabled: false,
+        });
+
+        const registeredNames = mockRegisteredMcpTools.map(({ name }) => name);
+        expect(registeredNames).toContain(McpToolName.RUN_SQL);
+        expect(registeredNames).toContain(McpToolName.GET_QUERY_RESULT);
+        expect(registeredNames).not.toContain(McpToolName.RENDER_CHART);
+        expect(registeredNames).not.toContain(McpToolName.RUN_METRIC_QUERY);
+    });
+
+    it('matches the filter-expression run_metric_query tools/list snapshot', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: true,
+        });
+
+        const registered = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.RUN_METRIC_QUERY,
+        );
+        expect(registered).toBeDefined();
+        expect({
+            name: registered?.name,
+            title: registered?.config.title,
+            description: registered?.config.description,
+            annotations: registered?.config.annotations,
+            inputSchema: schemaToJson(registered?.config.inputSchema, 'input'),
+            outputSchema: schemaToJson(
+                registered?.config.outputSchema,
+                'output',
+            ),
+        }).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression search_field_values tools/list snapshot', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: true,
+        });
+
+        const registered = mockRegisteredMcpTools.find(
+            ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
+        );
+        expect(registered).toBeDefined();
+        expect({
+            name: registered?.name,
+            title: registered?.config.title,
+            description: registered?.config.description,
+            annotations: registered?.config.annotations,
+            inputSchema: schemaToJson(registered?.config.inputSchema, 'input'),
+        }).toMatchSnapshot();
+    });
+
+    it('registers generate_hashes without project scope', async () => {
+        const mcpService = makeMcpService();
+
+        await mcpService.createServer();
+
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.GENERATE_HASHES,
+        );
+        expect(isProjectScopedMcpTool(McpToolName.GENERATE_HASHES)).toBe(false);
     });
 
     it('requires projectUuid on every project-scoped tool', async () => {
@@ -233,7 +363,7 @@ describe('MCP tool contracts', () => {
         const toolsWithoutProjectUuid = projectScopedTools
             .filter(({ config }) => {
                 const inputSchema = inputSchemaRequirements.parse(
-                    schemaToJson(config.inputSchema),
+                    schemaToJson(config.inputSchema, 'input'),
                 );
                 return !inputSchema.required?.includes('projectUuid');
             })

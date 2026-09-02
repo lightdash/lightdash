@@ -8,6 +8,7 @@ import {
     ChartSummary,
     ChartVersionSummary,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -52,6 +53,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -105,6 +107,8 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { dismissOpenContentDrafts } from './ContentDraftModel';
+import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 
 type DbSavedChartDetails = {
@@ -825,6 +829,70 @@ export class SavedChartModel {
         };
     }
 
+    /**
+     * Gets only the persisted custom SQL needed to validate an embedded
+     * Explore. The caller authorizes the chart first; this lookup stays scoped
+     * to its project and latest version without hydrating the full chart.
+     */
+    async getCustomSqlProvenanceForChart({
+        projectUuid,
+        savedChartUuid,
+    }: {
+        projectUuid: UUID;
+        savedChartUuid: UUID;
+    }): Promise<{
+        exploreName: string;
+        tableCalculations: { sql: string }[];
+        customSqlDimensions: { sql: string; table: string }[];
+        additionalMetrics: { sql: string; table: string }[];
+    }> {
+        const version = await this.database(SavedChartsTableName)
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.saved_query_id`,
+            )
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .orderBy(
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'desc',
+            )
+            .first<{
+                versionId: number;
+                exploreName: string;
+            }>({
+                versionId: `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                exploreName: `${SavedChartVersionsTableName}.explore_name`,
+            });
+
+        if (!version) {
+            throw new NotFoundError('Saved chart not found');
+        }
+
+        const [tableCalculations, customSqlDimensions, additionalMetrics] =
+            await Promise.all([
+                this.database(SavedChartTableCalculationTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string }[]>('calculation_raw_sql as sql'),
+                this.database(SavedChartCustomSqlDimensionsTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string; table: string }[]>('sql', 'table'),
+                this.database(SavedChartAdditionalMetricTableName)
+                    .where('saved_queries_version_id', version.versionId)
+                    .select<{ sql: string; table: string }[]>('sql', 'table'),
+            ]);
+
+        return {
+            exploreName: version.exploreName,
+            tableCalculations,
+            customSqlDimensions,
+            additionalMetrics,
+        };
+    }
+
     async resolveColorPalette(args: {
         projectUuid: string;
         chartUuid?: string;
@@ -1051,11 +1119,12 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
-    async update(
+    private async updateChart(
+        database: Knex,
         savedChartUuid: string,
         data: UpdateSavedChart,
-    ): Promise<SavedChartDAO> {
-        const savedChart = await this.database(SavedChartsTableName)
+    ): Promise<void> {
+        const savedChart = await database(SavedChartsTableName)
             .select(`${SavedChartsTableName}.project_uuid`)
             .where(`${SavedChartsTableName}.saved_query_uuid`, savedChartUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
@@ -1066,7 +1135,7 @@ export class SavedChartModel {
 
         let targetSpaceId: number | undefined;
         if (data.spaceUuid !== undefined) {
-            const space = await this.database(SpaceTableName)
+            const space = await database(SpaceTableName)
                 .innerJoin(
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
@@ -1085,7 +1154,7 @@ export class SavedChartModel {
             targetSpaceId = space.space_id;
         }
 
-        await this.database(SavedChartsTableName)
+        await database(SavedChartsTableName)
             .update({
                 name: data.name,
                 description: data.description,
@@ -1096,21 +1165,39 @@ export class SavedChartModel {
             })
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at');
+    }
+
+    async update(
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+    ): Promise<SavedChartDAO> {
+        await this.updateChart(this.database, savedChartUuid, data);
         return this.get(savedChartUuid);
     }
 
-    async renameSlug({
-        projectUuid,
-        savedChartUuid,
-        from,
-        to,
-    }: {
-        projectUuid: string;
-        savedChartUuid: string;
-        from: string;
-        to: string;
-    }): Promise<void> {
-        return this.database.transaction(async (trx) => {
+    async updateInTransaction(
+        savedChartUuid: string,
+        data: UpdateSavedChart,
+        transaction: Knex.Transaction,
+    ): Promise<void> {
+        await this.updateChart(transaction, savedChartUuid, data);
+    }
+
+    async renameSlug(
+        {
+            projectUuid,
+            savedChartUuid,
+            from,
+            to,
+        }: {
+            projectUuid: string;
+            savedChartUuid: string;
+            from: string;
+            to: string;
+        },
+        transaction?: Knex.Transaction,
+    ): Promise<void> {
+        const rename = async (trx: Knex) => {
             const slugsToLock = [...new Set([from, to])].sort();
             for (const slug of slugsToLock) {
                 // eslint-disable-next-line no-await-in-loop
@@ -1193,7 +1280,12 @@ export class SavedChartModel {
                     `Chart slug "${chart.slug}" changed while it was being renamed`,
                 );
             }
-        });
+        };
+
+        if (transaction) {
+            return rename(transaction);
+        }
+        return this.database.transaction(rename);
     }
 
     async updateMultiple(
@@ -1249,6 +1341,14 @@ export class SavedChartModel {
         await this.database(SavedChartsTableName)
             .delete()
             .where('saved_query_uuid', savedChartUuid);
+        await dismissOpenContentDrafts(this.database, 'chart', [
+            savedChartUuid,
+        ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 
@@ -1263,6 +1363,14 @@ export class SavedChartModel {
                 deleted_by_user_uuid: userUuid,
             })
             .where('saved_query_uuid', savedChartUuid);
+        await dismissOpenContentDrafts(this.database, 'chart', [
+            savedChartUuid,
+        ]);
+        await cancelPendingContentReviewRequests(
+            this.database,
+            ContentReviewContentType.CHART,
+            [savedChartUuid],
+        );
         return savedChart;
     }
 
@@ -1784,6 +1892,7 @@ export class SavedChartModel {
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
+                            dashboardSlug: string | null;
                             slug: string;
                             deleted_at: Date | null;
                             deleted_by_user_uuid: string | null;
@@ -1799,6 +1908,7 @@ export class SavedChartModel {
                         `${SavedChartsTableName}.dashboard_uuid`,
                         `${SavedChartsTableName}.slug`,
                         `${DashboardsTableName}.name as dashboardName`,
+                        `${DashboardsTableName}.slug as dashboardSlug`,
                         'saved_queries_versions.saved_queries_version_id',
                         'saved_queries_versions.explore_name',
                         'saved_queries_versions.filters',
@@ -2155,6 +2265,7 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
+                    dashboardSlug: savedQuery.dashboardSlug,
                     colorPalette: resolvedPalette.colors,
                     colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
                     resolvedColorPalette: resolvedPalette,
@@ -2407,6 +2518,21 @@ export class SavedChartModel {
         return charts.map((chart) => chart.slug);
     }
 
+    /** uuid → slug for the given charts; deleted charts are omitted. */
+    async getSlugsByUuids(uuids: string[]): Promise<Record<string, string>> {
+        if (uuids.length === 0) return {};
+        const charts = await this.database(SavedChartsTableName)
+            .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .select({
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                slug: `${SavedChartsTableName}.slug`,
+            });
+        return Object.fromEntries(
+            charts.map((chart) => [chart.uuid, chart.slug]),
+        );
+    }
+
     async getSlugAliasesForUuids(uuids: string[]): Promise<string[]> {
         if (uuids.length === 0) return [];
         const aliases = await this.database(SavedChartSlugMappingsTableName)
@@ -2587,6 +2713,7 @@ export class SavedChartModel {
                 chartKind: `${SavedChartsTableName}.last_version_chart_kind`,
                 dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
                 dashboardName: `${DashboardsTableName}.name`,
+                dashboardSlug: `${DashboardsTableName}.slug`,
                 updatedAt: `${SavedChartsTableName}.last_version_updated_at`,
                 slug: `${SavedChartsTableName}.slug`,
                 viewsCount: `${SavedChartsTableName}.views_count`,
@@ -2625,7 +2752,10 @@ export class SavedChartModel {
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
         ({
             spaceUuid: Space['uuid'];
-        } & Pick<SavedChartDAO, 'uuid' | 'name' | 'tableName'> &
+        } & Pick<
+            SavedChartDAO,
+            'uuid' | 'name' | 'tableName' | 'dashboardUuid'
+        > &
             Pick<Project, 'projectUuid'> &
             Pick<Organization, 'organizationUuid'>)[]
     > {
@@ -2638,6 +2768,7 @@ export class SavedChartModel {
                 uuid: `${SavedChartsTableName}.saved_query_uuid`,
                 name: `${SavedChartsTableName}.name`,
                 spaceUuid: `${SpaceTableName}.space_uuid`,
+                dashboardUuid: `${SavedChartsTableName}.dashboard_uuid`,
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: `${SavedChartsTableName}.project_uuid`,
                 organizationUuid: 'organizations.organization_uuid',

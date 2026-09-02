@@ -116,12 +116,10 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     href={url.toString()}
                     target="_blank"
                     size="compact-xs"
-                    color="ldGray.6"
                     variant="subtle"
                     leftSection={<TableFilled />}
                     fz="sm"
                     c="ldDark.7"
-                    fw={500}
                     className={styles.tableButton}
                     styles={(theme) => ({
                         section: {

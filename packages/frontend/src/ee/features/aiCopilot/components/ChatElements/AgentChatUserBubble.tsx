@@ -4,6 +4,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
@@ -39,7 +40,8 @@ export const UserBubble: FC<Props> = ({
     isActive = false,
     projectUuid: projectUuidProp,
 }) => {
-    const { projectUuid: paramsProjectUuid, agentUuid } = useParams();
+    const { agentUuid } = useParams();
+    const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
@@ -76,14 +78,11 @@ export const UserBubble: FC<Props> = ({
                         {name}
                     </Text>
                 ) : null}
-                <Tooltip
-                    label={format(parseISO(message.createdAt), 'PPpp')}
-                    withinPortal
-                >
+                <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
                     <Anchor
                         component={Link}
                         c="dimmed"
-                        fz={10}
+                        fz="xs"
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                     >
                         {timeAgo}
@@ -119,7 +118,6 @@ export const UserBubble: FC<Props> = ({
                 radius="md"
                 py={6}
                 px="sm"
-                withBorder
                 color="white"
                 className={`${styles.messageCard} ${
                     isEmptyMessage ? styles.emptyMessageCard : ''
@@ -184,7 +182,6 @@ export const UserBubble: FC<Props> = ({
                             radius="md"
                             py={4}
                             px="xs"
-                            withBorder
                             className={styles.steerCard}
                         >
                             <MDEditor.Markdown

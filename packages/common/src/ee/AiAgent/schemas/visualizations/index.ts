@@ -1,24 +1,14 @@
 import { z } from 'zod';
 
-export * from './tableViz';
-export * from './timeSeriesViz';
-export * from './verticalBarViz';
-
-const VisualizationTools = [
-    'generateBarVizConfig',
-    'generateTableVizConfig',
-    'generateTimeSeriesVizConfig',
-] as const;
-
 // define tool names
 export const ToolNameSchema = z.enum([
-    ...VisualizationTools,
     'generateDashboard',
     'generateHashes',
     'generateUuids',
     'findContent',
     'listContent',
     'findExplores',
+    'findCustomChartTypes',
     'findFields',
     'searchSemanticLayer',
     'analyzeFieldImpact',
@@ -41,6 +31,8 @@ export const ToolNameSchema = z.enum([
     'loadSkill',
     'loadProjectContext',
     'loadMcpTools',
+    'generateDataApp',
+    'iterateDataApp',
     'editDbtProject',
     'editProjectContext',
     'editRepo',
@@ -55,6 +47,7 @@ export const ToolNameSchema = z.enum([
     'runQuery',
     'runSavedChart',
     'runSql',
+    'runComposerQueries',
     'listWarehouseTables',
     'describeWarehouseTable',
     'listKnowledgeDocuments',
@@ -71,10 +64,14 @@ export const isToolName = (toolName: string): toolName is ToolName =>
     ToolNameSchema.safeParse(toolName).success;
 
 // display messages schema
-export const ToolDisplayMessagesSchema = z.record(ToolNameSchema, z.string());
+export const ToolDisplayMessagesSchema = z.partialRecord(
+    ToolNameSchema,
+    z.string(),
+);
 
 export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     findExplores: 'Finding relevant explores',
+    findCustomChartTypes: 'Browsing custom chart types',
     findDashboards: 'Finding relevant dashboards',
     findContent: 'Finding relevant content',
     listContent: 'Listing content',
@@ -85,9 +82,6 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     grepFields: 'Searching fields',
     getMetadata: 'Reading metadata',
     searchFieldValues: 'Searching field values',
-    generateBarVizConfig: 'Generating a bar chart',
-    generateTableVizConfig: 'Generating a table',
-    generateTimeSeriesVizConfig: 'Generating a line chart',
     generateDashboard: 'Generating a dashboard',
     generateHashes: 'Generating hashes',
     generateUuids: 'Generating UUIDs',
@@ -105,6 +99,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     loadSkill: 'Loading built-in skill',
     loadProjectContext: 'Loading project context',
     loadMcpTools: 'Loading MCP tools',
+    generateDataApp: 'Starting a data app build',
+    iterateDataApp: 'Iterating on a data app',
     editDbtProject: 'Editing semantic layer',
     editRepo: 'Editing repository',
     syncDbtProject: 'Syncing dbt project',
@@ -118,6 +114,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     runQuery: 'Generating visualization',
     runSavedChart: 'Running saved chart',
     runSql: 'Running SQL query',
+    runComposerQueries: 'Running composer queries',
     listWarehouseTables: 'Listing warehouse tables',
     describeWarehouseTable: 'Describing warehouse table',
     listKnowledgeDocuments: 'Listing knowledge documents',
@@ -132,6 +129,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
 export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
     ToolDisplayMessagesSchema.parse({
         findExplores: 'Found relevant explores',
+        findCustomChartTypes: 'Browsed custom chart types',
         findDashboards: 'Found relevant dashboards',
         findFields: 'Found relevant fields',
         searchSemanticLayer: 'Searched the semantic layer',
@@ -140,9 +138,6 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         findContent: 'Found relevant content',
         listContent: 'Listed content',
         searchFieldValues: 'Found field values',
-        generateBarVizConfig: 'Generated a bar chart',
-        generateTableVizConfig: 'Generated a table',
-        generateTimeSeriesVizConfig: 'Generated a line chart',
         generateDashboard: 'Generated a dashboard',
         generateHashes: 'Generated hashes',
         generateUuids: 'Generated UUIDs',
@@ -162,6 +157,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         loadSkill: 'Loaded built-in skill',
         loadProjectContext: 'Loaded project context',
         loadMcpTools: 'Loaded MCP tools',
+        generateDataApp: 'Started a data app build',
+        iterateDataApp: 'Started a data app build',
         editDbtProject: 'Edited semantic layer',
         editRepo: 'Edited repository',
         syncDbtProject: 'Synced dbt project',
@@ -175,6 +172,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         runQuery: 'Generated visualization',
         runSavedChart: 'Ran saved chart',
         runSql: 'Ran SQL query',
+        runComposerQueries: 'Ran composer queries',
         listWarehouseTables: 'Listed warehouse tables',
         describeWarehouseTable: 'Described warehouse table',
         listKnowledgeDocuments: 'Listed knowledge documents',
@@ -184,5 +182,3 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         delegateResearchTask: 'Delegated a research task',
         submitWorkerFindings: 'Saved task findings',
     });
-
-export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

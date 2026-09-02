@@ -1,4 +1,5 @@
 import { type MetricQueryResponse } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
 import { type TraceTaskBase } from './scheduler';
 
@@ -20,6 +21,7 @@ export type UploadMetricGsheet = {
     customLabels?: CustomLabel;
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    parameters?: ParametersValuesMap;
 };
 
 export type GsheetColumnType =

@@ -153,6 +153,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
+        externalSourcesFlag,
         isDataAppsFlagLoading,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
@@ -160,7 +161,6 @@ const Settings: FC = () => {
         hasAnyAiAgentAccess,
         isAiOrganizationSettingsLoading,
         showImpersonationPanel,
-        isLeaveOrganizationEnabled,
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isOrganizationRoadmapEnabled,
@@ -199,20 +199,17 @@ const Settings: FC = () => {
                             <ProfilePanel />
                         </SettingsGridCard>
                         {health?.hasGithub && <GithubUserSettingsPanel />}
-                        {isLeaveOrganizationEnabled && (
-                            <SettingsGridCard>
-                                <Box>
-                                    <Title order={5}>Danger zone</Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        Leave the organization to remove
-                                        yourself from it (you cannot leave if
-                                        you are the only admin). This action is
-                                        not reversible.
-                                    </Text>
-                                </Box>
-                                <LeaveOrganizationPanel />
-                            </SettingsGridCard>
-                        )}
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="dimmed" fz="xs">
+                                    Leave the organization to remove yourself
+                                    from it (you cannot leave if you are the
+                                    only admin). This action is not reversible.
+                                </Text>
+                            </Box>
+                            <LeaveOrganizationPanel />
+                        </SettingsGridCard>
                     </SettingsPage>
                 ),
             },
@@ -291,7 +288,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Allowed email domains</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Anyone with email addresses at these domains
                                     can automatically join the organization.
                                 </Text>
@@ -302,7 +299,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Default project</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     This is the project users will see when they
                                     log in for the first time or from a new
                                     device. If a user does not have access, they
@@ -324,33 +321,29 @@ const Settings: FC = () => {
                             <SupportImpersonationPanel />
                         </SettingsGridCard>
 
-                        {(isLeaveOrganizationEnabled ||
-                            user.ability?.can('delete', 'Organization')) && (
-                            <SettingsGridCard>
-                                <div>
-                                    <Title order={5}>Danger zone</Title>
-                                    <Text c="ldGray.6" fz="xs">
-                                        {isLeaveOrganizationEnabled &&
-                                            'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
-                                        {user.ability?.can(
-                                            'delete',
-                                            'Organization',
-                                        ) &&
-                                            'Deleting the organization removes the whole workspace and all its content, including users. '}
-                                        These actions are not reversible.
-                                    </Text>
-                                </div>
-                                <Stack gap="sm" align="flex-end">
-                                    {isLeaveOrganizationEnabled && (
-                                        <LeaveOrganizationPanel />
-                                    )}
+                        <SettingsGridCard>
+                            <Box>
+                                <Title order={5}>Danger zone</Title>
+                                <Text c="dimmed" fz="xs">
+                                    {
+                                        'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '
+                                    }
                                     {user.ability?.can(
                                         'delete',
                                         'Organization',
-                                    ) && <DeleteOrganizationPanel />}
-                                </Stack>
-                            </SettingsGridCard>
-                        )}
+                                    ) &&
+                                        'Deleting the organization removes the whole workspace and all its content, including users. '}
+                                    These actions are not reversible.
+                                </Text>
+                            </Box>
+                            <Stack gap="sm" align="flex-end">
+                                <LeaveOrganizationPanel />
+                                {user.ability?.can(
+                                    'delete',
+                                    'Organization',
+                                ) && <DeleteOrganizationPanel />}
+                            </Stack>
+                        </SettingsGridCard>
                     </SettingsPage>
                 ),
             });
@@ -366,7 +359,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Scheduled deliveries</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Control how files exported from your
                                     organization — starting with scheduled
                                     deliveries — are shared.{' '}
@@ -398,7 +391,7 @@ const Settings: FC = () => {
                         <SettingsGridCard>
                             <div>
                                 <Title order={5}>Query and export limits</Title>
-                                <Text c="ldGray.6" fz="xs">
+                                <Text c="dimmed" fz="xs">
                                     Limit how many rows a query can return and
                                     how many cells a CSV or Excel export can
                                     contain for your organization.
@@ -477,7 +470,11 @@ const Settings: FC = () => {
                 path: '/projectManagement/:projectUuid/*',
                 element: (
                     <TrackPage name={PageName.PROJECT_SETTINGS}>
-                        <ProjectSettings />
+                        <ProjectSettings
+                            externalSourcesEnabled={
+                                externalSourcesFlag?.enabled ?? false
+                            }
+                        />
                     </TrackPage>
                 ),
             });
@@ -775,11 +772,11 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
+        externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         isOrganizationRoadmapEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -853,6 +850,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/pullRequests',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement/:projectUuid/contentReview',
                 },
                 location.pathname,
             ) &&
@@ -958,8 +961,6 @@ const Settings: FC = () => {
             collapsedSidebarContent={
                 <Tooltip label="Pin sidebar" position="right">
                     <ActionIcon
-                        variant="subtle"
-                        color="gray"
                         size="lg"
                         onClick={() => setIsSidebarCollapsed(false)}
                         aria-label="Pin sidebar"
@@ -986,8 +987,6 @@ const Settings: FC = () => {
                             }
                         >
                             <ActionIcon
-                                variant="subtle"
-                                color="gray"
                                 size="lg"
                                 onClick={() =>
                                     setIsSidebarCollapsed(!isSidebarCollapsed)
@@ -1022,7 +1021,7 @@ const Settings: FC = () => {
                             />
                         ) : (
                             <Stack gap="xs" align="center" py="xl" px="md">
-                                <Text fz="sm" c="ldGray.6" ta="center">
+                                <Text fz="sm" c="dimmed" ta="center">
                                     No settings match “{debouncedSearch.trim()}”
                                 </Text>
                                 <Anchor

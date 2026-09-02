@@ -7,8 +7,10 @@ import {
 } from '@lightdash/common';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { type AppModel } from '../../../models/AppModel';
+import { type AccessContextForCasl } from '../../../services/SpaceService/SpacePermissionService';
 
 export type AppViewAuthzApp = {
+    app_id: string;
     project_uuid: string;
     space_uuid: string | null;
     created_by_user_uuid: string;
@@ -25,45 +27,47 @@ export type DataAppProjectContext = {
 
 export type AppViewAuthzDeps = {
     auditedAbility: CaslAuditWrapper<Ability>;
-    getSpaceAccessContext: (
+    resolveAccess: (
         userUuid: string,
-        spaceUuid: string,
-    ) => Promise<Record<string, unknown>>;
+        app: AppViewAuthzApp,
+    ) => Promise<AccessContextForCasl>;
     getProjectContext: (projectUuid: string) => Promise<DataAppProjectContext>;
 };
 
-async function userCanViewApp(
+export type AppViewAuthorizationContext = DataAppProjectContext &
+    AccessContextForCasl & {
+        createdByUserUuid: string;
+    };
+
+export async function getAppViewAuthorizationContext(
     deps: AppViewAuthzDeps,
-    user: SessionUser,
+    user: Pick<SessionUser, 'userUuid'>,
     app: AppViewAuthzApp,
-): Promise<boolean> {
-    const [spaceContext, projectContext] = await Promise.all([
-        app.space_uuid
-            ? deps.getSpaceAccessContext(user.userUuid, app.space_uuid)
-            : Promise.resolve({}),
+): Promise<AppViewAuthorizationContext> {
+    const [accessContext, projectContext] = await Promise.all([
+        deps.resolveAccess(user.userUuid, app),
         deps.getProjectContext(app.project_uuid),
     ]);
-    return deps.auditedAbility.can(
-        'view',
-        subject('DataApp', {
-            ...projectContext,
-            ...spaceContext,
-            createdByUserUuid: app.created_by_user_uuid,
-        }),
-    );
+
+    return {
+        ...projectContext,
+        ...accessContext,
+        createdByUserUuid: app.created_by_user_uuid,
+    };
 }
 
 export async function assertCanViewApp(
     deps: AppViewAuthzDeps,
     user: SessionUser,
     app: AppViewAuthzApp,
-): Promise<void> {
-    const allowed = await userCanViewApp(deps, user, app);
-    if (!allowed) {
+): Promise<AppViewAuthorizationContext> {
+    const context = await getAppViewAuthorizationContext(deps, user, app);
+    if (deps.auditedAbility.cannot('view', subject('DataApp', context))) {
         throw new ForbiddenError(
             'Insufficient permissions to access this data app',
         );
     }
+    return context;
 }
 
 export type EmbeddedAppViewAuthzDeps = {

@@ -1,10 +1,12 @@
 import {
     EXTERNAL_CONNECTION_METHODS,
+    type ApiSaveExternalConnectionSampleRequest,
     type ExternalConnection,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalConnectionSampleRequest,
     type ExternalFetchResponse,
+    type UpdateExternalConnection,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -18,8 +20,9 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type ClipboardEvent, type FC, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -28,6 +31,7 @@ import { useConnectionSamples } from '../../../features/externalConnections/hook
 import { useDeleteConnectionSample } from '../../../features/externalConnections/hooks/useDeleteConnectionSample';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useTestConnection } from '../../../features/externalConnections/hooks/useTestConnection';
+import { ConfirmDeleteButton } from '../../common/ConfirmDeleteButton';
 import MantineIcon from '../../common/MantineIcon';
 
 const MAX_SAMPLE_PREVIEW_CHARS = 200;
@@ -120,7 +124,6 @@ const SampleRow: FC<SampleRowProps> = ({
     connectionUuid,
 }) => {
     const deleteMutation = useDeleteConnectionSample();
-    const [confirming, setConfirming] = useState(false);
 
     const label =
         sample.label ?? `${sample.request.method} ${sample.request.path}`;
@@ -135,18 +138,12 @@ const SampleRow: FC<SampleRowProps> = ({
         MAX_SAMPLE_PREVIEW_CHARS,
     );
 
-    const handleDelete = () => {
-        if (!confirming) {
-            setConfirming(true);
-            return;
-        }
+    const handleDelete = () =>
         deleteMutation.mutate({
             projectUuid,
             connectionUuid,
             sampleUuid: sample.sampleUuid,
         });
-        setConfirming(false);
-    };
 
     return (
         <Box
@@ -157,35 +154,27 @@ const SampleRow: FC<SampleRowProps> = ({
             }}
         >
             <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                <Stack gap={4} flex={1} miw={0}>
                     <Text fw={500} fz="sm" truncate>
                         {label}
                     </Text>
-                    <Text fz="xs" c="ldGray.6" ff="monospace" truncate>
+                    <Text fz="xs" c="dimmed" ff="monospace" truncate>
                         {requestSummary}
                     </Text>
                     <Text fz="xs" c="ldGray.5" ff="monospace" lineClamp={2}>
                         {responsePreview}
                     </Text>
                 </Stack>
-                <ActionIcon
-                    color={confirming ? 'red' : undefined}
-                    variant={confirming ? 'filled' : 'subtle'}
+                <ConfirmDeleteButton
                     size="sm"
                     loading={deleteMutation.isLoading}
-                    onClick={handleDelete}
-                    title={
-                        confirming ? 'Click again to confirm' : 'Delete sample'
-                    }
+                    aria-label="Delete sample"
+                    tooltip="Click again to confirm"
+                    onConfirm={handleDelete}
                 >
                     <MantineIcon icon={IconTrash} size="sm" />
-                </ActionIcon>
+                </ConfirmDeleteButton>
             </Group>
-            {confirming && (
-                <Text fz="xs" c="red" mt={4}>
-                    Click the trash icon again to confirm deletion
-                </Text>
-            )}
         </Box>
     );
 };
@@ -193,11 +182,23 @@ const SampleRow: FC<SampleRowProps> = ({
 type Props = {
     projectUuid: string;
     connection: ExternalConnection;
+    config: UpdateExternalConnection;
+    configFingerprint: string;
+    hasUnsavedChanges: boolean;
+    isSampleQueued: boolean;
+    onQueueSample: (sample: ApiSaveExternalConnectionSampleRequest) => void;
+    onClearQueuedSample: () => void;
 };
 
 export const ConnectionExamplesPanel: FC<Props> = ({
     projectUuid,
     connection,
+    config,
+    configFingerprint,
+    hasUnsavedChanges,
+    isSampleQueued,
+    onQueueSample,
+    onClearQueuedSample,
 }) => {
     const form = useForm<ExampleFormValues>({
         initialValues: {
@@ -210,10 +211,12 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         validate: zodResolver(exampleFormSchema),
     });
 
-    // The exact request that produced the current test result. Saved verbatim so
-    // a sample never pairs the latest form edits with an older response.
-    const [testedRequest, setTestedRequest] =
-        useState<ExternalConnectionSampleRequest | null>(null);
+    // The exact request and config that produced the current test result. Saved
+    // verbatim so a sample never pairs later edits with an older response.
+    const [testedRequest, setTestedRequest] = useState<{
+        request: ExternalConnectionSampleRequest;
+        configFingerprint: string;
+    } | null>(null);
 
     const testMutation = useTestConnection();
     const saveSampleMutation = useSaveConnectionSample();
@@ -222,6 +225,23 @@ export const ConnectionExamplesPanel: FC<Props> = ({
         projectUuid,
         connection.externalConnectionUuid,
     );
+    const allowedMethods = config.allowedMethods ?? connection.allowedMethods;
+    const methodOptions = EXTERNAL_CONNECTION_METHODS.filter((method) =>
+        allowedMethods.includes(method),
+    );
+    const method = methodOptions.includes(form.values.method)
+        ? form.values.method
+        : (methodOptions[0] ?? 'GET');
+    // This panel stays mounted across tabs, so a draft edit can make the last
+    // response stale. Keep the request inputs, but only expose results produced
+    // by the current config.
+    const validTestedRequest =
+        testedRequest?.configFingerprint === configFingerprint
+            ? testedRequest.request
+            : null;
+    const validTestResponse = validTestedRequest
+        ? testMutation.data
+        : undefined;
 
     // Pasting a URL (or path) with a query string splits the query out into the
     // key/value rows instead of leaving it stuck in the path. The pasted URL is
@@ -242,18 +262,19 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     const handleTest = () => {
         form.onSubmit((values) => {
             const request: ExternalConnectionSampleRequest = {
-                method: values.method,
+                method,
                 path: values.path,
                 query: buildQuery(values.queryParams),
                 body:
-                    values.method !== 'GET'
+                    method !== 'GET'
                         ? parseJson(values.requestBody)
                         : undefined,
             };
-            setTestedRequest(request);
+            setTestedRequest({ request, configFingerprint });
             testMutation.mutate({
                 projectUuid,
                 connectionUuid: connection.externalConnectionUuid,
+                config,
                 ...request,
             });
         })();
@@ -262,15 +283,22 @@ export const ConnectionExamplesPanel: FC<Props> = ({
     const handleSaveSample = (data: ExternalFetchResponse) => {
         // Save the immutable snapshot of the request that produced this
         // response — not the current (possibly edited) form state.
-        if (!testedRequest) return;
+        if (!validTestedRequest) return;
 
-        saveSampleMutation.mutate({
-            projectUuid,
-            connectionUuid: connection.externalConnectionUuid,
+        const sample: ApiSaveExternalConnectionSampleRequest = {
             label: form.values.sampleLabel.trim() || null,
-            request: testedRequest,
+            request: validTestedRequest,
             response: data.body,
-        });
+        };
+        if (hasUnsavedChanges) {
+            onQueueSample(sample);
+        } else {
+            saveSampleMutation.mutate({
+                projectUuid,
+                connectionUuid: connection.externalConnectionUuid,
+                ...sample,
+            });
+        }
         form.setFieldValue('sampleLabel', '');
     };
 
@@ -280,90 +308,119 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 <Text fw={500} fz="sm">
                     Test connection and add examples
                 </Text>
-                <Text c="ldGray.6" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Send a real request through this connection and optionally
                     save it as a sample for app generation.
                 </Text>
-            </Stack>
-
-            <Group align="flex-end" gap="xs">
-                <Select
-                    label="Method"
-                    w={110}
-                    allowDeselect={false}
-                    value={form.values.method}
-                    onChange={(v) => {
-                        if (!v) return;
-                        form.setFieldValue(
-                            'method',
-                            v as ExternalConnectionMethod,
-                        );
-                        testMutation.reset();
-                    }}
-                    data={[...EXTERNAL_CONNECTION_METHODS]}
-                />
-                <TextInput
-                    label="Path"
-                    placeholder="/v1/endpoint"
-                    style={{ flexGrow: 1 }}
-                    onPaste={handlePathPaste}
-                    {...form.getInputProps('path')}
-                />
-            </Group>
-
-            <Stack gap={4}>
-                <Text fz="sm" fw={500}>
-                    Query params
-                </Text>
-                <Text c="ldGray.6" fz="xs">
-                    Sent as URL query params. Tip: paste a URL with a query
-                    string into the path field to fill these in automatically.
-                </Text>
-                {form.values.queryParams.map((param, index) => (
-                    <Group key={param.uuid} gap="xs" wrap="nowrap">
-                        <TextInput
-                            size="xs"
-                            placeholder="key"
-                            style={{ flex: 1 }}
-                            {...form.getInputProps(`queryParams.${index}.key`)}
-                        />
-                        <TextInput
-                            size="xs"
-                            placeholder="value"
-                            style={{ flex: 1 }}
-                            {...form.getInputProps(
-                                `queryParams.${index}.value`,
-                            )}
-                        />
-                        <ActionIcon
+                {isSampleQueued && (
+                    <Group gap="xs">
+                        <Text c="dimmed" fz="xs">
+                            A tested sample is queued and will be added when you
+                            save the connection.
+                        </Text>
+                        <Button
+                            type="button"
                             variant="subtle"
-                            color="red"
-                            onClick={() =>
-                                form.removeListItem('queryParams', index)
-                            }
+                            size="compact-xs"
+                            onClick={onClearQueuedSample}
                         >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
+                            Remove
+                        </Button>
                     </Group>
-                ))}
-                <Button
-                    variant="subtle"
-                    size="compact-sm"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    style={{ alignSelf: 'flex-start' }}
-                    onClick={() =>
-                        form.insertListItem('queryParams', {
-                            uuid: uuidv4(),
-                            key: '',
-                            value: '',
-                        })
-                    }
-                >
-                    Add query param
-                </Button>
+                )}
             </Stack>
 
-            {form.values.method !== 'GET' && (
+            {methodOptions.length === 0 && (
+                <Text c="dimmed" fz="sm">
+                    This image-only connection does not allow proxied requests,
+                    so there is nothing to test here.
+                </Text>
+            )}
+
+            {methodOptions.length > 0 && (
+                <Group align="flex-end" gap="xs">
+                    <Select
+                        label="Method"
+                        w={110}
+                        allowDeselect={false}
+                        value={method}
+                        onChange={(v) => {
+                            if (!v) return;
+                            form.setFieldValue(
+                                'method',
+                                v as ExternalConnectionMethod,
+                            );
+                            testMutation.reset();
+                        }}
+                        data={methodOptions}
+                    />
+                    <TextInput
+                        label="Path"
+                        placeholder="/v1/endpoint"
+                        className="ld-grow"
+                        onPaste={handlePathPaste}
+                        {...form.getInputProps('path')}
+                    />
+                </Group>
+            )}
+
+            {methodOptions.length > 0 && (
+                <Stack gap={4}>
+                    <Text fz="sm" fw={500}>
+                        Query params
+                    </Text>
+                    <Text c="dimmed" fz="xs">
+                        Sent as URL query params. Tip: paste a URL with a query
+                        string into the path field to fill these in
+                        automatically.
+                    </Text>
+                    {form.values.queryParams.map((param, index) => (
+                        <Group key={param.uuid} gap="xs" wrap="nowrap">
+                            <TextInput
+                                size="xs"
+                                placeholder="key"
+                                flex={1}
+                                {...form.getInputProps(
+                                    `queryParams.${index}.key`,
+                                )}
+                            />
+                            <TextInput
+                                size="xs"
+                                placeholder="value"
+                                flex={1}
+                                {...form.getInputProps(
+                                    `queryParams.${index}.value`,
+                                )}
+                            />
+                            <ActionIcon
+                                color="red"
+                                onClick={() =>
+                                    form.removeListItem('queryParams', index)
+                                }
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Group>
+                    ))}
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        className="ld-self-start"
+                        onClick={() =>
+                            form.insertListItem('queryParams', {
+                                uuid: uuidv4(),
+                                key: '',
+                                value: '',
+                            })
+                        }
+                    >
+                        Add query param
+                    </Button>
+                </Stack>
+            )}
+
+            {methodOptions.length > 0 && method !== 'GET' && (
                 <Textarea
                     label="Request body (JSON)"
                     placeholder='{"key": "value"}'
@@ -373,22 +430,24 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                 />
             )}
 
-            <Group>
-                <Button
-                    type="button"
-                    size="xs"
-                    onClick={handleTest}
-                    loading={testMutation.isLoading}
-                >
-                    Send test request
-                </Button>
-            </Group>
+            {methodOptions.length > 0 && (
+                <Group>
+                    <Button
+                        type="button"
+                        size="xs"
+                        onClick={handleTest}
+                        loading={testMutation.isLoading}
+                    >
+                        Send test request
+                    </Button>
+                </Group>
+            )}
 
-            {testMutation.data && (
+            {methodOptions.length > 0 && validTestResponse && (
                 <Stack gap="xs">
-                    <ConnectionTestResult response={testMutation.data} />
+                    <ConnectionTestResult response={validTestResponse} />
 
-                    {testMutation.data.status < 300 && (
+                    {validTestResponse.status < 300 && (
                         <>
                             <TextInput
                                 label="Sample label (optional)"
@@ -403,15 +462,18 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                                     size="xs"
                                     variant="outline"
                                     onClick={() =>
-                                        handleSaveSample(testMutation.data!)
+                                        handleSaveSample(validTestResponse)
                                     }
                                     loading={saveSampleMutation.isLoading}
                                 >
-                                    Save as sample
+                                    {hasUnsavedChanges
+                                        ? 'Save with connection'
+                                        : 'Save as sample'}
                                 </Button>
-                                <Text fz="xs" c="ldGray.6">
-                                    Saved samples ground Claude in the
-                                    API&apos;s response shape.
+                                <Text fz="xs" c="dimmed">
+                                    {hasUnsavedChanges
+                                        ? 'The sample will be added after you save the connection.'
+                                        : 'Saved samples ground Claude in the API response shape.'}
                                 </Text>
                             </Group>
                         </>
@@ -440,8 +502,10 @@ export const ConnectionExamplesPanel: FC<Props> = ({
                         ))}
                     </Stack>
                 ) : (
-                    <Text fz="xs" c="ldGray.6">
-                        No saved samples yet — run a test above and save it.
+                    <Text fz="xs" c="dimmed">
+                        {methodOptions.length === 0
+                            ? 'No saved samples yet.'
+                            : 'No saved samples yet — run a test above and save it.'}
                     </Text>
                 )}
             </Stack>

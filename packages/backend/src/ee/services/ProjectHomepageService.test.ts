@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ANNOUNCEMENT_BODY_MAX_LENGTH,
+    AnnouncementCategory,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -22,6 +23,18 @@ const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
 const USER_UUID = '00000000-0000-0000-0000-000000000004';
 const HOMEPAGE_UUID = '00000000-0000-0000-0000-000000000010';
+
+type SlackBlock = {
+    type: string;
+    elements?: Array<{ text?: string }>;
+};
+
+const slackContextTexts = (blocks: SlackBlock[]): string[] =>
+    blocks
+        .filter((block) => block.type === 'context')
+        .flatMap((block) => block.elements ?? [])
+        .map((element) => element.text)
+        .filter((text): text is string => text != null);
 
 const validConfig: HomepageConfig = {
     version: 1,
@@ -114,6 +127,7 @@ const makeService = ({
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
+    userModel = {},
     fileStorageClient = {},
     persistentDownloadFileService = {},
     slackClient = {},
@@ -126,6 +140,7 @@ const makeService = ({
     >;
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
+    userModel?: Partial<ProjectHomepageServiceArguments['userModel']>;
     fileStorageClient?: Partial<
         ProjectHomepageServiceArguments['fileStorageClient']
     >;
@@ -180,10 +195,18 @@ const makeService = ({
         },
         projectModel: {
             getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            getProjectGroupAccesses: vi.fn().mockResolvedValue([]),
             getSummary: vi.fn().mockResolvedValue({
                 organizationUuid: ORGANIZATION_UUID,
             }),
             ...projectModel,
+        },
+        userModel: {
+            getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                ...baseUser(),
+                role: OrganizationMemberRole.MEMBER,
+            }),
+            ...userModel,
         },
         fileStorageClient: {
             uploadImage: vi.fn(),
@@ -488,7 +511,7 @@ describe('ProjectHomepageService', () => {
             projectUuid: PROJECT_UUID,
             title: 'Draft launch',
             body: null,
-            category: null,
+            category: AnnouncementCategory.LAUNCH,
             pinned: false,
             published: true,
             createdByUserUuid: 'user-1',
@@ -529,9 +552,14 @@ describe('ProjectHomepageService', () => {
         expect(postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
                 channel: 'C1',
-                text: expect.stringContaining('Draft launch'),
+                text: '📢 Launch from Ana: Draft launch',
             }),
         );
+        const [{ blocks }] = postMessage.mock.calls[0];
+        expect(slackContextTexts(blocks)).toEqual([
+            'Launch · Posted by Ana',
+            expect.stringContaining('View on the homepage'),
+        ]);
     });
 
     it('publishHomepage retries the Slack notification without the image block', async () => {
@@ -540,7 +568,7 @@ describe('ProjectHomepageService', () => {
             projectUuid: PROJECT_UUID,
             title: 'Draft launch',
             body: 'Look ![shot](/api/v1/file/abc123)',
-            category: null,
+            category: AnnouncementCategory.UPDATE,
             pinned: false,
             published: true,
             pendingSlackChannelId: null,
@@ -591,6 +619,110 @@ describe('ProjectHomepageService', () => {
                 (block: { type: string }) => block.type === 'image',
             ),
         ).toBe(false);
+        expect(retryCall.text).toBe('📢 Update from Ana: Draft launch');
+        expect(slackContextTexts(retryCall.blocks)).toEqual([
+            'Update · Posted by Ana',
+            expect.stringContaining('View on the homepage'),
+        ]);
+    });
+
+    it('publishHomepage Slack notification omits empty author and category attribution', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-3',
+            projectUuid: PROJECT_UUID,
+            title: 'Draft launch',
+            body: null,
+            category: null,
+            pinned: false,
+            published: true,
+            createdByUserUuid: null,
+            authorName: null,
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([
+                    {
+                        announcement: publishedAnnouncement,
+                        slackChannelId: 'C1',
+                    },
+                ]),
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+        );
+
+        const [{ text, blocks }] = postMessage.mock.calls[0];
+        expect(text).toBe('📢 New announcement: Draft launch');
+        expect(slackContextTexts(blocks)).toEqual([
+            expect.stringContaining('View on the homepage'),
+        ]);
+        expect(slackContextTexts(blocks).join(' ')).not.toMatch(
+            /Posted by|Launch|Update|Heads up/i,
+        );
+    });
+
+    it('publishHomepage Slack notification attributes a category without an author', async () => {
+        const publishedAnnouncement = {
+            announcementUuid: 'ann-draft-4',
+            projectUuid: PROJECT_UUID,
+            title: 'Warehouse delay',
+            body: null,
+            category: AnnouncementCategory.HEADS_UP,
+            pinned: false,
+            published: true,
+            createdByUserUuid: null,
+            authorName: null,
+            createdAt: NOW,
+            updatedAt: NOW,
+        };
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: {
+                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                publish: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ publishedConfig: validConfig }),
+                    ),
+                publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([
+                    {
+                        announcement: publishedAnnouncement,
+                        slackChannelId: 'C1',
+                    },
+                ]),
+            },
+            slackClient: { postMessage },
+        });
+
+        await service.publishHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+        );
+
+        const [{ text, blocks }] = postMessage.mock.calls[0];
+        expect(text).toBe('📢 Heads up: Warehouse delay');
+        expect(slackContextTexts(blocks)).toEqual([
+            'Heads up',
+            expect.stringContaining('View on the homepage'),
+        ]);
+        expect(slackContextTexts(blocks).join(' ')).not.toContain('Posted by');
     });
 
     it('discardDraft reverts the draft to the published config for an admin when the flag is on', async () => {
@@ -673,6 +805,101 @@ describe('ProjectHomepageService', () => {
                 homepage: expect.objectContaining({ name: 'Sales homepage' }),
             }),
         );
+    });
+
+    it('resolves the role tier from the org role when there is no project membership', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.EDITOR,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: [],
+            role: 'editor',
+        });
+    });
+
+    it('resolves the role tier from group project access', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: ProjectMemberRole.DEVELOPER,
+                    },
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'other-group',
+                        role: ProjectMemberRole.ADMIN,
+                    },
+                ]),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'developer',
+        });
+    });
+
+    it('resolves the role tier to the highest of org, membership and group roles', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectMemberAccess: vi.fn().mockResolvedValue({
+                    userUuid: USER_UUID,
+                    projectUuid: PROJECT_UUID,
+                    role: ProjectMemberRole.VIEWER,
+                    email: 'x@y.z',
+                    firstName: 'A',
+                    lastName: 'B',
+                }),
+                getProjectGroupAccesses: vi.fn().mockResolvedValue([
+                    {
+                        projectUuid: PROJECT_UUID,
+                        groupUuid: 'group-1',
+                        role: 'custom-role-uuid',
+                    },
+                ]),
+            },
+            userModel: {
+                getUserDetailsByUuid: vi.fn().mockResolvedValue({
+                    ...baseUser(),
+                    role: OrganizationMemberRole.ADMIN,
+                }),
+            },
+        });
+
+        await service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID);
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'admin',
+        });
     });
 
     it('viewAsHomepage is forbidden for a viewer', async () => {
@@ -814,9 +1041,11 @@ describe('ProjectHomepageService', () => {
 
         it('createAnnouncement with publishNow creates it published and notifies Slack immediately', async () => {
             const postMessage = vi.fn().mockResolvedValue(undefined);
-            const createAnnouncement = vi
-                .fn()
-                .mockResolvedValue({ ...madeAnnouncement, published: true });
+            const createAnnouncement = vi.fn().mockResolvedValue({
+                ...madeAnnouncement,
+                published: true,
+                category: AnnouncementCategory.HEADS_UP,
+            });
             const service = makeService({
                 projectHomepageModel: { createAnnouncement },
                 slackClient: { postMessage },
@@ -824,7 +1053,7 @@ describe('ProjectHomepageService', () => {
             await service.createAnnouncement(makeAdminUser(), PROJECT_UUID, {
                 title: 'Launch',
                 body: null,
-                category: null,
+                category: AnnouncementCategory.HEADS_UP,
                 slackChannelId: 'C123',
                 publishNow: true,
             });
@@ -832,8 +1061,16 @@ describe('ProjectHomepageService', () => {
                 expect.objectContaining({ published: true }),
             );
             expect(postMessage).toHaveBeenCalledWith(
-                expect.objectContaining({ channel: 'C123' }),
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 Heads up from Ana: Launch',
+                }),
             );
+            const [{ blocks }] = postMessage.mock.calls[0];
+            expect(slackContextTexts(blocks)).toEqual([
+                'Heads up · Posted by Ana',
+                expect.stringContaining('View on the homepage'),
+            ]);
         });
 
         it('createAnnouncement with publishNow and no channel publishes without Slack', async () => {
@@ -1008,7 +1245,10 @@ describe('ProjectHomepageService', () => {
             });
             expect(cancelPublishAnnouncement).toHaveBeenCalledWith('ann-9');
             expect(postMessage).toHaveBeenCalledWith(
-                expect.objectContaining({ channel: 'C123' }),
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 New announcement from Ana: Launch',
+                }),
             );
             expect(result.published).toBe(true);
         });
@@ -1106,8 +1346,16 @@ describe('ProjectHomepageService', () => {
             expect(count).toBe(2);
             expect(postMessage).toHaveBeenCalledTimes(1);
             expect(postMessage).toHaveBeenCalledWith(
-                expect.objectContaining({ channel: 'C123' }),
+                expect.objectContaining({
+                    channel: 'C123',
+                    text: '📢 New announcement from Ana: Launch',
+                }),
             );
+            const [{ blocks }] = postMessage.mock.calls[0];
+            expect(slackContextTexts(blocks)).toEqual([
+                'Posted by Ana',
+                expect.stringContaining('View on the homepage'),
+            ]);
         });
 
         it('createAnnouncement without publishNow stays a draft', async () => {

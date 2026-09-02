@@ -318,6 +318,8 @@ const buildService = ({
         schedulerClient: {} as never,
         promoteService: {} as never,
         spacePermissionService: {} as never,
+        contentAsCodeSnapshotModel: { upsert: vi.fn() } as never,
+        contentAsCodeProjectSettingsModel: { upsert: vi.fn() } as never,
         contentVerificationModel: {} as never,
         groupsModel: {} as never,
         organizationMemberProfileModel: {} as never,

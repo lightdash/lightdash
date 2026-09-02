@@ -53,7 +53,6 @@ import {
     MetricFilterRule,
     MetricQuery,
     MetricType,
-    naiveTimestampRebaseAdapters,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
@@ -174,10 +173,6 @@ export type BuildQueryProps = {
      *  dimension columns to UTC while bare columns (aggregate inputs) remain
      *  in the data timezone. */
     dataTimezone?: string;
-    /** Rebase RAW timestamp filter columns to instants so predicates match the
-     *  SELECT. Gated behind NaiveTimestampFilterRebase (the wrap defeats
-     *  partition pruning). */
-    rebaseRawTimestampFilters?: boolean;
     queryExecutionContext?: QueryExecutionContext;
     /**
      * Turns this into a totals query: the builder collapses
@@ -855,17 +850,9 @@ export class MetricQueryBuilder {
             if (this.columnTimezone === 'UTC') {
                 return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
-            // Filter LHS: a known domain keeps the bare column (the literal
-            // side carries the conversion, so predicates stay sargable); the
-            // flag-gated session wrap remains only as the unknown-domain
-            // fallback.
-            if (
-                !respectConvertTimezone &&
-                (timestampDomain !== undefined ||
-                    !this.args.rebaseRawTimestampFilters ||
-                    baseDimension.skipTimezoneConversion ||
-                    !naiveTimestampRebaseAdapters.has(adapterType))
-            ) {
+            // Filter LHS keeps the bare column — the literal side carries the
+            // conversion, so predicates stay sargable.
+            if (!respectConvertTimezone) {
                 return { sql: dimension.compiledSql, lhsMode: 'legacy' };
             }
             const { castToInstant, castNaiveToInstant, castAwareToInstant } =
@@ -2234,6 +2221,16 @@ export class MetricQueryBuilder {
               )
             : undefined;
         const filterField = resolvedFilterDimension?.field ?? field;
+        const filterFieldWithUserAttributes = {
+            ...filterField,
+            compiledSql: replaceUserAttributesAsStrings(
+                filterField.compiledSql,
+                this.args.intrinsicUserAttributes,
+                this.args.userAttributes ?? {},
+                warehouseSqlBuilder,
+                { noWrap: true },
+            ),
+        };
 
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
@@ -2253,7 +2250,13 @@ export class MetricQueryBuilder {
                     }),
             );
             if (baseDimension) {
-                baseDimensionSql = baseDimension.compiledSql;
+                baseDimensionSql = replaceUserAttributesAsStrings(
+                    baseDimension.compiledSql,
+                    this.args.intrinsicUserAttributes,
+                    this.args.userAttributes ?? {},
+                    warehouseSqlBuilder,
+                    { noWrap: true },
+                );
             }
         }
 
@@ -2262,7 +2265,7 @@ export class MetricQueryBuilder {
 
             return renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                filterField,
+                filterFieldWithUserAttributes,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,
@@ -2403,8 +2406,11 @@ export class MetricQueryBuilder {
                 requiresQueryInCTE = true;
 
                 fieldSort = sortMonthName(
-                    sortedDimension,
-                    warehouseSqlBuilder.getFieldQuoteChar(),
+                    quoteFieldReference(
+                        getItemId(sortedDimension),
+                        warehouseSqlBuilder.getFieldQuoteChar(),
+                        warehouseSqlBuilder.getAdapterType(),
+                    ),
                     sort.descending,
                 );
             } else if (
@@ -2416,9 +2422,12 @@ export class MetricQueryBuilder {
                 // for consistency, we do it for all warehouses
                 requiresQueryInCTE = true;
                 fieldSort = sortDayOfWeekName(
-                    sortedDimension,
+                    quoteFieldReference(
+                        getItemId(sortedDimension),
+                        warehouseSqlBuilder.getFieldQuoteChar(),
+                        warehouseSqlBuilder.getAdapterType(),
+                    ),
                     startOfWeek,
-                    warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
             } else if (

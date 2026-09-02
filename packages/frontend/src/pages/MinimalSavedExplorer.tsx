@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
@@ -26,11 +27,15 @@ import {
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProject } from '../hooks/useProject';
+import { ProjectRouteContext } from '../hooks/useProjectRoute';
+import { useProjects } from '../hooks/useProjects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 type Props = {
     savedQueryUuid?: string;
@@ -189,7 +194,30 @@ const MinimalSavedExplorer: FC<Props> = ({
         projectUuid: string;
     }>();
     const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
-    const projectUuid = useProjectUuid();
+    const projectIdentifier = useProjectUuid();
+    const isProjectUuid = isUuidString(projectIdentifier ?? '');
+    const projectsQuery = useProjects({
+        enabled: !!projectIdentifier && !isProjectUuid,
+    });
+    const projectUuid = isProjectUuid
+        ? projectIdentifier
+        : projectsQuery.data?.find(
+              (project) => project.slug === projectIdentifier,
+          )?.projectUuid;
+    const projectQuery = useProject(projectUuid);
+    const projectRouteContext = useMemo(
+        () =>
+            projectUuid && projectQuery.data
+                ? {
+                      project: projectQuery.data,
+                      projectUuid,
+                      projectUrlIdentifier: getProjectUrlIdentifier(
+                          projectQuery.data,
+                      ),
+                  }
+                : null,
+        [projectQuery.data, projectUuid],
+    );
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
@@ -218,15 +246,20 @@ const MinimalSavedExplorer: FC<Props> = ({
         store.dispatch(explorerActions.reset(initialState));
     }, [data, store]);
 
-    // Early return if no data yet
-    if (isInitialLoading || !data) {
-        return null;
-    }
-
-    if (isError) {
+    if (
+        projectsQuery.isError ||
+        projectQuery.isError ||
+        isError ||
+        (!projectUuid && !projectsQuery.isInitialLoading)
+    ) {
         return (
             <>
-                <span>{error.error.message}</span>
+                <span>
+                    {projectsQuery.error?.error.message ??
+                        projectQuery.error?.error.message ??
+                        error?.error.message ??
+                        `Cannot find project: ${projectIdentifier}`}
+                </span>
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={0}
@@ -236,10 +269,23 @@ const MinimalSavedExplorer: FC<Props> = ({
         );
     }
 
+    // Early return if no data yet
+    if (
+        projectsQuery.isInitialLoading ||
+        projectQuery.isInitialLoading ||
+        isInitialLoading ||
+        !projectRouteContext ||
+        !data
+    ) {
+        return null;
+    }
+
     return (
-        <Provider store={store} key={`minimal-${savedQueryUuid}`}>
-            <MinimalExplorerContent />
-        </Provider>
+        <ProjectRouteContext.Provider value={projectRouteContext}>
+            <Provider store={store} key={`minimal-${savedQueryUuid}`}>
+                <MinimalExplorerContent />
+            </Provider>
+        </ProjectRouteContext.Provider>
     );
 };
 

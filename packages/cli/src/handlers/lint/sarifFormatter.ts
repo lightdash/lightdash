@@ -79,7 +79,8 @@ export function formatSarifForCli(
         output.push(color(`\n${sectionLabel}\n`));
 
         for (const [fileUri, fileResults] of byFile.entries()) {
-            const relativePath = path.relative(searchPath, fileUri);
+            const relativePath =
+                path.relative(searchPath, fileUri) || path.basename(fileUri);
             output.push(boldColor(`\n${marker} ${relativePath}`));
 
             for (const result of fileResults) {

@@ -1,20 +1,28 @@
 import { subject } from '@casl/ability';
-import { ExploreType, type SummaryExplore } from '@lightdash/common';
-import { TextInput, Stack, ActionIcon } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import {
+    ExploreType,
+    FeatureFlags,
+    type SummaryExplore,
+} from '@lightdash/common';
+import { TextInput, Stack, ActionIcon, Button, Group } from '@mantine/core';
+import { useDebouncedValue, useDisclosure } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
+    IconPlus,
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { AddDataModal } from '../../../features/externalSources/components/AddDataModal';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useProjectTableGroups } from '../../../hooks/useProjectTableGroups';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
@@ -36,18 +44,40 @@ type Props = {
     // Overrides the default navigation to the project's explore page. Embeds
     // use this to keep the selected table inside the embed route.
     onExploreClick?: (explore: SummaryExplore) => void;
+    // Enables "Add data" in overridden-navigation contexts (the merge picker):
+    // a table created through the upload modal is handed here instead of
+    // navigating, so the host flow keeps its state.
+    onExploreCreated?: (exploreName: string) => void;
 };
 
-const BasePanel = ({ onExploreClick }: Props) => {
+const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
     const exploresResult = useExplores(projectUuid, true, true);
     const tableGroupsResult = useProjectTableGroups(projectUuid);
     const { data: org } = useOrganization();
+    const { data: externalSourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ExternalSources,
+    );
+    const [
+        isAddDataModalOpen,
+        { open: openAddDataModal, close: closeAddDataModal },
+    ] = useDisclosure(false);
+    // The modal navigates into the created table by default; inside embeds
+    // and the merge picker (onExploreClick overridden) that navigation would
+    // break the host flow, so the affordance only shows there when the host
+    // handles the created table itself via onExploreCreated.
+    const canShowAddData =
+        externalSourcesFlag?.enabled === true &&
+        (!onExploreClick || !!onExploreCreated) &&
+        !!projectUuid;
 
     const filteredExplores = useMemo(() => {
         const validSearch = debouncedSearch
@@ -92,10 +122,12 @@ const BasePanel = ({ onExploreClick }: Props) => {
         defaultUngroupedExplores,
         customUngroupedExplores,
         sortedPreAggregateExplores,
+        sortedExternalSourceExplores,
     ] = useMemo(() => {
         if (!filteredExplores) {
             return [
                 [],
+                [] as SummaryExplore[],
                 [] as SummaryExplore[],
                 [] as SummaryExplore[],
                 [] as SummaryExplore[],
@@ -105,10 +137,15 @@ const BasePanel = ({ onExploreClick }: Props) => {
         const defaultExplores: SummaryExplore[] = [];
         const customExplores: SummaryExplore[] = [];
         const preAggregateExplores: SummaryExplore[] = [];
+        const externalSourceExplores: SummaryExplore[] = [];
 
         for (const explore of filteredExplores) {
             if (explore.type === ExploreType.PRE_AGGREGATE) {
                 preAggregateExplores.push(explore);
+            } else if (explore.type === ExploreType.EXTERNAL_SOURCE) {
+                if (externalSourcesFlag?.enabled === true) {
+                    externalSourceExplores.push(explore);
+                }
             } else if (exploreHasGroups(explore)) {
                 groupedExplores.push(explore);
             } else if (explore.type === ExploreType.VIRTUAL) {
@@ -124,14 +161,21 @@ const BasePanel = ({ onExploreClick }: Props) => {
 
         defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
         customExplores.sort((a, b) => a.label.localeCompare(b.label));
+        externalSourceExplores.sort((a, b) => a.label.localeCompare(b.label));
         preAggregateExplores.sort((a, b) =>
             (getPreAggregateName(a) ?? '').localeCompare(
                 getPreAggregateName(b) ?? '',
             ),
         );
 
-        return [tree, defaultExplores, customExplores, preAggregateExplores];
-    }, [filteredExplores, tableGroupDetails]);
+        return [
+            tree,
+            defaultExplores,
+            customExplores,
+            preAggregateExplores,
+            externalSourceExplores,
+        ];
+    }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
@@ -141,14 +185,14 @@ const BasePanel = ({ onExploreClick }: Props) => {
                     return;
                 }
                 void navigate({
-                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                    pathname: `/projects/${projectUrlIdentifier}/tables/${explore.name}`,
                     search: location.search,
                 });
             });
         },
         [
             navigate,
-            projectUuid,
+            projectUrlIdentifier,
             location.search,
             startTransition,
             onExploreClick,
@@ -172,7 +216,7 @@ const BasePanel = ({ onExploreClick }: Props) => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" style={{ flexGrow: 1 }}>
+                    <Stack h="100%" flex={1}>
                         <Can
                             I="manage"
                             this={subject('Explore', {
@@ -180,16 +224,41 @@ const BasePanel = ({ onExploreClick }: Props) => {
                                 projectUuid,
                             })}
                         >
-                            <PageBreadcrumbs
-                                size="md"
-                                items={[{ title: 'Tables', active: true }]}
-                            />
+                            <Group justify="space-between" wrap="nowrap">
+                                <PageBreadcrumbs
+                                    size="md"
+                                    items={[{ title: 'Tables', active: true }]}
+                                />
+                                {canShowAddData && (
+                                    <Can
+                                        I="manage"
+                                        this={subject('ExternalSource', {
+                                            organizationUuid:
+                                                org?.organizationUuid,
+                                            projectUuid,
+                                        })}
+                                    >
+                                        <Button
+                                            variant="default"
+                                            size="compact-xs"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPlus}
+                                                    size="sm"
+                                                />
+                                            }
+                                            onClick={openAddDataModal}
+                                        >
+                                            Add data
+                                        </Button>
+                                    </Can>
+                                )}
+                            </Group>
                         </Can>
 
                         <TextInput
                             leftSection={<MantineIcon icon={IconSearch} />}
                             rightSectionPointerEvents="all"
-                            radius="md"
                             rightSection={
                                 search ? (
                                     <ActionIcon
@@ -197,8 +266,6 @@ const BasePanel = ({ onExploreClick }: Props) => {
                                         onMouseDown={(event) =>
                                             event.preventDefault()
                                         }
-                                        variant="subtle"
-                                        color="gray"
                                         onClick={() => setSearch('')}
                                     >
                                         <MantineIcon icon={IconX} />
@@ -215,11 +282,22 @@ const BasePanel = ({ onExploreClick }: Props) => {
                             defaultUngroupedExplores={defaultUngroupedExplores}
                             customUngroupedExplores={customUngroupedExplores}
                             preAggregateExplores={sortedPreAggregateExplores}
+                            externalSourceExplores={
+                                sortedExternalSourceExplores
+                            }
                             searchQuery={debouncedSearch}
                             onExploreClick={handleExploreClick}
                         />
                     </Stack>
                 </ItemDetailProvider>
+                {canShowAddData && projectUuid && (
+                    <AddDataModal
+                        projectUuid={projectUuid}
+                        opened={isAddDataModalOpen}
+                        onClose={closeAddDataModal}
+                        onCreated={onExploreCreated}
+                    />
+                )}
             </>
         );
     }

@@ -53,7 +53,6 @@ const ExportSelector: FC<
             return (
                 <>
                     <Button
-                        color="ldGray.6"
                         size="xs"
                         mb="xs"
                         leftSection={<MantineIcon icon={IconArrowLeft} />}

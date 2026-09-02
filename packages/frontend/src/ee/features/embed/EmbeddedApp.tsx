@@ -1,7 +1,11 @@
+import { type UUID } from '@lightdash/common';
 import { useEffect, useState, type FC } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
-import { type EmbedExploreChart } from '../../providers/Embed/types';
+import {
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+} from '../../providers/Embed/types';
 import useEmbed from '../../providers/Embed/useEmbed';
 
 type EmbedExploreLocationState = {
@@ -41,11 +45,17 @@ const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
 const EmbeddedApp: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [savedChart, setSavedChart] = useState<EmbedExploreChart>();
+    const [customSqlProvenanceChartUuid, setCustomSqlProvenanceChartUuid] =
+        useState<UUID>();
     const navigate = useNavigate();
     const location = useLocation();
 
-    const handleExplore = (options: { chart: EmbedExploreChart }) => {
+    const handleExplore = (options: EmbedExploreOptions) => {
         setSavedChart(options.chart);
+        setCustomSqlProvenanceChartUuid(
+            options.customSqlProvenanceChartUuid ??
+                ('uuid' in options.chart ? options.chart.uuid : undefined),
+        );
         void navigate(
             `/embed/${projectUuid}/explore/${options.chart.tableName}`,
             {
@@ -69,6 +79,7 @@ const EmbeddedApp: FC = () => {
     return (
         <EmbedProvider
             savedChart={savedChart}
+            customSqlProvenanceChartUuid={customSqlProvenanceChartUuid}
             projectUuid={projectUuid}
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}

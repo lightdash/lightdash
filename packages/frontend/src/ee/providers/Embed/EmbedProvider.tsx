@@ -1,11 +1,12 @@
 import {
     type CreateEmbedJwt,
-    type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
+    type SdkUiOverrides,
+    type UiStringKey,
+    type UUID,
 } from '@lightdash/common';
-import get from 'lodash/get';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -14,12 +15,21 @@ import {
     setToInMemoryStorage,
 } from '../../../utils/inMemoryStorage';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
-import { LightdashEventType } from '../../features/embed/events/types';
+import {
+    LightdashEventType,
+    type ChartSavedAction,
+} from '../../features/embed/events/types';
 import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
-import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
+import {
+    EMBED_KEY,
+    type EmbedExploreChart,
+    type EmbedExploreOptions,
+    type EmbedMode,
+    type InMemoryEmbed,
+} from './types';
 
 type Props = {
     embedToken?: string;
@@ -27,12 +37,13 @@ type Props = {
     projectUuid?: string;
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
+    uiOverrides?: SdkUiOverrides;
     embedHeaders?: Record<string, string>;
-    onExplore?: (options: {
-        chart: SavedChart | CreateSavedChartVersion;
-    }) => void;
+    onExplore?: (options: EmbedExploreOptions) => void;
     onBackToDashboard?: () => void;
-    savedChart?: SavedChart | CreateSavedChartVersion;
+    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    savedChart?: EmbedExploreChart;
+    customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
     appUuid?: string;
 };
@@ -67,9 +78,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     projectUuid: projectUuidFromProps,
     paletteUuid,
     contentOverrides,
+    uiOverrides,
     onExplore,
     onBackToDashboard,
+    onChartSaved,
     savedChart,
+    customSqlProvenanceChartUuid,
     savedQueryUuid,
     appUuid,
 }) => {
@@ -101,6 +115,19 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embedJwtPayload = useMemo(
         () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
         [tokenFromStorageOrProps],
+    );
+    const handleChartSaved = useCallback(
+        (chart: SavedChart, action: ChartSavedAction) => {
+            onChartSaved?.(chart, action);
+
+            if (mode === 'direct') {
+                dispatchEmbedEvent(LightdashEventType.ChartSaved, {
+                    chartUuid: chart.uuid,
+                    action,
+                });
+            }
+        },
+        [dispatchEmbedEvent, mode, onChartSaved],
     );
 
     // Remove the token from the URL.
@@ -149,7 +176,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         return {
             embedToken: tokenFromStorageOrProps,
             filters,
-            t: (input: string) => get(contentOverrides, input),
+            // Single resolution point for UI-string overrides; a future
+            // direct-embed transport adds its source here.
+            t: (input: UiStringKey) => uiOverrides?.[input],
             projectUuid: embed?.projectUuid || projectUuid,
             content: embedJwtPayload?.content,
             writeActions: embedJwtPayload?.writeActions,
@@ -157,7 +186,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
+            onChartSaved: handleChartSaved,
             savedChart,
+            customSqlProvenanceChartUuid,
             savedQueryUuid,
             appUuid,
             onBackToDashboard,
@@ -176,8 +207,11 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         projectUuid,
         paletteUuid,
         contentOverrides,
+        uiOverrides,
         onExplore,
+        handleChartSaved,
         savedChart,
+        customSqlProvenanceChartUuid,
         savedQueryUuid,
         appUuid,
         onBackToDashboard,

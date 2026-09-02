@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ContentType,
+    DirectAccessResourceType,
     ForbiddenError,
     ParameterError,
     ResourceViewItemType,
@@ -18,6 +19,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserFavoritesModel } from '../../models/UserFavoritesModel';
 import { BaseService } from '../BaseService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type FavoritesServiceArguments = {
@@ -26,6 +28,7 @@ type FavoritesServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
+    directAccessService: DirectAccessService;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     appModel: AppModel;
@@ -42,6 +45,8 @@ export class FavoritesService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly directAccessService: DirectAccessService;
+
     private readonly savedChartModel: SavedChartModel;
 
     private readonly dashboardModel: DashboardModel;
@@ -54,6 +59,7 @@ export class FavoritesService extends BaseService {
         projectModel,
         spaceModel,
         spacePermissionService,
+        directAccessService,
         savedChartModel,
         dashboardModel,
         appModel,
@@ -64,6 +70,7 @@ export class FavoritesService extends BaseService {
         this.projectModel = projectModel;
         this.spaceModel = spaceModel;
         this.spacePermissionService = spacePermissionService;
+        this.directAccessService = directAccessService;
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
         this.appModel = appModel;
@@ -93,26 +100,66 @@ export class FavoritesService extends BaseService {
         }
 
         // Verify the user has permission to view the content they're trying to
-        // favorite. Resolve the canonical UUID from the entity since callers may
-        // pass a slug — content_uuid is a uuid column and would reject a slug.
-        let spaceUuid: string;
+        // favorite; resource-aware access so directly granted content counts.
+        // Resolve the canonical UUID from the entity since callers may pass a
+        // slug — content_uuid is a uuid column and would reject a slug.
         let resolvedContentUuid: string;
+        let canViewContent: boolean;
         switch (contentType) {
             case ContentType.SPACE:
-                spaceUuid = contentUuid;
                 resolvedContentUuid = contentUuid;
+                canViewContent = await this.spacePermissionService.can(
+                    'view',
+                    user,
+                    contentUuid,
+                );
                 break;
             case ContentType.CHART: {
                 const chart = await this.savedChartModel.get(contentUuid);
-                spaceUuid = chart.spaceUuid;
                 resolvedContentUuid = chart.uuid;
+                const context = await this.spacePermissionService.resolveAccess(
+                    user.userUuid,
+                    {
+                        type: 'chart',
+                        chartUuid: chart.uuid,
+                        dashboardUuid: chart.dashboardUuid ?? null,
+                        spaceUuid: chart.spaceUuid,
+                    },
+                );
+                canViewContent = auditedAbility.can(
+                    'view',
+                    subject('SavedChart', {
+                        ...context,
+                        metadata: {
+                            savedChartUuid: chart.uuid,
+                            savedChartName: chart.name,
+                        },
+                    }),
+                );
                 break;
             }
             case ContentType.DASHBOARD: {
                 const dashboard =
                     await this.dashboardModel.getByIdOrSlug(contentUuid);
-                spaceUuid = dashboard.spaceUuid;
                 resolvedContentUuid = dashboard.uuid;
+                const context = await this.spacePermissionService.resolveAccess(
+                    user.userUuid,
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: dashboard.uuid,
+                        spaceUuid: dashboard.spaceUuid,
+                    },
+                );
+                canViewContent = auditedAbility.can(
+                    'view',
+                    subject('Dashboard', {
+                        ...context,
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                );
                 break;
             }
             case ContentType.DATA_APP: {
@@ -128,8 +175,24 @@ export class FavoritesService extends BaseService {
                         'Personal data apps cannot be favorited',
                     );
                 }
-                spaceUuid = app.space_uuid;
                 resolvedContentUuid = app.app_id;
+                const context = await this.spacePermissionService.resolveAccess(
+                    user.userUuid,
+                    {
+                        type: 'app',
+                        appUuid: app.app_id,
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        spaceUuid: app.space_uuid,
+                    },
+                );
+                canViewContent = auditedAbility.can(
+                    'view',
+                    subject('DataApp', {
+                        ...context,
+                        createdByUserUuid: app.created_by_user_uuid,
+                    }),
+                );
                 break;
             }
             default:
@@ -139,12 +202,7 @@ export class FavoritesService extends BaseService {
                 );
         }
 
-        const canViewSpace = await this.spacePermissionService.can(
-            'view',
-            user,
-            spaceUuid,
-        );
-        if (!canViewSpace) {
+        if (!canViewContent) {
             throw new ForbiddenError();
         }
 
@@ -212,12 +270,24 @@ export class FavoritesService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-        const allowedSpaceUuids =
-            await this.spacePermissionService.getAccessibleSpaceUuids(
+        const [allowedSpaceUuids, granted] = await Promise.all([
+            this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
                 user,
                 spaceUuids,
-            );
+            ),
+            // Directly granted content stays visible in the caller's own
+            // favorites even without any space access path.
+            user.organizationUuid
+                ? this.directAccessService.findSharedWithMeUuids(
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      [projectUuid],
+                  )
+                : undefined,
+        ]);
 
         const favoriteRows = await this.userFavoritesModel.getFavoriteUuids(
             user.userUuid,
@@ -246,11 +316,13 @@ export class FavoritesService extends BaseService {
                 projectUuid,
                 chartUuids,
                 allowedSpaceUuids,
+                granted?.[DirectAccessResourceType.CHART],
             ),
             this.userFavoritesModel.getFavoriteDashboards(
                 projectUuid,
                 dashboardUuids,
                 allowedSpaceUuids,
+                granted?.[DirectAccessResourceType.DASHBOARD],
             ),
             this.userFavoritesModel.getFavoriteSpaces(
                 projectUuid,
@@ -261,6 +333,7 @@ export class FavoritesService extends BaseService {
                 projectUuid,
                 appUuids,
                 allowedSpaceUuids,
+                granted?.[DirectAccessResourceType.APP],
             ),
         ]);
 

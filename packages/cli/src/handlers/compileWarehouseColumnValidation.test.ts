@@ -400,6 +400,7 @@ describe('compile warehouse column validation', () => {
                 projectUuid: 'projectUuid',
                 ignoreErrors: true,
                 validateWarehouseColumns: true,
+                batchedDeploy: false,
             });
 
             const deployRequest = vi

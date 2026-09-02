@@ -209,6 +209,8 @@ export class Compaction {
                 return `file /dbt/${item.path} (a source file in the dbt project; read it with exploreRepo)`;
             case 'repository':
                 return `repository ${item.fullName} (mounted at /${item.fullName}; explore it with exploreRepo)`;
+            case 'external_source':
+                return `external source ${item.displayName} (${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${item.tables.map((table) => `${table.tableName} [${table.tableUuid}]`).join(', ')}; query any subset with an external node in runComposerQueries)`;
             case 'pull_request': {
                 const number = item.prNumber ? ` #${item.prNumber}` : '';
                 return `pull request${number} (${item.status ?? 'open'})${

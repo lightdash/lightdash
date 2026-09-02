@@ -3,8 +3,22 @@ import {
     type ExternalConnection,
     type ExternalConnectionListItem,
 } from '@lightdash/common';
-import { ActionIcon, Badge, Menu, Paper, Table, Text } from '@mantine/core';
-import { IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Menu,
+    Paper,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconDots,
+    IconExternalLink,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import tableStyles from '../../../hooks/styles/tableStyles.module.css';
 import MantineIcon from '../../common/MantineIcon';
@@ -16,6 +30,9 @@ type Props = {
     >;
     setConnectionToDelete: Dispatch<
         SetStateAction<ExternalConnection | undefined>
+    >;
+    setConnectionToViewUsage: Dispatch<
+        SetStateAction<ExternalConnectionListItem | undefined>
     >;
 };
 
@@ -34,12 +51,36 @@ const authLabel = (type: ExternalConnection['type']): string => {
     }
 };
 
+const accessLabel = (connection: ExternalConnection): string => {
+    const methods = connection.allowedMethods.join(', ');
+
+    if (connection.allowBrowserImages) {
+        return methods ? `${methods} + public images` : 'Public images only';
+    }
+
+    return methods || '—';
+};
+
+const linkedResourcesLabel = (connection: ExternalConnectionListItem): string =>
+    `${connection.linkedDataAppCount} data app${
+        connection.linkedDataAppCount === 1 ? '' : 's'
+    } and ${connection.linkedChartTypeCount} chart type${
+        connection.linkedChartTypeCount === 1 ? '' : 's'
+    }`;
+
 const ConnectionRow: FC<
     { connection: ExternalConnectionListItem } & Pick<
         Props,
-        'setConnectionToEdit' | 'setConnectionToDelete'
+        | 'setConnectionToEdit'
+        | 'setConnectionToDelete'
+        | 'setConnectionToViewUsage'
     >
-> = ({ connection, setConnectionToEdit, setConnectionToDelete }) => (
+> = ({
+    connection,
+    setConnectionToEdit,
+    setConnectionToDelete,
+    setConnectionToViewUsage,
+}) => (
     <Table.Tr>
         <Table.Td>
             <Text fw={600} fz="sm">
@@ -50,24 +91,46 @@ const ConnectionRow: FC<
             <Text fz="sm">{connection.origin}</Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
+            <Text fz="sm" c="dimmed">
                 {authLabel(connection.type)}
             </Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
-                {connection.allowedMethods.join(', ')}
+            <Text fz="sm" c="dimmed">
+                {accessLabel(connection)}
             </Text>
         </Table.Td>
         <Table.Td>
-            <Text fz="sm" c="ldGray.6">
-                {connection.linkedDataAppCount}
-            </Text>
+            <Tooltip
+                label={`${linkedResourcesLabel(
+                    connection,
+                )}. Click to view the full list.`}
+            >
+                <Button
+                    size="compact-xs"
+                    variant="subtle"
+                    c="ldGray.7"
+                    px={0}
+                    onClick={() => setConnectionToViewUsage(connection)}
+                    rightSection={
+                        <MantineIcon icon={IconExternalLink} size={14} />
+                    }
+                    aria-label={`View ${linkedResourcesLabel(
+                        connection,
+                    )} linked to ${connection.name}`}
+                >
+                    {connection.linkedDataAppCount} data app
+                    {connection.linkedDataAppCount === 1 ? '' : 's'}
+                    {connection.linkedChartTypeCount > 0 &&
+                        ` + ${connection.linkedChartTypeCount} chart type${
+                            connection.linkedChartTypeCount === 1 ? '' : 's'
+                        }`}
+                </Button>
+            </Tooltip>
         </Table.Td>
         <Table.Td>
             <Badge
                 color={connection.allowDataAppBuilderLinking ? 'green' : 'gray'}
-                variant="light"
             >
                 {connection.allowDataAppBuilderLinking
                     ? 'Allowed'
@@ -75,12 +138,11 @@ const ConnectionRow: FC<
             </Badge>
         </Table.Td>
         <Table.Td w="1%">
-            <Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         variant="transparent"
                         size="sm"
-                        color="ldGray.6"
                         aria-label={`Actions for ${connection.name}`}
                     >
                         <MantineIcon icon={IconDots} />
@@ -110,9 +172,10 @@ export const ConnectionsTable: FC<Props> = ({
     connections,
     setConnectionToEdit,
     setConnectionToDelete,
+    setConnectionToViewUsage,
 }) => {
     return (
-        <Paper withBorder style={{ overflow: 'hidden' }}>
+        <Paper className="ld-overflow-hidden">
             <Table
                 className={`${tableStyles.root} ${tableStyles.alignLastTdRight}`}
                 ta="left"
@@ -122,8 +185,8 @@ export const ConnectionsTable: FC<Props> = ({
                         <Table.Th w={300}>Name</Table.Th>
                         <Table.Th>Origin</Table.Th>
                         <Table.Th>Auth</Table.Th>
-                        <Table.Th>Methods</Table.Th>
-                        <Table.Th>Linked apps</Table.Th>
+                        <Table.Th>Access</Table.Th>
+                        <Table.Th>Linked to</Table.Th>
                         <Table.Th>Builder linking</Table.Th>
                         <Table.Th></Table.Th>
                     </Table.Tr>
@@ -135,6 +198,7 @@ export const ConnectionsTable: FC<Props> = ({
                             connection={connection}
                             setConnectionToEdit={setConnectionToEdit}
                             setConnectionToDelete={setConnectionToDelete}
+                            setConnectionToViewUsage={setConnectionToViewUsage}
                         />
                     ))}
                 </Table.Tbody>

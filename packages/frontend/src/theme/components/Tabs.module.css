@@ -1,0 +1,28 @@
+.list {
+    --tab-border-color: var(--mantine-color-default-border);
+}
+
+.tab {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    color: var(--mantine-color-dimmed);
+    transition:
+        color 120ms ease,
+        background-color 120ms ease;
+}
+
+.tab:hover {
+    color: var(--mantine-color-text);
+}
+
+.tab[data-active] {
+    color: var(--mantine-color-text);
+}
+
+.tab[data-variant='default']:hover {
+    --tab-hover-color: transparent;
+}
+
+.tabSection {
+    color: inherit;
+}

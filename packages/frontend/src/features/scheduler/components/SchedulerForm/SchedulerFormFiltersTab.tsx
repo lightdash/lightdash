@@ -56,7 +56,7 @@ const FilterSummaryLabel: FC<
     if (isDisabled) {
         return (
             <Text fw={400} span>
-                <Text span color="ldGray.6">
+                <Text span c="dimmed">
                     is any value
                 </Text>
             </Text>
@@ -67,7 +67,7 @@ const FilterSummaryLabel: FC<
             <Text span color="ldGray.7">
                 {filterSummary?.operator}{' '}
             </Text>
-            <Text fw={700} span>
+            <Text fw={600} span>
                 {filterSummary?.value}
             </Text>
         </Text>
@@ -119,14 +119,14 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
         // show invalid dashboard filter
         return (
             <Group gap="xs" wrap="nowrap" justify="flex-start">
-                <Paper key={dashboardFilter.id} withBorder p="xs" radius="md">
+                <Paper key={dashboardFilter.id} p="xs" radius="md">
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertTriangle} color="red" />
                         <Text span fw={500} fz="sm">
                             Invalid filter
                         </Text>
                         <Text fw={400} span fz="xs">
-                            <Text span c="ldGray.6" fz="xs">
+                            <Text span c="dimmed" fz="xs">
                                 Tried to reference field with unknown id:
                             </Text>
                             <Text span fz="xs" fw={500}>
@@ -154,7 +154,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     return (
         <Stack key={dashboardFilter.id} gap="xs">
             <Group gap="xs" wrap="nowrap" align="flex-start">
-                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" flex={1} miw={0}>
                     <FieldIcon item={field} />
                     <FieldLabel
                         item={{
@@ -181,10 +181,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         <Tooltip
                             label={`Applies to: ${tilesWithFilter.join(', ')}`}
                             fz="xs"
-                            multiline
                             w={200}
                         >
-                            <Text fz="xs" color="ldGray.6" span>
+                            <Text fz="xs" c="dimmed" span>
                                 {`Applies to ${tilesWithFilter.length} tiles`}
                             </Text>
                         </Tooltip>
@@ -230,7 +229,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </Group>
             </Group>
             {!isEditing && hasChanged && (
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     Unsaved changes
                 </Text>
             )}
@@ -238,9 +237,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
             {isEditing && (
                 <Flex gap="xs" wrap="wrap">
                     <Select
-                        style={{
-                            flex: '0 0 180px',
-                        }}
+                        flex="0 0 180px"
                         size="xs"
                         value={
                             schedulerFilter?.operator ??
@@ -294,7 +291,7 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
 
     return (
         <Group gap="xs" wrap="nowrap" align="flex-start">
-            <Group gap="xs" opacity={0.5} style={{ flex: 1, minWidth: 0 }}>
+            <Group gap="xs" opacity={0.5} flex={1} miw={0}>
                 <FieldIcon item={field} />
                 <FieldLabel
                     item={{
@@ -303,7 +300,7 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
                     }}
                     hideTableName
                 />
-                <Text fz="xs" c="ldGray.6" span>
+                <Text fz="xs" c="dimmed" span>
                     Uses dashboard default
                 </Text>
             </Group>
@@ -523,12 +520,12 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             0 ? (
                 <Stack mb="sm">
                     {hasUnmetSingles && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             All required filters must have values
                         </Text>
                     )}
                     {hasUnmetGroups && (
-                        <Text fz="xs" color="ldGray.6">
+                        <Text fz="xs" c="dimmed">
                             Set a value for at least one filter in each
                             requirement group
                         </Text>
@@ -592,7 +589,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                         },
                     )}
                     {savedFiltersNotInDashboard.length > 0 && (
-                        <Text fz="xs" color="ldGray.6" mt="xs">
+                        <Text fz="xs" c="dimmed" mt="xs">
                             The following filters are applied to this scheduled
                             delivery but no longer exist in the dashboard
                         </Text>

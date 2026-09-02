@@ -8,16 +8,20 @@ import FilterFacet, {
 import { useProjects } from '../../../../../hooks/useProjects';
 import { useAiAgentAdminAgents } from '../../hooks/useAiAgentAdmin';
 import { type useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import { buildAgentFilterGroups } from './projectFilterOrdering';
 
 type AgentsFilterProps = Pick<
     ReturnType<typeof useAiAgentAdminFilters>,
     'selectedAgentUuids' | 'setSelectedAgentUuids' | 'selectedProjectUuids'
->;
+> & {
+    hidePreviewProjects?: boolean;
+};
 
 const AgentsFilter: FC<AgentsFilterProps> = ({
     selectedAgentUuids,
     setSelectedAgentUuids,
     selectedProjectUuids,
+    hidePreviewProjects = false,
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const organizationAiAgents = useAiAgentAdminAgents();
@@ -33,72 +37,43 @@ const AgentsFilter: FC<AgentsFilterProps> = ({
         if (!organizationAiAgents.data || !projects) return [];
 
         const search = searchValue.trim().toLowerCase();
-        const projectByUuid = new Map(
-            projects.map((project) => [project.projectUuid, project]),
-        );
 
-        const groupedByProject = new Map<
-            string,
-            { projectName: string; agents: typeof organizationAiAgents.data }
-        >();
-
-        for (const agent of organizationAiAgents.data) {
-            const project = projectByUuid.get(agent.projectUuid);
-            if (!project) continue;
-
-            const existing = groupedByProject.get(agent.projectUuid);
-            if (existing) {
-                existing.agents.push(agent);
-            } else {
-                groupedByProject.set(agent.projectUuid, {
-                    projectName: project.name,
-                    agents: [agent],
-                });
-            }
-        }
-
-        return Array.from(groupedByProject.entries()).map(
-            ([projectUuid, { projectName, agents }]) => ({
-                label: projectName,
-                options: agents
-                    .filter(
-                        (agent) =>
-                            !search ||
-                            agent.name.toLowerCase().includes(search),
-                    )
-                    .map((agent) => {
-                        const disabled =
-                            hasSelectedProjects &&
-                            !selectedProjectsSet.has(projectUuid);
-                        return {
-                            value: agent.uuid,
-                            searchLabel: agent.name,
-                            disabled,
-                            label: (
-                                <Group gap="two" wrap="nowrap">
-                                    <LightdashUserAvatar
-                                        size={16}
-                                        name={agent.name}
-                                        src={agent.imageUrl}
-                                    />
-                                    <Text
-                                        fz="xs"
-                                        c={disabled ? 'ldGray.5' : 'ldGray.9'}
-                                        truncate
-                                    >
-                                        {agent.name}
-                                    </Text>
-                                </Group>
-                            ),
-                        };
-                    }),
-            }),
-        );
+        return buildAgentFilterGroups({
+            agents: organizationAiAgents.data,
+            projects,
+            hidePreviewProjects,
+            selectedProjectUuids,
+            selectedAgentUuids,
+        }).map(({ projectName, agents }) => ({
+            label: projectName,
+            options: agents
+                .filter(
+                    (agent) =>
+                        !search || agent.name.toLowerCase().includes(search),
+                )
+                .map((agent) => ({
+                    value: agent.uuid,
+                    searchLabel: agent.name,
+                    label: (
+                        <Group gap="two" wrap="nowrap">
+                            <LightdashUserAvatar
+                                size={16}
+                                name={agent.name}
+                                src={agent.imageUrl}
+                            />
+                            <Text fz="xs" truncate>
+                                {agent.name}
+                            </Text>
+                        </Group>
+                    ),
+                })),
+        }));
     }, [
         organizationAiAgents.data,
         projects,
-        hasSelectedProjects,
-        selectedProjectsSet,
+        hidePreviewProjects,
+        selectedProjectUuids,
+        selectedAgentUuids,
         searchValue,
     ]);
 

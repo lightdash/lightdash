@@ -4,6 +4,23 @@
     "type": ["object", "null"],
     "required": ["spotlight"],
     "properties": {
+        "content_as_code": {
+            "type": ["object", "null"],
+            "description": "Settings for content-as-code sync between this repo and Lightdash instances",
+            "properties": {
+                "sync": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When true, uploaded content is tracked as Git-backed for content review and write-back workflows."
+                },
+                "path": {
+                    "type": "string",
+                    "default": "lightdash",
+                    "description": "Directory that holds the charts/ and dashboards/ folders, relative to the dbt project directory. Write-back pull requests put content files under it."
+                }
+            },
+            "additionalProperties": false
+        },
         "spotlight": {
             "type": ["object", "null"],
             "properties": {
@@ -212,6 +229,10 @@
                     "type": ["object", "null"],
                     "description": "Override the display label of standard granularities (e.g. week: \"Week starting Monday\"). Keyed by standard granularity name.",
                     "additionalProperties": { "type": "string" }
+                },
+                "pre_aggregate_execution_fallback": {
+                    "type": "boolean",
+                    "description": "Whether a matched query whose pre-aggregate execution fails is served from the source warehouse. When false, the query errors instead. Defaults to true."
                 }
             }
         },

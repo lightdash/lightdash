@@ -13,7 +13,7 @@ The loop is:
 2. Read the current image tag and the public release-safety index.
 3. Run `lightdash upgrade-check` against candidate public versions and select the newest green-reachable target. A required stop becomes the next target. Any next hop that is not green opens a held pull request: a genuinely red hop, and equally one whose safety data is unknown or incomplete. Both hold; neither merges. The held pull request states which of the two it is.
 4. Optionally require the mapped image tag to exist in an OCI registry.
-5. Open a pin pull request containing the complete nine-key verdict JSON.
+5. Open or reuse one pin pull request for the configured branch prefix, containing the complete nine-key verdict JSON. Pull requests for versions already pinned on the default branch close automatically. When a replacement target opens or is reused, older pull requests with the same prefix close automatically. A newer open target remains authoritative if an older planning run finishes later. Pull requests with another prefix are untouched.
 6. Enable auto-merge when configured and green, or send an `[upgrade-hold]` Slack message for a hop that is red or unknown. The escalation is sent once, when the held pull request is opened, not on every subsequent planning run.
 7. After the consumer's deployment workflow finishes, poll `/api/v1/readyz` every 20 seconds and compare the `Lightdash-Version` response header from `/` with the pinned public version. Three consecutive ready and version-matched polls are required.
 8. On failure, open a freeze issue and send an `[upgrade-verify-failed]` Slack message. The automation never rolls back.

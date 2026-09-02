@@ -21,6 +21,7 @@ const AGENT_UUID = 'agent-uuid';
 const CHANNEL_ID = 'C12345';
 const SLACK_USER_ID = 'U12345';
 const THREAD_TS = '1700000000.000100';
+const MESSAGE_TS = '1700000000.000200';
 const SITE_URL = 'https://app.example.com';
 
 const adminUser: SessionUser = {
@@ -93,7 +94,7 @@ const buildService = ({
     return { service, aiAgentModel };
 };
 
-const buildUnmappedChannelArgs = () => {
+const buildUnmappedChannelArgs = ({ threadTs }: { threadTs?: string } = {}) => {
     const say = vi.fn().mockResolvedValue(undefined);
     const postEphemeral = vi.fn().mockResolvedValue(undefined);
     const client = { chat: { postEphemeral } };
@@ -102,7 +103,8 @@ const buildUnmappedChannelArgs = () => {
             organizationUuid: ORGANIZATION_UUID,
             userUuid: adminUser.userUuid,
             channelId: CHANNEL_ID,
-            threadTs: THREAD_TS,
+            messageTs: MESSAGE_TS,
+            threadTs,
             say,
             client,
             slackUserId: SLACK_USER_ID,
@@ -157,7 +159,9 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
             requireExplicitLinking: true,
             systemAgentFallbackEnabled: true,
         });
-        const { args, say, postEphemeral } = buildUnmappedChannelArgs();
+        const { args, say, postEphemeral } = buildUnmappedChannelArgs({
+            threadTs: THREAD_TS,
+        });
 
         const result = await (
             service as unknown as {
@@ -180,6 +184,29 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
         expect(aiAgentModel.addSlackChannelIntegration).not.toHaveBeenCalled();
         expect(aiAgentModel.findAllAgents).not.toHaveBeenCalled();
         expect(say).not.toHaveBeenCalled();
+    });
+
+    it('posts the ephemeral without thread_ts for a top-level mention', async () => {
+        // Slack drops ephemeral thread replies when the thread is not active
+        // yet, so a first mention must get a channel-level ephemeral.
+        const { service } = buildService({ requireExplicitLinking: true });
+        const { args, postEphemeral } = buildUnmappedChannelArgs();
+
+        const result = await (
+            service as unknown as {
+                resolveAgentForUnmappedSlackChannel: (
+                    a: typeof args,
+                ) => Promise<unknown>;
+            }
+        ).resolveAgentForUnmappedSlackChannel(args);
+
+        expect(result).toBe('handled');
+        expect(postEphemeral).toHaveBeenCalledTimes(1);
+        expect(postEphemeral.mock.calls[0][0]).not.toHaveProperty('thread_ts');
+        expect(postEphemeral.mock.calls[0][0]).toMatchObject({
+            channel: CHANNEL_ID,
+            user: SLACK_USER_ID,
+        });
     });
 
     it('auto-links the single manageable agent when strict mode is off', async () => {

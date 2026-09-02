@@ -21,7 +21,7 @@ export const MetricsVisualizationEmptyState = () => {
                             <Text fw={600} fz="md" c="ldDark.7" ta="center">
                                 Data unavailable for selected range
                             </Text>
-                            <Text fz="sm" c="ldGray.6" ta="center">
+                            <Text fz="sm" c="dimmed" ta="center">
                                 We'd love to show you more, but the data isn't
                                 available for this range. Try selecting a
                                 different range to continue exploring!

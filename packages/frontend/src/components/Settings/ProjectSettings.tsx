@@ -11,16 +11,20 @@ import {
     matchPath,
     Navigate,
     useLocation,
-    useParams,
     useRoutes,
     type RouteObject,
 } from 'react-router';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
+import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
+import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useProject } from '../../hooks/useProject';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
@@ -44,6 +48,7 @@ import ProjectAppearance from '../ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../ProjectConnection';
 import ProjectParameters from '../ProjectParameters';
 import ProjectPreviewExpiration from '../ProjectPreviewExpiration';
+import ProjectResultsCache from '../ProjectResultsCache';
 import ProjectTablesConfiguration from '../ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsAgentDataScope from '../SettingsAgentDataScope';
 import SettingsQueryTimezone from '../SettingsQueryTimezone';
@@ -72,10 +77,10 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
     </SettingsPage>
 );
 
-const ProjectSettings: FC = () => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-    }>();
+const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
+    externalSourcesEnabled,
+}) => {
+    const projectUuid = useProjectUuid();
     const location = useLocation();
 
     const { health, user } = useApp();
@@ -96,6 +101,9 @@ const ProjectSettings: FC = () => {
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
         isDataAppsEnabled &&
@@ -103,6 +111,31 @@ const ProjectSettings: FC = () => {
         (user.data?.ability.can(
             'manage',
             subject('ExternalConnection', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const canManageExternalSources =
+        externalSourcesEnabled &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const contentReviewAvailability = useContentReviewAvailability();
+    const canViewContentReviewSettings =
+        contentReviewAvailability.isAvailable &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Project', {
                 organizationUuid: project.organizationUuid,
                 projectUuid: project.projectUuid,
             }),
@@ -164,6 +197,23 @@ const ProjectSettings: FC = () => {
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canManageExternalSources
+                ? [
+                      {
+                          path: `/externalSources`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="External sources"
+                                  description="Upload files to query them alongside your warehouse."
+                              >
+                                  <ExternalSourcesSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/usageAnalytics`,
                 element: (
@@ -201,6 +251,23 @@ const ProjectSettings: FC = () => {
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canViewContentReviewSettings
+                ? [
+                      {
+                          path: `/reviewRequests`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Review requests"
+                                  description="Who reviews content submitted from personal spaces, and what happens on approval."
+                              >
+                                  <ContentReviewSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/dataOps`,
                 element: (
@@ -334,6 +401,40 @@ const ProjectSettings: FC = () => {
                       },
                   ]
                 : []),
+            ...(isGitProject
+                ? [
+                      {
+                          path: `/contentReview`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Content review"
+                                  description="Unpublished changes made in this project, awaiting a reviewer to write them back to the repo."
+                              >
+                                  <ContentReviewPage
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
+            ...(isResultsCacheEnabled
+                ? [
+                      {
+                          path: `/caching`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Results caching"
+                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                              >
+                                  <ProjectResultsCache
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/preAggregates`,
                 children: [
@@ -397,7 +498,7 @@ const ProjectSettings: FC = () => {
                                           <Title order={5}>
                                               Allowed origins
                                           </Title>
-                                          <Text c="ldGray.6" fz="xs">
+                                          <Text c="dimmed" fz="xs">
                                               CORS controls which external
                                               browser origins can call the
                                               Lightdash API. Add exact origins
@@ -432,8 +533,11 @@ const ProjectSettings: FC = () => {
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
+        isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
+        canManageExternalSources,
+        canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
@@ -452,12 +556,26 @@ const ProjectSettings: FC = () => {
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
+    const isAwaitingCachingRoute =
+        isResultsCacheFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/caching',
+            location.pathname,
+        );
+    const isAwaitingReviewRequestsRoute =
+        contentReviewAvailability.isLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/reviewRequests',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
-        isAwaitingDataAppConnectionsRoute
+        isAwaitingDataAppConnectionsRoute ||
+        isAwaitingCachingRoute ||
+        isAwaitingReviewRequestsRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>

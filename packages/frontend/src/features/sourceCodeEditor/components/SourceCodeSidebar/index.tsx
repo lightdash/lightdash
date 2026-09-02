@@ -30,7 +30,7 @@ const SourceCodeSidebar: FC<SourceCodeSidebarProps> = ({
     <Box className={styles.sidebar}>
         <Stack gap="xs" className={styles.header}>
             <Title order={5}>Source Code</Title>
-            <Text fz="xs" c="ldGray.6">
+            <Text fz="xs" c="dimmed">
                 Browse and edit your dbt project files
             </Text>
             <BranchSelector

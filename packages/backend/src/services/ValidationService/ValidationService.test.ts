@@ -103,11 +103,15 @@ const spaceModel = {
     find: vi.fn(async () => []),
 };
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
+        organizationUuid: 'orgUuid',
+        projectUuid: 'projectUuid',
         inheritsFromOrgOrProject: false,
         access: [],
+        admins: [],
+        directOnly: false,
     })),
-    getSpacesAccessContext: vi.fn(async () => ({})),
+    resolveAccessBatch: vi.fn(async () => []),
     getAccessibleSpaceUuids: vi.fn(async () => []),
 };
 describe('validation', () => {
@@ -177,6 +181,116 @@ describe('validation', () => {
         expect(
             await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
+    });
+    it('Should report a split explore for a chart using the original name', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        const sourceBExplore = {
+            ...sourceAExplore,
+            name: 'sourceB__orders',
+            label: 'sourceB__orders',
+            baseTable: 'sourceB__orders',
+            tables: {
+                sourceB__orders: {
+                    ...sourceAExplore.tables.sourceA__orders,
+                    name: 'sourceB__orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+            [sourceBExplore.name]: sourceBExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                chartUuid: 'chartUuid',
+                error: 'Explore "orders" was split into "sourceA__orders" and "sourceB__orders". Pick one.',
+                errorType: 'explore split',
+                source: ValidationSourceType.Chart,
+            }),
+        ]);
+    });
+
+    it('keeps a missing-model error when an original name has one match', async () => {
+        const sourceAExplore = {
+            ...explore,
+            name: 'sourceA__orders',
+            label: 'sourceA__orders',
+            baseTable: 'sourceA__orders',
+            tables: {
+                sourceA__orders: {
+                    ...explore.tables.table,
+                    name: 'sourceA__orders',
+                    originalName: 'orders',
+                },
+            },
+        };
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce({
+            [sourceAExplore.name]: sourceAExplore,
+        });
+        vi.mocked(
+            savedChartModel.findChartsForValidation,
+        ).mockResolvedValueOnce([
+            {
+                ...chartForValidation,
+                tableName: 'orders',
+                filters: {},
+                dimensions: ['orders_amount'],
+                metrics: [],
+                sorts: [],
+                customMetrics: [],
+                tableCalculations: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([
+            expect.objectContaining({
+                error: "Model error: the model 'orders' no longer exists",
+                errorType: ValidationErrorType.Model,
+            }),
+        ]);
     });
     it('Should validate project with dimension errors', async () => {
         (
@@ -1249,7 +1363,7 @@ describe('ValidationService.groupValidationsByRootCause', () => {
         expect(summary.totalAffectedItems).toBe(1);
     });
 
-    it('excludes chart configuration warnings and keeps masked private content in counts', () => {
+    it('excludes chart configuration warnings and keeps content without a uuid in counts', () => {
         const summary = ValidationService.groupValidationsByRootCause([
             chartModelError('chart-1', 'Chart one', 0),
             chartModelError(undefined, 'Private content', 0),
@@ -1381,5 +1495,54 @@ describe('ValidationService.getValidationSummary', () => {
                 'projectUuid',
             ),
         ).rejects.toThrowError(ForbiddenError);
+    });
+
+    it('excludes content in spaces the user cannot see, so chip counts match the table', async () => {
+        const chartError = (
+            chartUuid: string,
+            name: string,
+            spaceUuid: string,
+        ) => ({
+            validationId: null,
+            createdAt: new Date(),
+            projectUuid: 'projectUuid',
+            validationUuid: `validation-${chartUuid}`,
+            source: ValidationSourceType.Chart,
+            name,
+            error: "Model error: the model 'orders' no longer exists",
+            errorType: ValidationErrorType.Model,
+            chartUuid,
+            chartViews: 0,
+            tableName: 'orders',
+            spaceUuid,
+        });
+        (validationModel.get as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                chartError('chart-public', 'Public chart', 'public-space'),
+                chartError('chart-private', 'Private chart', 'private-space'),
+            ],
+        );
+        spaceModel.find.mockResolvedValueOnce([
+            { uuid: 'public-space' },
+            { uuid: 'private-space' },
+        ] as AnyType);
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValueOnce([
+            'public-space',
+        ] as AnyType);
+
+        const summary = await validationService.getValidationSummary(
+            { ...user, role: OrganizationMemberRole.DEVELOPER },
+            'projectUuid',
+        );
+
+        expect(summary.totalErrors).toBe(1);
+        expect(summary.totalAffectedItems).toBe(1);
+        expect(summary.groups[0]).toMatchObject({
+            errorCount: 1,
+            affectedCharts: 1,
+        });
+        expect(
+            summary.groups[0]!.affectedContent.map((content) => content.uuid),
+        ).toEqual(['chart-public']);
     });
 });

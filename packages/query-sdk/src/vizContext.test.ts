@@ -6,9 +6,12 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import type { Transport } from './types';
 import {
+    buildVizDrillDown,
     buildVizUnderlyingData,
     getFormatted,
     getRaw,
+    resolveSeriesColor,
+    resolveValueColor,
     toVizContextState,
     type DataAppVizContextMessage,
     type VizContextOptionValue,
@@ -52,6 +55,12 @@ const inboundOptionsRemainOptional: Assert<
 const inboundPaletteRemainsOptional: Assert<
     IsOptional<DataAppVizContextMessage, 'colorPalette'>
 > = true;
+const inboundSeriesColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'seriesColors'>
+> = true;
+const inboundValueColorsRemainOptional: Assert<
+    IsOptional<DataAppVizContextMessage, 'valueColors'>
+> = true;
 void [
     messageKeysMatchHost,
     messageTypeMatchesHost,
@@ -59,6 +68,8 @@ void [
     hostPayloadIsAcceptedBySdk,
     inboundOptionsRemainOptional,
     inboundPaletteRemainsOptional,
+    inboundSeriesColorsRemainOptional,
+    inboundValueColorsRemainOptional,
 ];
 
 const row: VizContextRow = {
@@ -188,6 +199,38 @@ describe('toVizContextState', () => {
         ).toEqual(['#111', '#222']);
     });
 
+    it('normalizes host-resolved series and value colors', () => {
+        const state = toVizContextState(
+            message({
+                seriesColors: {
+                    count_completed: '#00ff00',
+                    invalid: 42 as never,
+                },
+                valueColors: {
+                    orders_status: {
+                        completed: '#00ff00',
+                        invalid: null as never,
+                    },
+                    invalid: [] as never,
+                },
+            }),
+        );
+
+        expect(state.seriesColors).toEqual({
+            count_completed: '#00ff00',
+        });
+        expect(state.valueColors).toEqual({
+            orders_status: { completed: '#00ff00' },
+        });
+    });
+
+    it('defaults resolved colors to empty maps for older hosts', () => {
+        const state = toVizContextState(message({}));
+
+        expect(state.seriesColors).toEqual({});
+        expect(state.valueColors).toEqual({});
+    });
+
     it('still normalises fieldMapping and rows', () => {
         expect(
             toVizContextState(
@@ -201,8 +244,11 @@ describe('toVizContextState', () => {
             rows: [],
             options: {},
             colorPalette: [],
+            seriesColors: {},
+            valueColors: {},
             pivotDetails: null,
             underlyingDataEnabled: false,
+            drillDownEnabled: false,
         });
     });
 
@@ -250,6 +296,62 @@ describe('toVizContextState', () => {
 
     it('defaults missing pivot metadata to null', () => {
         expect(toVizContextState(message({})).pivotDetails).toBeNull();
+    });
+});
+
+describe('resolved color helpers', () => {
+    const context = {
+        colorPalette: ['#111111', '#222222'],
+        seriesColors: { count_completed: '#00ff00' },
+        valueColors: { orders_status: { completed: '#00ff00' } },
+    };
+
+    it('uses the host-resolved pivot-column color before the palette', () => {
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_completed' },
+                1,
+            ),
+        ).toBe('#00ff00');
+        expect(
+            resolveSeriesColor(
+                context,
+                { pivotColumnName: 'count_pending' },
+                1,
+            ),
+        ).toBe('#222222');
+    });
+
+    it('uses the host-resolved raw-value color before the palette', () => {
+        expect(
+            resolveValueColor(context, 'orders_status', 'completed', 1),
+        ).toBe('#00ff00');
+        expect(resolveValueColor(context, 'orders_status', 'pending', 1)).toBe(
+            '#222222',
+        );
+    });
+
+    it('stringifies non-string raw values and tolerates an empty palette', () => {
+        expect(
+            resolveValueColor(
+                {
+                    colorPalette: [],
+                    seriesColors: {},
+                    valueColors: { orders_priority: { '1': '#abcdef' } },
+                },
+                'orders_priority',
+                1,
+                0,
+            ),
+        ).toBe('#abcdef');
+        expect(
+            resolveSeriesColor(
+                { colorPalette: [], seriesColors: {}, valueColors: {} },
+                { pivotColumnName: 'missing' },
+                0,
+            ),
+        ).toBeUndefined();
     });
 });
 
@@ -362,5 +464,72 @@ describe('buildVizUnderlyingData', () => {
                 metric: 'value',
             }),
         ).rejects.toThrow(/rebuild the app/i);
+    });
+});
+
+const drillMessage = (
+    drillDown?: Record<string, unknown>,
+): DataAppVizContextMessage =>
+    ({
+        type: 'lightdash:sdk:data-app-viz-context',
+        fieldMapping: {},
+        rows: [],
+        ...(drillDown !== undefined ? { drillDown } : {}),
+    }) as DataAppVizContextMessage;
+
+describe('toVizContextState drill-down flag', () => {
+    it('reads drillDown.enabled strictly', () => {
+        expect(
+            toVizContextState(drillMessage({ enabled: true })).drillDownEnabled,
+        ).toBe(true);
+        expect(toVizContextState(drillMessage()).drillDownEnabled).toBe(false);
+        expect(
+            toVizContextState(drillMessage({ enabled: 'yes' }))
+                .drillDownEnabled,
+        ).toBe(false);
+    });
+});
+
+describe('buildVizDrillDown', () => {
+    const transportWith = (open?: Transport['openVizDrillDown']) =>
+        ({ openVizDrillDown: open }) as unknown as Transport;
+
+    it('is enabled only when the host flag and transport method are both present', () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        expect(buildVizDrillDown(true, transportWith(open)).enabled).toBe(true);
+        expect(buildVizDrillDown(false, transportWith(open)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, transportWith(undefined)).enabled).toBe(
+            false,
+        );
+        expect(buildVizDrillDown(true, null).enabled).toBe(false);
+    });
+
+    it('open() forwards the intent through the transport', async () => {
+        const open = vi.fn().mockResolvedValue(undefined);
+        const row = { m: { value: { raw: 1, formatted: '1' } } };
+        await buildVizDrillDown(true, transportWith(open)).open({
+            row,
+            metric: 'value',
+        });
+        expect(open).toHaveBeenCalledWith({ row, metric: 'value' });
+    });
+
+    it('open() rejects with clear messages when disabled or unsupported', async () => {
+        await expect(
+            buildVizDrillDown(false, transportWith(vi.fn())).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow('Drill-down is not enabled for this visualization.');
+        await expect(
+            buildVizDrillDown(true, transportWith(undefined)).open({
+                row: {},
+                metric: 'value',
+            }),
+        ).rejects.toThrow(
+            'This SDK build predates drill-down. Rebuild the app on the current template.',
+        );
     });
 });

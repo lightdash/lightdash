@@ -37,7 +37,9 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate } from 'react-router';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import usePinnedItemsContext from '../../../../providers/PinnedItems/usePinnedItemsContext';
 import MantineIcon from '../../MantineIcon';
 import { getResourceName, getResourceUrl } from '../resourceUtils';
@@ -66,6 +68,7 @@ type DraggableItemProps = Pick<ResourceViewGridProps, 'onAction'> & {
     allowDelete?: boolean;
     onAction: (newAction: ResourceViewItemActionState) => void;
     projectUuid: string;
+    projectUrlIdentifier: string;
     hasReorder: boolean;
     shouldSuppressClick: () => boolean;
     markHandleInteraction: () => void;
@@ -141,6 +144,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
     allowDelete,
     onAction,
     projectUuid,
+    projectUrlIdentifier,
     hasReorder,
     shouldSuppressClick,
     markHandleInteraction,
@@ -163,7 +167,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
     });
 
     const showDragIcon = (isHovered && hasReorder) || isDragging;
-    const resourceUrl = getResourceUrl(projectUuid, item);
+    const resourceUrl = getResourceUrl(projectUuid, item, projectUrlIdentifier);
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -194,7 +198,7 @@ const DraggableItem: FC<DraggableItemProps> = ({
             <MantineIcon
                 display={showDragIcon ? 'block' : 'none'}
                 size="sm"
-                color="ldGray.6"
+                color="dimmed"
                 icon={IconGripVertical}
             />
         </Box>
@@ -258,7 +262,8 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     hasReorder = false,
 }) => {
     const { reorderItems, allowDelete } = usePinnedItemsContext();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const [activeId, setActiveId] = useState<string | null>(null);
     const dragStateRef = useRef({
         isDragging: false,
@@ -405,7 +410,7 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                 return (
                     <Stack gap={5} key={group.name}>
                         {localGroupedItems.length > 1 && (
-                            <Text tt="uppercase" fz="xs" fw={600} c="ldGray.6">
+                            <Text tt="uppercase" fz="xs" fw={600} c="dimmed">
                                 {group.name}
                             </Text>
                         )}
@@ -435,6 +440,9 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
                                             allowDelete={allowDelete}
                                             onAction={onAction}
                                             projectUuid={projectUuid}
+                                            projectUrlIdentifier={
+                                                projectUrlIdentifier
+                                            }
                                             hasReorder={hasReorder}
                                             shouldSuppressClick={
                                                 shouldSuppressClick

@@ -1,4 +1,9 @@
 import { MissingConfigError } from '@lightdash/common';
+import {
+    getLlmGatewayHostname,
+    normalizeAnthropicGatewayBaseUrl,
+    normalizeLlmGatewayBaseUrl,
+} from '../../../config/aiGatewayConfig';
 
 /**
  * The subset of the Bedrock provider config the `claude` CLI needs: a region
@@ -6,15 +11,24 @@ import { MissingConfigError } from '@lightdash/common';
  * structurally a subset of `lightdashConfig.ai.copilot.providers.bedrock`, so
  * that config can be passed straight through without remapping.
  */
-export type ClaudeCodeBedrockConfig =
-    | { region: string; apiKey: string }
+export type ClaudeCodeBedrockConfig = {
+    region: string;
+    baseUrl?: string;
+    claudeCodeSkipAuth?: boolean;
+} & (
+    | { apiKey: string }
     | {
-          region: string;
           accessKeyId: string;
           secretAccessKey: string;
           sessionToken?: string;
       }
-    | { region: string; useDefaultCredentials: true };
+    | { useDefaultCredentials: true }
+);
+
+export type ClaudeCodeAnthropicConfig = {
+    apiKey: string;
+    baseUrl?: string;
+};
 
 /**
  * The slice of the AI copilot config the Claude CLI env depends on: the active
@@ -24,8 +38,38 @@ export type ClaudeCodeBedrockConfig =
  */
 export type ClaudeCodeProviderConfig = {
     defaultProvider: string;
-    providers: { bedrock?: ClaudeCodeBedrockConfig };
+    providers: {
+        anthropic?: ClaudeCodeAnthropicConfig;
+        bedrock?: ClaudeCodeBedrockConfig;
+    };
 };
+
+export const CLAUDE_CODE_SECRET_ENV_KEYS = [
+    'ANTHROPIC_API_KEY',
+    'ANTHROPIC_AUTH_TOKEN',
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_SESSION_TOKEN',
+    'AWS_BEARER_TOKEN_BEDROCK',
+] as const;
+
+export const buildAnthropicClaudeCodeEnv = (
+    apiKey: string,
+    baseUrl?: string | null,
+): Record<string, string> =>
+    baseUrl
+        ? {
+              ANTHROPIC_BASE_URL: normalizeAnthropicGatewayBaseUrl(baseUrl),
+              ANTHROPIC_AUTH_TOKEN: apiKey,
+          }
+        : { ANTHROPIC_API_KEY: apiKey };
+
+export const anthropicClaudeCodeAllowedHosts = (
+    baseUrl?: string | null,
+): string[] =>
+    baseUrl
+        ? [getLlmGatewayHostname(baseUrl, 'ANTHROPIC_BASE_URL')]
+        : ['api.anthropic.com'];
 
 /**
  * Resolves the Bedrock config the data-apps pipeline should use:
@@ -73,13 +117,36 @@ export const buildClaudeCodeEnv = (
     const bedrock = resolveBedrockConfig(copilot);
 
     if (!bedrock) {
-        return { ANTHROPIC_API_KEY: resolveAnthropicApiKey() };
+        return buildAnthropicClaudeCodeEnv(
+            resolveAnthropicApiKey(),
+            copilot.providers.anthropic?.baseUrl,
+        );
+    }
+    if (bedrock.claudeCodeSkipAuth && !bedrock.baseUrl) {
+        throw new MissingConfigError(
+            'CLAUDE_CODE_SKIP_BEDROCK_AUTH=1 requires BEDROCK_BASE_URL so Claude Code cannot make unauthenticated requests to the public Bedrock endpoint.',
+        );
     }
 
     const base: Record<string, string> = {
         CLAUDE_CODE_USE_BEDROCK: '1',
         AWS_REGION: bedrock.region,
+        ...(bedrock.baseUrl
+            ? {
+                  ANTHROPIC_BEDROCK_BASE_URL: normalizeLlmGatewayBaseUrl(
+                      bedrock.baseUrl,
+                      'BEDROCK_BASE_URL',
+                  ),
+              }
+            : {}),
+        ...(bedrock.claudeCodeSkipAuth
+            ? { CLAUDE_CODE_SKIP_BEDROCK_AUTH: '1' }
+            : {}),
     };
+
+    if (bedrock.claudeCodeSkipAuth) {
+        return base;
+    }
 
     if ('apiKey' in bedrock) {
         return { ...base, AWS_BEARER_TOKEN_BEDROCK: bedrock.apiKey };
@@ -106,10 +173,18 @@ export const buildClaudeCodeEnv = (
  */
 export const describeClaudeCodeEnv = (env: Record<string, string>): string => {
     if (env.CLAUDE_CODE_USE_BEDROCK !== '1') {
-        return 'Anthropic API';
+        return env.ANTHROPIC_BASE_URL
+            ? 'Anthropic API via gateway'
+            : 'Anthropic API';
     }
-    const method = 'AWS_BEARER_TOKEN_BEDROCK' in env ? 'API key' : 'IAM';
-    return `Bedrock (${method}, region=${env.AWS_REGION})`;
+    let method = 'IAM';
+    if (env.CLAUDE_CODE_SKIP_BEDROCK_AUTH === '1') {
+        method = 'gateway-managed auth';
+    } else if ('AWS_BEARER_TOKEN_BEDROCK' in env) {
+        method = 'API key';
+    }
+    const gateway = env.ANTHROPIC_BEDROCK_BASE_URL ? ' via gateway' : '';
+    return `Bedrock (${method}, region=${env.AWS_REGION})${gateway}`;
 };
 
 /**
@@ -123,7 +198,12 @@ export const claudeCodeAllowedHosts = (
 ): string[] => {
     const bedrock = resolveBedrockConfig(copilot);
     if (!bedrock) {
-        return ['api.anthropic.com'];
+        return anthropicClaudeCodeAllowedHosts(
+            copilot.providers.anthropic?.baseUrl,
+        );
+    }
+    if (bedrock.baseUrl) {
+        return [getLlmGatewayHostname(bedrock.baseUrl, 'BEDROCK_BASE_URL')];
     }
     return [
         `bedrock-runtime.${bedrock.region}.amazonaws.com`,

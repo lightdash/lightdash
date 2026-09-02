@@ -22,11 +22,11 @@ import {
 } from '@mantine/core';
 import { IconCode } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import FieldIcon from '../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ItemDetailPreview } from '../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import { SingleItemModalContent } from '../../../../../components/Explorer/WriteBackModal';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -48,7 +48,7 @@ const MetricDimensionItem: FC<{
     customMetric,
     onWriteBackCustomMetric,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { track } = useTracking();
     const [isCodeIconHovered, setIsCodeIconHovered] = useState(false);
@@ -127,12 +127,9 @@ const MetricDimensionItem: FC<{
         <HoverCard
             openDelay={300}
             keepMounted={false}
-            shadow="subtle"
-            withinPortal
             withArrow
             disabled={isHoverCardDisabled}
             position="top"
-            radius="md"
             offset={10}
         >
             <HoverCard.Target>
@@ -140,7 +137,7 @@ const MetricDimensionItem: FC<{
                     size="xs"
                     variant="default"
                     className={classes.itemButton}
-                    style={{ backgroundColor: itemColors.bg }}
+                    bg={itemColors.bg}
                     styles={{
                         inner: {
                             color: 'var(--mantine-color-ldDark-9)',
@@ -157,7 +154,6 @@ const MetricDimensionItem: FC<{
                                 openDelay={200}
                                 position="top"
                                 label="Write back to dbt"
-                                withArrow
                                 offset={5}
                             >
                                 <ActionIcon
@@ -236,7 +232,7 @@ const AgentVisualizationMetricsAndDimensions: FC<Props> = ({
     metricQuery,
     fieldsMap,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const [writeBackModal, setWriteBackModal] = useState<{
         isOpen: boolean;
         metric: AdditionalMetric | null;

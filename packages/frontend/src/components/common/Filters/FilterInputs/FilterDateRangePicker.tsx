@@ -2,6 +2,7 @@ import { Flex, Text } from '@mantine/core';
 import { type DateInputProps, type DayOfWeek } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
+import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import FilterDatePicker from './FilterDatePicker';
 import styles from './FilterDateRangePicker.module.css';
 import { useDraftDate } from './useDraftDate';
@@ -34,6 +35,7 @@ const FilterDateRangePicker: FC<Props> = ({
     invalidEndValue,
     ...rest
 }) => {
+    const getUiString = useUiStrings();
     const [date1, setDate1] = useDraftDate(startValue);
     const [date2, setDate2] = useDraftDate(endValue);
 
@@ -42,7 +44,7 @@ const FilterDateRangePicker: FC<Props> = ({
             <FilterDatePicker
                 size="xs"
                 disabled={disabled}
-                placeholder="Start date"
+                placeholder={getUiString('filters.inputs.startDate')}
                 maxDate={
                     date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
                 }
@@ -66,7 +68,7 @@ const FilterDateRangePicker: FC<Props> = ({
             <FilterDatePicker
                 size="xs"
                 disabled={disabled}
-                placeholder="End date"
+                placeholder={getUiString('filters.inputs.endDate')}
                 minDate={dayjs(date1).add(1, 'day').toDate()}
                 firstDayOfWeek={firstDayOfWeek}
                 invalidValue={invalidEndValue}

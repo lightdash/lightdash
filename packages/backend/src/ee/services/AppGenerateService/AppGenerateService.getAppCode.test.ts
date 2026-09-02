@@ -21,7 +21,7 @@ vi.mock('ai', () => ({
 
 // Mock appAuthz so permission checks are controllable in tests
 vi.mock('./appAuthz', () => ({
-    assertCanViewApp: vi.fn().mockResolvedValue(undefined),
+    assertCanViewApp: vi.fn().mockResolvedValue({ directOnly: false } as never),
 }));
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ function buildService(overrides: {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const spacePermissionService = {
-        getSpaceAccessContext: vi.fn().mockResolvedValue({}),
+        resolveAccess: vi.fn().mockResolvedValue({}),
     };
 
     const svc = new AppGenerateService({
@@ -212,6 +212,7 @@ function buildService(overrides: {
         analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
+        userModel: {} as never,
         appModel: fullAppModel as never,
         featureFlagModel: featureFlagModel as never,
         organizationDesignModel: fullOrganizationDesignModel as never,
@@ -230,6 +231,9 @@ function buildService(overrides: {
         externalConnectionModel: fullExternalConnectionModel as never,
         sandboxRegistryModel: {} as never,
         orgAiCopilotConfigResolver: {} as never,
+        sandboxManager: null,
+        appRuntimeS3: null,
+        chartRegistryClient: {} as never,
     });
 
     vi.spyOn(
@@ -260,7 +264,9 @@ describe('AppGenerateService.getAppCode', () => {
     });
 
     beforeEach(() => {
-        vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        vi.mocked(assertCanViewApp).mockResolvedValue({
+            directOnly: false,
+        } as never);
         analyticsTrackSpy.mockClear();
     });
 

@@ -37,6 +37,8 @@ import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
@@ -46,11 +48,11 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 
 const Space: FC = () => {
-    const { projectUuid, spaceUuid } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid()!;
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { spaceUuid } = useParams<{
         spaceUuid: string;
     }>() as {
-        projectUuid: string;
         spaceUuid: string;
     };
     const {
@@ -175,7 +177,7 @@ const Space: FC = () => {
                             items={[
                                 {
                                     title: 'Spaces',
-                                    to: `/projects/${projectUuid}/spaces`,
+                                    to: `/projects/${projectUrlIdentifier}/spaces`,
                                 },
                                 ...(space.breadcrumbs?.map(
                                     (breadcrumb, index) => {
@@ -208,7 +210,7 @@ const Space: FC = () => {
                                             active: isLastBreadcrumb,
                                             ...(isAccessible
                                                 ? {
-                                                      to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
+                                                      to: `/projects/${projectUrlIdentifier}/spaces/${breadcrumb.uuid}`,
                                                       onClick: () => {
                                                           if (
                                                               user.data
@@ -252,7 +254,6 @@ const Space: FC = () => {
                                     userCanManageSpace) && (
                                     <Menu
                                         position="bottom-end"
-                                        shadow="md"
                                         closeOnItemClick
                                         withArrow
                                         arrowPosition="center"
@@ -399,11 +400,11 @@ const Space: FC = () => {
                                             ) {
                                                 if (space?.parentSpaceUuid) {
                                                     void navigate(
-                                                        `/projects/${projectUuid}/spaces/${space.parentSpaceUuid}`,
+                                                        `/projects/${projectUrlIdentifier}/spaces/${space.parentSpaceUuid}`,
                                                     );
                                                 } else {
                                                     void navigate(
-                                                        `/projects/${projectUuid}/home`,
+                                                        `/projects/${projectUrlIdentifier}/home`,
                                                     );
                                                 }
                                             }
@@ -434,6 +435,9 @@ const Space: FC = () => {
                                 ContentType.SPACE,
                                 ContentType.DATA_APP,
                             ],
+                            // Vizs are spaceless today, but declare the
+                            // exclusion rather than rely on that invariant.
+                            dataAppVizsFilter: 'exclude',
                         }}
                         contentTypeFilter={{
                             defaultValue: undefined,
@@ -468,7 +472,7 @@ const Space: FC = () => {
                         onClose={() => setIsCreateDashboardOpen(false)}
                         onConfirm={(dashboard) => {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards/${dashboard.uuid}/edit`,
+                                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
                             );
 
                             setIsCreateDashboardOpen(false);

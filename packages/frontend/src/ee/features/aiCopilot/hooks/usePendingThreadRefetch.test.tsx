@@ -50,6 +50,7 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
         createdFrom: 'web_app',
         title: null,
         titleGeneratedAt: null,
+        liveStatus: null,
         firstMessage: { uuid: 'message-1', message: 'Question' },
         user: { uuid: 'user-1', name: 'User' },
         compactions: [],
@@ -99,7 +100,30 @@ describe('usePendingThreadRefetch', () => {
             ),
         );
 
-        expect(result.current.isPending).toBe(false);
+        expect(result.current.isBackgroundWorkPending).toBe(false);
+    });
+
+    it('polls pending background work without marking the thread pending', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+        const refetch = vi.fn().mockResolvedValue({ isError: false });
+
+        const { result } = renderHook(() =>
+            usePendingThreadRefetch(
+                pendingThread('2026-08-11T12:00:00.001Z'),
+                'thread-1',
+                refetch,
+            ),
+        );
+
+        expect(result.current.isThreadPending).toBe(false);
+        expect(result.current.isBackgroundWorkPending).toBe(true);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(5_000);
+        });
+
+        expect(refetch).toHaveBeenCalledOnce();
     });
 
     it('polls a pending thread while recovering its connection', async () => {
@@ -108,7 +132,12 @@ describe('usePendingThreadRefetch', () => {
         const refetch = vi.fn().mockResolvedValue({ isError: false });
         const thread = threadWithAssistantStatus('pending');
 
-        renderHook(() => usePendingThreadRefetch(thread, 'thread-1', refetch));
+        const { result } = renderHook(() =>
+            usePendingThreadRefetch(thread, 'thread-1', refetch),
+        );
+
+        expect(result.current.isThreadPending).toBe(true);
+        expect(result.current.isBackgroundWorkPending).toBe(false);
 
         await act(async () => {
             await vi.advanceTimersByTimeAsync(5_000);
@@ -148,6 +177,24 @@ describe('usePendingThreadRefetch', () => {
         );
     });
 
+    it('does not keep recovery active for pending background work', () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
+        streamState.recovering = true;
+
+        renderHook(() =>
+            usePendingThreadRefetch(
+                pendingThread('2026-08-11T12:00:00.001Z'),
+                'thread-1',
+                vi.fn(),
+            ),
+        );
+
+        expect(dispatchMock).toHaveBeenCalledWith(
+            stopStreaming({ threadUuid: 'thread-1' }),
+        );
+    });
+
     it('refetches once more before expiring an active writeback', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-08-11T12:00:00.000Z'));
@@ -161,12 +208,12 @@ describe('usePendingThreadRefetch', () => {
             ),
         );
 
-        expect(result.current.isPending).toBe(true);
+        expect(result.current.isBackgroundWorkPending).toBe(true);
 
         await act(async () => {
             await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
         });
-        expect(result.current.isPending).toBe(true);
+        expect(result.current.isBackgroundWorkPending).toBe(true);
         refetch.mockClear();
 
         await act(async () => {
@@ -174,6 +221,6 @@ describe('usePendingThreadRefetch', () => {
         });
 
         expect(refetch).toHaveBeenCalledTimes(1);
-        expect(result.current.isPending).toBe(false);
+        expect(result.current.isBackgroundWorkPending).toBe(false);
     });
 });

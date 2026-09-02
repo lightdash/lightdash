@@ -1,6 +1,11 @@
 import {
+    type AiReviewLinearBackfillResult,
+    type AiReviewLinearRouting,
+    type ApiAiReviewLinearBackfillResponse,
+    type ApiAiReviewLinearRoutingResponse,
     type ApiAiReviewNotificationSettingsResponse,
     type ApiError,
+    type UpdateAiReviewLinearRouting,
     type UpdateAiReviewNotificationSettings,
 } from '@lightdash/common';
 import {
@@ -13,9 +18,12 @@ import {
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
+const reviewApi = lightdashApi; // pragma: allowlist secret
+
 type Settings = ApiAiReviewNotificationSettingsResponse['results'];
 
 const QUERY_KEY = ['ai-review-notification-settings'];
+const LINEAR_ROUTING_QUERY_KEY = ['ai-review-linear-routing'];
 
 const getReviewNotificationSettings = async () =>
     lightdashApi<Settings>({
@@ -69,6 +77,82 @@ export const useUpdateReviewNotificationSettings = (
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update review notification settings',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const getReviewLinearRouting = async () =>
+    reviewApi<ApiAiReviewLinearRoutingResponse['results']>({
+        url: `/aiAgents/admin/review-linear-routing`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useReviewLinearRouting = (options?: { enabled?: boolean }) =>
+    useQuery<AiReviewLinearRouting, ApiError>({
+        queryKey: LINEAR_ROUTING_QUERY_KEY,
+        queryFn: getReviewLinearRouting,
+        enabled: options?.enabled ?? true,
+        keepPreviousData: true,
+    });
+
+const updateReviewLinearRouting = async (data: UpdateAiReviewLinearRouting) =>
+    reviewApi<AiReviewLinearRouting>({
+        url: `/aiAgents/admin/review-linear-routing`,
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateReviewLinearRouting = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        AiReviewLinearRouting,
+        ApiError,
+        UpdateAiReviewLinearRouting
+    >({
+        mutationFn: updateReviewLinearRouting,
+        onSuccess: async (routing) => {
+            queryClient.setQueryData(LINEAR_ROUTING_QUERY_KEY, routing);
+            showToastSuccess({ title: 'Linear destination updated' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update Linear destination',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const backfillReviewLinearIssues = async () =>
+    reviewApi<ApiAiReviewLinearBackfillResponse['results']>({
+        url: `/aiAgents/admin/review-linear-issues/backfill`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useBackfillReviewLinearIssues = () => {
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<AiReviewLinearBackfillResult, ApiError, void>({
+        mutationFn: backfillReviewLinearIssues,
+        onSuccess: (result) => {
+            showToastSuccess({
+                title:
+                    result.queuedCount === 0
+                        ? 'No existing findings needed a Linear issue'
+                        : `Creating Linear issues for ${result.queuedCount} existing ${
+                              result.queuedCount === 1 ? 'finding' : 'findings'
+                          }`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to export existing findings to Linear',
                 apiError: error,
             });
         },

@@ -4,6 +4,7 @@ import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
+import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
@@ -793,8 +794,18 @@ export type DataAppVizFieldMapping = Record<string, string>;
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
 
 export type DataAppVizChart = {
-    /** The reusable data app viz this chart renders with (by reference). */
+    /**
+     * The reusable data app viz this chart renders with (by reference).
+     * Content-as-code files carry the viz's project-scoped slug instead —
+     * see DataAppVizChartAsCode.
+     */
     dataAppVizUuid: string;
+    /**
+     * The version of the project chart type this saved chart renders.
+     * @isInt
+     * @minimum 1
+     */
+    dataAppVizVersion?: number;
     fieldMapping: DataAppVizFieldMapping;
     /**
      * Only options the user explicitly changed — declared defaults are never
@@ -958,6 +969,7 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    dashboardSlug?: string | null;
     /**
      * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
      * only the resolved colors and will be removed once renderers migrate to
@@ -982,6 +994,19 @@ export type SavedChart = {
     /** Unique identifier slug for this chart */
     slug: string;
     verification: ContentVerificationInfo | null;
+    /** The caller's unpublished content-as-code draft is applied. */
+    hasUnpublishedChanges?: boolean;
+    /** Open drafts from other authors visible to content-as-code reviewers. */
+    draftsAwaitingReview?: number;
+    /** The caller's latest dismissed draft, available to reopen. */
+    dismissedDraftUuid?: string;
+    /** The caller's draft started from an upload snapshot the repo has since moved past. */
+    draftStaleness?: ContentDraftStaleness;
+    /** The caller's draft could not be safely applied. */
+    draftOverlayError?: {
+        code: 'invalid_chart_draft';
+        draftUuid: string;
+    };
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -1346,6 +1371,7 @@ export type ChartSummary = Pick<
     | 'pinnedListUuid'
     | 'dashboardUuid'
     | 'dashboardName'
+    | 'dashboardSlug'
     | 'slug'
 > & {
     chartType?: ChartType | undefined;

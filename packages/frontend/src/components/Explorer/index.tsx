@@ -3,9 +3,12 @@ import {
     getExploreParameterDefinitions,
     getReferencedParameterDefinitions,
 } from '@lightdash/common';
-import { Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine/core';
+import clsx from 'clsx';
 import {
+    lazy,
     memo,
+    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -16,9 +19,11 @@ import {
 import {
     explorerActions,
     selectAdditionalMetricModal,
+    selectChartTypeAuthoring,
     selectColumnOrder,
     selectDimensions,
     selectFormatModal,
+    selectIsChartTypeAuthoring,
     selectIsEditMode,
     selectMetricQuery,
     selectMetrics,
@@ -51,6 +56,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
+import classes from './Explorer.module.css';
 import ExplorerHeader from './ExplorerHeader';
 import FiltersCard from './FiltersCard/FiltersCard';
 import { FormatModal } from './FormatModal';
@@ -63,8 +69,13 @@ import { WriteBackModal } from './WriteBackModal';
 
 const EMPTY_PARAMETER_REFERENCES: string[] = [];
 
-const Explorer: FC<{ hideHeader?: boolean }> = memo(
-    ({ hideHeader = false }) => {
+// Lazy-load to keep the flag-off Explorer bundle small.
+const ExplorerChartTypeAuthoring = lazy(
+    () => import('./ChartTypeAuthoring/ExplorerChartTypeAuthoring'),
+);
+
+const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
+    ({ hideHeader = false, chartView = false }) => {
         const tableName = useExplorerSelector(selectTableName);
         const dimensions = useExplorerSelector(selectDimensions);
         const metrics = useExplorerSelector(selectMetrics);
@@ -72,6 +83,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const sorts = useExplorerSelector(selectSorts);
         const metricQuery = useExplorerSelector(selectMetricQuery);
         const isEditMode = useExplorerSelector(selectIsEditMode);
+        const showQueryBuilder = isEditMode || !chartView;
+        const showMinimalChart = chartView && !isEditMode;
+        // Authoring a chart type takes the chart's place; the query keeps
+        // running underneath so the preview renders against it.
+        const chartTypeAuthoring = useExplorerSelector(
+            selectChartTypeAuthoring,
+        );
+        const isAuthoring = useExplorerSelector(selectIsChartTypeAuthoring);
         const parameterReferencesFromRedux = useExplorerSelector(
             selectParameterReferences,
         );
@@ -264,20 +283,40 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 parameters={parameters}
                 resolvedTimezone={query.data?.resolvedTimezone}
             >
-                <Stack style={{ flexGrow: 1 }}>
+                <Stack
+                    className={clsx(
+                        classes.stack,
+                        isAuthoring && classes.stackAuthoring,
+                    )}
+                >
+                    <MergeAutoRun />
+                    {/* The query controls keep their usual spot while a chart
+                        type is authored; only the cards below make way. */}
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />
                         ) : (
                             !savedChart && <RefreshDbtButton />
                         ))}
+                    {isAuthoring && chartTypeAuthoring && (
+                        <Suspense fallback={null}>
+                            <ExplorerChartTypeAuthoring
+                                authoring={chartTypeAuthoring}
+                            />
+                        </Suspense>
+                    )}
 
-                    <MergeAutoRun />
-                    {!isFullscreen && <MergeReadOnlyBar />}
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                        <MergeReadOnlyBar />
+                    )}
 
-                    {!isFullscreen && <MergeRelationshipCard />}
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                        <MergeRelationshipCard />
+                    )}
 
-                    {!isFullscreen &&
+                    {!isAuthoring &&
+                        !isFullscreen &&
+                        showQueryBuilder &&
                         !!tableName &&
                         hasReferencedUserParameters && (
                             <ParametersCard
@@ -287,15 +326,23 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                             />
                         )}
 
-                    {!isFullscreen && <FiltersCard />}
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
+                        <FiltersCard />
+                    )}
 
-                    <VisualizationCard
-                        projectUuid={projectUuid}
-                        onScreenshotReady={handleScreenshotReady}
-                        onScreenshotError={handleScreenshotError}
-                    />
+                    {/* Stays mounted while authoring: it hosts the sidebar
+                        that configures the type being built. */}
+                    <Box display={isAuthoring ? 'none' : 'contents'}>
+                        <VisualizationCard
+                            projectUuid={projectUuid}
+                            renderVisualization={!isAuthoring}
+                            onScreenshotReady={handleScreenshotReady}
+                            onScreenshotError={handleScreenshotError}
+                            minimal={showMinimalChart}
+                        />
+                    </Box>
 
-                    {!isFullscreen && (
+                    {!isAuthoring && !isFullscreen && showQueryBuilder && (
                         <>
                             <ResultsCard />
 

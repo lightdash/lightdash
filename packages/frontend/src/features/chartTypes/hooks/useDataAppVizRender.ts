@@ -48,11 +48,11 @@ const getChartVersionQuery = ({
 
 const isTargetReady = (
     projectUuid: string | undefined,
-    dataAppVizUuid: string | undefined,
+    dataAppVizUuid: string | null,
     target: DataAppVizRenderTarget,
 ): boolean =>
     !!projectUuid &&
-    !!dataAppVizUuid &&
+    dataAppVizUuid !== null &&
     (!target.isEmbedded || !!target.savedChartUuid);
 
 const shouldRetryDataAppVizRenderQuery = (
@@ -68,7 +68,7 @@ const shouldRetryDataAppVizRenderQuery = (
 
 export const useDataAppVizRenderMetadata = (
     projectUuid: string | undefined,
-    dataAppVizUuid: string | undefined,
+    dataAppVizUuid: string | null,
     target: DataAppVizRenderTarget,
 ) =>
     useQuery<DataAppVizRenderMetadata, ApiError>({
@@ -99,7 +99,7 @@ export const useDataAppVizRenderMetadata = (
 
 export const useDataAppVizPreviewToken = (
     projectUuid: string | undefined,
-    dataAppVizUuid: string | undefined,
+    dataAppVizUuid: string | null,
     version: number | undefined,
     target: DataAppVizRenderTarget,
 ) =>

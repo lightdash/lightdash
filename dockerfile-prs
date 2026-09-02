@@ -5,6 +5,8 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
+FROM ghcr.io/pnpm/pnpm:11.20.0@sha256:d77573aba1649491010d3d252214be47197c0706417793cf393ac47cc324f315 AS pnpm-cli
+
 # Optimized Multi-Stage Build for PR Previews
 # Uses parallel build stages and cache mounts for maximum caching
 # Okteto uses a cluster of buildkit instances to persist caches across PRs
@@ -17,10 +19,12 @@ RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 FROM node:24-bookworm-slim AS pnpm-base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN npm i -g corepack@latest
-RUN corepack enable
-RUN corepack prepare pnpm@11.17.0 --activate
+ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
+COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
+COPY --from=pnpm-cli /pnpm /pnpm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -53,13 +57,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Okteto previews only execute the latest fully supported dbt version.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python3 -m venv /usr/local/dbt1.11 \
-    && /usr/local/dbt1.11/bin/pip install \
-    "dbt-core~=1.11.0" \
+    python3 -m venv /usr/local/dbt1.12 \
+    && /usr/local/dbt1.12/bin/pip install \
+    "dbt-core==1.12.0" \
     "dbt-postgres~=1.10.0" \
-    "dbt-snowflake~=1.11.0" \
-    "dbt-bigquery~=1.11.0" \
-    "dbt-databricks~=1.11.0" \
+    "dbt-snowflake~=1.12.0" \
+    "dbt-bigquery~=1.12.0" \
+    "dbt-databricks~=1.12.3" \
     "dbt-trino~=1.10.0"
 
 FROM base AS package-manifests
@@ -89,41 +93,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 EXPOSE 3000
 EXPOSE 8080
-
-# Install development dependencies before copying source so source-only changes
-# reuse the node_modules layer.
-FROM dev AS dev-dependencies
-
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc .pnpmfile.cjs ./
-COPY packages/backend/package.json packages/backend/
-COPY packages/common/package.json packages/common/
-COPY packages/formula/package.json packages/formula/
-COPY packages/frontend/package.json packages/frontend/
-COPY packages/warehouses/package.json packages/warehouses/
-
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm --filter . --filter backend... --filter @lightdash/frontend... \
-    install --frozen-lockfile --prefer-offline
-
-# -----------------------------
-# Stage 1b: warm development environment
-# -----------------------------
-# Dev image with expensive-to-derive node state baked in: source at main,
-# installed node_modules, and pre-built package dists. Okteto cloud dev
-# environments (okteto.dev.yaml) start from this so a fresh namespace only
-# syncs the branch diff and builds incrementally instead of paying a full
-# install and cold builds. Published nightly by
-# .github/workflows/dev-warm-image.yml.
-FROM dev-dependencies AS dev-warm
-
-COPY . .
-
-# Pre-build the packages the backend imports as dist; scripts/okteto-dev-up.sh
-# reuses the emitted dists and *.tsbuildinfo for incremental rebuilds
-RUN export NODE_OPTIONS="--max-old-space-size=4096" \
-    && pnpm formula:build \
-    && pnpm common-build \
-    && pnpm warehouses-build
 
 # -----------------------------
 # Stage 2: continue build for production environment
@@ -248,9 +217,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=prod-builder  /usr/local/dbt1.11 /usr/local/dbt1.11
+COPY --from=prod-builder  /usr/local/dbt1.12 /usr/local/dbt1.12
 
-RUN ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
+RUN ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # Run backend
 COPY ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh

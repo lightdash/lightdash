@@ -266,7 +266,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                             wrap="nowrap"
                         >
                             <Group gap="sm" wrap="nowrap">
-                                <Paper p="6px" withBorder radius="md">
+                                <Paper p="6px" radius="md">
                                     <MantineIcon
                                         icon={
                                             isThresholdAlert

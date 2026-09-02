@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     copyDateZoomTileTargets,
+    excludeTilesFromTabScopedFilters,
     getShadowedReservedNames,
     isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
@@ -8,6 +9,7 @@ import {
     removeDateZoomTileTargets,
     ContentType,
     DateGranularity,
+    type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -32,6 +34,14 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
+import DraftOverlayFailureAlert from '../features/contentAsCode/components/DraftOverlayFailureAlert';
+import DraftStaleAlert from '../features/contentAsCode/components/DraftStaleAlert';
+import {
+    useDraftStaleness,
+    useRebaseDraftMutation,
+    useReopenDraftMutation,
+} from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
@@ -42,6 +52,8 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -52,8 +64,9 @@ import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
-    const { projectUuid, dashboardUuid, mode } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { dashboardUuid: routeDashboardIdentifier, mode } = useParams<{
         dashboardUuid: string;
         mode?: string;
     }>();
@@ -63,6 +76,16 @@ const Dashboard: FC = () => {
 
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardUuid = dashboard?.uuid;
+    const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
+    const { mutate: reopenDraft, isLoading: isReopeningDraft } =
+        useReopenDraftMutation(projectUuid);
+    const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
+        useRebaseDraftMutation(projectUuid);
+    const { data: draftStalenessDetails } = useDraftStaleness(
+        projectUuid,
+        dashboard?.draftStaleness?.draftUuid,
+    );
 
     const dashboardError = useDashboardContext((c) => c.dashboardError);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -380,21 +403,21 @@ const Dashboard: FC = () => {
             reset();
             if (dashboardTabs.length > 1) {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                     { replace: true },
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                     { replace: true },
                 );
             }
         }
     }, [
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
         isSuccess,
-        projectUuid,
+        projectUrlIdentifier,
         reset,
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
@@ -467,24 +490,32 @@ const Dashboard: FC = () => {
             // original.
             if (tileUuidMapping && Object.keys(tileUuidMapping).length > 0) {
                 setDashboardFilters((prev) => {
-                    const updatedDimensions = prev.dimensions.map((filter) => {
-                        if (!filter.tileTargets) return filter;
-                        const nextTileTargets = { ...filter.tileTargets };
-                        let changed = false;
-                        for (const [newUuid, oldUuid] of Object.entries(
-                            tileUuidMapping,
-                        )) {
-                            if (oldUuid in nextTileTargets) {
-                                nextTileTargets[newUuid] =
-                                    nextTileTargets[oldUuid];
-                                changed = true;
+                    const remapRules = <T extends DashboardFilterRule>(
+                        rules: T[],
+                    ): T[] =>
+                        rules.map((filter) => {
+                            if (!filter.tileTargets) return filter;
+                            const nextTileTargets = { ...filter.tileTargets };
+                            let changed = false;
+                            for (const [newUuid, oldUuid] of Object.entries(
+                                tileUuidMapping,
+                            )) {
+                                if (oldUuid in nextTileTargets) {
+                                    nextTileTargets[newUuid] =
+                                        nextTileTargets[oldUuid];
+                                    changed = true;
+                                }
                             }
-                        }
-                        return changed
-                            ? { ...filter, tileTargets: nextTileTargets }
-                            : filter;
-                    });
-                    return { ...prev, dimensions: updatedDimensions };
+                            return changed
+                                ? { ...filter, tileTargets: nextTileTargets }
+                                : filter;
+                        });
+                    return {
+                        ...prev,
+                        dimensions: remapRules(prev.dimensions),
+                        metrics: remapRules(prev.metrics),
+                        tableCalculations: remapRules(prev.tableCalculations),
+                    };
                 });
                 setHaveFiltersChanged(true);
 
@@ -503,6 +534,19 @@ const Dashboard: FC = () => {
                 if (nextDateZoomConfig !== dateZoomConfig) {
                     setDateZoomConfig(nextDateZoomConfig);
                 }
+            } else if (dashboardTiles) {
+                // Tab-aware auto-apply: a filter that already excludes every
+                // chart tile on the target tab is scoped away from that tab,
+                // so exclude the newly added tiles from it too.
+                const scopedFilters = excludeTilesFromTabScopedFilters(
+                    dashboardFilters,
+                    newTiles,
+                    dashboardTiles,
+                );
+                if (scopedFilters !== dashboardFilters) {
+                    setDashboardFilters(() => scopedFilters);
+                    setHaveFiltersChanged(true);
+                }
             }
         },
         [
@@ -512,6 +556,8 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
+            dashboardFilters,
+            dashboardTiles,
             setDashboardFilters,
             setHaveFiltersChanged,
             dateZoomConfig,
@@ -609,20 +655,20 @@ const Dashboard: FC = () => {
 
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${activeTab?.uuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}/view`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardUuid,
+        dashboardIdentifier,
         navigate,
-        projectUuid,
+        projectUrlIdentifier,
         setDashboardTiles,
         setHaveFiltersChanged,
         setDashboardFilters,
@@ -681,8 +727,12 @@ const Dashboard: FC = () => {
             isEditMode &&
             (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
             !nextLocation.pathname.includes(
-                `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
+                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
             ) &&
+            (!dashboardUuid ||
+                !nextLocation.pathname.includes(
+                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
+                )) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
@@ -702,16 +752,16 @@ const Dashboard: FC = () => {
                 {
                     pathname:
                         dashboardTabs.length > 0
-                            ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTab?.uuid}`
-                            : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
+                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
+                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
                     search: '',
                 },
                 { replace: true },
             );
         });
     }, [
-        projectUuid,
-        dashboardUuid,
+        projectUrlIdentifier,
+        dashboardIdentifier,
         resetDashboardFilters,
         refreshDashboardVersion,
         navigate,
@@ -979,6 +1029,37 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
+                    {dashboard.draftOverlayError ? (
+                        <DraftOverlayFailureAlert
+                            error={dashboard.draftOverlayError}
+                        />
+                    ) : null}
+
+                    {dashboard.dismissedDraftUuid ? (
+                        <DismissedDraftAlert
+                            isReopening={isReopeningDraft}
+                            onReopen={() =>
+                                reopenDraft(dashboard.dismissedDraftUuid!)
+                            }
+                        />
+                    ) : null}
+
+                    {dashboard.draftStaleness ? (
+                        <DraftStaleAlert
+                            contentLabel="dashboard"
+                            staleness={dashboard.draftStaleness}
+                            details={draftStalenessDetails}
+                            isUpdating={isRebasingDraft}
+                            onUpdate={(resolutions) =>
+                                rebaseDraft({
+                                    draftUuid:
+                                        dashboard.draftStaleness!.draftUuid,
+                                    resolutions,
+                                })
+                            }
+                        />
+                    ) : null}
+
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
                     <FilterBarPopoversProvider>
                         <DashboardTabs
@@ -1020,7 +1101,7 @@ const Dashboard: FC = () => {
                         onClose={deleteModalHandlers.close}
                         onConfirm={() => {
                             void navigate(
-                                `/projects/${projectUuid}/dashboards`,
+                                `/projects/${projectUrlIdentifier}/dashboards`,
                                 {
                                     replace: true,
                                 },
@@ -1050,8 +1131,8 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
+    const projectUuid = useProjectUuid();
+    const { dashboardUuid } = useParams<{
         dashboardUuid: string;
     }>();
     const { user } = useApp();
@@ -1062,6 +1143,7 @@ const DashboardPage: FC = () => {
             key={dashboardUuid}
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
+            includeUnpublishedDraft
         >
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />

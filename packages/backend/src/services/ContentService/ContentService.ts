@@ -12,6 +12,7 @@ import {
     DeletedContentFilters,
     DeletedContentItem,
     DeletedContentWithDescendants,
+    DirectAccessResourceType,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
@@ -37,6 +38,7 @@ import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -52,6 +54,7 @@ type ContentServiceArguments = {
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
+    directAccessService: DirectAccessService;
     validationModel: ValidationModel;
     appMoveService: BulkActionable<Knex> | undefined;
     appGenerateService: AppGenerateService | undefined;
@@ -76,6 +79,8 @@ export class ContentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    directAccessService: DirectAccessService;
+
     validationModel: ValidationModel;
 
     appMoveService: BulkActionable<Knex> | undefined;
@@ -95,6 +100,7 @@ export class ContentService extends BaseService {
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
+        this.directAccessService = args.directAccessService;
         this.validationModel = args.validationModel;
         this.appMoveService = args.appMoveService;
         this.appGenerateService = args.appGenerateService;
@@ -166,6 +172,15 @@ export class ContentService extends BaseService {
             );
             allowedProjectUuids = allowedProjectUuids.filter(
                 (_, index) => accessResults[index],
+            );
+        }
+
+        if (filters.sharedWithMe === true) {
+            return this.findSharedWithMe(
+                user,
+                { ...filters, projectUuids: allowedProjectUuids },
+                queryArgs,
+                paginateArgs,
             );
         }
 
@@ -264,15 +279,178 @@ export class ContentService extends BaseService {
 
         return {
             ...results,
-            data: results.data.map((item): SummaryContent => {
-                if (item.contentType !== ContentType.SPACE) {
-                    return item;
+            data: await this.withDirectAccessRoles(
+                user,
+                results.data.map((item): SummaryContent => {
+                    if (item.contentType !== ContentType.SPACE) {
+                        return item;
+                    }
+                    return {
+                        ...item,
+                        access: directAccessMap[item.uuid] ?? [],
+                    };
+                }),
+            ),
+        };
+    }
+
+    /**
+     * Shared with me: only resources directly granted to the caller or their
+     * groups, hydrated through the ordinary content configurations so parent
+     * metadata, filters, sorting, pagination, and counts behave exactly like
+     * the default listing. Never unions ordinary space-accessible content.
+     */
+    /**
+     * Attaches the viewer's direct-grant roles to each row. Space-derived
+     * access already reaches the client through the space list; grants do not,
+     * so without this the client cannot tell a granted resource it may manage
+     * from one it may only view.
+     */
+    private async withDirectAccessRoles(
+        user: SessionUser,
+        rows: SummaryContent[],
+    ): Promise<SummaryContent[]> {
+        if (rows.length === 0 || user.organizationUuid === undefined) {
+            return rows;
+        }
+        const uuidsByType = rows.reduce<
+            Record<DirectAccessResourceType, string[]>
+        >(
+            (acc, row) => {
+                switch (row.contentType) {
+                    case ContentType.DASHBOARD:
+                        acc[DirectAccessResourceType.DASHBOARD].push(row.uuid);
+                        break;
+                    case ContentType.CHART:
+                        acc[
+                            row.source === ChartSourceType.SQL
+                                ? DirectAccessResourceType.SQL_CHART
+                                : DirectAccessResourceType.CHART
+                        ].push(row.uuid);
+                        break;
+                    case ContentType.DATA_APP:
+                        acc[DirectAccessResourceType.APP].push(row.uuid);
+                        break;
+                    default:
+                        break;
                 }
-                return {
-                    ...item,
-                    access: directAccessMap[item.uuid] ?? [],
-                };
-            }),
+                return acc;
+            },
+            {
+                [DirectAccessResourceType.DASHBOARD]: [],
+                [DirectAccessResourceType.CHART]: [],
+                [DirectAccessResourceType.SQL_CHART]: [],
+                [DirectAccessResourceType.APP]: [],
+            },
+        );
+
+        const rolesByUuid = await this.directAccessService.findGrantedRoles(
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            Object.entries(uuidsByType).map(([resourceType, uuids]) => ({
+                resourceType: resourceType as DirectAccessResourceType,
+                uuids,
+            })),
+        );
+        if (Object.keys(rolesByUuid).length === 0) {
+            return rows;
+        }
+
+        return rows.map((row) => {
+            const roles = rolesByUuid[row.uuid];
+            if (roles === undefined || row.contentType === ContentType.SPACE) {
+                return row;
+            }
+            return { ...row, directAccessRoles: roles };
+        });
+    }
+
+    private async findSharedWithMe(
+        user: SessionUser,
+        filters: ContentFilters & { projectUuids: string[] },
+        queryArgs: ContentArgs,
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SummaryContent[]>> {
+        const emptyPage: KnexPaginatedData<SummaryContent[]> = {
+            data: [],
+            pagination: {
+                ...paginateArgs,
+                totalPageCount: 0,
+                totalResults: 0,
+            },
+        };
+        // Spaces cannot receive direct grants.
+        const grantableTypes = [
+            ContentType.DASHBOARD,
+            ContentType.CHART,
+            ContentType.DATA_APP,
+        ];
+        const contentTypes = filters.contentTypes
+            ? filters.contentTypes.filter((contentType) =>
+                  grantableTypes.includes(contentType),
+              )
+            : grantableTypes;
+        if (contentTypes.length === 0 || user.organizationUuid === undefined) {
+            return emptyPage;
+        }
+
+        const granted = await this.directAccessService.findSharedWithMeUuids(
+            {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            filters.projectUuids,
+        );
+        const grantedUuids = [
+            ...(contentTypes.includes(ContentType.DASHBOARD)
+                ? granted[DirectAccessResourceType.DASHBOARD]
+                : []),
+            ...(contentTypes.includes(ContentType.CHART)
+                ? [
+                      ...granted[DirectAccessResourceType.CHART],
+                      ...granted[DirectAccessResourceType.SQL_CHART],
+                  ]
+                : []),
+            ...(contentTypes.includes(ContentType.DATA_APP)
+                ? granted[DirectAccessResourceType.APP]
+                : []),
+        ];
+        // Caller-provided uuid/space filters restrict the granted set —
+        // they never widen it into ordinary space-accessible content.
+        const requestedUuids = filters.uuids ? new Set(filters.uuids) : null;
+        const uuids = requestedUuids
+            ? grantedUuids.filter((uuid) => requestedUuids.has(uuid))
+            : grantedUuids;
+        if (uuids.length === 0) {
+            return emptyPage;
+        }
+
+        const results = await this.contentModel.findSummaryContents(
+            {
+                projectUuids: filters.projectUuids,
+                uuids,
+                spaceUuids: filters.spaceUuids,
+                contentTypes,
+                search: filters.search,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
+                sharedWithMe: true,
+            },
+            queryArgs,
+            paginateArgs,
+        );
+        return {
+            ...results,
+            // Spaces are excluded from grantable content types above, so no
+            // row needs the SpaceContent access enrichment.
+            data: await this.withDirectAccessRoles(
+                user,
+                results.data.filter(
+                    (item): item is Exclude<SummaryContent, SpaceContentBase> =>
+                        item.contentType !== ContentType.SPACE,
+                ),
+            ),
         };
     }
 
@@ -566,7 +744,8 @@ export class ContentService extends BaseService {
                     uuid: item.uuid,
                     contentType: item.contentType,
                     reason:
-                        error instanceof ForbiddenError
+                        error instanceof ForbiddenError &&
+                        error.data.contentAsCodeManaged !== true
                             ? 'You do not have permission to delete this content'
                             : getErrorMessage(error),
                 });
@@ -646,6 +825,7 @@ export class ContentService extends BaseService {
                 contentTypes,
                 search: filters.search,
                 deletedByUserUuids,
+                dataAppVizsFilter: filters.dataAppVizsFilter,
             },
             paginateArgs,
         );

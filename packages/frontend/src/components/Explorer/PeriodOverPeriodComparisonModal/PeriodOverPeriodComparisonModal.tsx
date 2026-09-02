@@ -81,7 +81,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                 <Tooltip
                     label="Your results are grouped by a finer time period"
                     position="right"
-                    withinPortal
                 >
                     <Text size="sm" c="dimmed">
                         {option.label}

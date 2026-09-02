@@ -1,4 +1,5 @@
 import {
+    ContentReviewContentType,
     assertUnreachable,
     ChartSourceType,
     ContentType,
@@ -14,7 +15,7 @@ import {
     IconFolderX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
-import { useParams } from 'react-router';
+import { RequestReviewModal } from '../../../ee/features/contentReview';
 import { MoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
@@ -22,6 +23,7 @@ import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningM
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
 import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../../../hooks/useContent';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSpace } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import AppDeleteModal from '../modal/AppDeleteModal';
@@ -79,7 +81,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     action,
     onAction,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
@@ -395,6 +397,24 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         await moveToSpace(action.item, spaceUuid);
                         handleReset();
                     }}
+                />
+            );
+
+        case ResourceViewItemAction.REQUEST_REVIEW:
+            return (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={
+                        action.item.type === ResourceViewItemType.DASHBOARD
+                            ? ContentReviewContentType.DASHBOARD
+                            : action.item.data.source === ChartSourceType.SQL
+                              ? ContentReviewContentType.SQL_CHART
+                              : ContentReviewContentType.CHART
+                    }
+                    contentUuid={action.item.data.uuid}
+                    contentName={action.item.data.name}
+                    opened
+                    onClose={handleReset}
                 />
             );
 

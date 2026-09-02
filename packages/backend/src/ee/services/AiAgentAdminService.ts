@@ -24,11 +24,16 @@ import {
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     AiAgentThreadDump,
+    AiReviewLinearBackfillResult,
+    AiReviewLinearDestination,
+    AiReviewLinearRouting,
     AiReviewNotificationSettings,
+    AiThreadRetentionPreview,
     AlreadyExistsError,
     assertUnreachable,
     CreateAiAgentReviewItem,
     DbtProjectType,
+    ExpectedNotFoundError,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
     FeatureFlags,
@@ -36,6 +41,7 @@ import {
     getErrorMessage,
     getReviewItemProjectContextEntry,
     isHiddenAiAgentReviewRootCause,
+    isValidRetentionWindowHours,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -50,8 +56,12 @@ import {
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
+    RETENTION_WINDOW_HOURS_ERROR,
+    toolEditDbtProjectOutputSchema,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
+    UpdateAiReviewLinearDestination,
+    UpdateAiReviewLinearRouting,
     UpdateAiReviewNotificationSettings,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
@@ -340,6 +350,15 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         provider: projectAccess.provider,
     };
 };
+
+const REVIEW_WRITEBACK_TERMINAL_TIMEOUT_MS = 60 * 60 * 1000;
+const REVIEW_WRITEBACK_RETRY_DELAY_MS = 5 * 1000;
+
+type ReviewWritebackOutcome =
+    | { type: 'not_started' }
+    | { type: 'pending' }
+    | { type: 'action_required'; message: string }
+    | { type: 'success'; prUrl: string | null };
 
 export class AiAgentAdminService extends BaseService {
     private readonly analytics: LightdashAnalytics;
@@ -796,6 +815,49 @@ export class AiAgentAdminService extends BaseService {
         };
     }
 
+    /**
+     * On-demand deletion of a single thread with the same cascade as
+     * retention cleanup. Scoped like the admin threads view: org-wide for
+     * `manage:OrganizationAiAgent`, otherwise the thread's project must be
+     * one where the principal holds `manage:AiAgent`.
+     */
+    async deleteThread(user: SessionUser, threadUuid: string): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        const thread = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError('Thread not found');
+        }
+        AiAgentAdminService.assertProjectInScope(scope, thread.projectUuid);
+
+        const result = await this.aiAgentModel.deleteThread({
+            organizationUuid,
+            threadUuid,
+        });
+        if (!result) {
+            throw new NotFoundError('Thread not found');
+        }
+
+        this.analytics.track({
+            event: 'ai_agent.thread_deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: thread.projectUuid,
+                agentId: thread.agentUuid,
+                threadId: threadUuid,
+                memoriesDeleted: result.deletedMemoriesCount,
+                deletedVia: 'admin',
+            },
+        });
+    }
+
     async getAllEvals(
         user: SessionUser,
         paginateArgs?: KnexPaginateArgs,
@@ -992,11 +1054,25 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        const updated =
-            await this.aiAgentReviewNotificationModel.upsertSettings({
+        const currentSettings =
+            await this.aiAgentReviewNotificationModel.getSettings(
                 organizationUuid,
-                ...settings,
-            });
+            );
+        const updatedSettings = {
+            ...currentSettings,
+            ...settings,
+        };
+
+        if (updatedSettings.linearEnabled && !updatedSettings.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+
+        const updated =
+            await this.aiAgentReviewNotificationModel.upsertSettings(
+                updatedSettings,
+            );
 
         // Slack rejects chat.postMessage with not_in_channel unless the app is
         // a member, so join on save the same way scheduled deliveries do.
@@ -1007,6 +1083,189 @@ export class AiAgentAdminService extends BaseService {
         }
 
         return updated;
+    }
+
+    async getReviewLinearDestination(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiReviewLinearDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+
+        return this.aiAgentReviewNotificationModel.getLinearDestination(
+            organizationUuid,
+            projectUuid,
+        );
+    }
+
+    async updateReviewLinearDestination(
+        user: SessionUser,
+        projectUuid: string,
+        destination: UpdateAiReviewLinearDestination,
+    ): Promise<AiReviewLinearDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        if (destination.enabled && !destination.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+
+        return this.aiAgentReviewNotificationModel.upsertLinearDestination({
+            organizationUuid,
+            projectUuid,
+            ...destination,
+        });
+    }
+
+    async getReviewLinearRouting(
+        user: SessionUser,
+    ): Promise<AiReviewLinearRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkReviewAccess(user, organizationUuid);
+
+        return this.aiAgentReviewNotificationModel.getLinearRouting(
+            organizationUuid,
+        );
+    }
+
+    async updateReviewLinearRouting(
+        user: SessionUser,
+        routing: UpdateAiReviewLinearRouting,
+    ): Promise<AiReviewLinearRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+        if (routing.enabled && !routing.linearTeamId) {
+            throw new ParameterError(
+                'A Linear team is required to create review issues',
+            );
+        }
+        if (
+            routing.enabled &&
+            !routing.applyToAllProjects &&
+            routing.projectUuids.length === 0
+        ) {
+            throw new ParameterError(
+                'Select at least one project or apply Linear issues to all projects',
+            );
+        }
+        if (!routing.applyToAllProjects && routing.projectUuids.length > 0) {
+            const projects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const organizationProjectUuids = new Set(
+                projects.map((project) => project.projectUuid),
+            );
+            const unknownProjectUuid = routing.projectUuids.find(
+                (projectUuid) => !organizationProjectUuids.has(projectUuid),
+            );
+            if (unknownProjectUuid) {
+                throw new NotFoundError('Project not found');
+            }
+        }
+
+        return this.aiAgentReviewNotificationModel.upsertLinearRouting({
+            organizationUuid,
+            ...routing,
+        });
+    }
+
+    async backfillReviewLinearIssues(
+        user: SessionUser,
+    ): Promise<AiReviewLinearBackfillResult> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const routing =
+            await this.aiAgentReviewNotificationModel.getLinearRouting(
+                organizationUuid,
+            );
+        if (!routing.enabled || !routing.linearTeamId) {
+            throw new ParameterError(
+                'Enable Linear issues and choose a team before exporting existing findings',
+            );
+        }
+
+        const queuedCount = await this.enqueueUnlinkedLinearIssues({
+            organizationUuid,
+            applyToAllProjects: routing.applyToAllProjects,
+            projectUuids: routing.projectUuids,
+            userUuid: user.userUuid,
+        });
+
+        return { queuedCount };
+    }
+
+    private async enqueueUnlinkedLinearIssues(args: {
+        organizationUuid: string;
+        applyToAllProjects: boolean;
+        projectUuids: string[];
+        userUuid: string;
+    }): Promise<number> {
+        const items =
+            await this.aiAgentReviewClassifierModel.listUnlinkedReviewItemsForLinearExport(
+                {
+                    organizationUuid: args.organizationUuid,
+                    projectUuids: args.applyToAllProjects
+                        ? null
+                        : args.projectUuids,
+                },
+            );
+
+        const fingerprintsByProject = new Map<string, string[]>();
+        for (const item of items) {
+            const fingerprints =
+                fingerprintsByProject.get(item.projectUuid) ?? [];
+            fingerprints.push(item.fingerprint);
+            fingerprintsByProject.set(item.projectUuid, fingerprints);
+        }
+
+        const batchSize = 25;
+        let queuedCount = 0;
+        for (const [projectUuid, fingerprints] of fingerprintsByProject) {
+            for (
+                let index = 0;
+                index < fingerprints.length;
+                index += batchSize
+            ) {
+                const batch = fingerprints.slice(index, index + batchSize);
+                // eslint-disable-next-line no-await-in-loop
+                await this.aiAgentReviewNotificationService.createLinearIssues({
+                    organizationUuid: args.organizationUuid,
+                    projectUuid,
+                    fingerprints: batch,
+                    reviewRunUuid: null,
+                    userUuid: args.userUuid,
+                });
+                queuedCount += batch.length;
+            }
+        }
+
+        return queuedCount;
     }
 
     async listReviewItems(
@@ -1185,6 +1444,16 @@ export class AiAgentAdminService extends BaseService {
                 priority: item.priority,
             },
         });
+
+        if (item.projectUuid) {
+            await this.aiAgentReviewNotificationService.createLinearIssues({
+                organizationUuid,
+                projectUuid: item.projectUuid,
+                fingerprints: [item.fingerprint],
+                reviewRunUuid: null,
+                userUuid: user.userUuid,
+            });
+        }
 
         return item;
     }
@@ -2110,6 +2379,75 @@ export class AiAgentAdminService extends BaseService {
      * the job, streaming phase messages onto the review item so the admin UI
      * can poll for progress.
      */
+    private async getReviewWritebackOutcome(
+        organizationUuid: string,
+        projectUuid: string,
+        workThreadUuid: string,
+    ): Promise<ReviewWritebackOutcome> {
+        const messages = await this.aiAgentModel.getThreadMessages(
+            organizationUuid,
+            projectUuid,
+            workThreadUuid,
+        );
+        const latestPrompt = messages.at(-1);
+        if (!latestPrompt) {
+            return {
+                type: 'action_required',
+                message: 'Writeback did not produce a prompt result',
+            };
+        }
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            latestPrompt.ai_prompt_uuid,
+        );
+        const latestWritebackResult = toolResults
+            .filter((result) => result.toolName === 'editDbtProject')
+            .at(-1);
+        if (!latestWritebackResult) {
+            return { type: 'not_started' };
+        }
+        const parsed = toolEditDbtProjectOutputSchema.safeParse({
+            result: latestWritebackResult.result,
+            metadata: latestWritebackResult.metadata,
+        });
+        if (!parsed.success) {
+            return {
+                type: 'action_required',
+                message: 'Writeback did not produce a terminal edit result',
+            };
+        }
+        if (parsed.data.metadata.status === 'pending') {
+            const promptCreatedAt = new Date(latestPrompt.created_at).getTime();
+            if (
+                !Number.isFinite(promptCreatedAt) ||
+                Date.now() - promptCreatedAt >=
+                    REVIEW_WRITEBACK_TERMINAL_TIMEOUT_MS
+            ) {
+                return {
+                    type: 'action_required',
+                    message:
+                        'Writeback did not finish within 60 minutes. Try again.',
+                };
+            }
+            return { type: 'pending' };
+        }
+        if (parsed.data.metadata.status === 'error') {
+            return {
+                type: 'action_required',
+                message: parsed.data.result,
+            };
+        }
+        if (parsed.data.metadata.needsDbtSourceSelection) {
+            return {
+                type: 'action_required',
+                message: parsed.data.result,
+            };
+        }
+        return {
+            type: 'success',
+            prUrl: parsed.data.metadata.prUrl,
+        };
+    }
+
     async runReviewItemWritebackJob(
         payload: AiAgentReviewWritebackJobPayload,
     ): Promise<void> {
@@ -2193,6 +2531,15 @@ export class AiAgentAdminService extends BaseService {
             const planStrategy = toReviewWritebackStrategy(plan.strategy);
             strategy = planStrategy;
 
+            if (
+                plan.strategy === 'prompt' &&
+                plan.dbtSourceResolution === 'ambiguous'
+            ) {
+                throw new ParameterError(
+                    'This finding spans more than one dbt source. A single writeback cannot safely target several repositories at once.',
+                );
+            }
+
             let prUrl: string | null;
             let pullRequest: PullRequest | null = null;
             if (plan.strategy === 'project_context') {
@@ -2244,21 +2591,52 @@ export class AiAgentAdminService extends BaseService {
                         'Build-fix thread was not created for this remediation',
                     );
                 }
-                await this.aiAgentService.generateAgentThreadResponse(user, {
-                    agentUuid,
-                    threadUuid: workThreadUuid,
-                    autoApproveSql: true,
-                    // Force the writeback tool on the opening turn so the run
-                    // always opens a PR rather than just discussing the fix.
-                    toolHints: ['editDbtProject'],
-                    forceToolHints: true,
-                    // The review flow owns preview + verification (below), so the
-                    // tool must not also create its own preview project.
-                    suppressWritebackPreview: true,
-                    onStepProgress: (message) => {
-                        void setProgress(message);
-                    },
-                });
+                let writebackOutcome = await this.getReviewWritebackOutcome(
+                    organizationUuid,
+                    projectUuid,
+                    workThreadUuid,
+                );
+                if (writebackOutcome.type === 'not_started') {
+                    await this.aiAgentService.generateAgentThreadResponse(
+                        user,
+                        {
+                            agentUuid,
+                            threadUuid: workThreadUuid,
+                            autoApproveSql: true,
+                            dbtSourceUuid: plan.dbtSourceUuid ?? undefined,
+                            toolHints: ['editDbtProject'],
+                            forceToolHints: true,
+                            suppressWritebackPreview: true,
+                            onStepProgress: (message) => {
+                                void setProgress(message);
+                            },
+                        },
+                    );
+                    writebackOutcome = await this.getReviewWritebackOutcome(
+                        organizationUuid,
+                        projectUuid,
+                        workThreadUuid,
+                    );
+                }
+                if (writebackOutcome.type === 'pending') {
+                    const runAt = new Date(
+                        Date.now() + REVIEW_WRITEBACK_RETRY_DELAY_MS,
+                    );
+                    await this.schedulerClient.aiAgentReviewWriteback(
+                        payload,
+                        runAt,
+                        true,
+                    );
+                    return;
+                }
+                if (writebackOutcome.type === 'not_started') {
+                    throw new ParameterError(
+                        'Writeback did not produce an edit result',
+                    );
+                }
+                if (writebackOutcome.type === 'action_required') {
+                    throw new ParameterError(writebackOutcome.message);
+                }
                 const writebackPrs =
                     await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
                         [workThreadUuid],
@@ -2270,7 +2648,10 @@ export class AiAgentAdminService extends BaseService {
                 // tool (multi-repo, multiple PRs per turn), this selection
                 // would silently drop all but the newest PR — handle every
                 // entry instead of taking `[0]`.
-                prUrl = writebackPrs.get(workThreadUuid)?.[0]?.prUrl ?? null;
+                prUrl =
+                    writebackOutcome.prUrl ??
+                    writebackPrs.get(workThreadUuid)?.[0]?.prUrl ??
+                    null;
                 pullRequest = prUrl
                     ? await this.pullRequestsModel.findByProjectAndUrl(
                           projectUuid,
@@ -2374,9 +2755,6 @@ export class AiAgentAdminService extends BaseService {
                 await setTerminal('completed', terminalMessage);
             } else {
                 if (remediationUuid) {
-                    // No PR means nothing was wrong to fix — a legitimate
-                    // no-op, not a failure; close the remediation to match the
-                    // item's completed status.
                     await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                         {
                             remediationUuid,
@@ -3117,7 +3495,9 @@ export class AiAgentAdminService extends BaseService {
                 },
             );
         if (!remediation) {
-            throw new NotFoundError('No review item is linked to this thread');
+            throw new ExpectedNotFoundError(
+                'No review item is linked to this thread',
+            );
         }
 
         return this.getReviewItem(user, remediation.fingerprint);
@@ -3319,5 +3699,47 @@ export class AiAgentAdminService extends BaseService {
             token,
             url: url.href,
         };
+    }
+
+    /**
+     * Powers the org settings confirmation dialog ("threads older than X
+     * across N agents will be deleted") before a retention ceiling is
+     * lowered. Uses the same predicate as the cleanup job, with the given
+     * hours standing in for the org value.
+     */
+    async getThreadRetentionPreview(
+        user: SessionUser,
+        retentionHours: number,
+    ): Promise<AiThreadRetentionPreview> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('OrganizationAiAgent', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to manage AI agent settings',
+            );
+        }
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiThreadRetention,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'AI thread retention is not enabled for this organization',
+            );
+        }
+        if (!isValidRetentionWindowHours(retentionHours)) {
+            throw new ParameterError(RETENTION_WINDOW_HOURS_ERROR);
+        }
+        return this.aiAgentModel.countThreadsExpiredByOrgRetention(
+            organizationUuid,
+            retentionHours,
+        );
     }
 }

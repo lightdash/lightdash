@@ -8,6 +8,8 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentReviewContentType,
+    ContentReviewNotificationEvent,
     ContentType,
     DbtProjectType,
     getRequestMethod,
@@ -37,6 +39,7 @@ import {
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentRootCause,
     type AiDeepResearchEntryPoint,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
     type AiRouterDecisionConfidence,
@@ -50,6 +53,10 @@ import {
     type DataAppCodingAgentModel,
     type DataAppCreationExperience,
     type DataAppTemplate,
+    type FunnelChartDataInput,
+    type MapChartLocation,
+    type MapChartType,
+    type MapTileBackground,
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
@@ -425,7 +432,8 @@ type QueryExecutionEvent = BaseTrack & {
 type QueryExecutionSource =
     | 'warehouse'
     | 'pre_aggregate_duckdb'
-    | 'pre_aggregate_warehouse';
+    | 'pre_aggregate_warehouse'
+    | 'external_source_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -665,6 +673,10 @@ type UpdateSavedChartEvent = BaseTrack & {
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
         numCustomGroupBinCustomDimensions: number;
+        // True when a direct dashboard grant was present in the authorizing
+        // context; grantOnly when it was the user's only access path.
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -683,6 +695,8 @@ type DeleteSavedChartEvent = BaseTrack & {
         projectId: string;
         savedQueryId: string;
         softDelete: boolean;
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -806,6 +820,27 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         pie?: {
             isDonut: boolean;
         };
+        funnel?: {
+            dataInput: FunnelChartDataInput | undefined;
+        };
+        treemap?: {
+            visibleMin: number | undefined;
+            leafDepth: number | undefined;
+            dimensionCount: number;
+            startColor: string | undefined;
+            endColor: string | undefined;
+            useDynamicColors: boolean | undefined;
+            startColorThreshold: number | undefined;
+            endColorThreshold: number | undefined;
+        };
+        map?: {
+            mapType: MapChartLocation | undefined;
+            locationType: MapChartType | undefined;
+            hasCustomGeoJson: boolean;
+            tileBackground: MapTileBackground | null;
+            darkModeTileBackground: MapTileBackground | null;
+            savesMapExtent: boolean;
+        };
         table?: {
             conditionalFormattingRulesCount: number;
             hasMetricsAsRows: boolean;
@@ -838,6 +873,8 @@ export type CreateSavedChartVersionEvent = BaseTrack & {
         customColumnWidthsCount: number;
         tableCalculationFunctions: string[];
         hasAverageDistinctAdditionalMetric: boolean;
+        viaDashboardGrant: boolean;
+        grantOnly: boolean;
     };
 };
 
@@ -999,6 +1036,7 @@ type PlaygroundProjectProvisionedEvent = BaseTrack & {
         projectId: string;
         trigger: PlaygroundProjectTrigger;
         onboardingFlow: OnboardingFlow;
+        contentSeedErrorType: string | null;
         catalogIndexErrorType: string | null;
     };
 };
@@ -1338,6 +1376,7 @@ type SavedChartView = BaseTrack & {
         projectId: string;
         organizationId: string;
         parametersCount: number;
+        chartType: ChartType;
     };
 };
 
@@ -1766,6 +1805,7 @@ export type DataAppVersionFailedEvent = BaseTrack & {
         schedulerWaitMs?: number;
         claudeEffort: DataAppClaudeEffort;
         failureStage:
+            | 'authorization'
             | 'sandbox'
             | 'catalog'
             | 'generating'
@@ -1936,6 +1976,20 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
     };
 };
 
+export type DataAppRegistryInstalledEvent = BaseTrack & {
+    event: 'data_app.registry_installed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        chartSlug: string;
+        version: number;
+        registryVersion: string;
+        action: 'installed' | 'upgraded';
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1950,7 +2004,8 @@ export type DataAppEvent =
     | DataAppPromotedEvent
     | DataAppDownloadedEvent
     | DataAppUploadedEvent
-    | DataAppUploadRejectedEvent;
+    | DataAppUploadRejectedEvent
+    | DataAppRegistryInstalledEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
@@ -2222,6 +2277,7 @@ export type AiDeepResearchRunCompletedEvent = BaseTrack & {
             | 'empty_failure'
             | 'cancelled';
         terminalReason: AiDeepResearchTerminalReason | null;
+        failureStage: AiDeepResearchFailureStage | null;
         durationMs: number | null;
         inputTokens: number | null;
         outputTokens: number | null;
@@ -2599,6 +2655,30 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+// Content-free audit trail for on-demand thread deletion.
+export type AiAgentThreadDeletedEvent = BaseTrack & {
+    event: 'ai_agent.thread_deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string | null;
+        threadId: string;
+        memoriesDeleted: number;
+        deletedVia: 'admin' | 'owner';
+    };
+};
+
+export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
+    event: 'ai_agent.threads_retention_cleaned';
+    anonymousId: string;
+    properties: {
+        organizationId: string;
+        threadsDeleted: number;
+        memoriesDeleted: number;
+    };
+};
+
 type AiAgentProvisioningFailedEvent = BaseTrack & {
     event: 'ai_agent.provisioning_failed';
     userId: string;
@@ -2864,6 +2944,43 @@ export type ContentVerificationEvent = BaseTrack & {
     };
 };
 
+export type ContentReviewNotificationSentEvent = BaseTrack & {
+    event:
+        | 'content_review_notification.sent'
+        | 'content_review_notification.errored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        channel: 'email' | 'slack_channel' | 'slack_dm';
+        notificationEvent: ContentReviewNotificationEvent;
+        recipientCount: number;
+        error: string | undefined;
+    };
+};
+
+export type ContentReviewRequestEvent = BaseTrack & {
+    event:
+        | 'content_review_request.submitted'
+        | 'content_review_request.approved'
+        | 'content_review_request.rejected'
+        | 'content_review_request.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string;
+        targetSpaceId: string | null;
+        routedTo?: 'space_editors' | 'group';
+        reviewerCount?: number;
+        movedItemCount?: number;
+        similarContentShown?: number;
+        verified?: boolean;
+        turnaroundSeconds?: number;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -3058,6 +3175,22 @@ export type AiAgentThreadDumpDownloadedEvent = BaseTrack & {
         threadId: string;
         agentId: string | null;
         turnCount: number;
+    };
+};
+
+export type AiAgentPromptInputRequestClassifiedEvent = BaseTrack & {
+    event: 'ai_agent.prompt_input_request_classified';
+    userId: string;
+    properties: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        promptUuid: string;
+        gateFired: boolean;
+        classified: boolean | null;
+        model: string | null;
+        durationMs: number;
     };
 };
 
@@ -3259,6 +3392,16 @@ export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     };
 };
 
+export type DashboardOwnershipReassignedEvent = BaseTrack & {
+    event: 'dashboard.ownership_reassigned';
+    properties: {
+        organizationId: string;
+        fromUserUuid: string;
+        newOwnerUserUuid: string;
+        reassignedCount: number;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -3299,6 +3442,67 @@ export type FeatureFlagCheckedAggregatedEvent = BaseTrack & {
         processType: FeatureFlagCheckProcessType;
     };
 };
+
+export type MobilePushNotificationEvent =
+    | (BaseTrack & {
+          event: 'mobile_push.installation_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              installationId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_registered';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.live_activity_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+              state: 'working' | 'waiting_for_you' | 'idle';
+              activityEvent: 'update' | 'end';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      })
+    | (BaseTrack & {
+          event: 'mobile_push.completion_alert_delivery';
+          userId: string;
+          properties: {
+              organizationId: string;
+              projectId: string;
+              agentId: string;
+              threadId: string;
+              promptId: string;
+              installationId: string;
+              liveActivityId: string;
+              platform: 'ios' | 'android';
+              environment: 'sandbox' | 'production';
+              outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
+          };
+      });
 
 type TypedEvent =
     | TrackSimpleEvent
@@ -3434,6 +3638,8 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentThreadDeletedEvent
+    | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
@@ -3459,15 +3665,20 @@ type TypedEvent =
     | AiAgentPullRequestViewedEvent
     | AiAgentReviewEvent
     | AiAgentThreadDumpDownloadedEvent
+    | AiAgentPromptInputRequestClassifiedEvent
     | AiAgentMemoryEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
+    | ContentReviewRequestEvent
+    | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
+    | DashboardOwnershipReassignedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
     | FeatureFlagCheckedAggregatedEvent
+    | MobilePushNotificationEvent
     | PersistentFileGenerationRequestedEvent
     | PersistentFileGenerationCompletedEvent
     | PersistentFileUrlRequestedEvent

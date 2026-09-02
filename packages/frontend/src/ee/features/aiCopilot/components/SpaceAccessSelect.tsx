@@ -43,7 +43,6 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
         <Stack gap="xs">
             <Box>
                 <Paper
-                    withBorder
                     p="xs"
                     onClick={() =>
                         !isLoadingSpaces && setIsExpanded(!isExpanded)
@@ -80,7 +79,7 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                 </Paper>
 
                 <Collapse in={isExpanded && !isLoadingSpaces}>
-                    <Paper withBorder mt="xs" p="sm">
+                    <Paper mt="xs" p="sm">
                         <Stack gap="sm">
                             {value.length > 0 && (
                                 <Group justify="space-between">

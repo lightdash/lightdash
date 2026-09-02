@@ -1,7 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
-    Badge,
     Box,
     Divider,
     Group,
@@ -12,13 +11,16 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import { BetaBadge } from '../../../../../../components/common/BetaBadge';
-import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import {
+    useGetSlack,
+    useUpdateSlackAppCustomSettingsMutation,
+} from '../../../../../../hooks/slack/useSlack';
 import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     getAiAgentModelConfig,
@@ -36,7 +38,25 @@ import {
 } from '../../../hooks/useAiRouter';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
+import { AiSurfacesCard } from './AiSurfacesCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
+import { ThreadRetentionRow } from './ThreadRetentionRow';
+
+const Section: FC<
+    PropsWithChildren<{ label: string; description?: string }>
+> = ({ label, description, children }) => (
+    <Stack gap="sm">
+        <Box>
+            <Title order={6}>{label}</Title>
+            {description ? (
+                <Text c="dimmed" fz="xs">
+                    {description}
+                </Text>
+            ) : null}
+        </Box>
+        {children}
+    </Stack>
+);
 
 export const AiGeneralSettingsPage = () => {
     const { data: settings, isInitialLoading: isSettingsLoading } =
@@ -44,16 +64,24 @@ export const AiGeneralSettingsPage = () => {
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
 
-    const orgAiProviderKeysFlag = useServerFeatureFlag(
-        FeatureFlags.OrgAiProviderApiKeys,
-    );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const threadRetentionFlag = useServerFeatureFlag(
+        FeatureFlags.AiThreadRetention,
+    );
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
     const isRouterLoading = aiRouterQuery.isInitialLoading;
     const { mutate: upsertRouter, isLoading: isUpdatingRouter } =
         useUpsertAiRouterConfig();
+
+    const { data: slackInstallation } = useGetSlack();
+    const hasSlack = !!slackInstallation?.organizationUuid;
+    const slackAgentsEnabled =
+        hasSlack && (slackInstallation.aiAgentsEnabled ?? true);
+    const { mutate: updateSlackSettings, isLoading: isUpdatingSlackSettings } =
+        useUpdateSlackAppCustomSettingsMutation();
+
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
     // Reviews run on the org's own key; paused when that key can't serve the
@@ -73,6 +101,32 @@ export const AiGeneralSettingsPage = () => {
         modelConfig: defaultModelConfig,
         fallbackLabel: 'System default',
     });
+
+    const anySurface = settings
+        ? settings.aiAgentsVisible ||
+          settings.mcpAgentsEnabled ||
+          slackAgentsEnabled
+        : false;
+
+    // The Slack settings endpoint replaces the whole record, so every stored
+    // value must be echoed back for a single-toggle change.
+    const handleSlackAgentsToggle = (checked: boolean) => {
+        if (!slackInstallation) return;
+        updateSlackSettings({
+            notificationChannel: slackInstallation.notificationChannel ?? null,
+            appProfilePhotoUrl: slackInstallation.appProfilePhotoUrl ?? null,
+            slackChannelProjectMappings:
+                slackInstallation.slackChannelProjectMappings,
+            aiThreadAccessConsent: slackInstallation.aiThreadAccessConsent,
+            aiRequireOAuth: slackInstallation.aiRequireOAuth,
+            aiMultiAgentChannelId: slackInstallation.aiMultiAgentChannelId,
+            aiMultiAgentProjectUuids:
+                slackInstallation.aiMultiAgentProjectUuids,
+            unfurlsEnabled: slackInstallation.unfurlsEnabled,
+            aiAgentsEnabled: checked,
+        });
+    };
+
     return (
         <SettingsPage
             title="Ask AI"
@@ -84,160 +138,191 @@ export const AiGeneralSettingsPage = () => {
                 </Group>
             ) : (
                 <>
-                    <SettingsCard>
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            align="flex-start"
-                            gap="md"
-                        >
-                            <Box maw={620}>
-                                <Group gap="xs" mb={4}>
-                                    <Title order={5}>
-                                        Enable AI features for users
-                                    </Title>
-                                    {settings.isTrial && (
-                                        <Badge
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconSparkles}
-                                                    size={12}
-                                                />
-                                            }
-                                            radius="sm"
-                                            variant="light"
-                                            color="gray"
-                                            size="sm"
-                                            tt="none"
-                                            fw={500}
-                                        >
-                                            Free trial
-                                        </Badge>
-                                    )}
+                    <AiSurfacesCard
+                        aiAgentsVisible={settings.aiAgentsVisible}
+                        mcpAgentsEnabled={settings.mcpAgentsEnabled}
+                        slackInstallation={slackInstallation}
+                        slackAgentsEnabled={slackAgentsEnabled}
+                        isTrial={settings.isTrial}
+                        disabled={isUpdatingSettings}
+                        isUpdatingSlack={isUpdatingSlackSettings}
+                        onUpdateAiAgentsVisible={(checked) =>
+                            updateSettings({ aiAgentsVisible: checked })
+                        }
+                        onUpdateMcpAgentsEnabled={(checked) =>
+                            updateSettings({ mcpAgentsEnabled: checked })
+                        }
+                        onUpdateSlackAgentsEnabled={handleSlackAgentsToggle}
+                    />
+
+                    <Section
+                        label="Agent behaviour"
+                        description="Applies on every surface."
+                    >
+                        <SettingsCard>
+                            <Stack gap="md">
+                                <Group
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    align="flex-start"
+                                    gap="md"
+                                >
+                                    <Box maw={620}>
+                                        <Title order={5} mb={4}>
+                                            AI Router
+                                        </Title>
+                                        <Text c="dimmed" fz="xs">
+                                            Route user questions to the best
+                                            agent automatically.
+                                        </Text>
+                                    </Box>
+                                    <Switch
+                                        size="md"
+                                        checked={isRouterEnabled}
+                                        disabled={
+                                            isUpdatingRouter ||
+                                            isRouterLoading ||
+                                            !anySurface
+                                        }
+                                        onChange={(event) =>
+                                            upsertRouter({
+                                                enabled:
+                                                    event.currentTarget.checked,
+                                            })
+                                        }
+                                    />
                                 </Group>
-                                <Text c="dimmed" fz="xs">
-                                    Show AI features (homepage entry, navbar
-                                    action, and agent chat) to everyone in this
-                                    organization. Disable to hide them while
-                                    keeping existing data intact.
-                                </Text>
-                            </Box>
-                            <Switch
-                                size="md"
-                                checked={settings.aiAgentsVisible}
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        aiAgentsVisible:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
-                    </SettingsCard>
 
-                    <SettingsCard>
-                        <Stack gap="md">
-                            <Group
-                                justify="space-between"
-                                wrap="nowrap"
-                                align="flex-start"
-                                gap="md"
-                            >
-                                <Box maw={620}>
-                                    <Title order={5} mb={4}>
-                                        Default AI model
-                                    </Title>
-                                    <Text c="dimmed" fz="xs">
-                                        Choose the model and reasoning default
-                                        for new AI agent chats. Users can still
-                                        change it in each chat.
-                                    </Text>
-                                </Box>
-                                <Select
-                                    w={260}
-                                    size="xs"
-                                    value={selectedDefaultModelKey}
-                                    disabled={
-                                        isUpdatingSettings ||
-                                        !defaultModelOptions?.length
-                                    }
-                                    placeholder={systemDefaultModelLabel}
-                                    clearable
-                                    data={visibleDefaultModelOptions.map(
-                                        (model) => ({
-                                            value: getModelKey(model),
-                                            label: model.displayName,
-                                        }),
-                                    )}
-                                    onChange={(modelKey) => {
-                                        const model = getModelOptionByKey(
-                                            defaultModelOptions,
-                                            modelKey,
-                                        );
-                                        updateSettings({
-                                            defaultAiAgentModelConfig:
-                                                getAiAgentModelConfig(
-                                                    model,
-                                                    defaultModelConfig?.reasoning ??
-                                                        false,
-                                                ) ?? null,
-                                        });
-                                    }}
-                                />
-                            </Group>
+                                {anySurface && isRouterEnabled && (
+                                    <>
+                                        <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
+                                        <AiRouterInstructionsCard />
+                                    </>
+                                )}
+                            </Stack>
+                        </SettingsCard>
 
-                            {showReasoningDefault && (
-                                <>
-                                    <Divider />
-                                    <Group
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        align="flex-start"
-                                        gap="md"
-                                    >
-                                        <Box maw={620}>
-                                            <Title order={6} mb={4}>
-                                                High reasoning by default
-                                            </Title>
-                                            <Text c="dimmed" fz="xs">
-                                                Start new chats with high
-                                                reasoning enabled for the
-                                                selected model.
-                                            </Text>
-                                        </Box>
-                                        <Switch
-                                            size="md"
-                                            checked={
-                                                defaultModelConfig?.reasoning ===
-                                                true
+                        <SettingsCard>
+                            <Stack gap="md">
+                                <Group
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    align="flex-start"
+                                    gap="md"
+                                >
+                                    <Box maw={620}>
+                                        <Title order={5} mb={4}>
+                                            Default AI model
+                                        </Title>
+                                        <Text c="dimmed" fz="xs">
+                                            Choose the model and reasoning
+                                            default for new AI agent chats.
+                                            Users can still change it in each
+                                            chat.
+                                        </Text>
+                                    </Box>
+                                    <Select
+                                        w={260}
+                                        size="xs"
+                                        value={selectedDefaultModelKey}
+                                        disabled={
+                                            isUpdatingSettings ||
+                                            !defaultModelOptions?.length
+                                        }
+                                        placeholder={systemDefaultModelLabel}
+                                        clearable
+                                        data={visibleDefaultModelOptions.map(
+                                            (model) => ({
+                                                value: getModelKey(model),
+                                                label: model.displayName,
+                                            }),
+                                        )}
+                                        onChange={(modelKey) => {
+                                            const model = getModelOptionByKey(
+                                                defaultModelOptions,
+                                                modelKey,
+                                            );
+                                            updateSettings({
+                                                defaultAiAgentModelConfig:
+                                                    getAiAgentModelConfig(
+                                                        model,
+                                                        defaultModelConfig?.reasoning ??
+                                                            false,
+                                                    ) ?? null,
+                                            });
+                                        }}
+                                    />
+                                </Group>
+
+                                {showReasoningDefault && (
+                                    <>
+                                        <Divider />
+                                        <Group
+                                            justify="space-between"
+                                            wrap="nowrap"
+                                            align="flex-start"
+                                            gap="md"
+                                        >
+                                            <Box maw={620}>
+                                                <Title order={6} mb={4}>
+                                                    High reasoning by default
+                                                </Title>
+                                                <Text c="dimmed" fz="xs">
+                                                    Start new chats with high
+                                                    reasoning enabled for the
+                                                    selected model.
+                                                </Text>
+                                            </Box>
+                                            <Switch
+                                                size="md"
+                                                checked={
+                                                    defaultModelConfig?.reasoning ===
+                                                    true
+                                                }
+                                                disabled={isUpdatingSettings}
+                                                onChange={(event) => {
+                                                    if (!selectedDefaultModel)
+                                                        return;
+                                                    updateSettings({
+                                                        defaultAiAgentModelConfig:
+                                                            {
+                                                                ...defaultModelConfig,
+                                                                modelName:
+                                                                    selectedDefaultModel.name,
+                                                                modelProvider:
+                                                                    selectedDefaultModel.provider,
+                                                                reasoning:
+                                                                    event
+                                                                        .currentTarget
+                                                                        .checked,
+                                                            },
+                                                    });
+                                                }}
+                                            />
+                                        </Group>
+                                    </>
+                                )}
+
+                                {threadRetentionFlag.data?.enabled && (
+                                    <>
+                                        <Divider />
+                                        <ThreadRetentionRow
+                                            current={
+                                                settings.threadRetentionHours ??
+                                                null
                                             }
-                                            disabled={isUpdatingSettings}
-                                            onChange={(event) => {
-                                                if (!selectedDefaultModel)
-                                                    return;
-                                                updateSettings({
-                                                    defaultAiAgentModelConfig: {
-                                                        ...defaultModelConfig,
-                                                        modelName:
-                                                            selectedDefaultModel.name,
-                                                        modelProvider:
-                                                            selectedDefaultModel.provider,
-                                                        reasoning:
-                                                            event.currentTarget
-                                                                .checked,
-                                                    },
-                                                });
-                                            }}
                                         />
-                                    </Group>
-                                </>
-                            )}
-                        </Stack>
-                    </SettingsCard>
+                                    </>
+                                )}
+                            </Stack>
+                        </SettingsCard>
+                    </Section>
 
-                    {orgAiProviderKeysFlag.data?.enabled &&
-                        settings.isCopilotEnabled && (
+                    {settings.isCopilotEnabled && (
+                        <Section
+                            label="Providers & keys"
+                            description="Your own keys take precedence over the instance keys."
+                        >
                             <AiProvidersCard
                                 providerApiKeysSet={settings.providerApiKeysSet}
                                 providerApiKeyHints={
@@ -264,12 +349,86 @@ export const AiGeneralSettingsPage = () => {
                                 }
                                 onUpdateDataAppVisibility={(
                                     dataAppModelVisibility,
-                                ) => updateSettings({ dataAppModelVisibility })}
+                                ) =>
+                                    updateSettings({
+                                        dataAppModelVisibility,
+                                    })
+                                }
                             />
-                        )}
+                        </Section>
+                    )}
 
-                    <SettingsCard>
-                        <Stack gap="md">
+                    <Section label="Quality & review">
+                        <SettingsCard>
+                            <Stack gap="md">
+                                <Group
+                                    justify="space-between"
+                                    wrap="nowrap"
+                                    align="flex-start"
+                                    gap="md"
+                                >
+                                    <Box maw={620}>
+                                        <Group gap="xs" mb={4}>
+                                            <Title order={5}>
+                                                Review AI agent turns
+                                            </Title>
+                                            <BetaBadge />
+                                        </Group>
+                                        <Text c="dimmed" fz="xs">
+                                            Process every agent turn to surface
+                                            semantic layer gaps, project context
+                                            improvements, and admin
+                                            recommendations. For connected
+                                            projects, Lightdash can suggest pull
+                                            requests that improve context and
+                                            dbt definitions.
+                                            {reviewsEffectivelyOn && (
+                                                <>
+                                                    {' '}
+                                                    See issues in{' '}
+                                                    <Anchor
+                                                        component={Link}
+                                                        to="/generalSettings/ai/issues"
+                                                    >
+                                                        Ask AI &gt; Issues
+                                                    </Anchor>
+                                                    .
+                                                </>
+                                            )}
+                                        </Text>
+                                        {reviewsPausedByByok && (
+                                            <Text c="dimmed" fz="xs" mt={4}>
+                                                Paused — your AI provider key
+                                                can&apos;t run the review model
+                                                (Claude Haiku). Reviews run on
+                                                your own key, so they resume
+                                                when it has access.
+                                            </Text>
+                                        )}
+                                    </Box>
+                                    <Switch
+                                        size="md"
+                                        checked={reviewsEffectivelyOn}
+                                        disabled={
+                                            isUpdatingSettings ||
+                                            reviewsPausedByByok
+                                        }
+                                        onChange={(event) =>
+                                            updateSettings({
+                                                aiAgentReviewsEnabled:
+                                                    event.currentTarget.checked,
+                                            })
+                                        }
+                                    />
+                                </Group>
+
+                                {reviewsEffectivelyOn && (
+                                    <ReviewNotificationsSettings />
+                                )}
+                            </Stack>
+                        </SettingsCard>
+
+                        <SettingsCard>
                             <Group
                                 justify="space-between"
                                 wrap="nowrap"
@@ -279,149 +438,48 @@ export const AiGeneralSettingsPage = () => {
                                 <Box maw={620}>
                                     <Group gap="xs" mb={4}>
                                         <Title order={5}>
-                                            Review AI agent turns
+                                            Enable AI agent memories
                                         </Title>
                                         <BetaBadge />
                                     </Group>
                                     <Text c="dimmed" fz="xs">
-                                        Process every agent turn to surface
-                                        semantic layer gaps, project context
-                                        improvements, and admin recommendations.
-                                        For connected projects, Lightdash can
-                                        suggest pull requests that improve
-                                        context and dbt definitions.
-                                        {reviewsEffectivelyOn && (
+                                        Let Ask AI learn from each user&apos;s
+                                        agent conversations and reuse those
+                                        memories in future answers. Disable to
+                                        stop learning from and using memories
+                                        while keeping existing data intact.
+                                        {aiAgentMemoryEnabled && (
                                             <>
                                                 {' '}
-                                                See issues in{' '}
+                                                Manage them in{' '}
                                                 <Anchor
                                                     component={Link}
-                                                    to="/generalSettings/ai/issues"
+                                                    to="/generalSettings/ai/memories"
                                                 >
-                                                    Ask AI &gt; Issues
+                                                    Ask AI &gt; Memories
                                                 </Anchor>
                                                 .
                                             </>
                                         )}
                                     </Text>
-                                    {reviewsPausedByByok && (
-                                        <Text c="dimmed" fz="xs" mt={4}>
-                                            Paused — your AI provider key
-                                            can&apos;t run the review model
-                                            (Claude Haiku). Reviews run on your
-                                            own key, so they resume when it has
-                                            access.
-                                        </Text>
-                                    )}
                                 </Box>
                                 <Switch
                                     size="md"
-                                    checked={reviewsEffectivelyOn}
-                                    disabled={
-                                        isUpdatingSettings ||
-                                        reviewsPausedByByok
-                                    }
+                                    checked={aiAgentMemoryEnabled}
+                                    disabled={isUpdatingSettings}
                                     onChange={(event) =>
                                         updateSettings({
-                                            aiAgentReviewsEnabled:
+                                            aiAgentMemoryEnabled:
                                                 event.currentTarget.checked,
                                         })
                                     }
                                 />
                             </Group>
+                        </SettingsCard>
+                    </Section>
 
-                            {reviewsEffectivelyOn && (
-                                <ReviewNotificationsSettings />
-                            )}
-                        </Stack>
-                    </SettingsCard>
-
-                    <SettingsCard>
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            align="flex-start"
-                            gap="md"
-                        >
-                            <Box maw={620}>
-                                <Group gap="xs" mb={4}>
-                                    <Title order={5}>
-                                        Enable AI agent memories
-                                    </Title>
-                                    <BetaBadge />
-                                </Group>
-                                <Text c="dimmed" fz="xs">
-                                    Let Ask AI learn from each user&apos;s agent
-                                    conversations and reuse those memories in
-                                    future answers. Disable to stop learning
-                                    from and using memories while keeping
-                                    existing data intact.
-                                    {aiAgentMemoryEnabled && (
-                                        <>
-                                            {' '}
-                                            Manage them in{' '}
-                                            <Anchor
-                                                component={Link}
-                                                to="/generalSettings/ai/memories"
-                                            >
-                                                Ask AI &gt; Memories
-                                            </Anchor>
-                                            .
-                                        </>
-                                    )}
-                                </Text>
-                            </Box>
-                            <Switch
-                                size="md"
-                                checked={aiAgentMemoryEnabled}
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        aiAgentMemoryEnabled:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
-                    </SettingsCard>
-
-                    <SettingsCard>
-                        <Group
-                            justify="space-between"
-                            wrap="nowrap"
-                            align="flex-start"
-                            gap="md"
-                        >
-                            <Box maw={620}>
-                                <Title order={5} mb={4}>
-                                    Allow content changes via MCP
-                                </Title>
-                                <Text c="dimmed" fz="xs">
-                                    Let MCP clients create and edit charts and
-                                    dashboards in this organization. Disable to
-                                    prevent unintended changes to managed
-                                    content; reading content over MCP stays
-                                    available either way, and individual users
-                                    are still bound by their existing
-                                    permissions.
-                                </Text>
-                            </Box>
-                            <Switch
-                                size="md"
-                                checked={settings.mcpContentWritesEnabled}
-                                disabled={isUpdatingSettings}
-                                onChange={(event) =>
-                                    updateSettings({
-                                        mcpContentWritesEnabled:
-                                            event.currentTarget.checked,
-                                    })
-                                }
-                            />
-                        </Group>
-                    </SettingsCard>
-
-                    <SettingsCard>
-                        <Stack gap="md">
+                    <Section label="Development">
+                        <SettingsCard>
                             <Group
                                 justify="space-between"
                                 wrap="nowrap"
@@ -430,39 +488,32 @@ export const AiGeneralSettingsPage = () => {
                             >
                                 <Box maw={620}>
                                     <Title order={5} mb={4}>
-                                        AI Router
+                                        Allow content changes via MCP
                                     </Title>
                                     <Text c="dimmed" fz="xs">
-                                        {settings.aiAgentsVisible
-                                            ? 'Route user questions to the best agent automatically, instead of asking users to pick.'
-                                            : 'Enable AI features first to use the Router.'}
+                                        Let MCP clients create and edit charts
+                                        and dashboards in this organization.
+                                        Disable to prevent unintended changes to
+                                        managed content; reading content over
+                                        MCP stays available either way, and
+                                        individual users are still bound by
+                                        their existing permissions.
                                     </Text>
                                 </Box>
                                 <Switch
                                     size="md"
-                                    checked={isRouterEnabled}
-                                    disabled={
-                                        isUpdatingRouter ||
-                                        isRouterLoading ||
-                                        !settings.aiAgentsVisible
-                                    }
+                                    checked={settings.mcpContentWritesEnabled}
+                                    disabled={isUpdatingSettings}
                                     onChange={(event) =>
-                                        upsertRouter({
-                                            enabled:
+                                        updateSettings({
+                                            mcpContentWritesEnabled:
                                                 event.currentTarget.checked,
                                         })
                                     }
                                 />
                             </Group>
-
-                            {settings.aiAgentsVisible && isRouterEnabled && (
-                                <>
-                                    <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
-                                    <AiRouterInstructionsCard />
-                                </>
-                            )}
-                        </Stack>
-                    </SettingsCard>
+                        </SettingsCard>
+                    </Section>
                 </>
             )}
         </SettingsPage>

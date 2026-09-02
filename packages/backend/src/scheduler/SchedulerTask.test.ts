@@ -23,11 +23,13 @@ import {
     type CapturedQuery,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
+    type EmailNotificationPayload,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
+    type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
@@ -796,7 +798,7 @@ describe('dedupeArtifactFilename', () => {
     });
 });
 
-describe('uploadGsheetFromQuery — rows branch', () => {
+describe('uploadGsheetFromQuery', () => {
     // SchedulerTask has 20+ constructor dependencies. We create minimal mocks
     // for only the services touched by the rows branch.
 
@@ -902,12 +904,88 @@ describe('uploadGsheetFromQuery — rows branch', () => {
         expect(mockAppendToSheet.mock.calls[0][2]).toEqual(payload.rows);
         expect(mockExecuteMetricQueryAndGetResults).not.toHaveBeenCalled();
     });
+
+    it('passes selected parameter values to the exported metric query', async () => {
+        const queryError = new Error('query failed');
+        const mockExecuteMetricQueryAndGetResults = vi
+            .fn()
+            .mockRejectedValue(queryError);
+        const task = makeTask({
+            googleDriveClient: {
+                isEnabled: true,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['googleDriveClient'],
+            userService: {
+                getAccountByUserUuid: vi.fn().mockResolvedValue({
+                    user: { id: 'user-1' },
+                }),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['userService'],
+            schedulerService: {
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['schedulerService'],
+            analytics: {
+                trackAccount: vi.fn(),
+                track: vi.fn(),
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['analytics'],
+            asyncQueryService: {
+                executeMetricQueryAndGetResults:
+                    mockExecuteMetricQueryAndGetResults,
+            } as unknown as ConstructorParameters<
+                typeof SchedulerTask
+            >[0]['asyncQueryService'],
+        });
+        const parameters = { currency: 'EUR' };
+        const payload = {
+            source: 'metricQuery',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            exploreId: 'orders',
+            metricQuery: {} as MetricQuery,
+            showTableNames: true,
+            columnOrder: [],
+            parameters,
+        } as UploadGsheetPayload;
+
+        await expect(
+            (
+                task as unknown as {
+                    uploadGsheetFromQuery(
+                        jobId: string,
+                        scheduledTime: Date,
+                        jobPayload: UploadGsheetPayload,
+                    ): Promise<void>;
+                }
+            ).uploadGsheetFromQuery('job-1', new Date(), payload),
+        ).rejects.toThrow(queryError);
+
+        expect(mockExecuteMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ parameters }),
+            expect.anything(),
+        );
+    });
 });
 
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
+class TestSchedulerTask extends SchedulerTask {
+    public sendEmailNotificationForTest(
+        jobId: string,
+        notification: EmailNotificationPayload,
+    ) {
+        return this.sendEmailNotification(jobId, notification);
+    }
+}
+
 const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
-    new SchedulerTask({ ...({} as TaskDeps), ...overrides });
+    new TestSchedulerTask({ ...({} as TaskDeps), ...overrides });
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
@@ -3324,6 +3402,53 @@ describe('app delivery target senders', () => {
         expect(args[15]).toEqual(page.notices);
         // isApp — drives the app-aware headline in the template.
         expect(args[17]).toBe(true);
+    });
+
+    it('sends an inline plain-text dashboard email without a cron', async () => {
+        const sendDashboardCsvNotificationEmail = vi
+            .fn()
+            .mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            emailClient: asDep<'emailClient'>({
+                sendDashboardCsvNotificationEmail,
+            }),
+            emailWhitelabelService: asDep<'emailWhitelabelService'>({
+                resolveSenderIdentity: vi.fn().mockResolvedValue(null),
+            }),
+        });
+        const scheduler: SendNowScheduler = {
+            ...appScheduler({
+                appUuid: null,
+                appName: null,
+                dashboardUuid: 'dashboard-1',
+                plainTextEmail: true,
+            }),
+            savedChartUuid: null,
+            dashboardUuid: 'dashboard-1',
+            savedSqlUuid: null,
+            appUuid: null,
+            cron: undefined,
+            selectedTabs: null,
+        };
+
+        const notification: EmailNotificationPayload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            scheduledTime: new Date('2026-07-30T09:00:00Z'),
+            jobGroup: 'job-1',
+            scheduler,
+            page: senderPage(),
+            recipient: 'recipient@example.com',
+        };
+
+        await task.sendEmailNotificationForTest('job-1', notification);
+
+        expect(sendDashboardCsvNotificationEmail).toHaveBeenCalledTimes(1);
+        expect(sendDashboardCsvNotificationEmail.mock.calls[0][18]).toEqual({
+            cadence: undefined,
+        });
     });
 
     it('posts an app xlsx delivery to the MS Teams webhook', async () => {

@@ -39,6 +39,156 @@ beforeEach(() => {
     };
 });
 
+describe('mobile login config', () => {
+    it('is available by default', () => {
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: true });
+    });
+
+    it('supports the rollback switch', () => {
+        process.env.AUTH_MOBILE_LOGIN_ENABLED = 'false';
+
+        expect(parseConfig().auth.mobileLogin).toEqual({ enabled: false });
+    });
+});
+
+describe('mobile push notification config', () => {
+    it('is disabled when APNs credentials are absent', () => {
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: undefined,
+            sandbox: undefined,
+            production: undefined,
+        });
+    });
+
+    it('enables a complete sandbox credential on Lightdash Cloud', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: true,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: { keyId: 'KEYID', privateKey: 'private-key' },
+            production: undefined,
+        });
+    });
+
+    it('enables a complete production credential on Lightdash Cloud', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: true,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: undefined,
+            production: { keyId: 'KEYID', privateKey: 'private-key' },
+        });
+    });
+
+    it('stays disabled outside Lightdash Cloud', () => {
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications.enabled).toBe(false);
+    });
+
+    it.each([
+        {
+            key: 'MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID' as const,
+            value: 'KEYID',
+        },
+        {
+            key: 'MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY' as const,
+            value: 'private-key',
+        },
+    ])('is disabled when only $key is set', ({ key, value }) => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env[key] = value;
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: 'TEAMID',
+            sandbox: undefined,
+            production: undefined,
+        });
+    });
+
+    it('is disabled when an environment credential has no team ID', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_KEY_ID = 'KEYID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_PRODUCTION_PRIVATE_KEY =
+            'private-key';
+
+        expect(parseConfig().mobilePushNotifications).toEqual({
+            enabled: false,
+            bundleId: 'com.lightdash.mobile',
+            teamId: undefined,
+            sandbox: undefined,
+            production: { keyId: 'KEYID', privateKey: 'private-key' },
+        });
+    });
+
+    it('allows the global config singleton to load with partial credentials', async () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID = 'TEAMID';
+        process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_SANDBOX_KEY_ID = 'KEYID';
+        vi.resetModules();
+
+        const { lightdashConfig } = await import('./lightdashConfig');
+
+        expect(lightdashConfig.mobilePushNotifications.enabled).toBe(false);
+    });
+});
+
+describe('license config', () => {
+    it('supports an offline license file with a license key', () => {
+        process.env.LIGHTDASH_LICENSE_KEY = 'license-key';
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(parseConfig().license).toEqual({
+            licenseKey: 'license-key',
+            licenseCertificate: 'license-certificate',
+        });
+    });
+
+    it('requires a license key with an offline license file', () => {
+        process.env.LIGHTDASH_LICENSE_CERTIFICATE = 'license-certificate';
+
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_LICENSE_KEY is required when LIGHTDASH_LICENSE_CERTIFICATE is set',
+        );
+    });
+});
+
+describe('AI prompt input request classifier config', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            false,
+        );
+    });
+
+    it('is enabled explicitly', () => {
+        process.env.AI_AGENT_PROMPT_INPUT_REQUEST_CLASSIFIER_ENABLED = 'true';
+
+        expect(parseConfig().ai.promptInputRequestClassifier.enabled).toBe(
+            true,
+        );
+    });
+});
+
 describe('Query phase metrics config', () => {
     it('defaults to an empty project allowlist', () => {
         expect(parseConfig().queryPhaseMetrics).toEqual({ projectUuids: [] });
@@ -82,6 +232,68 @@ describe('HTTP server config', () => {
         process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS = '300000';
 
         expect(parseConfig().httpServer.keepAliveTimeoutMs).toBe(300_000);
+    });
+});
+
+describe('mobile minimum supported versions', () => {
+    it('defaults both platforms to null', () => {
+        expect(parseConfig().mobile).toEqual({
+            minimumSupportedVersion: {
+                android: null,
+                ios: null,
+            },
+        });
+    });
+
+    it.each([
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+            platform: 'android' as const,
+            otherPlatform: 'ios' as const,
+        },
+        {
+            environmentVariable: 'LIGHTDASH_MOBILE_MINIMUM_IOS_VERSION',
+            platform: 'ios' as const,
+            otherPlatform: 'android' as const,
+        },
+    ])(
+        'configures $platform independently',
+        ({ environmentVariable, platform, otherPlatform }) => {
+            process.env[environmentVariable] = '2.3.4';
+
+            expect(parseConfig().mobile.minimumSupportedVersion).toMatchObject({
+                [platform]: '2.3.4',
+                [otherPlatform]: null,
+            });
+        },
+    );
+
+    it('keeps 1.10 as a string', () => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = '1.10';
+
+        expect(parseConfig().mobile.minimumSupportedVersion.android).toBe(
+            '1.10',
+        );
+    });
+
+    it.each([
+        '',
+        ' ',
+        '-1',
+        '+1',
+        '.1',
+        '1.',
+        '1..2',
+        '1. 2',
+        '1e2',
+        '1.2-beta',
+    ])('rejects invalid version %j', (value) => {
+        process.env.LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION = value;
+
+        expect(() => parseConfig()).toThrowError(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'LIGHTDASH_MOBILE_MINIMUM_ANDROID_VERSION',
+        );
     });
 });
 
@@ -515,6 +727,83 @@ test('Should parse bedrock inference profile prefix from env', () => {
         region: 'ap-northeast-1',
         inferenceProfilePrefix: 'jp',
     });
+});
+
+test('Should parse and normalize LLM gateway base URLs', () => {
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.ANTHROPIC_BASE_URL = ' https://anthropic-gateway.example/v1 ';
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = ' https://bedrock-gateway.example/runtime ';
+
+    expect(parseConfig()).toMatchObject({
+        ai: {
+            copilot: {
+                providers: {
+                    anthropic: {
+                        baseUrl: 'https://anthropic-gateway.example',
+                    },
+                    bedrock: {
+                        baseUrl: 'https://bedrock-gateway.example/runtime',
+                    },
+                },
+            },
+        },
+    });
+});
+
+test.each(['1', 'true'])(
+    '%s enables Claude Code Bedrock skip-auth',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL =
+            'https://bedrock-gateway.example/runtime';
+        process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = value;
+
+        expect(
+            parseConfig().ai.copilot.providers.bedrock?.claudeCodeSkipAuth,
+        ).toBe(true);
+    },
+);
+
+test.each([
+    ['ANTHROPIC_BASE_URL', 'gateway.internal'],
+    ['BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+])('rejects invalid %s values', (environmentVariable, value) => {
+    process.env[environmentVariable] = value;
+    if (environmentVariable === 'BEDROCK_BASE_URL') {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+    }
+
+    expect(() => parseConfig()).toThrow(environmentVariable);
+});
+
+test('explains that Bedrock skip-auth does not configure backend credentials', () => {
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_BASE_URL = 'https://bedrock-gateway.example/runtime';
+    process.env.CLAUDE_CODE_SKIP_BEDROCK_AUTH = 'true';
+
+    expect(() => parseConfig()).toThrow(
+        'BEDROCK_BASE_URL requires BEDROCK_API_KEY',
+    );
+});
+
+test('does not reuse an Anthropic gateway token for Managed Agent', () => {
+    process.env.ANTHROPIC_API_KEY = 'gateway-token';
+    process.env.ANTHROPIC_BASE_URL = 'https://anthropic-gateway.example';
+
+    expect(parseConfig().managedAgent.anthropicApiKey).toBeNull();
+
+    process.env.MANAGED_AGENT_ANTHROPIC_API_KEY = 'managed-agent-key';
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe(
+        'managed-agent-key',
+    );
+
+    delete process.env.MANAGED_AGENT_ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_BASE_URL;
+    expect(parseConfig().managedAgent.anthropicApiKey).toBe('gateway-token');
 });
 
 test('Should default AI tool description max chars to 600', () => {
@@ -1732,7 +2021,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
     // set the var.
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-        ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],

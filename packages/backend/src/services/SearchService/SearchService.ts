@@ -3,8 +3,10 @@ import {
     AllChartsSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
+    DataAppSearchResult,
     FieldSearchResult,
     ForbiddenError,
+    isDashboardSearchResult,
     isTableErrorSearchResult,
     SavedChartSearchResult,
     SearchFilters,
@@ -18,10 +20,14 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
+import { searchReservingVerified } from '../../models/SearchModel/utils/search';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    type AccessTarget,
+    type SpacePermissionService,
+} from '../SpaceService/SpacePermissionService';
 import { checkUserAttributesAccess } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -35,7 +41,39 @@ type SearchServiceArguments = {
     appGenerateService?: AppGenerateService;
 };
 
+export type FindContentSearchResult =
+    | (DashboardSearchResult & { contentType: 'dashboard' })
+    | (AllChartsSearchResult & { contentType: 'chart' })
+    | (DataAppSearchResult & { contentType: 'data_app' });
+
 export class SearchService extends BaseService {
+    private static getContentAccessTarget(
+        content: DashboardSearchResult | AllChartsSearchResult,
+    ): AccessTarget | null {
+        if ('charts' in content) {
+            return {
+                type: 'dashboard',
+                dashboardUuid: content.uuid,
+                spaceUuid: content.spaceUuid,
+            };
+        }
+        if (content.chartSource === 'sql') {
+            return content.spaceUuid
+                ? {
+                      type: 'sqlChart',
+                      savedSqlUuid: content.uuid,
+                      spaceUuid: content.spaceUuid,
+                  }
+                : null;
+        }
+        return {
+            type: 'chart',
+            chartUuid: content.uuid,
+            dashboardUuid: content.dashboardUuid,
+            spaceUuid: content.spaceUuid,
+        };
+    }
+
     private readonly searchModel: SearchModel;
 
     private readonly analytics: LightdashAnalytics;
@@ -61,33 +99,13 @@ export class SearchService extends BaseService {
         this.appGenerateService = args.appGenerateService;
     }
 
-    // Verified matches are fetched through a dedicated capped query so they
-    // are never crowded out of the per-type result caps by unverified matches.
-    private static async searchReservingVerified<T extends { uuid: string }>(
-        verifiedOnly: boolean,
-        search: (opts: { verifiedOnly: boolean }) => Promise<T[]>,
-    ): Promise<T[]> {
-        if (verifiedOnly) {
-            return search({ verifiedOnly: true });
-        }
-        const [allResults, verifiedResults] = await Promise.all([
-            search({ verifiedOnly: false }),
-            search({ verifiedOnly: true }),
-        ]);
-        const seenUuids = new Set(allResults.map((result) => result.uuid));
-        return [
-            ...allResults,
-            ...verifiedResults.filter((result) => !seenUuids.has(result.uuid)),
-        ];
-    }
-
     async findContent(
         user: SessionUser,
         projectUuid: string,
         query: string,
         verifiedOnly: boolean,
     ): Promise<{
-        content: (DashboardSearchResult | AllChartsSearchResult)[];
+        content: FindContentSearchResult[];
     }> {
         const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
@@ -106,8 +124,12 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const [dashboardSearchResults, chartSearchResults] = await Promise.all([
-            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+        const [
+            dashboardSearchResults,
+            chartSearchResults,
+            dataAppSearchResults,
+        ] = await Promise.all([
+            searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchDashboards(
                     projectUuid,
                     query,
@@ -115,48 +137,78 @@ export class SearchService extends BaseService {
                     { fullTextSearchOperator: 'OR', ...opts },
                 ),
             ),
-            SearchService.searchReservingVerified(verifiedOnly, (opts) =>
+            searchReservingVerified(verifiedOnly, (opts) =>
                 this.searchModel.searchAllCharts(projectUuid, query, {
                     fullTextSearchOperator: 'OR',
                     ...opts,
                 }),
             ),
+            // Data Apps have no verification state, so verifiedOnly does not apply.
+            this.appGenerateService
+                ? this.appGenerateService
+                      .dataAppsEnabledFor(user)
+                      .then((enabled) =>
+                          enabled
+                              ? this.searchModel.searchDataApps(
+                                    projectUuid,
+                                    query,
+                                    undefined,
+                                    { fullTextSearchOperator: 'OR' },
+                                )
+                              : [],
+                      )
+                : Promise.resolve([]),
         ]);
 
         const allContent = [
             ...dashboardSearchResults,
             ...chartSearchResults,
         ] satisfies (DashboardSearchResult | AllChartsSearchResult)[];
-        if (allContent.length === 0) {
+        if (allContent.length === 0 && dataAppSearchResults.length === 0) {
             return { content: [] };
         }
 
-        const spaceUuids = [
-            ...new Set(allContent.map((content) => content.spaceUuid)),
-        ];
-        const spaceContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
-                user.userUuid,
-                spaceUuids,
-            );
-
-        const contentWithContext = allContent.flatMap((content) => {
-            const spaceContext = spaceContexts[content.spaceUuid];
-            return spaceContext ? [{ content, spaceContext }] : [];
+        // Resource-aware targets: direct grants on a dashboard, chart, or SQL
+        // chart count exactly like space access. Rows without a resolvable
+        // location (dashboard-owned SQL definitions have no own space) drop.
+        const contentWithTargets = allContent.flatMap((content) => {
+            const target = SearchService.getContentAccessTarget(content);
+            return target ? [{ content, target }] : [];
         });
+        const [resolvedContexts, visibleDataApps] = await Promise.all([
+            this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                contentWithTargets.map(({ target }) => target),
+            ),
+            this.appGenerateService && dataAppSearchResults.length > 0
+                ? this.appGenerateService.filterAppsUserCanView(
+                      user,
+                      organizationUuid,
+                      projectUuid,
+                      dataAppSearchResults,
+                  )
+                : Promise.resolve([]),
+        ]);
+
+        const contentWithContext = contentWithTargets.flatMap(
+            ({ content }, index) => {
+                const context = resolvedContexts[index]?.context;
+                return context ? [{ content, context }] : [];
+            },
+        );
         const accessResults = auditedAbility.canBulk(
             'view',
-            contentWithContext.map(({ content, spaceContext }) =>
+            contentWithContext.map(({ content, context }) =>
                 'charts' in content
                     ? subject('Dashboard', {
-                          ...spaceContext,
+                          ...context,
                           metadata: {
                               dashboardUuid: content.uuid,
                               dashboardName: content.name,
                           },
                       })
                     : subject('SavedChart', {
-                          ...spaceContext,
+                          ...context,
                           metadata: {
                               savedChartUuid: content.uuid,
                               savedChartName: content.name,
@@ -166,9 +218,22 @@ export class SearchService extends BaseService {
         );
 
         return {
-            content: contentWithContext
-                .filter((_, index) => accessResults[index])
-                .map(({ content }) => content),
+            content: [
+                ...contentWithContext
+                    .filter((_, index) => accessResults[index])
+                    .map(
+                        ({ content }): FindContentSearchResult =>
+                            isDashboardSearchResult(content)
+                                ? { ...content, contentType: 'dashboard' }
+                                : { ...content, contentType: 'chart' },
+                    ),
+                ...visibleDataApps.map(
+                    (dataApp): FindContentSearchResult => ({
+                        ...dataApp,
+                        contentType: 'data_app',
+                    }),
+                ),
+            ],
         };
     }
 
@@ -203,17 +268,7 @@ export class SearchService extends BaseService {
         );
 
         const spaceUuids = [
-            ...new Set([
-                ...results.dashboards.map((dashboard) => dashboard.spaceUuid),
-                ...results.dashboardTabs.map(
-                    (dashboardTab) => dashboardTab.spaceUuid,
-                ),
-                ...results.sqlCharts.map((sqlChart) => sqlChart.spaceUuid),
-                ...results.savedCharts.map(
-                    (savedChart) => savedChart.spaceUuid,
-                ),
-                ...results.spaces.map((space) => space.uuid),
-            ]),
+            ...new Set(results.spaces.map((space) => space.uuid)),
         ];
 
         const accessibleSpaceUuids =
@@ -223,17 +278,133 @@ export class SearchService extends BaseService {
                 spaceUuids,
             );
 
-        const filterItem = async (
-            item:
-                | DashboardSearchResult
-                | SpaceSearchResult
-                | SavedChartSearchResult
-                | DashboardTabResult,
-        ) => {
-            const spaceUuid: string =
-                'spaceUuid' in item ? item.spaceUuid : item.uuid;
-            return accessibleSpaceUuids.includes(spaceUuid);
+        // Content rows resolve resource-aware access in one batch so direct
+        // grants count exactly like space access; spaces themselves cannot
+        // carry grants and keep the plain space check above.
+        type SearchAccessEntry =
+            | {
+                  kind: 'dashboard';
+                  index: number;
+                  target: AccessTarget;
+                  name: string;
+                  uuid: string;
+              }
+            | {
+                  kind: 'dashboardTab';
+                  index: number;
+                  target: AccessTarget;
+                  name: string;
+                  uuid: string;
+              }
+            | {
+                  kind: 'savedChart';
+                  index: number;
+                  target: AccessTarget;
+                  name: string;
+                  uuid: string;
+              }
+            | {
+                  kind: 'sqlChart';
+                  index: number;
+                  target: AccessTarget;
+                  name: string;
+                  uuid: string;
+              };
+        const accessEntries: SearchAccessEntry[] = [
+            ...results.dashboards.map((dashboard, index) => ({
+                kind: 'dashboard' as const,
+                index,
+                target: {
+                    type: 'dashboard' as const,
+                    dashboardUuid: dashboard.uuid,
+                    spaceUuid: dashboard.spaceUuid,
+                },
+                name: dashboard.name,
+                uuid: dashboard.uuid,
+            })),
+            ...results.dashboardTabs.map((dashboardTab, index) => ({
+                kind: 'dashboardTab' as const,
+                index,
+                target: {
+                    type: 'dashboard' as const,
+                    dashboardUuid: dashboardTab.dashboardUuid,
+                    spaceUuid: dashboardTab.spaceUuid,
+                },
+                name: dashboardTab.dashboardName,
+                uuid: dashboardTab.dashboardUuid,
+            })),
+            ...results.savedCharts.map((savedChart, index) => ({
+                kind: 'savedChart' as const,
+                index,
+                target: {
+                    type: 'chart' as const,
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: savedChart.dashboardUuid,
+                    spaceUuid: savedChart.spaceUuid,
+                },
+                name: savedChart.name,
+                uuid: savedChart.uuid,
+            })),
+            // Dashboard-owned SQL definitions have no own space and drop here,
+            // matching the previous space-membership behavior.
+            ...results.sqlCharts.flatMap((sqlChart, index) =>
+                sqlChart.spaceUuid
+                    ? [
+                          {
+                              kind: 'sqlChart' as const,
+                              index,
+                              target: {
+                                  type: 'sqlChart' as const,
+                                  savedSqlUuid: sqlChart.uuid,
+                                  spaceUuid: sqlChart.spaceUuid,
+                              },
+                              name: sqlChart.name,
+                              uuid: sqlChart.uuid,
+                          },
+                      ]
+                    : [],
+            ),
+        ];
+        const resolvedContexts =
+            await this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                accessEntries.map(({ target }) => target),
+            );
+        const entriesWithContext = accessEntries.flatMap((entry, index) => {
+            const context = resolvedContexts[index]?.context;
+            return context ? [{ entry, context }] : [];
+        });
+        const entryAccessResults = auditedAbility.canBulk(
+            'view',
+            entriesWithContext.map(({ entry, context }) =>
+                entry.kind === 'dashboard' || entry.kind === 'dashboardTab'
+                    ? subject('Dashboard', {
+                          ...context,
+                          metadata: {
+                              dashboardUuid: entry.uuid,
+                              dashboardName: entry.name,
+                          },
+                      })
+                    : subject('SavedChart', {
+                          ...context,
+                          metadata: {
+                              savedChartUuid: entry.uuid,
+                              savedChartName: entry.name,
+                          },
+                      }),
+            ),
+        );
+        const allowedIndexes: Record<SearchAccessEntry['kind'], Set<number>> = {
+            dashboard: new Set(),
+            dashboardTab: new Set(),
+            savedChart: new Set(),
+            sqlChart: new Set(),
         };
+        entriesWithContext.forEach(({ entry }, index) => {
+            if (entryAccessResults[index]) {
+                allowedIndexes[entry.kind].add(entry.index);
+            }
+        });
 
         const hasExploreAccess = auditedAbility.can(
             'manage',
@@ -313,24 +484,7 @@ export class SearchService extends BaseService {
             }
         }
 
-        const hasDashboardAccess = await Promise.all(
-            results.dashboards.map(filterItem),
-        );
-
-        const hasDashboardTabAccess = await Promise.all(
-            results.dashboardTabs.map(filterItem),
-        );
-        const hasSavedChartAccess = await Promise.all(
-            results.savedCharts.map(filterItem),
-        );
-
-        const hasSqlChartAccess = await Promise.all(
-            results.sqlCharts.map(filterItem),
-        );
-
-        const hasSpaceAccess = await Promise.all(
-            results.spaces.map(filterItem),
-        );
+        const accessibleSpaceUuidSet = new Set(accessibleSpaceUuids);
 
         // Data apps are EE-only and have a per-app permission shape (space
         // access OR creator self-access). Skip entirely on OSS builds and
@@ -354,19 +508,21 @@ export class SearchService extends BaseService {
             ...results,
             tables: filteredTables,
             fields: filteredFields,
-            dashboards: results.dashboards.filter(
-                (_, index) => hasDashboardAccess[index],
+            dashboards: results.dashboards.filter((_, index) =>
+                allowedIndexes.dashboard.has(index),
             ),
-            dashboardTabs: results.dashboardTabs.filter(
-                (_, index) => hasDashboardTabAccess[index],
+            dashboardTabs: results.dashboardTabs.filter((_, index) =>
+                allowedIndexes.dashboardTab.has(index),
             ),
-            savedCharts: results.savedCharts.filter(
-                (_, index) => hasSavedChartAccess[index],
+            savedCharts: results.savedCharts.filter((_, index) =>
+                allowedIndexes.savedChart.has(index),
             ),
-            sqlCharts: results.sqlCharts.filter(
-                (_, index) => hasSqlChartAccess[index],
+            sqlCharts: results.sqlCharts.filter((_, index) =>
+                allowedIndexes.sqlChart.has(index),
             ),
-            spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
+            spaces: results.spaces.filter((space) =>
+                accessibleSpaceUuidSet.has(space.uuid),
+            ),
             pages: auditedAbility.can(
                 'view',
                 subject('Analytics', {

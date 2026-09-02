@@ -293,6 +293,7 @@ const SearchContentList: FC<{
             {
                 projectUuids: [projectUuid],
                 contentTypes: [contentType],
+                dataAppVizsFilter: 'exclude',
                 pageSize: PAGE_SIZE,
                 search: debouncedSearch || undefined,
             },
@@ -712,6 +713,11 @@ const SOURCE_OPTIONS: {
         label: 'Recently updated',
         hint: 'Recently changed content. Surfaces churn, not importance.',
     },
+    {
+        value: 'verified',
+        label: 'Verified',
+        hint: "This project's admin-verified charts and dashboards.",
+    },
 ];
 
 const CONTENT_TYPE_OPTIONS: {
@@ -792,20 +798,22 @@ const CollectionSourceControls: FC<{
                         ))}
                     </Chip.Group>
                 )}
-                {source !== 'manual' && (
+                {source !== 'manual' && source !== 'verified' && (
                     <Divider orientation="vertical" mx={2} />
                 )}
-                <Chip
-                    size="xs"
-                    variant="light"
-                    color="green"
-                    checked={config.verifiedOnly === true}
-                    onChange={(checked) =>
-                        onChange({ ...config, verifiedOnly: checked })
-                    }
-                >
-                    Verified only
-                </Chip>
+                {source !== 'verified' && (
+                    <Chip
+                        size="xs"
+                        variant="light"
+                        color="green"
+                        checked={config.verifiedOnly === true}
+                        onChange={(checked) =>
+                            onChange({ ...config, verifiedOnly: checked })
+                        }
+                    >
+                        Verified only
+                    </Chip>
+                )}
             </Group>
         </Stack>
     );

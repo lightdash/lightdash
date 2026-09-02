@@ -4,6 +4,7 @@ import {
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchFailureStage,
     type AiDeepResearchRunStatus,
     type AiDeepResearchTerminalReason,
 } from '@lightdash/common';
@@ -26,6 +27,8 @@ export type DbAiDeepResearchRun = {
     status: AiDeepResearchRunStatus;
     /** Why the run reached its terminal status; null while running or on success. */
     terminal_reason: AiDeepResearchTerminalReason | null;
+    /** Stable stage where a non-successful run stopped; null on success. */
+    failure_stage: AiDeepResearchFailureStage | null;
     entry_point: AiDeepResearchEntryPoint;
     result_markdown: string | null;
     report_expires_at: Date | null;
@@ -79,6 +82,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             DbAiDeepResearchRun,
             | 'status'
             | 'terminal_reason'
+            | 'failure_stage'
             | 'result_markdown'
             | 'report_expires_at'
             | 'report_expired_at'

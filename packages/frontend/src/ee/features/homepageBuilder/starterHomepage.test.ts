@@ -20,6 +20,7 @@ describe('buildStarterHomepage', () => {
             'quick-actions',
             'recent',
             'collection',
+            'collection',
         ]);
     });
 
@@ -28,6 +29,7 @@ describe('buildStarterHomepage', () => {
             'favorites',
             'ask-ai-hero',
             'recent',
+            'collection',
             'collection',
         ]);
     });
@@ -38,13 +40,28 @@ describe('buildStarterHomepage', () => {
             .flatMap((row) => row.blocks)
             .filter((block) => block.type === 'collection');
 
-        expect(collections).toHaveLength(1);
+        expect(collections).toHaveLength(2);
         expect(collections[0]).toMatchObject({
             config: {
                 title: 'Most popular',
                 source: 'most-viewed',
                 items: [],
             },
+        });
+    });
+
+    it('includes a verified collection by default', () => {
+        const config = buildStarterHomepage('content-first', []);
+        const verifiedCollection = config.rows
+            .flatMap((row) => row.blocks)
+            .find(
+                (block) =>
+                    block.type === 'collection' &&
+                    block.config.title === 'Verified',
+            );
+
+        expect(verifiedCollection).toMatchObject({
+            config: { title: 'Verified', source: 'verified', items: [] },
         });
     });
 

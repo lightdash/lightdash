@@ -132,12 +132,10 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
         return (
             <HoverCard
                 width={280}
-                shadow="xl"
                 position="bottom-start"
                 offset={8}
                 openDelay={120}
                 closeDelay={80}
-                withinPortal
                 portalProps={{ target: '#navbar-header' }}
             >
                 <HoverCard.Target>
@@ -237,12 +235,10 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
     return (
         <HoverCard
             width={240}
-            shadow="xl"
             position="bottom-start"
             offset={8}
             openDelay={120}
             closeDelay={80}
-            withinPortal
             portalProps={{ target: '#navbar-header' }}
         >
             <HoverCard.Target>

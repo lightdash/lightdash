@@ -7,19 +7,22 @@ import {
     getItemId,
     isDateItem,
     isField,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     type FilterableField,
     type FilterRule,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
 import {
-    filterOperatorDescription,
-    filterOperatorDropdownLabel,
+    filterOperatorDescriptionKey,
+    filterOperatorDropdownLabelKey,
 } from './FilterInputs/constants';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
@@ -46,6 +49,7 @@ const FilterRuleForm: FC<Props> = memo(
         onConvertToGroup,
     }) => {
         const { popoverProps, baseTable } = useFiltersContext();
+        const getUiString = useUiStrings();
         const activeField = useMemo(() => {
             return fields.find(
                 (field) => getItemId(field) === filterRule.target.fieldId,
@@ -59,8 +63,12 @@ const FilterRuleForm: FC<Props> = memo(
         }, [activeField]);
 
         const filterOperatorOptions = useMemo(() => {
-            return getFilterOperatorOptions(filterType, activeField);
-        }, [filterType, activeField]);
+            return getFilterOperatorOptions(
+                filterType,
+                activeField,
+                getUiString,
+            );
+        }, [filterType, activeField, getUiString]);
 
         const onFieldChange = useCallback(
             (fieldId: string) => {
@@ -95,7 +103,7 @@ const FilterRuleForm: FC<Props> = memo(
         );
         const isRequired = filterRule.required;
         const isRequiredLabel = isRequired
-            ? 'This is a required filter defined in the model configuration and cannot be removed.'
+            ? getUiString('filters.requiredFilterTooltip')
             : '';
         const isActiveFieldHidden = activeField
             ? isHiddenField(activeField)
@@ -153,8 +161,6 @@ const FilterRuleForm: FC<Props> = memo(
                 <Tooltip
                     label={fieldSelectDisabledReason}
                     disabled={!fieldSelectDisabledReason}
-                    withinPortal
-                    multiline
                 >
                     <Box>
                         <FieldSelect
@@ -189,22 +195,26 @@ const FilterRuleForm: FC<Props> = memo(
                     value={filterRule.operator}
                     data={filterOperatorOptions}
                     renderOption={({ option }) => {
-                        const description =
-                            filterOperatorDescription[
+                        const descriptionKey =
+                            filterOperatorDescriptionKey[
                                 option.value as FilterOperator
                             ];
-                        const dropdownLabel =
-                            filterOperatorDropdownLabel[
+                        const description = descriptionKey
+                            ? getUiString(descriptionKey)
+                            : undefined;
+                        const dropdownLabelKey =
+                            filterOperatorDropdownLabelKey[
                                 option.value as FilterOperator
-                            ] ?? option.label;
+                            ];
+                        const dropdownLabel = dropdownLabelKey
+                            ? getUiString(dropdownLabelKey)
+                            : option.label;
                         if (description) {
                             return (
                                 <Tooltip
                                     label={description}
                                     position="right"
-                                    multiline
                                     maw={300}
-                                    withinPortal
                                 >
                                     <Box w="100%">{dropdownLabel}</Box>
                                 </Tooltip>
@@ -214,12 +224,35 @@ const FilterRuleForm: FC<Props> = memo(
                     }}
                     onChange={(value) => {
                         if (!value) return;
+
+                        const operator = value as FilterRule['operator'];
+                        // Absolute date values are already normalized. Running
+                        // them through the defaults again can shift timezones.
+                        const shouldPreserveValues =
+                            filterType === FilterType.DATE &&
+                            (filterRule.values?.length ?? 0) > 0 &&
+                            isWithValueFilter(filterRule.operator) &&
+                            isWithValueFilter(operator) &&
+                            !isRelativeDateFilterOperator(
+                                filterRule.operator,
+                            ) &&
+                            !isRelativeDateFilterOperator(operator);
+
+                        if (shouldPreserveValues) {
+                            onChange({
+                                ...filterRule,
+                                operator,
+                                settings: undefined,
+                            });
+                            return;
+                        }
+
                         onChange(
                             getFilterRuleFromFieldWithDefaultValue(
                                 activeField,
                                 {
                                     ...filterRule,
-                                    operator: value as FilterRule['operator'],
+                                    operator,
                                 },
                                 filterRule.values ?? [],
                             ),
@@ -238,16 +271,9 @@ const FilterRuleForm: FC<Props> = memo(
 
                 {isEditMode &&
                     (!onConvertToGroup ? (
-                        <Tooltip
-                            label={isRequiredLabel}
-                            disabled={!isRequired}
-                            withinPortal
-                            multiline
-                        >
+                        <Tooltip label={isRequiredLabel} disabled={!isRequired}>
                             <span>
                                 <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
                                     onClick={onDelete}
                                     disabled={isRequired}
                                     data-testid="delete-filter-rule-button"
@@ -257,9 +283,9 @@ const FilterRuleForm: FC<Props> = memo(
                             </span>
                         </Tooltip>
                     ) : isRequired ? (
-                        <Tooltip label={isRequiredLabel} withinPortal multiline>
+                        <Tooltip label={isRequiredLabel}>
                             <span>
-                                <ActionIcon variant="subtle" disabled>
+                                <ActionIcon disabled>
                                     <IconDots size="20" />
                                 </ActionIcon>
                             </span>
@@ -267,15 +293,13 @@ const FilterRuleForm: FC<Props> = memo(
                     ) : (
                         <Menu
                             position="bottom-end"
-                            shadow="md"
                             closeOnItemClick
                             withArrow
                             arrowPosition="center"
-                            withinPortal
                         >
                             <Menu.Target>
                                 <Box>
-                                    <ActionIcon variant="subtle" color="gray">
+                                    <ActionIcon>
                                         <IconDots size="20" />
                                     </ActionIcon>
                                 </Box>

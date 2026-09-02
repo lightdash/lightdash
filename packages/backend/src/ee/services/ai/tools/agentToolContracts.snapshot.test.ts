@@ -15,9 +15,11 @@ import { getEditProjectContext } from './editProjectContext';
 import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
+import { getFindCustomChartTypes } from './findCustomChartTypes';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
 import { getGenerateDashboardV2 } from './generateDashboardV2';
+import { getGenerateDataApp } from './generateDataApp';
 import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGenerateVisualization } from './generateVisualization';
@@ -25,6 +27,7 @@ import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
+import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -33,6 +36,7 @@ import { getListWorkstreams } from './listWorkstreams';
 import { getLoadMcpTools } from './loadMcpTools';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
+import { getRunComposerQueries } from './runComposerQueries';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -67,7 +71,7 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = () => {
+const makeAgentTools = (enableFilterExpressions = false) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -88,7 +92,12 @@ const makeAgentTools = () => {
             findContent: noop,
             siteUrl: 'https://lightdash.example',
             toolDescriptionMaxChars: 600,
+            dashboardDetailsToolName: 'readContent',
             trackCoverage: noop,
+        }),
+        findCustomChartTypes: getFindCustomChartTypes({
+            findCustomChartTypes: noop,
+            updateProgress: noopAsync,
         }),
         findExplores: getFindExplores({
             fieldSearchSize: 25,
@@ -128,6 +137,8 @@ const makeAgentTools = () => {
         }),
         loadSkill: getLoadSkill({ loadSkill: noop }),
         loadMcpTools: getLoadMcpTools(['mcp_linear__get_issue']),
+        generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
+        iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),
@@ -162,6 +173,7 @@ const makeAgentTools = () => {
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             enableMergeQueries: true,
+            enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
@@ -171,6 +183,8 @@ const makeAgentTools = () => {
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,
+            resolveCustomChartType: noop,
+            exportCustomChartTypeImage: noop,
         }),
         runSavedChart: getRunSavedChart({
             enableDataAccess: true,
@@ -195,8 +209,21 @@ const makeAgentTools = () => {
             updateSlackMessage: noop,
             waitForSqlApproval: noop,
         }),
+        runComposerQueries: getRunComposerQueries({
+            createOrUpdateArtifact: noop,
+            enableDataAccess: true,
+            canRunSql: true,
+            getPrompt: noop,
+            recordSqlApproval: noop,
+            runComposerQueries: noop,
+            maxQueryLimit: 500,
+            updateProgress: noopAsync,
+            waitForSqlApproval: noop,
+        }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,
+            getExplore: noop,
+            enableFilterExpressions,
         }),
     };
 };
@@ -213,6 +240,22 @@ describe('AI agent tool contracts', () => {
             Object.entries(agentTools).map(([name, definition]) =>
                 agentToolSnapshot(name, definition as SnapshotTool),
             ),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression visualization contract snapshot', () => {
+        const { generateVisualization } = makeAgentTools(true);
+
+        expect(
+            agentToolSnapshot('generateVisualization', generateVisualization),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression field-value contract snapshot', () => {
+        const { searchFieldValues } = makeAgentTools(true);
+
+        expect(
+            agentToolSnapshot('searchFieldValues', searchFieldValues),
         ).toMatchSnapshot();
     });
 

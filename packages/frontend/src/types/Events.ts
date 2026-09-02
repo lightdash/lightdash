@@ -45,8 +45,12 @@ export enum PageName {
     NO_PROJECT_ACCESS = 'no_project_access',
     SPACE = 'space',
     SPACES = 'spaces',
+    CONTENT_REVIEW_REQUESTS = 'content_review_requests',
+    CONTENT_REVIEW_REQUEST = 'content_review_request',
+    SHARED_WITH_ME = 'shared_with_me',
     SHARE = 'share',
     USER_ACTIVITY = 'user_activity',
+    QUERY_HISTORY = 'query_history',
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
@@ -182,6 +186,10 @@ export enum EventName {
     CUSTOM_FIELDS_REPLACEMENT_APPLIED = 'custom_fields_replacement.applied',
 
     DASHBOARD_CHART_LOADED = 'dashboard_chart.loaded',
+
+    // Map charts
+    MAP_TILE_USAGE = 'map_chart.tile_usage',
+    MAP_TILE_FALLBACK = 'map_chart.tile_fallback',
 
     // Spaces
     SPACE_BREADCRUMB_CLICKED = 'space_breadcrumb.clicked',

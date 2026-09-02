@@ -128,7 +128,6 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     </ActionIcon.GroupSection>
                 ) : null}
                 <Tooltip
-                    withinPortal
                     position="bottom"
                     disabled={isOpen}
                     label={`Last refreshed at: ${
@@ -139,7 +138,6 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                 >
                     <ActionIcon
                         size="md"
-                        radius="md"
                         variant="default"
                         loading={isOneAtLeastFetching}
                         onClick={() => invalidateAndSetRefreshTime()}
@@ -148,7 +146,6 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     </ActionIcon>
                 </Tooltip>
                 <Menu
-                    withinPortal
                     withArrow
                     closeOnItemClick
                     closeOnClickOutside
@@ -158,7 +155,6 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
                     <Menu.Target>
                         <ActionIcon
                             size="md"
-                            radius="md"
                             variant="default"
                             disabled={isOneAtLeastFetching}
                             onClick={() => setIsOpen((prev) => !prev)}

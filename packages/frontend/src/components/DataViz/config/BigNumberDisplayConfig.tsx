@@ -27,13 +27,8 @@ export const BigNumberDisplayConfig = () => {
             <Config.Section>
                 <Config.Group>
                     <Config.Heading>Label</Config.Heading>
-                    <Tooltip
-                        label={showLabel ? 'Hide label' : 'Show label'}
-                        withinPortal
-                    >
+                    <Tooltip label={showLabel ? 'Hide label' : 'Show label'}>
                         <ActionIcon
-                            variant="subtle"
-                            color="ldGray.6"
                             onClick={() => dispatch(setShowLabel(!showLabel))}
                         >
                             <MantineIcon

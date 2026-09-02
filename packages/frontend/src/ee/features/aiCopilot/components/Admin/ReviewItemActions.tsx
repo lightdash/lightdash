@@ -111,10 +111,10 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                 // The modal's Activity timeline owns the live progress row —
                 // a second spinner in the corner would duplicate it.
                 mode !== 'table' ? null : (
-                    <Tooltip label={phase} withArrow openDelay={300}>
+                    <Tooltip label={phase} openDelay={300}>
                         <Group gap={8} wrap="nowrap" maw={180}>
                             <Loader size={12} color="ldGray.5" />
-                            <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                            <Text fz="xs" c="dimmed" lineClamp={1}>
                                 {phase}
                             </Text>
                         </Group>
@@ -124,8 +124,6 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                 <Group gap={4} wrap="nowrap">
                     <Button
                         size={buttonSize}
-                        radius="md"
-                        variant="filled"
                         color={isHeader ? 'dark' : 'indigo'}
                         loading={updateStatus.isLoading}
                         onClick={(event) => {
@@ -140,7 +138,6 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                     </Button>
                     <Button
                         size={buttonSize}
-                        radius="md"
                         variant="default"
                         loading={updateStatus.isLoading}
                         onClick={(event) => {
@@ -204,13 +201,10 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         {canCreatePr && !current.linkedPrUrl && (
                             <Tooltip
                                 label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
-                                withArrow
-                                multiline
                                 maw={260}
                             >
                                 <Button
                                     size={buttonSize}
-                                    radius="md"
                                     variant="default"
                                     loading={createWriteback.isLoading}
                                     onClick={(event) => {
@@ -236,10 +230,8 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         {remediationError && (
                             <Tooltip
                                 label={remediationError}
-                                withArrow
                                 openDelay={300}
                                 maw={320}
-                                multiline
                             >
                                 <ActionIcon
                                     aria-label="Show writeback error"
@@ -263,7 +255,6 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                         {!isTerminal && (
                             <Button
                                 size={buttonSize}
-                                radius="md"
                                 variant="subtle"
                                 color="gray"
                                 loading={updateStatus.isLoading}
@@ -307,18 +298,14 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                         {blockedReasonLabel}
                                     </Text>
                                     {blockedReasonDescription && (
-                                        <Text fz="xs" c="ldGray.6" lh={1.45}>
+                                        <Text fz="xs" c="dimmed" lh={1.45}>
                                             {blockedReasonDescription}
                                         </Text>
                                     )}
                                 </Stack>
                             </Group>
                         ) : (
-                            <Tooltip
-                                label={blockedReasonLabel}
-                                withArrow
-                                openDelay={300}
-                            >
+                            <Tooltip label={blockedReasonLabel} openDelay={300}>
                                 <Group gap={4} wrap="nowrap" maw={220}>
                                     <MantineIcon
                                         icon={IconInfoCircle}
@@ -326,7 +313,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
                                     />
                                     <Text
                                         fz="xs"
-                                        c="ldGray.6"
+                                        c="dimmed"
                                         fw={500}
                                         lineClamp={1}
                                     >

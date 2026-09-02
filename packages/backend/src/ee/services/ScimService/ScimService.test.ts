@@ -922,10 +922,10 @@ describe('ScimService', () => {
             afterEach(() => {
                 vi.mocked(
                     ScimServiceArgumentsMock.commercialFeatureFlagModel.get,
-                ).mockResolvedValue({ id: 'multiple-roles', enabled: false });
+                ).mockResolvedValue({ id: 'custom-roles', enabled: false });
             });
 
-            test('rejects multiple roles per level when the multiple-roles flag is off', async () => {
+            test('rejects multiple roles per level when custom roles are disabled', async () => {
                 const { rolesModel } = ScimServiceArgumentsMock;
                 await expect(
                     service.updateUser({
@@ -947,7 +947,7 @@ describe('ScimService', () => {
                 const { rolesModel, commercialFeatureFlagModel } =
                     ScimServiceArgumentsMock;
                 vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
-                    id: 'multiple-roles',
+                    id: 'custom-roles',
                     enabled: true,
                 });
 
@@ -986,7 +986,7 @@ describe('ScimService', () => {
             test('rejects two system organization roles even when the flag is on', async () => {
                 const { commercialFeatureFlagModel } = ScimServiceArgumentsMock;
                 vi.mocked(commercialFeatureFlagModel.get).mockResolvedValue({
-                    id: 'multiple-roles',
+                    id: 'custom-roles',
                     enabled: true,
                 });
                 await expect(
@@ -1087,6 +1087,11 @@ describe('ScimService', () => {
                 expect(
                     ScimServiceArgumentsMock.groupsModel
                         .removeUserFromAllGroups,
+                ).not.toHaveBeenCalled();
+                // guard must fire before user row is touched
+
+                expect(
+                    ScimServiceArgumentsMock.userModel.updateUser,
                 ).not.toHaveBeenCalled();
             });
         });
@@ -1442,6 +1447,90 @@ describe('ScimService', () => {
 
             expect(userModel.updateUser).not.toHaveBeenCalled();
             expect(rolesModel.setUserOrgAndProjectRoles).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('createGroup', () => {
+        const createdGroup: GroupWithMembers = {
+            uuid: 'group-uuid',
+            name: 'Data Platform',
+            createdAt: new Date('2024-01-01'),
+            createdByUserUuid: null,
+            updatedAt: new Date('2024-01-01'),
+            updatedByUserUuid: null,
+            organizationUuid: mockUser.organizationUuid,
+            members: [],
+            memberUuids: [],
+        };
+
+        test('should accept schema extensions alongside the core group schema', async () => {
+            const createGroup = vi.fn().mockResolvedValue(createdGroup);
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find: vi.fn().mockResolvedValue({ data: [] }),
+                    createGroup,
+                } as never,
+            });
+
+            await expect(
+                groupService.createGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    {
+                        schemas: [
+                            ScimSchemaType.GROUP,
+                            'urn:example:params:scim:schemas:extension:2.0:Group',
+                        ],
+                        displayName: createdGroup.name,
+                        members: [],
+                    },
+                ),
+            ).resolves.toMatchObject({
+                schemas: [ScimSchemaType.GROUP],
+                displayName: createdGroup.name,
+            });
+
+            expect(createGroup).toHaveBeenCalledOnce();
+        });
+
+        test.each([
+            { name: 'an empty array', schemas: [] },
+            {
+                name: 'an extension without the core group schema',
+                schemas: [
+                    'urn:example:params:scim:schemas:extension:2.0:Group',
+                ],
+            },
+        ])('should reject $name', async ({ schemas }) => {
+            const find = vi.fn();
+            const createGroup = vi.fn();
+            const groupService = new ScimService({
+                ...ScimServiceArgumentsMock,
+                groupsModel: {
+                    find,
+                    createGroup,
+                } as never,
+            });
+
+            await expect(
+                groupService.createGroup(
+                    mockScimAccount,
+                    mockUser.organizationUuid,
+                    {
+                        schemas,
+                        displayName: createdGroup.name,
+                        members: [],
+                    },
+                ),
+            ).rejects.toMatchObject({
+                detail: `schemas must include ${ScimSchemaType.GROUP}`,
+                status: '400',
+                scimType: 'invalidValue',
+            });
+
+            expect(find).not.toHaveBeenCalled();
+            expect(createGroup).not.toHaveBeenCalled();
         });
     });
 

@@ -1,11 +1,69 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+let mockEmbedWriteContext: { canUpdateSavedChart: boolean } | undefined;
+
+vi.mock('../src/ee/pages/EmbedDashboard', async () => {
+    const { default: useEmbed } =
+        await import('../src/ee/providers/Embed/useEmbed');
+
+    return {
+        default: function MockEmbedDashboard() {
+            const { onExplore } = useEmbed();
+            return (
+                <div data-testid="embed-dashboard">
+                    <button
+                        data-testid="saved-chart-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: { uuid: 'saved-chart-uuid' } as never,
+                            })
+                        }
+                    />
+                    <button
+                        data-testid="drill-down-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: { tableName: 'orders' } as never,
+                            })
+                        }
+                    />
+                </div>
+            );
+        },
+    };
+});
 
 vi.mock('../src/components/MonacoEditor', () => ({
     default: () => null,
     Editor: () => null,
     useMonaco: () => null,
+}));
+
+vi.mock('../src/ee/pages/EmbedChart', () => ({
+    default: () => <div data-testid="embed-chart-view" />,
+}));
+
+vi.mock('../src/ee/pages/EmbedExplore', () => ({
+    default: ({
+        allowChartUpdate,
+        isEditMode,
+        chartView,
+    }: {
+        allowChartUpdate?: boolean;
+        isEditMode?: boolean;
+        chartView?: boolean;
+    }) => (
+        <div
+            data-testid={
+                chartView === undefined ? 'embed-explore' : 'embed-chart-edit'
+            }
+            data-allow-chart-update={allowChartUpdate}
+            data-edit-mode={isEditMode}
+            data-chart-view={chartView}
+        />
+    ),
 }));
 
 // Mock react-router hooks
@@ -60,6 +118,7 @@ vi.mock('../src/hooks/dashboard/useDashboard', () => ({
 vi.mock('../src/hooks/user/useAccount', () => ({
     useAccount: () => ({
         data: {
+            embedWriteContext: mockEmbedWriteContext,
             user: {
                 userUuid: 'test-user',
                 email: 'test@example.com',
@@ -144,6 +203,7 @@ vi.mock('../src/pages/MetricsCatalog', async () => {
 import { FilterOperator } from '@lightdash/common';
 import {
     AiAgent,
+    Chart,
     Dashboard,
     MetricsCatalog,
     createLightdashApiClient,
@@ -327,7 +387,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
     it('should handle explore navigation without syncing URL', async () => {
         const mockOnExplore = vi.fn();
 
-        render(
+        const { getByTestId } = render(
             <Dashboard
                 token={mockToken}
                 instanceUrl={mockInstanceUrl}
@@ -336,13 +396,120 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Simulate explore navigation
-        // In SDK mode, this should call onExplore callback but not update browser URL
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('saved-chart-explore'));
 
         await waitFor(() => {
-            // Browser URL should not change
+            expect(mockOnExplore).toHaveBeenCalledWith({
+                chart: { uuid: 'saved-chart-uuid' },
+            });
             expect(window.location.pathname).toBe('/test');
         });
+    });
+
+    it('should render drill-down explores inside the SDK dashboard', async () => {
+        const { getByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('drill-down-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore')).toBeTruthy();
+            expect(window.location.pathname).toBe('/test');
+        });
+    });
+});
+
+describe('SDK Chart edit mode', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJjaGFydCIsInByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQiLCJjb250ZW50SWQiOiJ0ZXN0LWNoYXJ0LXV1aWQifX0.test';
+    const mockInstanceUrl = 'http://localhost:3000';
+
+    beforeEach(() => {
+        mockEmbedWriteContext = undefined;
+    });
+
+    it('keeps the minimal chart as the default view', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const { findByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+            />,
+        );
+
+        expect(await findByTestId('embed-chart-view')).toBeInTheDocument();
+    });
+
+    it('renders the saved chart editor when the write actor can update it', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const { findByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode
+            />,
+        );
+
+        expect(await findByTestId('embed-chart-edit')).toHaveAttribute(
+            'data-allow-chart-update',
+            'true',
+        );
+    });
+
+    it('keeps the same explorer mounted while toggling view and edit', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const { findByTestId, rerender } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode={false}
+            />,
+        );
+        const explorer = await findByTestId('embed-chart-edit');
+        expect(explorer).toHaveAttribute('data-edit-mode', 'false');
+        expect(explorer).toHaveAttribute('data-chart-view', 'true');
+
+        rerender(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode
+            />,
+        );
+
+        expect(await findByTestId('embed-chart-edit')).toBe(explorer);
+        expect(explorer).toHaveAttribute('data-edit-mode', 'true');
+    });
+
+    it('rejects edit mode when the write actor cannot update the chart', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: false };
+        const { findByText } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode
+            />,
+        );
+
+        expect(await findByText('Unable to edit chart')).toBeInTheDocument();
     });
 });
 

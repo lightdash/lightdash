@@ -4,18 +4,14 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
-import {
-    IconCircleCheckFilled,
-    IconEye,
-    IconStar,
-    IconStarFilled,
-    IconX,
-} from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconEye, IconX } from '@tabler/icons-react';
 import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
+import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
 import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
 
@@ -73,7 +69,7 @@ const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
         <Text size="xs" c="dimmed" span>
             ·
         </Text>
-        <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+        <MantineIcon icon={IconEye} size={12} color="dimmed" />
         <Text size="xs" c="dimmed" span>
             {content.views}
         </Text>
@@ -87,29 +83,18 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
 }) => (
     <>
         {star && (
-            <ActionIcon
-                variant="subtle"
-                color={star.isFavorite ? 'yellow' : 'ldGray.6'}
+            <FavoriteActionIcon
                 size="sm"
-                aria-label={
-                    star.isFavorite
-                        ? `Remove ${content.name} from favorites`
-                        : `Add ${content.name} to favorites`
-                }
-                onClick={(e) => {
+                isFavorite={star.isFavorite}
+                name={content.name}
+                onToggle={(e) => {
                     e.preventDefault();
                     star.onToggle();
                 }}
-            >
-                <MantineIcon
-                    icon={star.isFavorite ? IconStarFilled : IconStar}
-                />
-            </ActionIcon>
+            />
         )}
         {onRemove && (
             <ActionIcon
-                variant="subtle"
-                color="ldGray.6"
                 size="sm"
                 aria-label={`Remove ${content.name} from collection`}
                 onClick={(e) => {
@@ -141,9 +126,14 @@ export const ContentCard: FC<Props> = ({
     star,
     variant = 'row',
 }) => {
+    const projectUrlIdentifier = useProjectUrlIdentifier();
     const to = onRemove
         ? null
-        : getResourceUrl(projectUuid, contentToResourceViewItem(content));
+        : getResourceUrl(
+              projectUuid,
+              contentToResourceViewItem(content),
+              projectUrlIdentifier,
+          );
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     // A single dense line — visibly lighter than the two-line card variant.
@@ -161,7 +151,7 @@ export const ContentCard: FC<Props> = ({
                     <VerifiedBadge content={content} />
                 </Group>
                 <Group gap={4} wrap="nowrap">
-                    <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+                    <MantineIcon icon={IconEye} size={12} color="dimmed" />
                     <Text size="xs" c="dimmed" span>
                         {content.views}
                     </Text>

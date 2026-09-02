@@ -225,9 +225,14 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 data-variant={variant}
                 data-size={size}
                 data-accent={accent}
+                data-disabled={disabled || undefined}
                 onMouseDown={onMouseDown}
             >
                 {header && <Box className={classes.header}>{header}</Box>}
+
+                {isInline && toolbarLeft && (
+                    <Box className={classes.inlineActions}>{toolbarLeft}</Box>
+                )}
 
                 {isInline ? (
                     <Box className={classes.inlineEditorWrap}>

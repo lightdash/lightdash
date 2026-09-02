@@ -32,6 +32,7 @@ import { getConditionalRuleLabelFromItem } from '../../../components/common/Filt
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './GuidedFilterSetup.module.css';
@@ -131,6 +132,7 @@ type RuleSummaryProps = {
 };
 
 const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
+    const getUiString = useUiStrings();
     // Same test as isRequirementRuleSatisfied, so the summary always shows
     // the member that actually satisfies the rule
     const setMember = rule.members.find(
@@ -162,7 +164,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
                 className={classes.buttonAnchor}
                 onClick={onChange}
             >
-                Change
+                {getUiString('filters.required.change')}
             </Anchor>
         </Group>
     );
@@ -393,13 +395,14 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
     rules,
     onDismiss,
 }) => {
+    const getUiString = useUiStrings();
     const satisfiedCount = rules.filter(isRequirementRuleSatisfied).length;
     const remainingCount = rules.length - satisfiedCount;
 
     return (
         <Stack gap={6}>
             <Group justify="space-between">
-                <Text size="xs" c="ldGray.6">
+                <Text size="xs" c="dimmed">
                     {satisfiedCount} of {rules.length} set
                 </Text>
                 <Text size="xs" c={remainingCount === 0 ? 'green' : 'ldGray.5'}>
@@ -419,13 +422,13 @@ export const GuidedFilterSetupProgress: FC<GuidedFilterSetupProgressProps> = ({
                 component="button"
                 type="button"
                 size="xs"
-                c="ldGray.6"
+                c="dimmed"
                 ta="center"
                 mt={4}
                 className={classes.buttonAnchor}
                 onClick={onDismiss}
             >
-                Set filters in the toolbar instead
+                {getUiString('filters.required.setInToolbar')}
             </Anchor>
         </Stack>
     );

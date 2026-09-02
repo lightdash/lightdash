@@ -278,6 +278,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ExternalSource', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'OrganizationWarehouseCredentials', {
             organizationUuid: member.organizationUuid,
         });
@@ -416,6 +419,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
             userUuid: member.userUuid,
         });
         can('manage', 'ContentVerification', {
+            organizationUuid: member.organizationUuid,
+        });
+        // Paired with manage:ContentVerification: anyone who can unverify
+        // content can already bypass the edit lock, so grant it outright.
+        can('manage', 'VerifiedContent', {
             organizationUuid: member.organizationUuid,
         });
         can('create', 'AiDeepResearch', {

@@ -1,4 +1,7 @@
-import { type ExternalConnection } from '@lightdash/common';
+import {
+    type ExternalConnection,
+    type ExternalConnectionListItem,
+} from '@lightdash/common';
 import { Button, Skeleton, Stack } from '@mantine/core';
 import { IconPlug, IconPlus } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -11,6 +14,7 @@ import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
 import { AddConnectionWizard } from './AddConnectionWizard';
 import { ConnectionsTable } from './ConnectionsTable';
+import { ConnectionUsageModal } from './ConnectionUsageModal';
 import { DeleteConnectionModal } from './DeleteConnectionModal';
 import { EditConnectionModal } from './EditConnectionModal';
 
@@ -40,6 +44,9 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
     const [connectionToDelete, setConnectionToDelete] = useState<
         ExternalConnection | undefined
     >(undefined);
+    const [connectionToViewUsage, setConnectionToViewUsage] = useState<
+        ExternalConnectionListItem | undefined
+    >(undefined);
     const addConnectionButton = (
         <Button
             size="xs"
@@ -62,7 +69,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
         <>
             <SettingsPage
                 title="Data app connections"
-                description="Manage external connections used by this project's data apps."
+                description="Manage external connections used by this project's data apps and chart types."
                 actions={addConnectionButton}
             >
                 <Stack gap="md">
@@ -85,6 +92,9 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                                         setConnectionToDelete={
                                             setConnectionToDelete
                                         }
+                                        setConnectionToViewUsage={
+                                            setConnectionToViewUsage
+                                        }
                                     />
                                 )}
                             </Stack>
@@ -95,7 +105,7 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                             <SettingsEmptyState
                                 icon={IconPlug}
                                 title="No connections"
-                                description="Create a connection to let data apps call an external HTTP service."
+                                description="Create a connection to let data apps and chart types call an external HTTP service."
                             />
                         </Stack>
                     )}
@@ -125,6 +135,15 @@ const DataAppConnectionsPanel: FC<Props> = ({ projectUuid }) => {
                     onClose={() => setConnectionToDelete(undefined)}
                     projectUuid={projectUuid}
                     connection={connectionToDelete}
+                />
+            )}
+
+            {connectionToViewUsage && (
+                <ConnectionUsageModal
+                    opened={!!connectionToViewUsage}
+                    onClose={() => setConnectionToViewUsage(undefined)}
+                    projectUuid={projectUuid}
+                    connection={connectionToViewUsage}
                 />
             )}
         </>

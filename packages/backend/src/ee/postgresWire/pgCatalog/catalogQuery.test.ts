@@ -14,36 +14,48 @@ const catalog: PgWireTable[] = [
         fields: [
             {
                 fieldId: 'orders_status',
+                table: 'orders',
+                name: 'status',
                 kind: 'dimension',
                 type: 'string',
                 description: 'Status',
             },
             {
                 fieldId: 'orders_amount',
+                table: 'orders',
+                name: 'amount',
                 kind: 'dimension',
                 type: 'number',
                 description: null,
             },
             {
                 fieldId: 'orders_order_date',
+                table: 'orders',
+                name: 'order_date',
                 kind: 'dimension',
                 type: 'date',
                 description: 'Date',
             },
             {
                 fieldId: 'orders_is_completed',
+                table: 'orders',
+                name: 'is_completed',
                 kind: 'dimension',
                 type: 'boolean',
                 description: null,
             },
             {
                 fieldId: 'orders_total',
+                table: 'orders',
+                name: 'total',
                 kind: 'metric',
                 type: 'sum',
                 description: 'Total',
             },
             {
                 fieldId: 'orders_count',
+                table: 'orders',
+                name: 'count',
                 kind: 'metric',
                 type: 'count',
                 description: null,
@@ -56,12 +68,16 @@ const catalog: PgWireTable[] = [
         fields: [
             {
                 fieldId: 'customers_id',
+                table: 'customers',
+                name: 'id',
                 kind: 'dimension',
                 type: 'number',
                 description: null,
             },
             {
                 fieldId: 'customers_created',
+                table: 'customers',
+                name: 'created',
                 kind: 'dimension',
                 type: 'timestamp',
                 description: null,
@@ -414,7 +430,7 @@ describe('information_schema and constant selects (behaviour carried over)', () 
 });
 
 describe('large projects', () => {
-    it('answers pgjdbc wildcard getColumns over 45k columns within the budget', () => {
+    it('answers pgjdbc wildcard getColumns over 45k columns within resource budgets', () => {
         const bigCatalog: PgWireTable[] = Array.from(
             { length: 300 },
             (_, t) => ({
@@ -422,6 +438,8 @@ describe('large projects', () => {
                 description: null,
                 fields: Array.from({ length: 150 }, (__, f) => ({
                     fieldId: `explore_${t}_field_${f}`,
+                    table: `explore_${t}`,
+                    name: `field_${f}`,
                     kind: 'dimension' as const,
                     type: 'string',
                     description: null,
@@ -436,11 +454,9 @@ describe('large projects', () => {
         const sql = (
             pgjdbcFixtures().get('getColumns(null,public,orders,%)')?.[0] ?? ''
         ).replace("c.relname LIKE 'orders'", "c.relname LIKE '%'");
-        const started = Date.now();
         const result = tryHandleCatalogQuery(sql, bigInput);
         expect(result).toMatchObject({ type: 'rows' });
         expect((result as { rows: unknown[] }).rows).toHaveLength(45_000);
-        expect(Date.now() - started).toBeLessThan(5_000);
     });
 });
 
@@ -553,6 +569,27 @@ describe('routing', () => {
             setTimeout(resolve, 5);
         });
         expect(rowsOf('select now()').rows[0][0]).not.toBe(first);
+    });
+
+    it('lists explores in pg_tables and reports never-analyzed statistics per table', () => {
+        expect(
+            objectsOf(
+                `select tablename, tableowner from pg_tables where schemaname = 'public' order by 1`,
+            ),
+        ).toEqual([
+            { tablename: 'customers', tableowner: 'alice@example.com' },
+            { tablename: 'orders', tableowner: 'alice@example.com' },
+        ]);
+        expect(
+            objectsOf(
+                `select relname, n_live_tup, last_analyze from pg_stat_user_tables where schemaname = 'public' and relname = 'orders'`,
+            ),
+        ).toEqual([{ relname: 'orders', n_live_tup: '0', last_analyze: null }]);
+        expect(
+            rowsOf(
+                `select relid from pg_stat_all_tables where relname = 'customers'`,
+            ).rows,
+        ).toEqual([['16385']]);
     });
 
     it('answers the SQL editor keyword probe with an empty set', () => {

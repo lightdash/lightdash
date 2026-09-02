@@ -22,6 +22,9 @@ import {
     type UpdateOrganizationHomepageSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { UserTableName } from '../../database/entities/users';
+import { isStatementTimeout } from '../../database/errors';
+import Logger from '../../logging/logger';
 import { OrganizationHomepageSettingsTableName } from '../database/entities/organizationHomepageSettings';
 import {
     AnnouncementsTableName,
@@ -30,6 +33,60 @@ import {
     type DbAnnouncement,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
+
+const RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS = 10_000;
+const RECENTLY_VIEWED_WINDOW_DAYS = 90;
+
+type RankableGroupAssignment = {
+    groupUuid: string;
+    priority: number;
+    createdAt: Date;
+    assignmentUuid: string;
+};
+
+const compareGroupAssignmentPriority = (
+    left: RankableGroupAssignment,
+    right: RankableGroupAssignment,
+): number => {
+    if (left.priority !== right.priority) {
+        return left.priority - right.priority;
+    }
+    const createdDelta = left.createdAt.getTime() - right.createdAt.getTime();
+    if (createdDelta !== 0) {
+        return createdDelta;
+    }
+    return left.assignmentUuid.localeCompare(right.assignmentUuid);
+};
+
+// Always rewrite every group in the project so a partial reorder cannot
+// leave two groups sharing a priority.
+export const rankGroupPriorities = (
+    existing: RankableGroupAssignment[],
+    requestedOrder: string[],
+): { groupUuid: string; priority: number }[] => {
+    const existingByUuid = new Map(
+        existing.map((assignment) => [assignment.groupUuid, assignment]),
+    );
+    const ranked: string[] = [];
+    const seen = new Set<string>();
+
+    for (const groupUuid of requestedOrder) {
+        if (existingByUuid.has(groupUuid) && !seen.has(groupUuid)) {
+            ranked.push(groupUuid);
+            seen.add(groupUuid);
+        }
+    }
+
+    const remaining = existing
+        .filter((assignment) => !seen.has(assignment.groupUuid))
+        .sort(compareGroupAssignmentPriority)
+        .map((assignment) => assignment.groupUuid);
+
+    return [...ranked, ...remaining].map((groupUuid, priority) => ({
+        groupUuid,
+        priority,
+    }));
+};
 
 export class ProjectHomepageModel {
     private readonly database: Knex;
@@ -318,25 +375,37 @@ export class ProjectHomepageModel {
         userUuid: string,
         limit: number = 8,
     ): Promise<HomepageRecentlyViewedItem[]> {
-        const { rows } = await this.database.raw<{
-            rows: Array<{
-                content_type: 'chart' | 'dashboard';
-                content_uuid: string;
-                viewed_at: Date;
-            }>;
-        }>(
-            `
+        try {
+            return await this.database.transaction(async (trx) => {
+                await trx.raw(
+                    `SET LOCAL statement_timeout = ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}`,
+                );
+                const { rows } = await trx.raw<{
+                    rows: Array<{
+                        content_type: 'chart' | 'dashboard';
+                        content_uuid: string;
+                        viewed_at: Date;
+                    }>;
+                }>(
+                    `
+            -- MATERIALIZED keeps the planner from flattening this back into a
+            -- scan of every view on the project's charts.
+            WITH user_chart_views AS MATERIALIZED (
+                SELECT user_uuid, chart_uuid, context, timestamp
+                FROM analytics_chart_views
+                WHERE user_uuid = :userUuid
+                  AND timestamp > now() - make_interval(days => :windowDays)
+            )
             SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
             FROM (
                 SELECT 'chart' AS content_type,
                        acv.chart_uuid AS content_uuid,
                        acv.timestamp AS viewed_at
-                FROM analytics_chart_views acv
+                FROM user_chart_views acv
                 JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
                 JOIN spaces s ON s.space_id = sq.space_id
                 JOIN projects p ON p.project_id = s.project_id
-                WHERE acv.user_uuid = :userUuid
-                  AND p.project_uuid = :projectUuid
+                WHERE p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
                   -- Opening a dashboard records a view for every tile on it,
@@ -344,13 +413,15 @@ export class ProjectHomepageModel {
                   -- Tiles are tagged where we can, but several code paths
                   -- write untagged rows, so also drop chart views that land
                   -- in the moments around one of this user's dashboard views.
+                  -- Keep the range on tile_dv.timestamp: that is what lets a
+                  -- (user_uuid, timestamp) index serve this lookup.
                   AND (acv.context ->> 'source') IS DISTINCT FROM 'dashboard'
                   AND NOT EXISTS (
                       SELECT 1
                       FROM analytics_dashboard_views tile_dv
                       WHERE tile_dv.user_uuid = acv.user_uuid
-                        AND acv.timestamp BETWEEN tile_dv.timestamp - interval '2 seconds'
-                                              AND tile_dv.timestamp + interval '15 seconds'
+                        AND tile_dv.timestamp BETWEEN acv.timestamp - interval '15 seconds'
+                                                  AND acv.timestamp + interval '2 seconds'
                   )
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
@@ -361,6 +432,7 @@ export class ProjectHomepageModel {
                 JOIN spaces s ON s.space_id = d.space_id
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE adv.user_uuid = :userUuid
+                  AND adv.timestamp > now() - make_interval(days => :windowDays)
                   AND p.project_uuid = :projectUuid
                   AND d.deleted_at IS NULL
                   AND s.deleted_at IS NULL
@@ -369,13 +441,26 @@ export class ProjectHomepageModel {
             ORDER BY viewed_at DESC
             LIMIT :limit
             `,
-            { userUuid, projectUuid, limit },
-        );
-        return rows.map((row) => ({
-            contentType: row.content_type,
-            uuid: row.content_uuid,
-            viewedAt: row.viewed_at,
-        }));
+                    {
+                        userUuid,
+                        projectUuid,
+                        limit,
+                        windowDays: RECENTLY_VIEWED_WINDOW_DAYS,
+                    },
+                );
+                return rows.map((row) => ({
+                    contentType: row.content_type,
+                    uuid: row.content_uuid,
+                    viewedAt: row.viewed_at,
+                }));
+            });
+        } catch (error) {
+            if (!isStatementTimeout(error)) throw error;
+            Logger.warn(
+                `Recently viewed query exceeded ${RECENTLY_VIEWED_STATEMENT_TIMEOUT_MS}ms in project ${projectUuid}; returning no items`,
+            );
+            return [];
+        }
     }
 
     // Publishing to "everyone" promotes the homepage to the project default
@@ -484,7 +569,20 @@ export class ProjectHomepageModel {
                 `${HomepageAssignmentsTableName}.group_uuid`,
             )
             .where(`${HomepageAssignmentsTableName}.project_uuid`, projectUuid)
-            .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+            .orderBy([
+                {
+                    column: `${HomepageAssignmentsTableName}.priority`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.created_at`,
+                    order: 'asc',
+                },
+                {
+                    column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                    order: 'asc',
+                },
+            ])
             .select(
                 `${HomepageAssignmentsTableName}.assignment_uuid`,
                 `${HomepageAssignmentsTableName}.homepage_uuid`,
@@ -512,15 +610,43 @@ export class ProjectHomepageModel {
         groupUuids: string[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
+            const existing = await trx(HomepageAssignmentsTableName)
+                .where({
+                    project_uuid: projectUuid,
+                    target_type: 'group',
+                })
+                .select(
+                    'group_uuid',
+                    'priority',
+                    'created_at',
+                    'assignment_uuid',
+                );
+
+            const ranked = rankGroupPriorities(
+                existing.flatMap((row) =>
+                    row.group_uuid
+                        ? [
+                              {
+                                  groupUuid: row.group_uuid,
+                                  priority: row.priority,
+                                  createdAt: row.created_at,
+                                  assignmentUuid: row.assignment_uuid,
+                              },
+                          ]
+                        : [],
+                ),
+                groupUuids,
+            );
+
             await Promise.all(
-                groupUuids.map((groupUuid, index) =>
+                ranked.map(({ groupUuid, priority }) =>
                     trx(HomepageAssignmentsTableName)
                         .where({
                             project_uuid: projectUuid,
                             target_type: 'group',
                             group_uuid: groupUuid,
                         })
-                        .update({ priority: index }),
+                        .update({ priority }),
                 ),
             );
         });
@@ -545,7 +671,20 @@ export class ProjectHomepageModel {
                     projectUuid,
                 )
                 .whereNotNull(`${HomepagesTableName}.published_config`)
-                .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+                .orderBy([
+                    {
+                        column: `${HomepageAssignmentsTableName}.priority`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.created_at`,
+                        order: 'asc',
+                    },
+                    {
+                        column: `${HomepageAssignmentsTableName}.assignment_uuid`,
+                        order: 'asc',
+                    },
+                ])
                 .select(
                     `${HomepagesTableName}.*`,
                     `${HomepageAssignmentsTableName}.group_uuid as assignment_group_uuid`,
@@ -625,6 +764,46 @@ export class ProjectHomepageModel {
         };
     }
 
+    private static authorNameSql(db: Knex) {
+        return db.raw(
+            `TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)) as author_name`,
+        );
+    }
+
+    // `returning('*')` on the announcements table has no author join, so
+    // publish/create paths would otherwise notify Slack with a null author.
+    private async hydrateAuthorNames(
+        announcements: ProjectAnnouncement[],
+        db: Knex = this.database,
+    ): Promise<ProjectAnnouncement[]> {
+        const userUuids = [
+            ...new Set(
+                announcements
+                    .map((announcement) => announcement.createdByUserUuid)
+                    .filter((uuid): uuid is string => uuid != null),
+            ),
+        ];
+        if (userUuids.length === 0) {
+            return announcements;
+        }
+        const users = await db(UserTableName)
+            .whereIn('user_uuid', userUuids)
+            .select('user_uuid', 'first_name', 'last_name');
+        const authorNameByUserUuid = new Map(
+            users.map((user) => [
+                user.user_uuid,
+                `${user.first_name} ${user.last_name}`.trim() || null,
+            ]),
+        );
+        return announcements.map((announcement) => ({
+            ...announcement,
+            authorName: announcement.createdByUserUuid
+                ? (authorNameByUserUuid.get(announcement.createdByUserUuid) ??
+                  null)
+                : null,
+        }));
+    }
+
     private announcementsQuery(projectUuid: string) {
         return this.database(AnnouncementsTableName)
             .where(`${AnnouncementsTableName}.project_uuid`, projectUuid)
@@ -648,15 +827,13 @@ export class ProjectHomepageModel {
         const offset = (options.page - 1) * options.pageSize;
         const itemsQuery = this.announcementsQuery(projectUuid)
             .leftJoin(
-                'users',
-                'users.user_uuid',
+                UserTableName,
+                `${UserTableName}.user_uuid`,
                 `${AnnouncementsTableName}.created_by_user_uuid`,
             )
             .select(
                 `${AnnouncementsTableName}.*`,
-                this.database.raw(
-                    `TRIM(CONCAT(users.first_name, ' ', users.last_name)) as author_name`,
-                ),
+                ProjectHomepageModel.authorNameSql(this.database),
             )
             .offset(offset)
             .limit(options.pageSize);
@@ -714,7 +891,9 @@ export class ProjectHomepageModel {
                     : data.scheduledPublishAt,
             })
             .returning('*');
-        return ProjectHomepageModel.mapDbAnnouncement(row);
+        const mapped = ProjectHomepageModel.mapDbAnnouncement(row);
+        const [announcement] = await this.hydrateAuthorNames([mapped]);
+        return announcement ?? mapped;
     }
 
     /**
@@ -760,7 +939,7 @@ export class ProjectHomepageModel {
                     draft.pending_slack_channel_id,
                 ]),
             );
-            return rows.reduce<
+            const pending = rows.reduce<
                 Array<{
                     announcement: ProjectAnnouncement;
                     slackChannelId: string;
@@ -778,11 +957,19 @@ export class ProjectHomepageModel {
                 }
                 return acc;
             }, []);
+            const announcements = await this.hydrateAuthorNames(
+                pending.map(({ announcement }) => announcement),
+                trx,
+            );
+            return pending.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
+            }));
         });
     }
 
     /**
-     * Publishes a single unpublished announcement (publish-now / scheduled
+     * Publishes a single unpublished announcement (publish-now / scheduled)
      * job) or every due scheduled announcement across projects (sweep).
      * Idempotent by construction: rows are locked with skipLocked and the
      * update re-checks `published_at IS NULL`, so a job+sweep race publishes
@@ -836,10 +1023,18 @@ export class ProjectHomepageModel {
                     row.pending_slack_channel_id,
                 ]),
             );
-            return rows.map((row) => ({
+            const published = rows.map((row) => ({
                 announcement: ProjectHomepageModel.mapDbAnnouncement(row),
                 slackChannelId:
                     slackChannelByUuid.get(row.announcement_uuid) ?? null,
+            }));
+            const announcements = await this.hydrateAuthorNames(
+                published.map(({ announcement }) => announcement),
+                trx,
+            );
+            return published.map((item, index) => ({
+                ...item,
+                announcement: announcements[index] ?? item.announcement,
             }));
         });
     }

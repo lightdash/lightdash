@@ -16,6 +16,7 @@ import {
     type TableCalculation,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
+import { convertCustomMetricToDbt } from './convertCustomMetricsToYaml';
 import {
     applyCustomFormat,
     applyDefaultFormat,
@@ -30,6 +31,7 @@ import {
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
     getFieldFormatOverrideProps,
+    getFormatExpression,
     getFormatExpressionLocale,
     getFormatterTimezone,
     isCalendarValueItem,
@@ -39,6 +41,7 @@ import {
     isUnambiguousTemporalString,
     parseCalendarValueUTC,
     parseTimestampValueUTC,
+    separatorToNumfmtLocale,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from './formatting';
@@ -2493,20 +2496,25 @@ describe('Formatting', () => {
                 type: CustomFormatType.BYTES_IEC,
                 compact: Compact.KIBIBYTES,
             });
-            expect(kibibyteExpression).toEqual('#,##0.00"KiB"');
+            // No round → up to 3 trailing-dropped decimals, matching the
+            // structured applyCustomFormat path (G4 alignment).
+            expect(kibibyteExpression).toEqual('#,##0.###"KiB"');
             expect(
                 formatValueWithExpression(kibibyteExpression!, 2048),
-            ).toEqual('2.00KiB');
+            ).toEqual('2KiB');
+            expect(
+                formatValueWithExpression(kibibyteExpression!, 1536),
+            ).toEqual('1.5KiB');
 
             // Test MEBIBYTES (should divide by 1048576)
             const mebibyteExpression = convertCustomFormatToFormatExpression({
                 type: CustomFormatType.BYTES_IEC,
                 compact: Compact.MEBIBYTES,
             });
-            expect(mebibyteExpression).toEqual('#,##0.00"MiB"');
+            expect(mebibyteExpression).toEqual('#,##0.###"MiB"');
             expect(
                 formatValueWithExpression(mebibyteExpression!, 2097152),
-            ).toEqual('2.00MiB');
+            ).toEqual('2MiB');
 
             // Test with rounding
             const roundedExpression = convertCustomFormatToFormatExpression({
@@ -2531,7 +2539,7 @@ describe('Formatting', () => {
             // Backend calls convertCustomFormatToFormatExpression
             const formatExpression =
                 convertCustomFormatToFormatExpression(formatOptions);
-            expect(formatExpression).toEqual('#,##0.00"KiB"');
+            expect(formatExpression).toEqual('#,##0.###"KiB"');
 
             // Mock metric with format expression set by backend
             const mockMetric = {
@@ -2549,11 +2557,11 @@ describe('Formatting', () => {
 
             // Frontend uses formatItemValue which should call formatValueWithExpression
             const result = formatItemValue(mockMetric, 2048);
-            expect(result).toEqual('2.00KiB'); // Should be correctly divided by 1024
+            expect(result).toEqual('2KiB'); // Should be correctly divided by 1024
 
             // Test larger values
-            expect(formatItemValue(mockMetric, 1024)).toEqual('1.00KiB');
-            expect(formatItemValue(mockMetric, 3072)).toEqual('3.00KiB');
+            expect(formatItemValue(mockMetric, 1024)).toEqual('1KiB');
+            expect(formatItemValue(mockMetric, 3072)).toEqual('3KiB');
         });
 
         test('formatValueWithExpression ignores the incidental runtime timezone for date expressions (#19759)', () => {
@@ -3713,4 +3721,406 @@ describe('isUnambiguousTemporalString', () => {
             expect(isUnambiguousTemporalString(value)).toBe(false);
         },
     );
+});
+
+// Converter gap fixes (docs/composer-viz-plan/01-design.md §2): the format
+// expression produced for a CustomFormat must render identically to the
+// structured applyCustomFormat path, or return null when no ECMA-376 form
+// exists (the formatOptions escape hatch).
+describe('convertCustomFormatToFormatExpression gap fixes', () => {
+    const gridValues = [-9876543.21, 0, 0.1234, 1234567, 12345.1235];
+    const gridRounds = [undefined, 0, 2, -2];
+    const gridSeparators = [undefined, ...Object.values(NumberSeparator)];
+    const gridTypes: CustomFormat[] = [
+        { type: CustomFormatType.DEFAULT },
+        { type: CustomFormatType.ID },
+        { type: CustomFormatType.PERCENT },
+        { type: CustomFormatType.NUMBER },
+        { type: CustomFormatType.CURRENCY, currency: Format.USD },
+        { type: CustomFormatType.BYTES_SI },
+        { type: CustomFormatType.BYTES_IEC },
+    ];
+
+    const magnitudeRoundTypes = [
+        CustomFormatType.PERCENT,
+        CustomFormatType.NUMBER,
+        CustomFormatType.CURRENCY,
+        CustomFormatType.BYTES_SI,
+        CustomFormatType.BYTES_IEC,
+    ];
+
+    // Documented G10 divergences we do not attempt to close:
+    // - DEFAULT ignores the separator in the structured path (host locale),
+    //   while the expression render localises it.
+    // - PERIOD_COMMA currency moves the symbol after the number in de-DE.
+    const isDocumentedDivergence = (
+        type: CustomFormatType,
+        separator: NumberSeparator | undefined,
+    ) =>
+        (type === CustomFormatType.DEFAULT &&
+            separator !== undefined &&
+            separator !== NumberSeparator.DEFAULT &&
+            separator !== NumberSeparator.COMMA_PERIOD) ||
+        (type === CustomFormatType.CURRENCY &&
+            separator === NumberSeparator.PERIOD_COMMA);
+
+    test('round-trip grid: expression render matches applyCustomFormat', () => {
+        gridTypes.forEach((baseFormat) => {
+            gridRounds.forEach((round) => {
+                gridSeparators.forEach((separator) => {
+                    const customFormat: CustomFormat = {
+                        ...baseFormat,
+                        round,
+                        separator,
+                    };
+                    const expression =
+                        convertCustomFormatToFormatExpression(customFormat);
+
+                    if (expression === null) {
+                        // The only legitimate null in this grid is magnitude
+                        // rounding (negative round), which has no ECMA-376 form.
+                        expect({ customFormat, expression }).toEqual({
+                            customFormat,
+                            expression:
+                                round !== undefined &&
+                                round < 0 &&
+                                magnitudeRoundTypes.includes(baseFormat.type)
+                                    ? null
+                                    : expect.anything(),
+                        });
+                        return;
+                    }
+
+                    if (isDocumentedDivergence(baseFormat.type, separator)) {
+                        return;
+                    }
+
+                    gridValues.forEach((value) => {
+                        const structured = applyCustomFormat(
+                            value,
+                            customFormat,
+                        );
+                        const viaExpression = formatValueWithExpression(
+                            expression,
+                            value,
+                            separatorToNumfmtLocale(separator),
+                        );
+                        expect({
+                            customFormat,
+                            value,
+                            formatted: viaExpression,
+                        }).toEqual({
+                            customFormat,
+                            value,
+                            formatted: structured,
+                        });
+                    });
+                });
+            });
+        });
+    });
+
+    test('magnitude rounding (negative round) returns null — formatOptions escape hatch', () => {
+        magnitudeRoundTypes.forEach((type) => {
+            expect(
+                convertCustomFormatToFormatExpression({
+                    type,
+                    round: -2,
+                    ...(type === CustomFormatType.CURRENCY && {
+                        currency: Format.USD,
+                    }),
+                }),
+            ).toBeNull();
+        });
+    });
+
+    test('dynamic AUTO compact returns null for bytes too', () => {
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.BYTES_SI,
+                compact: Compact.AUTO,
+            }),
+        ).toBeNull();
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.BYTES_IEC,
+                compact: Compact.AUTO,
+            }),
+        ).toBeNull();
+    });
+
+    test('DEFAULT emits the applyDefaultFormat equivalent', () => {
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DEFAULT,
+            }),
+        ).toBe('#,##0.###');
+        // round and separator are ignored by applyDefaultFormat, so the
+        // expression must not encode them either.
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DEFAULT,
+                round: 2,
+                separator: NumberSeparator.NO_SEPARATOR_PERIOD,
+            }),
+        ).toBe('#,##0.###');
+    });
+
+    test('ID emits the verbatim text format', () => {
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.ID,
+            }),
+        ).toBe('@');
+        // Large numeric IDs must render verbatim, not in scientific notation.
+        expect(formatValueWithExpression('@', 1234567890123456)).toBe(
+            '1234567890123456',
+        );
+        expect(formatValueWithExpression('@', 'ID-123')).toBe('ID-123');
+        expect(formatValueWithExpression('@', 12345)).toBe(
+            applyCustomFormat(12345, { type: CustomFormatType.ID }),
+        );
+    });
+
+    test('DATE emits per-grain expressions; QUARTER stays renderer-side', () => {
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.YEAR,
+            }),
+        ).toBe('yyyy');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.MONTH,
+            }),
+        ).toBe('yyyy-mm');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.DAY,
+            }),
+        ).toBe('yyyy-mm-dd');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.WEEK,
+            }),
+        ).toBe('yyyy-mm-dd');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+            }),
+        ).toBe('yyyy-mm-dd');
+        // No ECMA-376 quarter token; renderer resolves it via timeInterval.
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.QUARTER,
+            }),
+        ).toBeNull();
+    });
+
+    test('DATE expressions render like the structured path', () => {
+        const date = new Date(Date.UTC(2024, 0, 2, 3, 4, 5));
+        (
+            [
+                [TimeFrames.YEAR, '2024'],
+                [TimeFrames.MONTH, '2024-01'],
+                [TimeFrames.DAY, '2024-01-02'],
+            ] as const
+        ).forEach(([timeInterval, expected]) => {
+            const customFormat: CustomFormat = {
+                type: CustomFormatType.DATE,
+                timeInterval,
+            };
+            const expression =
+                convertCustomFormatToFormatExpression(customFormat);
+            expect(
+                formatValueWithExpression(expression!, date, undefined, 'UTC'),
+            ).toBe(expected);
+            expect(applyCustomFormat(date, customFormat, 'UTC')).toBe(expected);
+        });
+    });
+
+    test('TIMESTAMP emits sub-day expressions to the second; the (Z) offset suffix stays renderer-side', () => {
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.TIMESTAMP,
+                timeInterval: TimeFrames.HOUR,
+            }),
+        ).toBe('yyyy-mm-dd, hh');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.TIMESTAMP,
+                timeInterval: TimeFrames.MINUTE,
+            }),
+        ).toBe('yyyy-mm-dd, hh:mm');
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.TIMESTAMP,
+                timeInterval: TimeFrames.SECOND,
+            }),
+        ).toBe('yyyy-mm-dd, hh:mm:ss');
+        // Milliseconds (the default grain) render as `:SSS (Z)` in the
+        // structured path — no ECMA-376 form, stays renderer-side.
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.TIMESTAMP,
+            }),
+        ).toBeNull();
+        expect(
+            convertCustomFormatToFormatExpression({
+                type: CustomFormatType.TIMESTAMP,
+                timeInterval: TimeFrames.MILLISECOND,
+            }),
+        ).toBeNull();
+
+        const date = new Date(Date.UTC(2024, 0, 2, 3, 4, 5));
+        // The structured equivalent is '2024-01-02, 03:04:05 (+00:00)'; the
+        // expression carries everything except the offset suffix.
+        expect(
+            formatValueWithExpression(
+                'yyyy-mm-dd, hh:mm:ss',
+                date,
+                undefined,
+                'UTC',
+            ),
+        ).toBe('2024-01-02, 03:04:05');
+    });
+
+    test('quotes in prefix/suffix are escaped', () => {
+        const customFormat: CustomFormat = {
+            type: CustomFormatType.NUMBER,
+            prefix: 'ab"cd',
+            suffix: ' un"it',
+            round: 0,
+        };
+        const expression = convertCustomFormatToFormatExpression(customFormat);
+        expect(expression).toBe('"ab"\\""cd"#,##0" un"\\""it"');
+        expect(formatValueWithExpression(expression!, 5)).toBe(
+            applyCustomFormat(5, customFormat),
+        );
+        expect(formatValueWithExpression(expression!, 5)).toBe('ab"cd5 un"it');
+    });
+
+    test('all-optional decimals never leave a dangling separator', () => {
+        expect(formatValueWithExpression('#,##0.###', 1234567)).toBe(
+            '1,234,567',
+        );
+        expect(formatValueWithExpression('#,##0.###', 0)).toBe('0');
+        expect(formatValueWithExpression('#,##0.###,"K"', 1000000)).toBe(
+            '1,000K',
+        );
+        expect(
+            formatValueWithExpression(
+                '#,##0.###',
+                1234567,
+                separatorToNumfmtLocale(NumberSeparator.PERIOD_COMMA),
+            ),
+        ).toBe('1.234.567');
+        // Fixed decimals are untouched.
+        expect(formatValueWithExpression('0.00', 5)).toBe('5.00');
+    });
+});
+
+describe('getFormatExpression year-number guard', () => {
+    const yearNumDimension: Dimension = {
+        ...dimension,
+        type: DimensionType.NUMBER,
+        timeInterval: TimeFrames.YEAR_NUM,
+    };
+
+    test('emits no expression for YEAR_NUM dimensions', () => {
+        // formatItemValue renders year numbers as plain unseparated values,
+        // short-circuiting before applyCustomFormat — the expression must not
+        // reintroduce digit grouping (2021, never 2,021).
+        expect(getFormatExpression(yearNumDimension)).toBeUndefined();
+        expect(
+            getFormatExpression({ ...yearNumDimension, round: 0 }),
+        ).toBeUndefined();
+        expect(formatItemValue(yearNumDimension, 2021)).toBe('2021');
+    });
+});
+
+// Blast-radius pins (docs/composer-viz-plan/01-design.md §2): existing
+// consumers of the converter whose output changes with the gap fixes.
+describe('converter gap fixes blast radius', () => {
+    describe('getFieldFormatOverrideProps', () => {
+        test('DEFAULT/ID/DATE overrides now encode as expressions', () => {
+            expect(
+                getFieldFormatOverrideProps({
+                    type: CustomFormatType.DEFAULT,
+                }),
+            ).toEqual({ format: '#,##0.###', separator: undefined });
+            expect(
+                getFieldFormatOverrideProps({ type: CustomFormatType.ID }),
+            ).toEqual({ format: '@', separator: undefined });
+            expect(
+                getFieldFormatOverrideProps({
+                    type: CustomFormatType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                }),
+            ).toEqual({ format: 'yyyy-mm', separator: undefined });
+        });
+
+        test('non-expressible overrides keep structured formatOptions', () => {
+            const quarterDate: CustomFormat = {
+                type: CustomFormatType.DATE,
+                timeInterval: TimeFrames.QUARTER,
+            };
+            expect(getFieldFormatOverrideProps(quarterDate)).toEqual({
+                format: undefined,
+                formatOptions: quarterDate,
+                separator: undefined,
+            });
+
+            const millisecondTimestamp: CustomFormat = {
+                type: CustomFormatType.TIMESTAMP,
+            };
+            expect(getFieldFormatOverrideProps(millisecondTimestamp)).toEqual({
+                format: undefined,
+                formatOptions: millisecondTimestamp,
+                separator: undefined,
+            });
+
+            const magnitudeRound: CustomFormat = {
+                type: CustomFormatType.NUMBER,
+                round: -2,
+            };
+            expect(getFieldFormatOverrideProps(magnitudeRound)).toEqual({
+                format: undefined,
+                formatOptions: magnitudeRound,
+                separator: undefined,
+            });
+        });
+    });
+
+    describe('convertCustomMetricToDbt writeback output', () => {
+        test('unformatted numeric metrics keep the pre-existing default expression', () => {
+            expect(convertCustomMetricToDbt(additionalMetric).format).toBe(
+                '#,##0.###',
+            );
+        });
+
+        test('legacy percent metrics emit trailing-dropped decimals (G4 alignment)', () => {
+            // Was '#,##0.00%' before the round-default fix.
+            expect(
+                convertCustomMetricToDbt({
+                    ...additionalMetric,
+                    format: Format.PERCENT,
+                }).format,
+            ).toBe('#,##0.###%');
+        });
+
+        test('legacy id metrics now emit the text format', () => {
+            // Was undefined before the ID fix.
+            expect(
+                convertCustomMetricToDbt({
+                    ...additionalMetric,
+                    format: Format.ID,
+                }).format,
+            ).toBe('@');
+        });
+    });
 });

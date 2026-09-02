@@ -55,6 +55,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     children,
     extraHeaderElement,
     visibleHeaderElement,
+    hasNonMenuHeaderContent = false,
     titleHref,
     minimal = false,
     tabs,
@@ -97,7 +98,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const hasMenuContent = isEditMode || !!extraMenuItems;
     const isVerified = verification !== null && verification !== undefined;
-    const hasHeaderContent = hasMenuContent || isVerified;
+    const hasHeaderContent =
+        hasMenuContent || isVerified || hasNonMenuHeaderContent;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -139,8 +141,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
                                         : 'Verified'
                                 }
-                                withArrow
-                                withinPortal
                             >
                                 <IconCircleCheckFilled
                                     size={14}
@@ -155,8 +155,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         {hasMenuContent && (
                             <Menu
                                 withArrow
-                                withinPortal
-                                shadow="md"
                                 position="bottom-end"
                                 offset={4}
                                 arrowOffset={10}
@@ -237,8 +235,6 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 <Menu.Target>
                                     <ActionIcon
                                         size="sm"
-                                        variant="subtle"
-                                        color="gray"
                                         style={{
                                             position: 'relative',
                                             zIndex: 1,
@@ -278,8 +274,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     className={styles.headerContainer}
                     justify="flex-start"
                     align="center"
-                    gap="8px"
-                    mb="12px"
+                    gap="xs"
+                    mb="sm"
                     data-is-edit-mode={isEditMode}
                     data-is-empty={isMarkdownTileTitleEmpty || hideTitle}
                 >
@@ -295,9 +291,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                         {description}
                                     </Text>
                                 }
-                                multiline
                                 position="top-start"
-                                withinPortal
                                 maw={400}
                             >
                                 <Text fw={600} size="md">
@@ -318,9 +312,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     {description}
                                 </Text>
                             }
-                            multiline
                             position="top-start"
-                            withinPortal
                             maw={400}
                         >
                             {isEditMode ||

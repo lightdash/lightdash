@@ -49,6 +49,31 @@ const ExplorerRouteHarness = () => {
     );
 };
 
+const renderExplorerRouteAt = (initialPath: string) => {
+    window.history.replaceState({}, '', initialPath);
+
+    renderWithProviders(
+        createElement(
+            MemoryRouter,
+            { initialEntries: [initialPath] },
+            createElement(
+                Routes,
+                null,
+                createElement(Route, {
+                    path: '/projects/:projectUuid/tables/:tableId',
+                    element: createElement(ExplorerRouteHarness),
+                }),
+            ),
+        ),
+    );
+};
+
+const currentDestination = () =>
+    new URL(
+        screen.getByTestId('location').textContent ?? '',
+        'http://lightdash.local',
+    );
+
 describe('useExplorerRoute', () => {
     it('applies and consumes a chart type preview hint when it serializes chart state', async () => {
         const dataAppVizUuid = '1e9a3b2c-0000-4000-8000-000000000001';
@@ -91,6 +116,68 @@ describe('useExplorerRoute', () => {
                     optionValues: {},
                 },
             });
+        });
+    });
+
+    it('keeps the chart sidebar step in the URL when restored from query params', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=configure&fromSpace=space-1',
+        );
+
+        await waitFor(() => {
+            const destination = currentDestination();
+            expect(destination.pathname).toBe(
+                '/projects/project-1/tables/orders',
+            );
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(destination.searchParams.get('chartSidebar')).toBe(
+                'configure',
+            );
+            expect(
+                destination.searchParams.get('create_saved_chart_version'),
+            ).not.toBeNull();
+        });
+    });
+
+    it('restores the chart type gallery step from the URL', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=choose',
+        );
+
+        await waitFor(() => {
+            expect(currentDestination().searchParams.get('chartSidebar')).toBe(
+                'choose',
+            );
+        });
+    });
+
+    it('omits the chart sidebar param when the panel is closed', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?fromSpace=space-1',
+        );
+
+        await waitFor(() => {
+            const destination = currentDestination();
+            expect(destination.pathname).toBe(
+                '/projects/project-1/tables/orders',
+            );
+            expect(destination.searchParams.get('fromSpace')).toBe('space-1');
+            expect(destination.searchParams.get('chartSidebar')).toBeNull();
+            expect(
+                destination.searchParams.get('create_saved_chart_version'),
+            ).not.toBeNull();
+        });
+    });
+
+    it('treats an unknown chart sidebar step as a closed panel', async () => {
+        renderExplorerRouteAt(
+            '/projects/project-1/tables/orders?chartSidebar=nope',
+        );
+
+        await waitFor(() => {
+            expect(
+                currentDestination().searchParams.get('chartSidebar'),
+            ).toBeNull();
         });
     });
 });

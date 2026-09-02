@@ -75,6 +75,7 @@ export const SettingsValidator: FC<{
                 sourceTypeFilter.length > 0 ? sourceTypeFilter : undefined,
             errorTypes: activeGroup ? [activeGroup.errorType] : undefined,
             tableName: activeGroup?.tableName ?? undefined,
+            fieldName: activeGroup?.fieldName ?? undefined,
             includeChartConfigWarnings: showConfigWarnings,
         });
 
@@ -166,7 +167,10 @@ export const SettingsValidator: FC<{
 
     // Check if filters are active to determine if we should always show the table
     const hasActiveFilters =
-        searchQuery !== '' || sourceTypeFilter.length > 0 || showConfigWarnings;
+        searchQuery !== '' ||
+        sourceTypeFilter.length > 0 ||
+        showConfigWarnings ||
+        activeGroup !== null;
 
     const content = (
         <>
@@ -214,7 +218,7 @@ export const SettingsValidator: FC<{
                     />
                 )}
                 {isLoading ? (
-                    <Paper withBorder shadow="sm">
+                    <Paper shadow="sm">
                         <Group justify="center" gap="xs" p="md">
                             <Loader color="gray" />
                         </Group>
@@ -263,7 +267,7 @@ export const SettingsValidator: FC<{
                         onBulkDelete={setSelectionDeleteItems}
                     />
                 ) : (
-                    <Paper withBorder shadow="sm">
+                    <Paper shadow="sm">
                         <Group justify="center" gap="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
                             <Text fw={500} c="ldGray.7">

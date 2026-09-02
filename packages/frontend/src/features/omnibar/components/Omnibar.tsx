@@ -42,6 +42,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProject } from '../../../hooks/useProject';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
@@ -73,6 +74,9 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { data: projectData } = useProject(projectUuid);
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const { track } = useTracking();
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
@@ -88,6 +92,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const { data: searchResults, isFetching } = useSearch({
         projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
         query: debouncedValue,
         filters: searchFilters,
         source: 'omnibar',
@@ -223,6 +228,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         hasEnteredQuery && hasMinQueryLength(query);
     const hasActiveFilters = Boolean(
         searchFilters?.type ||
+        searchFilters?.verifiedOnly ||
         searchFilters?.fromDate ||
         searchFilters?.toDate ||
         searchFilters?.createdByUuid,
@@ -233,8 +239,11 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             ? getSearchResultsGroupsSorted(searchResults)
             : [];
 
+        // Settings are client-side; hide them when a content type is selected
+        // or when Verified is on (settings aren't verifiable content).
         const showSettings =
             settingsItems.length > 0 &&
+            !searchFilters?.verifiedOnly &&
             (!searchFilters?.type ||
                 searchFilters.type === SearchItemType.SETTINGS);
 
@@ -255,7 +264,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             totalCount: items.length,
             collapsed: false,
         }));
-    }, [searchResults, settingsItems, searchFilters?.type]);
+    }, [
+        searchResults,
+        settingsItems,
+        searchFilters?.type,
+        searchFilters?.verifiedOnly,
+    ]);
 
     const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<string[]>([]);
 
@@ -354,7 +368,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                     size={rem(960)}
                     closeOnClickOutside
                     closeOnEscape
-                    radius="lg"
                     opened={isOmnibarOpen}
                     onClose={handleOmnibarClose}
                     yOffset={100}
@@ -375,7 +388,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                 <MantineIcon
                                     icon={IconSearch}
                                     size="lg"
-                                    color="ldGray.6"
+                                    color="dimmed"
                                 />
                             )}
                             <TextInput
@@ -396,9 +409,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             />
                             {query ? (
                                 <ActionIcon
-                                    variant="subtle"
                                     size="sm"
-                                    color="gray"
                                     onClick={() => setQuery('')}
                                 >
                                     <MantineIcon icon={IconX} size="md" />
@@ -541,7 +552,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                         }
                                         onClick={() =>
                                             handleQuickAction(
-                                                `/projects/${projectUuid}/tables`,
+                                                `/projects/${projectUrlIdentifier}/tables`,
                                             )
                                         }
                                     >

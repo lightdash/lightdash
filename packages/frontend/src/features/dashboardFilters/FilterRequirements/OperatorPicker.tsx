@@ -46,13 +46,7 @@ const OperatorPicker: FC<Props> = ({
         member.operator;
 
     return (
-        <Menu
-            withinPortal
-            position="bottom-start"
-            shadow="md"
-            onOpen={onOpen}
-            onClose={onClose}
-        >
+        <Menu position="bottom-start" onOpen={onOpen} onClose={onClose}>
             <Menu.Target>
                 <UnstyledButton
                     className={classes.operatorButton}

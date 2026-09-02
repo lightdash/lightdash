@@ -27,6 +27,7 @@ import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import Page from '../../../components/common/Page/Page';
 import PageSpinner from '../../../components/PageSpinner';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentOnboardingActivityPanel } from './AgentOnboardingActivity';
 import { AgentOnboardingDemoOffer } from './AgentOnboardingDemoOffer';
 import { AgentOnboardingFileBrowser } from './AgentOnboardingFileBrowser';
@@ -148,10 +149,8 @@ const RunActions: FC<{
 };
 
 const AgentOnboardingRunPage: FC = () => {
-    const { agentOnboardingRunUuid, projectUuid } = useParams<{
-        agentOnboardingRunUuid: string;
-        projectUuid: string;
-    }>();
+    const { agentOnboardingRunUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const [isCancellationRequested, setIsCancellationRequested] =
         useState(false);
@@ -255,10 +254,7 @@ const AgentOnboardingRunPage: FC = () => {
                                 <Title order={2}>
                                     Building your Lightdash project
                                 </Title>
-                                <Badge
-                                    color={statusConfig.color}
-                                    variant="light"
-                                >
+                                <Badge color={statusConfig.color}>
                                     {statusConfig.label}
                                 </Badge>
                             </Group>
@@ -299,11 +295,7 @@ const AgentOnboardingRunPage: FC = () => {
                         </Alert>
                     ) : null}
 
-                    <Paper
-                        withBorder
-                        radius="md"
-                        className={classes.progressActivityCard}
-                    >
+                    <Paper radius="md" className={classes.progressActivityCard}>
                         <Box p="lg">
                             <AgentOnboardingProgress run={run} />
                         </Box>
@@ -314,7 +306,7 @@ const AgentOnboardingRunPage: FC = () => {
                         />
                     </Paper>
 
-                    <Paper withBorder radius="md" className={classes.workspace}>
+                    <Paper radius="md" className={classes.workspace}>
                         <Box className={classes.workspacePanel}>
                             <Group h={48} px="md" justify="space-between">
                                 <Text fw={600} fz="sm">

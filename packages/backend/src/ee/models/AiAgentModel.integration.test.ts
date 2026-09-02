@@ -1,18 +1,25 @@
 import {
+    AI_DATA_APP_BUILD_PENDING_GRACE_MS,
     AiDuplicateSlackPromptError,
+    APP_VERSION_CANCELLED_BY_USER,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_ORG_2,
     SEED_ORG_2_ADMIN,
     SEED_PROJECT,
+    type AppVersionStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { lightdashConfig } from '../../config/lightdashConfig';
+import { AppsTableName } from '../../database/entities/apps';
+import { type AppModel } from '../../models/AppModel';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
     AiAgentToolResultTableName,
     AiPromptTableName,
     AiThreadTableName,
     AiWritebackRunTableName,
+    type AiPromptNeedsUserInputMetadata,
 } from '../database/entities/ai';
 import { AiAgentModel } from './AiAgentModel';
 import { AiWritebackRunModel } from './AiWritebackRunModel';
@@ -61,6 +68,120 @@ describe('AiAgentModel prompt activity', () => {
             .first();
         return row?.updated_at ?? null;
     };
+
+    it('normalizes resolved expression args on every model read path', async () => {
+        const resolvedArgs = {
+            title: 'Orders by status',
+            description: 'Completed orders',
+            queryConfig: {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                sorts: [],
+                limit: 500,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: {
+                    dimensions: {
+                        connector: 'and',
+                        rules: [
+                            {
+                                fieldId: 'orders_status',
+                                fieldType: 'string',
+                                fieldFilterType: 'string',
+                                operator: 'equals',
+                                values: ['complete'],
+                            },
+                        ],
+                    },
+                    metrics: {
+                        connector: 'or',
+                        rules: [
+                            {
+                                fieldId: 'orders_count',
+                                fieldType: 'count',
+                                fieldFilterType: 'number',
+                                operator: 'greaterThan',
+                                values: [10],
+                            },
+                        ],
+                    },
+                    tableCalculations: null,
+                },
+            },
+            chartConfig: null,
+            mergeConfig: null,
+        };
+        const persistedConfig = {
+            source: 'semantic',
+            config: resolvedArgs,
+        };
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Persist a filter expression',
+        });
+        const created = await model.createArtifact({
+            threadUuid,
+            promptUuid,
+            artifactType: 'chart',
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const version = await model.createArtifactVersion({
+            artifactUuid: created.artifactUuid,
+            promptUuid,
+            title: 'Orders by status',
+            description: 'Completed orders',
+            vizConfig: persistedConfig,
+        });
+        const fetched = await model.getArtifact(created.artifactUuid);
+        const byThread = await model.findArtifactsByThreadUuid(
+            threadUuid,
+            'chart',
+        );
+        const byPrompt =
+            await model.findArtifactVersionsByPromptUuid(promptUuid);
+
+        for (const artifact of [
+            created,
+            version,
+            fetched,
+            ...byThread,
+            ...byPrompt,
+        ]) {
+            expect(artifact.chartConfig).toMatchObject({
+                source: 'semantic',
+                config: {
+                    queryConfig: {
+                        filters: {
+                            dimensions: {
+                                connector: 'and',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_status',
+                                        values: ['complete'],
+                                    },
+                                ],
+                            },
+                            metrics: {
+                                connector: 'or',
+                                rules: [
+                                    {
+                                        fieldId: 'orders_count',
+                                        values: [10],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    mergeConfig: null,
+                },
+            });
+        }
+    });
 
     it('sets thread updated_at to the inserted web prompt created_at', async () => {
         const threadUuid = await createWebAppThread();
@@ -236,6 +357,119 @@ describe('AiAgentModel prompt activity', () => {
         expect(shutdownFailedRetry).toMatchObject({
             response: null,
             error_message: 'Server restarted during retry',
+        });
+    });
+
+    it('persists a successful terminal response after retrying a failed prompt with token usage', async () => {
+        const threadUuid = await createWebAppThread();
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Retry a failed response with recorded token usage',
+        });
+        const failedAttemptTokenUsage = {
+            totalTokens: 41,
+            finalStepTotalTokens: 17,
+        };
+        const retriedAttemptTokenUsage = {
+            totalTokens: 23,
+            finalStepTotalTokens: 23,
+        };
+        const classificationMetadata = {
+            gate: 'match',
+            model: 'claude-haiku-4-5',
+            durationMs: 125,
+            confidence: 0.9,
+        } as const;
+        const readPromptState = async () =>
+            database(AiPromptTableName)
+                .select([
+                    'response',
+                    'error_message',
+                    'token_usage',
+                    'needs_user_input',
+                    'needs_user_input_metadata',
+                ])
+                .select(
+                    database.raw('responded_at::text as responded_at'),
+                    database.raw('retried_at::text as retried_at'),
+                )
+                .where('ai_prompt_uuid', promptUuid)
+                .first<{
+                    response: string | null;
+                    error_message: string | null;
+                    token_usage: typeof failedAttemptTokenUsage | null;
+                    needs_user_input: boolean | null;
+                    needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
+                    responded_at: string | null;
+                    retried_at: string | null;
+                }>();
+
+        const failedAttemptPersisted = await model.updateModelResponse({
+            promptUuid,
+            errorMessage: 'The agent finished without writing a response.',
+            tokenUsage: failedAttemptTokenUsage,
+        });
+        const classificationPersisted = await model.updatePromptNeedsUserInput({
+            promptUuid,
+            needsUserInput: true,
+            metadata: classificationMetadata,
+        });
+        const failedState = await readPromptState();
+
+        expect({ failedAttemptPersisted, classificationPersisted }).toEqual({
+            failedAttemptPersisted: true,
+            classificationPersisted: true,
+        });
+        expect(failedState).toMatchObject({
+            response: null,
+            error_message: 'The agent finished without writing a response.',
+            token_usage: failedAttemptTokenUsage,
+            needs_user_input: true,
+            needs_user_input_metadata: classificationMetadata,
+            retried_at: null,
+        });
+        expect(failedState?.responded_at).not.toBeNull();
+
+        const retryStarted = await model.resetPromptResponseForRetry(
+            promptUuid,
+            {
+                respondedAt: failedState!.responded_at,
+                response: failedState!.response,
+                errorMessage: failedState!.error_message,
+            },
+        );
+        const resetState = await readPromptState();
+
+        expect(retryStarted).toBe(true);
+        expect(resetState).toMatchObject({
+            response: null,
+            error_message: null,
+            responded_at: null,
+            needs_user_input: null,
+            needs_user_input_metadata: null,
+        });
+        expect(resetState?.retried_at).not.toBeNull();
+
+        const terminalResponsePersisted = await model.updateModelResponse(
+            {
+                promptUuid,
+                response: 'The retried response completed successfully.',
+                tokenUsage: retriedAttemptTokenUsage,
+            },
+            { onlyIfUnfinalized: true },
+        );
+        const terminalState = await readPromptState();
+
+        expect({ terminalResponsePersisted, ...terminalState }).toEqual({
+            terminalResponsePersisted: true,
+            response: 'The retried response completed successfully.',
+            error_message: null,
+            token_usage: retriedAttemptTokenUsage,
+            needs_user_input: null,
+            needs_user_input_metadata: null,
+            responded_at: expect.any(String),
+            retried_at: resetState?.retried_at,
         });
     });
 
@@ -800,5 +1034,216 @@ describe('AiAgentModel prompt activity', () => {
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
         });
         expect(await model.hasAiPromptInterrupt(promptUuid)).toBe(true);
+    });
+});
+
+describe('AiAgentModel pending data app builds', () => {
+    let database: Knex;
+    let model: AiAgentModel;
+    let appModel: AppModel;
+    const threadUuids = new Set<string>();
+    const appUuids = new Set<string>();
+
+    beforeAll(() => {
+        const context = getTestContext();
+        database = context.db;
+        model = getModels(context.app).aiAgentModel;
+        appModel = context.app.getModels().getAppModel();
+    });
+
+    afterEach(async () => {
+        await database(AiThreadTableName)
+            .whereIn('ai_thread_uuid', [...threadUuids])
+            .delete();
+        threadUuids.clear();
+        await database(AppsTableName)
+            .whereIn('app_id', [...appUuids])
+            .delete();
+        appUuids.clear();
+    });
+
+    const toolCallId = 'generate-data-app-call';
+
+    const createPendingBuild = async ({
+        status,
+        error = null,
+        statusMessage = null,
+        startedAgoMs = 0,
+        toolName = 'generateDataApp',
+    }: {
+        status: AppVersionStatus;
+        error?: string | null;
+        statusMessage?: string | null;
+        startedAgoMs?: number;
+        toolName?: 'generateDataApp' | 'iterateDataApp';
+    }) => {
+        const { app } = await appModel.createWithVersion(
+            {
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                name: 'Revenue app',
+            },
+            { version: 1, prompt: 'Build a revenue app' },
+            'pending',
+        );
+        appUuids.add(app.app_id);
+        await appModel.updateVersionStatus(
+            app.app_id,
+            1,
+            status,
+            error,
+            statusMessage,
+        );
+
+        const threadUuid = await model.createWebAppThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: SEED_ORG_1_ADMIN.user_uuid,
+            createdFrom: 'web_app',
+            agentUuid: null,
+        });
+        threadUuids.add(threadUuid);
+        const promptUuid = await model.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
+            prompt: 'Build me a revenue app',
+        });
+        await model.createToolCall({
+            promptUuid,
+            toolCallId,
+            toolName,
+            toolArgs: {
+                prompt: 'Build a revenue app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+            },
+            parentToolCallId: null,
+        });
+        await model.createToolResults([
+            {
+                promptUuid,
+                toolCallId,
+                toolName,
+                result: 'Started the data app build.',
+                metadata: {
+                    status: 'pending',
+                    appUuid: app.app_id,
+                    version: 1,
+                },
+            },
+        ]);
+        if (startedAgoMs > 0) {
+            await database.raw('UPDATE ?? SET ?? = ? WHERE ?? = ?', [
+                AiAgentToolResultTableName,
+                'created_at',
+                new Date(Date.now() - startedAgoMs),
+                'ai_prompt_uuid',
+                promptUuid,
+            ]);
+        }
+        return { promptUuid, appUuid: app.app_id, appSlug: app.slug };
+    };
+
+    it('resolves a pending result to success once the version is ready', async () => {
+        const { promptUuid, appUuid, appSlug } = await createPendingBuild({
+            status: 'ready',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'success',
+            appUuid,
+            version: 1,
+            name: 'Revenue app',
+            slug: appSlug,
+            href: `${lightdashConfig.siteUrl}/projects/${SEED_PROJECT.project_uuid}/apps/${appUuid}`,
+        });
+    });
+
+    it('resolves a pending iterateDataApp result the same way', async () => {
+        const { promptUuid, appUuid, appSlug } = await createPendingBuild({
+            status: 'ready',
+            toolName: 'iterateDataApp',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'success',
+            appUuid,
+            version: 1,
+            name: 'Revenue app',
+            slug: appSlug,
+            href: `${lightdashConfig.siteUrl}/projects/${SEED_PROJECT.project_uuid}/apps/${appUuid}`,
+        });
+    });
+
+    it('resolves a pending result to error once the version failed', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'error',
+            error: 'boom',
+            statusMessage: 'Build timed out. Please try again.',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'error',
+            appUuid,
+            reason: 'failed',
+            message: 'Build timed out. Please try again.',
+        });
+    });
+
+    it('resolves a pending result to error once the version was cancelled', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'error',
+            error: APP_VERSION_CANCELLED_BY_USER,
+            statusMessage: APP_VERSION_CANCELLED_BY_USER,
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'error',
+            appUuid,
+            reason: 'cancelled',
+            message: 'The build was cancelled.',
+        });
+    });
+
+    it('keeps a fresh pending result while the version is still building', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'generating',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'pending',
+            appUuid,
+            version: 1,
+        });
+    });
+
+    it('expires a pending result still building after the grace period', async () => {
+        const { promptUuid, appUuid } = await createPendingBuild({
+            status: 'generating',
+            startedAgoMs: AI_DATA_APP_BUILD_PENDING_GRACE_MS + 1000,
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toMatchObject({
+            status: 'error',
+            appUuid,
+            reason: 'failed',
+        });
+        expect(result.metadata).toHaveProperty(
+            'message',
+            expect.stringContaining('30 minutes'),
+        );
     });
 });

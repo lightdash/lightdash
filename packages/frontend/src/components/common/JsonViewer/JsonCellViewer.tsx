@@ -1,5 +1,4 @@
 import {
-    ActionIcon,
     Box,
     Button,
     CopyButton,
@@ -9,12 +8,12 @@ import {
     Stack,
     Tabs,
     Text,
-    Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCode, IconCopy, IconEye } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import ReactJson, { type OnSelectProps } from 'react-json-view';
 import { useRjvTheme } from '../../../hooks/useRjvTheme';
+import { CopyActionIcon } from '../CopyActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import { type JsonCellValue } from './utils';
@@ -95,24 +94,11 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
             cancelLabel={false}
             bodyScrollAreaMaxHeight="75vh"
             headerActions={
-                <CopyButton value={formattedJson} timeout={2000}>
-                    {({ copied, copy }) => (
-                        <Tooltip
-                            label={copied ? 'Copied JSON' : 'Copy JSON'}
-                            withinPortal
-                        >
-                            <ActionIcon
-                                color={copied ? 'teal' : 'gray'}
-                                onClick={copy}
-                                variant="subtle"
-                            >
-                                <MantineIcon
-                                    icon={copied ? IconCheck : IconCopy}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </CopyButton>
+                <CopyActionIcon
+                    value={formattedJson}
+                    copyLabel="Copy JSON"
+                    copiedLabel="Copied JSON"
+                />
             }
         >
             <Stack gap="sm">
@@ -174,7 +160,7 @@ export const JsonCellModal: FC<ModalProps> = ({ value, opened, onClose }) => {
                                 component="pre"
                                 fz="xs"
                                 m={0}
-                                style={{ whiteSpace: 'pre-wrap' }}
+                                className="ld-pre-wrap"
                             >
                                 {formattedJson}
                             </Box>

@@ -9,16 +9,6 @@ export interface ArtifactData {
     agentUuid: string;
 }
 
-export interface AiArtifactState {
-    artifact: ArtifactData | null;
-    savedChart: SavedChartPreviewData | null;
-}
-
-const initialState: AiArtifactState = {
-    artifact: null,
-    savedChart: null,
-};
-
 export interface SavedChartPreviewData {
     savedChartUuid: string;
     messageUuid: string;
@@ -27,63 +17,58 @@ export interface SavedChartPreviewData {
     agentUuid: string;
 }
 
+export interface DataAppPreviewData {
+    appUuid: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
+
+export type AiPreview =
+    | ({ type: 'artifact' } & ArtifactData)
+    | ({ type: 'savedChart' } & SavedChartPreviewData)
+    | ({ type: 'dataApp' } & DataAppPreviewData);
+
+export interface AiArtifactState {
+    preview: AiPreview | null;
+}
+
+const initialState: AiArtifactState = {
+    preview: null,
+};
+
 export const aiArtifactSlice = createSlice({
     name: 'aiArtifact',
     initialState,
     reducers: {
-        setArtifact: (
-            state,
-            action: PayloadAction<{
-                artifactUuid: string;
-                versionUuid: string;
-                messageUuid: string;
-                threadUuid: string;
-                projectUuid: string;
-                agentUuid: string;
-            }>,
-        ) => {
-            const {
-                artifactUuid,
-                versionUuid,
-                messageUuid,
-                threadUuid,
-                projectUuid,
-                agentUuid,
-            } = action.payload;
-            state.artifact = {
-                artifactUuid,
-                versionUuid,
-                messageUuid,
-                threadUuid,
-                projectUuid,
-                agentUuid,
-            };
-            state.savedChart = null;
-        },
-        setSavedChartPreview: (
-            state,
-            action: PayloadAction<SavedChartPreviewData>,
-        ) => {
-            state.savedChart = action.payload;
-            state.artifact = null;
-        },
-        clearArtifact: (state) => {
-            state.artifact = null;
-        },
-        clearSavedChartPreview: (state) => {
-            state.savedChart = null;
+        setPreview: (state, action: PayloadAction<AiPreview>) => {
+            state.preview = action.payload;
         },
         clearPreview: (state) => {
-            state.artifact = null;
-            state.savedChart = null;
+            state.preview = null;
         },
     },
 });
 
-export const {
-    setArtifact,
-    setSavedChartPreview,
-    clearArtifact,
-    clearSavedChartPreview,
-    clearPreview,
-} = aiArtifactSlice.actions;
+export const { setPreview, clearPreview } = aiArtifactSlice.actions;
+
+type StateWithAiArtifact = { aiArtifact: AiArtifactState };
+
+export const selectPreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview;
+
+export const selectArtifactPreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview?.type === 'artifact'
+        ? state.aiArtifact.preview
+        : null;
+
+export const selectSavedChartPreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview?.type === 'savedChart'
+        ? state.aiArtifact.preview
+        : null;
+
+export const selectDataAppPreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview?.type === 'dataApp'
+        ? state.aiArtifact.preview
+        : null;

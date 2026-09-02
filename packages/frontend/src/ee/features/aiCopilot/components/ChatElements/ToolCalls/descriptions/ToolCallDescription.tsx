@@ -1,10 +1,8 @@
 import type {
     DiscoverFieldsInput,
+    ReadContentType,
     ToolGrepFieldsArgs,
     ToolGetMetadataArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
     assertUnreachable,
@@ -12,8 +10,9 @@ import {
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolAnalyzeFieldImpactArgs,
+    type ToolComposerQueriesArgs,
     type ToolCreateScheduledDeliveryOutput,
-    type ToolDashboardArgs,
+    type ToolDashboardV2Args,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
     type ToolFindContentArgs,
@@ -37,7 +36,10 @@ import {
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
-import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import {
+    ComposerQueriesToolCallDescription,
+    type ComposerQueryNodeStatus,
+} from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
@@ -62,7 +64,7 @@ import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart';
+    type?: ReadContentType;
 };
 
 type ToolEditContentArgs = {
@@ -79,7 +81,13 @@ export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall, toolResult }) => {
+    /**
+     * Live per-node execution statuses for a running composer pipeline,
+     * keyed by nodeId. Only meaningful for runComposerQueries; omitted for
+     * persisted views, which render the pipeline without indicators.
+     */
+    composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
+}> = ({ toolName, toolCall, toolResult, composerNodeStatuses }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -185,7 +193,7 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'generateDashboard':
-            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardArgs;
+            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardV2Args;
             return (
                 <DashboardToolCallDescription
                     title={dashboardToolArgs.title}
@@ -209,24 +217,21 @@ export const ToolCallDescription: FC<{
                     chartConfig={queryToolArgs.chartConfig}
                 />
             );
-        case 'generateBarVizConfig':
-        case 'generateTableVizConfig':
-        case 'generateTimeSeriesVizConfig':
-            const chartToolArgs = toolCall.toolArgs as
-                | ToolTableVizArgs
-                | ToolTimeSeriesArgs
-                | ToolVerticalBarArgs;
-            return (
-                <AiChartGenerationToolCallDescription
-                    title={chartToolArgs.title}
-                />
-            );
         case 'runSql':
             const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
             return (
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
+                />
+            );
+        case 'runComposerQueries':
+            const composerToolArgs =
+                toolCall.toolArgs as ToolComposerQueriesArgs;
+            return (
+                <ComposerQueriesToolCallDescription
+                    queries={composerToolArgs.queries ?? []}
+                    nodeStatuses={composerNodeStatuses}
                 />
             );
         case 'readContent':
@@ -365,6 +370,8 @@ export const ToolCallDescription: FC<{
         case 'listWorkstreams':
         case 'closePullRequest':
         case 'getPullRequestDiff':
+        case 'generateDataApp':
+        case 'iterateDataApp':
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':
@@ -378,6 +385,7 @@ export const ToolCallDescription: FC<{
         case 'submitWorkerFindings':
         case 'loadMcpTools':
         case 'resolveUrl':
+        case 'findCustomChartTypes':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

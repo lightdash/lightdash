@@ -9,7 +9,6 @@ import { TextInput, Group, Stack, ActionIcon } from '@mantine/core';
 import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -17,11 +16,12 @@ import ResourceView from '../components/common/ResourceView';
 import { ResourceSortDirection } from '../components/common/ResourceView/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useProject } from '../hooks/useProject';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 
 const MobileSpaces: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { data: spaces = [], isInitialLoading: spaceIsLoading } =
         useSpaceSummaries(projectUuid, true);
     const project = useProject(projectUuid);
@@ -85,8 +85,6 @@ const MobileSpaces: FC = () => {
                             <ActionIcon
                                 aria-label="Clear search"
                                 onMouseDown={(event) => event.preventDefault()}
-                                variant="subtle"
-                                color="gray"
                                 onClick={() => setSearch('')}
                             >
                                 <MantineIcon icon={IconX} />

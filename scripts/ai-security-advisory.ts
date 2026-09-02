@@ -11,7 +11,7 @@ const MAX_DIFF_CHARS = 20_000;
 const MAX_SEARCH_LINES = 100;
 const MAX_CHANGED_FILES = 500;
 const MAX_TOKENS = 16_000;
-const MAX_PARSE_RETRIES = 2;
+const MAX_OUTPUT_RETRIES = 2;
 const API_VERSION = '2026-03-10';
 const MARKER_PREFIX = 'lightdash-ai-security-draft:v1';
 
@@ -264,7 +264,7 @@ Confidence rules:
 - medium: the security fix is strongly supported, but one exploitability or deployment detail remains uncertain;
 - low: speculative, defense-in-depth, or missing a verified attacker path.
 
-Keep unrelated vulnerabilities separate. Cite full fix commit SHAs from this release range and changed evidence paths. Include a pull request number only when a cited commit message identifies it; otherwise return an empty fixPullRequests array. Set introducedVersion only when tool evidence verifies the earliest stable affected tag; otherwise use null. Use only a complete CVSS v3.1 base vector; it will be scored deterministically. Choose a specific primary CWE suitable for mapping a real-world vulnerability. CWE-200 and CWE-284 are discouraged primary mappings. Treat the affected range and CWE mapping as proposals requiring human verification. If there are no findings, return an empty findings array.
+Keep unrelated vulnerabilities separate. Cite full fix commit SHAs from this release range and changed evidence paths. Include a pull request number only when a cited commit message identifies it; otherwise return an empty fixPullRequests array. Set introducedVersion only when tool evidence verifies the earliest stable affected tag; otherwise use null. Set proposedCvssVector to null for defense_in_depth and uncertain findings. For exploitable findings, use only a complete CVSS v3.1 base vector with at least one of C, I, or A set to L or H; it will be scored deterministically. Choose a specific primary CWE suitable for mapping a real-world vulnerability. CWE-200 and CWE-284 are discouraged primary mappings. Treat the affected range and CWE mapping as proposals requiring human verification. If there are no findings, return an empty findings array.
 
 Return exactly one JSON object and no markdown, matching:
 ${OUTPUT_SCHEMA}`;
@@ -1002,7 +1002,7 @@ function validateFindingEvidence(
     }
 }
 
-async function runReadOnlyReview(options: {
+async function runReadOnlyReview<T>(options: {
     apiKey: string;
     systemPrompt: string;
     messages: unknown[];
@@ -1012,11 +1012,12 @@ async function runReadOnlyReview(options: {
     releaseRef: string;
     label: string;
     requireOldCodeInspection?: boolean;
-}): Promise<unknown> {
+    validateOutput: (value: unknown) => T;
+}): Promise<T> {
     const messages = [...options.messages];
     let toolCalls = 0;
     let inspectedOldCode = false;
-    let parseRetries = 0;
+    let outputRetries = 0;
 
     for (let iteration = 0; iteration < MAX_ITERATIONS; iteration += 1) {
         const response = await callAnthropic(
@@ -1046,20 +1047,24 @@ async function runReadOnlyReview(options: {
                 );
             }
             try {
-                return extractJson(text);
+                return options.validateOutput(extractJson(text));
             } catch (error) {
-                if (parseRetries >= MAX_PARSE_RETRIES) {
+                if (outputRetries >= MAX_OUTPUT_RETRIES) {
                     throw new Error(
-                        `AI ${options.label} did not return valid JSON`,
+                        `AI ${options.label} did not return valid output: ${
+                            error instanceof Error
+                                ? error.message
+                                : String(error)
+                        }`,
                     );
                 }
-                parseRetries += 1;
+                outputRetries += 1;
                 messages.push({
                     role: 'user',
                     content: [
                         {
                             type: 'text',
-                            text: `Your reply was not exactly one valid JSON object (${
+                            text: `Your reply was not exactly one valid JSON object matching the required schema (${
                                 error instanceof Error
                                     ? error.message
                                     : String(error)
@@ -1133,13 +1138,16 @@ export async function analyzeRelease(options: {
         previousRef,
         releaseRef,
         label: 'analysis',
+        validateOutput: (value) => {
+            const analysis = validateAnalysisShape(value, {
+                previousTag: options.previousTag,
+                releaseTag: options.releaseTag,
+            });
+            validateFindingEvidence(analysis, previousRef, releaseRef);
+            return analysis;
+        },
     });
-    const analysis = validateAnalysisShape(output, {
-        previousTag: options.previousTag,
-        releaseTag: options.releaseTag,
-    });
-    validateFindingEvidence(analysis, previousRef, releaseRef);
-    return analysis;
+    return output;
 }
 
 function productMetadata(product: Product): {
@@ -1311,14 +1319,17 @@ export async function verifyReleaseFindings(options: {
         releaseRef,
         label: 'verification',
         requireOldCodeInspection: true,
+        validateOutput: (value) => {
+            const verification = validateVerificationShape(value, {
+                previousTag: analysis.previousTag,
+                releaseTag: analysis.releaseTag,
+                fingerprints,
+            });
+            validateVerificationEvidence(verification, previousRef);
+            return verification;
+        },
     });
-    const verification = validateVerificationShape(output, {
-        previousTag: analysis.previousTag,
-        releaseTag: analysis.releaseTag,
-        fingerprints,
-    });
-    validateVerificationEvidence(verification, previousRef);
-    return verification;
+    return output;
 }
 
 function marker(finding: SecurityFinding, releaseTag: string): string {

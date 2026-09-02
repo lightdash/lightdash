@@ -83,6 +83,13 @@ export type ProjectDefaults = {
      * Explorer dimension labels, the Explorer sidebar tree, and the date zoom.
      */
     granularity_labels?: Record<string, string>;
+    /**
+     * Whether a matched query whose pre-aggregate execution fails is served
+     * from the source warehouse (execution fallback). When false, the query
+     * errors instead of transparently running on the warehouse.
+     * Defaults to true if not specified.
+     */
+    pre_aggregate_execution_fallback?: boolean;
     // Room for future project-wide defaults like:
     // date_format?: string;
     // number_format?: string;
@@ -94,8 +101,16 @@ export type CustomGranularity = {
     type?: DimensionType.DATE | DimensionType.TIMESTAMP | DimensionType.STRING;
 };
 
+export type ContentAsCodeConfig = {
+    /** Track uploaded content as Git-backed for review/write-back workflows. */
+    sync?: boolean;
+    /** Directory holding charts/ and dashboards/, relative to the project dir. Defaults to `lightdash`. */
+    path?: string;
+};
+
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
+    content_as_code?: ContentAsCodeConfig;
     parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings

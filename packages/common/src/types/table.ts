@@ -22,6 +22,7 @@ export type TableBase = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
     originalName?: string; // Original name from dbt, without alias
+    canonicalName?: string; // Qualified table name before applying a join alias
     description?: string; // Optional description of table
     /*
         @deprecated
@@ -48,6 +49,7 @@ export type TableBase = {
     aiHint?: string | string[];
     warnings?: InlineError[];
     dbtPackageName?: string;
+    dbtSourceUuid?: string;
     ymlPath?: string;
     sqlPath?: string;
 };

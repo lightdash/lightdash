@@ -124,10 +124,8 @@ const Parameter: FC<Props> = ({
             onDismiss={handleClose}
             transitionProps={{ transition: 'pop-top-left' }}
             withArrow
-            shadow="md"
             offset={1}
             arrowOffset={14}
-            withinPortal
             classNames={{ dropdown: dropdownClassName }}
         >
             <Popover.Target>
@@ -135,9 +133,7 @@ const Parameter: FC<Props> = ({
                     label={parameter.description}
                     disabled={!parameter.description || isPopoverOpen}
                     position="top"
-                    withinPortal
                     maw={350}
-                    multiline
                 >
                     <Button
                         pos="relative"
@@ -174,9 +170,7 @@ const Parameter: FC<Props> = ({
                                     <ActionIcon
                                         onClick={handleClear}
                                         size="xs"
-                                        color="dark"
                                         radius="xl"
-                                        variant="subtle"
                                     >
                                         <MantineIcon size="sm" icon={IconX} />
                                     </ActionIcon>

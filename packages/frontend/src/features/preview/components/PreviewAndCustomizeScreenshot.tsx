@@ -82,7 +82,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     </Radio.Group>
 
                     <Stack>
-                        <Card withBorder p={0}>
+                        <Card p={0}>
                             <Box pos="relative">
                                 {currentPreview ? (
                                     <Image
@@ -163,7 +163,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                     onClick={() => setIsImageModalOpen(false)}
                     w="100%"
                     h="100%"
-                    style={{ cursor: 'pointer' }}
+                    className="ld-pointer"
                 />
             </Modal>
         </Box>

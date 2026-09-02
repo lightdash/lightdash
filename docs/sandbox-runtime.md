@@ -284,6 +284,10 @@ The full operator reference is on the public docs site. The values are parsed in
 | `SANDBOX_IDLE_TIMEOUT_MS` | lambda-microvm, azure-sandboxes | Feeds the auto-suspend idle policy; ignored by e2b/docker |
 | `SANDBOX_SNAPSHOT_RETENTION_MS` | lambda-microvm | Feeds the AWS auto-terminate policy |
 | `ANTHROPIC_API_KEY` | all | The Claude Code agent runs inside the sandbox |
+| `ANTHROPIC_BASE_URL` | data apps | Optional Anthropic-wire gateway used by Claude Code; configure the base without `/v1` |
+| `BEDROCK_BASE_URL`, `CLAUDE_CODE_SKIP_BEDROCK_AUTH` | data apps | Optional Bedrock-wire gateway used by Claude Code and Codex; bearer-key Codex gateways require `BEDROCK_API_KEY` |
+
+E2B and Azure sandbox creation receive the configured gateway hostname in their dynamic egress allowlist. Lambda microVM uses the pre-provisioned `SANDBOX_LAMBDA_EGRESS_CONNECTOR_ARN` instead and cannot apply the per-sandbox allowlist, so that connector must separately permit the gateway hostname. Docker and Cloud Run retain their existing backend-specific egress behavior.
 
 The `azure-sandboxes` backend authenticates with `@azure/identity`'s
 `DefaultAzureCredential` — in production, a workload identity with the **Container

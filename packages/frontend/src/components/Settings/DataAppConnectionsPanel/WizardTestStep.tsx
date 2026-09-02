@@ -69,6 +69,17 @@ export const WizardTestStep: FC<Props> = ({
         }
     })();
 
+    if (allowedMethods.length === 0) {
+        return (
+            <Stack gap="md" mt="xl">
+                <Text c="dimmed" fz="sm">
+                    This image-only connection does not allow proxied requests,
+                    so there is nothing to test here.
+                </Text>
+            </Stack>
+        );
+    }
+
     const handleTest = async () => {
         let parsedBody: unknown;
         if (method !== 'GET' && body.trim()) {
@@ -98,7 +109,7 @@ export const WizardTestStep: FC<Props> = ({
 
     return (
         <Stack gap="md" mt="xl">
-            <Text c="ldGray.6" fz="sm">
+            <Text c="dimmed" fz="sm">
                 Send a test request to confirm the connection works before
                 saving it. This step is optional.
             </Text>
@@ -123,7 +134,7 @@ export const WizardTestStep: FC<Props> = ({
                     label="Path"
                     description="Relative to the base URL"
                     placeholder="/v1/endpoint"
-                    style={{ flexGrow: 1 }}
+                    className="ld-grow"
                     value={path}
                     onChange={(e) => setPath(e.currentTarget.value)}
                 />

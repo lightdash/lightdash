@@ -76,7 +76,7 @@ const SourceRow: FC<{
         <Box className={styles.sourceRow}>
             <Group justify="space-between" align="flex-start" wrap="nowrap">
                 <Box miw={0}>
-                    <Text fw={550} size="sm" lineClamp={1}>
+                    <Text fw={500} size="sm" lineClamp={1}>
                         {source.threadTitle ?? 'AI agent thread'}
                     </Text>
                     <AiMarkdown className={styles.sourceSummary}>
@@ -282,13 +282,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                     {memory.terms.length > 0 ? (
                         <Group gap={6}>
                             {memory.terms.map((term) => (
-                                <Badge
-                                    key={term}
-                                    variant="light"
-                                    color="gray"
-                                    tt="none"
-                                    size="sm"
-                                >
+                                <Badge key={term} size="sm">
                                     {term}
                                 </Badge>
                             ))}
@@ -316,7 +310,7 @@ export const MemoryDetails: FC<MemoryDetailsProps> = ({
                                         <Box miw={0}>
                                             <Text
                                                 size="xs"
-                                                fw={550}
+                                                fw={500}
                                                 lineClamp={1}
                                             >
                                                 {getObjectLabel(object)}

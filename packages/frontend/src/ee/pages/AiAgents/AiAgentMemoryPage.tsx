@@ -3,6 +3,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Link, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import PageSpinner from '../../../components/PageSpinner';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { MemoryActions } from '../../features/aiCopilot/components/MemoryDetails/MemoryActions';
 import { MemoryDetails } from '../../features/aiCopilot/components/MemoryDetails/MemoryDetails';
 import {
@@ -12,7 +13,8 @@ import {
 import styles from './AiAgentMemoryPage.module.css';
 
 const AiAgentMemoryPage = () => {
-    const { projectUuid, agentUuid, slug } = useParams();
+    const { agentUuid, slug } = useParams();
+    const projectUuid = useProjectUuid();
     const agentMemoryQuery = useAiAgentMemory({
         projectUuid,
         agentUuid,
@@ -44,7 +46,7 @@ const AiAgentMemoryPage = () => {
                     Back to AI agents
                 </Anchor>
 
-                <Paper withBorder radius="lg" className={styles.surface}>
+                <Paper className={styles.surface}>
                     <Group
                         className={styles.header}
                         wrap="nowrap"

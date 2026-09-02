@@ -1,12 +1,7 @@
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
 import type { TransformedCustomMetric } from './schemas/customMetrics';
-import type {
-    ToolRunQueryArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
-} from './schemas/tools';
+import type { PersistedRunQueryPayload } from './schemas/persistedRunQueryArgs';
 
 export enum AiResultType {
     TIME_SERIES_RESULT = 'time_series_chart',
@@ -39,23 +34,10 @@ export type AiMetricQueryWithFilters = AiMetricQuery & {
     filters: Filters;
 };
 
-export type AiAgentVizConfig =
-    | {
-          type: 'vertical_bar_chart';
-          config: ToolVerticalBarArgs;
-      }
-    | {
-          type: 'time_series_chart';
-          config: ToolTimeSeriesArgs;
-      }
-    | {
-          type: 'table';
-          config: ToolTableVizArgs;
-      }
-    | {
-          type: 'query_result';
-          config: ToolRunQueryArgs;
-      };
+export type AiAgentVizConfig = {
+    type: 'query_result';
+    config: PersistedRunQueryPayload;
+};
 
 export const AGENT_SUGGESTION_TOOLS = [
     'generateDashboard',

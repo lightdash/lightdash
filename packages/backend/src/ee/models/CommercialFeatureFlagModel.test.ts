@@ -1,122 +1,84 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
-import { Knex } from 'knex';
+import knex from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { LightdashConfig } from '../../config/parseConfig';
-import {
-    FeatureFlagOverridesTableName,
-    FeatureFlagsTableName,
-} from '../../database/entities/featureFlags';
 import { CommercialFeatureFlagModel } from './CommercialFeatureFlagModel';
 
-vi.mock('../../models/FeatureFlagModel/flagCheckAggregator', () => ({
-    record: vi.fn(),
-}));
+const database = knex({ client: MockClient, dialect: 'pg' });
 
-const user = {
-    userUuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    organizationUuid: 'org-uuid',
-};
-
-// Fake Knex serving `feature_flags` rows by flag_id; no overrides.
-const buildFakeDatabase = (flagDefaults: Record<string, boolean>): Knex => {
-    const makeBuilder = (table: string) => {
-        let flagId: string | undefined;
-        const builder = {
-            where(column: string, value?: string) {
-                if (column === 'flag_id') flagId = value;
-                return builder;
-            },
-            whereNull: () => builder,
-            first() {
-                if (table === FeatureFlagsTableName && flagId !== undefined) {
-                    return Promise.resolve(
-                        flagId in flagDefaults
-                            ? {
-                                  flag_id: flagId,
-                                  default_enabled: flagDefaults[flagId],
-                              }
-                            : undefined,
-                    );
-                }
-                if (table === FeatureFlagOverridesTableName) {
-                    return Promise.resolve(undefined);
-                }
-                return Promise.resolve(undefined);
-            },
-        };
-        return builder;
-    };
-    return ((table: string) => makeBuilder(table)) as unknown as Knex;
-};
-
-const buildModel = (
-    flagDefaults: Record<string, boolean>,
-    customRolesConfigEnabled = false,
-) =>
+const createModel = () =>
     new CommercialFeatureFlagModel({
-        database: buildFakeDatabase(flagDefaults),
+        database,
         lightdashConfig: {
             ...lightdashConfigMock,
             enabledFeatureFlags: new Set<string>(),
             disabledFeatureFlags: new Set<string>(),
-            customRoles: { enabled: customRolesConfigEnabled },
-        } as unknown as LightdashConfig,
+        },
     });
 
-describe('CommercialFeatureFlagModel – multiple-roles', () => {
-    const featureFlagId = CommercialFeatureFlags.MultipleRoles;
+describe('CommercialFeatureFlagModel direct access', () => {
+    let tracker: Tracker;
 
-    it('is disabled by default (no DB row)', async () => {
-        const model = buildModel({});
-        expect(await model.get({ user, featureFlagId })).toEqual({
-            id: featureFlagId,
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('fails closed without a user and issues no flag queries', async () => {
+        await expect(
+            createModel().get({
+                featureFlagId: CommercialFeatureFlags.DirectAccess,
+            }),
+        ).resolves.toEqual({
+            id: CommercialFeatureFlags.DirectAccess,
+            enabled: false,
+        });
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('is default-off when no organization override can be resolved', async () => {
+        tracker.on.select('feature_flags').response(undefined);
+
+        await expect(
+            createModel().get({
+                featureFlagId: CommercialFeatureFlags.DirectAccess,
+                user: {
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
+                },
+            }),
+        ).resolves.toEqual({
+            id: CommercialFeatureFlags.DirectAccess,
             enabled: false,
         });
     });
 
-    it('is disabled without a user', async () => {
-        const model = buildModel({ [featureFlagId]: true }, true);
-        expect(await model.get({ featureFlagId })).toEqual({
-            id: featureFlagId,
-            enabled: false,
+    it('enables through an organization-level override', async () => {
+        tracker.on.select('feature_flags').responseOnce({
+            flag_id: CommercialFeatureFlags.DirectAccess,
+            default_enabled: null,
         });
-    });
-
-    it('stays disabled when enabled in DB but custom roles are unavailable', async () => {
-        const model = buildModel({ [featureFlagId]: true });
-        expect(await model.get({ user, featureFlagId })).toEqual({
-            id: featureFlagId,
-            enabled: false,
-        });
-    });
-
-    it('is enabled when enabled in DB and custom roles are enabled by config', async () => {
-        const model = buildModel({ [featureFlagId]: true }, true);
-        expect(await model.get({ user, featureFlagId })).toEqual({
-            id: featureFlagId,
+        tracker.on.select('feature_flag_overrides').responseOnce({
+            flag_id: CommercialFeatureFlags.DirectAccess,
+            organization_uuid: 'organization-uuid',
+            user_uuid: null,
             enabled: true,
         });
-    });
 
-    it('is enabled when enabled in DB and the CustomRoles flag is enabled', async () => {
-        const model = buildModel({
-            [featureFlagId]: true,
-            [CommercialFeatureFlags.CustomRoles]: true,
-        });
-        expect(await model.get({ user, featureFlagId })).toEqual({
-            id: featureFlagId,
+        await expect(
+            createModel().get({
+                featureFlagId: CommercialFeatureFlags.DirectAccess,
+                user: {
+                    userUuid: 'user-uuid',
+                    organizationUuid: 'organization-uuid',
+                },
+            }),
+        ).resolves.toEqual({
+            id: CommercialFeatureFlags.DirectAccess,
             enabled: true,
-        });
-    });
-
-    it('stays disabled when custom roles are available but the flag is off', async () => {
-        const model = buildModel(
-            { [CommercialFeatureFlags.CustomRoles]: true },
-            true,
-        );
-        expect(await model.get({ user, featureFlagId })).toEqual({
-            id: featureFlagId,
-            enabled: false,
         });
     });
 });

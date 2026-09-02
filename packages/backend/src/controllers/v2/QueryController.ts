@@ -16,16 +16,24 @@ import {
     isExecuteAsyncSqlChartByUuidParams,
     isJwtUser,
     LightdashAppPreviewTokenHeader,
+    LightdashCustomSqlProvenanceChartUuidHeader,
     LightdashSignedDownloadHeader,
     PersistentDownloadFileAccessMode,
     QueryExecutionContext,
+    QueryHistorySortBy,
+    QueryHistoryStatus,
+    QueryHistoryWindow,
+    QueryLanguage,
+    QueryTrigger,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncComposeMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryRequest,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ApiQueryHistoryListResponse,
     type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -72,6 +80,74 @@ export type ApiGetAsyncQueryResultsResponse = {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Query')
 export class QueryController extends BaseController {
+    /**
+     * Lists the requesting user's own query history for a project, newest
+     * first, with per-trigger and per-window counts.
+     *
+     * Must stay declared before `getAsyncQueryResults` so the generated
+     * `/history` route is matched before `/{queryUuid}`.
+     * @summary List my query history
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/history')
+    @OperationId('getQueryHistory')
+    async getQueryHistory(
+        @Path()
+        projectUuid: string,
+        @Request() req: express.Request,
+        /** Page number for pagination (starts at 1) */
+        @Query()
+        page: number = 1,
+        /** Number of results per page (default: 25, max: 100) */
+        @Query()
+        pageSize: number = 25,
+        /** Filter by what triggered the run */
+        @Query()
+        trigger?: QueryTrigger,
+        /** Filter by query language */
+        @Query()
+        language?: QueryLanguage,
+        /** Filter by one or more statuses */
+        @Query()
+        status?: QueryHistoryStatus[],
+        /** Matches explore name, chart/dashboard name, fields and SQL */
+        @Query()
+        search?: string,
+        /** Restrict rows to one disjoint time window */
+        @Query()
+        window?: QueryHistoryWindow,
+        /** Sort order; runtime flattens the windows into one sorted list */
+        @Query()
+        sortBy?: QueryHistorySortBy,
+    ): Promise<ApiQueryHistoryListResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .getQueryHistoryList({
+                account: req.account!,
+                projectUuid,
+                filters: {
+                    trigger,
+                    language,
+                    statuses: status,
+                    search,
+                    window,
+                    sortBy,
+                },
+                paginateArgs: {
+                    page,
+                    pageSize: Math.min(pageSize, 100),
+                },
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
     /**
      * Retrieves paginated results from a previously executed async query using its UUID
      * @summary Get results
@@ -209,6 +285,40 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results. Requires the merge-on-compose feature flag.
+     * @summary Execute compose merge query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/compose-merge-query')
+    @OperationId('executeAsyncComposeMergeQuery')
+    async executeAsyncComposeMergeQuery(
+        @Body() body: ApiExecuteAsyncComposeMergeQueryRequest,
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMergeQueryResults>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncMergeQuery({
+                account: req.account,
+                projectUuid,
+                mergeQuery: body.mergeQuery,
+                context:
+                    body.context ??
+                    getContextFromHeader(req) ??
+                    QueryExecutionContext.API,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                mode: body.mode ?? { type: 'interactive' },
+                chart: body.chart,
+            });
+
+        return { status: 'ok', results };
+    }
+
+    /**
      * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
      */
@@ -230,6 +340,9 @@ export class QueryController extends BaseController {
             typeof previewTokenHeader === 'string'
                 ? previewTokenHeader
                 : undefined;
+        const customSqlProvenanceChartUuid: UUID | undefined = req.header(
+            LightdashCustomSqlProvenanceChartUuidHeader,
+        );
 
         const metricQuery: MetricQuery = {
             exploreName: body.query.exploreName,
@@ -261,6 +374,7 @@ export class QueryController extends BaseController {
                 pivotConfiguration: body.pivotConfiguration,
                 dashboardFilters: body.dashboardFilters,
                 dataAppPreviewToken,
+                customSqlProvenanceChartUuid,
             });
 
         return {
@@ -388,6 +502,7 @@ export class QueryController extends BaseController {
                 context: context ?? QueryExecutionContext.API,
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
+                includeUnpublishedDraft: body.includeUnpublishedDraft,
             });
 
         return {

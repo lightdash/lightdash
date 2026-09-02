@@ -4,6 +4,8 @@ import {
     dataAppVizSchema,
     getEffectiveOptionValues,
     getVisibleDataAppClaudeModels,
+    isOfficialChartType,
+    pruneDataAppVizOptionValues,
     resolveDefaultDataAppClaudeModel,
     resolveDefaultVisibleDataAppClaudeModel,
     type DataAppVizConfigOption,
@@ -22,6 +24,15 @@ const validFields = {
         { name: 'series', label: 'Series', type: 'series', required: false },
     ],
 };
+
+describe('isOfficialChartType', () => {
+    it('is true only when registrySlug is set', () => {
+        expect(isOfficialChartType({ registrySlug: 'radial-gauge' })).toBe(
+            true,
+        );
+        expect(isOfficialChartType({ registrySlug: null })).toBe(false);
+    });
+});
 
 describe('dataAppVizSchema', () => {
     it('accepts a well-formed fields declaration (configOptions defaults to [], colorPalette to null)', () => {
@@ -526,5 +537,34 @@ describe('dataAppVizJsonSchema', () => {
         };
 
         expect(findReferences(jsonSchema)).toEqual([]);
+    });
+});
+
+describe('pruneDataAppVizOptionValues', () => {
+    const options: DataAppVizConfigOption[] = [
+        { type: 'boolean', name: 'showLegend', label: 'Legend', default: true },
+        {
+            type: 'select',
+            name: 'mode',
+            label: 'Mode',
+            choices: [{ value: 'stacked', label: 'Stacked' }],
+            default: 'stacked',
+        },
+        { type: 'number', name: 'limit', label: 'Limit', default: 10 },
+    ];
+
+    it('keeps stored values that still fit and drops the rest', () => {
+        expect(
+            pruneDataAppVizOptionValues(options, {
+                showLegend: false,
+                mode: 'grouped',
+                limit: 'ten',
+                gone: true,
+            }),
+        ).toEqual({ showLegend: false });
+    });
+
+    it('never seeds defaults', () => {
+        expect(pruneDataAppVizOptionValues(options, {})).toEqual({});
     });
 });

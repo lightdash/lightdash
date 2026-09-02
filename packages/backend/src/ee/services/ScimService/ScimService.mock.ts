@@ -201,9 +201,7 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     } as unknown as GroupsModel,
     serviceAccountModel: {} as ServiceAccountModel,
     commercialFeatureFlagModel: {
-        get: vi
-            .fn()
-            .mockResolvedValue({ id: 'multiple-roles', enabled: false }),
+        get: vi.fn().mockResolvedValue({ id: 'custom-roles', enabled: false }),
     } as unknown as CommercialFeatureFlagModel,
     rolesModel: {
         removeUserProjectAccess: vi.fn().mockResolvedValue(undefined),

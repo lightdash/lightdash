@@ -27,6 +27,7 @@ import {
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
@@ -96,6 +97,9 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     withChartData = false,
     latestVersion,
 }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const timeAgo = useTimeAgo(updatedAt ?? new Date());
     const label =
         firstViewedAt && viewStats
@@ -133,7 +137,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
             {(title || description) && (
                 <Box>
                     {title && (
-                        <Text fz="sm" fw={600} c="ldGray.9" mb={4}>
+                        <Text fz="sm" fw={600} mb={4}>
                             {title}
                         </Text>
                     )}
@@ -185,8 +189,8 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                     <InfoRow icon={IconFolder} label="Space">
                         <Anchor
                             component={Link}
-                            to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
-                            fz={12}
+                            to={`/projects/${projectUrlIdentifier}/spaces/${spaceUuid}`}
+                            fz="xs"
                             fw={500}
                         >
                             {spaceName}
@@ -198,10 +202,10 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                     <Group gap={6} wrap="nowrap">
                         <MantineIcon
                             icon={IconHistory}
-                            color="ldGray.6"
+                            color="dimmed"
                             size={14}
                         />
-                        <Text fz="xs" c="ldGray.6" fw={600}>
+                        <Text fz="xs" c="dimmed" fw={600}>
                             Version {latestVersion.number} (
                             {versionStatusLabel(latestVersion.status)})
                         </Text>
@@ -224,14 +228,12 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                                 <Tooltip
                                     position="top-start"
                                     label={copied ? 'Copied slug' : 'Copy slug'}
-                                    withArrow
                                 >
                                     <UnstyledButton onClick={copy}>
                                         <Group gap={6} wrap="nowrap">
                                             <Text
-                                                fz={11}
+                                                fz="xs"
                                                 fw={500}
-                                                c="ldGray.9"
                                                 ff="monospace"
                                             >
                                                 {slug}
@@ -242,7 +244,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
                                                         ? IconCheck
                                                         : IconCopy
                                                 }
-                                                color="ldGray.6"
+                                                color="dimmed"
                                                 size="sm"
                                             />
                                         </Group>
@@ -261,9 +263,9 @@ export const ResourceInfoPopup: FC<ResourceInfoPopupProps> = (props) => {
     if (!hasResourceInfoContent(props)) return null;
 
     return (
-        <HoverCard offset={-1} position="bottom" shadow="md" withinPortal>
+        <HoverCard offset={-1} position="bottom">
             <HoverCard.Target>
-                <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
+                <MantineIcon icon={IconInfoCircle} color="dimmed" />
             </HoverCard.Target>
             <HoverCard.Dropdown
                 w={320}

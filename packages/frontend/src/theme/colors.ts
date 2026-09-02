@@ -20,17 +20,113 @@ const createColorTuple = (input: string | ColorTuple): ColorTuple => {
     return input;
 };
 
-const lightdashDarkGray = createColorTuple([
-    '#141414',
-    '#1f1f1f',
-    '#242424',
-    '#2e2e2e',
-    '#3b3b3b',
-    '#525252',
-    '#7a7a7a',
-    '#9e9e9e',
-    '#c8c8c8',
-    '#d9d9d9',
+/**
+ * The neutral ramp. One slightly cool gray, light-first (0 lightest → 9
+ * darkest) like every Mantine color, so Mantine's derived variables
+ * (`--mantine-color-gray-light`, `-outline`, …) behave in both schemes.
+ *
+ * Roles by index: 0 canvas · 1 muted fill / hover · 2 border · 3 strong
+ * border / pressed fill · 4 faint icons, disabled text · 5 tertiary text,
+ * placeholder · 6 secondary text (dimmed) · 7 labels · 8 near text · 9 text.
+ */
+const neutral = createColorTuple([
+    '#fafafa',
+    '#f4f4f5',
+    '#ebebee',
+    '#dcdce0',
+    '#a1a1aa',
+    '#8e8e97',
+    '#71717a',
+    '#52525b',
+    '#3f3f46',
+    '#18181b',
+]);
+
+/**
+ * Mantine's dark-scheme chrome ramp (0 text → 9 deepest). Mantine reads fixed
+ * indices from it: text 0, dimmed 2, placeholder 3, border 4, hover 5,
+ * surface 6, canvas 7.
+ */
+const darkChrome = createColorTuple([
+    '#ececee',
+    '#c4c4c9',
+    '#9a9aa3',
+    '#72727a',
+    '#303034',
+    '#26262a',
+    '#1e1e21',
+    '#151517',
+    '#0f0f11',
+    '#0a0a0c',
+]);
+
+/**
+ * The neutral ramp expressed for the dark scheme with the same roles by
+ * index as `neutral` (0 canvas → 9 text). `ldGray.N` therefore means the same
+ * thing in both schemes, which is what makes `light-dark()` pairs unnecessary
+ * for neutral chrome.
+ */
+const neutralDark = createColorTuple([
+    '#151517',
+    '#232326',
+    '#303034',
+    '#3d3d42',
+    '#55555c',
+    '#72727a',
+    '#9a9aa3',
+    '#b9b9c0',
+    '#d4d4d9',
+    '#ececee',
+]);
+
+/**
+ * The primary color is the ink color: near-black on light, near-white on
+ * dark. Each scheme's tuple is arranged so Mantine's default primary shades
+ * (6 on light, 8 on dark) and the shades it derives from them (hover,
+ * `light`, `outline`, `subtle`) all land on sensible values.
+ */
+const primaryLight = createColorTuple([
+    '#f4f4f5',
+    '#e4e4e7',
+    '#d4d4d8',
+    '#a1a1aa',
+    '#71717a',
+    '#3f3f46',
+    '#18181b',
+    '#2a2a2e',
+    '#111113',
+    '#09090b',
+]);
+
+const primaryDark = createColorTuple([
+    '#3d3d42',
+    '#55555c',
+    '#72727a',
+    '#d4d4d9',
+    '#dcdce0',
+    '#e4e4e7',
+    '#e9e9ec',
+    '#ececee',
+    '#f4f4f5',
+    '#e4e4e7',
+]);
+
+/**
+ * Contrast ramp: 9 is the strongest contrast against the canvas in either
+ * scheme (near-black on light, near-white on dark). Kept for the surfaces
+ * that are deliberately inverted, e.g. tooltips and the AI launcher.
+ */
+const contrastLight = createColorTuple([
+    '#e4e4e7',
+    '#d4d4d8',
+    '#a1a1aa',
+    '#71717a',
+    '#52525b',
+    '#3f3f46',
+    '#333338',
+    '#27272a',
+    '#232326',
+    '#18181b',
 ]);
 
 /** Lightdash brand ramps, matching lightdash.com. Identical in both colour
@@ -62,63 +158,32 @@ const lightdashBrandViolet = createColorTuple([
 ]);
 
 const lightModeColors = {
-    background: createColorTuple('#FEFEFE'),
-    foreground: createColorTuple('#1A1B1E'),
+    primary: primaryLight,
+    gray: neutral,
+    ldGray: neutral,
+    ldDark: contrastLight,
+
+    /** Surface (cards, inputs, popovers) and text, as single-value ramps so
+     *  they can be used anywhere a Mantine color token is accepted. */
+    background: createColorTuple('#ffffff'),
+    foreground: createColorTuple('#18181b'),
 
     ldBrandGray: lightdashBrandGray,
     ldBrandViolet: lightdashBrandViolet,
-
-    ldDark: createColorTuple([
-        '#C9C9C9',
-        '#b8b8b8',
-        '#828282',
-        '#696969',
-        '#424242',
-        '#3b3b3b',
-        '#2e2e2e',
-        '#242424',
-        '#1f1f1f',
-        '#141414',
-    ]),
-
-    ldGray: createColorTuple([
-        '#f8f9fa',
-        '#f1f3f5',
-        '#e9ecef',
-        '#dee2e6',
-        '#ced4da',
-        '#adb5bd',
-        '#868e96',
-        '#495057',
-        '#343a40',
-        '#212529',
-    ]),
 };
 
 const darkModeColors = {
-    background: createColorTuple('#1a1a1a'),
-    foreground: createColorTuple('#FEFEFE'),
+    primary: primaryDark,
+    gray: neutral,
+    dark: darkChrome,
+    ldGray: neutralDark,
+    ldDark: neutralDark,
+
+    background: createColorTuple('#1e1e21'),
+    foreground: createColorTuple('#ececee'),
 
     ldBrandGray: lightdashBrandGray,
     ldBrandViolet: lightdashBrandViolet,
-
-    /** Overwrite Mantine's dark colors because they are too light */
-    dark: createColorTuple([
-        '#A1A1A1',
-        '#939393',
-        '#686868',
-        '#545454',
-        '#353535',
-        '#292929',
-        '#202020',
-        '#191919',
-        '#151515',
-        '#0E0E0E',
-    ]),
-
-    /** Make both light and dark the same shades to avoid clashing different tones. */
-    ldDark: lightdashDarkGray,
-    ldGray: lightdashDarkGray,
 };
 
 export const getThemeColors = (colorScheme: ColorScheme) =>

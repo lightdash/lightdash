@@ -6,6 +6,7 @@ import { Box, Stack, Text } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useResolvedColorPalette } from '../../../hooks/appearance/useResolvedColorPalette';
 import AppPreview from '../../apps/components/AppPreview';
+import { type SdkManifest } from '../../apps/hooks/useAppSdkBridge';
 import classes from './BuilderCanvas.module.css';
 import BuilderPromptExamples from './BuilderPromptExamples';
 
@@ -29,6 +30,9 @@ type Props = {
     /** Fills the composer with a starter prompt; null while no composer is
      *  mounted to receive one. */
     onPickExample: ((prompt: string) => void) | null;
+    onSdkManifest: (manifest: SdkManifest) => void;
+    /** Whether the previewed viz may write its own state into the page URL. */
+    syncPreviewUrlState: boolean;
 };
 
 /** Same footprint and viewBox as an example card's thumbnail, so the canvas
@@ -82,6 +86,8 @@ const BuilderCanvas: FC<Props> = ({
     previewContext,
     configurePanel,
     onPickExample,
+    onSdkManifest,
+    syncPreviewUrlState,
 }) => {
     const hasPreview = appUuid !== null && previewVersion !== null;
     const isFirstBuild = isBuilding && !hasPreview;
@@ -102,6 +108,8 @@ const BuilderCanvas: FC<Props> = ({
                             version={previewVersion}
                             refreshKey={0}
                             dataAppVizContext={previewContext ?? undefined}
+                            onSdkManifest={onSdkManifest}
+                            urlStateSync={syncPreviewUrlState}
                         />
                     </Box>
                 </Box>

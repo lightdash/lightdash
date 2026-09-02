@@ -49,7 +49,9 @@ type PreAggregationDuckDbClientArgs = {
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
         sharedResourceLimits?: DuckdbResourceLimits;
+        resourceLimits?: DuckdbResourceLimits;
         instanceCacheKey?: string;
+        organizationConcurrencyLimit?: number;
     }) => WarehouseClient;
 };
 
@@ -97,7 +99,9 @@ export class PreAggregationDuckDbClient {
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
         sharedResourceLimits?: DuckdbResourceLimits;
+        resourceLimits?: DuckdbResourceLimits;
         instanceCacheKey?: string;
+        organizationConcurrencyLimit?: number;
     }) => WarehouseClient;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -118,7 +122,10 @@ export class PreAggregationDuckDbClient {
                     {
                         sharedResourceLimits:
                             warehouseArgs.sharedResourceLimits,
+                        resourceLimits: warehouseArgs.resourceLimits,
                         instanceCacheKey: warehouseArgs.instanceCacheKey,
+                        organizationConcurrencyLimit:
+                            warehouseArgs.organizationConcurrencyLimit,
                         logger: Logger,
                         enableQueryProfiling: true,
                         onQueryProfile:
@@ -181,7 +188,29 @@ export class PreAggregationDuckDbClient {
         }
     }
 
-    createExecutionWarehouseClient(): WarehouseClient {
+    createExecutionWarehouseClient(scope?: string): WarehouseClient {
+        if (scope) {
+            const s3Config = getDuckdbRuntimeConfig(
+                this.lightdashConfig.preAggregates.s3,
+            );
+            if (!s3Config) {
+                throw new MissingConfigError(
+                    'External source DuckDB execution is unavailable',
+                );
+            }
+            // External-source credentials are isolated and URI-scoped. Never
+            // place this client in the bucket-wide pre-aggregate cache.
+            return this.createDuckdbWarehouseClient({
+                s3Config: { ...s3Config, scope },
+                resourceLimits: this.sharedResourceLimits ?? {
+                    memoryLimit: '512MB',
+                    threads: 2,
+                },
+                organizationConcurrencyLimit:
+                    this.lightdashConfig.externalSources
+                        .maxConcurrentDuckdbQueriesPerOrganization,
+            });
+        }
         return this.getOrCreateWarehouseClient();
     }
 

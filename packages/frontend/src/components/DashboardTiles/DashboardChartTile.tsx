@@ -5,6 +5,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
     getChartKind,
+    getConditionalFormattingsFromChartConfig,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -21,6 +22,7 @@ import {
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
+    type CreateSavedChartVersion,
     type Dashboard,
     type QueryExecutionContext,
     type DashboardFilterRule,
@@ -70,7 +72,6 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
@@ -117,6 +118,7 @@ const getDashboardTileErrorMessage = (
 };
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -140,6 +142,7 @@ import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     useInfiniteQueryResults,
@@ -161,6 +164,7 @@ import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../LightdashVisualization';
+import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/context';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
@@ -171,6 +175,9 @@ import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
 import EditChartMenuItem from './EditChartMenuItem';
+import EmbeddedDashboardChartInteractions, {
+    type EmbeddedDashboardInteractions,
+} from './EmbeddedDashboardChartInteractions';
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
@@ -187,11 +194,14 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
     savedChart,
     disabled,
 }) => {
+    const parameters = useDashboardContext((c) => c.parameterValues);
+
     const getGsheetLink = async () => {
         return uploadGsheet({
             projectUuid: savedChart.projectUuid,
             exploreId: savedChart.tableName,
             metricQuery: savedChart.metricQuery,
+            parameters,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
                 ? (savedChart.chartConfig.config.showTableNames ?? false)
@@ -442,6 +452,7 @@ const ValidDashboardChartTileMinimal: FC<{
     ) => void;
     resultsData: InfiniteQueryResults;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
+    embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
 }> = ({
     tileUuid,
     chart,
@@ -452,6 +463,7 @@ const ValidDashboardChartTileMinimal: FC<{
     isTitleHidden = false,
     onSeriesContextMenu,
     setEchartsRef,
+    embeddedDashboardInteractivity,
 }) => {
     const { health } = useApp();
     const { data: org } = useOrganization();
@@ -564,6 +576,7 @@ const ValidDashboardChartTileMinimal: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            embeddedDashboardInteractivity={embeddedDashboardInteractivity}
             dateZoom={chartDateZoom}
         >
             <LightdashVisualization
@@ -606,6 +619,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
     (props) => {
         const { showToastSuccess } = useToaster();
         const clipboard = useClipboard({ timeout: 200 });
+        const getUiString = useUiStrings();
         const { track } = useTracking();
         const ability = useAbilityContext();
         const { data: account } = useAccount();
@@ -646,8 +660,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { totalResults, metadata } = resultsData;
         const performance = metadata?.performance;
 
-        const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+        const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
         const projectUuid = useProjectUuid();
+        const projectUrlIdentifier = useProjectUrlIdentifier();
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
             useContextMenuPermissions({ minimal: false });
 
@@ -1135,8 +1150,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             {hasFiltersToShow && (
                                 <HoverCard
                                     withArrow
-                                    withinPortal
-                                    shadow="md"
                                     position="bottom-end"
                                     offset={4}
                                     arrowOffset={10}
@@ -1191,6 +1204,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
                                                                     field,
+                                                                    getUiString,
                                                                 );
                                                             return (
                                                                 <Badge
@@ -1199,15 +1213,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     }
                                                                     variant="outline"
                                                                     color="ldGray.4"
-                                                                    radius="sm"
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
-                                                                    style={{
-                                                                        textTransform:
-                                                                            'none',
-                                                                        color: 'black',
-                                                                    }}
+                                                                    c="black"
                                                                 >
                                                                     <Text
                                                                         fw={600}
@@ -1307,6 +1316,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 getConditionalRuleLabelFromItem(
                                                                     filterRule,
                                                                     field,
+                                                                    getUiString,
                                                                 );
                                                             const ruleStrikeStyle:
                                                                 | React.CSSProperties
@@ -1324,7 +1334,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     }
                                                                     variant="outline"
                                                                     color="ldGray.4"
-                                                                    radius="sm"
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
@@ -1419,11 +1428,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     </HoverCard.Dropdown>
 
                                     <HoverCard.Target>
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="gray"
-                                        >
+                                        <ActionIcon size="sm">
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </HoverCard.Target>
@@ -1434,8 +1439,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     0 && (
                                     <HoverCard
                                         withArrow
-                                        withinPortal
-                                        shadow="md"
                                         position="bottom-end"
                                         offset={4}
                                         arrowOffset={10}
@@ -1455,7 +1458,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     <Text
                                                         key={key}
                                                         size="xs"
-                                                        c="ldGray.6"
+                                                        c="dimmed"
                                                     >
                                                         <Text span fw={600}>
                                                             {parameterDefinitions[
@@ -1472,11 +1475,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Dropdown>
 
                                         <HoverCard.Target>
-                                            <ActionIcon
-                                                size="sm"
-                                                variant="subtle"
-                                                color="gray"
-                                            >
+                                            <ActionIcon size="sm">
                                                 <MantineIcon
                                                     icon={IconVariable}
                                                 />
@@ -1525,7 +1524,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     title={title || chart.name || ''}
                     chartName={chart.name}
                     verification={chart.verification ?? null}
-                    titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+                    titleHref={`/projects/${projectUrlIdentifier}/saved/${chart.slug}/`}
                     description={chart.description}
                     belongsToDashboard={belongsToDashboard}
                     extraMenuItems={
@@ -1550,6 +1549,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             <Box>
                                                 <EditChartMenuItem
                                                     tile={props.tile}
+                                                    chartSlug={chart.slug}
                                                     disabled={
                                                         isEditMode ||
                                                         !userCanManageChart
@@ -1586,7 +1586,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         }
                                                     >
                                                         <Group>
-                                                            Explore from here
+                                                            {getUiString(
+                                                                'tileMenu.exploreFromHere',
+                                                            )}
                                                             {cannotUseCustomDimensions && (
                                                                 <MantineIcon
                                                                     icon={
@@ -1617,7 +1619,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                         )
                                                     }
                                                 >
-                                                    Download data
+                                                    {getUiString(
+                                                        'tileMenu.downloadData',
+                                                    )}
                                                 </Menu.Item>
                                             </>
                                         )}
@@ -1718,10 +1722,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         <Menu
                             opened={contextMenuIsOpen}
                             onClose={() => setContextMenuIsOpen(false)}
-                            withinPortal
                             closeOnItemClick
                             closeOnEscape
-                            shadow="md"
                             radius={0}
                             position="bottom-start"
                             offset={{
@@ -1842,6 +1844,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     customLabels={getCustomLabelsFromTableConfig(
                         chart.chartConfig.config,
                     )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
+                        chart.chartConfig.config,
+                    )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
                     showColumnTotals={getShowColumnTotalsFromChartConfig(
@@ -1859,7 +1864,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
     },
 );
 
-const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
+type DashboardChartTileMinimalProps = DashboardChartTileMainProps & {
+    embeddedDashboardInteractions?: EmbeddedDashboardInteractions;
+};
+
+const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
+    props,
+) => {
+    const getUiString = useUiStrings();
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -1871,7 +1883,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const {
         tile: {
             uuid: tileUuid,
-            properties: { savedChartUuid, hideTitle, title },
+            properties: { hideTitle, title },
         },
         dashboardChartReadyQuery,
         resultsData,
@@ -1880,12 +1892,14 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canViewExplore: canViewExploreOverride,
         onExplore,
         onEditChart,
+        embeddedDashboardInteractions,
         colorPaletteOverride,
         darkColorPaletteOverride,
     } = props;
     const {
         colorPaletteOverride: _colorPaletteOverride,
         darkColorPaletteOverride: _darkColorPaletteOverride,
+        embeddedDashboardInteractions: _embeddedDashboardInteractions,
         ...tileBaseProps
     } = props;
 
@@ -2007,11 +2021,35 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [chart.chartConfig.type, chart.chartConfig.config],
     );
 
+    const renderVisualization = (
+        contextMenuHandler:
+            | ((
+                  event: EchartsSeriesClickEvent,
+                  series: EChartsSeries[],
+              ) => void)
+            | undefined,
+        embeddedInteractivity?: EmbeddedDashboardInteractivity,
+    ) => (
+        <ValidDashboardChartTileMinimal
+            tileUuid={tileUuid}
+            isTitleHidden={hideTitle}
+            chart={chart}
+            dashboardChartReadyQuery={dashboardChartReadyQuery}
+            colorPaletteOverride={colorPaletteOverride}
+            darkColorPaletteOverride={darkColorPaletteOverride}
+            onSeriesContextMenu={contextMenuHandler}
+            resultsData={resultsData}
+            title={title || chart.name}
+            setEchartsRef={setEchartRef}
+            embeddedDashboardInteractivity={embeddedInteractivity}
+        />
+    );
+
     return (
         <>
             <TileBase
                 title={title || chart.name || ''}
-                titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+                titleHref={`/projects/${projectUuid}/saved/${chart.slug}/`}
                 description={chart.description}
                 isLoading={false}
                 chartKind={chartKind}
@@ -2040,7 +2078,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                     }
                                     onClick={handleExploreFromHere}
                                 >
-                                    Explore from here
+                                    {getUiString('tileMenu.exploreFromHere')}
                                 </Menu.Item>
                             )}
                             {canExportCsv && (
@@ -2052,7 +2090,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                         setIsDataExportModalOpen(true)
                                     }
                                 >
-                                    Download data
+                                    {getUiString('tileMenu.downloadData')}
                                 </Menu.Item>
                             )}
                             {canExportImages &&
@@ -2079,10 +2117,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     <Menu
                         opened={contextMenuIsOpen}
                         onClose={() => setContextMenuIsOpen(false)}
-                        withinPortal
                         closeOnItemClick
                         closeOnEscape
-                        shadow="md"
                         radius={0}
                         position="bottom-start"
                         offset={{
@@ -2118,18 +2154,33 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                             </Menu.Dropdown>
                         </Can>
                     </Menu>
-                    <ValidDashboardChartTileMinimal
-                        tileUuid={tileUuid}
-                        isTitleHidden={hideTitle}
-                        chart={chart}
-                        dashboardChartReadyQuery={dashboardChartReadyQuery}
-                        colorPaletteOverride={colorPaletteOverride}
-                        darkColorPaletteOverride={darkColorPaletteOverride}
-                        onSeriesContextMenu={onSeriesContextMenu}
-                        resultsData={resultsData}
-                        title={title || chart.name}
-                        setEchartsRef={setEchartRef}
-                    />
+                    {embeddedDashboardInteractions ? (
+                        <EmbeddedDashboardChartInteractions
+                            tileUuid={tileUuid}
+                            isEditMode={props.isEditMode}
+                            chart={chart}
+                            explore={explore}
+                            dateZoom={dashboardChartReadyQuery.dateZoom}
+                            dateDimension={
+                                metricQuery?.metadata?.hasADateDimension
+                            }
+                            interactions={embeddedDashboardInteractions}
+                        >
+                            {(embeddedOnSeriesContextMenu) =>
+                                renderVisualization(
+                                    embeddedOnSeriesContextMenu,
+                                    {
+                                        canDrillDown:
+                                            embeddedDashboardInteractions.canDrillDown,
+                                        canCrossFilter:
+                                            embeddedDashboardInteractions.canCrossFilter,
+                                    },
+                                )
+                            }
+                        </EmbeddedDashboardChartInteractions>
+                    ) : (
+                        renderVisualization(onSeriesContextMenu)
+                    )}
                 </>
             </TileBase>
             {canExportCsv && (
@@ -2148,6 +2199,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     chartName={title || chart.name}
                     columnOrder={chart.tableConfig.columnOrder}
                     customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    conditionalFormattings={getConditionalFormattingsFromChartConfig(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
@@ -2179,6 +2233,7 @@ type DashboardChartTileProps = Omit<
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
     onExplore?: (options: { chart: SavedChart }) => void;
+    embeddedDashboardInteractions?: EmbeddedDashboardInteractions;
     queryContextOverride?: QueryExecutionContext;
 };
 
@@ -2201,14 +2256,12 @@ export const GenericDashboardChartTile: FC<
     canExportImages = false,
     canViewExplore,
     onExplore,
+    embeddedDashboardInteractions,
     colorPaletteOverride,
     darkColorPaletteOverride,
     ...rest
 }) => {
-    const { projectUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
 
     // Resolve the dashboard-aware palette via the shared resolver endpoint.
@@ -2221,6 +2274,19 @@ export const GenericDashboardChartTile: FC<
         (c) => c.dashboard?.uuid,
     );
     const chartUuid = dashboardChartReadyQuery?.chart.uuid;
+    const embeddedOnDrillDownExplore =
+        embeddedDashboardInteractions?.onDrillDownExplore;
+    const onDrillDownExplore = useMemo(
+        () =>
+            embeddedOnDrillDownExplore && chartUuid
+                ? (options: { chart: CreateSavedChartVersion }) =>
+                      embeddedOnDrillDownExplore({
+                          ...options,
+                          customSqlProvenanceChartUuid: chartUuid,
+                      })
+                : undefined,
+        [embeddedOnDrillDownExplore, chartUuid],
+    );
     // Skip the resolver fetch when the parent already supplied a palette
     // (embeds, screenshots, SDK minimal): the override always wins below,
     // and the endpoint 403s for JWT/embed auth.
@@ -2237,11 +2303,29 @@ export const GenericDashboardChartTile: FC<
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
+    const markEmbedTileComplete = useDashboardTileStatusContext(
+        (c) => c.markEmbedTileComplete,
+    );
     useEffect(() => {
         if (error !== null) {
             markTileScreenshotErrored(tile.uuid);
         }
     }, [error, markTileScreenshotErrored, tile.uuid]);
+    useEffect(() => {
+        if (
+            error !== null ||
+            (!isLoading && dashboardChartReadyQuery && resultsData)
+        ) {
+            markEmbedTileComplete(tile.uuid);
+        }
+    }, [
+        dashboardChartReadyQuery,
+        error,
+        isLoading,
+        markEmbedTileComplete,
+        resultsData,
+        tile.uuid,
+    ]);
 
     const userCanManageChart =
         dashboardChartReadyQuery?.chart &&
@@ -2299,7 +2383,6 @@ export const GenericDashboardChartTile: FC<
             <TileBase
                 isEditMode={isEditMode}
                 chartName={tile.properties.chartName ?? ''}
-                titleHref={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`}
                 description={''}
                 belongsToDashboard={tile.properties.belongsToDashboard}
                 tile={tile}
@@ -2346,6 +2429,9 @@ export const GenericDashboardChartTile: FC<
                     canExportImages={canExportImages}
                     canViewExplore={canViewExplore}
                     onExplore={onExplore}
+                    embeddedDashboardInteractions={
+                        embeddedDashboardInteractions
+                    }
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
@@ -2362,7 +2448,7 @@ export const GenericDashboardChartTile: FC<
                 />
             )}
             <UnderlyingDataModal />
-            <DrillDownModal />
+            <DrillDownModal onExplore={onDrillDownExplore} />
         </MetricQueryDataProvider>
     );
 };

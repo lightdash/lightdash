@@ -76,6 +76,17 @@ type WarehouseConfig = {
         type: DimensionType,
         startOfWeek?: WeekDay | null,
     ) => string;
+    // Known-aware variant: a DATE in `timezone` without the conversion
+    // round-trip that defeats partition pruning. Null where not prunable.
+    getSqlForTruncatedDateAsDateInTimezone:
+        | ((
+              timeFrame: TimeFrames,
+              originalSql: string,
+              type: DimensionType,
+              startOfWeek: WeekDay | null | undefined,
+              timezone: string,
+          ) => string)
+        | null;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -143,17 +154,6 @@ const postgresLikeCastToInstant = (sql: string) => `(${sql})::timestamptz`;
 // they serialize. Pinning to UTC keeps the wire value a parseable instant.
 const clickhouseCastToInstant = (sql: string) => `toTimeZone(${sql}, 'UTC')`;
 const identityCastToInstant = (sql: string) => sql;
-
-// Adapters whose castToInstant genuinely rebases a naive column at the SQL
-// level. Identity adapters keep filter columns bare; ClickHouse has no naive
-// type (its castToInstant only relabels an instant) so its filters stay bare.
-export const naiveTimestampRebaseAdapters: ReadonlySet<SupportedDbtAdapter> =
-    new Set([
-        SupportedDbtAdapter.BIGQUERY,
-        SupportedDbtAdapter.POSTGRES,
-        SupportedDbtAdapter.REDSHIFT,
-        SupportedDbtAdapter.DUCKDB,
-    ]);
 
 const bigqueryCastNaiveToInstant = (sql: string, z: string) =>
     `TIMESTAMP(${sql}, '${z}')`;
@@ -516,6 +516,20 @@ const bigqueryConfig: WarehouseConfig = {
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
+    // DATE(ts, tz) is the calendar date of the instant in tz: same value as
+    // the DATETIME round-trip, but the partition pruner can see through it.
+    getSqlForTruncatedDateAsDateInTimezone: (
+        timeFrame,
+        originalSql,
+        _type,
+        startOfWeek,
+        timezone,
+    ) => {
+        const datePart = bigqueryDatePart(timeFrame, startOfWeek);
+        return timeFrame === TimeFrames.DAY
+            ? `DATE(${originalSql}, '${timezone}')`
+            : `DATE_TRUNC(DATE(${originalSql}, '${timezone}'), ${datePart})`;
+    },
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -591,6 +605,7 @@ const bigqueryConfig: WarehouseConfig = {
 
 // Snowflake handles start of week by setting a session variable (WEEK_START)
 const snowflakeConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
     getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
@@ -642,6 +657,7 @@ const snowflakeConfig: WarehouseConfig = {
 };
 
 const postgresConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
@@ -712,6 +728,7 @@ const postgresConfig: WarehouseConfig = {
 };
 
 const databricksConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek}`;
@@ -782,6 +799,7 @@ const databricksConfig: WarehouseConfig = {
 };
 
 const trinoConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     // Trino rejects sub-day DATE_TRUNC on DATE columns ('SECOND' is not a
     // valid DATE field). Cast to TIMESTAMP for sub-day grains; no-op when the
     // input is already a TIMESTAMP.
@@ -860,6 +878,7 @@ const trinoConfig: WarehouseConfig = {
 };
 
 const clickhouseConfig: WarehouseConfig = {
+    getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = startOfWeek;
@@ -1096,6 +1115,24 @@ export const getSqlForTruncatedDate = (
             originalSql,
             type,
             startOfWeek,
+        );
+    }
+
+    // Known-aware columns can truncate to a DATE in the target tz directly
+    // where the adapter defines a prunable form (BigQuery).
+    const truncatedDateAsDateInTimezone =
+        warehouseConfigs[adapterType].getSqlForTruncatedDateAsDateInTimezone;
+    if (
+        castToDate &&
+        wrap.timestampDomain === 'aware' &&
+        truncatedDateAsDateInTimezone
+    ) {
+        return truncatedDateAsDateInTimezone(
+            timeFrame,
+            originalSql,
+            type,
+            startOfWeek,
+            wrap.timezone,
         );
     }
 

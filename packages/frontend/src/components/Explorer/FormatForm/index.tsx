@@ -217,7 +217,6 @@ export const FormatForm: FC<Props> = ({
                         <SegmentedControl
                             w="fit-content"
                             size="sm"
-                            radius="md"
                             data={[
                                 {
                                     label: 'Default',
@@ -300,7 +299,7 @@ export const FormatForm: FC<Props> = ({
                                                 ? IconClockHour4
                                                 : IconCalendar
                                         }
-                                        color="ldGray.6"
+                                        color="dimmed"
                                     />
                                 }
                                 label="Custom format"
@@ -309,16 +308,10 @@ export const FormatForm: FC<Props> = ({
                             />
                             {format.custom && (
                                 <Box pb={2}>
-                                    <Text
-                                        size="xs"
-                                        c="ldGray.6"
-                                        fw={500}
-                                        mb={4}
-                                    >
+                                    <Text size="xs" c="dimmed" fw={500} mb={4}>
                                         Result
                                     </Text>
                                     <Paper
-                                        withBorder
                                         px="md"
                                         h={36}
                                         display="flex"
@@ -343,7 +336,7 @@ export const FormatForm: FC<Props> = ({
 
                         <Stack gap="xs">
                             <Group gap="xs">
-                                <Text size="xs" c="ldGray.6" fw={500}>
+                                <Text size="xs" c="dimmed" fw={500}>
                                     Common formats
                                 </Text>
                                 <Anchor
@@ -444,7 +437,6 @@ export const FormatForm: FC<Props> = ({
                             min={0}
                             label="Decimal places"
                             placeholder="Auto"
-                            radius="md"
                             {...{
                                 ...formatInputProps('round'),
                                 onChange: (value) => {

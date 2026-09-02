@@ -6,13 +6,18 @@ import {
 } from '../../../../types/filter';
 import { getTotalFilterRules } from '../../../../utils/filters';
 import {
+    isCustomChartTypeSlugChartConfig,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     parsePersistedRunQueryArgs,
+    toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
     toolRunQueryArgsSchemaV1,
     toolRunQueryArgsSchemaV2,
+    toolRunQueryArgsSchemaV2FormulaOnly,
+    toolRunQueryArgsSchemaV2Mcp,
     toolRunQueryArgsSchemaV2RejectingMerge,
+    toolRunQueryArgsSchemaV2Transformed,
     toolRunQueryArgsSchemaV3,
 } from './toolRunQueryArgs';
 
@@ -252,6 +257,136 @@ describe('migrateRunQueryArgsV1ToV2', () => {
     });
 });
 
+const customChartTypeChartConfig = {
+    customChartTypeSlug: 'cohort-waterfall',
+    fieldMapping: {
+        x: 'orders_order_date_month',
+        y: 'orders_revenue',
+    },
+    options: { showLegend: true },
+};
+
+// The retired uuid-enriched shape the server used to write into semantic
+// artifacts. It must be rejected everywhere: the uuid now lives in the
+// customChartType artifact envelope, never inside chartConfig.
+const uuidEnrichedChartConfig = {
+    dataAppVizUuid: '4c25c1d5-cbc9-4d76-b58e-b1c9ee399fd9',
+    fieldMapping: { x: 'orders_order_date_month' },
+    optionValues: { showLegend: true },
+};
+
+describe('chartConfig custom chart type union', () => {
+    it('advertised schema accepts a custom chart type config', () => {
+        const result = toolRunQueryArgsSchema.safeParse({
+            ...buildV2Args(),
+            chartConfig: customChartTypeChartConfig,
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('advertised schema rejects a custom config missing fieldMapping', () => {
+        const { fieldMapping, ...withoutMapping } = customChartTypeChartConfig;
+        expect(
+            toolRunQueryArgsSchema.safeParse({
+                ...buildV2Args(),
+                chartConfig: withoutMapping,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('advertised schema does not accept a uuid-enriched shape', () => {
+        expect(
+            toolRunQueryArgsSchema.safeParse({
+                ...buildV2Args(),
+                chartConfig: uuidEnrichedChartConfig,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('merge-rejecting agent view accepts a custom chart type config', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('MCP view stays pinned to the builtin chart config', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.safeParse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).success,
+        ).toBe(false);
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.safeParse(buildV2Args()).success,
+        ).toBe(true);
+    });
+
+    it('transformed schema parses the slug branch verbatim', () => {
+        expect(
+            toolRunQueryArgsSchemaTransformed.parse({
+                ...buildV2Args(),
+                chartConfig: customChartTypeChartConfig,
+            }).chartConfig,
+        ).toEqual(customChartTypeChartConfig);
+    });
+
+    it('transformed schema rejects the uuid-enriched shape', () => {
+        expect(
+            toolRunQueryArgsSchemaTransformed.safeParse({
+                ...buildV2Args(),
+                chartConfig: uuidEnrichedChartConfig,
+            }).success,
+        ).toBe(false);
+    });
+
+    it('parsePersistedRunQueryArgs rejects the uuid-enriched shape', () => {
+        expect(
+            parsePersistedRunQueryArgs({
+                ...buildV2Args(),
+                mergeConfig: null,
+                chartConfig: uuidEnrichedChartConfig,
+            }),
+        ).toBeNull();
+    });
+
+    it('parsePersistedRunQueryArgs parses the slug branch verbatim', () => {
+        const parsed = parsePersistedRunQueryArgs({
+            ...buildV2Args(),
+            mergeConfig: null,
+            chartConfig: customChartTypeChartConfig,
+        });
+        expect(parsed?.chartConfig).toEqual(customChartTypeChartConfig);
+    });
+
+    it('the slug guard discriminates the branches structurally', () => {
+        const builtin = toolRunQueryArgsSchemaTransformed.parse({
+            ...buildV2Args(),
+            chartConfig: {
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_order_date_month',
+                yAxisMetrics: ['orders_revenue'],
+                groupBy: null,
+                xAxisType: 'time',
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'Month',
+                yAxisLabel: 'Revenue',
+                secondaryYAxisMetric: null,
+                secondaryYAxisLabel: null,
+            },
+        }).chartConfig;
+
+        expect(isCustomChartTypeSlugChartConfig(builtin)).toBe(false);
+        expect(isCustomChartTypeSlugChartConfig(null)).toBe(false);
+        expect(
+            isCustomChartTypeSlugChartConfig(customChartTypeChartConfig),
+        ).toBe(true);
+    });
+});
+
 describe('isRunQueryArgsV1', () => {
     it('is true for parsed V1 args, false for parsed V2 args', () => {
         const v1 = toolRunQueryArgsSchemaV1.parse(buildV1Args());
@@ -259,5 +394,65 @@ describe('isRunQueryArgsV1', () => {
 
         expect(isRunQueryArgsV1(v1)).toBe(true);
         expect(isRunQueryArgsV1(v2)).toBe(false);
+    });
+});
+
+const templateCalc = {
+    type: 'running_total',
+    name: 'running_revenue',
+    displayName: 'Running Revenue',
+    fieldId: 'orders_revenue',
+};
+
+const formulaCalc = {
+    type: 'formula',
+    name: 'aov',
+    displayName: 'AOV',
+    formula: 'orders_revenue / orders_count',
+    format: null,
+    resultType: null,
+};
+
+// MCP run_metric_query and merge-disabled agent runtimes advertise this;
+// templates must fail at the boundary while the execution parse stays wide.
+describe('toolRunQueryArgsSchemaV2FormulaOnly', () => {
+    it('accepts formula table calcs', () => {
+        expect(
+            toolRunQueryArgsSchemaV2FormulaOnly.safeParse(
+                buildV2Args({ tableCalculations: [formulaCalc] }),
+            ).success,
+        ).toBe(true);
+    });
+
+    it('rejects legacy template table calcs', () => {
+        expect(
+            toolRunQueryArgsSchemaV2FormulaOnly.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('rejects template calcs through the MCP view too', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Mcp.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('rejects template calcs through the merge-rejecting variant too', () => {
+        expect(
+            toolRunQueryArgsSchemaV2RejectingMerge.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('wide transformed parse still accepts persisted template payloads', () => {
+        expect(
+            toolRunQueryArgsSchemaV2Transformed.safeParse(
+                buildV2Args({ tableCalculations: [templateCalc] }),
+            ).success,
+        ).toBe(true);
     });
 });

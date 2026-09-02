@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -27,6 +28,7 @@ import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultA
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
@@ -47,7 +49,8 @@ import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
 
 const AiAgentNewThreadPage: FC = () => {
-    const { agentUuid, projectUuid } = useParams();
+    const { agentUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
@@ -267,10 +270,7 @@ const AiAgentNewThreadPage: FC = () => {
                             {agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="ldGray.6"
-                                        >
+                                        <ActionIcon>
                                             <MantineIcon
                                                 icon={IconInfoCircle}
                                             />
@@ -285,9 +285,7 @@ const AiAgentNewThreadPage: FC = () => {
                                         >
                                             <Text
                                                 size="sm"
-                                                style={{
-                                                    whiteSpace: 'pre-wrap',
-                                                }}
+                                                className="ld-pre-wrap"
                                             >
                                                 {agent.instruction}
                                             </Text>
@@ -299,10 +297,10 @@ const AiAgentNewThreadPage: FC = () => {
                         {agent.description && (
                             <Text
                                 size="sm"
-                                c="ldGray.6"
+                                c="dimmed"
                                 ta="center"
                                 maw={600}
-                                style={{ whiteSpace: 'pre-wrap' }}
+                                className="ld-pre-wrap"
                             >
                                 {agent.description}
                             </Text>
@@ -316,6 +314,11 @@ const AiAgentNewThreadPage: FC = () => {
                                 ))}
                             </Group>
                         )}
+                        <ThreadRetentionNotice
+                            agentThreadRetentionHours={
+                                agent.threadRetentionHours ?? null
+                            }
+                        />
                     </Stack>
 
                     {projectUuid && agentUuid && (

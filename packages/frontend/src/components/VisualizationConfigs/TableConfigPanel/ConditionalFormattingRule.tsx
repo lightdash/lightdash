@@ -24,7 +24,7 @@ import {
 } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
 import {
@@ -63,7 +63,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     hasRemove,
     disabled,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const comparisonType = useMemo(() => {
         if (
@@ -260,10 +260,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             data={[
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare selected field to values"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare selected field to values">
                                             <Center>Values</Center>
                                         </Tooltip>
                                     ),
@@ -271,10 +268,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare selected field to another field"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare selected field to another field">
                                             <Center>Field</Center>
                                         </Tooltip>
                                     ),
@@ -282,10 +276,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 },
                                 {
                                     label: (
-                                        <Tooltip
-                                            label="Compare another field to values"
-                                            withinPortal
-                                        >
+                                        <Tooltip label="Compare another field to values">
                                             <Center>Field values</Center>
                                         </Tooltip>
                                     ),

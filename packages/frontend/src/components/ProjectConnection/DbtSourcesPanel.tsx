@@ -2,10 +2,12 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
+    validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type ProjectDbtSourceSummary,
+    type WarehouseLocation,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -21,6 +23,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useForm as useMantineForm } from '@mantine/form';
 import {
     IconAlertTriangle,
     IconDots,
@@ -56,6 +59,12 @@ import { ProjectFormProvider } from './ProjectFormProvider';
  * warning icon instead, not this line).
  */
 const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
+    const location = [
+        source.warehouseLocation.database,
+        source.warehouseLocation.schema,
+    ]
+        .filter(Boolean)
+        .join('.');
     if (source.repository) {
         return [
             source.repository,
@@ -63,6 +72,7 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
             source.projectSubPath && source.projectSubPath !== '/'
                 ? source.projectSubPath
                 : null,
+            location || null,
         ]
             .filter(Boolean)
             .join(' · ');
@@ -70,10 +80,30 @@ const sourceIdentity = (source: ProjectDbtSourceSummary): string => {
     return source.type ?? 'no connection';
 };
 
+/** An empty string means inherit, which the API expresses as null. */
+type WarehouseLocationFormValues = {
+    database: string;
+    schema: string;
+};
+
+const toFormLocation = (
+    location: WarehouseLocation | undefined,
+): WarehouseLocationFormValues => ({
+    database: location?.database ?? '',
+    schema: location?.schema ?? '',
+});
+
+const toApiLocation = (
+    values: WarehouseLocationFormValues | undefined,
+): WarehouseLocation => ({
+    database: values?.database.trim() || null,
+    schema: values?.schema.trim() || null,
+});
+
 const DbtSourceRow: FC<{
     source: ProjectDbtSourceSummary;
     onEdit: (source: ProjectDbtSourceSummary) => void;
-    onRemove: (source: ProjectDbtSourceSummary) => void;
+    onRemove?: (source: ProjectDbtSourceSummary) => void;
 }> = ({ source, onEdit, onRemove }) => (
     <div className={classes.row}>
         <img className={classes.mark} src={DbtLogo} alt="" />
@@ -84,9 +114,7 @@ const DbtSourceRow: FC<{
                 </Text>
                 {source.hasCredentialError && (
                     <Tooltip
-                        multiline
                         w={260}
-                        withinPortal
                         label="Connection could not be loaded — remove and add it again"
                     >
                         <MantineIcon
@@ -101,13 +129,9 @@ const DbtSourceRow: FC<{
                 {sourceIdentity(source)}
             </Text>
         </div>
-        <Menu withinPortal position="bottom-end" shadow="md">
+        <Menu position="bottom-end">
             <Menu.Target>
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    aria-label={`Actions for ${source.name}`}
-                >
+                <ActionIcon aria-label={`Actions for ${source.name}`}>
                     <MantineIcon icon={IconDots} />
                 </ActionIcon>
             </Menu.Target>
@@ -118,13 +142,15 @@ const DbtSourceRow: FC<{
                 >
                     Edit
                 </Menu.Item>
-                <Menu.Item
-                    color="red"
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    onClick={() => onRemove(source)}
-                >
-                    Remove
-                </Menu.Item>
+                {onRemove && (
+                    <Menu.Item
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={() => onRemove(source)}
+                    >
+                        Remove
+                    </Menu.Item>
+                )}
             </Menu.Dropdown>
         </Menu>
     </div>
@@ -134,19 +160,20 @@ const DbtSourceRow: FC<{
  * The shared body for the add/edit modals: a name field plus the full dbt
  * connection form, wrapped in the providers `DbtSettingsForm` reads from.
  */
-const DbtSourceFields: FC<{ form: Form; intro: string }> = ({
-    form,
-    intro,
-}) => (
+const DbtSourceFields: FC<{
+    form: Form;
+    intro: string;
+    projectUuid: string;
+}> = ({ form, intro, projectUuid }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource>
+        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
                 </Text>
                 <TextInput
                     label="Name"
-                    placeholder="e.g. marketing-dbt"
+                    placeholder="e.g. marketing_dbt"
                     required
                     {...form.getInputProps('name')}
                 />
@@ -161,11 +188,11 @@ const AddDbtSourceModal: FC<{
     opened: boolean;
     onClose: () => void;
 }> = ({ projectUuid, opened, onClose }) => {
-    const createMutation = useCreateProjectDbtSourceMutation(projectUuid);
     const form = useForm({
         initialValues: {
             name: '',
             dbt: { ...dbtDefaults.formValues[DbtProjectType.GITHUB] },
+            warehouseLocation: toFormLocation(undefined),
             // Sources share the project's warehouse; the schema input is hidden
             // for sources so this is only here to satisfy the form shape.
             warehouse: {
@@ -174,7 +201,7 @@ const AddDbtSourceModal: FC<{
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: (value) => validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -184,6 +211,9 @@ const AddDbtSourceModal: FC<{
         form.reset();
         onClose();
     };
+    const createMutation = useCreateProjectDbtSourceMutation(projectUuid, {
+        onSuccess: handleClose,
+    });
 
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
@@ -192,6 +222,7 @@ const AddDbtSourceModal: FC<{
             {
                 name: form.values.name.trim(),
                 dbtConnection: form.values.dbt,
+                warehouseLocation: toApiLocation(form.values.warehouseLocation),
             },
             { onSuccess: handleClose },
         );
@@ -210,6 +241,7 @@ const AddDbtSourceModal: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
                 intro="Connect another git-backed dbt project. Its models are merged with the primary source on every deploy and preview, using the project's warehouse and dbt version."
             />
         </MantineModal>
@@ -222,20 +254,26 @@ const EditDbtSourceModalInner: FC<{
     connection: DbtProjectConfig | null;
     onClose: () => void;
 }> = ({ projectUuid, source, connection, onClose }) => {
-    const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid);
+    const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
+        onSuccess: onClose,
+    });
     const form = useForm({
         initialValues: {
             name: source.name,
             dbt: connection ?? {
                 ...dbtDefaults.formValues[DbtProjectType.GITHUB],
             },
+            warehouseLocation: toFormLocation(source.warehouseLocation),
             warehouse: {
                 type: WarehouseTypes.POSTGRES,
             } as CreateWarehouseCredentials,
             dbtVersion: DefaultSupportedDbtVersion,
         },
         validate: {
-            name: (value) => (value.trim() ? null : 'Name is required'),
+            name: (value) =>
+                value.trim() === source.name
+                    ? null
+                    : validateProjectDbtSourceName(value.trim()),
             dbt: dbtFormValidators,
         },
         validateInputOnBlur: true,
@@ -244,12 +282,16 @@ const EditDbtSourceModalInner: FC<{
     const handleSubmit = () => {
         const { hasErrors } = form.validate();
         if (hasErrors) return;
+        const name = form.values.name.trim();
         updateMutation.mutate(
             {
                 projectDbtSourceUuid: source.projectDbtSourceUuid,
                 data: {
-                    name: form.values.name.trim(),
+                    ...(name === source.name ? {} : { name }),
                     dbtConnection: form.values.dbt,
+                    warehouseLocation: toApiLocation(
+                        form.values.warehouseLocation,
+                    ),
                 },
             },
             { onSuccess: onClose },
@@ -269,6 +311,7 @@ const EditDbtSourceModalInner: FC<{
         >
             <DbtSourceFields
                 form={form}
+                projectUuid={projectUuid}
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
             />
         </MantineModal>
@@ -316,6 +359,58 @@ const EditDbtSourceModal: FC<{
     );
 };
 
+const RenamePrimaryDbtSourceModal: FC<{
+    projectUuid: string;
+    source: ProjectDbtSourceSummary | null;
+    onClose: () => void;
+}> = ({ projectUuid, source, onClose }) => {
+    const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
+        onSuccess: onClose,
+    });
+    const form = useMantineForm({
+        initialValues: { name: source?.name ?? '' },
+        validate: {
+            name: (value) => validateProjectDbtSourceName(value.trim()),
+        },
+    });
+
+    if (!source) return null;
+
+    const handleSubmit = () => {
+        const { hasErrors } = form.validate();
+        if (hasErrors) return;
+        updateMutation.mutate({
+            projectDbtSourceUuid: source.projectDbtSourceUuid,
+            data: { name: form.values.name.trim() },
+        });
+    };
+
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Rename dbt source"
+            confirmLabel="Save changes"
+            onConfirm={handleSubmit}
+            confirmLoading={updateMutation.isLoading}
+            cancelDisabled={updateMutation.isLoading}
+        >
+            <Stack gap="md">
+                <TextInput
+                    label="Name"
+                    required
+                    maxLength={64}
+                    {...form.getInputProps('name')}
+                />
+                <Text size="sm" c="dimmed">
+                    Renaming this source changes qualified explore names on the
+                    next deploy.
+                </Text>
+            </Stack>
+        </MantineModal>
+    );
+};
+
 const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
     const {
@@ -328,6 +423,8 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useState<ProjectDbtSourceSummary | null>(null);
     const [sourceToEdit, setSourceToEdit] =
         useState<ProjectDbtSourceSummary | null>(null);
+    const [primarySourceToRename, setPrimarySourceToRename] =
+        useState<ProjectDbtSourceSummary | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
 
     // Only show the panel when the feature is on.
@@ -335,42 +432,25 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         return null;
     }
 
-    // The primary source is the project's own dbt connection, shown in the card
-    // directly above — list only the additional sources here.
-    const additionalSources = (sources ?? []).filter((s) => !s.isPrimary);
+    const primarySource = sources?.find((source) => source.isPrimary);
+    const additionalSources = (sources ?? []).filter(
+        (source) => !source.isPrimary,
+    );
 
     return (
-        <Card
-            withBorder
-            shadow="xs"
-            padding="lg"
-            radius="md"
-            className={classes.panel}
-        >
-            <Badge
-                className={classes.beta}
-                variant="light"
-                color="violet"
-                size="sm"
-            >
+        <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
+            <Badge className={classes.beta} color="violet" size="sm">
                 Beta
             </Badge>
             <Stack gap="md">
                 <Group gap={6}>
-                    <Title order={5}>Additional dbt sources</Title>
+                    <Title order={5}>dbt sources</Title>
                     <Tooltip
-                        multiline
                         w={300}
-                        withinPortal
                         position="right"
-                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy and preview — if a name clashes between sources, the deploy fails until you rename or remove the duplicate."
+                        label="Merge models from other git-backed dbt projects. They're combined with this project's dbt connection on every deploy. If a model or metric name exists in more than one source, each one is renamed to <source>__<name>."
                     >
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            aria-label="About additional dbt sources"
-                        >
+                        <ActionIcon size="sm" aria-label="About dbt sources">
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Tooltip>
@@ -387,6 +467,24 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         Failed to load dbt sources.
                     </Text>
                 )}
+
+                {!isInitialLoading && !isError && primarySource && (
+                    <Stack gap={4}>
+                        <Text size="sm" fw={600}>
+                            Source name
+                        </Text>
+                        <div className={classes.rows}>
+                            <DbtSourceRow
+                                source={primarySource}
+                                onEdit={setPrimarySourceToRename}
+                            />
+                        </div>
+                    </Stack>
+                )}
+
+                <Text size="sm" fw={600}>
+                    Additional dbt sources
+                </Text>
 
                 {!isInitialLoading &&
                     !isError &&
@@ -429,6 +527,13 @@ const DbtSourcesPanel: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                 projectUuid={projectUuid}
                 source={sourceToEdit}
                 onClose={() => setSourceToEdit(null)}
+            />
+
+            <RenamePrimaryDbtSourceModal
+                key={primarySourceToRename?.projectDbtSourceUuid}
+                projectUuid={projectUuid}
+                source={primarySourceToRename}
+                onClose={() => setPrimarySourceToRename(null)}
             />
 
             <MantineModal

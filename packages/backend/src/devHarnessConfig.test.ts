@@ -11,6 +11,7 @@ type Pm2App = {
     autorestart?: boolean;
     watch?: string[];
     ignore_watch?: string[];
+    watch_options?: { followSymlinks?: boolean };
 };
 
 type Pm2Config = {
@@ -37,8 +38,16 @@ const expectApiReloadContract = (config: Pm2Config) => {
         interpreter: 'node',
         node_args: expect.stringContaining('--import tsx'),
         autorestart: true,
-        watch: ['src'],
-        ignore_watch: ['src/generated/swagger.json'],
+        watch: ['src', '../common/dist/cjs/.tsbuildinfo'],
+        // ignore_watch replaces chokidar's default node_modules ignore, so the
+        // explicit entries + followSymlinks:false guard against restart storms
+        // via symlinked node_modules inside src (e.g. mcp-chart-app).
+        ignore_watch: [
+            'src/generated/swagger.json',
+            '**/node_modules',
+            '**/node_modules/**',
+        ],
+        watch_options: { followSymlinks: false },
     });
     expect(routeWatcher).toMatchObject({
         script: 'pnpm',
@@ -75,11 +84,15 @@ describe('development PM2 harness', () => {
             path.join(repoRoot, 'scripts/dev-fast-start.sh'),
             'utf8',
         );
+        const instanceLib = fs.readFileSync(
+            path.join(repoRoot, 'scripts/dev-instance-lib.sh'),
+            'utf8',
+        );
 
         expect(backendPackage.scripts['generate-api-dev']).toMatch(
             /^pnpm run generate-api:build && chokidar /,
         );
-        expect(fastStart).toMatch(
+        expect(instanceLib).toMatch(
             /for suffix in api api-routes-watch scheduler/,
         );
         expect(fastStart).toContain('API_RELOAD_READY');

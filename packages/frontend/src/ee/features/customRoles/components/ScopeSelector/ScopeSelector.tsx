@@ -81,12 +81,7 @@ const GroupListItem: FC<{
             <Text fw={isActive ? 600 : 500} fz="sm">
                 {group.groupName}
             </Text>
-            <Badge
-                variant="light"
-                size="sm"
-                radius="sm"
-                color={selectedCount === 0 ? 'gray' : 'blue'}
-            >
+            <Badge size="sm" color={selectedCount === 0 ? 'gray' : 'blue'}>
                 {selectedCount} / {totalCount}
             </Badge>
         </PolymorphicGroupButton>
@@ -175,7 +170,7 @@ const ScopePanel: FC<{
 
     return (
         <Stack gap="md" h="100%" w="100%">
-            <Group justify="space-between" style={{ flexShrink: 0 }}>
+            <Group justify="space-between" className="ld-shrink-0">
                 <Title order={5}>{group.groupName}</Title>
                 <Group gap="xs">
                     <Text size="xs" fw={500}>
@@ -228,7 +223,7 @@ const ScopePanel: FC<{
                                         className={styles.scopeContent}
                                         gap="two"
                                     >
-                                        <Text fw={500} fz={13}>
+                                        <Text fw={500} fz="sm">
                                             {formatScopeName(scope.name)}
                                         </Text>
                                         <Text
@@ -262,7 +257,7 @@ const ScopePanel: FC<{
                                                                 }
                                                             />
                                                             <Text
-                                                                fz={11}
+                                                                fz="xs"
                                                                 c="dimmed"
                                                                 fw={500}
                                                             >
@@ -492,7 +487,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
 
     return (
         <Stack gap="sm" h="100%">
-            <Stack gap="sm" style={{ flexShrink: 0 }}>
+            <Stack gap="sm" className="ld-shrink-0">
                 <Group justify="space-between">
                     <Stack gap="two">
                         <Title order={5}>Permissions</Title>
@@ -544,7 +539,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
             </Stack>
 
             {filteredScopes.length === 0 ? (
-                <Paper p="xl" style={{ flexShrink: 0 }}>
+                <Paper p="xl" className="ld-shrink-0">
                     <Text ta="center" fz="sm">
                         No permissions found matching your search.
                     </Text>

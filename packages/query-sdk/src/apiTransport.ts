@@ -28,9 +28,10 @@ import type {
     Transport,
     UnderlyingDataOptions,
     UnderlyingDataResult,
+    VizDrillDownIntent,
     VizUnderlyingDataIntent,
 } from './types';
-import { VIZ_UNDERLYING_DATA_PATH } from './types';
+import { VIZ_DRILL_DOWN_PATH, VIZ_UNDERLYING_DATA_PATH } from './types';
 
 // Mirrors the explorer's `useInfiniteQueryResults` polling rhythm so the
 // SDK behaves like a normal Lightdash chart: 500-row pages, exponential
@@ -1223,6 +1224,14 @@ export function createApiTransport(
                 queryUuid: execResult.queryUuid,
                 options,
             });
+        },
+
+        async openVizDrillDown(intent: VizDrillDownIntent): Promise<void> {
+            await fetchFn<Record<string, never>>(
+                'POST',
+                VIZ_DRILL_DOWN_PATH,
+                intent,
+            );
         },
     };
 }

@@ -4,6 +4,7 @@ import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
+    selectIsChartTypeAuthoring,
     selectIsValidQuery,
     selectQueryLimit,
     selectSavedChart,
@@ -44,6 +45,10 @@ const ExplorerHeader: FC = memo(() => {
     const queryWarnings = query.data?.warnings;
 
     const savedChart = useExplorerSelector(selectSavedChart);
+    // A chart type being authored is not the chart; it finishes or cancels first.
+    const isChartTypeAuthoring = useExplorerSelector(
+        selectIsChartTypeAuthoring,
+    );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
@@ -72,6 +77,10 @@ const ExplorerHeader: FC = memo(() => {
         embed.embedWriteContext?.canCreateSavedChart === true;
 
     const buttonDisabledMessage = useMemo(() => {
+        if (isChartTypeAuthoring) {
+            return 'Finish editing the chart type first';
+        }
+
         if (isEmbedded) {
             return canCreateEmbedSavedChart
                 ? null
@@ -86,6 +95,7 @@ const ExplorerHeader: FC = memo(() => {
         return "You don't have permission to save charts in this project";
     }, [
         canCreateEmbedSavedChart,
+        isChartTypeAuthoring,
         isEmbedded,
         userCanCreateChartsInSpace,
         userCanCreateSpace,
@@ -149,7 +159,6 @@ const ExplorerHeader: FC = memo(() => {
                     <Tooltip
                         w={400}
                         label={`Query limit of ${limit} reached. There may be additional results that have not been displayed. To see more, increase the query limit or try narrowing filters.`}
-                        multiline
                         position={'bottom'}
                     >
                         <Badge
@@ -161,7 +170,6 @@ const ExplorerHeader: FC = memo(() => {
                             }
                             color="yellow"
                             variant="outline"
-                            tt="none"
                             style={{ cursor: 'help' }}
                         >
                             Results may be incomplete
@@ -183,7 +191,6 @@ const ExplorerHeader: FC = memo(() => {
                     (!isEmbedded || canCreateEmbedSavedChart) && (
                         <Tooltip
                             disabled={buttonDisabledMessage === null}
-                            withinPortal
                             position="bottom"
                             label={buttonDisabledMessage}
                         >

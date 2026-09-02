@@ -182,6 +182,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     user: ExternalUser;
     embedWriteUser?: SessionUser;
     embedWriteContext?: {
+        canUpdateDashboard: boolean;
+        canUpdateSavedChart: boolean;
         canCreateSavedChart: boolean;
         canUseAiAgent: boolean;
         aiAgentErrorMessage?: string;

@@ -24,6 +24,7 @@ import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { AgentStepGroups } from './AgentStepGroups';
+import { type ComposerQueryNodeStatus } from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
@@ -190,7 +191,7 @@ export const ReasoningHistoryRow: FC<{
     const hasOverflow = previewClean.length > REASONING_PREVIEW_LENGTH;
 
     return (
-        <Box className={styles.reasoningRow}>
+        <Box className={styles.reasoningRow} data-live={isLive}>
             <UnstyledButton
                 w="100%"
                 onClick={() => setOpen((prev) => !prev)}
@@ -544,6 +545,71 @@ const renderInlineLiveStepProgress = (params: {
 };
 
 /**
+ * Derive per-node execution statuses for a live composer pipeline from the
+ * transient step-progress events the runComposerQueries tool emits
+ * (progressId = `${toolCallId}:${nodeId}`). Nodes without an event yet show
+ * as pending while the call is in flight, and flip to success wholesale when
+ * the tool's final output lands successfully. Returns undefined for other
+ * tools so persisted pipelines render without indicators.
+ */
+const getComposerNodeStatuses = (
+    call: ToolCallSummary,
+    stepProgressMessages: StepProgressMessage[],
+): Record<string, ComposerQueryNodeStatus> | undefined => {
+    if (call.toolName !== 'runComposerQueries') return undefined;
+    const args = call.toolArgs as
+        | { queries?: { nodeId?: unknown }[] }
+        | undefined;
+    const nodeIds = (args?.queries ?? [])
+        .map((query) => query?.nodeId)
+        .filter((nodeId): nodeId is string => typeof nodeId === 'string');
+    if (nodeIds.length === 0) return undefined;
+
+    const progressIdPrefix = `${call.toolCallId}:`;
+    const eventStatuses = new Map<string, ComposerQueryNodeStatus>();
+    for (const event of stepProgressMessages) {
+        if (event.toolName !== 'runComposerQueries') continue;
+        if (
+            !event.progressId?.startsWith(progressIdPrefix) ||
+            !event.progressStatus
+        )
+            continue;
+        const nodeId = event.progressId.slice(progressIdPrefix.length);
+        if (event.progressStatus === 'in_progress') {
+            eventStatuses.set(nodeId, { status: 'running' });
+        } else if (event.progressStatus === 'complete') {
+            eventStatuses.set(nodeId, { status: 'success' });
+        } else {
+            const failurePrefix = `Query "${nodeId}" failed: `;
+            eventStatuses.set(nodeId, {
+                status: 'error',
+                errorMessage: event.message.startsWith(failurePrefix)
+                    ? event.message.slice(failurePrefix.length)
+                    : null,
+            });
+        }
+    }
+
+    const output = call.toolOutput as
+        | { metadata?: { status?: string } }
+        | undefined;
+    const outputStatus = output?.metadata?.status;
+
+    return Object.fromEntries(
+        nodeIds.flatMap((nodeId): [string, ComposerQueryNodeStatus][] => {
+            const fromEvent = eventStatuses.get(nodeId);
+            if (fromEvent) return [[nodeId, fromEvent]];
+            if (outputStatus === 'success')
+                return [[nodeId, { status: 'success' }]];
+            if (output === undefined) return [[nodeId, { status: 'pending' }]];
+            // Rejected/timed-out/unattributed failure: nothing truthful to
+            // claim about this node, so show no indicator.
+            return [];
+        }),
+    );
+};
+
+/**
  * Render the subagent's live trace outside the activity card's collapse
  * so users see findExplores / findFields rows appear under the
  * "Discovering fields" header without having to expand the card.
@@ -584,10 +650,8 @@ export const LiveActivityCard: FC<Props> = ({
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
-    // When the latest tool changes, auto-expand for runSql (so users see the
-    // query immediately) and auto-collapse otherwise. The user's explicit
-    // toggle is reset on every tool change so the bento has fresh "default
-    // state" for each new step.
+    // Query tools expand by default so their SQL is legible while running.
+    // The user's explicit toggle resets when the active tool changes.
     const latestKeyId =
         toolGroups.length > 0
             ? toolGroups[toolGroups.length - 1].keyId
@@ -597,7 +661,11 @@ export const LiveActivityCard: FC<Props> = ({
             ? toolGroups[toolGroups.length - 1].toolName
             : undefined;
     useEffect(() => {
-        if (latestToolName === 'runSql') setUserExpanded(true);
+        if (
+            latestToolName === 'runSql' ||
+            latestToolName === 'runComposerQueries'
+        )
+            setUserExpanded(true);
         else setUserExpanded(false);
     }, [latestKeyId, latestToolName]);
 
@@ -626,7 +694,9 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
 
-    const latestNeedsExpandedBody = latest?.toolName === 'runSql';
+    const latestNeedsExpandedBody =
+        latest?.toolName === 'runSql' ||
+        latest?.toolName === 'runComposerQueries';
     const showBody =
         expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 
@@ -816,6 +886,14 @@ export const LiveActivityCard: FC<Props> = ({
                                                         result.toolCallId ===
                                                         tc.toolCallId,
                                                 )}
+                                                composerNodeStatuses={
+                                                    isLive
+                                                        ? getComposerNodeStatuses(
+                                                              tc,
+                                                              stepProgressMessages,
+                                                          )
+                                                        : undefined
+                                                }
                                             />
                                         )}
                                         {trace && (

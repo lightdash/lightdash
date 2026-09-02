@@ -17,6 +17,7 @@ import {
     GitFileOrDirectory,
     GitIntegrationConfiguration,
     isUserWithOrg,
+    NotFoundError,
     ParameterError,
     ParseError,
     ProjectType,
@@ -116,7 +117,7 @@ export class GitIntegrationService extends BaseService {
      * provider, so a failure to persist the record must never surface to the
      * caller or undo the write-back.
      */
-    private async recordPullRequest({
+    async recordPullRequest({
         user,
         projectUuid,
         type,
@@ -204,14 +205,28 @@ export class GitIntegrationService extends BaseService {
             type === DbtProjectType.GITHUB
                 ? GithubClient.getLastCommit
                 : GitlabClient.getLastCommit;
-        const { sha: commitSha } = await getLastCommit({
-            owner,
-            repo,
-            branch: mainBranch,
-            installationId,
-            token,
-            hostDomain,
-        });
+        let commitSha: string;
+        try {
+            ({ sha: commitSha } = await getLastCommit({
+                owner,
+                repo,
+                branch: mainBranch,
+                installationId,
+                token,
+                hostDomain,
+            }));
+        } catch (error) {
+            // `mainBranch` is the branch from the project's dbt connection
+            // settings. Both Git clients report a missing (or invisible)
+            // branch as NotFoundError; say where it comes from so the user can
+            // fix it instead of seeing a generic server error.
+            if (error instanceof NotFoundError) {
+                throw new NotFoundError(
+                    `Branch "${mainBranch}" not found in ${owner}/${repo}. It may have been deleted or renamed, or the Git integration may not have access to this repository. Check the branch configured in the project's dbt connection settings.`,
+                );
+            }
+            throw error;
+        }
 
         Logger.debug(
             `Creating branch ${branch} from ${mainBranch} (commit: ${commitSha}) in ${owner}/${repo}`,
@@ -1726,6 +1741,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         title: string,
         description: string,
+        source: PullRequestSource = PullRequestSource.SOURCE_EDITOR,
     ): Promise<PullRequestCreated> {
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1797,12 +1813,35 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             repo: creds.repo,
             prNumber: pullRequest.number,
             prUrl: pullRequest.html_url,
-            source: PullRequestSource.SOURCE_EDITOR,
+            source,
         });
 
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
         };
+    }
+
+    // Provider-side lookup so a branch whose PR was opened by another
+    // instance (or before a database reset) can be adopted. GitHub only.
+    async findOpenPullRequestForBranch(
+        user: SessionUser,
+        projectUuid: string,
+        branch: string,
+    ): Promise<{ prNumber: number; prUrl: string } | null> {
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
+        if (creds.type !== DbtProjectType.GITHUB) return null;
+        const pullRequest = await GithubClient.findOpenPullRequestByHead({
+            owner: creds.owner,
+            repo: creds.repo,
+            head: branch,
+            installationId: creds.installationId,
+            token: creds.token,
+        });
+        return pullRequest
+            ? { prNumber: pullRequest.number, prUrl: pullRequest.url }
+            : null;
     }
 }

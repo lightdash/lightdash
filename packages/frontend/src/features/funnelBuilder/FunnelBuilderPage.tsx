@@ -3,10 +3,11 @@ import { Badge, Group, Title } from '@mantine/core';
 import { IconFlask2Filled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
-import { Navigate, useParams } from 'react-router';
+import { Navigate } from 'react-router';
 import Page from '../../components/common/Page/Page';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { store } from '../sqlRunner/store';
 import { FunnelBuilderSidebar } from './components/FunnelBuilderSidebar';
 import { FunnelMainContent } from './components/FunnelMainContent';
@@ -26,7 +27,7 @@ const isApiErrorDetail = (
 };
 
 const FunnelBuilder: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const dispatch = useAppDispatch();
     const { showToastApiError, showToastError } = useToaster();
 
@@ -112,7 +113,6 @@ const FunnelBuilder: FC = () => {
             <Group gap="sm" mb="md">
                 <Title order={4}>Funnel Builder</Title>
                 <Badge
-                    variant="light"
                     color="violet"
                     size="sm"
                     leftSection={<IconFlask2Filled size={12} />}
@@ -126,7 +126,7 @@ const FunnelBuilder: FC = () => {
 };
 
 const FunnelBuilderPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const health = useHealth();
 
     // Redirect to home if feature is disabled

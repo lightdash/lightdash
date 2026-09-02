@@ -229,6 +229,27 @@ This means the **same custom role** behaves differently:
 | Bound to `organization_memberships.role_uuid` (e.g. an SA token) | Can deploy any project + manage org members |
 | Bound to `project_memberships.role_uuid` for project A | Can deploy project A + content-as-code on project A; **silently cannot** manage org members |
 
+### Personal access tokens are the exception
+
+`manage:PersonalAccessToken` can be the one scope where the organization
+primary slot has the final say — for organizations that opt in via the
+`pat-scope-authoritative` feature flag on a licensed (enterprise)
+deployment. For everyone else, every scope set inherits token access from
+the deployment config (`DISABLE_PAT`, `PAT_ALLOWED_ORG_ROLES`) when it
+doesn't list the scope, exactly as before.
+
+While the opt-in is active, a custom role in
+`organization_memberships.role_uuid` is read literally: omit the scope and
+its users cannot create tokens; list it and they can, still capped by the
+deployment config, which can deny but never grant. Downstream scope sets
+(project roles, extra roles) can neither inherit the scope from config nor
+restore it by listing it explicitly — the org primary slot alone decides.
+
+That makes an org-level custom role (plus the flag) the supported way to
+deny tokens to a set of users. A project-level role cannot do it, by
+design. System organization roles are unaffected either way: their token
+access always comes from the deployment config.
+
 ### What `BASE_ROLE_SCOPES` returns when you duplicate "Admin"
 
 When an operator clicks **Duplicate role** on a system role, the new

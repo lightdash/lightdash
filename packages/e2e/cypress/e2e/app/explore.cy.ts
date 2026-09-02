@@ -81,8 +81,13 @@ describe('Explore', () => {
             .should('be.visible')
             .click();
         cy.wait(300); // Wait for configure panel to open
+        // The chart type menu is disabled until results finish loading, so
+        // clicking the trigger too early opens nothing. Wait for the trigger
+        // button to be enabled before opening the menu.
         cy.findByText('Bar chart', { timeout: 10000 })
             .should('be.visible')
+            .closest('button')
+            .should('be.enabled')
             .click(); // Change chart type
         cy.findByText('Horizontal bar chart').click();
 

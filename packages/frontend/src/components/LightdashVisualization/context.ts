@@ -18,6 +18,16 @@ import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { type VisualizationConfig } from './types';
 
+export type EmbeddedDashboardInteractivity = {
+    canDrillDown: boolean;
+    canCrossFilter: boolean;
+};
+
+export type SavedChartReference = {
+    uuid: string;
+    chartConfig: ChartConfig;
+};
+
 type VisualizationContext = {
     minimal: boolean;
     chartRef: RefObject<EChartsReact | null>;
@@ -50,6 +60,7 @@ type VisualizationContext = {
     colorPalette: string[];
     chartConfig: ChartConfig;
     savedChartUuid?: string;
+    savedChartReference?: SavedChartReference;
     apiErrorDetail?: ApiErrorDetail | null;
     parameters?: ParametersValuesMap;
     // Container dimensions for responsive visualizations
@@ -57,6 +68,7 @@ type VisualizationContext = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
     hasExplorerStore: boolean;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;

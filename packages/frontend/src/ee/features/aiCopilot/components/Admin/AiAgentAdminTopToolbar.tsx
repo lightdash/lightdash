@@ -3,6 +3,7 @@ import {
     Button,
     Divider,
     Group,
+    Switch,
     Text,
     useMantineTheme,
     type GroupProps,
@@ -33,6 +34,8 @@ type AiAgentAdminTopToolbarProps = GroupProps &
         | 'setSelectedUserUuids'
         | 'setSelectedSource'
         | 'setSelectedFeedback'
+        | 'hidePreviewProjects'
+        | 'setHidePreviewProjects'
     > & {
         totalResults: number;
         isFetching: boolean;
@@ -56,6 +59,8 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
         setSelectedSource,
         selectedFeedback,
         setSelectedFeedback,
+        hidePreviewProjects,
+        setHidePreviewProjects,
         totalResults,
         isFetching,
         hasNextPage,
@@ -92,35 +97,31 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <ProjectsFilter
                             selectedProjectUuids={selectedProjectUuids}
                             setSelectedProjectUuids={setSelectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
 
                         <Divider
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <AgentsFilter
                             selectedAgentUuids={selectedAgentUuids}
                             setSelectedAgentUuids={setSelectedAgentUuids}
                             selectedProjectUuids={selectedProjectUuids}
+                            hidePreviewProjects={hidePreviewProjects}
                         />
                         <Divider
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <UsersFilter
                             selectedUserUuids={selectedUserUuids}
@@ -130,9 +131,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <FeedbackFilter
                             selectedFeedback={selectedFeedback}
@@ -143,13 +142,28 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            style={{
-                                alignSelf: 'center',
-                            }}
+                            className="ld-self-center"
                         />
                         <SourceFilter
                             selectedSource={selectedSource}
                             setSelectedSource={setSelectedSource}
+                        />
+
+                        <Divider
+                            orientation="vertical"
+                            w={1}
+                            h={20}
+                            className="ld-self-center"
+                        />
+                        <Switch
+                            size="xs"
+                            label="Hide preview projects"
+                            checked={hidePreviewProjects}
+                            onChange={(event) =>
+                                setHidePreviewProjects(
+                                    event.currentTarget.checked,
+                                )
+                            }
                         />
 
                         {hasActiveFilters && onClearFilters && (
@@ -158,9 +172,7 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                                     orientation="vertical"
                                     w={1}
                                     h={20}
-                                    style={{
-                                        alignSelf: 'center',
-                                    }}
+                                    className="ld-self-center"
                                 />
                                 <Button
                                     variant="subtle"

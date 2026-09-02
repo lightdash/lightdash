@@ -1,7 +1,10 @@
 import {
+    ChartType,
+    ForbiddenError,
     isAppVersionInProgress,
     NotFoundError,
     ParameterError,
+    type ChartConfig,
     type DataAppVizRenderMetadata,
 } from '@lightdash/common';
 import { type DbAppVersion } from '../../../database/entities/apps';
@@ -11,6 +14,18 @@ import { type BundleServableChecker } from './appBundleStorage';
 export type DataAppVisualizationForRender = NonNullable<
     Awaited<ReturnType<AppModel['findVisualizationApp']>>
 >;
+
+export type DataAppVizRenderModel = Pick<
+    AppModel,
+    'getVersion' | 'getLatestVersion' | 'getLatestRenderableDataAppVizVersion'
+>;
+
+export const getDataAppVizVersionPin = (
+    chartConfig: ChartConfig,
+): number | undefined =>
+    chartConfig.type === ChartType.DATA_APP_VIZ
+        ? chartConfig.config?.dataAppVizVersion
+        : undefined;
 
 export const resolveDataAppVisualizationForRender = async (
     appModel: AppModel,
@@ -27,11 +42,103 @@ export const resolveDataAppVisualizationForRender = async (
     return dataAppViz;
 };
 
+export async function resolveRenderableDataAppVizVersion(
+    appModel: Pick<AppModel, 'getVersion'>,
+    appUuid: string,
+    version: number,
+): Promise<
+    DbAppVersion & { viz_schema: NonNullable<DbAppVersion['viz_schema']> }
+> {
+    if (!Number.isInteger(version) || version < 1) {
+        throw new ParameterError('Version must be a positive integer');
+    }
+
+    const appVersion = await appModel.getVersion(appUuid, version);
+    if (
+        appVersion === null ||
+        appVersion.status !== 'ready' ||
+        appVersion.viz_schema === null
+    ) {
+        throw new NotFoundError(
+            'Renderable data app visualization version not found',
+        );
+    }
+    return { ...appVersion, viz_schema: appVersion.viz_schema };
+}
+
+export async function assertDataAppVizPreviewVersionAllowed(
+    appModel: Pick<
+        AppModel,
+        'getVersion' | 'getLatestRenderableDataAppVizVersion'
+    >,
+    appUuid: string,
+    requestedVersion: number,
+    pinnedVersion?: number,
+): Promise<void> {
+    const allowedVersion =
+        pinnedVersion ??
+        (await appModel.getLatestRenderableDataAppVizVersion(appUuid))?.version;
+    if (allowedVersion === undefined) {
+        throw new NotFoundError(
+            'Renderable data app visualization version not found',
+        );
+    }
+    if (requestedVersion !== allowedVersion) {
+        throw new ForbiddenError(
+            'Not authorized to access this visualization version',
+        );
+    }
+    await resolveRenderableDataAppVizVersion(
+        appModel,
+        appUuid,
+        requestedVersion,
+    );
+}
+
 export const resolveDataAppVizRenderMetadata = async (
-    appModel: AppModel,
+    appModel: DataAppVizRenderModel,
     appUuid: string,
     isBundleServable: BundleServableChecker,
+    pinnedVersion?: number,
 ): Promise<DataAppVizRenderMetadata> => {
+    if (pinnedVersion !== undefined) {
+        let appVersion: Awaited<
+            ReturnType<typeof resolveRenderableDataAppVizVersion>
+        >;
+        try {
+            appVersion = await resolveRenderableDataAppVizVersion(
+                appModel,
+                appUuid,
+                pinnedVersion,
+            );
+        } catch (error) {
+            if (
+                error instanceof NotFoundError ||
+                error instanceof ParameterError
+            ) {
+                return {
+                    state: 'unavailable',
+                    latestBuildInProgress: false,
+                };
+            }
+            throw error;
+        }
+
+        if (!(await isBundleServable(appUuid, appVersion.version))) {
+            return {
+                state: 'unavailable',
+                latestBuildInProgress: false,
+            };
+        }
+
+        return {
+            state: 'ready',
+            version: appVersion.version,
+            schema: appVersion.viz_schema,
+            latestBuildInProgress: false,
+        };
+    }
+
     const [latestVersion, latestRenderableVersion] = await Promise.all([
         appModel.getLatestVersion(appUuid),
         appModel.getLatestRenderableDataAppVizVersion(appUuid),
@@ -80,26 +187,4 @@ export const resolveDataAppVizRenderMetadata = async (
         state: 'failed',
         latestBuildInProgress: false,
     };
-};
-
-export const resolveRenderableDataAppVizVersion = async (
-    appModel: AppModel,
-    appUuid: string,
-    version: number,
-): Promise<DbAppVersion> => {
-    if (!Number.isInteger(version) || version < 1) {
-        throw new ParameterError('Version must be a positive integer');
-    }
-
-    const appVersion = await appModel.getVersion(appUuid, version);
-    if (
-        appVersion === null ||
-        appVersion.status !== 'ready' ||
-        appVersion.viz_schema === null
-    ) {
-        throw new NotFoundError(
-            'Renderable data app visualization version not found',
-        );
-    }
-    return appVersion;
 };

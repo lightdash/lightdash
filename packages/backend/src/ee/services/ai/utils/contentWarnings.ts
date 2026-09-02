@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ChartType,
     getUnusedDimensions,
     type ChartAsCode,
     type DashboardAsCode,
@@ -12,7 +13,12 @@ export type ContentWithWarnings =
 export const getChartContentWarnings = (content: ChartAsCode): string[] => {
     const { unusedDimensions } = getUnusedDimensions({
         chartType: content.chartConfig.type,
-        chartConfig: content.chartConfig.config,
+        // Viz bindings are as-code-shaped (slug identity) and irrelevant
+        // here anyway — getUnusedDimensions only reads cartesian configs.
+        chartConfig:
+            content.chartConfig.type === ChartType.DATA_APP_VIZ
+                ? undefined
+                : content.chartConfig.config,
         pivotDimensions: content.pivotConfig?.columns ?? [],
         queryDimensions: content.metricQuery.dimensions,
     });

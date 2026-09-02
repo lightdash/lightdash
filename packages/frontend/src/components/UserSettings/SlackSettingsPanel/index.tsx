@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import {
     IconAlertCircle,
     IconDeviceFloppy,
@@ -29,6 +29,7 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
@@ -57,7 +58,7 @@ type SlackSettingsFormValues = SlackAppCustomSettings & {
 };
 
 const formSchema = z.object({
-    notificationChannel: z.string().min(1).nullable(),
+    notificationChannel: z.string().min(1, 'Channel is required').nullable(),
     appProfilePhotoUrl: z
         .string()
         .url({ message: 'Enter a valid URL' })
@@ -72,13 +73,15 @@ const formSchema = z.object({
                 .string({
                     message: 'You must select a Slack channel',
                 })
-                .min(1),
-            availableTags: z.array(z.string().min(1)).nullable(),
+                .min(1, 'You must select a Slack channel'),
+            availableTags: z
+                .array(z.string().min(1, 'Tag cannot be empty'))
+                .nullable(),
         }),
     ),
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
-    aiMultiAgentChannelId: z.string().min(1).optional(),
+    aiMultiAgentChannelId: z.string().min(1, 'Channel is required').optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
     unfurlsEnabled: z.boolean().optional(),
     aiAgentsEnabled: z.boolean().optional(),
@@ -248,7 +251,6 @@ const SlackSettingsPanel: FC = () => {
                                             Select a notification channel
                                         </Text>
                                         <Tooltip
-                                            multiline
                                             maw={250}
                                             label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
                                         >
@@ -295,15 +297,12 @@ const SlackSettingsPanel: FC = () => {
                             </Group>
                             <Stack gap="sm">
                                 <Divider mt="sm" />
-                                <Title order={5} fw={600}>
-                                    Unfurling
-                                </Title>
+                                <Title order={5}>Unfurling</Title>
                                 <Group gap="two">
                                     <Title order={6} fw={500}>
                                         Link previews
                                     </Title>
                                     <Tooltip
-                                        multiline
                                         maw={280}
                                         label="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
                                     >
@@ -324,16 +323,13 @@ const SlackSettingsPanel: FC = () => {
                             {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
                                     <Divider mt="sm" />
-                                    <Title order={5} fw={600}>
-                                        AI in Slack
-                                    </Title>
+                                    <Title order={5}>AI in Slack</Title>
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
                                             AI Agents in Slack
                                         </Title>
 
                                         <Tooltip
-                                            multiline
                                             maw={280}
                                             label="Turn this off to stop AI Agents being used from Slack entirely. Agents stay available in Lightdash, and scheduled deliveries, alerts and link previews keep working."
                                         >
@@ -362,7 +358,6 @@ const SlackSettingsPanel: FC = () => {
                                         </Title>
 
                                         <Tooltip
-                                            multiline
                                             maw={250}
                                             label="The longer the thread, the more context the AI Agents will have to work with."
                                         >
@@ -400,7 +395,6 @@ const SlackSettingsPanel: FC = () => {
                                             </Title>
 
                                             <Tooltip
-                                                multiline
                                                 maw={250}
                                                 label="When enabled, users must authenticate with OAuth to use AI Agent features."
                                             >
@@ -429,7 +423,6 @@ const SlackSettingsPanel: FC = () => {
                                                 Automatic channel linking
                                             </Title>
                                             <Tooltip
-                                                multiline
                                                 maw={280}
                                                 label="Turn this off to stop bot mentions from automatically linking AI Agents to unconfigured Slack channels. Channels must then be added from Lightdash."
                                             >
@@ -465,7 +458,6 @@ const SlackSettingsPanel: FC = () => {
                                             </Title>
 
                                             <Tooltip
-                                                multiline
                                                 maw={250}
                                                 label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
                                             >
@@ -645,7 +637,6 @@ const SlackSettingsPanel: FC = () => {
                             size="xs"
                             component="a"
                             target="_blank"
-                            color="blue"
                             href={SLACK_INSTALL_URL}
                         >
                             Add to Slack

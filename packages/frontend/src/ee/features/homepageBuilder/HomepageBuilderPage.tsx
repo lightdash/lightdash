@@ -1,16 +1,16 @@
-import { subject } from '@casl/ability';
 import { type ProjectHomepage } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import Page from '../../../components/common/Page/Page';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import PageSpinner from '../../../components/PageSpinner';
 import { usePinnedItems } from '../../../hooks/pinning/usePinnedItems';
 import { useProject } from '../../../hooks/useProject';
-import useApp from '../../../providers/App/useApp';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { CreateHomepageModal } from './CreateHomepageModal';
 import { HomepageEditor } from './HomepageEditor';
+import { useCanManageHomepage } from './hooks/useHomepageAbilities';
 import { useKeySpaces } from './hooks/useKeySpaces';
 import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import {
@@ -24,69 +24,36 @@ import { buildStarterHomepage } from './starterHomepage';
 // Matches day-0's cap so the first draft is the page people were looking at.
 const MAX_STARTER_SPACES = 4;
 
-// ts-unused-exports:disable-next-line
-export const HomepageBuilderPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const queryClient = useQueryClient();
-    const [editorEpoch, setEditorEpoch] = useState(0);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(
-        searchParams.get('create') === '1',
-    );
-    const selectedHomepageUuid = searchParams.get('homepage') ?? undefined;
-    const { user } = useApp();
-    const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
-        useHomepageBuilderFlag();
-    const { opening, isLoading: isAiStateLoading } =
-        useHomepageOpening(projectUuid);
-    // The starter homepage mirrors day-0: the project's pins and the same key
-    // spaces day-0 leads its body with.
+// When there's no homepage yet, skip any intermediate screen: create a
+// default one and drop straight into the builder. Guarded so it fires once.
+// The starter homepage mirrors day-0: the project's pins and the same key
+// spaces day-0 leads its body with.
+const useAutoCreateStarterHomepage = ({
+    projectUuid,
+    enabled,
+    homepage,
+    opening,
+    onCreated,
+}: {
+    projectUuid: string | undefined;
+    enabled: boolean;
+    homepage: ReturnType<typeof useHomepageForBuilder>;
+    opening: ReturnType<typeof useHomepageOpening>['opening'];
+    onCreated: (created: ProjectHomepage) => void;
+}) => {
     const { data: project } = useProject(projectUuid);
     const { data: pinnedItems } = usePinnedItems(
         projectUuid,
         project?.pinnedListUuid,
     );
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_STARTER_SPACES);
-    const homepage = useHomepageForBuilder(projectUuid, {
-        enabled: isFlagEnabled,
-        homepageUuid: selectedHomepageUuid,
-    });
-    const homepages = useProjectHomepages(projectUuid, {
-        enabled: isFlagEnabled,
-    });
     const createFirstHomepage = useCreateHomepageWithDraft(projectUuid ?? '');
-
-    const canManage =
-        user.data?.ability?.can(
-            'manage',
-            subject('ProjectHomepage', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        ) ?? false;
-
-    const openHomepage = useCallback(
-        (created: ProjectHomepage) => {
-            setIsCreateModalOpen(false);
-            setSearchParams({ homepage: created.homepageUuid });
-        },
-        [setSearchParams],
-    );
-
-    // When there's no homepage yet, skip any intermediate screen: create a
-    // default one and drop straight into the builder. Guarded so it fires once
-    // and never while we're navigating away after deleting the last homepage.
-    const isLeaving = useRef(false);
     const didAutoCreate = useRef(false);
     const shouldAutoCreate =
-        isFlagEnabled &&
-        !isAiStateLoading &&
-        canManage &&
+        enabled &&
         !!projectUuid &&
         homepage.isFetchedAfterMount &&
-        !homepage.data &&
-        !isLeaving.current;
+        !homepage.data;
 
     useEffect(() => {
         if (!shouldAutoCreate || didAutoCreate.current) return;
@@ -103,16 +70,65 @@ export const HomepageBuilderPage: FC = () => {
                     keySpaces.map((space) => space.uuid),
                 ),
             },
-            { onSuccess: openHomepage },
+            { onSuccess: onCreated },
         );
     }, [
         shouldAutoCreate,
         createFirstHomepage,
-        openHomepage,
+        onCreated,
         opening,
         pinnedItems,
         keySpaces,
     ]);
+};
+
+// ts-unused-exports:disable-next-line
+export const HomepageBuilderPage: FC = () => {
+    const projectUuid = useProjectUuid();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const [editorEpoch, setEditorEpoch] = useState(0);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(
+        searchParams.get('create') === '1',
+    );
+    const selectedHomepageUuid = searchParams.get('homepage') ?? undefined;
+    const { isEnabled: isFlagEnabled, isLoading: isFlagLoading } =
+        useHomepageBuilderFlag();
+    const { opening, isLoading: isAiStateLoading } =
+        useHomepageOpening(projectUuid);
+    const canManage = useCanManageHomepage(projectUuid);
+    const homepage = useHomepageForBuilder(projectUuid, {
+        enabled: isFlagEnabled,
+        homepageUuid: selectedHomepageUuid,
+    });
+    const homepages = useProjectHomepages(projectUuid, {
+        enabled: isFlagEnabled,
+    });
+    const homepageList = homepages.data ?? [];
+
+    const openHomepage = useCallback(
+        (created: ProjectHomepage) => {
+            setIsCreateModalOpen(false);
+            setSearchParams({ homepage: created.homepageUuid });
+        },
+        [setSearchParams],
+    );
+
+    // Never auto-create while we're navigating away after deleting the last
+    // homepage.
+    const isLeaving = useRef(false);
+    useAutoCreateStarterHomepage({
+        projectUuid,
+        enabled:
+            isFlagEnabled &&
+            !isAiStateLoading &&
+            canManage &&
+            !isLeaving.current,
+        homepage,
+        opening,
+        onCreated: openHomepage,
+    });
 
     if (isFlagLoading || isAiStateLoading) {
         return <PageSpinner />;
@@ -151,13 +167,13 @@ export const HomepageBuilderPage: FC = () => {
                 key={`${currentHomepageUuid}-${editorEpoch}`}
                 homepage={homepage.data}
                 projectUuid={projectUuid}
-                homepages={homepages.data ?? []}
+                homepages={homepageList}
                 onSwitchHomepage={(homepageUuid) =>
                     setSearchParams({ homepage: homepageUuid })
                 }
                 onCreateNew={() => setIsCreateModalOpen(true)}
                 onDeleted={() => {
-                    const remaining = (homepages.data ?? []).filter(
+                    const remaining = homepageList.filter(
                         (h) => h.homepageUuid !== currentHomepageUuid,
                     );
                     if (remaining.length > 0) {
@@ -183,7 +199,7 @@ export const HomepageBuilderPage: FC = () => {
                 opened={isCreateModalOpen}
                 onClose={closeCreateModal}
                 projectUuid={projectUuid}
-                homepages={homepages.data ?? []}
+                homepages={homepageList}
                 onCreated={openHomepage}
             />
         </Page>

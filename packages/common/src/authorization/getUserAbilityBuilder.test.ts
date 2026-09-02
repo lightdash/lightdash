@@ -599,3 +599,351 @@ describe('getUserAbilityBuilder — role sets (extra custom roles)', () => {
         expect(builder.rules.some((r) => r.inverted)).toBe(false);
     });
 });
+
+describe('getUserAbilityBuilder — personal access tokens', () => {
+    const PROJECT_UUID = 'test-project-uuid';
+    const PAT_ROLE_UUID = '33333333-3333-4333-a333-333333333333';
+    const OTHER_ROLE_UUID = '44444444-4444-4444-a444-444444444444';
+    const PAT_SCOPE = 'manage:PersonalAccessToken';
+
+    const patAllowed = {
+        pat: {
+            enabled: true,
+            allowedOrgRoles: Object.values(OrganizationMemberRole),
+        },
+    };
+    const patDisabled = { pat: { enabled: false, allowedOrgRoles: [] } };
+
+    // Mirrors PersonalAccessTokenService, which checks `create` on the subject
+    // carrying the caller's organization.
+    const canCreatePat = (builder: AbilityBuilder<MemberAbility>) =>
+        builder
+            .build()
+            .can(
+                'create',
+                subject('PersonalAccessToken', { organizationUuid: ORG_UUID }),
+            );
+
+    const buildFor = ({
+        roleUuid,
+        scopes,
+        permissionsConfig = patAllowed,
+        projectProfiles = [],
+        patScopeAuthoritative = true,
+    }: {
+        roleUuid?: string;
+        scopes?: string[];
+        permissionsConfig?: typeof patAllowed | typeof patDisabled;
+        projectProfiles?: Parameters<
+            typeof getUserAbilityBuilder
+        >[0]['projectProfiles'];
+        patScopeAuthoritative?: boolean;
+    }) =>
+        getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid,
+            },
+            projectProfiles,
+            permissionsConfig,
+            customRoleScopes: scopes ? { [PAT_ROLE_UUID]: scopes } : undefined,
+            customRolesEnabled: true,
+            isEnterprise: true,
+            patScopeAuthoritative,
+        }).builder;
+
+    describe('an org-level custom role in the primary slot is authoritative', () => {
+        it('denies PAT when the role omits the scope, even though the deployment allows it', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('grants PAT when the role lists the scope', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard', PAT_SCOPE],
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+
+        it('still denies PAT when the role lists the scope but the deployment disabled PATs', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: [PAT_SCOPE],
+                permissionsConfig: patDisabled,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        // Regression: the fallback used to run for every scope set, reading
+        // the primary slot's deliberate refusal as an omission to repair.
+        it('stays denied when the user also holds a project custom role', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: OTHER_ROLE_UUID,
+                    },
+                ],
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('stays denied when the user also holds an extra org custom role', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                orgExtraRoleUuids: [OTHER_ROLE_UUID],
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRoleScopes: {
+                    [PAT_ROLE_UUID]: ['view:Dashboard'],
+                    [OTHER_ROLE_UUID]: ['view:Dashboard'],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+                patScopeAuthoritative: true,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('stays denied when the user also holds a project system role', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: undefined,
+                    },
+                ],
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('denies PAT when the role lists the scope but the org role is outside allowedOrgRoles', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                projectProfiles: [],
+                permissionsConfig: {
+                    pat: {
+                        enabled: true,
+                        allowedOrgRoles: [OrganizationMemberRole.ADMIN],
+                    },
+                },
+                customRoleScopes: { [PAT_ROLE_UUID]: [PAT_SCOPE] },
+                customRolesEnabled: true,
+                isEnterprise: true,
+                patScopeAuthoritative: true,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+    });
+
+    it('keeps inheriting tokens on an unlicensed deployment', () => {
+        // Proves the license guard beats the flag: without a license the
+        // scope is absent from the vocabulary, so no role could list it.
+        const { builder, invalidScopes } = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: PAT_ROLE_UUID,
+            },
+            projectProfiles: [],
+            permissionsConfig: patAllowed,
+            customRoleScopes: { [PAT_ROLE_UUID]: [PAT_SCOPE] },
+            customRolesEnabled: true,
+            isEnterprise: false,
+            patScopeAuthoritative: true,
+        });
+        expect(invalidScopes).toContain(PAT_SCOPE);
+        expect(canCreatePat(builder)).toBe(true);
+    });
+
+    describe('system org roles are unchanged', () => {
+        it.each([
+            OrganizationMemberRole.MEMBER,
+            OrganizationMemberRole.VIEWER,
+            OrganizationMemberRole.ADMIN,
+        ])('%s keeps the deployment default', (role) => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+
+        it('a project-level custom role cannot take PAT away from a system org role', () => {
+            const builder = buildFor({
+                scopes: ['view:Dashboard'],
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: PAT_ROLE_UUID,
+                    },
+                ],
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+
+        it('an extra org custom role cannot take PAT away from a system org role', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.VIEWER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                orgExtraRoleUuids: [PAT_ROLE_UUID],
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRoleScopes: { [PAT_ROLE_UUID]: ['view:Dashboard'] },
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+    });
+
+    describe('explicitly-listed downstream PAT scopes are suppressed while authoritative', () => {
+        it('an extra org custom role listing the scope does not restore tokens', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                orgExtraRoleUuids: [OTHER_ROLE_UUID],
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRoleScopes: {
+                    [PAT_ROLE_UUID]: ['view:Dashboard'],
+                    [OTHER_ROLE_UUID]: ['view:Dashboard', PAT_SCOPE],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+                patScopeAuthoritative: true,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('a project custom role listing the scope does not restore tokens', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_UUID,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: OTHER_ROLE_UUID,
+                    },
+                ],
+                permissionsConfig: patAllowed,
+                customRoleScopes: {
+                    [PAT_ROLE_UUID]: ['view:Dashboard'],
+                    [OTHER_ROLE_UUID]: ['view:Dashboard', PAT_SCOPE],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+                patScopeAuthoritative: true,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('the primary org slot keeps its own listed scope', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard', PAT_SCOPE],
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+    });
+
+    describe('without the org opt-in, behavior is unchanged', () => {
+        it('an org custom role omitting the scope still inherits tokens from the deployment config', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                patScopeAuthoritative: false,
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+
+        it('still denies when the deployment disables PATs', () => {
+            const builder = buildFor({
+                roleUuid: PAT_ROLE_UUID,
+                scopes: ['view:Dashboard'],
+                permissionsConfig: patDisabled,
+                patScopeAuthoritative: false,
+            });
+            expect(canCreatePat(builder)).toBe(false);
+        });
+
+        it('a downstream role explicitly listing the scope grants it, as today', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: PAT_ROLE_UUID,
+                },
+                orgExtraRoleUuids: [OTHER_ROLE_UUID],
+                projectProfiles: [],
+                permissionsConfig: patAllowed,
+                customRoleScopes: {
+                    [PAT_ROLE_UUID]: ['view:Dashboard'],
+                    [OTHER_ROLE_UUID]: ['view:Dashboard', PAT_SCOPE],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+                patScopeAuthoritative: false,
+            });
+            expect(canCreatePat(builder)).toBe(true);
+        });
+    });
+
+    it('emits no inverted rules (collapse stays sound)', () => {
+        const builder = buildFor({
+            roleUuid: PAT_ROLE_UUID,
+            scopes: ['view:Dashboard'],
+        });
+        expect(builder.rules.some((r) => r.inverted)).toBe(false);
+    });
+});

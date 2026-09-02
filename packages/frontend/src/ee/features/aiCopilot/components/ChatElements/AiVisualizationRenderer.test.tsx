@@ -1,5 +1,6 @@
 import {
     AiResultType,
+    ChartType,
     type ApiAiAgentThreadMessageVizQuery,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
@@ -43,15 +44,18 @@ vi.mock(
         default: ({
             children,
             onSeriesContextMenu,
+            chartConfig,
         }: {
             children: ReactNode;
             onSeriesContextMenu?: unknown;
+            chartConfig?: { type?: string };
         }) => (
             <div
                 data-testid="visualization-provider"
                 data-context-menu-enabled={String(
                     onSeriesContextMenu !== undefined,
                 )}
+                data-chart-config-type={chartConfig?.type}
             >
                 {children}
             </div>
@@ -84,6 +88,12 @@ vi.mock(
 
 vi.mock('../../../../../components/MetricQueryData/DrillDownModal', () => ({
     DrillDownModal: () => <div data-testid="drill-down-modal" />,
+}));
+
+vi.mock('./AgentVisualizationChartTypeSwitcher', () => ({
+    AgentVisualizationChartTypeSwitcher: () => (
+        <div data-testid="chart-type-switcher" />
+    ),
 }));
 
 const metricQuery = {
@@ -202,6 +212,79 @@ describe('AiVisualizationRenderer interaction mode', () => {
         expect(screen.getByTestId('series-context-menu')).toBeVisible();
         expect(screen.getByTestId('underlying-data-modal')).toBeVisible();
         expect(screen.getByTestId('drill-down-modal')).toBeVisible();
+    });
+});
+
+describe('AiVisualizationRenderer custom chart type answers', () => {
+    // Verbatim tool args from the envelope — slug config intact.
+    const customToolArgs: ToolRunQueryArgs = {
+        ...chartConfig,
+        chartConfig: {
+            customChartTypeSlug: 'cohort-waterfall',
+            fieldMapping: {
+                x: 'orders_order_month',
+                y: 'orders_total_revenue',
+            },
+            options: null,
+        },
+    };
+
+    // Saved-chart shape derived from the envelope by the artifact panel.
+    const customChartType = {
+        dataAppVizUuid: '22222222-2222-4222-8222-222222222222',
+        fieldMapping: {
+            x: 'orders_order_month',
+            y: 'orders_total_revenue',
+        },
+    };
+
+    const renderCustom = () =>
+        renderWithProviders(
+            <AiVisualizationRenderer
+                vizQueryData={vizQueryData}
+                results={results}
+                chartConfig={customToolArgs}
+                customChartType={customChartType}
+                selectedChartType={null}
+                onChartTypeChange={() => {}}
+                displayFields={false}
+                displayFilters={false}
+                loadExplore
+            />,
+        );
+
+    it('mounts the visualization provider with the data app viz config', () => {
+        renderCustom();
+
+        expect(screen.getByTestId('visualization-provider')).toBeVisible();
+        expect(screen.getByTestId('visualization-provider')).toHaveAttribute(
+            'data-chart-config-type',
+            ChartType.DATA_APP_VIZ,
+        );
+        expect(screen.getByTestId('lightdash-visualization')).toBeVisible();
+    });
+
+    it('hides the chart type switcher even when switching is offered', () => {
+        renderCustom();
+
+        expect(screen.queryByTestId('chart-type-switcher')).toBeNull();
+    });
+
+    it('shows the chart type switcher for builtin answers', () => {
+        renderWithProviders(
+            <AiVisualizationRenderer
+                vizQueryData={vizQueryData}
+                results={results}
+                chartConfig={chartConfig}
+                selectedChartType="line"
+                onChartTypeChange={() => {}}
+                displayFields={false}
+                displayFilters={false}
+                loadExplore
+            />,
+        );
+
+        expect(screen.getByTestId('chart-type-switcher')).toBeVisible();
     });
 });
 

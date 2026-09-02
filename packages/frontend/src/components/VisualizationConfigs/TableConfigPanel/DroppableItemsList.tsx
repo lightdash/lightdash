@@ -69,7 +69,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                         }
                     >
                         {!isDragging && !hasItems ? (
-                            <Text size="xs" c="ldGray.6" m="xs" ta="center">
+                            <Text size="xs" c="dimmed" m="xs" ta="center">
                                 {placeholder}
                             </Text>
                         ) : null}

@@ -19,7 +19,7 @@ const renderWebhookPill = ({
     value: string;
     onRemove: () => void;
 }) => (
-    <Tooltip label={value} withinPortal multiline w="500px">
+    <Tooltip label={value} w="500px">
         <TagPill
             label={value}
             onRemove={onRemove}

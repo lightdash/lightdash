@@ -1,5 +1,9 @@
 import {
     FilterOperator,
+    getCustomMetricType,
+    MetricType,
+    type AdditionalMetric,
+    type DimensionType,
     type FilterGroup,
     type FilterGroupItem,
     type FilterRule,
@@ -44,6 +48,8 @@ type ResolvedColumn = {
     source: string;
     kind: ColumnKind;
     type: string | null;
+    /** underlying catalog field; null for table calculations and derived metrics */
+    field: PgWireField | null;
 };
 
 type CompilerContext = {
@@ -162,6 +168,7 @@ const resolveRef = (
                 source: field.fieldId,
                 kind: field.kind,
                 type: field.type,
+                field,
             };
         }
     }
@@ -360,6 +367,21 @@ const isTautology = (expr: Expr): boolean => {
         isLiteralExpr(expr.right)
     ) {
         return literalValue(expr.left) === literalValue(expr.right);
+    }
+    return false;
+};
+
+/** WHERE 1=0 and friends: the schema-probe idiom connectors use to read a table's shape */
+const isContradiction = (expr: Expr): boolean => {
+    if (expr.type === 'boolean' && expr.value === false) return true;
+    if (
+        expr.type === 'binary' &&
+        (expr.op === '=' || expr.op === '!=') &&
+        isLiteralExpr(expr.left) &&
+        isLiteralExpr(expr.right)
+    ) {
+        const equal = literalValue(expr.left) === literalValue(expr.right);
+        return expr.op === '=' ? !equal : equal;
     }
     return false;
 };
@@ -665,24 +687,196 @@ const parseStatement = (sql: string): Statement[] => {
  * Compile a Postgres SELECT statement into a Lightdash MetricQuery against
  * one of the explores in the catalog.
  */
-export const compileSqlToMetricQuery = (
-    sql: string,
+function compileSelect(
+    select: SelectFromStatement,
     catalog: PgWireTable[],
-): PgWireCompiledQuery => {
-    const statements = parseStatement(sql);
-    if (statements.length !== 1) {
-        throw new SqlCompileError(
-            'Exactly one SQL statement is supported per query',
+): PgWireCompiledQuery {
+    /**
+     * Connectors probe a table's shape as `SELECT * FROM (query) alias [WHERE 1=0]
+     * [LIMIT n]`. When the wrapper adds nothing but a constant predicate or a
+     * limit, compile the inner query and fold the wrapper into it.
+     */
+    const unwrapTrivialSubquery = (): PgWireCompiledQuery | null => {
+        const [from] = select.from ?? [];
+        if (
+            !from ||
+            (select.from ?? []).length !== 1 ||
+            from.type !== 'statement' ||
+            from.statement.type !== 'select' ||
+            from.join
+        ) {
+            return null;
+        }
+        const selectsStar =
+            (select.columns ?? []).length === 1 &&
+            select.columns?.[0].expr.type === 'ref' &&
+            select.columns[0].expr.name === '*';
+        const whereConjuncts = select.where ? flattenAnd(select.where) : [];
+        const wrapperIsTrivial =
+            selectsStar &&
+            !select.orderBy?.length &&
+            !select.groupBy?.length &&
+            !select.having &&
+            !select.distinct &&
+            whereConjuncts.every(
+                (conjunct) =>
+                    isTautology(conjunct) || isContradiction(conjunct),
+            );
+        if (!wrapperIsTrivial) {
+            return null;
+        }
+        const inner = compileSelect(from.statement, catalog);
+        const outerLimit =
+            select.limit?.limit?.type === 'integer'
+                ? select.limit.limit.value
+                : undefined;
+        const limit =
+            outerLimit === undefined
+                ? inner.metricQuery.limit
+                : Math.min(inner.metricQuery.limit, outerLimit);
+        return {
+            ...inner,
+            metricQuery: { ...inner.metricQuery, limit },
+            alwaysEmpty:
+                inner.alwaysEmpty ||
+                limit === 0 ||
+                whereConjuncts.some(isContradiction),
+        };
+    };
+    /**
+     * `count(*)`, `count(1)` and `count()`: row counts, which connectors ask for
+     * when registering a dataset. They compile to a system COUNT(*) metric, so a
+     * bare count is the table's row count and a grouped one counts rows per group.
+     */
+    const isCountStar = (expr: Expr): boolean => {
+        if (
+            expr.type !== 'call' ||
+            expr.function.name.toLowerCase() !== 'count' ||
+            expr.distinct === 'distinct' ||
+            expr.over
+        ) {
+            return false;
+        }
+        if (expr.args.length === 0) {
+            return true;
+        }
+        if (expr.args.length !== 1) {
+            return false;
+        }
+        const [arg] = expr.args;
+        return (
+            (arg.type === 'ref' && arg.name === '*') ||
+            arg.type === 'integer' ||
+            arg.type === 'numeric' ||
+            arg.type === 'string' ||
+            arg.type === 'boolean'
         );
+    };
+
+    const ROW_COUNT_METRIC_NAME = 'pgwire_row_count';
+
+    /**
+     * BI tools re-aggregate every measure they chart (`SUM(metric) AS metric`).
+     * Metrics are already aggregated at the query's grain, so an aggregate over a
+     * metric column means "this metric": the outer aggregate is dropped, the way
+     * semantic-layer SQL APIs conventionally treat measures.
+     */
+    const AGGREGATE_PASSTHROUGH_FUNCTIONS = new Set([
+        'sum',
+        'min',
+        'max',
+        'avg',
+    ]);
+
+    const passthroughMetricRef = (expr: Expr): ExprRef | null => {
+        if (
+            expr.type !== 'call' ||
+            !AGGREGATE_PASSTHROUGH_FUNCTIONS.has(
+                expr.function.name.toLowerCase(),
+            ) ||
+            expr.distinct === 'distinct' ||
+            expr.over ||
+            expr.args.length !== 1
+        ) {
+            return null;
+        }
+        const [arg] = expr.args;
+        return arg.type === 'ref' && arg.name !== '*' ? arg : null;
+    };
+
+    /**
+     * BI tools also aggregate raw dimension columns: Looker Studio probes date
+     * ranges with MIN(DATE(col)) and charts numeric dimensions as SUM(col).
+     * These compile to ad-hoc additional metrics over the dimension, the same
+     * way custom metrics are built from dimensions in the explorer.
+     */
+    const DIMENSION_AGGREGATE_TYPES: Record<string, MetricType> = {
+        sum: MetricType.SUM,
+        min: MetricType.MIN,
+        max: MetricType.MAX,
+        avg: MetricType.AVERAGE,
+        count: MetricType.COUNT,
+        median: MetricType.MEDIAN,
+    };
+
+    type DimensionAggregateArg = {
+        ref: ExprRef;
+        castTo: 'date' | 'timestamp' | null;
+    };
+
+    /** MIN/MAX commute with monotonic date conversions, so DATE(col) and date casts unwrap */
+    const unwrapAggregateArg = (
+        fn: string,
+        arg: Expr,
+    ): DimensionAggregateArg | null => {
+        if (arg.type === 'ref' && arg.name !== '*') {
+            return { ref: arg, castTo: null };
+        }
+        if (fn !== 'min' && fn !== 'max') return null;
+        if (
+            arg.type === 'call' &&
+            arg.function.name.toLowerCase() === 'date' &&
+            arg.args.length === 1 &&
+            arg.args[0].type === 'ref'
+        ) {
+            return { ref: arg.args[0], castTo: 'date' };
+        }
+        if (arg.type === 'cast' && arg.operand.type === 'ref') {
+            const to =
+                'name' in arg.to && typeof arg.to.name === 'string'
+                    ? arg.to.name.toLowerCase()
+                    : '';
+            if (to === 'date') return { ref: arg.operand, castTo: 'date' };
+            if (to.startsWith('timestamp')) {
+                return { ref: arg.operand, castTo: 'timestamp' };
+            }
+        }
+        return null;
+    };
+
+    /** Postgres-style default output name for an unaliased expression, unique within the statement */
+    const autoName = (ctx: CompilerContext, expr: Expr): string => {
+        const base =
+            expr.type === 'call'
+                ? expr.function.name.toLowerCase()
+                : '?column?';
+        let name = base;
+        for (
+            let n = 2;
+            ctx.fieldMap.has(name) ||
+            ctx.tableCalcNames.has(name) ||
+            ctx.aliasMap.has(name);
+            n += 1
+        ) {
+            name = `${base}_${n}`;
+        }
+        return name;
+    };
+
+    const unwrapped = unwrapTrivialSubquery();
+    if (unwrapped) {
+        return unwrapped;
     }
-    const [statement] = statements;
-    if (statement.type !== 'select') {
-        throw new SqlCompileError(
-            `${statement.type.toUpperCase()} statements are not supported`,
-            'Only SELECT queries can be run against the Lightdash semantic layer',
-        );
-    }
-    const select = statement as SelectFromStatement;
 
     if (select.distinct) {
         throw new SqlCompileError(
@@ -744,6 +938,8 @@ export const compileSqlToMetricQuery = (
     // SELECT list
     const dimensions: string[] = [];
     const metrics: string[] = [];
+    const additionalMetrics: AdditionalMetric[] = [];
+    const rowCountFieldId = `${table.name}_${ROW_COUNT_METRIC_NAME}`;
     const tableCalculations: TableCalculation[] = [];
     const columns: PgWireColumn[] = [];
     const selectedSources = new Set<string>();
@@ -772,8 +968,94 @@ export const compileSqlToMetricQuery = (
         throw new SqlCompileError('SELECT list cannot be empty');
     }
 
+    /** Compile an aggregate over a dimension column into an additional metric */
+    const tryDimensionAggregate = (col: SelectedColumn): boolean => {
+        const { expr } = col;
+        if (expr.type !== 'call' || expr.over || expr.args.length !== 1) {
+            return false;
+        }
+        const fn = expr.function.name.toLowerCase();
+        if (!(fn in DIMENSION_AGGREGATE_TYPES)) return false;
+        const distinct = expr.distinct === 'distinct';
+        if (distinct && fn !== 'count') return false;
+        const arg = unwrapAggregateArg(fn, expr.args[0]);
+        if (!arg) return false;
+        const resolved = resolveRef(ctx, arg.ref);
+        if (!resolved?.field || resolved.kind !== 'dimension') return false;
+        const { field } = resolved;
+        const metricType = distinct
+            ? MetricType.COUNT_DISTINCT
+            : DIMENSION_AGGREGATE_TYPES[fn];
+        const allowedTypes = getCustomMetricType(field.type as DimensionType);
+        if (!allowedTypes.includes(metricType)) {
+            throw new SqlCompileError(
+                `Aggregate function "${fn}" is not supported for ${field.type} dimension "${field.fieldId}"`,
+                `Supported aggregates for this column: ${allowedTypes.join(', ')}`,
+            );
+        }
+        // identity conversions (DATE over a date dimension) add nothing
+        const castTo = arg.castTo === field.type ? null : arg.castTo;
+        const dimensionRef = `\${${field.table}.${field.name}}`;
+        const metricName = castTo
+            ? `${field.name}_pgwire_${metricType}_${castTo}`
+            : `${field.name}_pgwire_${metricType}`;
+        const fieldId = `${field.table}_${metricName}`;
+        if (!metrics.includes(fieldId)) {
+            additionalMetrics.push({
+                name: metricName,
+                table: field.table,
+                sql: castTo
+                    ? `CAST(${dimensionRef} AS ${castTo.toUpperCase()})`
+                    : dimensionRef,
+                type: metricType,
+                ...(castTo ? {} : { baseDimensionName: field.name }),
+            });
+            metrics.push(fieldId);
+        }
+        // MIN/MAX preserve the dimension's value domain; others are numeric
+        const outputType =
+            metricType === MetricType.MIN || metricType === MetricType.MAX
+                ? (castTo ?? field.type)
+                : metricType;
+        selectedSources.add(fieldId);
+        columns.push({
+            name: col.alias?.name ?? autoName(ctx, expr),
+            source: fieldId,
+            kind: 'metric',
+            type: outputType,
+        });
+        if (col.alias) {
+            ctx.aliasMap.set(col.alias.name, {
+                source: fieldId,
+                kind: 'metric',
+                type: outputType,
+                field: null,
+            });
+        }
+        return true;
+    };
+
     const handleSelectedColumn = (col: SelectedColumn): void => {
         const { expr } = col;
+        // count(*): a system COUNT(*) metric on the explore's base table
+        if (isCountStar(expr)) {
+            if (!metrics.includes(rowCountFieldId)) {
+                additionalMetrics.push({
+                    name: ROW_COUNT_METRIC_NAME,
+                    table: table.name,
+                    sql: '*',
+                    type: MetricType.COUNT,
+                });
+                metrics.push(rowCountFieldId);
+            }
+            columns.push({
+                name: col.alias?.name ?? 'count',
+                source: rowCountFieldId,
+                kind: 'metric',
+                type: 'count',
+            });
+            return;
+        }
         // SELECT * or SELECT table.*
         if (expr.type === 'ref' && expr.name === '*') {
             if (expr.table && !ctx.fromNames.has(expr.table.name)) {
@@ -787,10 +1069,28 @@ export const compileSqlToMetricQuery = (
                         source: field.fieldId,
                         kind: field.kind,
                         type: field.type,
+                        field,
                     },
                     field.fieldId,
                 );
             }
+            return;
+        }
+        // SUM(metric) and friends: the metric itself, at this query's grain
+        const aggregatedRef = passthroughMetricRef(expr);
+        if (aggregatedRef) {
+            const resolved = resolveRefOrThrow(ctx, aggregatedRef);
+            if (resolved.kind === 'metric') {
+                const outputName = col.alias?.name ?? resolved.source;
+                addField(resolved, outputName);
+                if (col.alias) {
+                    ctx.aliasMap.set(col.alias.name, resolved);
+                }
+                return;
+            }
+            // aggregates over dimension columns become additional metrics below
+        }
+        if (tryDimensionAggregate(col)) {
             return;
         }
         if (expr.type === 'ref') {
@@ -807,14 +1107,21 @@ export const compileSqlToMetricQuery = (
             }
             return;
         }
-        // any other expression becomes a table calculation and requires an alias
-        if (!col.alias) {
+        // a bare aggregate that did not pass through gets the aggregation
+        // explanation, not a confusing alias-conflict or table-calc error
+        if (
+            expr.type === 'call' &&
+            AGGREGATE_FUNCTIONS.has(expr.function.name.toLowerCase()) &&
+            !expr.over
+        ) {
             throw new SqlCompileError(
-                `Expressions in SELECT must have an alias: ${toSql.expr(expr)}`,
-                'Add "AS name" after the expression',
+                `Aggregate function "${expr.function.name.toLowerCase()}" is not supported here`,
+                'Metrics are already aggregated at the query grain: SUM, MIN, MAX and AVG directly over a metric column are treated as the metric itself. SUM/MIN/MAX/AVG/COUNT/COUNT DISTINCT/MEDIAN over a single dimension column compile to ad-hoc metrics; other aggregate shapes are not supported.',
             );
         }
-        const calcName = col.alias.name;
+        // any other expression becomes a table calculation; name it like
+        // Postgres when no alias is given (function name, else ?column?)
+        const calcName = col.alias?.name ?? autoName(ctx, expr);
         if (ctx.fieldMap.has(calcName)) {
             throw new SqlCompileError(
                 `Alias "${calcName}" conflicts with an existing column name`,
@@ -837,6 +1144,7 @@ export const compileSqlToMetricQuery = (
             source: calcName,
             kind: 'table_calculation',
             type: null,
+            field: null,
         };
         ctx.aliasMap.set(calcName, resolved);
         columns.push({
@@ -847,6 +1155,19 @@ export const compileSqlToMetricQuery = (
         });
     };
     selectColumns.forEach(handleSelectedColumn);
+
+    // constants-only probes (SELECT 1 FROM t) still need a field to query by;
+    // carry the first dimension without exposing it as an output column
+    if (
+        dimensions.length === 0 &&
+        metrics.length === 0 &&
+        tableCalculations.length > 0
+    ) {
+        const carrier = table.fields.find((f) => f.kind === 'dimension');
+        if (carrier) {
+            dimensions.push(carrier.fieldId);
+        }
+    }
 
     if (dimensions.length === 0 && metrics.length === 0) {
         throw new SqlCompileError(
@@ -860,9 +1181,12 @@ export const compileSqlToMetricQuery = (
     const metricFilters: FilterGroupItem[] = [];
     const tableCalcFilters: FilterGroupItem[] = [];
 
+    let alwaysEmpty = false;
     if (select.where) {
         for (const conjunct of flattenAnd(select.where)) {
-            if (!isTautology(conjunct)) {
+            if (isContradiction(conjunct)) {
+                alwaysEmpty = true;
+            } else if (!isTautology(conjunct)) {
                 const compiled = compileFilterExpr(ctx, conjunct);
                 const kind = asSingleKind(compiled, 'WHERE');
                 if (kind === 'dimension') dimensionFilters.push(compiled.item);
@@ -914,6 +1238,7 @@ export const compileSqlToMetricQuery = (
                     source: column.source,
                     kind: column.kind,
                     type: column.type,
+                    field: null,
                 };
             } else if (groupExpr.type === 'ref') {
                 resolved = resolveRefOrThrow(ctx, groupExpr);
@@ -1003,7 +1328,33 @@ export const compileSqlToMetricQuery = (
         sorts,
         limit,
         tableCalculations,
+        ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
     };
 
-    return { table, metricQuery, columns };
+    return {
+        table,
+        metricQuery,
+        columns,
+        alwaysEmpty: alwaysEmpty || limit === 0,
+    };
+}
+
+export const compileSqlToMetricQuery = (
+    sql: string,
+    catalog: PgWireTable[],
+): PgWireCompiledQuery => {
+    const statements = parseStatement(sql);
+    if (statements.length !== 1) {
+        throw new SqlCompileError(
+            'Exactly one SQL statement is supported per query',
+        );
+    }
+    const [statement] = statements;
+    if (statement.type !== 'select') {
+        throw new SqlCompileError(
+            `${statement.type.toUpperCase()} statements are not supported`,
+            'Only SELECT queries can be run against the Lightdash semantic layer',
+        );
+    }
+    return compileSelect(statement as SelectFromStatement, catalog);
 };

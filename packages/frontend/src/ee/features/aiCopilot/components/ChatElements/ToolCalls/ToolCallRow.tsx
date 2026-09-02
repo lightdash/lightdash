@@ -48,7 +48,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
 
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
-const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
+const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runComposerQueries', 'runSql']);
 
 const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
     'readContent',

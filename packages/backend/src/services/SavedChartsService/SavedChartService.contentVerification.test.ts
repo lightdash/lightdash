@@ -4,7 +4,9 @@ import {
     ContentType,
     CustomDimensionType,
     DimensionType,
+    ExploreSplitError,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
 } from '@lightdash/common';
@@ -86,6 +88,7 @@ const adminUser = {
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
         { subject: 'ContentVerification', action: 'manage' },
+        { subject: 'VerifiedContent', action: 'manage' },
         {
             subject: 'SavedChart',
             action: ['view', 'update', 'delete', 'create'],
@@ -122,21 +125,30 @@ const contentVerificationModel = {
 };
 
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
         inheritsFromOrgOrProject: true,
         access: [],
+        admins: [],
+        directOnly: false,
     })),
     getFirstViewableSpaceUuid: vi.fn(async () => 'space-uuid'),
 };
 
 const projectModel = {
     getExploreFromCache: vi.fn(async () => null),
+    getUuidBySlug: vi.fn(async () => 'resolved-project-uuid'),
     getSummary: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
     })),
+};
+const analyticsModel = {
+    addChartViewEvent: vi.fn(async () => undefined),
+};
+const spaceModel = {
+    getSpaceSummary: vi.fn(async () => ({ uuid: 'space-uuid' })),
 };
 
 vi.spyOn(analyticsMock, 'track');
@@ -147,8 +159,8 @@ describe('SavedChartService - Content Verification', () => {
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        spaceModel: {} as unknown as SpaceModel,
-        analyticsModel: {} as unknown as AnalyticsModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as unknown as PinnedListModel,
         schedulerModel: {} as unknown as SchedulerModel,
         schedulerService: {} as unknown as SchedulerService,
@@ -164,10 +176,85 @@ describe('SavedChartService - Content Verification', () => {
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         organizationModel: {} as unknown as OrganizationModel,
+        contentAsCodeProjectSettingsModel: {
+            get: vi.fn(async () => undefined),
+        } as never,
+        contentAsCodeSnapshotModel: {} as never,
+        contentDraftModel: {} as never,
     });
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('resolves a project slug before loading a saved chart', async () => {
+        await service.get('orders', fromSession(adminUser, 'session-cookie'), {
+            projectUuid: 'my-project',
+        });
+
+        expect(projectModel.getUuidBySlug).toHaveBeenCalledWith(
+            'org-uuid',
+            'my-project',
+        );
+        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
+            projectUuid: 'resolved-project-uuid',
+        });
+    });
+
+    it('keeps a project uuid unchanged when loading a saved chart', async () => {
+        const projectUuid = '5b3c6f00-7d53-4f87-b43a-75d774b1651e';
+
+        await service.get('orders', fromSession(adminUser, 'session-cookie'), {
+            projectUuid,
+        });
+
+        expect(projectModel.getUuidBySlug).not.toHaveBeenCalled();
+        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
+            projectUuid,
+        });
+    });
+
+    it('returns split candidates when a saved chart uses an original explore name', async () => {
+        vi.mocked(projectModel.getExploreFromCache).mockRejectedValueOnce(
+            new ExploreSplitError('test_table', [
+                'sourceA__test_table',
+                'sourceB__test_table',
+            ]),
+        );
+
+        await expect(
+            service.get(
+                'chart-uuid',
+                fromSession(adminUser, 'session-cookie'),
+                { projectUuid: 'project-uuid' },
+            ),
+        ).rejects.toMatchObject({
+            name: 'NotFoundError',
+            data: {
+                exploreName: 'test_table',
+                candidateExploreNames: [
+                    'sourceA__test_table',
+                    'sourceB__test_table',
+                ],
+            },
+        });
+    });
+
+    it('keeps saved chart loading unchanged for a plain missing explore', async () => {
+        vi.mocked(projectModel.getExploreFromCache).mockRejectedValueOnce(
+            new NotFoundError('Explore "test_table" does not exist.'),
+        );
+
+        await expect(
+            service.get(
+                'chart-uuid',
+                fromSession(adminUser, 'session-cookie'),
+                { projectUuid: 'project-uuid' },
+            ),
+        ).resolves.toMatchObject({
+            uuid: 'chart-uuid',
+            tableName: 'test_table',
+        });
     });
 
     it('duplicates a chart from its original slug base', async () => {
@@ -359,8 +446,28 @@ describe('SavedChartService - Content Verification', () => {
             expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
         });
 
-        it('should auto-unverify chart when another editor edits metadata', async () => {
-            await service.update(editorUser, 'chart-uuid', {
+        it('should block editors without manage:VerifiedContent from editing verified charts', async () => {
+            await expect(
+                service.update(editorUser, 'chart-uuid', {
+                    name: 'updated chart name',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            expect(savedChartModel.update).not.toHaveBeenCalled();
+            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+
+        it('should allow developers with manage:VerifiedContent to edit and auto-unverify', async () => {
+            const developerUser = {
+                ...editorUser,
+                userUuid: 'developer-uuid',
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'VerifiedContent', action: 'manage' },
+                    { subject: 'SavedChart', action: ['view', 'update'] },
+                ]),
+            };
+
+            await service.update(developerUser, 'chart-uuid', {
                 name: 'updated chart name',
             });
 

@@ -146,3 +146,10 @@ export const reconcileDataAppVizFieldMapping = (
 
     return mapping;
 };
+
+/** Required slots the mapping leaves empty, in declared order. */
+export const getUnboundRequiredDataAppVizFields = (
+    fields: DataAppVizField[],
+    mapping: DataAppVizFieldMapping,
+): DataAppVizField[] =>
+    fields.filter((field) => field.required && !mapping[field.name]);

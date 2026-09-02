@@ -1,3 +1,4 @@
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';

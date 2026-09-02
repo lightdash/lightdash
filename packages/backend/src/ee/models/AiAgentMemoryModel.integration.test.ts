@@ -271,7 +271,7 @@ describe('AiAgentMemoryModel integration', () => {
         distillCall: AiAgentMemoryDistillCall,
         projectModel: Pick<
             ProjectModel,
-            'findExploresFromCache' | 'getSummary'
+            'findExploresFromCache' | 'getCachedExploreNames' | 'getSummary'
         > = getTestContext().app.getModels().getProjectModel(),
     ) =>
         new AiAgentMemoryService({
@@ -1821,6 +1821,8 @@ describe('AiAgentMemoryModel integration', () => {
         const projectModel = getTestContext().app.getModels().getProjectModel();
         const service = buildService(distillCall, {
             findExploresFromCache,
+            getCachedExploreNames:
+                projectModel.getCachedExploreNames.bind(projectModel),
             getSummary: projectModel.getSummary.bind(projectModel),
         });
 

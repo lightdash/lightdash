@@ -28,6 +28,7 @@ import {
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
+import { validate as isUuidString } from 'uuid';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -45,12 +46,20 @@ import {
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
+import { useProject } from '../hooks/useProject';
+import {
+    ProjectRouteContext,
+    useOptionalProjectRoute,
+} from '../hooks/useProjectRoute';
+import { useProjects } from '../hooks/useProjects';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import '../styles/export-paged-tabs.css';
 import '../styles/react-grid.css';
+import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -271,7 +280,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                                             {dashboard.name}
                                         </Title>
                                         {group.tab && (
-                                            <Text size="sm" c="ldGray.6">
+                                            <Text size="sm" c="dimmed">
                                                 {group.tab.name}
                                             </Text>
                                         )}
@@ -309,11 +318,10 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
 };
 
 const MinimalDashboard: FC = () => {
-    const { projectUuid, dashboardUuid, tabUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-        tabUuid?: string;
-    }>();
+    const { dashboardUuid, tabUuid } = useParams();
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier =
+        useOptionalProjectRoute()?.projectUrlIdentifier ?? projectUuid;
 
     const schedulerUuid = useSearchParams('schedulerUuid');
 
@@ -407,8 +415,8 @@ const MinimalDashboard: FC = () => {
 
     const generateTabUrl = useCallback(
         (tabId: string) =>
-            `/minimal/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tabId}`,
-        [projectUuid, dashboardUuid],
+            `/minimal/projects/${projectUrlIdentifier}/dashboards/${dashboard?.slug ?? dashboardUuid}/view/tabs/${tabId}`,
+        [projectUrlIdentifier, dashboard?.slug, dashboardUuid],
     );
 
     const sortedTabs = useMemo(
@@ -633,4 +641,70 @@ const MinimalDashboard: FC = () => {
     );
 };
 
-export default MinimalDashboard;
+const MinimalDashboardRoute: FC = () => {
+    const projectIdentifier = useProjectUuid();
+    const isProjectUuid = isUuidString(projectIdentifier ?? '');
+    const projectsQuery = useProjects({
+        enabled: !!projectIdentifier && !isProjectUuid,
+    });
+    const projectUuid = isProjectUuid
+        ? projectIdentifier
+        : projectsQuery.data?.find(
+              (project) => project.slug === projectIdentifier,
+          )?.projectUuid;
+    const projectQuery = useProject(isProjectUuid ? undefined : projectUuid);
+    const projectRouteContext = useMemo(
+        () =>
+            projectUuid && projectQuery.data
+                ? {
+                      project: projectQuery.data,
+                      projectUuid,
+                      projectUrlIdentifier: getProjectUrlIdentifier(
+                          projectQuery.data,
+                      ),
+                  }
+                : null,
+        [projectQuery.data, projectUuid],
+    );
+
+    if (
+        projectsQuery.isError ||
+        (!isProjectUuid && projectQuery.isError) ||
+        (!projectUuid && !projectsQuery.isInitialLoading)
+    ) {
+        return (
+            <>
+                <Text>
+                    {projectsQuery.error?.error.message ??
+                        projectQuery.error?.error.message ??
+                        `Cannot find project: ${projectIdentifier}`}
+                </Text>
+                <ScreenshotReadyIndicator
+                    tilesTotal={1}
+                    tilesReady={0}
+                    tilesErrored={1}
+                />
+            </>
+        );
+    }
+
+    if (isProjectUuid) {
+        return <MinimalDashboard />;
+    }
+
+    if (
+        projectsQuery.isInitialLoading ||
+        projectQuery.isInitialLoading ||
+        !projectRouteContext
+    ) {
+        return null;
+    }
+
+    return (
+        <ProjectRouteContext.Provider value={projectRouteContext}>
+            <MinimalDashboard />
+        </ProjectRouteContext.Provider>
+    );
+};
+
+export default MinimalDashboardRoute;

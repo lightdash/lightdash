@@ -4,17 +4,19 @@ import {
     AiAgentToolResult,
     AiArtifact,
     ChartType,
+    deriveDataAppVizPivotConfig,
+    getDataAppVizChartFromArtifact,
     getGroupByDimensions,
     getItemMap,
     getWebAiChartConfig,
+    isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
-    parseAiArtifactChartConfig,
     parseVizConfig,
     SlackPrompt,
-    type AiLegacySemanticChartArtifactConfig,
     type ChartConfig,
+    type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
@@ -537,14 +539,14 @@ export async function getModernArtifactCardBlocks(
     isImageUrlReachable: (url: string) => Promise<boolean>,
     agentUuid?: string,
     artifacts?: Array<
-        Omit<AiArtifact, 'chartConfig' | 'savedSqlUuid'> & {
-            chartConfig:
-                | AiArtifact['chartConfig']
-                | AiLegacySemanticChartArtifactConfig;
+        Omit<AiArtifact, 'savedSqlUuid'> & {
             savedSqlUuid?: string | null;
         }
     >,
     toolResults?: AiAgentToolResult[],
+    getDataAppVizSchemaFields?: (
+        dataAppVizUuid: string,
+    ) => Promise<DataAppVizField[] | null>,
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -553,7 +555,6 @@ export async function getModernArtifactCardBlocks(
     const normalizedArtifacts: AiArtifact[] = artifacts.map((artifact) => ({
         ...artifact,
         savedSqlUuid: artifact.savedSqlUuid ?? null,
-        chartConfig: parseAiArtifactChartConfig(artifact.chartConfig),
     }));
 
     const chartImageUrls = (toolResults ?? [])
@@ -596,7 +597,10 @@ export async function getModernArtifactCardBlocks(
         if (!artifact.chartConfig) {
             return 'chart';
         }
-        if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
+        if (
+            isAiSqlChartArtifactConfig(artifact.chartConfig) ||
+            isAiComposerChartArtifactConfig(artifact.chartConfig)
+        ) {
             return 'table';
         }
         const parsed = vizTypeSchema.safeParse(artifact.chartConfig.config);
@@ -621,6 +625,9 @@ export async function getModernArtifactCardBlocks(
             if (title) return `chart:${vizType}:${title}`;
             if (isAiSqlChartArtifactConfig(artifact.chartConfig)) {
                 return `chart:${vizType}:${artifact.chartConfig.sql}`;
+            }
+            if (isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+                return `chart:${vizType}:${artifact.chartConfig.lastQueryUuid}`;
             }
             const viz = parseVizConfig(
                 artifact.chartConfig.config,
@@ -657,14 +664,16 @@ export async function getModernArtifactCardBlocks(
     const chartArtifacts = dedupedArtifacts.filter(
         (artifact) =>
             Boolean(artifact.chartConfig) &&
-            !isAiSqlChartArtifactConfig(artifact.chartConfig),
+            !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+            !isAiComposerChartArtifactConfig(artifact.chartConfig),
     );
 
     const blocks = await Promise.all(
         dedupedArtifacts.map(async (artifact, index) => {
             if (
                 artifact.chartConfig &&
-                !isAiSqlChartArtifactConfig(artifact.chartConfig)
+                !isAiSqlChartArtifactConfig(artifact.chartConfig) &&
+                !isAiComposerChartArtifactConfig(artifact.chartConfig)
             ) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig.config,
@@ -717,27 +726,52 @@ export async function getModernArtifactCardBlocks(
                     },
                 };
                 let pivotConfig: { columns: string[] } | undefined;
-                try {
-                    const webAiChartConfig = getWebAiChartConfig({
-                        vizConfig: artifact.chartConfig.config,
-                        metricQuery: metricQueryWithSql,
-                        maxQueryLimit,
-                        fieldsMap: getItemMap(
-                            explore,
-                            additionalMetricsWithSql,
-                            vizConfig.metricQuery.tableCalculations,
-                        ),
-                    });
-                    if (webAiChartConfig.echartsConfig) {
-                        chartConfig = webAiChartConfig.echartsConfig;
+                if (artifact.chartConfig.source === 'customChartType') {
+                    // Mirror the web save flow: DATA_APP_VIZ config plus the
+                    // type's schema-derived pivot. Without the schema (app
+                    // deleted / invalid) keep the table fallback so the link
+                    // still works.
+                    const dataAppVizChart = getDataAppVizChartFromArtifact(
+                        artifact.chartConfig,
+                    );
+                    const schemaFields = dataAppVizChart
+                        ? await getDataAppVizSchemaFields?.(
+                              artifact.chartConfig.dataAppVizUuid,
+                          )
+                        : null;
+                    if (dataAppVizChart && schemaFields) {
+                        chartConfig = {
+                            type: ChartType.DATA_APP_VIZ,
+                            config: dataAppVizChart,
+                        };
+                        pivotConfig = deriveDataAppVizPivotConfig(
+                            schemaFields,
+                            dataAppVizChart.fieldMapping,
+                        );
                     }
-                    const groupByDimensions =
-                        getGroupByDimensions(webAiChartConfig);
-                    pivotConfig = groupByDimensions?.length
-                        ? { columns: groupByDimensions }
-                        : undefined;
-                } catch {
-                    // keep the table fallback
+                } else {
+                    try {
+                        const webAiChartConfig = getWebAiChartConfig({
+                            vizConfig: artifact.chartConfig.config,
+                            metricQuery: metricQueryWithSql,
+                            maxQueryLimit,
+                            fieldsMap: getItemMap(
+                                explore,
+                                additionalMetricsWithSql,
+                                vizConfig.metricQuery.tableCalculations,
+                            ),
+                        });
+                        if (webAiChartConfig.echartsConfig) {
+                            chartConfig = webAiChartConfig.echartsConfig;
+                        }
+                        const groupByDimensions =
+                            getGroupByDimensions(webAiChartConfig);
+                        pivotConfig = groupByDimensions?.length
+                            ? { columns: groupByDimensions }
+                            : undefined;
+                    } catch {
+                        // keep the table fallback
+                    }
                 }
 
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;

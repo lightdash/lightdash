@@ -6,7 +6,7 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
 - **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
-- **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
+- **`start <profiles>`**: Provision selected profiles (`github`, `ee`, `slack`, `newux`), comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
 - **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`destroy`**: Permanently remove this instance's PM2 processes, PostgreSQL containers, volumes, and port slot. Use when removing a worktree.
@@ -161,13 +161,16 @@ fi
 PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 procs = json.load(sys.stdin)
-instance_procs = [p for p in procs if p['name'].startswith('${LD_INSTANCE_ID}-')]
+service_names = ['api', 'api-routes-watch', 'scheduler', 'frontend', 'common-watch', 'formula-watch', 'warehouses-watch', 'sdk-test', 'maple']
+# Exact names avoid prefix-named sibling instances.
+expected = {'${LD_INSTANCE_ID}-' + service for service in service_names}
+instance_procs = [p for p in procs if p['name'] in expected]
 if instance_procs:
     cwd = instance_procs[0]['pm2_env']['pm_cwd']
     root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
     print(f'RUNNING:{root}')
 else:
-    other = [p for p in procs if not p['name'].startswith('${LD_INSTANCE_ID}-')]
+    other = [p for p in procs if p['name'] not in expected]
     if other:
         print('OTHER')
     else:
@@ -349,7 +352,9 @@ To switch a local instance to E2B instead, add `E2B_API_KEY` and set `SANDBOX_PR
 
 ### Step P: Instance profile selection (run BEFORE the fast path)
 
-`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+`start` provisions an instance from the `github`, `ee`, `slack`, and `newux` profiles. Each profile declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`; AI features are bundled into `ee`. Resolve the selection, pull secrets from 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+
+`newux` is the new-onboarding profile and is required when testing the new onboarding or ask-AI flows.
 
 **1. Determine requested profiles.**
 - If the user named them (e.g. `/docker-dev start ee`, `start ee,slack`, `start github`), use those. The AI tier is Core vs EE — `ee` bundles all AI features.
@@ -507,6 +512,8 @@ fi
 
 ### Create Environment File
 
+The authoritative key list is `reconcile_env` in `scripts/dev-fast-start.sh`. This template is the first-boot fallback before that script reconciles the environment file.
+
 ```bash
 cat > .env.development.local << EOF
 # Local development overrides (instance: ${LD_INSTANCE_ID})
@@ -519,6 +526,7 @@ SCHEDULER_PORT=${SCHEDULER_PORT}
 DEBUG_PORT=${DEBUG_PORT}
 SDK_TEST_PORT=${SDK_TEST_PORT}
 MAPLE_PORT=${MAPLE_PORT}
+MAPLE_LOCAL_URL=http://127.0.0.1:${MAPLE_PORT}
 LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
 SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
@@ -542,6 +550,11 @@ LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 # Allow registering fresh users/orgs (signup flow testing). Always on by default
 # in dev — without it, POST /api/v1/user 403s once the seed org exists.
 ALLOW_MULTIPLE_ORGS=true
+
+# tsc watchers run with a soft Go memory cap (GOMEMLIMIT, default 1500MiB;
+# override with LD_WATCHER_GOMEMLIMIT). Optional hard backstop below — keep it
+# well above the soft cap or it kill-loops mid-rebuild. See ecosystem.config.js:
+# LD_WATCHER_MEMORY_CAP=4G
 EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
@@ -919,79 +932,39 @@ Restart Claude Code to load the new `statusLine` command. If there's no command-
 
 ## `stop`: Stop This Instance
 
-Stop this instance's services. Shared services and other instances are not affected.
-For permanent worktree removal, use `destroy` instead.
+Stop this instance and release its port slot. Shared services and other instances are not affected.
 
 ```bash
-# One name per call — `pm2 delete a b c` aborts at the first name it cannot
-# find (e.g. sdk-test on an instance that never ran SDK test mode), leaving
-# every later name running.
-for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
-done
-
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
-
-./scripts/dev-ports.sh release
+./scripts/dev-stop.sh stop
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
 
 ---
 
 ## `destroy`: Permanently Remove This Instance
 
-Permanently remove this instance's services, PostgreSQL volumes, and port slot. Shared services and other instances are not affected.
+Permanently remove this instance's services, PostgreSQL volumes, named snapshots, and port slot.
 
 ```bash
-# One name per call — see the note under `stop`.
-for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-  pm2 delete "${LD_INSTANCE_ID}-${suffix}" 2>/dev/null || true
-done
-
-# Volumes are removed by name, not with `down -v`: the compose file names the
-# data volume `${LD_VOLUME_PREFIX:-docker}_postgres_data`, so `-v` targets the
-# wrong volume unless LD_VOLUME_PREFIX is exported — and the snapshot volume is
-# created outside compose, so no `-v` invocation ever removes it.
-docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
-
-for volume in "${LD_VOLUME_PREFIX}_postgres_data" "${LD_VOLUME_PREFIX}_postgres_data_snapshot"; do
-  docker volume rm "$volume" 2>/dev/null || true
-done
-
-./scripts/dev-ports.sh release --instance-id "$LD_INSTANCE_ID"
+./scripts/dev-stop.sh destroy
 ```
+
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps and volume guards.</details>
 
 ---
 
 ## `stop-all`: Stop Everything
 
-Stop ALL instances, shared services, and release all port slots.
+Stop all registered instances and shared services, then release all port slots.
 
 ```bash
-# Delete only Lightdash instance PM2 processes (not unrelated PM2 apps)
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  # One name per call — see the note under `stop`.
-  for suffix in api api-routes-watch scheduler frontend common-watch formula-watch warehouses-watch sdk-test maple; do
-    pm2 delete "${INST_ID}-${suffix}" 2>/dev/null || true
-  done
-done
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  PROJECT=$(python3 -c "import json; print(json.load(open('$f'))['composeProject'])")
-  docker compose -p "$PROJECT" -f docker/docker-compose.dev.instance.yml down 2>/dev/null || true
-done
-
-docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml down
-
-for f in ~/.lightdash/dev-instances/*.json; do
-  [ -f "$f" ] || continue
-  rm "$f"
-done
-
-echo "All instances and shared services stopped."
+./scripts/dev-stop.sh stop-all
 ```
+
+Volumes are kept — sweep orphans with `./scripts/dev-ports.sh gc`.
+<details><summary>Fallback</summary>Follow `scripts/dev-stop.sh`, which is the reference for the teardown steps.</details>
 
 ---
 

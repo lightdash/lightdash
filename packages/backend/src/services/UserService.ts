@@ -31,7 +31,9 @@ import {
     hasProperty,
     InviteLink,
     InviteLinkPurpose,
+    InviteLinkWithAuthenticationOptions,
     isEmailOnlyUser,
+    isMobileLoginSsoProvider,
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserAvatarColorValue,
@@ -40,15 +42,17 @@ import {
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
-    LoginOptions,
     LoginOptionTypes,
     MissingConfigError,
+    MobileLoginIntent,
+    MobileLoginSsoPresentation,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
     OpenIdIdentitySummary,
     OpenIdUser,
     OrganizationMemberRole,
+    OrganizationSsoProvider,
     ParameterError,
     PasswordReset,
     ProjectMemberRole,
@@ -67,6 +71,7 @@ import {
     UpsertUserWarehouseCredentials,
     USER_ONBOARDING_TOURS,
     UserAllowedOrganization,
+    UserLoginOptions,
     UserOnboarding,
     UserOnboardingTour,
     validateEmail,
@@ -136,6 +141,8 @@ import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsS
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
 const MAX_INVITE_LINK_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+const ORGANIZATION_SSO_REQUIRED_MESSAGE =
+    'Your organisation requires SSO sign-in';
 
 type RedshiftAwsSsoSession = {
     clientId: string;
@@ -474,6 +481,7 @@ export class UserService extends BaseService {
                 );
             }
         } else if (
+            activateUser &&
             (await this.isLoginMethodAllowed(
                 userEmail,
                 LocalIssuerTypes.EMAIL,
@@ -481,6 +489,15 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User with email ${userEmail} is not allowed to login with password`,
+            );
+        } else if (
+            !activateUser &&
+            !(await this.isInviteLinkActivationAllowed(userEmail))
+        ) {
+            throw new ForbiddenError(
+                this.lightdashConfig.auth.disablePasswordAuthentication
+                    ? 'Passwordless invite activation is not allowed'
+                    : ORGANIZATION_SSO_REQUIRED_MESSAGE,
             );
         }
 
@@ -1591,6 +1608,36 @@ export class UserService extends BaseService {
         return this.inviteLinkModel.getByCode(inviteCode);
     }
 
+    private async isInviteLinkActivationAllowed(
+        email: string,
+    ): Promise<boolean> {
+        // One-click activation creates a signed-in session without an IdP
+        // challenge, so it follows the same policy as local authentication.
+        return this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL);
+    }
+
+    async getInviteLinkWithAuthenticationOptions(
+        inviteCode: string,
+    ): Promise<InviteLinkWithAuthenticationOptions> {
+        const inviteLink = await this.getInviteLink(inviteCode);
+        const [loginOptions, allowPasswordSignup] = await Promise.all([
+            this.getLoginOptions(inviteLink.email),
+            this.isLoginMethodAllowed(inviteLink.email, LocalIssuerTypes.EMAIL),
+        ]);
+        const allowOneClickActivation = allowPasswordSignup;
+
+        return {
+            ...inviteLink,
+            authentication: {
+                allowOneClickActivation,
+                allowPasswordSignup,
+                ssoProviders: loginOptions.showOptions.filter(
+                    isOpenIdIdentityIssuerType,
+                ),
+            },
+        };
+    }
+
     async loginWithPassword(
         email: string,
         password: string,
@@ -1607,24 +1654,16 @@ export class UserService extends BaseService {
                 context,
             });
 
-        if (
-            (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
-            false
-        ) {
-            emitFailure(
-                `User with email ${email} is not allowed to login with password`,
-            );
-            throw new ForbiddenError(
-                `User with email ${email} is not allowed to login with password`,
-            );
+        if (!(await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL))) {
+            const reason = this.lightdashConfig.auth
+                .disablePasswordAuthentication
+                ? 'Password credentials are not allowed'
+                : ORGANIZATION_SSO_REQUIRED_MESSAGE;
+            emitFailure(reason);
+            throw new ForbiddenError(reason);
         }
 
         try {
-            if (this.lightdashConfig.auth.disablePasswordAuthentication) {
-                throw new ForbiddenError(
-                    'Password credentials are not allowed',
-                );
-            }
             // TODO: move to authorization service layer
             // TODO we should probably remove the organization from the model
             const user = await this.userModel.getUserByPrimaryEmailAndPassword(
@@ -2011,6 +2050,18 @@ export class UserService extends BaseService {
     async recoverPassword(data: CreatePasswordResetLink): Promise<void> {
         const user = await this.userModel.findUserByEmail(data.email);
         if (user) {
+            if (
+                !(await this.isLoginMethodAllowed(
+                    data.email,
+                    LocalIssuerTypes.EMAIL,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    this.lightdashConfig.auth.disablePasswordAuthentication
+                        ? 'Password credentials are not allowed'
+                        : ORGANIZATION_SSO_REQUIRED_MESSAGE,
+                );
+            }
             const code = nanoid(30);
             const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // expires in 1 day
             const link = await this.passwordResetLinkModel.create(
@@ -2270,15 +2321,12 @@ export class UserService extends BaseService {
 
     private async isStrictlyPasswordlessUser(
         user: LightdashUser,
-        email: string,
     ): Promise<boolean> {
-        const [hasPassword, hasOpenIdIdentity, isEmailLoginAllowed] =
-            await Promise.all([
-                this.userModel.hasPassword(user.userUuid),
-                this.userModel.hasOpenIdIdentity(user.userUuid),
-                this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL_OTP),
-            ]);
-        return !hasPassword && !hasOpenIdIdentity && isEmailLoginAllowed;
+        const [hasPassword, hasOpenIdIdentity] = await Promise.all([
+            this.userModel.hasPassword(user.userUuid),
+            this.userModel.hasOpenIdIdentity(user.userUuid),
+        ]);
+        return !hasPassword && !hasOpenIdIdentity;
     }
 
     // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
@@ -2287,11 +2335,18 @@ export class UserService extends BaseService {
     async requestEmailOtpLogin(email: string): Promise<void> {
         const normalizedEmail = email.toLowerCase();
         const user = await this.userModel.findUserByEmail(normalizedEmail);
-        if (
-            !user ||
-            !user.isActive ||
-            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
-        ) {
+        if (!user || !user.isActive) {
+            return;
+        }
+        const [isStrictlyPasswordlessUser, isEmailLoginAllowed] =
+            await Promise.all([
+                this.isStrictlyPasswordlessUser(user),
+                this.isLoginMethodAllowed(
+                    normalizedEmail,
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ]);
+        if (!isStrictlyPasswordlessUser || !isEmailLoginAllowed) {
             return;
         }
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(
@@ -2327,10 +2382,22 @@ export class UserService extends BaseService {
         };
 
         const user = await this.userModel.findUserByEmail(normalizedEmail);
+        if (!user || !user.isActive) {
+            throw invalidCode();
+        }
+        const isEmailLoginAllowed = await this.isLoginMethodAllowed(
+            normalizedEmail,
+            LocalIssuerTypes.EMAIL_OTP,
+        );
         if (
-            !user ||
-            !user.isActive ||
-            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+            !isEmailLoginAllowed &&
+            !this.lightdashConfig.auth.disablePasswordAuthentication
+        ) {
+            throw new ForbiddenError(ORGANIZATION_SSO_REQUIRED_MESSAGE);
+        }
+        if (
+            !isEmailLoginAllowed ||
+            !(await this.isStrictlyPasswordlessUser(user))
         ) {
             throw invalidCode();
         }
@@ -2584,29 +2651,6 @@ export class UserService extends BaseService {
         }
         const { organizationUuid } = user;
         const actor = createActorFromUser(user);
-
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.LeaveOrganization,
-        });
-        if (!flag.enabled) {
-            this.logger.warn('Leave organization denied: feature disabled', {
-                userUuid: user.userUuid,
-                organizationUuid,
-            });
-            emitAuthAuditEvent({
-                actor,
-                action: 'leave_organization',
-                resourceType: 'OrganizationMembership',
-                status: 'denied',
-                reason: 'Feature disabled',
-                organizationUuid,
-                context,
-            });
-            throw new ForbiddenError(
-                'Leaving the organization is not enabled for this instance',
-            );
-        }
 
         const member =
             await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
@@ -3175,11 +3219,53 @@ export class UserService extends BaseService {
             .some((m) => !m.enabled);
     }
 
+    private async getEnabledOrganizationSsoMethodsForEmail(email: string) {
+        const domain = email.split('@')[1]?.toLowerCase();
+        const allMatchingMethods = domain
+            ? await this.organizationSsoModel.findEnabledMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
+        const existingUser = await this.userModel.findUserByEmail(email);
+        if (!existingUser) {
+            return {
+                existingUser,
+                matchingMethods: allMatchingMethods,
+                userOrganizationUuids: undefined,
+            };
+        }
+
+        const userOrganizations = await this.userModel.getOrganizationsForUser(
+            existingUser.userUuid,
+        );
+        const userOrganizationUuids = new Set(
+            userOrganizations.map(
+                (organization) => organization.organizationUuid,
+            ),
+        );
+        return {
+            existingUser,
+            matchingMethods: allMatchingMethods.filter((method) =>
+                userOrganizationUuids.has(method.organizationUuid),
+            ),
+            userOrganizationUuids,
+        };
+    }
+
     async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
-            case LocalIssuerTypes.EMAIL_OTP:
-                return !this.lightdashConfig.auth.disablePasswordAuthentication;
+            case LocalIssuerTypes.EMAIL_OTP: {
+                if (this.lightdashConfig.auth.disablePasswordAuthentication) {
+                    return false;
+                }
+                const { matchingMethods } =
+                    await this.getEnabledOrganizationSsoMethodsForEmail(email);
+                return (
+                    matchingMethods.length === 0 ||
+                    matchingMethods.some((method) => method.allowPassword)
+                );
+            }
             case OpenIdIdentityIssuerType.GOOGLE:
                 // Enabled by default, but an org can disable Google sign-in
                 // for its domains via a per-org policy.
@@ -3289,14 +3375,33 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
-        // Remove old Snowflake credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.SNOWFLAKE,
-        );
+        // Guard before writing: an OAuth callback without a refresh token must
+        // not overwrite the user's working credentials.
+        if (!refreshToken) {
+            throw new ParameterError(
+                'Cannot create Snowflake user credentials without a refresh token',
+            );
+        }
+
+        // getAllByUserUuid returns oldest first, but queries resolve the
+        // newest credential. Refresh that one, or a user who somehow holds two
+        // would keep querying with the stale token we just skipped over.
+        const existingSsoCredentials = (
+            await this.userWarehouseCredentialsModel.getAllByUserUuid(
+                user.userUuid,
+            )
+        )
+            .filter(
+                ({ credentials, project }) =>
+                    project === null &&
+                    credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    credentials.authenticationType ===
+                        SnowflakeAuthenticationType.SSO,
+            )
+            .at(-1);
 
         const snowflakeCredentials: UpsertUserWarehouseCredentials = {
-            name: 'Default',
+            name: existingSsoCredentials?.name ?? 'Default',
             credentials: {
                 user: user.userUuid,
                 type: WarehouseTypes.SNOWFLAKE,
@@ -3304,7 +3409,16 @@ export class UserService extends BaseService {
                 refreshToken,
             },
         };
-        await this.createWarehouseCredentials(user, snowflakeCredentials);
+
+        if (existingSsoCredentials) {
+            await this.updateWarehouseCredentials(
+                user,
+                existingSsoCredentials.uuid,
+                snowflakeCredentials,
+            );
+        } else {
+            await this.createWarehouseCredentials(user, snowflakeCredentials);
+        }
     }
 
     async createDatabricksWarehouseCredentials(
@@ -3731,7 +3845,115 @@ export class UserService extends BaseService {
         return options;
     }
 
-    async getLoginOptions(email?: string): Promise<LoginOptions> {
+    async getMobileLoginPresentation(): Promise<{
+        ssoPresentation: MobileLoginSsoPresentation;
+        localEmailAvailable: boolean;
+    }> {
+        const instanceOptions = this.getInstanceLoginOptions();
+        const localEmailAvailable = instanceOptions.has(LocalIssuerTypes.EMAIL);
+        const instanceSsoProviders = Array.from(instanceOptions).filter(
+            isOpenIdIdentityIssuerType,
+        );
+
+        try {
+            const policySummaries =
+                await this.organizationSsoModel.findAllPolicySummaries();
+            const routingPolicies = policySummaries.filter(
+                ({ provider, enabled }) =>
+                    enabled || provider === OrganizationSsoProvider.GOOGLE,
+            );
+            const possibleProviders = new Set<string>(instanceSsoProviders);
+
+            for (const policy of routingPolicies) {
+                if (policy.enabled) {
+                    possibleProviders.add(policy.provider);
+                }
+            }
+
+            if (possibleProviders.size === 0) {
+                return {
+                    ssoPresentation: { kind: 'none' },
+                    localEmailAvailable,
+                };
+            }
+
+            if (routingPolicies.length > 0 || possibleProviders.size !== 1) {
+                return {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable,
+                };
+            }
+
+            const [provider] = possibleProviders;
+            if (!isMobileLoginSsoProvider(provider)) {
+                return {
+                    ssoPresentation: { kind: 'neutral' },
+                    localEmailAvailable,
+                };
+            }
+
+            return {
+                ssoPresentation: { kind: 'branded', provider },
+                localEmailAvailable,
+            };
+        } catch (error) {
+            Logger.warn('Failed to resolve mobile login presentation', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return {
+                ssoPresentation: { kind: 'neutral' },
+                localEmailAvailable,
+            };
+        }
+    }
+
+    private applyMobileLoginIntent(
+        loginOptions: UserLoginOptions,
+        email: string | undefined,
+        mobileLoginIntent: MobileLoginIntent | undefined,
+    ): UserLoginOptions {
+        if (mobileLoginIntent === 'local') {
+            return {
+                showOptions: loginOptions.showOptions.filter(
+                    (option) =>
+                        option === LocalIssuerTypes.EMAIL ||
+                        option === LocalIssuerTypes.EMAIL_OTP,
+                ),
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        if (mobileLoginIntent === 'sso') {
+            const showOptions = loginOptions.showOptions.filter(
+                isOpenIdIdentityIssuerType,
+            );
+            if (email && showOptions.length === 1) {
+                return {
+                    showOptions,
+                    forceRedirect: true,
+                    redirectUri: new URL(
+                        `/api/v1${this.getRedirectUri(
+                            showOptions[0],
+                        )}?login_hint=${encodeURIComponent(email)}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                };
+            }
+
+            return {
+                showOptions,
+                forceRedirect: false,
+                redirectUri: undefined,
+            };
+        }
+
+        return loginOptions;
+    }
+
+    private async getUnfilteredLoginOptions(
+        email?: string,
+    ): Promise<UserLoginOptions> {
         const instancesOptions = this.getInstanceLoginOptions();
         if (!email) {
             return {
@@ -3745,11 +3967,11 @@ export class UserService extends BaseService {
         // matches the email's domain. When any per-org method matches, it
         // takes precedence over instance-level SSO providers for this user.
         const domain = email.split('@')[1]?.toLowerCase();
-        const allMatchingMethods = domain
-            ? await this.organizationSsoModel.findEnabledMethodsForEmailDomain(
-                  domain,
-              )
-            : [];
+        const {
+            existingUser,
+            matchingMethods: matchingPerOrgMethods,
+            userOrganizationUuids,
+        } = await this.getEnabledOrganizationSsoMethodsForEmail(email);
         // Per-org Google policy rows for the domain (includes disabled rows —
         // a `google` row exists precisely to record an opt-out, which the
         // enabled-only discovery above would never surface).
@@ -3765,21 +3987,10 @@ export class UserService extends BaseService {
         // users to their own Azure tenant by claiming the domain. Brand-new
         // users (no account yet) still see all matching methods — the
         // upstream feature flag + ops vetting is the gate for that case.
-        const existingUser = await this.userModel.findUserByEmail(email);
-        let matchingPerOrgMethods = allMatchingMethods;
         let matchingGoogleMethods = allGoogleMethods;
-        if (existingUser) {
-            const userOrgs = await this.userModel.getOrganizationsForUser(
-                existingUser.userUuid,
-            );
-            const userOrgUuids = new Set(
-                userOrgs.map((o) => o.organizationUuid),
-            );
-            matchingPerOrgMethods = allMatchingMethods.filter((m) =>
-                userOrgUuids.has(m.organizationUuid),
-            );
+        if (userOrganizationUuids) {
             matchingGoogleMethods = allGoogleMethods.filter((m) =>
-                userOrgUuids.has(m.organizationUuid),
+                userOrganizationUuids.has(m.organizationUuid),
             );
         }
 
@@ -3818,14 +4029,20 @@ export class UserService extends BaseService {
             shouldShowEmailOtp =
                 !hasPasswordLogin && !hasOpenIdIdentity && isEmailLoginAllowed;
         }
-        const applyEmailOtpOption = (options: LoginOptionTypes[]) =>
-            shouldShowEmailOtp && options.includes(LocalIssuerTypes.EMAIL)
-                ? options.map((option) =>
-                      option === LocalIssuerTypes.EMAIL
-                          ? LocalIssuerTypes.EMAIL_OTP
-                          : option,
-                  )
-                : options;
+        const applyEmailOtpOption = (
+            options: LoginOptionTypes[],
+        ): LoginOptionTypes[] => {
+            if (!shouldShowEmailOtp) return options;
+            if (options.includes(LocalIssuerTypes.EMAIL_OTP)) return options;
+            if (options.includes(LocalIssuerTypes.EMAIL)) {
+                return options.map((option) =>
+                    option === LocalIssuerTypes.EMAIL
+                        ? LocalIssuerTypes.EMAIL_OTP
+                        : option,
+                );
+            }
+            return [LocalIssuerTypes.EMAIL_OTP, ...options];
+        };
 
         let ssoOptionsForUser: OpenIdIdentityIssuerType[];
         let passwordAllowedForUser: boolean;
@@ -3883,14 +4100,15 @@ export class UserService extends BaseService {
             };
         }
 
-        const oidcOptions = showOptions.filter(isOpenIdIdentityIssuerType);
+        const loginOptions = applyEmailOtpOption(showOptions);
+        const oidcOptions = loginOptions.filter(isOpenIdIdentityIssuerType);
         // Auto-redirect when there is genuinely a single option (one OIDC
         // provider, no password input). Wrong-account loops are mitigated
         // by forwarding `login_hint` to the provider so the right account
         // is surfaced.
-        if (oidcOptions.length === 1 && showOptions.length === 1) {
+        if (oidcOptions.length === 1 && loginOptions.length === 1) {
             return {
-                showOptions,
+                showOptions: loginOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
                     `/api/v1${this.getRedirectUri(
@@ -3900,12 +4118,23 @@ export class UserService extends BaseService {
                 ).href,
             };
         }
-        const loginOptions = applyEmailOtpOption(showOptions);
         return {
             showOptions: loginOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };
+    }
+
+    async getLoginOptions(
+        email?: string,
+        mobileLoginIntent?: MobileLoginIntent,
+    ): Promise<UserLoginOptions> {
+        const loginOptions = await this.getUnfilteredLoginOptions(email);
+        return this.applyMobileLoginIntent(
+            loginOptions,
+            email,
+            mobileLoginIntent,
+        );
     }
 
     /**

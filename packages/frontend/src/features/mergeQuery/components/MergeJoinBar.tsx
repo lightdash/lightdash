@@ -492,8 +492,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     {effectiveParts.length > 1 ? (
                                         <ActionIcon
                                             className={styles.removeKey}
-                                            variant="subtle"
-                                            color="gray"
                                             size="sm"
                                             onClick={() =>
                                                 removeJoinPart(index)

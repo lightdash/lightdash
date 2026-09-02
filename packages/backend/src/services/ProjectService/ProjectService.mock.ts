@@ -369,6 +369,7 @@ export const sessionAccount = buildAccount();
 export const projectWithSensitiveFields: Project = {
     organizationUuid: sessionAccount.organization.organizationUuid!,
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     dbtVersion: DefaultSupportedDbtVersion,
@@ -393,12 +394,14 @@ export const projectWithSensitiveFields: Project = {
 export const projectSummary: ProjectSummary = {
     organizationUuid: sessionAccount.organization.organizationUuid!,
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: sessionAccount.user.id,
 };
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',
+    slug: 'name',
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: sessionAccount.user.id,

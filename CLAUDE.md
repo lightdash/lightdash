@@ -2,52 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Opt-in Agent Okteto Development Environment
+## Agent skills
 
-This workflow is enabled only when
-`LIGHTDASH_OKTETO_TOKEN` is set. If it is not set, skip this section and
-follow the normal development workflow.
+### Issue tracker
 
-When it is set, the Okteto development environment is started automatically by
-the `SessionStart` hook (`agent-okteto-dev.sh hook-start`). The hook captures
-the session ID, starts synchronization, and waits for the environment to become
-healthy before the first prompt reaches Claude. Do not start it yourself or
-replace it with a local Docker environment.
+Linear (internal, default) + GitHub Issues (public, customer-facing). See `docs/agents/issue-tracker.md`.
 
-If setup fails, do not make code changes. Follow the reported error and
-`docs/agent-okteto.md`, then resume the session after fixing the setup.
-The prompt guard reports whether setup is still running or the specific startup
-failure recorded by the SessionStart gate.
+### Triage labels
 
-After making and validating code changes, run
-`./scripts/agent-okteto-dev.sh wait` before the final response. Include the URL
-from its `READY:` line in the final response. The `Stop` hook verifies readiness
-again and prevents a final response that omits the URL.
+Use the repository's mapped triage vocabulary. See `docs/agents/triage-labels.md`.
 
-Leave the Okteto namespace and sync process running so the user can test the
-changes.
+### Domain docs
 
-## Opt-in Agent exe.dev Development Environment
-
-This workflow is enabled only when `LIGHTDASH_EXEDEV_SSH_KEY` is set. If it is
-not set, skip this section. It is mutually exclusive with the Okteto workflow
-above; only one is configured per session.
-
-When it is set, the `SessionStart` hook (`agent-exedev-dev.sh hook-start`)
-clones a per-session exe.dev VM from a prepared template, syncs the working
-tree, and launches the preview stack in the background; the app may still be
-booting while you work. Do not start it yourself or replace it with a local
-Docker environment. Edits are mirrored to the VM automatically by a
-`PostToolUse` hook. Use `./scripts/agent-exedev-dev.sh ssh '<cmd>'` to inspect
-the server directly (bootstrap log, pm2, docker, psql). Run
-`./scripts/agent-exedev-dev.sh wait` after validating changes and include the
-URL from its `READY:` line in the final response. The `Stop` hook verifies
-health and prevents a final response that omits the URL.
-
-If setup fails, do not make code changes. Follow the reported error and
-`docs/agent-exedev.md`, then resume the session after fixing the setup.
-
-Leave the VM running so the user can test the changes at the public URL.
+This is a multi-context repository rooted at `CONTEXT-MAP.md`. See `docs/agents/domain.md`.
 
 ## Formula Package Development
 
@@ -128,6 +95,24 @@ pnpm -F common test
 pnpm -F backend test:dev:nowatch # runs only tests for modified files
 ```
 
+When running a specific Vitest file in any package, pass the path directly to
+the package test script:
+
+```bash
+pnpm -F <package> test path/to/file.test.ts
+```
+
+Never insert `--` before the file path. Vitest can ignore the file filter and
+run the entire package test suite:
+
+```bash
+# Wrong — can run every test in the package
+pnpm -F <package> test -- path/to/file.test.ts
+```
+
+For a single-file run, verify the Vitest summary reports one test file. If
+unrelated test files appear, stop the command immediately and correct it.
+
 **API Generation:**
 
 OpenAPI artifacts are generated from TSOA controllers in PR CI for compatibility
@@ -156,6 +141,23 @@ pnpm generate:chart-as-code-schema
 pnpm check:chart-as-code-schema
 ```
 
+**MCP Tool Snapshot:**
+
+The committed `packages/common/src/schemas/json/mcp-tools-1.0.json` snapshot
+represents the stable/default MCP tool surface used by release-safety checks.
+Run the generator and commit the snapshot whenever a change affects an MCP
+tool's membership, name, title, description, annotations, input schema, or
+output schema, including changes to imported schemas:
+
+```bash
+pnpm generate:mcp-tools-snapshot
+```
+
+Do not regenerate it solely for a temporary runtime-selected rollout variant.
+Regenerate it when that variant becomes the default contract. If unsure whether
+a change affects the snapshot, run `pnpm check:mcp-tools-snapshot`. Running
+`pnpm generate-api` also regenerates the MCP tool snapshot through its post-hook.
+
 **Database Migrations:**
 
 ```bash
@@ -171,7 +173,7 @@ pnpm -F backend rollback-last
 
 ## Development Workflow
 
-1. **Package Management**: Use `pnpm` (v11.17.0+, pinned via `packageManager` in the root `package.json` — let Corepack pick it up) - never use npm or yarn
+1. **Package Management**: Use `pnpm` (pinned via `packageManager` in the root `package.json`, which pnpm reads directly). Install pnpm directly; do not use Corepack, npm, or yarn for workspace commands.
 2. **Database**: Uses Knex.js for migrations and query building
 3. **API**: TSOA generates OpenAPI specs from TypeScript controllers
 4. **Authentication**: CASL-based authorization with multiple auth providers
@@ -181,9 +183,13 @@ pnpm -F backend rollback-last
 `Release-safety preview` is a required check on `main`. It protects self-hosted upgrades: `unknown` means we could not confirm the change is safe, while `breaking` means we know it is incompatible. Both hold the upgrade, for different reasons.
 
 - For migration breaks, follow the detailed [migration release-safety declarations](packages/backend/src/database/migrations/CLAUDE.md#release-safety-declarations).
-- For API or type breaks, changed, non-test TypeScript source under `packages/backend/src` or `packages/common/src` may declare `export const breaking = { reason: '<operator-facing reason>', requiredStop: false }`. It must be a top-level, unannotated object literal with exactly those fields: `reason` is a non-empty string literal, `requiredStop` is a boolean literal, and API-gate reasons must be at least 24 characters, use more than one word, and not be placeholder text.
+- For API or type breaks, add a stable ID to `release-safety.declarations.json` with `reason` and `requiredStop`. The reason must be at least 24 characters, use more than one word, describe what breaks and for whom, and not use placeholder text. Omit `migration` for these entries.
 
-Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading; every later release inherits the block until someone moves the pin past it by hand.
+A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
+
+The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.
+
+Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy. A release that ships as `breaking` or `unknown` stops the internal analytics instance upgrading. The declaration does not reactivate in later Git ranges.
 
 ## Merge Freeze — Holding `main` While a Release Is Cut
 
@@ -404,6 +410,26 @@ the contract explicit instead of relying on the name:
 - **Service args** mirror the same names: a `UuidOrSlug` arg must be resolved to
   `entity.uuid` (via `getByIdOrSlug`) before being used as a key, FK, or in any
   comparison — never pass the raw arg downstream.
+
+## Translation — deliberately limited to embeds
+
+There is no i18n framework and no full-app localization (that is PROD-3774,
+not built). Two embed-scoped mechanisms exist, with a strict boundary:
+
+-   **Content** (chart/dashboard names, tile titles, labels): `LanguageMap` /
+    the SDK `contentOverrides` prop — slug-keyed, schema-derived.
+-   **UI chrome** (filter operators/inputs, date zoom, tile menus, filter
+    bar): the SDK `uiOverrides` prop — a flat key→string map. The registry
+    `DEFAULT_UI_STRINGS` in `packages/common/src/utils/i18n/uiStrings.ts` is
+    the single source of truth; components render `override ?? English
+    default` via `useUiStrings()`. Shipped keys are a public SDK contract:
+    additive only, never rename or remove.
+
+When adding user-visible strings to embed-reachable surfaces (anything a
+dashboard viewer sees), follow the mandate in
+`packages/frontend/src/components/common/Filters/CLAUDE.md` — it generalizes
+beyond filters. English strings for those surfaces live only in the registry,
+never inline. Do not add an i18n framework; host apps own locale state.
 
 ## Development Troubleshooting
 

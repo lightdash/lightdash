@@ -2,21 +2,42 @@ import {
     Account,
     assertUnreachable,
     ForbiddenError,
+    getContextsForTrigger,
+    getQueryLanguage,
+    getSemanticQuerySummary,
+    getSqlFirstLine,
+    getSqlQueryTitle,
     isJwtUser,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
+    QUERY_HISTORY_WINDOW_MINUTES,
+    QUERY_HISTORY_WINDOWS_ORDERED,
+    QUERY_TRIGGER_BY_CONTEXT,
     QueryExecutionContext,
     QueryHistory,
+    QueryHistoryListFilters,
+    QueryHistoryListItem,
+    QueryHistorySortBy,
     QueryHistoryStatus,
+    QueryHistoryWindow,
+    QueryLanguage,
+    QueryTrigger,
     sleep,
+    SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
 import { customAlphabet, nanoid } from 'nanoid';
+import { DashboardsTableName } from '../../database/entities/dashboards';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
+import KnexPaginate from '../../database/pagination';
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
@@ -38,6 +59,7 @@ function convertDbQueryHistoryToQueryHistory(
         metricQuery: queryHistory.metric_query,
         fields: queryHistory.fields,
         requestParameters: queryHistory.request_parameters,
+        usedParameters: queryHistory.used_parameters,
         warehouseQueryId: queryHistory.warehouse_query_id,
         warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
         status: queryHistory.status,
@@ -62,6 +84,18 @@ function convertDbQueryHistoryToQueryHistory(
     };
 }
 
+/**
+ * Rows persisted before a context value was removed from the enum would miss
+ * the exhaustive lookup — bucket unknown contexts as interactive instead.
+ */
+function getQueryTriggerSafe(context: QueryExecutionContext): QueryTrigger {
+    return (
+        (QUERY_TRIGGER_BY_CONTEXT as Partial<Record<string, QueryTrigger>>)[
+            context
+        ] ?? QueryTrigger.INTERACTIVE
+    );
+}
+
 export class QueryHistoryModel {
     readonly database: Knex;
 
@@ -81,6 +115,11 @@ export class QueryHistoryModel {
             timezone?: string;
             userUuid: string | null;
             dataTimezone?: string;
+            /**
+             * External source tables version their ingested files without the
+             * SQL text changing, so a refresh must produce a new key.
+             */
+            externalSourceSalt?: string;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -103,6 +142,10 @@ export class QueryHistoryModel {
         // prefixed so it cannot collide with the display timezone above.
         if (resultsIdentifiers.dataTimezone) {
             queryHashKey += `.dtz:${resultsIdentifiers.dataTimezone}`;
+        }
+
+        if (resultsIdentifiers.externalSourceSalt) {
+            queryHashKey += `.${resultsIdentifiers.externalSourceSalt}`;
         }
 
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
@@ -164,6 +207,7 @@ export class QueryHistoryModel {
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
+                used_parameters: queryHistory.usedParameters,
                 total_row_count: null,
                 warehouse_query_id: null,
                 warehouse_execution_time_ms: null,
@@ -498,4 +542,327 @@ export class QueryHistoryModel {
 
         return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
     }
+
+    /**
+     * Base query for a user's own history in a project, capped at the oldest
+     * list window (30 days). `skipTrigger`/`skipWindow` let the count queries
+     * drop the one filter they aggregate across.
+     */
+    private buildUserHistoryQuery(
+        projectUuid: string,
+        userUuid: string,
+        filters: QueryHistoryListFilters,
+        options: { skipTrigger?: boolean; skipWindow?: boolean } = {},
+    ) {
+        const oldestWindowMinutes =
+            QUERY_HISTORY_WINDOW_MINUTES[QueryHistoryWindow.LAST_30_DAYS];
+
+        const { database } = this;
+        const query = database(QueryHistoryTableName)
+            .leftJoin(SavedChartsTableName, function joinRequestChart() {
+                this.on(
+                    database.raw(
+                        `${SavedChartsTableName}.saved_query_uuid::text = ${QueryHistoryTableName}.request_parameters->>'chartUuid'`,
+                    ),
+                );
+            })
+            .leftJoin(SavedSqlTableName, function joinRequestSqlChart() {
+                this.on(
+                    database.raw(
+                        `${SavedSqlTableName}.saved_sql_uuid::text = ${QueryHistoryTableName}.request_parameters->>'savedSqlUuid'`,
+                    ),
+                );
+            })
+            .leftJoin(DashboardsTableName, function joinRequestDashboard() {
+                this.on(
+                    database.raw(
+                        `${DashboardsTableName}.dashboard_uuid::text = ${QueryHistoryTableName}.request_parameters->>'dashboardUuid'`,
+                    ),
+                );
+            })
+            .where(`${QueryHistoryTableName}.project_uuid`, projectUuid)
+            .where(`${QueryHistoryTableName}.created_by_user_uuid`, userUuid)
+            .whereRaw(
+                `${QueryHistoryTableName}.created_at > now() - (? * interval '1 minute')`,
+                [oldestWindowMinutes],
+            );
+
+        if (filters.trigger && !options.skipTrigger) {
+            void query.whereIn(
+                `${QueryHistoryTableName}.context`,
+                getContextsForTrigger(filters.trigger),
+            );
+        }
+
+        if (filters.language) {
+            // `\\?|` escapes the jsonb exists-any operator so knex doesn't
+            // treat it as a binding placeholder.
+            const sqlKeysArray = SQL_LANGUAGE_REQUEST_PARAMETER_KEYS.map(
+                (key) => `'${key}'`,
+            ).join(',');
+            const isSqlClause = `${QueryHistoryTableName}.request_parameters \\?| array[${sqlKeysArray}]`;
+            void query.whereRaw(
+                filters.language === QueryLanguage.SQL
+                    ? isSqlClause
+                    : `not (${isSqlClause})`,
+            );
+        }
+
+        if (filters.statuses && filters.statuses.length > 0) {
+            void query.whereIn(
+                `${QueryHistoryTableName}.status`,
+                filters.statuses,
+            );
+        }
+
+        if (filters.search) {
+            // Escape LIKE wildcards so user input matches literally
+            const escapedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+            const searchPattern = `%${escapedSearch}%`;
+            void query.andWhere((builder) => {
+                void builder
+                    .whereILike(
+                        `${QueryHistoryTableName}.compiled_sql`,
+                        searchPattern,
+                    )
+                    .orWhereRaw(
+                        `${QueryHistoryTableName}.metric_query->>'exploreName' ilike ?`,
+                        [searchPattern],
+                    )
+                    .orWhereRaw(
+                        `${QueryHistoryTableName}.fields::text ilike ?`,
+                        [searchPattern],
+                    )
+                    .orWhereILike(`${SavedChartsTableName}.name`, searchPattern)
+                    .orWhereILike(`${SavedSqlTableName}.name`, searchPattern)
+                    .orWhereILike(`${DashboardsTableName}.name`, searchPattern);
+            });
+        }
+
+        if (filters.window && !options.skipWindow) {
+            const windowIndex = QUERY_HISTORY_WINDOWS_ORDERED.indexOf(
+                filters.window,
+            );
+            const lowerMinutes = QUERY_HISTORY_WINDOW_MINUTES[filters.window];
+            void query.whereRaw(
+                `${QueryHistoryTableName}.created_at > now() - (? * interval '1 minute')`,
+                [lowerMinutes],
+            );
+            if (windowIndex > 0) {
+                const upperMinutes =
+                    QUERY_HISTORY_WINDOW_MINUTES[
+                        QUERY_HISTORY_WINDOWS_ORDERED[windowIndex - 1]
+                    ];
+                void query.whereRaw(
+                    `${QueryHistoryTableName}.created_at <= now() - (? * interval '1 minute')`,
+                    [upperMinutes],
+                );
+            }
+        }
+
+        return query;
+    }
+
+    async findUserHistory(
+        projectUuid: string,
+        userUuid: string,
+        filters: QueryHistoryListFilters,
+        paginateArgs: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DbQueryHistoryListRow[]>> {
+        const query = this.buildUserHistoryQuery(
+            projectUuid,
+            userUuid,
+            filters,
+        ).select<DbQueryHistoryListRow[]>(
+            `${QueryHistoryTableName}.*`,
+            `${SavedChartsTableName}.name as chart_name`,
+            `${SavedSqlTableName}.name as sql_chart_name`,
+            `${DashboardsTableName}.name as dashboard_name`,
+        );
+
+        if (filters.sortBy === QueryHistorySortBy.RUNTIME) {
+            void query.orderByRaw(
+                `${QueryHistoryTableName}.warehouse_execution_time_ms desc nulls last, ${QueryHistoryTableName}.created_at desc`,
+            );
+        } else {
+            void query.orderBy(`${QueryHistoryTableName}.created_at`, 'desc');
+        }
+
+        return KnexPaginate.paginate(query, paginateArgs);
+    }
+
+    async getUserHistoryCounts(
+        projectUuid: string,
+        userUuid: string,
+        filters: QueryHistoryListFilters,
+    ): Promise<{
+        triggers: Record<QueryTrigger, number>;
+        windows: Record<QueryHistoryWindow, number>;
+        warehouseTimeMsLast7Days: number;
+    }> {
+        const triggerCountsQuery = this.buildUserHistoryQuery(
+            projectUuid,
+            userUuid,
+            filters,
+            { skipTrigger: true },
+        )
+            .select(`${QueryHistoryTableName}.context`)
+            .count(`${QueryHistoryTableName}.query_uuid as count`)
+            .groupBy(`${QueryHistoryTableName}.context`);
+
+        // One disjoint bucket per window: newer than its own bound, older than
+        // the previous window's bound.
+        const windowSelects = QUERY_HISTORY_WINDOWS_ORDERED.map(
+            (window, index) => {
+                const lowerMinutes = QUERY_HISTORY_WINDOW_MINUTES[window];
+                const upperClause =
+                    index > 0
+                        ? ` and ${QueryHistoryTableName}.created_at <= now() - (${
+                              QUERY_HISTORY_WINDOW_MINUTES[
+                                  QUERY_HISTORY_WINDOWS_ORDERED[index - 1]
+                              ]
+                          } * interval '1 minute')`
+                        : '';
+                return `count(*) filter (where ${QueryHistoryTableName}.created_at > now() - (${lowerMinutes} * interval '1 minute')${upperClause}) as "${window}"`;
+            },
+        ).join(', ');
+
+        const sevenDayMinutes =
+            QUERY_HISTORY_WINDOW_MINUTES[QueryHistoryWindow.LAST_7_DAYS];
+        const windowCountsQuery = this.buildUserHistoryQuery(
+            projectUuid,
+            userUuid,
+            filters,
+            { skipWindow: true },
+        ).select(
+            this.database.raw(
+                `${windowSelects}, coalesce(sum(${QueryHistoryTableName}.warehouse_execution_time_ms) filter (where ${QueryHistoryTableName}.created_at > now() - (${sevenDayMinutes} * interval '1 minute')), 0) as "warehouseTimeMsLast7Days"`,
+            ),
+        );
+
+        const [triggerRows, windowRows] = await Promise.all([
+            triggerCountsQuery,
+            windowCountsQuery,
+        ]);
+
+        const triggers: Record<QueryTrigger, number> = {
+            [QueryTrigger.INTERACTIVE]: 0,
+            [QueryTrigger.APPS]: 0,
+            [QueryTrigger.SCHEDULED]: 0,
+        };
+        for (const row of triggerRows as unknown as {
+            context: QueryExecutionContext;
+            count: string | number;
+        }[]) {
+            const trigger = getQueryTriggerSafe(row.context);
+            triggers[trigger] += Number(row.count);
+        }
+
+        const windowRow = (
+            windowRows as unknown as Record<string, string | number>[]
+        )[0];
+        const windows = QUERY_HISTORY_WINDOWS_ORDERED.reduce(
+            (acc, window) => {
+                acc[window] = Number(windowRow?.[window] ?? 0);
+                return acc;
+            },
+            {} as Record<QueryHistoryWindow, number>,
+        );
+
+        return {
+            triggers,
+            windows,
+            warehouseTimeMsLast7Days: Number(
+                windowRow?.warehouseTimeMsLast7Days ?? 0,
+            ),
+        };
+    }
+}
+
+export type DbQueryHistoryListRow = DbQueryHistory & {
+    chart_name: string | null;
+    sql_chart_name: string | null;
+    dashboard_name: string | null;
+};
+
+/**
+ * Derives the list-row anatomy from the persisted query, per the design spec:
+ * semantic rows are titled by explore with a metric/dimension subline; SQL
+ * rows by saved chart or first CTE/table with the first line of SQL; failed
+ * rows surface the error as the subline. App-triggered rows append the tile
+ * and dashboard they were loaded by.
+ */
+export function mapQueryHistoryRowToListItem(
+    row: DbQueryHistoryListRow,
+): QueryHistoryListItem {
+    const language = getQueryLanguage(row.request_parameters);
+    const exploreName = row.metric_query?.exploreName ?? null;
+    const chartName = row.chart_name ?? row.sql_chart_name;
+
+    let title: string;
+    let subline: string;
+    if (language === QueryLanguage.SQL) {
+        title = chartName ?? getSqlQueryTitle(row.compiled_sql) ?? 'SQL query';
+        subline = getSqlFirstLine(row.compiled_sql);
+    } else {
+        title = exploreName ?? chartName ?? 'Query';
+        subline = getSemanticQuerySummary(row.metric_query, row.fields);
+    }
+
+    if (row.dashboard_name) {
+        const tilePart = chartName ? `“${chartName}” on ` : '';
+        subline = subline
+            ? `${subline} — ${tilePart}${row.dashboard_name}`
+            : `${tilePart}${row.dashboard_name}`;
+    }
+
+    if (row.status === QueryHistoryStatus.ERROR && row.error) {
+        subline = row.error;
+    }
+
+    // A run served from cache reuses a results file created by an earlier
+    // execution, so the file predates the run itself.
+    const cacheHit = Boolean(
+        row.results_created_at &&
+        new Date(row.results_created_at) < new Date(row.created_at),
+    );
+
+    return {
+        queryUuid: row.query_uuid,
+        createdAt: row.created_at,
+        projectUuid: row.project_uuid,
+        context: row.context,
+        trigger: getQueryTriggerSafe(row.context),
+        language,
+        status: row.status,
+        title,
+        subline,
+        error: row.error,
+        exploreName,
+        metricQuery:
+            language === QueryLanguage.SEMANTIC ? row.metric_query : null,
+        requestParameters: row.request_parameters,
+        chartName: row.chart_name,
+        chartUuid:
+            row.request_parameters && 'chartUuid' in row.request_parameters
+                ? row.request_parameters.chartUuid
+                : null,
+        savedSqlUuid:
+            row.request_parameters && 'savedSqlUuid' in row.request_parameters
+                ? row.request_parameters.savedSqlUuid
+                : null,
+        dashboardName: row.dashboard_name,
+        dashboardUuid:
+            row.request_parameters && 'dashboardUuid' in row.request_parameters
+                ? row.request_parameters.dashboardUuid
+                : null,
+        compiledSql: row.compiled_sql,
+        totalRowCount: row.total_row_count,
+        warehouseExecutionTimeMs: row.warehouse_execution_time_ms,
+        cacheHit,
+        resultsExpiresAt: row.results_expires_at,
+        processingStartedAt: row.processing_started_at,
+        resultsUpdatedAt: row.results_updated_at,
+        erroredAt: row.errored_at,
+    };
 }

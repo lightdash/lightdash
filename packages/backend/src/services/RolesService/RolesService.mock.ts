@@ -249,7 +249,7 @@ export const mockInviteLinkModel: Record<string, MockFn> = {
 };
 
 export const mockFeatureFlagModel: Record<string, MockFn> = {
-    get: vi.fn().mockResolvedValue({ id: 'multiple-roles', enabled: true }),
+    get: vi.fn().mockResolvedValue({ id: 'custom-roles', enabled: true }),
 };
 
 export const mockOrganizationMemberProfileModel: Record<string, MockFn> = {

@@ -19,6 +19,7 @@ export type AggregatedRow = {
     chartUuid: string | null;
     dashboardName: string | null;
     dashboardUuid: string | null;
+    dashboardSlug: string | null;
     exploreName: string;
     queryContext: string;
     queryType: QueryType;
@@ -59,6 +60,7 @@ export function aggregateStats(
                 chartUuid: stat.chartUuid,
                 dashboardName: stat.dashboardName,
                 dashboardUuid: stat.dashboardUuid,
+                dashboardSlug: stat.dashboardSlug,
                 exploreName: stat.exploreName,
                 queryContext: stat.queryContext,
                 queryType: getQueryType(stat),

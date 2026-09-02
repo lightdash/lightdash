@@ -3,13 +3,12 @@ import { IconLinkOff } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useParams } from 'react-router';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCloneAgentThreadShareMutation } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 
 const AiAgentThreadSharePage: FC = () => {
-    const { projectUuid, aiThreadShareUuid } = useParams<{
-        projectUuid: string;
-        aiThreadShareUuid: string;
-    }>();
+    const { aiThreadShareUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const { mutate, isLoading, error } = useCloneAgentThreadShareMutation(
         projectUuid!,
     );

@@ -17,11 +17,13 @@ interface CollapsableCardProps {
     rightHeaderElement?: React.ReactNode;
     isVisualizationCard?: boolean;
     hideHeading?: boolean;
+    minimal?: boolean;
 }
 
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     isVisualizationCard = false,
     hideHeading = false,
+    minimal = false,
     children,
     onToggle,
     isOpen = false,
@@ -48,14 +50,15 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     return (
         <Card
             component={Flex}
-            p="xxs"
+            p={minimal ? 0 : 'xxs'}
+            shadow={minimal ? undefined : 'subtle'}
+            unstyled={minimal}
             style={{
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'visible',
                 ...(shouldExpand ? { flex: 1 } : undefined),
             }}
-            shadow="subtle"
         >
             {!hideHeading && (
                 <Flex
@@ -157,8 +160,12 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                             >
                                 <div
                                     style={{
-                                        height: COLLAPSIBLE_CARD_GAP_SIZE,
-                                        minHeight: COLLAPSIBLE_CARD_GAP_SIZE,
+                                        height: minimal
+                                            ? 0
+                                            : COLLAPSIBLE_CARD_GAP_SIZE,
+                                        minHeight: minimal
+                                            ? 0
+                                            : COLLAPSIBLE_CARD_GAP_SIZE,
                                     }}
                                 />
                                 {children}

@@ -4,6 +4,7 @@ import { Menu } from '@mantine/core';
 import { IconStack } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { useLocation } from 'react-router';
+import { useUiString } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
@@ -17,6 +18,7 @@ type Props = {
 };
 
 const TrackedItem: FC<{ onClick: () => void }> = ({ onClick }) => {
+    const label = useUiString('tileMenu.viewUnderlyingData');
     const { track } = useTracking();
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
@@ -43,7 +45,7 @@ const TrackedItem: FC<{ onClick: () => void }> = ({ onClick }) => {
             leftSection={<MantineIcon icon={IconStack} />}
             onClick={handleClick}
         >
-            View underlying data
+            {label}
         </Menu.Item>
     );
 };
@@ -52,6 +54,7 @@ export const UnderlyingDataMenuItem: FC<Props> = ({
     metricQuery,
     onViewUnderlyingData,
 }) => {
+    const label = useUiString('tileMenu.viewUnderlyingData');
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
     const projectUuid = useProjectUuid();
@@ -78,7 +81,7 @@ export const UnderlyingDataMenuItem: FC<Props> = ({
                     leftSection={<MantineIcon icon={IconStack} />}
                     onClick={onViewUnderlyingData}
                 >
-                    View underlying data
+                    {label}
                 </Menu.Item>
             )}
         </Can>

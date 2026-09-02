@@ -20,9 +20,14 @@ import ResourceView from '../../common/ResourceView';
 interface Props {
     data: MostPopularAndRecentlyUpdated | undefined;
     projectUuid: string;
+    projectUrlIdentifier: string;
 }
 
-export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
+export const HomepageContentPanel: FC<Props> = ({
+    data,
+    projectUuid,
+    projectUrlIdentifier,
+}) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
@@ -65,7 +70,7 @@ export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
     }, [data?.mostPopular, data?.recentlyUpdated, verifiedContentData]);
 
     const handleCreateChart = () => {
-        void navigate(`/projects/${projectUuid}/tables`);
+        void navigate(`/projects/${projectUrlIdentifier}/tables`);
     };
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
@@ -117,7 +122,6 @@ export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
                           title: 'Charts and Dashboards',
                           action: (
                               <MantineLinkButton
-                                  color="ldGray.6"
                                   size="compact-sm"
                                   variant="subtle"
                                   target="_blank"

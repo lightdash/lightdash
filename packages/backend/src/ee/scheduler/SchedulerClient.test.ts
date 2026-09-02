@@ -58,6 +58,80 @@ describe('CommercialSchedulerClient.aiDeepResearch', () => {
     });
 });
 
+describe('CommercialSchedulerClient.aiAgentReviewWriteback', () => {
+    it('keeps the initial key stable and gives a continuation a run-specific key', async () => {
+        const addJob = vi
+            .fn()
+            .mockResolvedValueOnce({ id: 'job-1' })
+            .mockResolvedValueOnce({ id: 'job-2' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            fingerprint: 'fingerprint-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            remediationUuid: 'remediation-1',
+        };
+        const initialRunAt = new Date('2026-08-27T12:00:00.000Z');
+        const continuationRunAt = new Date('2026-08-27T12:00:05.000Z');
+
+        await client.aiAgentReviewWriteback(payload, initialRunAt);
+        await client.aiAgentReviewWriteback(payload, continuationRunAt, true);
+
+        expect(addJob).toHaveBeenNthCalledWith(
+            1,
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+            payload,
+            expect.objectContaining({
+                runAt: initialRunAt,
+                jobKey: 'ai-agent-review-writeback:fingerprint-1',
+            }),
+        );
+        expect(addJob).toHaveBeenNthCalledWith(
+            2,
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+            payload,
+            expect.objectContaining({
+                runAt: continuationRunAt,
+                jobKey: 'ai-agent-review-writeback:fingerprint-1:continuation:1787832005000',
+            }),
+        );
+    });
+});
+
+describe('CommercialSchedulerClient.ingestExternalSourceAttachment', () => {
+    it('uses an attachment-only task that old workers cannot claim', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+            sourceUuid: 'source-1',
+            attemptUuid: 'attempt-1',
+        };
+        const runAt = new Date('2026-08-21T12:00:00.000Z');
+
+        await client.ingestExternalSourceAttachment(payload, { runAt });
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT,
+            payload,
+            expect.objectContaining({
+                maxAttempts: 5,
+                jobKey: 'external-source-attachment-ingest:attempt-1',
+                runAt,
+            }),
+        );
+    });
+});
+
 describe('CommercialSchedulerClient.aiAgentMemoryDistill', () => {
     it('enqueues one keyed attempt per thread', async () => {
         const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
@@ -141,6 +215,66 @@ describe('CommercialSchedulerClient.aiAgentMemoryConsolidatePartition', () => {
                 queueName: 'ai-agent-memory-consolidate:project-1',
                 priority: JobPriority.LOW,
             }),
+        );
+    });
+});
+
+describe('CommercialSchedulerClient.mobilePushLiveActivity', () => {
+    it('keeps one replaceable reconciliation job per activity', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            liveActivityUuid: 'activity-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+        const runAt = new Date('2026-08-30T12:04:00.000Z');
+
+        await client.mobilePushLiveActivity(payload, runAt);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: 'mobile-push-live-activity:activity-1',
+                priority: JobPriority.MEDIUM,
+            },
+        );
+    });
+});
+
+describe('CommercialSchedulerClient.mobilePushLiveActivityStart', () => {
+    it('uses a stable attempt key and a bounded retry policy', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            liveActivityStartAttemptUuid: 'attempt-1',
+            organizationUuid: 'organization-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+        const runAt = new Date('2026-08-31T12:00:00.000Z');
+
+        await client.mobilePushLiveActivityStart(payload, runAt);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START,
+            payload,
+            {
+                runAt,
+                maxAttempts: 5,
+                jobKey: 'mobile-push-live-activity-start:attempt-1',
+                priority: JobPriority.MEDIUM,
+            },
         );
     });
 });

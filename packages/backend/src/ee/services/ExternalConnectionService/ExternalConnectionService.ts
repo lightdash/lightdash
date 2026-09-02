@@ -14,6 +14,7 @@ import {
     type CreateExternalConnection,
     type ExternalConnection,
     type ExternalConnectionConfigProposal,
+    type ExternalConnectionLinkedApps,
     type ExternalConnectionListItem,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
@@ -164,10 +165,10 @@ export class ExternalConnectionService extends BaseService {
         }
 
         const spaceContext = app.space_uuid
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  account.user.id,
-                  app.space_uuid,
-              )
+            ? await this.spacePermissionService.resolveAccess(account.user.id, {
+                  type: 'space',
+                  spaceUuid: app.space_uuid,
+              })
             : {};
         const projectContext = await this.getDataAppProjectContext(
             app.project_uuid,
@@ -271,6 +272,15 @@ export class ExternalConnectionService extends BaseService {
         );
     }
 
+    async listLinkedApps(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ExternalConnectionLinkedApps> {
+        await this.getOwnedConnection(account, projectUuid, connectionUuid);
+        return this.externalConnectionModel.listLinkedApps(connectionUuid);
+    }
+
     private async loadConnection(
         projectUuid: string,
         connectionUuid: string,
@@ -338,17 +348,10 @@ export class ExternalConnectionService extends BaseService {
         return this.getViewableConnection(account, projectUuid, connectionUuid);
     }
 
-    async update(
-        account: RegisteredAccount,
-        projectUuid: string,
-        connectionUuid: string,
+    private static resolveConnectionUpdate(
+        existing: ExternalConnection,
         data: UpdateExternalConnection,
-    ): Promise<ExternalConnection> {
-        const existing = await this.getOwnedConnection(
-            account,
-            projectUuid,
-            connectionUuid,
-        );
+    ): ExternalConnection {
         const resultingType = data.type ?? existing.type;
         const typeChanged =
             data.type !== undefined && data.type !== existing.type;
@@ -369,10 +372,8 @@ export class ExternalConnectionService extends BaseService {
                 !typeChanged && !originChanged && existing.hasSecret;
         }
 
-        // Resolve a field that belongs only to the resulting auth type: use the
-        // patch value if provided, else keep the existing value — but a type
-        // change never carries the previous type's values forward, and fields
-        // foreign to the resulting type are always cleared.
+        // Type-specific fields never carry across auth type changes and are
+        // cleared when they do not belong to the resulting type.
         const resolveTypeField = <T>(
             belongsToResultingType: boolean,
             patchValue: T | undefined,
@@ -382,63 +383,84 @@ export class ExternalConnectionService extends BaseService {
             if (patchValue !== undefined) return patchValue;
             return typeChanged ? null : existingValue;
         };
-        const resolvedApiKeyName = resolveTypeField(
+        const apiKeyName = resolveTypeField(
             resultingType === 'api_key',
             data.apiKeyName,
             existing.apiKeyName,
         );
-        const resolvedApiKeyLocation = resolveTypeField(
+        const apiKeyLocation = resolveTypeField(
             resultingType === 'api_key',
             data.apiKeyLocation,
             existing.apiKeyLocation,
         );
-        const resolvedOauthScopes = resolveTypeField(
+        const oauthScopes = resolveTypeField(
             resultingType === 'google_service_account',
             data.oauthScopes,
             existing.oauthScopes,
         );
 
-        // Validate the resulting (merged) config so a partial update can't
-        // leave the connection in an invalid or unsafe state.
-        validateExternalConnectionConfig(
-            {
-                type: resultingType,
-                origin: data.origin ?? existing.origin,
-                allowBrowserImages:
-                    data.allowBrowserImages ?? existing.allowBrowserImages,
-                instructions:
-                    data.instructions !== undefined
-                        ? data.instructions
-                        : existing.instructions,
-                allowedPathPrefixes:
-                    data.allowedPathPrefixes ?? existing.allowedPathPrefixes,
-                allowedMethods: data.allowedMethods ?? existing.allowedMethods,
-                allowedContentTypes:
-                    data.allowedContentTypes ?? existing.allowedContentTypes,
-                responseMaxBytes:
-                    data.responseMaxBytes ?? existing.responseMaxBytes,
-                requestMaxBytes:
-                    data.requestMaxBytes ?? existing.requestMaxBytes,
-                timeoutMs: data.timeoutMs ?? existing.timeoutMs,
-                rateLimitPerMinute:
-                    data.rateLimitPerMinute !== undefined
-                        ? data.rateLimitPerMinute
-                        : existing.rateLimitPerMinute,
-                apiKeyName: resolvedApiKeyName,
-                apiKeyLocation: resolvedApiKeyLocation,
-                oauthScopes: resolvedOauthScopes,
-                customHeaders:
-                    data.customHeaders !== undefined
-                        ? data.customHeaders
-                        : existing.customHeaders,
-            },
-            hasSecretAfter,
-        );
-        // Validate the keyfile only when a new secret is supplied — a secret-less
-        // (same-type) update keeps the already-validated stored keyfile.
+        const resolved: ExternalConnection = {
+            ...existing,
+            name: data.name ?? existing.name,
+            type: resultingType,
+            origin: data.origin ?? existing.origin,
+            allowBrowserImages:
+                data.allowBrowserImages ?? existing.allowBrowserImages,
+            allowDataAppBuilderLinking:
+                data.allowDataAppBuilderLinking ??
+                existing.allowDataAppBuilderLinking,
+            instructions:
+                data.instructions !== undefined
+                    ? data.instructions
+                    : existing.instructions,
+            allowedPathPrefixes:
+                data.allowedPathPrefixes ?? existing.allowedPathPrefixes,
+            allowedMethods: data.allowedMethods ?? existing.allowedMethods,
+            allowedContentTypes:
+                data.allowedContentTypes ?? existing.allowedContentTypes,
+            responseMaxBytes:
+                data.responseMaxBytes ?? existing.responseMaxBytes,
+            requestMaxBytes: data.requestMaxBytes ?? existing.requestMaxBytes,
+            timeoutMs: data.timeoutMs ?? existing.timeoutMs,
+            rateLimitPerMinute:
+                data.rateLimitPerMinute !== undefined
+                    ? data.rateLimitPerMinute
+                    : existing.rateLimitPerMinute,
+            apiKeyName,
+            apiKeyLocation,
+            oauthScopes,
+            customHeaders:
+                data.customHeaders !== undefined
+                    ? data.customHeaders
+                    : existing.customHeaders,
+            hasSecret: hasSecretAfter,
+        };
+
+        validateExternalConnectionConfig(resolved, hasSecretAfter);
+        // A secret-less same-type update keeps the already-validated stored
+        // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
         }
+
+        return resolved;
+    }
+
+    async update(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+        data: UpdateExternalConnection,
+    ): Promise<ExternalConnection> {
+        const existing = await this.getOwnedConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const resolved = ExternalConnectionService.resolveConnectionUpdate(
+            existing,
+            data,
+        );
         // Persist the resolved type-specific fields so foreign fields (and the
         // stale scopes/api-key config) are cleared when the type changes.
         const updated = await this.externalConnectionModel.update(
@@ -446,9 +468,9 @@ export class ExternalConnectionService extends BaseService {
             account.user.id,
             {
                 ...data,
-                apiKeyName: resolvedApiKeyName,
-                apiKeyLocation: resolvedApiKeyLocation,
-                oauthScopes: resolvedOauthScopes,
+                apiKeyName: resolved.apiKeyName,
+                apiKeyLocation: resolved.apiKeyLocation,
+                oauthScopes: resolved.oauthScopes,
             },
         );
         this.analytics.track({
@@ -623,11 +645,14 @@ export class ExternalConnectionService extends BaseService {
             await assertCanViewApp(
                 {
                     auditedAbility: this.createAuditedAbility(user),
-                    getSpaceAccessContext: (userUuid, spaceUuid) =>
-                        this.spacePermissionService.getSpaceAccessContext(
-                            userUuid,
-                            spaceUuid,
-                        ),
+                    resolveAccess: (userUuid, targetApp) =>
+                        this.spacePermissionService.resolveAccess(userUuid, {
+                            type: 'app',
+                            appUuid: targetApp.app_id,
+                            organizationUuid: targetApp.organization_uuid,
+                            projectUuid: targetApp.project_uuid,
+                            spaceUuid: targetApp.space_uuid,
+                        }),
                     getProjectContext: (appProjectUuid) =>
                         this.getDataAppProjectContext(appProjectUuid),
                 },
@@ -1201,31 +1226,43 @@ export class ExternalConnectionService extends BaseService {
             path: string;
             query?: Record<string, string>;
             body?: unknown;
+            config?: UpdateExternalConnection;
         },
     ): Promise<ExternalFetchResponse> {
-        const conn = await this.loadConnectionForProject(
+        const storedConnection = await this.loadConnectionForProject(
             connectionUuid,
             projectUuid,
         );
-        this.assertCanManage(account, conn.projectUuid, conn.organizationUuid);
+        this.assertCanManage(
+            account,
+            storedConnection.projectUuid,
+            storedConnection.organizationUuid,
+        );
+        const connection = req.config
+            ? ExternalConnectionService.resolveConnectionUpdate(
+                  storedConnection,
+                  req.config,
+              )
+            : storedConnection;
 
         // Method allowlist — mirror the runtime proxy so a test rejects a
         // disallowed method instead of silently sending it.
         const method: ExternalConnectionMethod = req.method ?? 'GET';
-        if (!conn.allowedMethods.includes(method)) {
+        if (!connection.allowedMethods.includes(method)) {
             throw new ParameterError(
                 `Method ${method} is not allowed by this connection`,
             );
         }
 
         const secret =
-            conn.type === 'none'
+            connection.type === 'none'
                 ? null
-                : await this.externalConnectionModel.getDecryptedSecret(
+                : req.config?.secret ||
+                  (await this.externalConnectionModel.getDecryptedSecret(
                       connectionUuid,
-                  );
+                  ));
 
-        return this.executeTestFetch(conn, secret, {
+        return this.executeTestFetch(connection, secret, {
             method,
             path: req.path,
             query: req.query,

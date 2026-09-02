@@ -32,6 +32,8 @@ import {
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import {
     useChartHistory,
     useChartVersion,
@@ -112,9 +114,10 @@ const ChartHistoryExplorer = memo<ChartHistoryExplorerProps>(
 
 const ChartHistory = () => {
     const navigate = useNavigate();
-    const { savedQueryUuid: chartIdentifier, projectUuid } = useParams<{
+    const projectUuid = useProjectUuid();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const { savedQueryUuid: chartIdentifier } = useParams<{
         savedQueryUuid: string;
-        projectUuid: string;
     }>();
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
@@ -123,6 +126,7 @@ const ChartHistory = () => {
         projectUuid,
     });
     const chartUuid = chartQuery.data?.uuid;
+    const chartSlug = chartQuery.data?.slug ?? chartIdentifier;
     const historyQuery = useChartHistory(chartUuid);
 
     useEffect(() => {
@@ -135,7 +139,7 @@ const ChartHistory = () => {
     const rollbackMutation = useChartVersionRollbackMutation(chartUuid, {
         onSuccess: () => {
             void navigate(
-                `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
+                `/projects/${projectUrlIdentifier}/saved/${chartSlug}/view`,
             );
         },
     });
@@ -172,7 +176,7 @@ const ChartHistory = () => {
                             items={[
                                 {
                                     title: 'Chart',
-                                    to: `/projects/${projectUuid}/saved/${chartIdentifier}/view`,
+                                    to: `/projects/${projectUrlIdentifier}/saved/${chartSlug}/view`,
                                 },
                                 { title: 'Version history', active: true },
                             ]}
@@ -205,11 +209,7 @@ const ChartHistory = () => {
                                             <Tooltip
                                                 label={`This is the current version.`}
                                             >
-                                                <Badge
-                                                    size="xs"
-                                                    variant="light"
-                                                    color="green"
-                                                >
+                                                <Badge size="xs" color="green">
                                                     current
                                                 </Badge>
                                             </Tooltip>
@@ -227,20 +227,15 @@ const ChartHistory = () => {
                                                     )}
                                                 >
                                                     <Menu
-                                                        withinPortal
                                                         position="bottom-start"
                                                         withArrow
                                                         arrowPosition="center"
-                                                        shadow="md"
                                                         offset={-4}
                                                         closeOnItemClick
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon
-                                                                variant="subtle"
-                                                                color="gray"
-                                                            >
+                                                            <ActionIcon>
                                                                 <IconDots
                                                                     size={16}
                                                                 />

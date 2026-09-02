@@ -118,7 +118,7 @@ const ConnectStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
     form,
 }) => (
     <Stack gap="sm" mt="xl">
-        <Text c="ldGray.6" fz="sm">
+        <Text c="dimmed" fz="sm">
             Give your connection a name and the base URL of the API your data
             apps should be able to call.
         </Text>
@@ -294,7 +294,7 @@ const AccessStep: FC<{ form: UseFormReturnType<WizardValues> }> = ({
         />
         <Switch
             label="Allow public images in linked apps"
-            description="App code can send data to this origin through image URLs. Enable only for trusted public image or tile hosts."
+            description="Linked apps and chart types can load public images from this origin. Enable only for trusted public image or tile hosts."
             disabled={
                 form.values.type !== 'none' && !form.values.allowBrowserImages
             }
@@ -389,14 +389,13 @@ export const AddConnectionWizard: FC<Props> = ({
                     : 'Use a valid header or query parameter name';
             },
             customHeaders: validateCustomHeaderRows,
-            allowedMethods: (value) =>
-                value.length === 0 ? 'Select at least one method' : null,
+            allowedMethods: (value, values) =>
+                value.length === 0 && !values.allowBrowserImages
+                    ? 'Select at least one method or allow public images'
+                    : null,
             allowBrowserImages: (value, values) => {
                 if (value && values.type !== 'none') {
                     return 'Public browser images require no authentication';
-                }
-                if (value && !values.allowedMethods.includes('GET')) {
-                    return 'Public browser images require GET';
                 }
                 return null;
             },

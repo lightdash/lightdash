@@ -19,6 +19,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
 import { PalettePicker } from '../PalettePicker/PalettePicker';
+import { UserSelect } from '../UserSelect';
 
 interface DashboardUpdateModalProps {
     opened: ModalProps['opened'];
@@ -29,6 +30,7 @@ interface DashboardUpdateModalProps {
 
 type FormState = Pick<Dashboard, 'name' | 'description'> & {
     colorPaletteUuid: string | null;
+    ownerUserUuid: string | null;
 };
 
 const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
@@ -40,6 +42,9 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
         uuidOrSlug: uuid,
         projectUuid,
+        // Prefill from the author's own draft, so saving the form doesn't
+        // revert a drafted name back to the published one.
+        includeUnpublishedDraft: true,
     });
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
@@ -53,6 +58,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
             name: '',
             description: '',
             colorPaletteUuid: null,
+            ownerUserUuid: null,
         },
     });
 
@@ -65,6 +71,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
             name: dashboard.name,
             description: dashboard.description ?? '',
             colorPaletteUuid: dashboard.colorPaletteUuid ?? null,
+            ownerUserUuid: dashboard.owner?.userUuid ?? null,
         });
     }, [dashboard, setValues]);
 
@@ -81,6 +88,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
             name: data.name,
             description: data.description,
             colorPaletteUuid: data.colorPaletteUuid,
+            ownerUserUuid: data.ownerUserUuid,
         });
         onConfirm?.();
     });
@@ -122,6 +130,17 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                    />
+
+                    <UserSelect
+                        label="Owner"
+                        placeholder="Assign an owner..."
+                        value={form.values.ownerUserUuid}
+                        onChange={(next) =>
+                            form.setFieldValue('ownerUserUuid', next)
+                        }
+                        disabled={isUpdating}
+                        clearable
                     />
 
                     {overrideActive && (

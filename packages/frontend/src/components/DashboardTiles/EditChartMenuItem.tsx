@@ -1,8 +1,8 @@
 import { type DashboardChartTile } from '@lightdash/common';
 import { IconFilePencil } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import LinkMenuItem, { type LinkMenuItemProps } from '../common/LinkMenuItem';
@@ -10,9 +10,10 @@ import MantineIcon from '../common/MantineIcon';
 
 type Props = LinkMenuItemProps & {
     tile: DashboardChartTile;
+    chartSlug?: string;
 };
 
-const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
+const EditChartMenuItem: FC<Props> = ({ tile, chartSlug, ...props }) => {
     const { user } = useApp();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filtersFromContext = useDashboardContext((c) => c.dashboardFilters);
@@ -24,10 +25,7 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
 
     const { storeDashboard } = useDashboardStorage();
 
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-    }>();
+    const projectUrlIdentifier = useProjectUrlIdentifier();
 
     const userCanManageExplore = user.data?.ability?.can('manage', 'Explore');
 
@@ -47,10 +45,11 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
                         dashboard?.name,
                         activeTab?.uuid,
                         dashboardTabs,
+                        dashboard?.slug,
                     );
                 }
             }}
-            href={`/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/edit?fromDashboard=${dashboardUuid}`}
+            href={`/projects/${projectUrlIdentifier}/saved/${chartSlug ?? tile.properties.savedChartUuid}/edit?fromDashboard=${dashboard?.uuid}`}
             {...props}
         >
             Edit chart

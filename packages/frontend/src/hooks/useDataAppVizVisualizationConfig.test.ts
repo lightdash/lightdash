@@ -16,10 +16,86 @@ describe('useDataAppVizVisualizationConfig', () => {
             useDataAppVizVisualizationConfig(initialConfig),
         );
 
-        expect(result.current.optionValues).toEqual({ showLegend: false });
-        expect(result.current.validConfig.optionValues).toEqual({
+        expect(result.current.validConfig?.optionValues).toEqual({
             showLegend: false,
         });
+        expect(result.current.validConfig?.optionValues).toEqual({
+            showLegend: false,
+        });
+    });
+
+    it('preserves the saved project chart type version through config edits', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                { ...initialConfig, dataAppVizVersion: 7 },
+                onConfigChange,
+            ),
+        );
+
+        act(() => result.current.setField('value', 'orders_count'));
+
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            dataAppVizUuid: 'viz-1',
+            dataAppVizVersion: 7,
+            fieldMapping: {
+                category: 'orders_status',
+                value: 'orders_count',
+            },
+            optionValues: { showLegend: false },
+        });
+    });
+
+    it('pins the selected project chart type to the rendered version', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() => result.current.setDataAppVizVersion(8));
+
+        expect(result.current.validConfig?.dataAppVizVersion).toBe(8);
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            ...initialConfig,
+            dataAppVizVersion: 8,
+        });
+    });
+
+    it('moves to a newer type version with the reconciled binding and options', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(
+                { ...initialConfig, dataAppVizVersion: 3 },
+                onConfigChange,
+            ),
+        );
+
+        act(() =>
+            result.current.upgradeDataAppVizVersion(
+                5,
+                { category: 'orders_status', value: 'orders_count' },
+                {},
+            ),
+        );
+
+        expect(onConfigChange).toHaveBeenLastCalledWith({
+            dataAppVizUuid: 'viz-1',
+            dataAppVizVersion: 5,
+            fieldMapping: { category: 'orders_status', value: 'orders_count' },
+            optionValues: {},
+        });
+    });
+
+    it('ignores an upgrade while no type is selected', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(undefined, onConfigChange),
+        );
+
+        act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
+
+        expect(onConfigChange).not.toHaveBeenCalled();
+        expect(result.current.validConfig).toBeNull();
     });
 
     it('defaults to an empty option map when nothing is saved', () => {
@@ -30,7 +106,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             }),
         );
 
-        expect(result.current.optionValues).toEqual({});
+        expect(result.current.validConfig?.optionValues).toEqual({});
     });
 
     it('stores only explicitly set options and pushes them up', () => {
@@ -41,7 +117,7 @@ describe('useDataAppVizVisualizationConfig', () => {
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
 
-        expect(result.current.optionValues).toEqual({
+        expect(result.current.validConfig?.optionValues).toEqual({
             showLegend: false,
             barColor: '#ff0000',
         });
@@ -65,7 +141,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             result.current.setOption('viz-1', 'title', 'Revenue');
         });
 
-        expect(result.current.optionValues).toEqual({
+        expect(result.current.validConfig?.optionValues).toEqual({
             showLegend: false,
             barColor: '#ff0000',
             title: 'Revenue',
@@ -92,7 +168,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             result.current.setField('series', 'orders_channel');
         });
 
-        expect(result.current.fieldMapping).toEqual({
+        expect(result.current.validConfig?.fieldMapping).toEqual({
             category: 'orders_status',
             value: 'orders_count',
             series: 'orders_channel',
@@ -134,7 +210,7 @@ describe('useDataAppVizVisualizationConfig', () => {
 
         act(() => result.current.setDataAppVizUuid('viz-2', {}));
 
-        expect(result.current.optionValues).toEqual({});
+        expect(result.current.validConfig?.optionValues).toEqual({});
         expect(onConfigChange).toHaveBeenCalledWith({
             dataAppVizUuid: 'viz-2',
             fieldMapping: {},
@@ -155,7 +231,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         onConfigChange.mockClear();
         act(() => result.current.setOption('viz-1', 'title', 'Revenue'));
 
-        expect(result.current.optionValues).toEqual({});
+        expect(result.current.validConfig?.optionValues).toEqual({});
         expect(onConfigChange).not.toHaveBeenCalled();
     });
 
@@ -186,7 +262,7 @@ describe('useDataAppVizVisualizationConfig', () => {
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
 
-        expect(result.current.optionValues).toEqual({
+        expect(result.current.validConfig?.optionValues).toEqual({
             showLegend: false,
             barColor: '#ff0000',
         });
@@ -195,6 +271,152 @@ describe('useDataAppVizVisualizationConfig', () => {
             fieldMapping: { category: 'orders_status' },
             optionValues: { showLegend: false, barColor: '#ff0000' },
         });
+    });
+
+    it('adopts a viz switched from outside without echoing it back', () => {
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ config }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange),
+            { initialProps: { config: initialConfig } },
+        );
+
+        act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
+        onConfigChange.mockClear();
+
+        rerender({
+            config: {
+                dataAppVizUuid: 'viz-2',
+                fieldMapping: { value: 'orders_total' },
+                optionValues: {},
+            },
+        });
+
+        expect(result.current.dataAppVizUuid).toBe('viz-2');
+        expect(result.current.validConfig?.fieldMapping).toEqual({
+            value: 'orders_total',
+        });
+        expect(result.current.validConfig?.optionValues).toEqual({});
+        expect(onConfigChange).not.toHaveBeenCalled();
+
+        act(() => result.current.setOption('viz-2', 'barColor', '#00ff00'));
+
+        expect(onConfigChange).toHaveBeenCalledWith({
+            dataAppVizUuid: 'viz-2',
+            fieldMapping: { value: 'orders_total' },
+            optionValues: { barColor: '#00ff00' },
+        });
+    });
+
+    it('keeps local edits when the same viz is echoed back', () => {
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ config }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange),
+            { initialProps: { config: initialConfig } },
+        );
+
+        act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
+        rerender({ config: { ...initialConfig } });
+
+        expect(result.current.validConfig?.optionValues).toEqual({
+            showLegend: false,
+            barColor: '#ff0000',
+        });
+    });
+
+    it('drops the pin when the same project chart type is re-selected', () => {
+        const { result, rerender } = renderHook(
+            ({ config }) => useDataAppVizVisualizationConfig(config),
+            {
+                initialProps: {
+                    config: {
+                        ...initialConfig,
+                        dataAppVizVersion: 3,
+                    } as DataAppVizChart,
+                },
+            },
+        );
+
+        rerender({ config: initialConfig });
+
+        expect(result.current.validConfig?.dataAppVizVersion).toBeUndefined();
+    });
+
+    it('points at no viz when the chart has no config', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(undefined),
+        );
+
+        expect(result.current.validConfig).toBeNull();
+        expect(result.current.dataAppVizUuid).toBeNull();
+    });
+
+    it('reads the legacy empty uuid as no viz', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({
+                dataAppVizUuid: '',
+                fieldMapping: {},
+                optionValues: {},
+            }),
+        );
+
+        expect(result.current.validConfig).toBeNull();
+        expect(result.current.dataAppVizUuid).toBeNull();
+    });
+
+    it('reads a config with no uuid as no viz', () => {
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig({} as DataAppVizChart),
+        );
+
+        expect(result.current.validConfig).toBeNull();
+        expect(result.current.dataAppVizUuid).toBeNull();
+    });
+
+    it('clears the selection and pushes the absence up', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        );
+
+        act(() => result.current.clearDataAppViz());
+
+        expect(result.current.validConfig).toBeNull();
+        expect(onConfigChange).toHaveBeenCalledWith(null);
+    });
+
+    it('ignores field and option edits while no viz is selected', () => {
+        const onConfigChange = vi.fn();
+        const { result } = renderHook(() =>
+            useDataAppVizVisualizationConfig(undefined, onConfigChange),
+        );
+
+        act(() => {
+            result.current.setField('value', 'orders_count');
+            result.current.setOption('viz-1', 'title', 'Revenue');
+        });
+
+        expect(result.current.validConfig).toBeNull();
+        expect(onConfigChange).not.toHaveBeenCalled();
+    });
+
+    it('adopts an absent config from outside without echoing it back', () => {
+        const onConfigChange = vi.fn();
+        const { result, rerender } = renderHook(
+            ({ config }) =>
+                useDataAppVizVisualizationConfig(config, onConfigChange),
+            {
+                initialProps: {
+                    config: initialConfig as DataAppVizChart | undefined,
+                },
+            },
+        );
+
+        rerender({ config: undefined });
+
+        expect(result.current.validConfig).toBeNull();
+        expect(onConfigChange).not.toHaveBeenCalled();
     });
 
     it('round-trips the emitted config back into a fresh hook', () => {

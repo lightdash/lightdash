@@ -71,7 +71,9 @@ import type {
     ApiGetUserAgentPreferencesResponse,
     ApiHomepageLinkMetadataResponse,
     ApiHomepageViewAsResponse,
+    ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
+    ApiListRegistryChartTypesResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -95,6 +97,7 @@ import type {
     DecodedEmbed,
     EmbedUrl,
     ExternalConnection,
+    ExternalConnectionLinkedApps,
     ExternalConnectionSample,
     ExternalFetchResponse,
 } from '../ee';
@@ -102,6 +105,7 @@ import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
+    type QueryExecutionContext,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
@@ -141,6 +145,17 @@ import {
     type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
+    type ApiContentAsCodeProposeResponse,
+    type ApiContentAsCodePullResponse,
+    type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeUploadAdvisoryResponse,
+    type ApiContentAsCodeWritebacksResponse,
+    type ApiContentDraftRebaseResponse,
+    type ApiContentDraftReopenResponse,
+    type ApiContentDraftReviewResponse,
+    type ApiContentDraftsResponse,
+    type ApiContentDraftStalenessResponse,
+    type ApiContentDraftWriteBackResponse,
     type ApiDashboardAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeListResponse,
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
@@ -157,11 +172,20 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
+    type ContentReviewRequest,
+    type ContentReviewRequestDetail,
+    type ContentReviewRequestListItem,
+    type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
+} from './contentReviewRequests';
+import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiVerifiedContentListResponse,
 } from './contentVerification';
 import {
+    type ApiReassignUserDashboardsResponse,
+    type ApiUserDashboardsSummaryResponse,
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
@@ -176,6 +200,11 @@ import {
     type ExploreError,
     type SummaryExplore,
 } from './explore';
+import {
+    type ExternalSource,
+    type ExternalSourceTablePreview,
+    type StagedExternalSourceUpload,
+} from './externalSources';
 import { type ApiFavoriteItems, type ApiToggleFavorite } from './favorites';
 import {
     type DimensionType,
@@ -202,9 +231,12 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import { type KnexPaginatedData } from './knex-paginate';
+import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
+    type MergeQuery,
     type MergeQueryError,
 } from './mergeQuery';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
@@ -218,6 +250,7 @@ import {
 } from './oauth';
 import {
     type DeleteOpenIdentity,
+    type OpenIdIdentityIssuerType,
     type OpenIdIdentitySummary,
 } from './openIdIdentity';
 import {
@@ -286,6 +319,7 @@ import {
     type PreAggregateFallbackReason,
     type QueryHistoryStatus,
 } from './queryHistory';
+import { type ApiQueryHistoryListResponse } from './queryHistoryList';
 import {
     type ApiExecuteSourceQueriesResults,
     type ApiGetSourceQueryStatusResults,
@@ -295,6 +329,7 @@ import {
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
+import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
 import { type ApiRoadmapResponse } from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
@@ -440,6 +475,12 @@ export type ApiRefreshResults = {
     jobUuid: string;
 };
 
+// Optional so callers that send no body (the CLI, API clients) keep working
+export type ApiRefreshBody = {
+    // Run the content-as-code pull as a job step after compiling
+    syncContent?: boolean;
+};
+
 export type ApiCreatePreviewResults = {
     projectUuid: string;
     compileJobUuid: string;
@@ -545,6 +586,12 @@ export type HealthState = {
     };
     mode: LightdashMode;
     version: string;
+    mobile: {
+        minimumSupportedVersion: {
+            android: string | null;
+            ios: string | null;
+        };
+    };
     localDbtEnabled: boolean;
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
@@ -614,6 +661,10 @@ export type HealthState = {
         databricks: {
             enabled: boolean;
         };
+        mobileLogin?: {
+            loginExperienceVersion: 1;
+            available: boolean;
+        };
     };
     siteUrl: string;
     intercom: {
@@ -659,6 +710,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
@@ -807,6 +859,7 @@ export enum CreateProjectTableConfiguration {
 export type CreateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'queryTimezone'
@@ -846,6 +899,7 @@ export const hasWarehouseCredentials = (
 export type UpdateProject = Omit<
     Project,
     | 'projectUuid'
+    | 'slug'
     | 'organizationUuid'
     | 'type'
     | 'schedulerTimezone'
@@ -930,6 +984,21 @@ export type ApiExecuteAsyncMergeQueryRequest = Omit<
     chart?: MergeQueryChart;
 };
 
+/**
+ * Merge execution request for the compose endpoint, which accepts the full
+ * MergeQuerySource union (including references to existing query results).
+ * A separate endpoint keeps the original merge-query contract untouched for
+ * existing clients while compose-only capabilities evolve on their own path.
+ */
+export type ApiExecuteAsyncComposeMergeQueryRequest = {
+    context?: QueryExecutionContext;
+    invalidateCache?: boolean;
+    parameters?: ParametersValuesMap;
+    mergeQuery: MergeQuery;
+    mode?: MergeQueryExecutionMode;
+    chart?: MergeQueryChart;
+};
+
 export type ApiExecuteAsyncDashboardChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         metricQuery: MetricQuery;
@@ -977,6 +1046,13 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
+    /**
+     * Resolved display timezone the query was built with (what execute
+     * responses return as `resolvedTimezone`); null for SQL queries and when
+     * timezone support is off. Temporal column formats cannot be rendered
+     * from the page without it.
+     */
+    resolvedTimezone?: string | null;
     metadata: QueryResultsMetadata;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
@@ -1122,6 +1198,14 @@ export type InviteLink = {
     email: string;
     purpose: InviteLinkPurpose;
 };
+export type InviteLinkAuthenticationOptions = {
+    allowOneClickActivation: boolean;
+    allowPasswordSignup: boolean;
+    ssoProviders: OpenIdIdentityIssuerType[];
+};
+export interface InviteLinkWithAuthenticationOptions extends InviteLink {
+    authentication: InviteLinkAuthenticationOptions;
+}
 export type CreateInviteLink = {
     email: string;
     expiresAt?: Date;
@@ -1132,6 +1216,11 @@ export type CreateInviteLink = {
 export type ApiInviteLinkResponse = {
     status: 'ok';
     results: InviteLink;
+};
+
+export type ApiGetInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLinkWithAuthenticationOptions;
 };
 
 export type ApiCreateProjectResults = {
@@ -1146,6 +1235,11 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ContentReviewRequest
+    | ContentReviewRequestDetail
+    | ContentReviewSettings
+    | ContentReviewSimilarContentItem[]
+    | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
     | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
@@ -1240,6 +1334,9 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | LinearInstallation
+    | Array<LinearTeam>
+    | Array<LinearProject>
     | CiChecks
     | MergePullRequestResult
     | ClosePullRequestResult
@@ -1316,6 +1413,17 @@ type ApiResults =
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
+    | ApiContentAsCodeWritebacksResponse['results']
+    | ApiContentDraftsResponse['results']
+    | ApiContentDraftReviewResponse['results']
+    | ApiContentDraftRebaseResponse['results']
+    | ApiContentDraftStalenessResponse['results']
+    | ApiContentDraftReopenResponse['results']
+    | ApiContentDraftWriteBackResponse['results']
+    | ApiContentAsCodeProposeResponse['results']
+    | ApiContentAsCodePullResponse['results']
+    | ApiContentAsCodeSettingsResponse['results']
+    | ApiContentAsCodeUploadAdvisoryResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
     | ApiGetMetricsTreesResponse['results']
@@ -1332,11 +1440,14 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
     | ApiReassignUserSchedulersResponse['results']
+    | ApiUserDashboardsSummaryResponse['results']
+    | ApiReassignUserDashboardsResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiRenameResponse['results']
@@ -1409,6 +1520,7 @@ type ApiResults =
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
+    | ApiResultsCacheProjectSettingsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
@@ -1421,6 +1533,8 @@ type ApiResults =
     | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
     | ApiListDataAppVizsResponse['results']
+    | ApiListRegistryChartTypesResponse['results']
+    | ApiInstallRegistryChartTypeResponse['results']
     | ApiGetDataAppVizResponse['results']
     | ApiDataAppVizRenderMetadataResponse['results']
     | ApiDataAppVizPreviewTokenResponse['results']
@@ -1452,11 +1566,16 @@ type ApiResults =
     | DashboardPreAggregateAudit
     | ExternalConnection
     | ExternalConnection[]
+    | ExternalConnectionLinkedApps
     | ExternalConnectionSample
     | ExternalConnectionSample[]
     | AppExternalConnectionLink
     | AppExternalConnectionLink[]
-    | ExternalFetchResponse;
+    | ExternalFetchResponse
+    | ExternalSource
+    | ExternalSource[]
+    | ExternalSourceTablePreview
+    | StagedExternalSourceUpload;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
@@ -1469,7 +1588,7 @@ export type ApiErrorDetail = {
     name: string;
     statusCode: number;
     message: string;
-    data: { [key: string]: string };
+    data: { [key: string]: AnyType };
     sentryTraceId?: string;
     sentryEventId?: string;
 };

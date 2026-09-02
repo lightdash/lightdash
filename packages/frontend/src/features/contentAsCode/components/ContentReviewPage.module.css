@@ -1,0 +1,24 @@
+.row {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--mantine-radius-md);
+    transition:
+        background-color 100ms ease,
+        transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.row:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.row:active {
+    transform: scale(0.99);
+}
+
+.row[data-active='true'],
+.row[data-active='true']:hover {
+    background-color: var(--mantine-color-default-hover);
+}

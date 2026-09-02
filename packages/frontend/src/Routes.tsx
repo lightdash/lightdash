@@ -230,6 +230,22 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/minimal/projects/:projectUuid/ai-agents/:agentUuid/artifacts/:artifactUuid/versions/:versionUuid',
+                lazy: async () => {
+                    const MinimalAiAgentArtifact = await loadLazyRouteDefault(
+                        './ee/pages/MinimalAiAgentArtifact',
+                        () => import('./ee/pages/MinimalAiAgentArtifact'),
+                    );
+                    return {
+                        Component: () => (
+                            <Stack p="lg" h="100vh">
+                                <MinimalAiAgentArtifact />
+                            </Stack>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/minimal/projects/:projectUuid/apps/:appUuid',
                 lazy: async () => {
                     const MinimalApp = await loadLazyRouteDefault(
@@ -482,6 +498,22 @@ const SPACES_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'shared-with-me',
+        lazy: async () => {
+            const SharedWithMe = await loadLazyRouteDefault(
+                './pages/SharedWithMe',
+                () => import('./pages/SharedWithMe'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.SHARED_WITH_ME}>
+                        <SharedWithMe />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'spaces/:spaceUuid',
         lazy: async () => {
             const Space = await loadLazyRouteDefault(
@@ -590,6 +622,40 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
                 Component: () => (
                     <TrackPage name={PageName.HOME}>
                         <Home />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
+        path: 'review-requests',
+        lazy: async () => {
+            const ContentReviewRequestsPage = await loadLazyRouteDefault(
+                './ee/features/contentReview/pages/ContentReviewRequestsPage',
+                () =>
+                    import('./ee/features/contentReview/pages/ContentReviewRequestsPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.CONTENT_REVIEW_REQUESTS}>
+                        <ContentReviewRequestsPage />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
+        path: 'review-requests/:requestUuid',
+        lazy: async () => {
+            const ContentReviewRequestPage = await loadLazyRouteDefault(
+                './ee/features/contentReview/pages/ContentReviewRequestPage',
+                () =>
+                    import('./ee/features/contentReview/pages/ContentReviewRequestPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.CONTENT_REVIEW_REQUEST}>
+                        <ContentReviewRequestPage />
                     </TrackPage>
                 ),
             };
@@ -723,6 +789,22 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
                 Component: () => (
                     <TrackPage name={PageName.USER_ACTIVITY}>
                         <UserActivity />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
+        path: 'query-history',
+        lazy: async () => {
+            const QueryHistory = await loadLazyRouteDefault(
+                './pages/QueryHistory',
+                () => import('./pages/QueryHistory'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.QUERY_HISTORY}>
+                        <QueryHistory />
                     </TrackPage>
                 ),
             };

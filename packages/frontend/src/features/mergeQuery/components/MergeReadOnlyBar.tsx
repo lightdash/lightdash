@@ -55,7 +55,7 @@ export const MergeReadOnlyBar: FC = () => {
     const runError = merge.mergeResults?.results.error ?? null;
 
     return (
-        <Paper withBorder radius="md" px="sm" py="xs">
+        <Paper radius="md" px="sm" py="xs">
             <Group gap="sm" wrap="nowrap">
                 <ThemeIcon variant="light" color="gray" radius="md" size="md">
                     <MantineIcon
@@ -64,7 +64,7 @@ export const MergeReadOnlyBar: FC = () => {
                         size={14}
                     />
                 </ThemeIcon>
-                <Box style={{ flex: 1, minWidth: 0 }}>
+                <Box flex={1} miw={0}>
                     <Group gap={6} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
                             {primaryExploreLabel}

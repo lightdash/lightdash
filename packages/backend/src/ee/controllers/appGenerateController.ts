@@ -14,6 +14,7 @@ import {
     type ApiDataAppVizPreviewTokenResponse,
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
@@ -22,7 +23,9 @@ import {
     type ApiGetDataAppAuthoringContextResponse,
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
+    type ApiInstallRegistryChartTypeResponse,
     type ApiListDataAppVizsResponse,
+    type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiPromoteAppDiffResponse,
@@ -109,7 +112,9 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * List the project's data apps (for the embed config allowlist picker).
+     * List the project's data apps (for the embed config allowlist picker
+     * and the CLI's project-wide listing). Custom chart types are never
+     * included — they have their own listing at /chart-types.
      * @summary List project data apps
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -125,7 +130,89 @@ export class AppGenerateController extends BaseController {
         const results = await this.getAppGenerateService().listAppsForProject(
             toSessionUser(req.account),
             projectUuid,
+            'exclude',
         );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the project's custom chart types (for the CLI's
+     * chart-types-as-code listing). Same shape as the data apps listing;
+     * a 404 tells older CLIs the server predates the split.
+     * @summary List project custom chart types
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/chart-types')
+    @OperationId('listProjectChartTypes')
+    async listProjectChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiEmbedProjectAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAppGenerateService().listAppsForProject(
+            toSessionUser(req.account),
+            projectUuid,
+            'only',
+        );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * The installable chart type catalog from the configured chart
+     * registry, merged with this project's install state.
+     * @summary List installable chart types from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/registry/charts')
+    @OperationId('listRegistryChartTypes')
+    async listRegistryChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiListRegistryChartTypesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().listRegistryChartTypes(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Install a chart type from the chart registry, or append a new version
+     * when it's already installed at an older registry version.
+     * @summary Install or upgrade a chart type from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/registry/charts/{chartSlug}/install')
+    @OperationId('installRegistryChartType')
+    async installRegistryChartType(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() chartSlug: string,
+    ): Promise<ApiInstallRegistryChartTypeResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().installRegistryChartType(
+                toSessionUser(req.account),
+                projectUuid,
+                chartSlug,
+            );
         return {
             status: 'ok',
             results,
@@ -588,12 +675,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Body() body?: ApiDuplicateAppRequest,
     ): Promise<ApiDuplicateAppResponse> {
         assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().duplicateApp(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            body,
         );
         this.setStatus(200);
         return {
@@ -955,6 +1044,7 @@ export class AppGenerateController extends BaseController {
     /**
      * List schedulers for a data app
      * @summary List app schedulers
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -964,6 +1054,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiAppSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -971,7 +1062,11 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getAppSchedulers(toSessionUser(req.account), appUuid),
+                .getAppSchedulers(
+                    toSessionUser(req.account),
+                    appUuid,
+                    includeLatestRun,
+                ),
         };
     }
 
@@ -1074,6 +1169,7 @@ export class OrgAppsController extends BaseController {
         @Query() models?: DataAppActivityFilters['models'],
         @Query() dateFrom?: DataAppActivityFilters['dateFrom'],
         @Query() dateTo?: DataAppActivityFilters['dateTo'],
+        @Query() dataAppVizsFilter?: 'exclude' | 'only',
     ): Promise<ApiDataAppActivityResponse> {
         assertRegisteredAccount(req.account);
         validateUuidFilter('projectUuids', projectUuids);
@@ -1093,6 +1189,7 @@ export class OrgAppsController extends BaseController {
             ...(models && { models }),
             ...(dateFrom && { dateFrom }),
             ...(dateTo && { dateTo }),
+            ...(dataAppVizsFilter && { dataAppVizsFilter }),
         };
         const results = await this.services
             .getAppGenerateService<AppGenerateService>()

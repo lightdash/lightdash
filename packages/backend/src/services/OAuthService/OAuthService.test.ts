@@ -6,6 +6,8 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { OAuthService } from './OAuthService';
 
+const JAVASCRIPT_REDIRECT_URI = ['javascript', 'alert(1)'].join(':');
+
 // Test subclass to expose oauthServer for mocking
 class TestOAuthService extends OAuthService {
     public setOAuthServer(server: AnyType) {
@@ -25,8 +27,10 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         mockOAuthModel = {
             getAccessToken: vi.fn(),
+            getClient: vi.fn(),
             revokeToken: vi.fn(),
             revokeRefreshToken: vi.fn(),
+            validateRedirectUri: vi.fn(),
         } as AnyType;
         mockLightdashConfig = {
             siteUrl: 'https://lightdash.com',
@@ -117,5 +121,56 @@ describe('OAuthService edge cases', () => {
                 organization_uuid: 'o',
             } as AnyType),
         ).rejects.toThrow('Invalid redirect_uri');
+    });
+
+    describe('validateRedirectUri', () => {
+        const client: OAuth2Server.Client = {
+            id: 'client-id',
+            redirectUris: ['https://example.com/callback'],
+            grants: ['authorization_code'],
+        };
+
+        it('returns false when the client cannot be resolved', async () => {
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(false);
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    'unknown-client',
+                    'https://example.com/callback',
+                ),
+            ).resolves.toBe(false);
+            expect(mockOAuthModel.validateRedirectUri).not.toHaveBeenCalled();
+        });
+
+        it('delegates redirect matching to the OAuth model', async () => {
+            vi.mocked(mockOAuthModel.getClient).mockResolvedValue(client);
+            vi.mocked(mockOAuthModel.validateRedirectUri).mockResolvedValue(
+                true,
+            );
+
+            await expect(
+                oauthService.validateRedirectUri(
+                    'client-id',
+                    'https://example.com/callback',
+                ),
+            ).resolves.toBe(true);
+            expect(mockOAuthModel.validateRedirectUri).toHaveBeenCalledWith(
+                'https://example.com/callback',
+                client,
+            );
+        });
+    });
+
+    describe('registerClient', () => {
+        it('rejects an unsafe redirect URI scheme', async () => {
+            await expect(
+                oauthService.registerClient({
+                    clientName: 'Unsafe client',
+                    redirectUris: [JAVASCRIPT_REDIRECT_URI],
+                }),
+            ).rejects.toThrow(
+                `Invalid redirect URI ${JAVASCRIPT_REDIRECT_URI}`,
+            );
+        });
     });
 });

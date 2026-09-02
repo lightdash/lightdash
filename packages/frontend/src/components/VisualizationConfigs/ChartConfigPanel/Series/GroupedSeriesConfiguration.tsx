@@ -26,7 +26,6 @@ import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
-import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 import {
     SeriesDepthControl,
@@ -266,9 +265,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     <Config.Label>Total</Config.Label>
                                     <Switch
                                         size="xs"
-                                        classNames={{
-                                            label: compactStyles.compactCheckboxLabel,
-                                        }}
                                         checked={
                                             seriesGroup[0].stackLabel?.show
                                         }
@@ -289,9 +285,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         <Group gap="xs">
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -304,9 +297,6 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             />
                             <Checkbox
                                 size="xs"
-                                classNames={{
-                                    label: compactStyles.compactCheckboxLabel,
-                                }}
                                 checked={seriesGroup[0].smooth}
                                 label="Smooth"
                                 onChange={() => {

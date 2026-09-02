@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ExpectedNotFoundError,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -235,7 +236,7 @@ export class AiRouterService extends BaseService {
         const router =
             await this.aiRouterModel.findByOrganization(organizationUuid);
         if (!router) {
-            throw new NotFoundError('AI router not configured');
+            throw new ExpectedNotFoundError('AI router not configured');
         }
         return router;
     }

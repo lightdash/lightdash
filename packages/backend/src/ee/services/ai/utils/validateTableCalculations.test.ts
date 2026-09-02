@@ -473,4 +473,195 @@ describe('validateTableCalculations', () => {
             ).toThrow(/requires a numeric metric.*has type "max"/);
         });
     });
+
+    describe('Formula table calculations', () => {
+        const formulaCalc = (
+            name: string,
+            formula: string,
+        ): NonNullable<TableCalcsSchema>[number] => ({
+            type: 'formula',
+            name,
+            displayName: name,
+            formula,
+            format: null,
+            resultType: null,
+        });
+
+        it('should not throw for a ratio across two selected metrics', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'aov',
+                            'orders_total_revenue / orders_order_count',
+                        ),
+                    ],
+                    [],
+                    ['orders_total_revenue', 'orders_order_count'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should not throw for a formula referencing a selected dimension', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'lagged',
+                            '(orders_total_revenue - LAG(orders_total_revenue, ORDER BY orders_order_date)) / LAG(orders_total_revenue, ORDER BY orders_order_date)',
+                        ),
+                    ],
+                    ['orders_order_date'],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should not throw for a formula referencing another table calculation', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'aov',
+                            'orders_total_revenue / orders_order_count',
+                        ),
+                        formulaCalc('aov_doubled', 'aov * 2'),
+                    ],
+                    [],
+                    ['orders_total_revenue', 'orders_order_count'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should not throw for a formula referencing a custom metric', () => {
+            const customMetrics: CustomMetricBaseTransformed[] = [
+                {
+                    name: 'custom_sum',
+                    label: 'Custom Sum',
+                    baseDimensionName: 'amount',
+                    table: 'orders',
+                    type: MetricType.SUM,
+                },
+            ];
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [formulaCalc('doubled', 'orders_custom_sum * 2')],
+                    [],
+                    ['orders_total_revenue'],
+                    customMetrics,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should throw for a formula referencing an unselected field', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'aov',
+                            'orders_total_revenue / orders_order_count',
+                        ),
+                    ],
+                    [],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).toThrow(/references "orders_order_count" which is not selected/);
+        });
+
+        it('should throw for a formula with a parse error', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [formulaCalc('broken', 'orders_total_revenue +')],
+                    [],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).toThrow(/invalid formula/);
+        });
+
+        // The refs-are-selected check would pass a self-reference (the calc's
+        // own name counts as selected); circular detection must catch it.
+        it('should throw for a formula referencing itself', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [formulaCalc('self', 'self + 1')],
+                    [],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).toThrow(/[Cc]ircular/);
+        });
+
+        it('should throw for circular formula references', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc('calc_a', 'calc_b + 1'),
+                        formulaCalc('calc_b', 'calc_a + 1'),
+                    ],
+                    [],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).toThrow(/[Cc]ircular/);
+        });
+
+        it('should not throw for a sum across metrics', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'combined',
+                            'orders_total_revenue + orders_order_count',
+                        ),
+                    ],
+                    [],
+                    ['orders_total_revenue', 'orders_order_count'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should not throw for cohort rebasing with FIRST', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [
+                        formulaCalc(
+                            'rebased',
+                            'orders_total_revenue / FIRST(orders_total_revenue, PARTITION BY orders_product_category, ORDER BY orders_order_date)',
+                        ),
+                    ],
+                    ['orders_product_category', 'orders_order_date'],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+
+        it('should accept a formula with a leading equals sign', () => {
+            expect(() =>
+                validateTableCalculations(
+                    mockOrdersExplore,
+                    [formulaCalc('doubled', '=orders_total_revenue * 2')],
+                    [],
+                    ['orders_total_revenue'],
+                    null,
+                ),
+            ).not.toThrow();
+        });
+    });
 });

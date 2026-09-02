@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     type ApiErrorPayload,
+    type ApiListExternalConnectionLinkedAppsResponse,
     type ApiListExternalConnectionSamplesResponse,
     type ApiProposeExternalConnectionConfigRequest,
     type ApiProposeExternalConnectionConfigResponse,
@@ -132,6 +133,31 @@ export class ExternalConnectionController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().get(
+                req.account,
+                projectUuid,
+                connectionUuid,
+            ),
+        };
+    }
+
+    /**
+     * List the data apps and chart types linked to an external connection
+     * @summary List apps linked to an external connection
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('external-connections/{connectionUuid}/linked-apps')
+    @OperationId('listExternalConnectionLinkedApps')
+    async listExternalConnectionLinkedApps(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() connectionUuid: string,
+    ): Promise<ApiListExternalConnectionLinkedAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().listLinkedApps(
                 req.account,
                 projectUuid,
                 connectionUuid,
@@ -374,6 +400,7 @@ export class ExternalConnectionController extends BaseController {
                 path: body.path,
                 query: body.query,
                 body: body.body,
+                config: body.config,
             },
         );
         return { status: 'ok', results };

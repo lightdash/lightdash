@@ -194,11 +194,11 @@
 }
 
 .td[data-interactive][data-selected][data-has-data] {
-    box-shadow: inset 0 0 0 1px var(--table-selected-border) !important;
+    box-shadow: inset 0 0 0 1px var(--ld-table-selected-border) !important;
 }
 
 .td[data-interactive][data-selected][data-has-data]:not([data-background]) {
-    background-color: var(--table-selected-bg) !important;
+    background-color: var(--ld-table-selected-bg) !important;
 }
 
 .td[data-interactive][data-selected][data-has-data][data-background] {

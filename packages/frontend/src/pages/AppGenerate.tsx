@@ -99,6 +99,7 @@ import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppPreview from '../features/apps/components/AppPreview';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
+import ConnectionChip from '../features/apps/components/ConnectionChip';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -148,10 +149,12 @@ import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToChatMessages } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useAppExternalConnections } from '../features/externalConnections/hooks/useAppExternalConnections';
 import { ThemePicker } from '../features/organizationDesigns/components/ThemePicker';
 import { useOrganizationDesigns } from '../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useToaster from '../hooks/toaster/useToaster';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -191,12 +194,7 @@ const AppResourceImage: FC<{
 const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
     const t = getTemplate(template);
     return (
-        <Badge
-            variant="light"
-            color="gray"
-            size="md"
-            leftSection={<MantineIcon icon={t.icon} size={12} />}
-        >
+        <Badge size="md" leftSection={<MantineIcon icon={t.icon} size={12} />}>
             {t.title}
         </Badge>
     );
@@ -211,13 +209,11 @@ const ThemeChip: FC<{
     disabled?: boolean;
     onThemeChange: (designUuid: string | null) => void;
 }> = ({ themeName, selectedThemeUuid, themes, disabled, onThemeChange }) => (
-    <Menu position="top-start" shadow="md" withinPortal>
+    <Menu position="top-start">
         <Menu.Target>
             <Badge
                 component="button"
                 type="button"
-                variant="light"
-                color="gray"
                 size="md"
                 leftSection={<MantineIcon icon={IconBrush} size={12} />}
                 disabled={disabled}
@@ -268,32 +264,6 @@ const ThemeChip: FC<{
     </Menu>
 );
 
-/** A removable pill for a connection selected for this prompt. */
-const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
-    name,
-    onRemove,
-}) => (
-    <Badge
-        variant="light"
-        color="gray"
-        size="md"
-        leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
-        rightSection={
-            <ActionIcon
-                size="xs"
-                variant="transparent"
-                color="gray"
-                onClick={onRemove}
-                aria-label={`Remove ${name}`}
-            >
-                <MantineIcon icon={IconX} size={10} />
-            </ActionIcon>
-        }
-    >
-        {name}
-    </Badge>
-);
-
 /** A removable pill for an element picked with the inspector. Matches the
  *  chart/dashboard pill shape, violet-tinted to mark inspector picks. */
 const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
@@ -303,7 +273,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
     const label = elementRefChipLabel(elementRef);
     return (
         <Tooltip
-            withArrow
             position="top-start"
             disabled={!elementRef.loc}
             label={`Source: ${elementRef.loc}`}
@@ -315,8 +284,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
                 </Text>
                 <ActionIcon
                     size="xs"
-                    variant="subtle"
-                    color="gray"
                     radius="xl"
                     onClick={onRemove}
                     aria-label={`Remove ${label}`}
@@ -333,7 +300,6 @@ const ElementRefChip: FC<{ elementRef: ElementRef; onRemove: () => void }> = ({
  *  in the tooltip so the author can confirm what was installed. */
 const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
     <Tooltip
-        withArrow
         position="top-start"
         label={
             <Stack gap={2}>
@@ -349,8 +315,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="sm"
             leftSection={<MantineIcon icon={IconPackage} size={10} />}
         >
@@ -362,7 +326,6 @@ const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
 /** A status pill (theme-pill style) listing the connections this app can call. */
 const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
     <Tooltip
-        withArrow
         position="top"
         label={
             <Stack gap={2}>
@@ -378,8 +341,6 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
         }
     >
         <Badge
-            variant="light"
-            color="gray"
             size="md"
             leftSection={<MantineIcon icon={IconPlugConnected} size={12} />}
         >
@@ -389,10 +350,8 @@ const AvailableConnectionsChip: FC<{ aliases: string[] }> = ({ aliases }) => (
 );
 
 const AppGenerate: FC = () => {
-    const { projectUuid, appUuid: urlAppUuid } = useParams<{
-        projectUuid: string;
-        appUuid: string;
-    }>();
+    const { appUuid: urlAppUuid } = useParams();
+    const projectUuid = useProjectUuid();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
@@ -1155,14 +1114,26 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
-    // Upgrade offer for the header menu, derived from the previewed bundle's
-    // SDK manifest. Keyed per app+version so rollbacks/deploys re-classify.
-    const { offer: sdkUpgradeOffer, onSdkManifest: handleSdkManifest } =
-        useSdkUpgradeStatus({
-            resetKey: previewApp
-                ? `${previewApp.appUuid}:${previewApp.version}`
+    // Upgrade offer for the header menu. Keyed to the latest ready bundle —
+    // the one an upgrade would rebuild from — not to whatever version the
+    // user has pinned the preview to.
+    const {
+        offer: sdkUpgradeOffer,
+        renderedManifest: renderedSdkManifest,
+        onSdkManifest: handleSdkManifest,
+    } = useSdkUpgradeStatus({
+        bundleKey:
+            activeAppUuid && latestReadyVersion !== null
+                ? `${activeAppUuid}:${latestReadyVersion.version}`
                 : null,
-        });
+        renderedKey: previewApp
+            ? `${previewApp.appUuid}:${previewApp.version}`
+            : null,
+        isRendering:
+            previewApp !== null &&
+            latestReadyVersion !== null &&
+            previewApp.version === latestReadyVersion.version,
+    });
 
     // Pin the preview to a specific version. Captures the current latest as
     // the "pinned-at" snapshot so the derived state can decide later when
@@ -1354,7 +1325,7 @@ const AppGenerate: FC = () => {
     ) {
         return (
             <Navigate
-                to={`/projects/${projectUuid}/chart-types/${activeAppUuid}`}
+                to={chartTypeBuilderPath(projectUuid ?? '', activeAppUuid)}
                 replace
             />
         );
@@ -1787,7 +1758,7 @@ const AppGenerate: FC = () => {
                             <Stack gap="lg" className={classes.composeHeading}>
                                 <Stack gap={6}>
                                     <Text
-                                        fw={700}
+                                        fw={600}
                                         fz={28}
                                         className={classes.composeTitle}
                                     >
@@ -1818,7 +1789,7 @@ const AppGenerate: FC = () => {
                                             void fetchNextPage();
                                         }
                                     }}
-                                    style={{ cursor: 'pointer' }}
+                                    className="ld-pointer"
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader size="xs" />
@@ -2807,6 +2778,9 @@ const AppGenerate: FC = () => {
                                                         fileAttachments.length >=
                                                         MAX_APP_FILES_PER_VERSION
                                                     }
+                                                    linkedAppUuid={
+                                                        activeAppUuid
+                                                    }
                                                 />
                                                 {previewApp &&
                                                     screenshotAvailable && (
@@ -3202,7 +3176,7 @@ const AppGenerate: FC = () => {
                                         lineageEnabled={lineageEnabled}
                                         lineageAvailable={lineageAvailable}
                                         lineageSupportedBySdk={
-                                            sdkUpgradeOffer.reportedFeatures?.includes(
+                                            renderedSdkManifest?.features.includes(
                                                 'lineage',
                                             ) ?? false
                                         }

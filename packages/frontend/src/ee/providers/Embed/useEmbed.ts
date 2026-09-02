@@ -1,3 +1,4 @@
+import { type UiStringKey } from '@lightdash/common';
 import { useContext } from 'react';
 import { useParams } from 'react-router';
 import EmbedProviderContext from './context';
@@ -27,7 +28,7 @@ function useEmbed(): EmbedContext {
             paletteUuid: undefined,
             languageMap: undefined,
             onExplore: (_options: { chart: EmbedExploreChart }) => {},
-            t: (_input: string) => undefined,
+            t: (_input: UiStringKey) => undefined,
             mode: 'direct',
             theme: 'light',
             backgroundColor: null,

@@ -60,8 +60,6 @@ export const DockTab: FC<Props> = ({
                     {item.title}
                 </Text>
                 <ActionIcon
-                    variant="subtle"
-                    color="gray"
                     size="xs"
                     onClick={handleClose}
                     aria-label="Close conversation"

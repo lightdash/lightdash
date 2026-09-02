@@ -57,7 +57,7 @@ export const McpActivitySettingsPage = () => {
             title="MCP activity"
             description="Monitor MCP tool calls and investigate errors across your organization."
             actions={
-                <Text fz="xs" c="ldGray.6">
+                <Text fz="xs" c="dimmed">
                     Last 90 days
                 </Text>
             }

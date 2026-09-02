@@ -72,7 +72,7 @@ export const InstallAppButton: FC<{
             target="_blank"
             rel="noopener noreferrer"
             variant="default"
-            size="compact-sm"
+            size="compact-xs"
             leftSection={<MantineIcon icon={action.icon} size={14} />}
         >
             {action.cta}
@@ -97,11 +97,11 @@ export const PullRequestViewMenu: FC<{
 
     return (
         <>
-            <Menu position="bottom-start" withinPortal>
+            <Menu position="bottom-start">
                 <Menu.Target>
                     <Button
                         variant="default"
-                        size="compact-sm"
+                        size="compact-xs"
                         leftSection={<MantineIcon icon={IconEye} size={14} />}
                         rightSection={
                             <MantineIcon icon={IconChevronDown} size={14} />
@@ -210,7 +210,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="violet"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
@@ -225,7 +225,7 @@ export const PullRequestActionButtons: FC<{
             <Button
                 variant="light"
                 color="red"
-                size="compact-sm"
+                size="compact-xs"
                 disabled
                 className={styles.closedStatus}
                 leftSection={
@@ -270,7 +270,7 @@ export const PullRequestActionButtons: FC<{
         <Button.Group>
             <Button
                 variant="default"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isClosing}
                 onBlur={disarm}
                 leftSection={
@@ -285,9 +285,8 @@ export const PullRequestActionButtons: FC<{
             </Button>
             <Button
                 ref={mergeButtonRef}
-                variant="filled"
                 color="green"
-                size="compact-sm"
+                size="compact-xs"
                 loading={isMerging}
                 disabled={!isMergeable(ciChecks)}
                 onBlur={disarm}
@@ -361,22 +360,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // install — point the user at the connection settings to switch it.
         if (metadata.errorCode === 'unsupported_source_control') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                            <MantineIcon icon={IconGitPullRequest} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
+                                <Text size="xs" fw={500}>
                                     Source control not supported
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
+                                <Text size="xs" c="dimmed">
                                     AI writeback needs this project's dbt
                                     connection to use GitHub or GitLab. Update
                                     the connection to open pull requests from
@@ -388,7 +387,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -406,22 +405,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         }
         if (metadata.errorCode === 'git_write_permission') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="red"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
-                            <MantineIcon icon={IconAlertTriangle} size={16} />
+                            <MantineIcon icon={IconAlertTriangle} size={14} />
                         </ThemeIcon>
                         <Stack gap="xs">
                             <Stack gap={2}>
-                                <Text size="sm" fw={500}>
+                                <Text size="xs" fw={500}>
                                     No write access to this repository
                                 </Text>
-                                <Text size="xs" c="ldGray.6">
+                                <Text size="xs" c="dimmed">
                                     The change was prepared, but no pull request
                                     could be opened — this project's Git
                                     connection doesn't have permission to create
@@ -436,7 +435,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     component={Link}
                                     to={`/generalSettings/projectManagement/${projectUuid}/settings`}
                                     variant="default"
-                                    size="compact-sm"
+                                    size="compact-xs"
                                     leftSection={
                                         <MantineIcon
                                             icon={IconSettings}
@@ -457,24 +456,24 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // thread rather than show a red error.
         if (metadata.errorCode === 'pull_request_not_open') {
             return (
-                <Paper withBorder p="sm" radius="md">
+                <Paper p="sm" radius="md">
                     <Group gap="xs" align="flex-start" wrap="nowrap">
                         <ThemeIcon
                             variant="light"
                             color="ldGray"
                             radius="md"
-                            size="md"
+                            size="sm"
                         >
                             <MantineIcon
                                 icon={IconGitPullRequestClosed}
-                                size={16}
+                                size={14}
                             />
                         </ThemeIcon>
                         <Stack gap={2}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 This thread's pull request is closed
                             </Text>
-                            <Text size="xs" c="ldGray.6">
+                            <Text size="xs" c="dimmed">
                                 Its pull request has already been merged or
                                 closed, so further changes can't be added here.
                                 Start a new thread to request more changes.
@@ -485,21 +484,21 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="flex-start" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="red"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconAlertTriangle} size={16} />
+                        <MantineIcon icon={IconAlertTriangle} size={14} />
                     </ThemeIcon>
                     <Stack gap={2}>
-                        <Text size="sm" fw={500}>
+                        <Text size="xs" fw={500}>
                             The change couldn't be completed
                         </Text>
-                        <Text size="xs" c="ldGray.6">
+                        <Text size="xs" c="dimmed">
                             No pull request was opened. Ask again, or rephrase
                             the request, to retry.
                         </Text>
@@ -511,17 +510,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         Working on the change — this can take a few minutes.
                     </Text>
                 </Group>
@@ -537,17 +536,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         // Success but no PR opened (writeback agent decided no file changes
         // were needed). Reassure rather than surface as a failure.
         return (
-            <Paper withBorder p="sm" radius="md">
+            <Paper p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"
                         color="ldGray"
                         radius="md"
-                        size="md"
+                        size="sm"
                     >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
                     </ThemeIcon>
-                    <Text size="sm" c="ldGray.7">
+                    <Text size="xs" c="ldGray.7">
                         No file changes were needed — no pull request was
                         opened.
                     </Text>
@@ -571,7 +570,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     return (
         <Paper
-            withBorder
             p="sm"
             radius="md"
             className={
@@ -592,16 +590,16 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     >
                         <MantineIcon
                             icon={IconGitPullRequest}
-                            size={18}
+                            size={16}
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="sm" fw={500}>
+                            <Text size="xs" fw={500}>
                                 {title}
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="ldGray.6">
+                                    <Text size="xs" c="dimmed">
                                         {summary}
                                     </Text>
                                     {shortCommitSha && (
@@ -611,7 +609,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                             </Text>
                                             <Text
                                                 size="xs"
-                                                c="ldGray.6"
+                                                c="dimmed"
                                                 ff="monospace"
                                                 title={
                                                     metadata.commitSha ??

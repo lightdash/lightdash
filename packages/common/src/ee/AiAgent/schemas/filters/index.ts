@@ -24,7 +24,7 @@ const filterAndOrSchema = z
     .union([z.literal('and'), z.literal('or')])
     .describe('Type of filter group operation');
 
-const filterRuleSchema = z.union([
+export const filterRuleSchema = z.union([
     booleanFilterSchema,
     stringFilterSchema,
     numberFilterSchema,
@@ -36,7 +36,7 @@ export type AiFilterRule = FilterRule<
     { fieldId: string; fieldFilterType: FilterType }
 >;
 
-const filterRuleSchemaTransformed = filterRuleSchema.transform(
+export const filterRuleSchemaTransformed = filterRuleSchema.transform(
     (data): AiFilterRule => ({
         id: uuid(),
         target: {
@@ -49,33 +49,20 @@ const filterRuleSchemaTransformed = filterRuleSchema.transform(
     }),
 );
 
-// TODO: deprecate this in 2 weeks
-const filtersSchemaV1 = z.object({
+export const filtersSchemaV2 = z.object({
     type: filterAndOrSchema,
     dimensions: z.array(filterRuleSchema).nullable(),
     metrics: z.array(filterRuleSchema).nullable(),
-});
-
-export const filtersSchemaV2 = filtersSchemaV1.extend({
     tableCalculations: z.array(numberFilterSchema).nullable(),
 });
 
-const filtersSchemaAndFilterRulesTransformedV1 = z.object({
-    type: filterAndOrSchema,
-    dimensions: z.array(filterRuleSchemaTransformed).nullable(),
-    metrics: z.array(filterRuleSchemaTransformed).nullable(),
-});
-
-const filtersSchemaAndFilterRulesTransformedV2 =
-    filtersSchemaAndFilterRulesTransformedV1.extend({
-        tableCalculations: z.array(filterRuleSchemaTransformed).nullable(),
-    });
-
 const filtersSchemaAndFilterRulesTransformed = z
-    .union([
-        filtersSchemaAndFilterRulesTransformedV2,
-        filtersSchemaAndFilterRulesTransformedV1,
-    ])
+    .object({
+        type: filterAndOrSchema,
+        dimensions: z.array(filterRuleSchemaTransformed).nullable(),
+        metrics: z.array(filterRuleSchemaTransformed).nullable(),
+        tableCalculations: z.array(filterRuleSchemaTransformed).nullable(),
+    })
     .nullable();
 
 export const filtersSchemaTransformed =
@@ -100,10 +87,7 @@ export const filtersSchemaTransformed =
                     },
                     tableCalculations: {
                         id: uuid(),
-                        and:
-                            'tableCalculations' in data
-                                ? (data.tableCalculations ?? [])
-                                : [],
+                        and: data.tableCalculations ?? [],
                     },
                 };
             case 'or':
@@ -118,10 +102,7 @@ export const filtersSchemaTransformed =
                     },
                     tableCalculations: {
                         id: uuid(),
-                        or:
-                            'tableCalculations' in data
-                                ? (data.tableCalculations ?? [])
-                                : [],
+                        or: data.tableCalculations ?? [],
                     },
                 };
             default:

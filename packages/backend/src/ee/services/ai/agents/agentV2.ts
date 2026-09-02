@@ -6,6 +6,7 @@ import {
     Explore,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -54,7 +55,9 @@ import { getEditProjectContext } from '../tools/editProjectContext';
 import { getEditRepo } from '../tools/editRepo';
 import { getExploreRepo } from '../tools/exploreRepo';
 import { getFindContent } from '../tools/findContent';
+import { getFindCustomChartTypes } from '../tools/findCustomChartTypes';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateDataApp } from '../tools/generateDataApp';
 import { getGenerateHashes } from '../tools/generateHashes';
 import { getGenerateUuids } from '../tools/generateUuids';
 import { getGenerateVisualization } from '../tools/generateVisualization';
@@ -70,6 +73,7 @@ import {
     renderCandidateBlock,
     selectCandidateFields,
 } from '../tools/grepFieldsIndex';
+import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -82,6 +86,7 @@ import { getProjectContextSearchEntries } from '../tools/memoryProjectContext';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
+import { getRunComposerQueries } from '../tools/runComposerQueries';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -769,12 +774,15 @@ export const getAgentTools = (
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Agent Tools',
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
+
+    const enableContentTools = args.enableDataAccess && args.enableContentTools;
 
     const grepFields = getGrepFields({
         availableExplores,
@@ -793,6 +801,9 @@ export const getAgentTools = (
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
         toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+        dashboardDetailsToolName: enableContentTools
+            ? 'readContent'
+            : 'getDashboardCharts',
         trackCoverage: (coverage) => {
             dependencies.trackEvent({
                 event: 'ai_agent.find_content_coverage',
@@ -813,6 +824,16 @@ export const getAgentTools = (
     const listContent = getListContent({
         listContent: dependencies.listContent,
     });
+
+    // Only offered when the project has a custom chart type library — an
+    // empty library keeps zero prompt and tool overhead.
+    const findCustomChartTypes =
+        customChartTypeLibrary.totalCount > 0
+            ? getFindCustomChartTypes({
+                  findCustomChartTypes: dependencies.findCustomChartTypes,
+                  updateProgress: dependencies.updateProgress,
+              })
+            : null;
 
     const getDashboardCharts = getGetDashboardCharts({
         getDashboardCharts: dependencies.getDashboardCharts,
@@ -841,6 +862,9 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
         projectParameterDefinitions,
         enableMergeQueries: args.enableMergeQueries,
+        enableFilterExpressions: args.enableFilterExpressions,
+        resolveCustomChartType: dependencies.resolveCustomChartType,
+        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -852,25 +876,45 @@ export const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const runSql = args.canRunSql
-        ? getRunSql({
+    // Composer queries supersede the standalone runSql tool: a single `sql`
+    // node is the direct equivalent, and exposing both lets the model shadow
+    // the composer path with raw runSql calls.
+    const runSql =
+        args.canRunSql && !args.enableComposerQueries
+            ? getRunSql({
+                  updateProgress: dependencies.updateProgress,
+                  runSqlJob: dependencies.runSqlJob,
+                  getPrompt: dependencies.getPrompt,
+                  sendFile: dependencies.sendFile,
+                  updateSlackMessage: dependencies.updateSlackMessage,
+                  siteUrl: args.siteUrl,
+                  waitForSqlApproval: dependencies.waitForSqlApproval,
+                  recordSqlApproval: dependencies.recordSqlApproval,
+                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  storeToolResults: dependencies.storeToolResults,
+                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                  maxQueryLimit: args.runSqlMaxLimit,
+                  enableDataAccess: args.enableDataAccess,
+                  sqlScope: args.sqlScope,
+                  autoApproveSql: args.autoApproveSql,
+                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                  useSlackStreamCard: args.useSlackStreamCard,
+              })
+            : null;
+
+    const runComposerQueries = args.enableComposerQueries
+        ? getRunComposerQueries({
               updateProgress: dependencies.updateProgress,
-              runSqlJob: dependencies.runSqlJob,
+              runComposerQueries: dependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
-              sendFile: dependencies.sendFile,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              storeToolResults: dependencies.storeToolResults,
               createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
-              sqlScope: args.sqlScope,
+              canRunSql: args.canRunSql,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -912,6 +956,18 @@ export const getAgentTools = (
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
     });
+
+    const generateDataApp = args.enableGenerateDataApp
+        ? getGenerateDataApp({
+              generateDataApp: dependencies.generateDataApp,
+          })
+        : null;
+
+    const iterateDataApp = args.enableGenerateDataApp
+        ? getIterateDataApp({
+              iterateDataApp: dependencies.iterateDataApp,
+          })
+        : null;
 
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
@@ -987,6 +1043,8 @@ export const getAgentTools = (
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
+        getExplore: dependencies.getExplore,
+        enableFilterExpressions: args.enableFilterExpressions,
     });
 
     const analyzeFieldImpact = getAnalyzeFieldImpact({
@@ -1058,7 +1116,6 @@ export const getAgentTools = (
               })
             : null;
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
     const mcpTools = Object.fromEntries(
         Object.entries(mcpToolSetup.tools).filter(
             ([toolName]) =>
@@ -1107,6 +1164,8 @@ export const getAgentTools = (
         runSavedChart,
         generateHashes,
         generateUuids,
+        ...(generateDataApp ? { generateDataApp } : {}),
+        ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -1118,7 +1177,9 @@ export const getAgentTools = (
         ...(closePullRequest ? { closePullRequest } : {}),
         ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
         ...(runSql ? { runSql } : {}),
+        ...(runComposerQueries ? { runComposerQueries } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
@@ -1338,6 +1399,7 @@ export const getAgentMessages = (
     tools: ToolSet,
     verifiedFieldUsage: Map<string, number>,
     memoryBlock: string | null,
+    customChartTypeLibrary: CustomChartTypeLibrary,
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -1409,12 +1471,14 @@ export const getAgentMessages = (
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
         availableExplores,
+        availableCustomChartTypes: customChartTypeLibrary,
         availableSkills: args.availableSkills,
         knowledgeDocuments: args.knowledgeDocuments,
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
+        enableFilterExpressions: args.enableFilterExpressions,
         enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
         enableCodingAgent: args.enableCodingAgent,
@@ -1423,8 +1487,10 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         enableContentTools: args.enableDataAccess && args.enableContentTools,
+        enableGenerateDataApp: args.enableGenerateDataApp,
         slackChannelId: args.slackChannelId,
         canRunSql: args.canRunSql,
+        enableComposerQueries: args.enableComposerQueries,
         enableMergeQueries: args.enableMergeQueries,
         warehouseType: args.warehouseType,
         warehouseSchema: args.warehouseSchema,
@@ -1509,12 +1575,17 @@ export const generateAgentResponse = async ({
     );
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         // Verified-chart usage powers verified-first ranking in grep discovery;
         // degrade to an empty map if it can't be fetched.
         const verifiedFieldUsage = await dependencies
@@ -1528,6 +1599,7 @@ export const generateAgentResponse = async ({
                 mcpToolSetup,
                 verifiedFieldUsage,
                 projectParameterDefinitions,
+                customChartTypeLibrary,
             ),
             dependencies.updateProgress,
             args.execution.mode === 'deep_research',
@@ -1540,6 +1612,7 @@ export const generateAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Generate Agent Response',
@@ -1868,12 +1941,17 @@ export const streamAgentResponse = async ({
     };
 
     try {
-        const [availableExplores, memoryBlock, projectParameterDefinitions] =
-            await Promise.all([
-                dependencies.listExplores(),
-                getMemoryBlock(args, dependencies),
-                dependencies.getProjectParameterDefinitions(),
-            ]);
+        const [
+            availableExplores,
+            memoryBlock,
+            projectParameterDefinitions,
+            customChartTypeLibrary,
+        ] = await Promise.all([
+            dependencies.listExplores(),
+            getMemoryBlock(args, dependencies),
+            dependencies.getProjectParameterDefinitions(),
+            dependencies.listCustomChartTypes(),
+        ]);
         const verifiedFieldUsage = await dependencies
             .getVerifiedFieldUsage()
             .catch(() => new Map<string, number>());
@@ -1884,6 +1962,7 @@ export const streamAgentResponse = async ({
             mcpToolSetup,
             verifiedFieldUsage,
             projectParameterDefinitions,
+            customChartTypeLibrary,
         );
         await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
         const messages = getAgentMessages(
@@ -1893,6 +1972,7 @@ export const streamAgentResponse = async ({
             tools,
             verifiedFieldUsage,
             memoryBlock,
+            customChartTypeLibrary,
         );
         logger(
             'Stream Agent Response',

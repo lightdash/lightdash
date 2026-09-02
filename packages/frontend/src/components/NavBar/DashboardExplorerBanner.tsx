@@ -4,6 +4,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import MantineIcon from '../common/MantineIcon';
 
 type Props = {
@@ -11,6 +12,9 @@ type Props = {
 };
 
 export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
+    const projectRoute = useOptionalProjectRoute();
+    const projectUrlIdentifier =
+        projectRoute?.projectUrlIdentifier ?? projectUuid;
     const navigate = useNavigate();
     const { savedQueryUuid, mode } = useParams<{
         savedQueryUuid: string;
@@ -22,6 +26,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     const {
         name: dashboardName,
         dashboardUuid,
+        dashboardSlug,
         activeTabUuid,
     } = getEditingDashboardInfo();
 
@@ -70,7 +75,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
     }, [action]);
 
     const handleOnCancel = useCallback(() => {
-        if (!projectUuid) {
+        if (!projectUrlIdentifier) {
             return;
         }
         // Cancel the action and navigate back to the dashboard, restoring the existing state (in case there were some unsaved changes)
@@ -78,7 +83,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         // so do not clear the storage here
         setIsCancelling(true);
 
-        let returnUrl = `/projects/${projectUuid}/dashboards/${dashboardUuid}/${
+        let returnUrl = `/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug ?? dashboardUuid}/${
             savedQueryUuid ? 'view' : 'edit'
         }`;
 
@@ -92,7 +97,14 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             // Clear the banner after navigating back to dashboard, but only after a delay so that the user can see the banner change
             setIsCancelling(false);
         }, 1000);
-    }, [dashboardUuid, activeTabUuid, navigate, projectUuid, savedQueryUuid]);
+    }, [
+        dashboardSlug,
+        dashboardUuid,
+        activeTabUuid,
+        navigate,
+        projectUrlIdentifier,
+        savedQueryUuid,
+    ]);
 
     return (
         <>
@@ -107,7 +119,6 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             </Text>
 
             <Tooltip
-                withinPortal
                 // Hide tooltip when viewing the chart because the button copy is sufficient
                 disabled={action === 'viewing'}
                 label={cancelButtonTooltipText}

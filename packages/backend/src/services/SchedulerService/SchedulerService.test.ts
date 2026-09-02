@@ -7,9 +7,10 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SessionUser,
+    SpaceMemberRole,
     UnexpectedGoogleSheetsError,
     type ChartScheduler,
-    type CreateSchedulerAndTargets,
+    type SendNowScheduler,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -128,10 +129,23 @@ const dashboardModel = {
     getByIdOrSlug: vi.fn(async () => dashboardSummary),
 };
 
+const savedSqlModel = {
+    getByUuid: vi.fn(async () => ({
+        savedSqlUuid: 'savedSqlUuid',
+        organization: { organizationUuid },
+        project: { projectUuid },
+        space: { uuid: privateSpaceUuid },
+    })),
+};
+
 const spacePermissionService = {
-    getSpaceAccessContext: vi.fn(async () => ({
+    resolveAccess: vi.fn(async () => ({
+        organizationUuid,
+        projectUuid,
         inheritsFromOrgOrProject: false,
         access: [],
+        admins: [],
+        directOnly: false,
     })),
 };
 
@@ -162,7 +176,7 @@ const buildService = () =>
         schedulerModel: schedulerModel as unknown as SchedulerModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        savedSqlModel: {} as SavedSqlModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         appModel: {} as AppModel,
         projectModel: {} as ProjectModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
@@ -237,7 +251,7 @@ describe('SchedulerService', () => {
             includeLinks: true,
             plainTextEmail: false,
             targets: [{ recipient: 'recipient@example.com' }],
-        } as unknown as CreateSchedulerAndTargets;
+        } as unknown as SendNowScheduler;
 
         const userWhoCanSend = buildUser([
             { subject: 'ScheduledDeliveries', action: ['create'] },
@@ -272,6 +286,10 @@ describe('SchedulerService', () => {
                     ...sendNowPayload,
                     savedChartUuid: null,
                     dashboardUuid: 'dashboardUuid',
+                    savedSqlUuid: null,
+                    appUuid: null,
+                    filters: undefined,
+                    selectedTabs: null,
                     sourceSchedulerUuid:
                         chartSchedulerInPrivateSpace.schedulerUuid,
                 }),
@@ -391,7 +409,7 @@ describe('SchedulerService', () => {
                     includeLinks: true,
                     plainTextEmail: false,
                     targets: [{ recipient: 'recipient@example.com' }],
-                }) as unknown as CreateSchedulerAndTargets;
+                }) as unknown as SendNowScheduler;
 
             test.each([SchedulerFormat.GSHEETS, SchedulerFormat.PDF])(
                 'rejects a %s send-now app payload',
@@ -514,6 +532,261 @@ describe('SchedulerService', () => {
             ).rejects.toThrowError(ForbiddenError);
             expect(
                 schedulerModel.getSchedulerAndTargets,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('views a dashboard-owned chart scheduler through the dashboard grant', async () => {
+            const chartScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedChartUuid,
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                chartScheduler,
+            );
+            savedChartModel.getSummary.mockResolvedValueOnce({
+                organizationUuid,
+                projectUuid,
+                spaceUuid: privateSpaceUuid,
+                dashboardUuid: 'owningDashboardUuid',
+            } as never);
+            // Grant-only user: no space access, only a viewer grant row.
+            spacePermissionService.resolveAccess.mockResolvedValueOnce({
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userUuid',
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        grantedVia: 'dashboard',
+                    },
+                ],
+                directOnly: true,
+            } as never);
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).resolves.toEqual(chartScheduler);
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                'userUuid',
+                {
+                    type: 'chart',
+                    chartUuid: savedChartUuid,
+                    dashboardUuid: 'owningDashboardUuid',
+                    spaceUuid: privateSpaceUuid,
+                },
+            );
+        });
+
+        test('views a saved SQL scheduler through the SQL chart grant', async () => {
+            const sqlScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedSqlUuid: 'savedSqlUuid',
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                sqlScheduler,
+            );
+            spacePermissionService.resolveAccess.mockResolvedValueOnce({
+                inheritsFromOrgOrProject: false,
+                access: [
+                    {
+                        userUuid: 'userUuid',
+                        role: SpaceMemberRole.VIEWER,
+                        hasDirectAccess: true,
+                        grantedVia: 'sql_chart',
+                    },
+                ],
+                directOnly: true,
+            } as never);
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).resolves.toEqual(sqlScheduler);
+            expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+                'userUuid',
+                {
+                    type: 'sqlChart',
+                    savedSqlUuid: 'savedSqlUuid',
+                    spaceUuid: privateSpaceUuid,
+                },
+            );
+        });
+
+        test('denies a dashboard-owned chart scheduler without a grant', async () => {
+            const chartScheduler = {
+                ...dashboardScheduler,
+                dashboardUuid: null,
+                savedChartUuid,
+            } as unknown as SchedulerAndTargets;
+            schedulerModel.getSchedulerAndTargets.mockResolvedValueOnce(
+                chartScheduler,
+            );
+            savedChartModel.getSummary.mockResolvedValueOnce({
+                organizationUuid,
+                projectUuid,
+                spaceUuid: privateSpaceUuid,
+                dashboardUuid: 'owningDashboardUuid',
+            } as never);
+            const user = buildUser([
+                {
+                    subject: 'SavedChart',
+                    action: ['view'],
+                    conditions: {
+                        access: { $elemMatch: { userUuid: 'userUuid' } },
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getScheduler(user, 'schedulerUuid'),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+    });
+
+    describe('getAppSchedulers', () => {
+        const listAppUuid = 'listAppUuid';
+        const listAppRow = {
+            app_uuid: listAppUuid,
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            space_uuid: null,
+            created_by_user_uuid: 'otherUserUuid',
+            name: 'Sales App',
+        };
+
+        const viewDataApp: RawRuleOf<Ability<PossibleAbilities>> = {
+            subject: 'DataApp',
+            action: ['view'],
+            conditions: { organizationUuid },
+        };
+        const createDeliveries: RawRuleOf<Ability<PossibleAbilities>> = {
+            subject: 'ScheduledDeliveries',
+            action: ['create'],
+            conditions: { organizationUuid },
+        };
+
+        const buildAppListService = () => {
+            const appListSchedulerModel = {
+                getAppSchedulers: vi.fn(
+                    async (): Promise<SchedulerAndTargets[]> => [],
+                ),
+                attachLatestRunToSchedulerList: vi.fn(
+                    async (schedulers: SchedulerAndTargets[]) => schedulers,
+                ),
+            };
+            const appListService = new SchedulerService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                schedulerModel:
+                    appListSchedulerModel as unknown as SchedulerModel,
+                dashboardModel: {} as DashboardModel,
+                savedChartModel: {} as SavedChartModel,
+                savedSqlModel: {} as SavedSqlModel,
+                appModel: {
+                    findAppByUuid: vi.fn(async () => listAppRow),
+                } as unknown as AppModel,
+                projectModel: {} as ProjectModel,
+                schedulerClient: {} as SchedulerClient,
+                slackClient: {} as SlackClient,
+                emailClient: {} as EmailClient,
+                userModel: {} as UserModel,
+                googleDriveClient: {} as GoogleDriveClient,
+                userService: {} as UserService,
+                jobModel: {} as JobModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+            });
+            return { appListService, appListSchedulerModel };
+        };
+
+        test('returns only the requesting user’s schedulers when they cannot manage all deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp, createDeliveries]);
+
+            await appListService.getAppSchedulers(user, listAppUuid);
+
+            expect(appListSchedulerModel.getAppSchedulers).toHaveBeenCalledWith(
+                listAppUuid,
+                user.userUuid,
+            );
+        });
+
+        test('returns every scheduler when the user can manage all deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([
+                viewDataApp,
+                createDeliveries,
+                {
+                    subject: 'ScheduledDeliveries',
+                    action: ['manage'],
+                    conditions: { organizationUuid },
+                },
+            ]);
+
+            await appListService.getAppSchedulers(user, listAppUuid);
+
+            expect(appListSchedulerModel.getAppSchedulers).toHaveBeenCalledWith(
+                listAppUuid,
+                undefined,
+            );
+        });
+
+        test('includes the latest run when requested', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp, createDeliveries]);
+            const appScheduler = {
+                schedulerUuid: 'appSchedulerUuid',
+                appUuid: listAppUuid,
+                targets: [],
+            } as unknown as SchedulerAndTargets;
+            appListSchedulerModel.getAppSchedulers.mockResolvedValueOnce([
+                appScheduler,
+            ]);
+
+            const result = await appListService.getAppSchedulers(
+                user,
+                listAppUuid,
+                true,
+            );
+
+            expect(
+                appListSchedulerModel.attachLatestRunToSchedulerList,
+            ).toHaveBeenCalledWith([appScheduler]);
+            expect(result).toEqual([appScheduler]);
+        });
+
+        test('throws ForbiddenError before listing when the user cannot create deliveries', async () => {
+            const { appListService, appListSchedulerModel } =
+                buildAppListService();
+            const user = buildUser([viewDataApp]);
+
+            await expect(
+                appListService.getAppSchedulers(user, listAppUuid),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(
+                appListSchedulerModel.getAppSchedulers,
             ).not.toHaveBeenCalled();
         });
     });

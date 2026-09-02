@@ -12,6 +12,7 @@ import {
 import {
     DimensionType,
     friendlyName,
+    isCompiledDimension,
     isCustomBinDimension,
     isNonAggregateMetric,
     isPostCalculationMetric,
@@ -568,7 +569,17 @@ export class ExploreCompiler {
                     ...prev,
                     [join.alias || join.table]: {
                         ...tables[join.table],
-                        originalName: tables[join.table].name,
+                        originalName:
+                            tables[join.table].originalName ??
+                            tables[join.table].name,
+                        ...(tables[join.table].originalName !== undefined ||
+                        tables[join.table].canonicalName !== undefined
+                            ? {
+                                  canonicalName:
+                                      tables[join.table].canonicalName ??
+                                      tables[join.table].name,
+                              }
+                            : {}),
                         name: joinTableName,
                         label: joinTableLabel,
                         ...(joinDescription !== undefined && {
@@ -1645,6 +1656,18 @@ export class ExploreCompiler {
                 {},
             );
         }
+        // Already-compiled dimensions (e.g. pre-aggregate explores rewritten to
+        // materialized columns) are authoritative: reuse instead of recompiling.
+        if (
+            isCompiledDimension(referencedDimension) &&
+            referencedDimension.tablesReferences
+        ) {
+            return {
+                sql: `(${referencedDimension.compiledSql})`,
+                tablesReferences: new Set(referencedDimension.tablesReferences),
+            };
+        }
+
         const compiledDimension = this.compileDimensionSql(
             referencedDimension,
             tables,
