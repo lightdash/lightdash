@@ -136,13 +136,13 @@ describe('provider API key read contracts', () => {
         });
     });
 
-    it('omits unknown and invalid hint fields from the API contract', () => {
+    it('omits unknown hint fields from the API contract', () => {
         const unknownSecret = 'FULL-FAKE-SECRET-VALUE';
-        const normalized = normalizeProviderApiKeyHints({
+        const storedHints = {
             anthropic: 'sk-ant...1234',
             future: unknownSecret,
-            google: 42,
-        });
+        };
+        const normalized = normalizeProviderApiKeyHints(storedHints);
 
         expect(normalized).toEqual({
             anthropic: 'sk-ant...1234',

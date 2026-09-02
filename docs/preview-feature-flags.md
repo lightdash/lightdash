@@ -23,9 +23,10 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
   config handler so a preview never advertises an unconfigured backend. To test
   AI copilot in a preview, configure a provider (`AI_COPILOT_ENABLED` plus
   credentials) rather than forcing the flag. PR previews pass
-  `AI_COPILOT_ENABLED`, `AI_DEFAULT_PROVIDER`, `ANTHROPIC_API_KEY` and
-  `OPENAI_API_KEY` through from the Okteto admin UI variables
-  (`docker/docker-compose.preview.yml`), so setting those once in the admin UI
+  `AI_COPILOT_ENABLED`, `AI_DEFAULT_PROVIDER`, `ANTHROPIC_API_KEY`,
+  `GEMINI_API_KEY`, and `OPENAI_API_KEY` through from the Okteto admin UI
+  variables (`docker/docker-compose.preview.yml`), so setting those once in the
+  admin UI
   provisions Ask AI in every preview; leave them unset and the copilot stays
   off.
 

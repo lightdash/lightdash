@@ -7,6 +7,7 @@ import {
     type AiPromptExternalSourceSnapshot,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
+    type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -557,7 +558,7 @@ export type DbAiOrganizationSettings = {
     model_visibility: AiOrgModelVisibility | null;
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
-    provider_api_key_hints: Record<string, unknown> | null;
+    provider_api_key_hints: Partial<AiProviderApiKeyHints> | null;
     thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;

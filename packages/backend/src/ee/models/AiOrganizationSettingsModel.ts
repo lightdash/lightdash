@@ -104,7 +104,7 @@ export const buildProviderApiKeyHints = (
 };
 
 export const normalizeProviderApiKeyHints = (
-    hints: Record<string, unknown> | null,
+    hints: Partial<AiProviderApiKeyHints> | null,
 ): AiProviderApiKeyHints => {
     const normalized = emptyProviderApiKeyHints();
     BYO_AI_PROVIDERS.forEach((provider) => {
