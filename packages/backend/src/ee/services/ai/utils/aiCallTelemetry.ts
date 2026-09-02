@@ -61,6 +61,16 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
     feature: AiCallFeature;
     /**
+     * Required (nullable), unlike the optional `keyManagement` on
+     * AiCallAttribution: every emitter must state whether the call ran on a
+     * Lightdash-managed key, a self-managed (BYO) key, or a path where key
+     * origin isn't tracked (`null`, e.g. embeddings / instance-only evals).
+     * Forgetting it is then a compile error rather than a silent `null` that
+     * drops the call out of managed-key reporting — which is how several
+     * features (review-classifier on Haiku included) went missing before.
+     */
+    keyManagement: AiKeyManagement | null;
+    /**
      * Record the prompt/response content on the span. Gated separately from span
      * emission because content can contain user data — emission (token usage +
      * attribution) is always on, content capture is opt-in.
@@ -148,8 +158,8 @@ export const getGeneratorTelemetry = (
         ...(modelOptions.model != null
             ? getLanguageModelAttribution(modelOptions.model)
             : {}),
-        ...(modelOptions.keyManagement != null
-            ? { keyManagement: modelOptions.keyManagement }
-            : {}),
         ...(modelOptions.telemetry ?? {}),
+        // Always set (last so it wins): the model builder is the source of
+        // truth for key origin, and the required field must be present.
+        keyManagement: modelOptions.keyManagement ?? null,
     });

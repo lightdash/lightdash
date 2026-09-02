@@ -194,6 +194,7 @@ export async function llmAsAJudge({
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
                 ...telemetry,
+                keyManagement: telemetry?.keyManagement ?? null,
             });
             const result = await generateObject({
                 model: judge,
@@ -284,6 +285,7 @@ ${
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
                 ...telemetry,
+                keyManagement: telemetry?.keyManagement ?? null,
             });
             const result = await generateObject({
                 model: judge,
