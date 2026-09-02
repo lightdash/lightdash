@@ -17,7 +17,7 @@ declare module 'express-session' {
             jira?: {
                 redirectUri: string;
                 clientId: string;
-                clientSecret: string;
+                encryptedClientSecret: string;
             };
             isPopup?: boolean | undefined;
             databricks?: {

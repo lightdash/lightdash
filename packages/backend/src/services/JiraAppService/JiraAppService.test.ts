@@ -37,6 +37,7 @@ const user = {
 } as SessionUser;
 
 const CREDENTIALS = { clientId: 'client-1', clientSecret: 'secret-1' };
+const ENCRYPTED_SECRET = Buffer.from('enc:secret-1').toString('base64');
 
 const makeService = () => {
     const trx = {};
@@ -68,8 +69,15 @@ const makeService = () => {
         deleteInstallation: vi.fn(),
     };
     const onWorkspaceChanged = vi.fn();
+    const encryptionUtil = {
+        encrypt: vi.fn((message: string) => Buffer.from(`enc:${message}`)),
+        decrypt: vi.fn((encrypted: Buffer) =>
+            encrypted.toString().replace(/^enc:/, ''),
+        ),
+    };
     const service = new JiraAppService({
         jiraAppInstallationsModel: model,
+        encryptionUtil,
         lightdashConfig: { siteUrl: 'https://app.example.com' },
         analytics: { track: vi.fn() },
         onWorkspaceChanged,
@@ -99,7 +107,7 @@ describe('JiraAppService', () => {
         expect(context.jira).toEqual({
             redirectUri: 'https://app.example.com/api/v1/jira/oauth/callback',
             clientId: 'client-1',
-            clientSecret: 'secret-1',
+            encryptedClientSecret: ENCRYPTED_SECRET,
         });
         expect(context.returnToUrl).toBe(
             'https://app.example.com/generalSettings/ai/general',
@@ -127,7 +135,10 @@ describe('JiraAppService', () => {
             'https://app.example.com/api/v1/jira/oauth/callback',
             context.state,
         );
-        expect(context.jira).toMatchObject(CREDENTIALS);
+        expect(context.jira).toMatchObject({
+            clientId: 'client-1',
+            encryptedClientSecret: ENCRYPTED_SECRET,
+        });
     });
 
     it('stores tokens and auto-selects the only Jira site', async () => {
@@ -151,7 +162,8 @@ describe('JiraAppService', () => {
                 returnTo: 'https://app.example.com/generalSettings/ai/general',
                 jira: {
                     redirectUri: 'https://app.example.com/callback',
-                    ...CREDENTIALS,
+                    clientId: 'client-1',
+                    encryptedClientSecret: ENCRYPTED_SECRET,
                 },
             },
             'code-1',

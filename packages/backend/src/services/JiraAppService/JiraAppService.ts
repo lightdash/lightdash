@@ -31,10 +31,12 @@ import {
 } from '../../clients/jira/Jira';
 import { type LightdashConfig } from '../../config/parseConfig'; // pragma: allowlist secret
 import { type JiraAppInstallationsModel } from '../../models/JiraAppInstallations/JiraAppInstallationsModel';
+import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
 
 type Arguments = {
     jiraAppInstallationsModel: JiraAppInstallationsModel;
+    encryptionUtil: EncryptionUtil;
     lightdashConfig: LightdashConfig; // pragma: allowlist secret
     analytics: LightdashAnalytics; // pragma: allowlist secret
     onWorkspaceChanged?: (
@@ -52,6 +54,8 @@ const MAX_CREDENTIAL_LENGTH = 255;
 export class JiraAppService extends BaseService {
     private readonly model: JiraAppInstallationsModel;
 
+    private readonly encryptionUtil: EncryptionUtil;
+
     private readonly config: LightdashConfig; // pragma: allowlist secret
 
     private readonly analytics: LightdashAnalytics; // pragma: allowlist secret
@@ -67,6 +71,7 @@ export class JiraAppService extends BaseService {
     constructor(args: Arguments) {
         super();
         this.model = args.jiraAppInstallationsModel;
+        this.encryptionUtil = args.encryptionUtil;
         this.config = args.lightdashConfig;
         this.analytics = args.analytics;
         this.onWorkspaceChanged =
@@ -145,7 +150,14 @@ export class JiraAppService extends BaseService {
                 this.config.siteUrl, // pragma: allowlist secret
             ).href,
             state,
-            jira: { redirectUri, clientId, clientSecret },
+            jira: {
+                redirectUri,
+                clientId,
+                // The secret round-trips through the session store, so never in plaintext
+                encryptedClientSecret: this.encryptionUtil
+                    .encrypt(clientSecret)
+                    .toString('base64'),
+            },
         };
     }
 
@@ -164,7 +176,10 @@ export class JiraAppService extends BaseService {
             if (!oauth.jira) {
                 throw new ParameterError('Jira OAuth session not found');
             }
-            const { clientId, clientSecret, redirectUri } = oauth.jira;
+            const { clientId, redirectUri } = oauth.jira;
+            const clientSecret = this.encryptionUtil.decrypt(
+                Buffer.from(oauth.jira.encryptedClientSecret, 'base64'),
+            );
             const tokens = await exchangeJiraCodeForToken(
                 code,
                 clientId,
@@ -315,7 +330,7 @@ export class JiraAppService extends BaseService {
         } catch (error) {
             if (!(error instanceof ForbiddenError)) throw error;
             const refreshed = await this.refreshAuth(organizationUuid, auth);
-            return run(refreshed.token, auth.site);
+            return run(refreshed.token, refreshed.site ?? auth.site);
         }
     }
 

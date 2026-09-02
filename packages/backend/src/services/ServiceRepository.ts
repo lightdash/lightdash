@@ -593,6 +593,7 @@ export class ServiceRepository
                 new JiraAppService({
                     jiraAppInstallationsModel:
                         this.models.getJiraAppInstallationsModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),
