@@ -1,3 +1,10 @@
+# [2.100.0](https://github.com/lightdash/lightdash/compare/2.99.0...2.100.0) (2026-09-02)
+
+
+### Features
+
+* **ai-reviews:** add Jira export settings ([#28506](https://github.com/lightdash/lightdash/issues/28506)) ([be9d415](https://github.com/lightdash/lightdash/commit/be9d415dca9de4bdb2772df639ddf8d755419f0a))
+
 # [2.99.0](https://github.com/lightdash/lightdash/compare/2.98.0...2.99.0) (2026-09-02)
 
 
