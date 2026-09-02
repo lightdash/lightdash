@@ -63,6 +63,17 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     },
 });
 
+const allByoProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...bothProvidersConfig,
+    providers: {
+        ...bothProvidersConfig.providers,
+        google: {
+            apiKey: 'instance-google-key',
+            modelName: 'gemini-3.7-flash',
+        },
+    },
+});
+
 const anthropicGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     ...bothProvidersConfig,
     providers: {
@@ -70,6 +81,17 @@ const anthropicGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
         anthropic: {
             ...bothProvidersConfig.providers.anthropic,
             baseUrl: 'https://llm-gateway.example',
+        },
+    },
+});
+
+const googleGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    ...allByoProvidersConfig,
+    providers: {
+        ...allByoProvidersConfig.providers,
+        google: {
+            ...allByoProvidersConfig.providers.google,
+            baseUrl: 'https://gemini-gateway.example/v1beta',
         },
     },
 });
@@ -153,12 +175,38 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('overlays a Google key without changing the configured Gemini model', () => {
+        const result = overlayOrgProviderApiKeys(allByoProvidersConfig, {
+            google: 'org-google-key',
+        });
+
+        expect(result.providers.google?.apiKey).toBe('org-google-key');
+        expect(result.providers.google?.modelName).toBe('gemini-3.7-flash');
+        expect(result.defaultProvider).toBe('google');
+        expect(result.byoProviders).toEqual(['google']);
+    });
+
     it('rejects an organization Anthropic key when the instance uses an Anthropic gateway', () => {
         expect(() =>
             overlayOrgProviderApiKeys(anthropicGatewayConfig, {
                 anthropic: 'org-anthropic-key',
             }),
         ).toThrow('Organization Anthropic API keys cannot be used');
+    });
+
+    it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {
+        const orgKey = 'full-fake-org-google-secret';
+
+        try {
+            overlayOrgProviderApiKeys(googleGatewayConfig, {
+                google: orgKey,
+            });
+            throw new Error('Expected Gemini gateway conflict');
+        } catch (error) {
+            if (!(error instanceof Error)) throw error;
+            expect(error.message).toContain('GEMINI_BASE_URL');
+            expect(error.message).not.toContain(orgKey);
+        }
     });
 
     it('ignores a key for a provider the instance has not configured', () => {
@@ -184,25 +232,40 @@ describe('overlayOrgProviderApiKeys', () => {
 });
 
 describe('resolveEffectiveModelVisibility', () => {
-    it('hides openai when a BYO anthropic key exists but no openai key', () => {
+    it('hides every unkeyed BYO provider when an Anthropic key exists', () => {
         expect(
             resolveEffectiveModelVisibility({ anthropic: 'sk-ant-x' }, null),
-        ).toEqual({ openai: { enabled: false } });
+        ).toEqual({
+            google: { enabled: false },
+            openai: { enabled: false },
+        });
     });
 
-    it('does not hide openai when both keys are present', () => {
+    it('still hides Google when Anthropic and OpenAI keys are present', () => {
         expect(
             resolveEffectiveModelVisibility(
                 { anthropic: 'sk-ant-x', openai: 'sk-x' },
                 null,
             ),
-        ).toBeNull();
+        ).toEqual({ google: { enabled: false } });
     });
 
-    it('does not hide anything with only an openai key', () => {
+    it('hides Anthropic and Google with only an OpenAI key', () => {
         expect(
             resolveEffectiveModelVisibility({ openai: 'sk-x' }, null),
-        ).toBeNull();
+        ).toEqual({
+            anthropic: { enabled: false },
+            google: { enabled: false },
+        });
+    });
+
+    it('hides Anthropic and OpenAI with only a Google key', () => {
+        expect(
+            resolveEffectiveModelVisibility({ google: 'google-key' }, null),
+        ).toEqual({
+            anthropic: { enabled: false },
+            openai: { enabled: false },
+        });
     });
 
     it('lets explicit stored visibility override the implicit hide', () => {
@@ -211,7 +274,10 @@ describe('resolveEffectiveModelVisibility', () => {
                 { anthropic: 'sk-ant-x' },
                 { openai: { enabled: true } },
             ),
-        ).toEqual({ openai: { enabled: true } });
+        ).toEqual({
+            google: { enabled: false },
+            openai: { enabled: true },
+        });
     });
 
     it('keeps stored visibility for other providers alongside the implicit hide', () => {
@@ -226,6 +292,7 @@ describe('resolveEffectiveModelVisibility', () => {
                 },
             ),
         ).toEqual({
+            google: { enabled: false },
             openai: { enabled: false },
             anthropic: { enabled: true, allowedModels: ['claude-opus-4-8'] },
         });
@@ -332,6 +399,16 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(result.providers.anthropic).toBeUndefined();
             expect(result.defaultProvider).toBe('anthropic');
         });
+
+        it('fails closed for Claude Code when the org only keyed Google', async () => {
+            const result = await makeResolver({
+                orgKeys: { google: 'org-google-key' },
+                instanceConfig: allByoProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+
+            expect(result.providers.anthropic).toBeUndefined();
+            expect(result.defaultProvider).toBe('anthropic');
+        });
     });
 
     describe('getCodexConfig', () => {
@@ -368,6 +445,16 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(result.providers.openai).toBeUndefined();
             expect(result.defaultProvider).toBe('openai');
         });
+
+        it('fails closed for Codex when the org only keyed Google', async () => {
+            const result = await makeResolver({
+                orgKeys: { google: 'org-google-key' },
+                instanceConfig: allByoProvidersConfig,
+            }).getCodexConfig('org-uuid');
+
+            expect(result.providers.openai).toBeUndefined();
+            expect(result.defaultProvider).toBe('openai');
+        });
     });
 
     describe('resolveEffectiveModelVisibilityForOrg', () => {
@@ -381,6 +468,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                     { anthropic: { enabled: false } },
                 );
             expect(effective).toEqual({
+                google: { enabled: false },
                 openai: { enabled: false },
                 anthropic: { enabled: false },
             });
@@ -455,7 +543,10 @@ describe('OrgAiCopilotConfigResolver', () => {
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
         });
@@ -467,7 +558,10 @@ describe('OrgAiCopilotConfigResolver', () => {
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
             });
         });
@@ -479,7 +573,10 @@ describe('OrgAiCopilotConfigResolver', () => {
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { anthropic: { enabled: true } },
+                modelVisibility: {
+                    anthropic: { enabled: true },
+                    google: { enabled: false },
+                },
                 keyAccessibleModelIds: null,
             });
         });
@@ -491,7 +588,10 @@ describe('OrgAiCopilotConfigResolver', () => {
                 accessibleModelIds: null,
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: null },
             });
         });
@@ -504,7 +604,10 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
 
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
-                modelVisibility: { openai: { enabled: false } },
+                modelVisibility: {
+                    google: { enabled: false },
+                    openai: { enabled: false },
+                },
                 keyAccessibleModelIds: { anthropic: null },
             });
         });

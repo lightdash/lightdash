@@ -48,7 +48,10 @@ vi.mock('ai', async (importOriginal) => ({
     streamText: vi.fn(),
 }));
 
-const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
+const buildAgentDependencies = (
+    updatePrompt: ReturnType<typeof vi.fn>,
+    overrides: Partial<AiAgentDependencies> = {},
+) =>
     new Proxy(
         {
             listExplores: vi.fn().mockResolvedValue([]),
@@ -59,6 +62,7 @@ const buildAgentDependencies = (updatePrompt: ReturnType<typeof vi.fn>) =>
                 .mockResolvedValue({ types: [], totalCount: 0 }),
             updatePrompt,
             perf: new Proxy({}, { get: () => vi.fn() }),
+            ...overrides,
         },
         {
             get: (target, property: string) =>
@@ -121,6 +125,95 @@ const mcpToolSetup = () => ({
     mcpToolNameToServerUuid: {},
     unavailableMcpServers: [],
     closeMcpClients: vi.fn().mockResolvedValue(undefined),
+});
+
+describe('tool-call provider metadata persistence', () => {
+    it('stores a Google signature from a non-streaming tool call', async () => {
+        const storeToolCall = vi.fn().mockResolvedValue(undefined);
+        vi.mocked(generateText).mockImplementationOnce((async (
+            options: AnyType,
+        ) => {
+            await options.onStepFinish({
+                usage: { totalTokens: 10 },
+                toolCalls: [
+                    {
+                        toolCallId: 'tool-call-1',
+                        toolName: 'findExplores',
+                        input: {},
+                        providerMetadata: {
+                            google: { signature: 'google-signature' },
+                        },
+                    },
+                ],
+                toolResults: [],
+                text: 'Done',
+            });
+            return {
+                text: 'Done',
+                steps: [{}],
+                usage: { totalTokens: 10 },
+                finishReason: 'stop',
+            };
+        }) as AnyType);
+
+        await generateAgentResponse({
+            args: buildAgentArgs(),
+            dependencies: buildAgentDependencies(vi.fn(), { storeToolCall }),
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        expect(storeToolCall).toHaveBeenCalledWith(
+            expect.objectContaining({
+                toolCallId: 'tool-call-1',
+                providerMetadata: {
+                    provider: 'google',
+                    signature: 'google-signature',
+                },
+            }),
+        );
+    });
+
+    it('stores a Google signature from a streaming tool-call chunk', async () => {
+        const storeToolCall = vi.fn().mockResolvedValue(undefined);
+        const updateProgress = vi.fn().mockResolvedValue(undefined);
+        let capturedOptions: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((options: AnyType) => {
+            capturedOptions = options;
+            return {} as AnyType;
+        }) as AnyType);
+
+        await streamAgentResponse({
+            args: buildAgentArgs(),
+            dependencies: buildAgentDependencies(vi.fn(), {
+                storeToolCall,
+                updateProgress,
+            }),
+            mcpToolSetup: mcpToolSetup(),
+        });
+        capturedOptions.onChunk({
+            chunk: {
+                type: 'tool-call',
+                toolCallId: 'tool-call-1',
+                toolName: 'findExplores',
+                input: {},
+                providerMetadata: {
+                    google: { signature: 'google-signature' },
+                },
+            },
+        });
+
+        await vi.waitFor(() => {
+            expect(storeToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    toolCallId: 'tool-call-1',
+                    providerMetadata: {
+                        provider: 'google',
+                        signature: 'google-signature',
+                    },
+                }),
+            );
+        });
+    });
 });
 
 describe('generateAgentResponse error persistence', () => {

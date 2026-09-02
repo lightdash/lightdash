@@ -2,14 +2,17 @@ import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     AiProviderApiKeyHints,
+    AiProviderApiKeysSet,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
     NotFoundError,
     ParameterError,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
+    type ByoAiProvider,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { z } from 'zod';
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -28,10 +31,35 @@ export type StoredAiOrganizationSettings = Omit<
     'aiAgentMemoryEnabled'
 >;
 
-export type AiOrgProviderApiKeys = {
-    anthropic?: string;
-    openai?: string;
+export type AiOrgProviderApiKeys = Partial<Record<ByoAiProvider, string>>;
+
+const storedAiOrgProviderApiKeysSchema = z.record(z.string(), z.string());
+
+export const parseAiOrgProviderApiKeys = (
+    value: unknown,
+): AiOrgProviderApiKeys | null => {
+    const result = storedAiOrgProviderApiKeysSchema.safeParse(value);
+    if (!result.success) return null;
+
+    const keys: AiOrgProviderApiKeys = {};
+    BYO_AI_PROVIDERS.forEach((provider) => {
+        const key = result.data[provider];
+        if (key) keys[provider] = key;
+    });
+    return keys;
 };
+
+const emptyProviderApiKeyHints = (): AiProviderApiKeyHints => ({
+    anthropic: null,
+    google: null,
+    openai: null,
+});
+
+const emptyProviderApiKeysSet = (): AiProviderApiKeysSet => ({
+    anthropic: false,
+    google: false,
+    openai: false,
+});
 
 export const applyProviderApiKeyUpdates = (
     existing: AiOrgProviderApiKeys,
@@ -66,13 +94,34 @@ export const buildProviderApiKeyHint = (key: string): string => {
 export const buildProviderApiKeyHints = (
     keys: AiOrgProviderApiKeys,
 ): AiProviderApiKeyHints | null => {
-    if (!keys.anthropic && !keys.openai) return null;
-    return {
-        anthropic: keys.anthropic
-            ? buildProviderApiKeyHint(keys.anthropic)
-            : null,
-        openai: keys.openai ? buildProviderApiKeyHint(keys.openai) : null,
-    };
+    if (!BYO_AI_PROVIDERS.some((provider) => keys[provider])) return null;
+    const hints = emptyProviderApiKeyHints();
+    BYO_AI_PROVIDERS.forEach((provider) => {
+        const key = keys[provider];
+        hints[provider] = key ? buildProviderApiKeyHint(key) : null;
+    });
+    return hints;
+};
+
+export const normalizeProviderApiKeyHints = (
+    hints: Record<string, unknown> | null,
+): AiProviderApiKeyHints => {
+    const normalized = emptyProviderApiKeyHints();
+    BYO_AI_PROVIDERS.forEach((provider) => {
+        const hint = hints?.[provider];
+        normalized[provider] = typeof hint === 'string' ? hint : null;
+    });
+    return normalized;
+};
+
+export const buildProviderApiKeysSet = (
+    keys: AiOrgProviderApiKeys,
+): AiProviderApiKeysSet => {
+    const keysSet = emptyProviderApiKeysSet();
+    BYO_AI_PROVIDERS.forEach((provider) => {
+        keysSet[provider] = Boolean(keys[provider]);
+    });
+    return keysSet;
 };
 
 export class AiOrganizationSettingsModel {
@@ -90,9 +139,11 @@ export class AiOrganizationSettingsModel {
     ): AiOrgProviderApiKeys {
         if (!encrypted) return {};
         try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(encrypted),
-            ) as AiOrgProviderApiKeys;
+            const keys = parseAiOrgProviderApiKeys(
+                JSON.parse(this.encryptionUtil.decrypt(encrypted)),
+            );
+            if (!keys) throw new Error('Invalid provider key data');
+            return keys;
         } catch {
             Logger.warn(
                 'Failed to decrypt AI provider API keys; treating as unset',
@@ -102,7 +153,7 @@ export class AiOrganizationSettingsModel {
     }
 
     private encryptProviderApiKeys(keys: AiOrgProviderApiKeys): Buffer | null {
-        if (!keys.anthropic && !keys.openai) return null;
+        if (!BYO_AI_PROVIDERS.some((provider) => keys[provider])) return null;
         return this.encryptionUtil.encrypt(JSON.stringify(keys));
     }
 
@@ -125,14 +176,10 @@ export class AiOrganizationSettingsModel {
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
             modelVisibility: db.model_visibility,
             dataAppModelVisibility: db.data_app_model_visibility,
-            providerApiKeysSet: {
-                anthropic: Boolean(keys.anthropic),
-                openai: Boolean(keys.openai),
-            },
-            providerApiKeyHints: db.provider_api_key_hints ?? {
-                anthropic: null,
-                openai: null,
-            },
+            providerApiKeysSet: buildProviderApiKeysSet(keys),
+            providerApiKeyHints: normalizeProviderApiKeyHints(
+                db.provider_api_key_hints,
+            ),
             threadRetentionHours: db.thread_retention_hours,
         };
     }
@@ -181,7 +228,9 @@ export class AiOrganizationSettingsModel {
         const keys = this.decryptProviderApiKeys(
             row.encrypted_provider_api_keys,
         );
-        return keys.anthropic || keys.openai ? keys : null;
+        return BYO_AI_PROVIDERS.some((provider) => keys[provider])
+            ? keys
+            : null;
     }
 
     async create(

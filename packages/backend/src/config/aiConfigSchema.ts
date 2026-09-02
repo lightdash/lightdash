@@ -4,6 +4,8 @@ export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
 export const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 export const DEFAULT_OPENAI_FAST_MODEL_NAME = 'gpt-5.6-luna';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
+export const DEFAULT_GOOGLE_MODEL_NAME = 'gemini-3.7-flash';
+export const DEFAULT_GOOGLE_FAST_MODEL_NAME = 'gemini-3.5-flash-lite';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -29,6 +31,7 @@ export const AI_PROVIDER_KEYS = [
     'openai',
     'azure',
     'anthropic',
+    'google',
     'openrouter',
     'bedrock',
 ] as const;
@@ -81,6 +84,16 @@ export const aiCopilotConfigSchema = z
                 .object({
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
+                    baseUrl: z.string().optional(),
+                    availableModels: z.array(z.string()).optional(),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
+            google: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_GOOGLE_MODEL_NAME),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,

@@ -7,7 +7,6 @@ import {
     type AiPromptExternalSourceSnapshot,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
-    type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -15,6 +14,7 @@ import {
     type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import type { AiAgentToolCallProviderMetadata } from './aiAgentToolCallProviderMetadata';
 
 export const AiThreadTableName = 'ai_thread';
 
@@ -389,20 +389,27 @@ export type DbAiAgentToolCall = {
     tool_args: object;
     ai_mcp_server_uuid: string | null;
     parent_tool_call_id: string | null;
+    provider_metadata: Record<string, unknown> | null;
     created_at: Date;
 };
 
 export type AiAgentToolCallTable = Knex.CompositeTableType<
     DbAiAgentToolCall,
-    Pick<
-        DbAiAgentToolCall,
-        | 'ai_prompt_uuid'
-        | 'tool_call_id'
-        | 'tool_name'
-        | 'tool_args'
-        | 'ai_mcp_server_uuid'
-        | 'parent_tool_call_id'
-    >,
+    Omit<
+        Pick<
+            DbAiAgentToolCall,
+            | 'ai_prompt_uuid'
+            | 'tool_call_id'
+            | 'tool_name'
+            | 'tool_args'
+            | 'ai_mcp_server_uuid'
+            | 'parent_tool_call_id'
+            | 'provider_metadata'
+        >,
+        'provider_metadata'
+    > & {
+        provider_metadata?: AiAgentToolCallProviderMetadata | null;
+    },
     never
 >;
 
@@ -550,7 +557,7 @@ export type DbAiOrganizationSettings = {
     model_visibility: AiOrgModelVisibility | null;
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
-    provider_api_key_hints: AiProviderApiKeyHints | null;
+    provider_api_key_hints: Record<string, unknown> | null;
     thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;

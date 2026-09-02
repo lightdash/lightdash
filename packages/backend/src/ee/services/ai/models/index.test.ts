@@ -19,7 +19,7 @@ import {
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
 } from './index';
-import type { ModelPreset } from './presets';
+import type { ModelPreset, ModelPresetProvider } from './presets';
 
 vi.mock('ai', async () => {
     const actual = await vi.importActual<typeof import('ai')>('ai');
@@ -429,6 +429,53 @@ describe('OpenRouter model options', () => {
     });
 });
 
+describe('Google Gemini models', () => {
+    const googleCopilotConfig = {
+        ...baseCopilotConfig,
+        defaultProvider: 'google' as const,
+        providers: {
+            google: {
+                apiKey: 'fake-gemini-key',
+                modelName: 'gemini-3.7-flash',
+                availableModels: undefined,
+                customHeaders: {},
+                supportsStreaming: true,
+            },
+        },
+    };
+
+    it('lists the shipped Gemini presets', () => {
+        expect(
+            getAvailableModels(googleCopilotConfig).map((model) => model.name),
+        ).toEqual(['gemini-3.7-flash', 'gemini-3.5-flash-lite']);
+    });
+
+    it('resolves Gemini through the Interactions-backed model factory', () => {
+        const { model, providerOptions } = getModel(googleCopilotConfig);
+
+        expect(model.modelId).toBe('gemini-3.7-flash');
+        expect(providerOptions).toEqual({
+            google: { store: false, thinkingLevel: 'low' },
+        });
+    });
+
+    it('uses Flash-Lite for lightweight work', () => {
+        const { model } = getFastModelForAccessibleKey(
+            { ...googleCopilotConfig, byoProviders: ['google'] },
+            null,
+        );
+
+        expect(model.modelId).toBe('gemini-3.5-flash-lite');
+    });
+
+    it('uses the Gemini context window for compaction', () => {
+        expect(getCompactionModelMetadata(googleCopilotConfig)).toEqual({
+            supportsCompaction: true,
+            contextWindowTokens: 400_000,
+        });
+    });
+});
+
 describe('custom OpenAI-compatible gateway models', () => {
     const gatewayConfig = (
         openaiOverrides: Partial<
@@ -534,10 +581,10 @@ describe('custom OpenAI-compatible gateway models', () => {
 describe('filterModelsForOrg', () => {
     const preset = (
         overrides: Pick<
-            ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+            ModelPreset<ModelPresetProvider>,
             'name' | 'provider' | 'modelId'
         > & { hiddenUnlessKeyAccess?: boolean },
-    ): ModelPreset<'openai' | 'anthropic' | 'bedrock'> => ({
+    ): ModelPreset<ModelPresetProvider> => ({
         displayName: overrides.name,
         description: 'test preset',
         contextWindowTokens: 200000,
@@ -845,6 +892,7 @@ describe('getFastModelForAccessibleKey', () => {
     const anthropicByoConfig = {
         ...baseCopilotConfig,
         defaultProvider: 'anthropic' as const,
+        byoProviders: ['anthropic' as const],
         providers: {
             ...baseCopilotConfig.providers,
             anthropic: {
@@ -868,5 +916,41 @@ describe('getFastModelForAccessibleKey', () => {
             'claude-opus-4-8',
         ]);
         expect(model.modelId).toBe('claude-opus-4-8');
+    });
+
+    it('preserves the managed-instance Anthropic fast path', () => {
+        const { model } = getFastModelForAccessibleKey(
+            {
+                ...anthropicByoConfig,
+                defaultProvider: 'openai',
+                byoProviders: [],
+            },
+            ['claude-haiku-4-5-20251001'],
+        );
+
+        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('never uses the instance Anthropic key for a Google-only BYO org', () => {
+        const { model } = getFastModelForAccessibleKey(
+            {
+                ...anthropicByoConfig,
+                defaultProvider: 'google',
+                byoProviders: ['google'],
+                providers: {
+                    ...anthropicByoConfig.providers,
+                    google: {
+                        apiKey: 'fake-gemini-key',
+                        modelName: 'gemini-3.7-flash',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            ['claude-haiku-4-5-20251001'],
+        );
+
+        expect(model.modelId).toBe('gemini-3.5-flash-lite');
+        expect(model.provider).toContain('google');
     });
 });

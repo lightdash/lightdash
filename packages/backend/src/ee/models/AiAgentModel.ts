@@ -204,6 +204,10 @@ import {
     DbAiMcpServerTool,
 } from '../database/entities/aiAgent';
 import { AiAgentMemoryTableName } from '../database/entities/aiAgentMemory';
+import {
+    parseStoredAiAgentToolCallProviderMetadata,
+    type AiAgentToolCallProviderMetadata,
+} from '../database/entities/aiAgentToolCallProviderMetadata';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
     AiArtifactsTable,
@@ -338,11 +342,17 @@ export type AiMcpServerWithSensitiveData = AiMcpServer & {
     resolvedCredentialScope: AiMcpCredentialScope | null;
 };
 
-type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
-    mcp_server_uuid: string | null;
-    mcp_server_name: string | null;
-    mcp_server_icon_url: string | null;
-};
+type DbAiAgentToolCallWithoutProviderMetadata = Omit<
+    DbAiAgentToolCall,
+    'provider_metadata'
+>;
+
+type DbAiAgentToolCallWithMcpServer =
+    DbAiAgentToolCallWithoutProviderMetadata & {
+        mcp_server_uuid: string | null;
+        mcp_server_name: string | null;
+        mcp_server_icon_url: string | null;
+    };
 
 export type AiAgentThreadDumpData = {
     thread: {
@@ -7447,6 +7457,7 @@ export class AiAgentModel {
         toolArgs: object;
         mcpServerUuid?: string | null;
         parentToolCallId: string | null;
+        providerMetadata: AiAgentToolCallProviderMetadata | null;
     }): Promise<string> {
         const [toolCall] = await this.database(AiAgentToolCallTableName)
             .insert({
@@ -7456,6 +7467,7 @@ export class AiAgentModel {
                 tool_args: data.toolArgs,
                 ai_mcp_server_uuid: data.mcpServerUuid ?? null,
                 parent_tool_call_id: data.parentToolCallId,
+                provider_metadata: data.providerMetadata,
             })
             .returning('ai_agent_tool_call_uuid');
 
@@ -7488,7 +7500,9 @@ export class AiAgentModel {
 
     // eslint-disable-next-line class-methods-use-this
     private parseMcpServerForToolCall(
-        row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
+        row:
+            | DbAiAgentToolCallWithoutProviderMetadata
+            | DbAiAgentToolCallWithMcpServer,
     ): AiAgentToolCallMcpServer | null {
         if (!row.ai_mcp_server_uuid) {
             return null;
@@ -7506,7 +7520,9 @@ export class AiAgentModel {
     }
 
     private parseToolCall(
-        row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
+        row:
+            | DbAiAgentToolCallWithoutProviderMetadata
+            | DbAiAgentToolCallWithMcpServer,
     ): AiAgentToolCall {
         const parsedToolName = ToolNameSchema.safeParse(
             normalizeToolName(row.tool_name),
@@ -7850,7 +7866,9 @@ export class AiAgentModel {
         options: { includeSubagentToolCalls?: boolean } = {},
     ): Promise<
         Array<{
-            toolCall: AiAgentToolCall;
+            toolCall: AiAgentToolCall & {
+                providerMetadata: AiAgentToolCallProviderMetadata | null;
+            };
             toolResult: AiAgentToolResult | null;
             approvalDecision: AiSqlApprovalDecision | null;
         }>
@@ -7914,7 +7932,13 @@ export class AiAgentModel {
                     isParseableToolName(row.tool_name),
             )
             .map((row) => {
-                const toolCall = this.parseToolCall(row);
+                const toolCall = {
+                    ...this.parseToolCall(row),
+                    providerMetadata:
+                        parseStoredAiAgentToolCallProviderMetadata(
+                            row.provider_metadata,
+                        ),
+                };
 
                 const toolResult =
                     row.result !== null
@@ -8004,7 +8028,14 @@ export class AiAgentModel {
                 `${AiMcpServerTableName}.ai_mcp_server_uuid`,
             )
             .select<DbAiAgentToolCallWithMcpServer[]>(
-                `${AiAgentToolCallTableName}.*`,
+                `${AiAgentToolCallTableName}.ai_agent_tool_call_uuid`,
+                `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
+                `${AiAgentToolCallTableName}.tool_args`,
+                `${AiAgentToolCallTableName}.ai_mcp_server_uuid`,
+                `${AiAgentToolCallTableName}.parent_tool_call_id`,
+                `${AiAgentToolCallTableName}.created_at`,
                 `${AiMcpServerTableName}.ai_mcp_server_uuid as mcp_server_uuid`,
                 `${AiMcpServerTableName}.name as mcp_server_name`,
                 `${AiMcpServerTableName}.icon_url as mcp_server_icon_url`,
@@ -9670,6 +9701,7 @@ export class AiAgentModel {
                         'tool_args',
                         'ai_mcp_server_uuid',
                         'parent_tool_call_id',
+                        'provider_metadata',
                         'created_at',
                     )
                     .where('ai_prompt_uuid', sourcePromptUuid);
@@ -9681,6 +9713,10 @@ export class AiAgentModel {
                     tool_args: toolCall.tool_args,
                     ai_mcp_server_uuid: toolCall.ai_mcp_server_uuid,
                     parent_tool_call_id: toolCall.parent_tool_call_id,
+                    provider_metadata:
+                        parseStoredAiAgentToolCallProviderMetadata(
+                            toolCall.provider_metadata,
+                        ),
                 }));
 
                 // Clone tool results

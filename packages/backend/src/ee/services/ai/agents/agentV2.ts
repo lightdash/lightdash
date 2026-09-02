@@ -109,6 +109,7 @@ import {
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
 import { renderMemoryBlock } from '../utils/memoryBlock';
+import { extractToolCallProviderMetadata } from '../utils/toolCallProviderMetadata';
 import {
     isPendingToolResult,
     summarizeToolCall,
@@ -1735,6 +1736,10 @@ export const generateAgentResponse = async ({
                                         ] ?? null,
                                     parentToolCallId:
                                         args.execution.parentToolCallId ?? null,
+                                    providerMetadata:
+                                        extractToolCallProviderMetadata(
+                                            toolCall.providerMetadata,
+                                        ),
                                 });
                             }
                         }),
@@ -2114,6 +2119,10 @@ export const streamAgentResponse = async ({
                                         event.chunk.toolName
                                     ] ?? null,
                                 parentToolCallId: null,
+                                providerMetadata:
+                                    extractToolCallProviderMetadata(
+                                        event.chunk.providerMetadata,
+                                    ),
                             })
                             .catch((error) => {
                                 Logger.error(
