@@ -1,3 +1,10 @@
+## [2.82.1](https://github.com/lightdash/lightdash/compare/2.82.0...2.82.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **frontend:** page sidebar hairline and even SQL runner padding ([#28463](https://github.com/lightdash/lightdash/issues/28463)) ([0595bf2](https://github.com/lightdash/lightdash/commit/0595bf225bb8ff6386ddbb00ba7d7b9e17f55c6d))
+
 # [2.82.0](https://github.com/lightdash/lightdash/compare/2.81.0...2.82.0) (2026-09-01)
 
 
