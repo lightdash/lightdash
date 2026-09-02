@@ -502,6 +502,11 @@ export const ContentReviewRequestDetailView: FC<{
                                                 contentType={item.contentType}
                                                 name={item.name}
                                                 meta={`${getContentTypeLabel(item.contentType)} in ${item.spaceName}`}
+                                                href={getContentHref(
+                                                    projectUuid,
+                                                    item.contentType,
+                                                    item,
+                                                )}
                                                 isVerified={item.isVerified}
                                             />
                                         ))}
