@@ -18,6 +18,7 @@ import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
+import { JiraAppService } from '../services/JiraAppService/JiraAppService';
 import { LinearAppService } from '../services/LinearAppService/LinearAppService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
@@ -211,6 +212,27 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         ),
                     onInstallationDeleted: (organizationUuid, trx) =>
                         aiAgentReviewNotificationModel.clearLinearDestinations(
+                            organizationUuid,
+                            trx,
+                        ),
+                });
+            },
+            jiraAppService: ({ models, context, utils }) => {
+                const aiAgentReviewNotificationModel =
+                    models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
+                return new JiraAppService({
+                    jiraAppInstallationsModel:
+                        models.getJiraAppInstallationsModel(),
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                    onWorkspaceChanged: (organizationUuid, trx) =>
+                        aiAgentReviewNotificationModel.clearJiraDestinations(
+                            organizationUuid,
+                            trx,
+                        ),
+                    onInstallationDeleted: (organizationUuid, trx) =>
+                        aiAgentReviewNotificationModel.clearJiraDestinations(
                             organizationUuid,
                             trx,
                         ),
@@ -1442,6 +1464,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.models.getAiOrganizationSettingsModel<AiOrganizationSettingsModel>(),
                 aiAgentReviewNotificationService:
                     context.serviceRepository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
+                jiraAppService: context.serviceRepository.getJiraAppService(),
                 linearAppService:
                     context.serviceRepository.getLinearAppService(),
                 aiAgentAdminService:

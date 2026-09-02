@@ -24,6 +24,9 @@ import {
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     AiAgentThreadDump,
+    AiReviewJiraBackfillResult,
+    AiReviewJiraDestination,
+    AiReviewJiraRouting,
     AiReviewLinearBackfillResult,
     AiReviewLinearDestination,
     AiReviewLinearRouting,
@@ -60,6 +63,8 @@ import {
     toolEditDbtProjectOutputSchema,
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
+    UpdateAiReviewJiraDestination,
+    UpdateAiReviewJiraRouting,
     UpdateAiReviewLinearDestination,
     UpdateAiReviewLinearRouting,
     UpdateAiReviewNotificationSettings,
@@ -1068,6 +1073,14 @@ export class AiAgentAdminService extends BaseService {
                 'A Linear team is required to create review issues',
             );
         }
+        if (
+            updatedSettings.jiraEnabled &&
+            (!updatedSettings.jiraProjectId || !updatedSettings.jiraIssueTypeId)
+        ) {
+            throw new ParameterError(
+                'A Jira project and issue type are required to create review issues',
+            );
+        }
 
         const updated =
             await this.aiAgentReviewNotificationModel.upsertSettings(
@@ -1268,6 +1281,165 @@ export class AiAgentAdminService extends BaseService {
         return queuedCount;
     }
 
+    async getReviewJiraDestination(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<AiReviewJiraDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkReviewAccess(user, organizationUuid);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        return this.aiAgentReviewNotificationModel.getJiraDestination(
+            organizationUuid,
+            projectUuid,
+        );
+    }
+
+    async updateReviewJiraDestination(
+        user: SessionUser,
+        projectUuid: string,
+        destination: UpdateAiReviewJiraDestination,
+    ): Promise<AiReviewJiraDestination> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.organizationUuid !== organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        if (
+            destination.enabled &&
+            (!destination.jiraProjectId || !destination.jiraIssueTypeId)
+        ) {
+            throw new ParameterError(
+                'A Jira project and issue type are required to create review issues',
+            );
+        }
+        return this.aiAgentReviewNotificationModel.upsertJiraDestination({
+            organizationUuid,
+            projectUuid,
+            ...destination,
+        });
+    }
+
+    async getReviewJiraRouting(
+        user: SessionUser,
+    ): Promise<AiReviewJiraRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkReviewAccess(user, organizationUuid);
+        return this.aiAgentReviewNotificationModel.getJiraRouting(
+            organizationUuid,
+        );
+    }
+
+    async updateReviewJiraRouting(
+        user: SessionUser,
+        routing: UpdateAiReviewJiraRouting,
+    ): Promise<AiReviewJiraRouting> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+        if (
+            routing.enabled &&
+            (!routing.jiraProjectId || !routing.jiraIssueTypeId)
+        ) {
+            throw new ParameterError(
+                'A Jira project and issue type are required to create review issues',
+            );
+        }
+        if (
+            routing.enabled &&
+            !routing.applyToAllProjects &&
+            routing.projectUuids.length === 0
+        ) {
+            throw new ParameterError(
+                'Select at least one project or apply Jira issues to all projects',
+            );
+        }
+        if (!routing.applyToAllProjects && routing.projectUuids.length > 0) {
+            const projects =
+                await this.projectModel.getAllByOrganizationUuid(
+                    organizationUuid,
+                );
+            const validProjectUuids = new Set(
+                projects.map((project) => project.projectUuid),
+            );
+            if (
+                routing.projectUuids.some(
+                    (projectUuid) => !validProjectUuids.has(projectUuid),
+                )
+            ) {
+                throw new NotFoundError('Project not found');
+            }
+        }
+        return this.aiAgentReviewNotificationModel.upsertJiraRouting({
+            organizationUuid,
+            ...routing,
+        });
+    }
+
+    async backfillReviewJiraIssues(
+        user: SessionUser,
+    ): Promise<AiReviewJiraBackfillResult> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+        const routing =
+            await this.aiAgentReviewNotificationModel.getJiraRouting(
+                organizationUuid,
+            );
+        if (
+            !routing.enabled ||
+            !routing.jiraProjectId ||
+            !routing.jiraIssueTypeId
+        ) {
+            throw new ParameterError(
+                'Enable Jira issues and choose a project and issue type before exporting existing findings',
+            );
+        }
+        const items =
+            await this.aiAgentReviewClassifierModel.listUnlinkedReviewItemsForJiraExport(
+                {
+                    organizationUuid,
+                    projectUuids: routing.applyToAllProjects
+                        ? null
+                        : routing.projectUuids,
+                },
+            );
+        const fingerprintsByProject = new Map<string, string[]>();
+        for (const item of items) {
+            const fingerprints =
+                fingerprintsByProject.get(item.projectUuid) ?? [];
+            fingerprints.push(item.fingerprint);
+            fingerprintsByProject.set(item.projectUuid, fingerprints);
+        }
+        let queuedCount = 0;
+        for (const [projectUuid, fingerprints] of fingerprintsByProject) {
+            for (let index = 0; index < fingerprints.length; index += 25) {
+                const batch = fingerprints.slice(index, index + 25);
+                // eslint-disable-next-line no-await-in-loop
+                await this.aiAgentReviewNotificationService.createJiraIssues({
+                    organizationUuid,
+                    projectUuid,
+                    fingerprints: batch,
+                    reviewRunUuid: null,
+                    userUuid: user.userUuid,
+                });
+                queuedCount += batch.length;
+            }
+        }
+        return { queuedCount };
+    }
+
     async listReviewItems(
         user: SessionUser,
         statuses?: AiAgentReviewItemStatus[],
@@ -1446,13 +1618,19 @@ export class AiAgentAdminService extends BaseService {
         });
 
         if (item.projectUuid) {
-            await this.aiAgentReviewNotificationService.createLinearIssues({
+            const exportArgs = {
                 organizationUuid,
                 projectUuid: item.projectUuid,
                 fingerprints: [item.fingerprint],
                 reviewRunUuid: null,
                 userUuid: user.userUuid,
-            });
+            };
+            await this.aiAgentReviewNotificationService.createLinearIssues(
+                exportArgs,
+            );
+            await this.aiAgentReviewNotificationService.createJiraIssues(
+                exportArgs,
+            );
         }
 
         return item;

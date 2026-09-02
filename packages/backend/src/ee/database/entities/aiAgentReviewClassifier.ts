@@ -276,6 +276,7 @@ export type DbAiAgentReviewItem = {
     dismissed_reason: AiAgentReviewItemDismissedReason | null;
     assigned_to_user_uuid: string | null;
     linked_issue_url: string | null;
+    jira_linked_issue_url: string | null;
     linked_pr_url: string | null;
     pr_writeback_thread_uuid: string | null;
     pr_state: AiAgentReviewItemPrState | null;

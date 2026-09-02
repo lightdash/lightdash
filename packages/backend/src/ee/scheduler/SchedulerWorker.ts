@@ -23,6 +23,7 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { type JiraAppService } from '../../services/JiraAppService/JiraAppService';
 import { type LinearAppService } from '../../services/LinearAppService/LinearAppService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
@@ -43,6 +44,7 @@ import { type MobilePushNotificationService } from '../services/MobilePushNotifi
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
+import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { sendContentReviewNotification } from './tasks/sendContentReviewNotification';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
@@ -121,6 +123,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
+    jiraAppService: JiraAppService;
     linearAppService: LinearAppService;
     aiAgentAdminService: AiAgentAdminService;
     embedService: EmbedService;
@@ -170,6 +173,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
+    protected readonly jiraAppService: JiraAppService;
+
     protected readonly linearAppService: LinearAppService;
 
     protected readonly aiAgentAdminService: AiAgentAdminService;
@@ -217,6 +222,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.aiOrganizationSettingsModel = args.aiOrganizationSettingsModel;
         this.aiAgentReviewNotificationService =
             args.aiAgentReviewNotificationService;
+        this.jiraAppService = args.jiraAppService;
         this.linearAppService = args.linearAppService;
         this.aiAgentAdminService = args.aiAgentAdminService;
         this.embedService = args.embedService;
@@ -1073,6 +1079,19 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         this.aiAgentReviewClassifierModel,
                     projectModel: this.projectModel,
                     linearAppService: this.linearAppService,
+                    analytics: this.analytics,
+                })(payload);
+            },
+            [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: async (payload) => {
+                await createReviewJiraIssue({
+                    siteUrl: this.lightdashConfig.siteUrl, // pragma: allowlist secret
+                    model: this.aiAgentReviewNotificationModel,
+                    aiOrganizationSettingsModel:
+                        this.aiOrganizationSettingsModel,
+                    aiAgentReviewClassifierModel:
+                        this.aiAgentReviewClassifierModel,
+                    projectModel: this.projectModel,
+                    jiraAppService: this.jiraAppService,
                     analytics: this.analytics,
                 })(payload);
             },

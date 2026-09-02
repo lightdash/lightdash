@@ -27,6 +27,7 @@ import { type RenameResourcesPayload } from './rename';
 import {
     type BackfillDefaultUserSpacesPayload,
     type CompileProjectPayload,
+    type CreateReviewJiraIssuePayload,
     type CreateReviewLinearIssuePayload,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
@@ -180,6 +181,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_AGENT_REVIEW_REMEDIATION_RUN: 'aiAgentReviewRemediationRun',
     SEND_REVIEW_NOTIFICATION: 'sendReviewNotification',
     SEND_CONTENT_REVIEW_NOTIFICATION: 'sendContentReviewNotification',
+    CREATE_REVIEW_JIRA_ISSUE: 'createReviewJiraIssue',
     CREATE_REVIEW_LINEAR_ISSUE: 'createReviewLinearIssue',
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
@@ -305,6 +307,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
+    [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
     [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: CreateReviewLinearIssuePayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
@@ -344,6 +347,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: SendReviewNotificationPayload;
     [EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION]: SendContentReviewNotificationPayload;
+    [EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: CreateReviewJiraIssuePayload;
     [EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: CreateReviewLinearIssuePayload;
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

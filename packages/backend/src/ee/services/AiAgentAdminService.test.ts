@@ -515,6 +515,7 @@ const makeService = ({
         aiAgentReviewNotificationService: {
             notifyAssigned: vi.fn().mockResolvedValue(undefined),
             createLinearIssues: vi.fn().mockResolvedValue(undefined),
+            createJiraIssues: vi.fn().mockResolvedValue(undefined),
             ...aiAgentReviewNotificationService,
         },
         slackClient: {
@@ -622,6 +623,52 @@ describe('AiAgentAdminService review access', () => {
             }),
         ).rejects.toThrow('not an available issue category');
         expect(createManualReviewItem).not.toHaveBeenCalled();
+    });
+
+    it('queues Linear and Jira exports for an issue created by hand', async () => {
+        const createLinearIssues = vi.fn().mockResolvedValue(undefined);
+        const createJiraIssues = vi.fn().mockResolvedValue(undefined);
+        const service = makeService({
+            aiAgentReviewClassifierModel: {
+                createManualReviewItem: vi.fn().mockResolvedValue(
+                    makeReviewItem({
+                        fingerprint: 'fp-manual',
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            },
+            projectModel: {
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: ORGANIZATION_UUID }),
+            },
+            aiAgentReviewNotificationService: {
+                createLinearIssues,
+                createJiraIssues,
+            },
+        });
+
+        await service.createReviewItem(makeAdminUser(), {
+            title: 'Revenue metric double counts refunds',
+            description: null,
+            projectUuid: PROJECT_UUID,
+            agentUuid: null,
+            assignedToUserUuid: null,
+            primaryRootCause: 'semantic_layer',
+            priority: 'high',
+            targetRefs: [],
+        });
+
+        const exportArgs = {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            fingerprints: ['fp-manual'],
+            reviewRunUuid: null,
+            userUuid: USER_UUID,
+        };
+        expect(createLinearIssues).toHaveBeenCalledWith(exportArgs);
+        expect(createJiraIssues).toHaveBeenCalledWith(exportArgs);
     });
 
     it('forbids starting writeback without manage:SourceCode', async () => {

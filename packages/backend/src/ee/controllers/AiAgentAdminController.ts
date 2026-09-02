@@ -20,6 +20,9 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadDumpResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiReviewJiraBackfillResponse,
+    ApiAiReviewJiraDestinationResponse,
+    ApiAiReviewJiraRoutingResponse,
     ApiAiReviewLinearBackfillResponse,
     ApiAiReviewLinearDestinationResponse,
     ApiAiReviewLinearRoutingResponse,
@@ -42,6 +45,8 @@ import {
     UpdateAiAgentReviewItemPriority,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
+    UpdateAiReviewJiraDestination,
+    UpdateAiReviewJiraRouting,
     UpdateAiReviewLinearDestination,
     UpdateAiReviewLinearRouting,
     UpdateAiReviewNotificationSettings,
@@ -1107,6 +1112,125 @@ export class AiAgentAdminController extends BaseController {
             status: 'ok',
             results:
                 await this.getAiAgentAdminService().updateReviewLinearDestination(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * Get Jira routing for AI review issues
+     * @summary Get AI review Jira routing
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/review-jira-routing')
+    @OperationId('getAiReviewJiraRouting')
+    async getReviewJiraRouting(
+        @Request() req: express.Request,
+    ): Promise<ApiAiReviewJiraRoutingResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewJiraRouting(
+                toSessionUser(req.account),
+            ),
+        };
+    }
+
+    /**
+     * Update Jira routing for AI review issues
+     * @summary Update AI review Jira routing
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/review-jira-routing')
+    @OperationId('updateAiReviewJiraRouting')
+    async updateReviewJiraRouting(
+        @Request() req: express.Request,
+        @Body() body: UpdateAiReviewJiraRouting,
+    ): Promise<ApiAiReviewJiraRoutingResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().updateReviewJiraRouting(
+                    toSessionUser(req.account),
+                    body,
+                ),
+        };
+    }
+
+    /**
+     * Create Jira issues for existing open AI review findings
+     * @summary Backfill AI review Jira issues
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/review-jira-issues/backfill')
+    @OperationId('backfillAiReviewJiraIssues')
+    async backfillReviewJiraIssues(
+        @Request() req: express.Request,
+    ): Promise<ApiAiReviewJiraBackfillResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().backfillReviewJiraIssues(
+                    toSessionUser(req.account),
+                ),
+        };
+    }
+
+    /**
+     * Get a project's Jira destination for AI reviews
+     * @summary Get AI review Jira destination
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/review-jira-destination/{projectUuid}')
+    @OperationId('getAiReviewJiraDestination')
+    async getReviewJiraDestination(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiAiReviewJiraDestinationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().getReviewJiraDestination(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        };
+    }
+
+    /**
+     * Update a project's Jira destination for AI reviews
+     * @summary Update AI review Jira destination
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/review-jira-destination/{projectUuid}')
+    @OperationId('updateAiReviewJiraDestination')
+    async updateReviewJiraDestination(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateAiReviewJiraDestination,
+    ): Promise<ApiAiReviewJiraDestinationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().updateReviewJiraDestination(
                     toSessionUser(req.account),
                     projectUuid,
                     body,
