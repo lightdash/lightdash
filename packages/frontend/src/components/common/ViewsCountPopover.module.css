@@ -1,8 +1,13 @@
 .trigger {
     text-decoration: underline dotted;
-    text-decoration-color: var(--mantine-color-dimmed);
+    text-decoration-color: var(--mantine-color-default-border);
+    text-decoration-thickness: 1px;
     text-underline-offset: 3px;
     cursor: default;
+}
+
+.trigger:hover {
+    text-decoration-color: var(--mantine-color-dimmed);
 }
 
 .note {
