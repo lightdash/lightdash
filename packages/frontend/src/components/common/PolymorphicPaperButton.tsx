@@ -14,8 +14,15 @@ export const PolymorphicPaperButton = createPolymorphicComponent<
     PaperProps
 >(
     forwardRef<HTMLDivElement, PaperProps>(
-        (props: PaperProps, ref: Ref<HTMLDivElement>) => (
-            <Paper ref={ref} {...props} className="ld-pointer" />
+        ({ className, ...props }: PaperProps, ref: Ref<HTMLDivElement>) => (
+            // Merge, don't clobber: callers pass their own classes (e.g. the
+            // template picker's fan cards) and inline styles on top of the
+            // pointer default.
+            <Paper
+                ref={ref}
+                {...props}
+                className={className ? `ld-pointer ${className}` : 'ld-pointer'}
+            />
         ),
     ),
 );

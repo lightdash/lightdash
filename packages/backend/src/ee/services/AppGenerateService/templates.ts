@@ -1,4 +1,4 @@
-import { assertUnreachable, type DataAppTemplate } from '@lightdash/common';
+import { type DataAppTemplate } from '@lightdash/common';
 
 const DASHBOARD_INSTRUCTIONS = `[Starter template: Dashboard]
 Build a single-page dashboard layout:
@@ -47,24 +47,17 @@ Wire the standard data-point action: when \`useVizContext().underlyingData.enabl
 
 You are done when the chart renders for real and the declaration you emit is the one that skill describes: every field and every config option the component reads, and nothing a viewer would plausibly want different left hardcoded.`;
 
+// Exhaustive by construction: a new DataAppTemplate value fails to compile
+// until its instructions (or an explicit null, for free-form templates) are
+// registered here.
+const TEMPLATE_INSTRUCTIONS: Record<DataAppTemplate, string | null> = {
+    dashboard: DASHBOARD_INSTRUCTIONS,
+    slideshow: SLIDESHOW_INSTRUCTIONS,
+    pdf: PDF_REPORT_INSTRUCTIONS,
+    custom: null,
+    data_app_viz: DATA_APP_VIZ_INSTRUCTIONS,
+};
+
 export const getTemplateInstructions = (
     template: DataAppTemplate,
-): string | null => {
-    switch (template) {
-        case 'dashboard':
-            return DASHBOARD_INSTRUCTIONS;
-        case 'slideshow':
-            return SLIDESHOW_INSTRUCTIONS;
-        case 'pdf':
-            return PDF_REPORT_INSTRUCTIONS;
-        case 'custom':
-            return null;
-        case 'data_app_viz':
-            return DATA_APP_VIZ_INSTRUCTIONS;
-        default:
-            return assertUnreachable(
-                template,
-                `Unknown data app template: ${template}`,
-            );
-    }
-};
+): string | null => TEMPLATE_INSTRUCTIONS[template];
