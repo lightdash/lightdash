@@ -4251,22 +4251,6 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectTimezone,
         });
 
-        // Only meaningful with a non-UTC data timezone; skip the lookup otherwise.
-        const rebaseRawTimestampFilters =
-            columnTimezone && columnTimezone !== 'UTC'
-                ? (
-                      await this.featureFlagModel.get({
-                          featureFlagId:
-                              FeatureFlags.NaiveTimestampFilterRebase,
-                          user: {
-                              userUuid: account.user.id,
-                              organizationUuid:
-                                  account.organization.organizationUuid,
-                          },
-                      })
-                  ).enabled
-                : false;
-
         return new QueryComposer(
             { metricQuery, pivotConfiguration, totalConfiguration },
             {
@@ -4284,7 +4268,6 @@ export class AsyncQueryService extends ProjectService {
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
                 dataTimezone,
-                rebaseRawTimestampFilters,
                 applyDateZoomToFilters,
                 displayTimezone,
                 queryExecutionContext: context,

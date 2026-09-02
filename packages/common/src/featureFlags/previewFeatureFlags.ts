@@ -11,7 +11,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.OrganizationTrialBlock,
     FeatureFlags.OrganizationTrialWarning,
     // Changes query or compile semantics, so QA results would be misleading.
-    FeatureFlags.NaiveTimestampFilterRebase,
     FeatureFlags.CalculateSeriesColor,
     FeatureFlags.ReplaceCustomMetricsOnCompile,
     // Needs per-org worker queues that previews don't run.
