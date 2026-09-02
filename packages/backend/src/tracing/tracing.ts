@@ -32,6 +32,7 @@ import {
 import {
     CompositePropagator,
     diagLogLevelFromString,
+    getNumberFromEnv,
     getStringFromEnv,
     getStringListFromEnv,
     W3CBaggagePropagator,
@@ -184,6 +185,25 @@ export const otelTracingEnabled = () =>
 export const otelDatabaseTracingEnabled = () =>
     otelTracingEnabled() &&
     parseBoolean(process.env.LIGHTDASH_OTEL_DB_TRACES_ENABLED);
+
+const DEFAULT_OTEL_DB_TRACES_MAX_QUERY_LENGTH = 1022;
+
+export const getOtelDatabaseTraceMaxQueryLength = () => {
+    const configured = getNumberFromEnv(
+        'LIGHTDASH_OTEL_DB_TRACES_MAX_QUERY_LENGTH',
+    );
+    if (configured === undefined)
+        return DEFAULT_OTEL_DB_TRACES_MAX_QUERY_LENGTH;
+
+    if (!Number.isInteger(configured) || configured < 0) {
+        diag.warn(
+            `LIGHTDASH_OTEL_DB_TRACES_MAX_QUERY_LENGTH must be a non-negative integer; using ${DEFAULT_OTEL_DB_TRACES_MAX_QUERY_LENGTH}`,
+        );
+        return DEFAULT_OTEL_DB_TRACES_MAX_QUERY_LENGTH;
+    }
+
+    return configured;
+};
 
 const SUPPORTED_TRACE_EXPORTERS = new Set(['console', 'otlp', 'zipkin']);
 const SUPPORTED_OTLP_PROTOCOLS = new Set([
@@ -515,7 +535,7 @@ export const createOtelInstrumentations = () => [
         ? [
               new KnexInstrumentation({
                   requireParentSpan: true,
-                  maxQueryLength: 1022,
+                  maxQueryLength: getOtelDatabaseTraceMaxQueryLength(),
               }),
           ]
         : []),
