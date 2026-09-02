@@ -1,4 +1,7 @@
-import { type DetailedViewStatistics, type ViewTrend } from '@lightdash/common';
+import {
+    type DetailedViewStatistics,
+    type RecentViews,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -9,66 +12,13 @@ import {
     Tooltip,
 } from '@mantine/core';
 import dayjs from 'dayjs';
-import { type EChartsOption } from 'echarts';
-import { type FC, type ReactNode, useMemo, useState } from 'react';
+import { type FC, type ReactNode, useState } from 'react';
 import { useChartViewStats } from '../../hooks/chart/useChartViewStats';
 import { useDashboardViewStats } from '../../hooks/dashboard/useDashboardViewStats';
-import EChartsReact from '../EChartsReactWrapper';
 import classes from './ViewsCountPopover.module.css';
 
-const LINE_COLOR = 'var(--mantine-color-violet-5)';
-
-const formatBucket = (date: string, granularity: ViewTrend['granularity']) =>
-    dayjs(date).format(granularity === 'hour' ? 'MMM D, h A' : 'MMM D');
-
-const getWindowLabel = ({ granularity, points }: ViewTrend) =>
-    granularity === 'hour'
-        ? `Last ${points.length} hours`
-        : `Last ${points.length} ${points.length === 1 ? 'day' : 'days'}`;
-
-const ViewsSparkline: FC<{ data: ViewTrend['points'] }> = ({ data }) => {
-    const option = useMemo<EChartsOption>(
-        () => ({
-            animation: false,
-            grid: { left: 2, right: 2, top: 4, bottom: 4 },
-            xAxis: {
-                type: 'category',
-                show: false,
-                boundaryGap: false,
-                data: data.map((point) => point.date),
-            },
-            yAxis: {
-                type: 'value',
-                show: false,
-                min: 0,
-                splitLine: { show: false },
-            },
-            series: [
-                {
-                    type: 'line',
-                    data: data.map((point) => point.views),
-                    smooth: true,
-                    silent: true,
-                    symbol: 'none',
-                    lineStyle: { width: 2, color: LINE_COLOR },
-                    areaStyle: { opacity: 0.08, color: LINE_COLOR },
-                },
-            ],
-            tooltip: { show: false },
-        }),
-        [data],
-    );
-
-    return (
-        <EChartsReact
-            className={classes.sparkline}
-            option={option}
-            notMerge
-            opts={{ renderer: 'svg' }}
-            style={{ height: 42, width: '100%' }}
-        />
-    );
-};
+const getWindowLabel = ({ unit, length }: RecentViews) =>
+    `Last ${length} ${unit}${length === 1 ? '' : 's'}`;
 
 const StatRow: FC<{ label: string; children: ReactNode }> = ({
     label,
@@ -86,43 +36,24 @@ const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
     if (!stats) {
         return (
             <Stack gap="xs">
-                <Skeleton height={14} width="60%" />
-                <Skeleton height={42} radius="sm" />
+                <Skeleton height={14} />
                 <Skeleton height={14} />
                 <Skeleton height={14} />
             </Stack>
         );
     }
 
-    const { points, granularity } = stats.viewTrend;
-    const recentViews = points.reduce((total, point) => total + point.views, 0);
-    const firstPoint = points[0];
-    const lastPoint = points[points.length - 1];
-
     return (
         <Stack gap={6}>
-            <Box>
-                <Group justify="space-between" mb={4} wrap="nowrap">
-                    <Text className={classes.heading}>
-                        {getWindowLabel(stats.viewTrend)}
-                    </Text>
-                    <Text className={classes.heading}>
-                        {recentViews.toLocaleString()}{' '}
-                        {recentViews === 1 ? 'view' : 'views'}
-                    </Text>
-                </Group>
-                <ViewsSparkline data={points} />
-                {firstPoint && lastPoint && (
-                    <Group justify="space-between" mt={2} wrap="nowrap">
-                        <Text className={classes.axisLabel}>
-                            {formatBucket(firstPoint.date, granularity)}
-                        </Text>
-                        <Text className={classes.axisLabel}>
-                            {formatBucket(lastPoint.date, granularity)}
-                        </Text>
-                    </Group>
-                )}
-            </Box>
+            <Group justify="space-between" wrap="nowrap">
+                <Text className={classes.heading}>
+                    {getWindowLabel(stats.recentViews)}
+                </Text>
+                <Text className={classes.heading}>
+                    {stats.recentViews.views.toLocaleString()}{' '}
+                    {stats.recentViews.views === 1 ? 'view' : 'views'}
+                </Text>
+            </Group>
 
             <Stack gap={4} className={classes.section}>
                 <Text className={classes.heading} mb={2}>
@@ -138,7 +69,7 @@ const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
                     </StatRow>
                 )}
                 {stats.anonymousViewCount > 0 && (
-                    <Text className={classes.axisLabel}>
+                    <Text className={classes.note}>
                         Includes {stats.anonymousViewCount.toLocaleString()}{' '}
                         {stats.anonymousViewCount === 1
                             ? 'anonymous view'

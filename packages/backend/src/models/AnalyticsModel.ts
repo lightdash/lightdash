@@ -1,13 +1,13 @@
 import {
     DetailedViewStatistics,
     OrganizationMemberRole,
+    RecentViews,
     UnusedContent,
     UnusedContentItem,
     UnusedContentOptions,
     UnusedContentReason,
     UserActivity,
     UserWithCount,
-    ViewTrend,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -51,40 +51,29 @@ type DbUserWithCount = {
     count: number | null;
 };
 
-const TREND_MAX_DAYS = 30;
-const TREND_HOURS = 24;
-const HOURLY_TREND_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+const RECENT_VIEWS_MAX_DAYS = 30;
+const RECENT_VIEWS_HOURS = 24;
+const HOURLY_WINDOW_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
-type TrendWindow = {
-    granularity: ViewTrend['granularity'];
-    /** Bucket keys in the same format the SQL produces, oldest first */
-    keys: string[];
+type RecentViewsWindow = Pick<RecentViews, 'unit' | 'length'> & {
+    since: Date;
 };
 
-const toDayKey = (date: Date) => date.toISOString().slice(0, 10);
-const toHourKey = (date: Date) => `${date.toISOString().slice(0, 13)}:00:00Z`;
-
-const getTrendWindow = (firstViewedAt: Date | null, now: Date): TrendWindow => {
+const getRecentViewsWindow = (
+    firstViewedAt: Date | null,
+    now: Date,
+): RecentViewsWindow => {
     const ageMs = firstViewedAt
         ? now.getTime() - firstViewedAt.getTime()
         : null;
-    if (ageMs !== null && ageMs < HOURLY_TREND_MAX_AGE_MS) {
-        const currentHour = Date.UTC(
-            now.getUTCFullYear(),
-            now.getUTCMonth(),
-            now.getUTCDate(),
-            now.getUTCHours(),
-        );
+    if (ageMs !== null && ageMs < HOURLY_WINDOW_MAX_AGE_MS) {
+        const currentHour = Math.floor(now.getTime() / HOUR_MS) * HOUR_MS;
         return {
-            granularity: 'hour',
-            keys: Array.from({ length: TREND_HOURS }, (_, index) =>
-                toHourKey(
-                    new Date(
-                        currentHour -
-                            (TREND_HOURS - 1 - index) * 60 * 60 * 1000,
-                    ),
-                ),
-            ),
+            unit: 'hour',
+            length: RECENT_VIEWS_HOURS,
+            since: new Date(currentHour - (RECENT_VIEWS_HOURS - 1) * HOUR_MS),
         };
     }
     const today = Date.UTC(
@@ -100,25 +89,23 @@ const getTrendWindow = (firstViewedAt: Date | null, now: Date): TrendWindow => {
                       firstViewedAt.getUTCMonth(),
                       firstViewedAt.getUTCDate(),
                   )) /
-                  (24 * 60 * 60 * 1000),
+                  DAY_MS,
           ) + 1
-        : TREND_MAX_DAYS;
-    const days = Math.min(TREND_MAX_DAYS, Math.max(1, daysSinceFirstView));
+        : RECENT_VIEWS_MAX_DAYS;
+    const length = Math.min(
+        RECENT_VIEWS_MAX_DAYS,
+        Math.max(1, daysSinceFirstView),
+    );
     return {
-        granularity: 'day',
-        keys: Array.from({ length: days }, (_, index) =>
-            toDayKey(
-                new Date(today - (days - 1 - index) * 24 * 60 * 60 * 1000),
-            ),
-        ),
+        unit: 'day',
+        length,
+        since: new Date(today - (length - 1) * DAY_MS),
     };
 };
 
-// Matches toHourKey / toDayKey so rows can be joined to the zero-filled keys
-const TREND_KEY_FORMAT: Record<ViewTrend['granularity'], string> = {
-    hour: 'YYYY-MM-DD"T"HH24":00:00Z"',
-    day: 'YYYY-MM-DD',
-};
+// Timestamps are stored without a zone, so bind the UTC wall-clock text
+const toSqlTimestamp = (date: Date) =>
+    date.toISOString().slice(0, 19).replace('T', ' ');
 
 export class AnalyticsModel {
     private database: Knex;
@@ -178,36 +165,22 @@ export class AnalyticsModel {
             .where(uuidColumn, uuid)
             .first();
         const firstViewedAt = totals?.first_viewed_at ?? null;
-        const window = getTrendWindow(firstViewedAt, new Date());
-        const trendRows = await this.database(tableName)
-            .select<{ bucket: string; views: string | number }[]>(
-                this.database.raw(
-                    `to_char(timestamp, '${TREND_KEY_FORMAT[window.granularity]}') AS bucket`,
-                ),
-                this.database.raw('COUNT(*) AS views'),
-            )
+        const window = getRecentViewsWindow(firstViewedAt, new Date());
+        const recent = await this.database(tableName)
+            .count({ views: '*' })
             .where(uuidColumn, uuid)
-            .andWhere(
-                'timestamp',
-                '>=',
-                window.keys[0].replace('T', ' ').replace('Z', ''),
-            )
-            .groupBy('bucket');
-        const viewsByBucket = new Map(
-            trendRows.map((row) => [row.bucket, Number(row.views)]),
-        );
+            .andWhere('timestamp', '>=', toSqlTimestamp(window.since))
+            .first();
 
         return {
             views: Number(totals?.views ?? 0),
             firstViewedAt,
             uniqueViewerCount: Number(totals?.unique_viewer_count ?? 0),
             anonymousViewCount: Number(totals?.anonymous_view_count ?? 0),
-            viewTrend: {
-                granularity: window.granularity,
-                points: window.keys.map((date) => ({
-                    date,
-                    views: viewsByBucket.get(date) ?? 0,
-                })),
+            recentViews: {
+                unit: window.unit,
+                length: window.length,
+                views: Number(recent?.views ?? 0),
             },
         };
     }

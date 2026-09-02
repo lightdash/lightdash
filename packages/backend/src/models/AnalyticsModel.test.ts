@@ -24,7 +24,7 @@ describe('AnalyticsModel', () => {
     describe('detailed view statistics', () => {
         const now = new Date('2025-03-01T10:30:00Z');
         const totalsQuery = /count\(distinct "user_uuid"\)/i;
-        const trendQuery = /group by "bucket"/i;
+        const recentQuery = /"timestamp" >= /i;
 
         beforeEach(() => {
             vi.useFakeTimers({ toFake: ['Date'] });
@@ -35,7 +35,10 @@ describe('AnalyticsModel', () => {
             vi.useRealTimers();
         });
 
-        const mockTotals = (firstViewedAt: Date | null) =>
+        const mockQueries = (
+            firstViewedAt: Date | null,
+            recentViews: string,
+        ) => {
             tracker.on.select(totalsQuery).response([
                 {
                     views: '12',
@@ -44,6 +47,12 @@ describe('AnalyticsModel', () => {
                     first_viewed_at: firstViewedAt,
                 },
             ]);
+            tracker.on.select(recentQuery).response([{ views: recentViews }]);
+        };
+
+        const recentBinding = () =>
+            tracker.history.select.find((query) => recentQuery.test(query.sql))
+                ?.bindings;
 
         it.each([
             ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
@@ -53,105 +62,62 @@ describe('AnalyticsModel', () => {
                 () => model.getDashboardViewStats(projectUuid),
             ],
         ])(
-            'returns %s totals with a rolling 30-day daily trend for older assets',
+            'returns %s totals with a rolling 30-day window for older assets',
             async (_resourceType, uuidColumn, getStats) => {
-                mockTotals(new Date('2025-01-01'));
-                tracker.on.select(trendQuery).response([
-                    { bucket: '2025-02-27', views: '3' },
-                    { bucket: '2025-03-01', views: '1' },
-                ]);
+                mockQueries(new Date('2025-01-01'), '7');
 
-                const stats = await getStats();
-
-                expect(stats).toMatchObject({
+                await expect(getStats()).resolves.toEqual({
                     views: 12,
                     uniqueViewerCount: 4,
                     anonymousViewCount: 2,
                     firstViewedAt: new Date('2025-01-01'),
-                });
-                expect(stats.viewTrend.granularity).toBe('day');
-                expect(stats.viewTrend.points).toHaveLength(30);
-                expect(stats.viewTrend.points[0]).toEqual({
-                    date: '2025-01-31',
-                    views: 0,
-                });
-                expect(stats.viewTrend.points[27]).toEqual({
-                    date: '2025-02-27',
-                    views: 3,
-                });
-                expect(stats.viewTrend.points[29]).toEqual({
-                    date: '2025-03-01',
-                    views: 1,
+                    recentViews: { unit: 'day', length: 30, views: 7 },
                 });
 
-                const trend = tracker.history.select.find((query) =>
-                    trendQuery.test(query.sql),
+                const recent = tracker.history.select.find((query) =>
+                    recentQuery.test(query.sql),
                 );
-                expect(trend?.sql).toContain(`where "${uuidColumn}" =`);
-                expect(trend?.bindings).toContain('2025-01-31');
+                expect(recent?.sql).toContain(`where "${uuidColumn}" =`);
+                expect(recent?.bindings).toContain('2025-01-31 00:00:00');
             },
         );
 
-        it('shortens the daily trend to the days since the first view', async () => {
-            mockTotals(new Date('2025-02-24T18:00:00Z'));
-            tracker.on
-                .select(trendQuery)
-                .response([{ bucket: '2025-02-24', views: '5' }]);
+        it('shortens the window to the days since the first view', async () => {
+            mockQueries(new Date('2025-02-24T18:00:00Z'), '5');
 
             const stats = await model.getChartViewStats(projectUuid);
 
-            expect(stats.viewTrend.granularity).toBe('day');
-            expect(stats.viewTrend.points.map((point) => point.date)).toEqual([
-                '2025-02-24',
-                '2025-02-25',
-                '2025-02-26',
-                '2025-02-27',
-                '2025-02-28',
-                '2025-03-01',
-            ]);
-            expect(stats.viewTrend.points[0].views).toBe(5);
+            expect(stats.recentViews).toEqual({
+                unit: 'day',
+                length: 6,
+                views: 5,
+            });
+            expect(recentBinding()).toContain('2025-02-24 00:00:00');
         });
 
-        it('uses hourly buckets over the last 24 hours for assets first viewed under two days ago', async () => {
-            mockTotals(new Date('2025-02-28T09:00:00Z'));
-            tracker.on
-                .select(trendQuery)
-                .response([{ bucket: '2025-03-01T09:00:00Z', views: '2' }]);
+        it('uses the last 24 hours for assets first viewed under two days ago', async () => {
+            mockQueries(new Date('2025-02-28T09:00:00Z'), '2');
 
             const stats = await model.getChartViewStats(projectUuid);
 
-            expect(stats.viewTrend.granularity).toBe('hour');
-            expect(stats.viewTrend.points).toHaveLength(24);
-            expect(stats.viewTrend.points[0]).toEqual({
-                date: '2025-02-28T11:00:00Z',
-                views: 0,
-            });
-            expect(stats.viewTrend.points[22]).toEqual({
-                date: '2025-03-01T09:00:00Z',
+            expect(stats.recentViews).toEqual({
+                unit: 'hour',
+                length: 24,
                 views: 2,
             });
-            expect(stats.viewTrend.points[23].date).toBe(
-                '2025-03-01T10:00:00Z',
-            );
-
-            const trend = tracker.history.select.find((query) =>
-                trendQuery.test(query.sql),
-            );
-            expect(trend?.sql).toContain('HH24');
-            expect(trend?.bindings).toContain('2025-02-28 11:00:00');
+            expect(recentBinding()).toContain('2025-02-28 11:00:00');
         });
 
-        it('falls back to a rolling 30-day daily trend when there are no views', async () => {
-            mockTotals(null);
-            tracker.on.select(trendQuery).response([]);
+        it('falls back to a rolling 30-day window when there are no views', async () => {
+            mockQueries(null, '0');
 
             const stats = await model.getChartViewStats(projectUuid);
 
-            expect(stats.viewTrend.granularity).toBe('day');
-            expect(stats.viewTrend.points).toHaveLength(30);
-            expect(
-                stats.viewTrend.points.every((point) => point.views === 0),
-            ).toBe(true);
+            expect(stats.recentViews).toEqual({
+                unit: 'day',
+                length: 30,
+                views: 0,
+            });
         });
     });
 

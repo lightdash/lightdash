@@ -94,28 +94,21 @@ export type ViewStatistics = {
     firstViewedAt: Date | string | null;
 };
 
-export type ViewTrendGranularity = 'hour' | 'day';
-
-export type ViewTrendPoint = {
-    /** Bucket start in UTC, ISO 8601 */
-    date: string;
-    views: number;
-};
-
 /**
- * Window adapts to the asset's age: hourly over the last 24h for assets first
- * viewed under two days ago, daily since the first view up to 30 days, then
- * a rolling 30 days. Zero-filled, oldest first.
+ * Views inside a window sized to the asset's age: the last 24 hours for
+ * assets first viewed under two days ago, the days since the first view up
+ * to 30, then a rolling 30 days.
  */
-export type ViewTrend = {
-    granularity: ViewTrendGranularity;
-    points: ViewTrendPoint[];
+export type RecentViews = {
+    unit: 'hour' | 'day';
+    length: number;
+    views: number;
 };
 
 export type DetailedViewStatistics = ViewStatistics & {
     uniqueViewerCount: number;
     anonymousViewCount: number;
-    viewTrend: ViewTrend;
+    recentViews: RecentViews;
 };
 
 export type DownloadAuditEntry = {
