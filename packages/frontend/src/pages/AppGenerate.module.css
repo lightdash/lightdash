@@ -509,33 +509,3 @@
     margin-top: var(--mantine-spacing-xs);
     opacity: 0.9;
 }
-
-/* Inspector element-ref pill — same shape as the picker's selectedQueryItem,
- * tinted violet to mark inspector picks apart from chart/dashboard pills. */
-.elementRefChip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 1px 2px 1px 6px;
-    border-radius: 999px;
-    border: 1px solid;
-    height: 22px;
-    max-width: 240px;
-    min-width: 0;
-
-    @mixin light {
-        background-color: var(--mantine-color-violet-0);
-        border-color: var(--mantine-color-violet-3);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-violet-9);
-        border-color: var(--mantine-color-violet-7);
-    }
-}
-
-.elementRefChipName {
-    min-width: 0;
-    flex: 0 1 auto;
-    font-size: 11px;
-    line-height: 1;
-}

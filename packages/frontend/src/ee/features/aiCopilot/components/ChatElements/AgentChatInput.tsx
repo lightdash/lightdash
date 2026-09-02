@@ -14,10 +14,8 @@ import {
     Box,
     FileButton,
     Group,
-    Loader,
     Menu,
     Paper,
-    Pill,
     Text,
 } from '@mantine/core';
 import {
@@ -83,6 +81,10 @@ import {
     type ContentMentionMenuState,
     type ContentMentionSuggestionItem,
 } from './contentMentions';
+import {
+    PromptAttachments,
+    type ExternalSourceAttachment,
+} from './PromptAttachments';
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
@@ -117,11 +119,6 @@ type SubmitArgs = {
     context?: AiPromptContextInput;
     optimisticContext?: AiPromptContextItem[];
 };
-
-type ExternalSourceAttachment = Extract<
-    AiPromptContextItem,
-    { type: 'external_source' }
->;
 
 interface AgentChatInputProps {
     onSubmit: (args: SubmitArgs) => void;
@@ -933,39 +930,21 @@ export const AgentChatInput = ({
 
     const renderedAttachments =
         externalSourceAttachments.length > 0 || pendingCsvFiles.length > 0 ? (
-            <Pill.Group>
-                {externalSourceAttachments.map((attachment) => (
-                    <Pill
-                        key={attachment.sourceUuid}
-                        withRemoveButton
-                        onRemove={() => {
-                            setExternalSourceAttachments((attachments) =>
-                                attachments.filter(
-                                    ({ sourceUuid }) =>
-                                        sourceUuid !== attachment.sourceUuid,
-                                ),
-                            );
-                            void discardCsvSource(attachment.sourceUuid);
-                        }}
-                    >
-                        {attachment.displayName}
-                        {attachment.tables.length > 1
-                            ? ` · ${attachment.tables.length} tables`
-                            : ''}
-                    </Pill>
-                ))}
-                {pendingCsvFiles.map((file) => (
-                    <Pill key={file.id}>
-                        <Group gap={6} wrap="nowrap">
-                            {file.status === 'preparing' && (
-                                <Loader size={10} />
-                            )}
-                            {file.status === 'queued' ? 'Queued' : 'Preparing'}{' '}
-                            {file.filename}
-                        </Group>
-                    </Pill>
-                ))}
-            </Pill.Group>
+            <PromptAttachments
+                externalSources={externalSourceAttachments}
+                pendingCsvFiles={pendingCsvFiles}
+                elementRefs={[]}
+                onRemoveExternalSource={(sourceUuid) => {
+                    setExternalSourceAttachments((attachments) =>
+                        attachments.filter(
+                            (attachment) =>
+                                attachment.sourceUuid !== sourceUuid,
+                        ),
+                    );
+                    void discardCsvSource(sourceUuid);
+                }}
+                onRemoveElementRef={() => {}}
+            />
         ) : undefined;
 
     const renderComposerAction = (size: 'sm' | 'lg') => {
