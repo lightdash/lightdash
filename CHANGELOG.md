@@ -1,3 +1,10 @@
+## [2.95.2](https://github.com/lightdash/lightdash/compare/2.95.1...2.95.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **mobile:** keep sign-in pages clear on iPhone ([#28515](https://github.com/lightdash/lightdash/issues/28515)) ([66e1f6b](https://github.com/lightdash/lightdash/commit/66e1f6b3cc7d0d2207f60305a5c7e0297ebf0607))
+
 ## [2.95.1](https://github.com/lightdash/lightdash/compare/2.95.0...2.95.1) (2026-09-02)
 
 
