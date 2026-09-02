@@ -1,3 +1,10 @@
+# [2.87.0](https://github.com/lightdash/lightdash/compare/2.86.0...2.87.0) (2026-09-02)
+
+
+### Features
+
+* local chart registry fixture + apps build --out-dir ([#28377](https://github.com/lightdash/lightdash/issues/28377)) ([6e136f6](https://github.com/lightdash/lightdash/commit/6e136f63b8da5858c045b13fff2892d703c2d228)), closes [#28376](https://github.com/lightdash/lightdash/issues/28376)
+
 # [2.86.0](https://github.com/lightdash/lightdash/compare/2.85.1...2.86.0) (2026-09-02)
 
 
