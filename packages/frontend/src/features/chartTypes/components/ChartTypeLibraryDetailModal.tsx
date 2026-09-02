@@ -88,50 +88,57 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
         </Button>
     );
 
-    const footerAction: ReactNode = (() => {
+    const footerProps = (() => {
         switch (item.state) {
             case 'not_installed':
-                return canInstallGate(
-                    <Button
-                        loading={installMutation.isLoading}
-                        onClick={handleInstall}
-                    >
-                        Install
-                    </Button>,
-                );
+                return {
+                    actions: canInstallGate(
+                        <Button
+                            loading={installMutation.isLoading}
+                            onClick={handleInstall}
+                        >
+                            Install
+                        </Button>,
+                    ),
+                };
             case 'update_available':
-                return (
-                    <Group gap="sm" wrap="nowrap">
-                        {uninstallButton}
-                        {canInstallGate(
-                            <Button
-                                loading={installMutation.isLoading}
-                                onClick={handleInstall}
-                            >
-                                Upgrade to v{item.version}
-                            </Button>,
-                        )}
-                    </Group>
-                );
+                return {
+                    actions: (
+                        <Group gap="sm" wrap="nowrap">
+                            {uninstallButton}
+                            {canInstallGate(
+                                <Button
+                                    loading={installMutation.isLoading}
+                                    onClick={handleInstall}
+                                >
+                                    Upgrade to v{item.version}
+                                </Button>,
+                            )}
+                        </Group>
+                    ),
+                };
             case 'installed':
-                return (
-                    <Group gap="sm" wrap="nowrap">
-                        {uninstallButton}
+                return {
+                    leftActions: uninstallButton,
+                    actions: (
                         <Button variant="default" onClick={onClose}>
                             View in gallery
                         </Button>
-                    </Group>
-                );
+                    ),
+                    cancelLabel: false as const,
+                };
             case 'incompatible':
-                return (
-                    <Group gap="sm" wrap="nowrap">
-                        <Text fz="xs" c="dimmed">
-                            Requires Lightdash v{item.minLightdashVersion} or
-                            later
-                        </Text>
-                        <Button disabled>Install</Button>
-                    </Group>
-                );
+                return {
+                    actions: (
+                        <Group gap="sm" wrap="nowrap">
+                            <Text fz="xs" c="dimmed">
+                                Requires Lightdash v{item.minLightdashVersion}{' '}
+                                or later
+                            </Text>
+                            <Button disabled>Install</Button>
+                        </Group>
+                    ),
+                };
             default:
                 return assertUnreachable(
                     item.state,
@@ -148,8 +155,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 title={item.name}
                 subtitle={`v${item.version}`}
                 bodyScrollAreaMaxHeight="calc(100vh - 200px)"
-                cancelLabel={item.state === 'installed' ? false : 'Cancel'}
-                actions={footerAction}
+                {...footerProps}
             >
                 <Stack gap="md">
                     {item.screenshots.length > 0 ? (
