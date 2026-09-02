@@ -36,6 +36,12 @@ need an app runtime). Those surfaces render but won't work end to end.
 This is controlled by `LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED`, which defaults
 to `true` in PR mode. Set it to `false` for production-like flag resolution.
 
+Rainbow previews are not PR mode: they run the repo's own dev scripts, and
+`packages/backend`'s `dev` pins `LIGHTDASH_MODE=development`. They set the
+variable outright instead, in `rainbow.toml`'s `[env]` table. Anything touching
+that table or the services needs the Rainbow base image recompiled before it
+takes effect.
+
 ## Managing flags at runtime
 
 The management endpoints require an organization admin and only work when

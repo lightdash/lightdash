@@ -23,6 +23,14 @@ memory = "8gb"                      # a starting guess; the measured working set
 # packageManager field, and postgresql-16 from [datastores] below. Add
 # [runtime] only to override a pin or to list an OS package nothing else owns.
 
+# Previews exist to exercise unreleased work, so they enable the curated preview
+# flag set (PREVIEW_ENABLED_FEATURE_FLAGS) and the flag-management API that lets
+# an admin toggle a flag at runtime — see docs/preview-feature-flags.md. Okteto
+# previews got this from LIGHTDASH_MODE=pr; here the backend's dev script pins
+# LIGHTDASH_MODE=development, so it has to be set outright.
+[env]
+LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
+
 [datastores]
 postgres = true                    # provisioned, localhost, seeded once
 
@@ -70,6 +78,13 @@ watch = ["**"]                     # Vite HMR / tsx watch notice the write; bott
 vars = ["SITE_URL"]
 patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
+# Names, not values: the platform holds what they resolve to. The licence pair
+# is the offline (ed25519-signed) form Okteto previews use, so it verifies
+# locally without reaching api.keygen.sh. Until both are provisioned in the
+# platform's store these two resolve to nothing and previews stay OSS-only —
+# an unprovisioned name injects no variable rather than failing the fork.
 [secrets]
 LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
+LIGHTDASH_LICENSE_KEY = "lightdash-license-key"
+LIGHTDASH_LICENSE_CERTIFICATE = "lightdash-license-certificate"
