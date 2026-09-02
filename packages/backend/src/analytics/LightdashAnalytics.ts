@@ -3465,6 +3465,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
           };
       })
