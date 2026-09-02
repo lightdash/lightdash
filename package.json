@@ -141,7 +141,8 @@
         "pm2:restart:frontend": "pm2 restart lightdash-frontend",
         "pm2:logs:maple": "pm2 logs lightdash-maple --lines 50",
         "pm2:restart:maple": "pm2 restart lightdash-maple",
-        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50"
+        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50",
+        "dev:chart-registry": "tsx scripts/dev-chart-registry.mjs"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [

@@ -37,6 +37,7 @@ import {
     readDependenciesFromDir,
     writeFilesToDir,
 } from './appCodeFiles';
+import { assertOutDirSafeToClear } from './pathContainment';
 import {
     loadTemplateDependencies,
     loadVendoredBuildScaffold,
@@ -375,6 +376,7 @@ export const validateDataAppBuild = async (args: {
     appDir: string;
     bundle: DataAppCode;
     runCommand?: RunDataAppBuildCommand;
+    outDir?: string;
 }): Promise<AppsValidationIssue[]> => {
     const runCommand = args.runCommand ?? runDataAppBuildCommand;
     let dependencies: Awaited<ReturnType<typeof readDependenciesFromDir>>;
@@ -487,8 +489,27 @@ export const validateDataAppBuild = async (args: {
                 ),
             ];
         }
+
+        if (args.outDir !== undefined) {
+            // Defense in depth: this deletion site must not trust that a
+            // caller already checked containment (or that outDir hasn't
+            // changed since it did). Re-resolve symlinks and refuse rather
+            // than delete anything we can't prove is safe.
+            await assertOutDirSafeToClear(args.appDir, args.outDir);
+
+            // Vite emits content-hashed chunk filenames, so a merge-only copy
+            // would leave stale chunks from a previous build behind. Clear
+            // outDir immediately before copying a successful build into it —
+            // never on the failure path, which must leave it untouched.
+            await fs.rm(args.outDir, { recursive: true, force: true });
+            await fs.cp(path.join(buildDir, 'dist'), args.outDir, {
+                recursive: true,
+            });
+        }
+
         return [];
     } catch (error) {
+        if (error instanceof ParameterError) throw error;
         return [
             issue(
                 'build',
@@ -734,7 +755,7 @@ const formatCoverage = (coverage: AppsValidationCoverage): string => {
     return `Coverage: ${coverage.unanalyzed} of ${coverage.callSites} data-reference call site(s) couldn't be fully analyzed; unresolved values were skipped and are not errors.`;
 };
 
-const formatIssue = (entry: AppsValidationIssue): string => {
+export const formatIssue = (entry: AppsValidationIssue): string => {
     const prefix = entry.location
         ? `${entry.location.path}:${entry.location.line}:${entry.location.column} — `
         : '';

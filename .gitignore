@@ -36,6 +36,7 @@ packages/e2e/lightdash
 
 # development
 lightdash_dev.yml
+/.dev-chart-registry/
 
 # production
 /packages/frontend/build
