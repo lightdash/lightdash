@@ -394,20 +394,19 @@ export type DbAiAgentToolCall = {
     created_at: Date;
 };
 
+// JSONB reads remain untrusted until parsed, while inserts accept only the
+// validated continuity metadata union. Keep the insert field optional so older
+// application versions can omit this nullable column during rolling deploys.
 export type AiAgentToolCallTable = Knex.CompositeTableType<
     DbAiAgentToolCall,
-    Omit<
-        Pick<
-            DbAiAgentToolCall,
-            | 'ai_prompt_uuid'
-            | 'tool_call_id'
-            | 'tool_name'
-            | 'tool_args'
-            | 'ai_mcp_server_uuid'
-            | 'parent_tool_call_id'
-            | 'provider_metadata'
-        >,
-        'provider_metadata'
+    Pick<
+        DbAiAgentToolCall,
+        | 'ai_prompt_uuid'
+        | 'tool_call_id'
+        | 'tool_name'
+        | 'tool_args'
+        | 'ai_mcp_server_uuid'
+        | 'parent_tool_call_id'
     > & {
         provider_metadata?: AiAgentToolCallProviderMetadata | null;
     },
