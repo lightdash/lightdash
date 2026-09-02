@@ -1,3 +1,10 @@
+## [2.85.1](https://github.com/lightdash/lightdash/compare/2.85.0...2.85.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* create preview modal crash on Mantine 8 grouped Select data ([#28474](https://github.com/lightdash/lightdash/issues/28474)) ([c9342ec](https://github.com/lightdash/lightdash/commit/c9342ecbcfb0659366ed86431fdeceec4fa8fc2b))
+
 # [2.85.0](https://github.com/lightdash/lightdash/compare/2.84.0...2.85.0) (2026-09-02)
 
 
