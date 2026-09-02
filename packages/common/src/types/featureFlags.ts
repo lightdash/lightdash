@@ -14,11 +14,6 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable scheduler task that replaces custom metrics after project compile
-     */
-    ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
-
-    /**
      * Enable the dynamic calculation of series color, when not manually set on the chart config.
      * This aims to make the colors more consistent, depending on the groups, but this could cause the opposite effect.
      * For more details, see https://github.com/lightdash/lightdash/issues/13831

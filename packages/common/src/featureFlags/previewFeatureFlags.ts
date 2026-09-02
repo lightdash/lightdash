@@ -12,7 +12,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.OrganizationTrialWarning,
     // Changes query or compile semantics, so QA results would be misleading.
     FeatureFlags.CalculateSeriesColor,
-    FeatureFlags.ReplaceCustomMetricsOnCompile,
     // Needs per-org worker queues that previews don't run.
     FeatureFlags.ScheduledDeliveryPerOrgQueue,
     // Changes the signup flow and needs SMTP for the email OTP. The register

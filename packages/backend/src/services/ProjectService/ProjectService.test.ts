@@ -287,6 +287,8 @@ const onboardingModel = {
 const savedChartModel = {
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
+    get: vi.fn(),
+    createVersion: vi.fn(),
     getCustomSqlProvenanceForChart: vi.fn(),
     findCustomSqlProvenance: vi.fn(async () => ({
         tableCalculations: [] as { sql: string; spaceUuid: string }[],
@@ -3684,6 +3686,74 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(ForbiddenError);
 
             expect(tagsModel.replaceYamlTags).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('replaceCustomFields', () => {
+        test('replaces eligible metrics without changing charts edited after the task started', async () => {
+            const taskStartedAt = new Date('2026-09-02T10:00:00.000Z');
+            const customMetric = {
+                name: 'revenue',
+                table: 'orders',
+                label: 'Revenue',
+                type: MetricType.SUM,
+                sql: '${TABLE}.revenue',
+            };
+            const chartVersion = {
+                name: 'Revenue chart',
+                metricQuery: {
+                    ...metricQueryMock,
+                    additionalMetrics: [customMetric],
+                },
+            };
+            savedChartModel.get.mockReset();
+            savedChartModel.createVersion.mockReset();
+            savedChartModel.get.mockImplementation(async (chartUuid) => ({
+                ...chartVersion,
+                uuid: chartUuid,
+                updatedAt:
+                    chartUuid === 'recent-chart'
+                        ? new Date('2026-09-02T10:01:00.000Z')
+                        : new Date('2026-09-02T09:59:00.000Z'),
+            }));
+
+            const result = await service.replaceCustomFields({
+                userUuid: user.userUuid,
+                organizationUuid: 'organization-uuid',
+                projectUuid,
+                replaceFields: {
+                    'older-chart': {
+                        customMetrics: {
+                            orders_revenue: {
+                                replaceWithFieldId: 'orders_revenue',
+                            },
+                        },
+                    },
+                    'recent-chart': {
+                        customMetrics: {
+                            orders_revenue: {
+                                replaceWithFieldId: 'orders_revenue',
+                            },
+                        },
+                    },
+                },
+                skipChartsUpdatedAfter: taskStartedAt,
+            });
+
+            expect(
+                savedChartModel.createVersion,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'older-chart',
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        additionalMetrics: [],
+                    }),
+                }),
+                undefined,
+            );
+            expect(result).toEqual([
+                { uuid: 'older-chart', name: 'Revenue chart' },
+            ]);
         });
     });
 
