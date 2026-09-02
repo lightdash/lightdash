@@ -562,13 +562,20 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             '/generalSettings/projectManagement/:projectUuid/caching',
             location.pathname,
         );
+    const isAwaitingReviewRequestsRoute =
+        contentReviewAvailability.isLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/reviewRequests',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute
+        isAwaitingCachingRoute ||
+        isAwaitingReviewRequestsRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>
