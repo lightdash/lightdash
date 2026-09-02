@@ -39,7 +39,11 @@ export type GeneratorModelOptions = {
     // getGeneratorTelemetry. See utils/aiCallTelemetry.
     telemetry?: AiCallAttribution;
     // Whether the model runs on a Lightdash-managed or self-managed (BYO) key.
-    // Stamped by the model builder and rides along when the builder result is
-    // spread into modelOptions; read by getGeneratorTelemetry.
-    keyManagement?: AiKeyManagement | null;
+    // REQUIRED (nullable): stamped by the model builder and carried when the
+    // builder result is spread into modelOptions. Required — not optional — so a
+    // construction site that bypasses the builder (and would otherwise log null,
+    // dropping the call out of managed-key reporting) is a compile error rather
+    // than a silent gap. Read by getGeneratorTelemetry. null only for paths
+    // where key origin genuinely isn't tracked.
+    keyManagement: AiKeyManagement | null;
 };
