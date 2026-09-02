@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.84.0",
-  "previousVersion": "2.83.0",
-  "releaseDate": "2026-09-02T09:18:02.159Z",
+  "version": "2.85.0",
+  "previousVersion": "2.84.0",
+  "releaseDate": "2026-09-02T09:29:30.128Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260901143245_add_registry_slug_unique_index.ts",
+        "edition": "core",
+        "tables": [
+          "apps"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

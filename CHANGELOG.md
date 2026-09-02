@@ -1,3 +1,11 @@
+# [2.85.0](https://github.com/lightdash/lightdash/compare/2.84.0...2.85.0) (2026-09-02)
+
+
+### Features
+
+* **backend:** serve the mobile app association files ([#28475](https://github.com/lightdash/lightdash/issues/28475)) ([1c09fb2](https://github.com/lightdash/lightdash/commit/1c09fb21fe9026cb9576e613cca26d88c08bec0b))
+* registry chart type catalog + prebuilt install endpoints ([#28375](https://github.com/lightdash/lightdash/issues/28375)) ([d0cd509](https://github.com/lightdash/lightdash/commit/d0cd50952585bd4e059bc93a7d6bd8af3aa644d2)), closes [#28374](https://github.com/lightdash/lightdash/issues/28374) [#28374](https://github.com/lightdash/lightdash/issues/28374)
+
 # [2.84.0](https://github.com/lightdash/lightdash/compare/2.83.0...2.84.0) (2026-09-02)
 
 

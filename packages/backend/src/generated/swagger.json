@@ -18768,6 +18768,190 @@
             "ApiEmbedProjectAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
             },
+            "ChartRegistryArtifact": {
+                "properties": {
+                    "sha256": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sha256", "path"],
+                "type": "object"
+            },
+            "ChartRegistryEntry": {
+                "properties": {
+                    "artifacts": {
+                        "properties": {
+                            "dist": {
+                                "$ref": "#/components/schemas/ChartRegistryArtifact"
+                            },
+                            "source": {
+                                "$ref": "#/components/schemas/ChartRegistryArtifact"
+                            }
+                        },
+                        "required": ["dist", "source"],
+                        "type": "object"
+                    },
+                    "screenshots": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "thumbnail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "vizSchema": {
+                        "$ref": "#/components/schemas/DataAppVizSchema"
+                    },
+                    "minLightdashVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "changelog": {
+                        "type": "string"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "publishedAt": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "artifacts",
+                    "screenshots",
+                    "thumbnail",
+                    "vizSchema",
+                    "minLightdashVersion",
+                    "changelog",
+                    "tags",
+                    "publishedAt",
+                    "version",
+                    "description",
+                    "name",
+                    "slug"
+                ],
+                "type": "object"
+            },
+            "RegistryChartTypeState": {
+                "type": "string",
+                "enum": [
+                    "not_installed",
+                    "installed",
+                    "update_available",
+                    "incompatible"
+                ]
+            },
+            "RegistryChartTypeListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartRegistryEntry"
+                    },
+                    {
+                        "properties": {
+                            "installedRegistryVersion": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "installedAppUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "state": {
+                                "$ref": "#/components/schemas/RegistryChartTypeState"
+                            }
+                        },
+                        "required": [
+                            "installedRegistryVersion",
+                            "installedAppUuid",
+                            "state"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "charts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RegistryChartTypeListItem"
+                                },
+                                "type": "array"
+                            },
+                            "registryEnabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["charts", "registryEnabled"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiListRegistryChartTypesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__"
+            },
+            "ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "type": "string",
+                                "enum": ["installed", "upgraded", "unchanged"]
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "slug": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["action", "version", "slug", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiInstallRegistryChartTypeResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__"
+            },
             "DataAppViz": {
                 "properties": {
                     "createdByUserUuid": {
@@ -58143,7 +58327,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.84.0",
+        "version": "2.85.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -17355,6 +17355,198 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_EmbedProjectApp-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartRegistryArtifact: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sha256: { dataType: 'string', required: true },
+                path: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartRegistryEntry: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                artifacts: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dist: { ref: 'ChartRegistryArtifact', required: true },
+                        source: {
+                            ref: 'ChartRegistryArtifact',
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                screenshots: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                thumbnail: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                vizSchema: { ref: 'DataAppVizSchema', required: true },
+                minLightdashVersion: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                changelog: { dataType: 'string', required: true },
+                tags: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                publishedAt: { dataType: 'string', required: true },
+                version: { dataType: 'string', required: true },
+                description: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RegistryChartTypeState: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['not_installed'] },
+                { dataType: 'enum', enums: ['installed'] },
+                { dataType: 'enum', enums: ['update_available'] },
+                { dataType: 'enum', enums: ['incompatible'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RegistryChartTypeListItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ChartRegistryEntry' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        installedRegistryVersion: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        installedAppUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        state: {
+                            ref: 'RegistryChartTypeState',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            charts: {
+                                dataType: 'array',
+                                array: {
+                                    dataType: 'refAlias',
+                                    ref: 'RegistryChartTypeListItem',
+                                },
+                                required: true,
+                            },
+                            registryEnabled: {
+                                dataType: 'boolean',
+                                required: true,
+                            },
+                        },
+                        required: true,
+                    },
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiListRegistryChartTypesResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__registryEnabled-boolean--charts-RegistryChartTypeListItem-Array__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            action: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'enum', enums: ['installed'] },
+                                    { dataType: 'enum', enums: ['upgraded'] },
+                                    { dataType: 'enum', enums: ['unchanged'] },
+                                ],
+                                required: true,
+                            },
+                            version: { dataType: 'double', required: true },
+                            slug: { dataType: 'string', required: true },
+                            appUuid: { dataType: 'string', required: true },
+                        },
+                        required: true,
+                    },
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiInstallRegistryChartTypeResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__appUuid-string--slug-string--version-number--action-installed-or-upgraded-or-unchanged__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppViz: {
         dataType: 'refAlias',
         type: {
@@ -69312,6 +69504,134 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'listProjectChartTypes',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_listRegistryChartTypes: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/registry/charts',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.listRegistryChartTypes,
+        ),
+
+        async function AppGenerateController_listRegistryChartTypes(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_listRegistryChartTypes,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listRegistryChartTypes',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_installRegistryChartType: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        chartSlug: {
+            in: 'path',
+            name: 'chartSlug',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/apps/registry/charts/:chartSlug/install',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.installRegistryChartType,
+        ),
+
+        async function AppGenerateController_installRegistryChartType(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_installRegistryChartType,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'installRegistryChartType',
                     controller,
                     response,
                     next,
