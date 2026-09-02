@@ -1,3 +1,10 @@
+# [2.94.0](https://github.com/lightdash/lightdash/compare/2.93.0...2.94.0) (2026-09-02)
+
+
+### Features
+
+* **review-requests:** notifications ([#28432](https://github.com/lightdash/lightdash/issues/28432)) ([1d9686b](https://github.com/lightdash/lightdash/commit/1d9686b98ff4309be41c219170a362846a9877f5)), closes [#28427](https://github.com/lightdash/lightdash/issues/28427) [#26967](https://github.com/lightdash/lightdash/issues/26967)
+
 # [2.93.0](https://github.com/lightdash/lightdash/compare/2.92.0...2.93.0) (2026-09-02)
 
 

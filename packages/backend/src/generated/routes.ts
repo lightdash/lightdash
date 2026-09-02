@@ -43224,6 +43224,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['aiAgentReviewRemediationRun'] },
                 { dataType: 'enum', enums: ['sendReviewNotification'] },
+                { dataType: 'enum', enums: ['sendContentReviewNotification'] },
                 { dataType: 'enum', enums: ['createReviewLinearIssue'] },
                 { dataType: 'enum', enums: ['embedArtifactVersion'] },
                 { dataType: 'enum', enums: ['generateArtifactQuestion'] },
@@ -50171,6 +50172,74 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiNotificationResourceType.ContentReview': {
+        dataType: 'refEnum',
+        enums: ['contentReview'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ContentReviewNotificationEvent: {
+        dataType: 'refEnum',
+        enums: ['submitted', 'approved', 'rejected'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    NotificationContentReview: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'NotificationBase' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        metadata: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                event: {
+                                    ref: 'ContentReviewNotificationEvent',
+                                    required: true,
+                                },
+                                requesterName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                targetSpaceName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                contentName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                contentUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                contentType: {
+                                    ref: 'ContentReviewContentType',
+                                    required: true,
+                                },
+                                projectUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                requestUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                            required: true,
+                        },
+                        resourceType: {
+                            ref: 'ApiNotificationResourceType.ContentReview',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Notification: {
         dataType: 'refAlias',
         type: {
@@ -50178,6 +50247,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'NotificationDashboardComment' },
                 { ref: 'NotificationAiReview' },
+                { ref: 'NotificationContentReview' },
             ],
             validators: {},
         },
@@ -50206,7 +50276,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiNotificationResourceType: {
         dataType: 'refEnum',
-        enums: ['dashboardComments', 'aiReview'],
+        enums: ['dashboardComments', 'aiReview', 'contentReview'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_Notification.viewed_': {

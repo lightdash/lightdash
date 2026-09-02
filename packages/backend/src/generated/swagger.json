@@ -43257,6 +43257,7 @@
                     "aiAgentReviewRemediationCompile",
                     "aiAgentReviewRemediationRun",
                     "sendReviewNotification",
+                    "sendContentReviewNotification",
                     "createReviewLinearIssue",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
@@ -50329,6 +50330,69 @@
                     }
                 ]
             },
+            "ApiNotificationResourceType.ContentReview": {
+                "enum": ["contentReview"],
+                "type": "string"
+            },
+            "ContentReviewNotificationEvent": {
+                "enum": ["submitted", "approved", "rejected"],
+                "type": "string"
+            },
+            "NotificationContentReview": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "properties": {
+                                    "event": {
+                                        "$ref": "#/components/schemas/ContentReviewNotificationEvent"
+                                    },
+                                    "requesterName": {
+                                        "type": "string"
+                                    },
+                                    "targetSpaceName": {
+                                        "type": "string"
+                                    },
+                                    "contentName": {
+                                        "type": "string"
+                                    },
+                                    "contentUuid": {
+                                        "type": "string"
+                                    },
+                                    "contentType": {
+                                        "$ref": "#/components/schemas/ContentReviewContentType"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    },
+                                    "requestUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "event",
+                                    "requesterName",
+                                    "targetSpaceName",
+                                    "contentName",
+                                    "contentUuid",
+                                    "contentType",
+                                    "projectUuid",
+                                    "requestUuid"
+                                ],
+                                "type": "object"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/ApiNotificationResourceType.ContentReview"
+                            }
+                        },
+                        "required": ["metadata", "resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "Notification": {
                 "anyOf": [
                     {
@@ -50336,6 +50400,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/NotificationAiReview"
+                    },
+                    {
+                        "$ref": "#/components/schemas/NotificationContentReview"
                     }
                 ]
             },
@@ -50360,7 +50427,7 @@
                 "type": "object"
             },
             "ApiNotificationResourceType": {
-                "enum": ["dashboardComments", "aiReview"],
+                "enum": ["dashboardComments", "aiReview", "contentReview"],
                 "type": "string"
             },
             "Pick_Notification.viewed_": {
@@ -58709,7 +58776,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.93.0",
+        "version": "2.94.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
