@@ -8,6 +8,7 @@ import {
     ChartSummary,
     ChartVersionSummary,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
@@ -1345,7 +1346,7 @@ export class SavedChartModel {
         ]);
         await cancelPendingContentReviewRequests(
             this.database,
-            ContentType.CHART,
+            ContentReviewContentType.CHART,
             [savedChartUuid],
         );
         return savedChart;
@@ -1367,7 +1368,7 @@ export class SavedChartModel {
         ]);
         await cancelPendingContentReviewRequests(
             this.database,
-            ContentType.CHART,
+            ContentReviewContentType.CHART,
             [savedChartUuid],
         );
         return savedChart;

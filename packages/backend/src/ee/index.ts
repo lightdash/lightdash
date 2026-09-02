@@ -284,6 +284,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     dashboardModel: models.getDashboardModel(),
                     dashboardService: repository.getDashboardService(),
+                    savedSqlService: repository.getSavedSqlService(),
                     directAccessFeatureGate:
                         repository.getDirectAccessFeatureGate(),
                     directAccessModel: models.getDirectAccessModel(),

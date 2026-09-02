@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ConflictError,
+    ContentReviewContentType,
     ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
@@ -1758,12 +1759,12 @@ export class DashboardModel {
         await dismissOpenContentDrafts(this.database, 'chart', ownedChartUuids);
         await cancelPendingContentReviewRequests(
             this.database,
-            ContentType.DASHBOARD,
+            ContentReviewContentType.DASHBOARD,
             [dashboardUuid],
         );
         await cancelPendingContentReviewRequests(
             this.database,
-            ContentType.CHART,
+            ContentReviewContentType.CHART,
             ownedChartUuids,
         );
     }

@@ -17,6 +17,7 @@ import {
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
@@ -417,6 +418,23 @@ export class ContentReviewRequestModel {
                 `${SpaceTableName}.space_uuid`,
                 `${SavedChartsTableName}.dashboard_uuid`,
                 `${SavedChartsTableName}.deleted_at`,
+            );
+        return rows.map(parseLocationRow);
+    }
+
+    async findSqlChartLocations(
+        sqlChartUuids: string[],
+    ): Promise<ContentReviewContentLocation[]> {
+        if (sqlChartUuids.length === 0) return [];
+        const rows = await this.database(SavedSqlTableName)
+            .whereIn(`${SavedSqlTableName}.saved_sql_uuid`, sqlChartUuids)
+            .select<DbLocationRow[]>(
+                `${SavedSqlTableName}.saved_sql_uuid as uuid`,
+                `${SavedSqlTableName}.name`,
+                `${SavedSqlTableName}.slug`,
+                `${SavedSqlTableName}.space_uuid`,
+                `${SavedSqlTableName}.dashboard_uuid`,
+                `${SavedSqlTableName}.deleted_at`,
             );
         return rows.map(parseLocationRow);
     }

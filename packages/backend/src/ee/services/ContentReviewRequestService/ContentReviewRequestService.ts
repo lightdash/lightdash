@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     CommercialFeatureFlags,
     ConflictError,
+    ContentReviewContentType,
     ContentReviewRequestStatus,
     ContentReviewRequestView,
     ContentType,
@@ -10,11 +11,11 @@ import {
     DirectAccessResourceType,
     ForbiddenError,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     NotFoundError,
     ParameterError,
     SpaceMemberRole,
     type ApproveContentReviewRequestBody,
-    type ContentReviewContentType,
     type ContentReviewGrantedPrincipal,
     type ContentReviewMovedItem,
     type ContentReviewRequest,
@@ -29,6 +30,7 @@ import {
     type SessionUser,
     type UpdateContentReviewSettings,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import {
     type ContentReviewContentLocation,
@@ -47,6 +49,7 @@ import { type DashboardService } from '../../../services/DashboardService/Dashbo
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 
 type ContentReviewRequestServiceArguments = {
@@ -62,6 +65,7 @@ type ContentReviewRequestServiceArguments = {
     groupsModel: GroupsModel;
     projectModel: ProjectModel;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
 };
@@ -77,9 +81,11 @@ const toDirectAccessResourceType = (
     contentType: ContentReviewContentType,
 ): DirectAccessResourceType => {
     switch (contentType) {
-        case ContentType.CHART:
+        case ContentReviewContentType.CHART:
             return DirectAccessResourceType.CHART;
-        case ContentType.DASHBOARD:
+        case ContentReviewContentType.SQL_CHART:
+            return DirectAccessResourceType.SQL_CHART;
+        case ContentReviewContentType.DASHBOARD:
             return DirectAccessResourceType.DASHBOARD;
         default:
             return assertUnreachable(
@@ -114,6 +120,8 @@ export class ContentReviewRequestService extends BaseService {
 
     private readonly savedChartService: SavedChartService;
 
+    private readonly savedSqlService: SavedSqlService;
+
     private readonly spaceModel: SpaceModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -132,6 +140,7 @@ export class ContentReviewRequestService extends BaseService {
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.savedChartService = args.savedChartService;
+        this.savedSqlService = args.savedSqlService;
         this.spaceModel = args.spaceModel;
         this.spacePermissionService = args.spacePermissionService;
     }
@@ -174,18 +183,36 @@ export class ContentReviewRequestService extends BaseService {
         return { organizationUuid, projectUuid };
     }
 
+    private findLocations(
+        contentType: ContentReviewContentType,
+        contentUuids: string[],
+    ): Promise<ContentReviewContentLocation[]> {
+        switch (contentType) {
+            case ContentReviewContentType.CHART:
+                return this.contentReviewRequestModel.findChartLocations(
+                    contentUuids,
+                );
+            case ContentReviewContentType.SQL_CHART:
+                return this.contentReviewRequestModel.findSqlChartLocations(
+                    contentUuids,
+                );
+            case ContentReviewContentType.DASHBOARD:
+                return this.contentReviewRequestModel.findDashboardLocations(
+                    contentUuids,
+                );
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown review content type',
+                );
+        }
+    }
+
     private async getContentLocation(
         contentType: ContentReviewContentType,
         contentUuid: string,
     ): Promise<ContentReviewContentLocation> {
-        const [location] =
-            contentType === ContentType.CHART
-                ? await this.contentReviewRequestModel.findChartLocations([
-                      contentUuid,
-                  ])
-                : await this.contentReviewRequestModel.findDashboardLocations([
-                      contentUuid,
-                  ]);
+        const [location] = await this.findLocations(contentType, [contentUuid]);
         if (location === undefined || location.deleted) {
             throw new NotFoundError('Content not found');
         }
@@ -237,7 +264,7 @@ export class ContentReviewRequestService extends BaseService {
                 name: primary.name,
             },
         ];
-        if (request.contentType === ContentType.CHART) {
+        if (request.contentType !== ContentReviewContentType.DASHBOARD) {
             return items;
         }
         const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -266,7 +293,36 @@ export class ContentReviewRequestService extends BaseService {
             )
             .forEach((chart) => {
                 items.push({
-                    contentType: ContentType.CHART,
+                    contentType: ContentReviewContentType.CHART,
+                    contentUuid: chart.uuid,
+                    name: chart.name,
+                });
+            });
+        // SQL runner tiles travel with the dashboard the same way
+        const tileSqlChartUuids = [
+            ...new Set(
+                dashboard.tiles
+                    .filter(isDashboardSqlChartTile)
+                    .flatMap((tile) =>
+                        tile.properties.savedSqlUuid
+                            ? [tile.properties.savedSqlUuid]
+                            : [],
+                    ),
+            ),
+        ];
+        const sqlCharts =
+            await this.contentReviewRequestModel.findSqlChartLocations(
+                tileSqlChartUuids,
+            );
+        sqlCharts
+            .filter(
+                (chart) =>
+                    !chart.deleted &&
+                    chart.spaceUuid === request.sourceSpaceUuid,
+            )
+            .forEach((chart) => {
+                items.push({
+                    contentType: ContentReviewContentType.SQL_CHART,
                     contentUuid: chart.uuid,
                     name: chart.name,
                 });
@@ -307,7 +363,73 @@ export class ContentReviewRequestService extends BaseService {
         return this.isReviewerGroupMember(user, settings, organizationUuid);
     }
 
-    private canVerify(user: SessionUser, context: ProjectContext): boolean {
+    private moveItem(
+        user: SessionUser,
+        contentType: ContentReviewContentType,
+        moveArgs: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string;
+        },
+        moveOptions: { tx: Knex; checkForAccess: boolean; trackEvent: boolean },
+    ): Promise<unknown> {
+        switch (contentType) {
+            case ContentReviewContentType.CHART:
+                return this.savedChartService.moveToSpace(
+                    user,
+                    moveArgs,
+                    moveOptions,
+                );
+            case ContentReviewContentType.SQL_CHART:
+                return this.savedSqlService.moveToSpace(
+                    user,
+                    moveArgs,
+                    moveOptions,
+                );
+            case ContentReviewContentType.DASHBOARD:
+                return this.dashboardService.moveToSpace(
+                    user,
+                    moveArgs,
+                    moveOptions,
+                );
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown review content type',
+                );
+        }
+    }
+
+    // Verification only exists for explorer charts and dashboards today
+    private static toVerifiableContentType(
+        contentType: ContentReviewContentType,
+    ): ContentType | null {
+        switch (contentType) {
+            case ContentReviewContentType.CHART:
+                return ContentType.CHART;
+            case ContentReviewContentType.DASHBOARD:
+                return ContentType.DASHBOARD;
+            case ContentReviewContentType.SQL_CHART:
+                return null;
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown review content type',
+                );
+        }
+    }
+
+    private canVerify(
+        user: SessionUser,
+        context: ProjectContext,
+        contentType: ContentReviewContentType,
+    ): boolean {
+        if (
+            ContentReviewRequestService.toVerifiableContentType(contentType) ===
+            null
+        ) {
+            return false;
+        }
         return this.createAuditedAbility(user).can(
             'manage',
             subject('ContentVerification', {
@@ -414,12 +536,13 @@ export class ContentReviewRequestService extends BaseService {
     private async lookupContent(
         requests: ContentReviewRequest[],
     ): Promise<ContentLookups> {
-        const chartUuids = requests
-            .filter((r) => r.contentType === ContentType.CHART)
-            .map((r) => r.contentUuid);
-        const dashboardUuids = requests
-            .filter((r) => r.contentType === ContentType.DASHBOARD)
-            .map((r) => r.contentUuid);
+        const uuidsOf = (contentType: ContentReviewContentType) =>
+            requests
+                .filter((r) => r.contentType === contentType)
+                .map((r) => r.contentUuid);
+        const chartUuids = uuidsOf(ContentReviewContentType.CHART);
+        const sqlChartUuids = uuidsOf(ContentReviewContentType.SQL_CHART);
+        const dashboardUuids = uuidsOf(ContentReviewContentType.DASHBOARD);
         const spaceUuids = [
             ...new Set(
                 requests.flatMap((r) =>
@@ -429,8 +552,9 @@ export class ContentReviewRequestService extends BaseService {
                 ),
             ),
         ];
-        const [charts, dashboards, spaces] = await Promise.all([
+        const [charts, sqlCharts, dashboards, spaces] = await Promise.all([
             this.contentReviewRequestModel.findChartLocations(chartUuids),
+            this.contentReviewRequestModel.findSqlChartLocations(sqlChartUuids),
             this.contentReviewRequestModel.findDashboardLocations(
                 dashboardUuids,
             ),
@@ -438,7 +562,7 @@ export class ContentReviewRequestService extends BaseService {
         ]);
         return {
             locations: new Map(
-                [...charts, ...dashboards].map((location) => [
+                [...charts, ...sqlCharts, ...dashboards].map((location) => [
                     location.uuid,
                     location,
                 ]),
@@ -488,7 +612,7 @@ export class ContentReviewRequestService extends BaseService {
             ...item,
             moveSet,
             canReview,
-            canVerify: this.canVerify(user, context),
+            canVerify: this.canVerify(user, context, request.contentType),
             verifyByDefault: settings.verifyOnApproveDefault,
         };
     }
@@ -546,21 +670,17 @@ export class ContentReviewRequestService extends BaseService {
             contentUuid: body.contentUuid,
             sourceSpaceUuid: personalSpace.uuid,
         });
-        const [pendingCharts, pendingDashboards] = await Promise.all([
-            this.contentReviewRequestModel.findPendingByContentUuids(
-                ContentType.CHART,
-                moveSet
-                    .filter((i) => i.contentType === ContentType.CHART)
-                    .map((i) => i.contentUuid),
+        const pendingByType = await Promise.all(
+            Object.values(ContentReviewContentType).map((contentType) =>
+                this.contentReviewRequestModel.findPendingByContentUuids(
+                    contentType,
+                    moveSet
+                        .filter((i) => i.contentType === contentType)
+                        .map((i) => i.contentUuid),
+                ),
             ),
-            this.contentReviewRequestModel.findPendingByContentUuids(
-                ContentType.DASHBOARD,
-                moveSet
-                    .filter((i) => i.contentType === ContentType.DASHBOARD)
-                    .map((i) => i.contentUuid),
-            ),
-        ]);
-        if (pendingCharts.size > 0 || pendingDashboards.size > 0) {
+        );
+        if (pendingByType.some((pending) => pending.size > 0)) {
             throw new ConflictError(
                 'This content is already waiting for review',
             );
@@ -790,7 +910,10 @@ export class ContentReviewRequestService extends BaseService {
                 'You do not have permission to review this request',
             );
         }
-        if (body.verify && !this.canVerify(user, context)) {
+        if (
+            body.verify &&
+            !this.canVerify(user, context, request.contentType)
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to verify content',
             );
@@ -817,17 +940,12 @@ export class ContentReviewRequestService extends BaseService {
                         trackEvent: true,
                     };
                     // eslint-disable-next-line no-await-in-loop
-                    await (item.contentType === ContentType.CHART
-                        ? this.savedChartService.moveToSpace(
-                              user,
-                              moveArgs,
-                              moveOptions,
-                          )
-                        : this.dashboardService.moveToSpace(
-                              user,
-                              moveArgs,
-                              moveOptions,
-                          ));
+                    await this.moveItem(
+                        user,
+                        item.contentType,
+                        moveArgs,
+                        moveOptions,
+                    );
                 }
                 return this.contentReviewRequestModel.approve(
                     request.uuid,
@@ -842,9 +960,13 @@ export class ContentReviewRequestService extends BaseService {
             },
         );
 
-        if (body.verify) {
-            await this.contentVerificationModel.verify(
+        const verifiableType =
+            ContentReviewRequestService.toVerifiableContentType(
                 request.contentType,
+            );
+        if (body.verify && verifiableType !== null) {
+            await this.contentVerificationModel.verify(
+                verifiableType,
                 request.contentUuid,
                 projectUuid,
                 user.userUuid,

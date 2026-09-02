@@ -1,8 +1,10 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
+    ContentReviewContentType,
     ContentReviewRequestStatus,
     ContentReviewRequestView,
     ContentType,
+    DashboardTileTypes,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     OrganizationMemberRole,
@@ -29,6 +31,7 @@ import { type DashboardService } from '../../../services/DashboardService/Dashbo
 import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/DirectAccessFeatureGate';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ContentReviewRequestService } from './ContentReviewRequestService';
 
@@ -117,7 +120,7 @@ const defaultSettings: ContentReviewSettings = {
 const pendingRequest: ContentReviewRequest = {
     uuid: 'request-uuid',
     projectUuid: PROJECT,
-    contentType: ContentType.CHART,
+    contentType: ContentReviewContentType.CHART,
     contentUuid: CHART,
     sourceSpaceUuid: PERSONAL_SPACE,
     targetSpaceUuid: SHARED_SPACE,
@@ -141,10 +144,13 @@ const pendingRequest: ContentReviewRequest = {
     updatedAt: new Date('2026-09-01T10:00:00Z'),
 };
 
+let dashboardModelMock: { getByIdOrSlug: ReturnType<typeof vi.fn> };
+
 const buildService = () => {
     const contentReviewRequestModel = {
         findChartLocations: vi.fn().mockResolvedValue([chartLocation]),
         findDashboardLocations: vi.fn().mockResolvedValue([]),
+        findSqlChartLocations: vi.fn().mockResolvedValue([]),
         findSpaceInfo: vi.fn().mockResolvedValue(spaces),
         findPendingByContentUuids: vi.fn().mockResolvedValue(new Map()),
         findPendingByContent: vi.fn().mockResolvedValue(null),
@@ -177,6 +183,7 @@ const buildService = () => {
         verify: vi.fn().mockResolvedValue(undefined),
     };
     const dashboardModel = { getByIdOrSlug: vi.fn() };
+    dashboardModelMock = dashboardModel;
     const dashboardService = { moveToSpace: vi.fn() };
     const directAccessFeatureGate = {
         isEnabledForUser: vi.fn().mockResolvedValue(true),
@@ -196,6 +203,9 @@ const buildService = () => {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
     };
     const savedChartService = {
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
+    };
+    const savedSqlService = {
         moveToSpace: vi.fn().mockResolvedValue(undefined),
     };
     const spaceModel = {
@@ -235,6 +245,7 @@ const buildService = () => {
         groupsModel: groupsModel as unknown as GroupsModel,
         projectModel: projectModel as unknown as ProjectModel,
         savedChartService: savedChartService as unknown as SavedChartService,
+        savedSqlService: savedSqlService as unknown as SavedSqlService,
         spaceModel: spaceModel as unknown as SpaceModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -243,6 +254,8 @@ const buildService = () => {
     return {
         service,
         contentReviewRequestModel,
+        savedSqlService,
+        dashboardService,
         contentReviewSettingsModel,
         contentVerificationModel,
         directAccessFeatureGate,
@@ -256,7 +269,7 @@ const buildService = () => {
 };
 
 const submitBody = {
-    contentType: ContentType.CHART as const,
+    contentType: ContentReviewContentType.CHART as const,
     contentUuid: CHART,
     targetSpaceUuid: SHARED_SPACE,
     note: 'Useful for the weekly review',
@@ -410,7 +423,7 @@ describe('ContentReviewRequestService', () => {
                     verifiedOnApprove: true,
                     movedContent: [
                         {
-                            contentType: ContentType.CHART,
+                            contentType: ContentReviewContentType.CHART,
                             contentUuid: CHART,
                             name: 'Weekly revenue',
                         },
@@ -419,7 +432,7 @@ describe('ContentReviewRequestService', () => {
                 { tx: 'tx' },
             );
             expect(contentVerificationModel.verify).toHaveBeenCalledWith(
-                ContentType.CHART,
+                ContentReviewContentType.CHART,
                 CHART,
                 PROJECT,
                 REVIEWER,
@@ -598,11 +611,122 @@ describe('ContentReviewRequestService', () => {
             expect(detail.verifyByDefault).toBe(true);
             expect(detail.moveSet).toEqual([
                 {
-                    contentType: ContentType.CHART,
+                    contentType: ContentReviewContentType.CHART,
                     contentUuid: CHART,
                     name: 'Weekly revenue',
                 },
             ]);
+        });
+    });
+
+    describe('SQL runner charts', () => {
+        const DASHBOARD = 'dashboard-uuid';
+        const SQL_CHART = 'sql-chart-uuid';
+        const dashboardLocation = {
+            uuid: DASHBOARD,
+            name: 'Ops board',
+            slug: 'ops-board',
+            spaceUuid: PERSONAL_SPACE,
+            dashboardUuid: null,
+            deleted: false,
+        };
+        const sqlChartLocation = {
+            uuid: SQL_CHART,
+            name: 'Raw orders',
+            slug: 'raw-orders',
+            spaceUuid: PERSONAL_SPACE,
+            dashboardUuid: null,
+            deleted: false,
+        };
+
+        test('a dashboard takes its personal-space SQL tiles along', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                savedSqlService,
+                dashboardService,
+                contentVerificationModel,
+            } = buildService();
+            contentReviewRequestModel.getByUuid.mockResolvedValue({
+                ...pendingRequest,
+                contentType: ContentReviewContentType.DASHBOARD,
+                contentUuid: DASHBOARD,
+            });
+            contentReviewRequestModel.findDashboardLocations.mockResolvedValue([
+                dashboardLocation,
+            ]);
+            contentReviewRequestModel.findChartLocations.mockResolvedValue([]);
+            contentReviewRequestModel.findSqlChartLocations.mockResolvedValue([
+                sqlChartLocation,
+            ]);
+            dashboardModelMock.getByIdOrSlug.mockResolvedValue({
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SQL_CHART,
+                        properties: { savedSqlUuid: SQL_CHART },
+                    },
+                ],
+            });
+
+            await service.approve(verifier, PROJECT, pendingRequest.uuid, {
+                verify: true,
+                note: null,
+            });
+
+            expect(dashboardService.moveToSpace).toHaveBeenCalledWith(
+                verifier,
+                expect.objectContaining({ itemUuid: DASHBOARD }),
+                expect.anything(),
+            );
+            expect(savedSqlService.moveToSpace).toHaveBeenCalledWith(
+                verifier,
+                expect.objectContaining({ itemUuid: SQL_CHART }),
+                expect.anything(),
+            );
+            expect(contentVerificationModel.verify).toHaveBeenCalledWith(
+                ContentType.DASHBOARD,
+                DASHBOARD,
+                PROJECT,
+                REVIEWER,
+            );
+        });
+
+        test('a SQL chart moves through the SQL service and is never verified', async () => {
+            const {
+                service,
+                contentReviewRequestModel,
+                savedSqlService,
+                savedChartService,
+                contentVerificationModel,
+            } = buildService();
+            contentReviewRequestModel.getByUuid.mockResolvedValue({
+                ...pendingRequest,
+                contentType: ContentReviewContentType.SQL_CHART,
+                contentUuid: SQL_CHART,
+            });
+            contentReviewRequestModel.findSqlChartLocations.mockResolvedValue([
+                sqlChartLocation,
+            ]);
+
+            const detail = await service.get(
+                verifier,
+                PROJECT,
+                pendingRequest.uuid,
+            );
+            expect(detail.canVerify).toBe(false);
+
+            await service.approve(verifier, PROJECT, pendingRequest.uuid, {
+                verify: false,
+                note: null,
+            });
+
+            expect(savedSqlService.moveToSpace).toHaveBeenCalledWith(
+                verifier,
+                expect.objectContaining({ itemUuid: SQL_CHART }),
+                expect.anything(),
+            );
+            expect(savedChartService.moveToSpace).not.toHaveBeenCalled();
+            expect(contentVerificationModel.verify).not.toHaveBeenCalled();
         });
     });
 });

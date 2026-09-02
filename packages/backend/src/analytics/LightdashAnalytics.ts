@@ -8,6 +8,7 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentReviewContentType,
     ContentType,
     DbtProjectType,
     getRequestMethod,
@@ -2952,7 +2953,7 @@ export type ContentReviewRequestEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId: string;
-        contentType: ContentType;
+        contentType: ContentReviewContentType;
         contentId: string;
         targetSpaceId: string | null;
         routedTo?: 'space_editors' | 'group';
