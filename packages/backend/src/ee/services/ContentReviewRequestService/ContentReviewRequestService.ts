@@ -1164,15 +1164,32 @@ export class ContentReviewRequestService extends BaseService {
             ),
         );
         const visible = candidates.filter((c) => accessible.has(c.spaceUuid));
-        const verified = await this.contentVerificationModel.getByContentUuids(
-            params.contentType,
-            visible.map((c) => c.uuid),
+        const verifiedByType = new Map<ContentReviewContentType, Set<string>>();
+        await Promise.all(
+            [...new Set(visible.map((c) => c.contentType))].map(
+                async (candidateType) => {
+                    const verifiableType =
+                        ContentReviewRequestService.toVerifiableContentType(
+                            candidateType,
+                        );
+                    if (verifiableType === null) return;
+                    const verified =
+                        await this.contentVerificationModel.getByContentUuids(
+                            verifiableType,
+                            visible
+                                .filter((c) => c.contentType === candidateType)
+                                .map((c) => c.uuid),
+                        );
+                    verifiedByType.set(candidateType, new Set(verified.keys()));
+                },
+            ),
         );
         return visible
             .map((c) => {
-                const isVerified = verified.has(c.uuid);
+                const isVerified =
+                    verifiedByType.get(c.contentType)?.has(c.uuid) ?? false;
                 return {
-                    contentType: params.contentType,
+                    contentType: c.contentType,
                     contentUuid: c.uuid,
                     name: c.name,
                     slug: c.slug,

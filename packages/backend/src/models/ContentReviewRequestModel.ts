@@ -1,8 +1,7 @@
 import {
+    ContentReviewContentType,
     ContentReviewRequestStatus,
-    ContentType,
     NotFoundError,
-    type ContentReviewContentType,
     type ContentReviewGrantedPrincipal,
     type ContentReviewMovedItem,
     type ContentReviewRequest,
@@ -123,6 +122,7 @@ const parseLocationRow = (
 });
 
 export type ContentReviewSimilarCandidate = {
+    contentType: ContentReviewContentType;
     uuid: string;
     name: string;
     slug: string;
@@ -134,6 +134,46 @@ export type ContentReviewSimilarCandidate = {
 const EXACT_NAME_SCORE = 100;
 const CONTAINED_NAME_SCORE = 50;
 const COMPACT_NAME_SQL = "regexp_replace(lower(??), '[^a-z0-9]+', '', 'g')";
+
+type SimilarSource = {
+    contentType: ContentReviewContentType;
+    table: string;
+    uuidColumn: string;
+    spaceJoin: { left: string; right: string };
+};
+
+const SIMILAR_SOURCES: Record<
+    'chart' | 'sqlChart' | 'dashboard',
+    SimilarSource
+> = {
+    chart: {
+        contentType: ContentReviewContentType.CHART,
+        table: SavedChartsTableName,
+        uuidColumn: 'saved_query_uuid',
+        spaceJoin: {
+            left: `${SavedChartsTableName}.space_id`,
+            right: `${SpaceTableName}.space_id`,
+        },
+    },
+    sqlChart: {
+        contentType: ContentReviewContentType.SQL_CHART,
+        table: SavedSqlTableName,
+        uuidColumn: 'saved_sql_uuid',
+        spaceJoin: {
+            left: `${SavedSqlTableName}.space_uuid`,
+            right: `${SpaceTableName}.space_uuid`,
+        },
+    },
+    dashboard: {
+        contentType: ContentReviewContentType.DASHBOARD,
+        table: DashboardsTableName,
+        uuidColumn: 'dashboard_uuid',
+        spaceJoin: {
+            left: `${DashboardsTableName}.space_id`,
+            right: `${SpaceTableName}.space_id`,
+        },
+    },
+};
 
 export type ListContentReviewRequestsFilters = {
     projectUuid: string;
@@ -539,9 +579,45 @@ export class ContentReviewRequestModel {
             .split(/\s+/)
             .filter((word) => word.length > 0)
             .join(' OR ');
-        const isChart = contentType === ContentType.CHART;
-        const table = isChart ? SavedChartsTableName : DashboardsTableName;
-        const uuidColumn = isChart ? 'saved_query_uuid' : 'dashboard_uuid';
+        // A chart duplicate can live in either chart table
+        const sources =
+            contentType === ContentReviewContentType.DASHBOARD
+                ? [SIMILAR_SOURCES.dashboard]
+                : [SIMILAR_SOURCES.chart, SIMILAR_SOURCES.sqlChart];
+        const results = await Promise.all(
+            sources.map((source) =>
+                this.findSimilarInSource({
+                    source,
+                    projectUuid,
+                    compact,
+                    wordQuery,
+                    excludeContentUuid,
+                    limit,
+                }),
+            ),
+        );
+        return results
+            .flat()
+            .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+            .slice(0, limit);
+    }
+
+    private async findSimilarInSource({
+        source,
+        projectUuid,
+        compact,
+        wordQuery,
+        excludeContentUuid,
+        limit,
+    }: {
+        source: SimilarSource;
+        projectUuid: string;
+        compact: string;
+        wordQuery: string;
+        excludeContentUuid: string | null;
+        limit: number;
+    }): Promise<ContentReviewSimilarCandidate[]> {
+        const { table, uuidColumn } = source;
         const nameColumn = `${table}.name`;
 
         const scoreSql = this.database.raw(
@@ -566,8 +642,8 @@ export class ContentReviewRequestModel {
         const query = this.database(table)
             .innerJoin(
                 SpaceTableName,
-                `${table}.space_id`,
-                `${SpaceTableName}.space_id`,
+                source.spaceJoin.left,
+                source.spaceJoin.right,
             )
             .innerJoin(
                 ProjectTableName,
@@ -621,6 +697,7 @@ export class ContentReviewRequestModel {
         const rows = await query;
         return rows
             .map((row) => ({
+                contentType: source.contentType,
                 uuid: row.uuid,
                 name: row.name,
                 slug: row.slug,

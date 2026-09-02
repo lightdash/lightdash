@@ -129,7 +129,7 @@ describe('RequestReviewModal', () => {
 
     it('requires a note when similar content exists and snapshots it', async () => {
         const match = {
-            contentType: ContentType.CHART,
+            contentType: ContentReviewContentType.CHART,
             contentUuid: 'existing',
             name: 'Weekly revenue by region',
             slug: 'weekly-revenue-by-region',
