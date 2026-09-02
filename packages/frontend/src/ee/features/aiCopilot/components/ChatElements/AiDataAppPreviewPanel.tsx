@@ -15,7 +15,9 @@ import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
+import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
+import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
@@ -28,9 +30,15 @@ import artifactStyles from './AiArtifactPanel.module.css';
 
 type Props = {
     dataAppPreview: DataAppPreviewData;
+    /** Only the full-page thread panel hosts the query inspector; the
+     *  floating launcher preview is too small for it. */
+    showInspector: boolean;
 };
 
-export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
+export const AiDataAppPreviewPanel: FC<Props> = ({
+    dataAppPreview,
+    showInspector,
+}) => {
     const dispatch = useAiAgentStoreDispatch();
     const { appUuid, projectUuid } = dataAppPreview;
 
@@ -41,6 +49,10 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
     // Authoritative across ALL versions — the ready version may be older than
     // the fetched page of versions, so never scan `versions` for it.
     const latestReadyVersion = app?.latestReadyVersion ?? undefined;
+    const identityKey = `${appUuid}:${latestReadyVersion}`;
+    // Lives here, not next to the iframe, so logs and dismissal survive the
+    // token reload between versions. Only wired in when `showInspector`.
+    const inspector = useAppInspector({ identityKey, defaultHidden: false });
 
     const {
         data: token,
@@ -133,15 +145,24 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
         );
     } else {
         body = (
-            <AppIframePreview
-                src={previewUrl}
-                previewToken={token}
-                expectedPreviewOrigin={previewOrigin}
-                projectUuid={projectUuid}
-                appUuid={appUuid}
-                identityKey={`${appUuid}:${latestReadyVersion}`}
-                capabilities={{ gsheetExport: true }}
-            />
+            <>
+                <AppIframePreview
+                    src={previewUrl}
+                    previewToken={token}
+                    expectedPreviewOrigin={previewOrigin}
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    identityKey={identityKey}
+                    capabilities={{ gsheetExport: true }}
+                    {...(showInspector ? inspector.iframeProps : {})}
+                />
+                {showInspector && !inspector.hidden && (
+                    <AppInspectorPanel
+                        projectUuid={projectUuid}
+                        {...inspector.panelProps}
+                    />
+                )}
+            </>
         );
     }
 
@@ -195,9 +216,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({ dataAppPreview }) => {
                     </Group>
                 </Box>
 
-                <Box flex={1} mih={0}>
-                    {body}
-                </Box>
+                <Box className={artifactStyles.previewBody}>{body}</Box>
             </Box>
         </Box>
     );

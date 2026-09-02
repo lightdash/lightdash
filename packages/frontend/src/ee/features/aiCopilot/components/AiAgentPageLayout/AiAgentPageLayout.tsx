@@ -45,7 +45,9 @@ const renderPreviewPanel = (preview: AiPreview) => {
         case 'savedChart':
             return <AiSavedChartPreviewPanel savedChartPreview={preview} />;
         case 'dataApp':
-            return <AiDataAppPreviewPanel dataAppPreview={preview} />;
+            return (
+                <AiDataAppPreviewPanel dataAppPreview={preview} showInspector />
+            );
         default:
             return assertUnreachable(preview, 'Unknown preview type');
     }
