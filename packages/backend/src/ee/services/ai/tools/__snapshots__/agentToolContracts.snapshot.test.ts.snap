@@ -4115,9 +4115,13 @@ Parameters:
                   "type": "string",
                 },
                 "slug": {
-                  "type": [
-                    "string",
-                    "null",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
                   ],
                 },
                 "status": {
@@ -4141,9 +4145,13 @@ Parameters:
               "additionalProperties": false,
               "properties": {
                 "appUuid": {
-                  "type": [
-                    "string",
-                    "null",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
                   ],
                 },
                 "message": {
@@ -4193,19 +4201,15 @@ Parameters:
           "type": "string",
         },
         "chartSlugs": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string",
-              },
-              "type": "array",
-            },
-            {
-              "type": "null",
-            },
-          ],
           "default": null,
           "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.",
+          "items": {
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
+          ],
         },
         "dashboardSlug": {
           "default": null,
@@ -4232,7 +4236,7 @@ Parameters:
       "additionalProperties": false,
       "properties": {
         "metadata": {
-          "anyOf": [
+          "oneOf": [
             {
               "additionalProperties": false,
               "properties": {
@@ -4267,9 +4271,13 @@ Parameters:
                   "type": "string",
                 },
                 "slug": {
-                  "type": [
-                    "string",
-                    "null",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
                   ],
                 },
                 "status": {
