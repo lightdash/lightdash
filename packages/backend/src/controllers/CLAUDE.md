@@ -156,8 +156,9 @@ keep `@summary` unchanged — the docs page URL is derived from it. Then
   date is within two weeks or has passed. Deprecated endpoints are not expected
   to be called by any first-party client, so any log line is a signal that
   something still depends on a route slated for removal.
-- When it escalates to an error, it also reports a `DeprecatedRouteError`
-  (`@lightdash/common`) to Sentry so overdue routes surface in alerting.
+- When it escalates to an error, it stays a GCP/log-only signal. Do not
+  report `DeprecatedRouteError` to Sentry — overdue routes fire once per
+  request and would dominate quota. The type is listed in `IGNORE_ERRORS`.
 - Responses carry `Deprecation` (deprecation date), `Sunset` (removal date), and
   a legacy `Warning` header.
 

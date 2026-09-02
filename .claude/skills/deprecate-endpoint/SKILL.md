@@ -9,8 +9,8 @@ allowed-tools: Read, Grep, Glob, Edit, Bash
 # Deprecate an HTTP Endpoint
 
 Checklist for deprecating a backend HTTP endpoint. The runtime behavior
-(warn→error logging, Sentry alerting, response headers) lives in one shared
-middleware — you only wire it on and supply a date + replacement hint.
+(warn→error logging, response headers) lives in one shared middleware — you
+only wire it on and supply a date + replacement hint.
 
 The authoritative policy is `packages/backend/src/controllers/CLAUDE.md` →
 "Deprecating Endpoints". This skill is the actionable checklist.
@@ -30,8 +30,8 @@ Read the handler before editing. It may already have some of the pieces
 
 **Only deprecate an endpoint once nothing first-party calls it anymore.** The
 frontend, CLI, EE code, and other internal consumers must already be migrated to
-the replacement. A deprecated route logs an error and reports to Sentry once past
-its deadline, so any straggler caller becomes noise/alerts.
+the replacement. A deprecated route logs an error once past its deadline, so
+any straggler caller becomes log noise.
 
 Verify before touching the controller — search every first-party surface for the
 route path and its API hooks, including EE and test suites:
@@ -43,7 +43,7 @@ grep -rn "<route-fragment>" packages/frontend/src packages/cli/src \
 
 Watch for version differences: a v2 call (`version: 'v2'` / `/api/v2/...`) to a
 similar path is the *replacement*, not a caller of the v1 route. A test that hits
-the route counts as a caller — it will trigger logs/Sentry once past sunset. If
+the route counts as a caller — it will trigger error logs once past sunset. If
 any first-party caller remains, migrate it first (or stop — it cannot be
 deprecated yet).
 
@@ -147,8 +147,9 @@ main (the docs site re-fetches swagger.json from main at build time).
 already does, per call:
 
 - `Deprecation`, `Sunset`, and legacy `Warning` response headers.
-- A warning log, escalating to an **error log + Sentry `DeprecatedRouteError`**
-  (`@lightdash/common`) once the sunset is within two weeks or has passed.
+- A warning log, escalating to an **error log** (GCP) once the sunset is
+  within two weeks or has passed. Do not report `DeprecatedRouteError` to
+  Sentry — it is in `IGNORE_ERRORS` and would burn quota on every call.
 
 Do not add per-endpoint logging/headers. (Some older routes also fire a
 `trackDeprecatedRouteCalled` analytics event — that's optional; the middleware is
@@ -156,6 +157,6 @@ the standard.)
 
 ## Later: removal
 
-Once the sunset passes (the route is now error-logging + Sentry-alerting on every
-call), the follow-up task is to delete the handler and its route, then
+Once the sunset passes (the route is now error-logging on every call), the
+follow-up task is to delete the handler and its route, then
 `pnpm generate-api` again. That's a separate change, not part of deprecating.
