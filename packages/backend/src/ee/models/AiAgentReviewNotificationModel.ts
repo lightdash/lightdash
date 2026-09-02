@@ -614,18 +614,20 @@ export class AiAgentReviewNotificationModel {
         organizationUuid: string,
         database: Knex = this.database,
     ): Promise<void> {
-        await database(AiReviewJiraDestinationTableName)
-            .where({ organization_uuid: organizationUuid })
-            .delete();
-        await database(AiReviewNotificationSettingsTableName)
-            .where({ organization_uuid: organizationUuid })
-            .update({
-                jira_enabled: false,
-                jira_project_id: null,
-                jira_issue_type_id: null,
-                jira_apply_to_all_projects: false,
-                updated_at: new Date(),
-            });
+        await database.transaction(async (trx) => {
+            await trx(AiReviewJiraDestinationTableName)
+                .where({ organization_uuid: organizationUuid })
+                .delete();
+            await trx(AiReviewNotificationSettingsTableName)
+                .where({ organization_uuid: organizationUuid })
+                .update({
+                    jira_enabled: false,
+                    jira_project_id: null,
+                    jira_issue_type_id: null,
+                    jira_apply_to_all_projects: false,
+                    updated_at: new Date(),
+                });
+        });
     }
 
     async recordSent(args: LogArgs): Promise<string> {

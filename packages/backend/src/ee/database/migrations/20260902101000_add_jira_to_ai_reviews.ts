@@ -2,7 +2,7 @@ import { type Knex } from 'knex';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds nullable Jira review routing and link storage without rewriting existing review data',
+    reason: 'Adds Jira review routing columns with constant defaults, a new destinations table, and a nullable link column; no existing rows are rewritten',
 } as const;
 
 const settingsTable = 'ai_agent_review_notification_settings';
