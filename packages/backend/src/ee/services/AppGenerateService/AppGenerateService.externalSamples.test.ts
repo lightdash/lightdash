@@ -57,6 +57,7 @@ function buildService() {
     };
     return {
         service: new AppGenerateService({
+            dataAppTemplateService: {} as never,
             lightdashConfig: {} as never,
             analytics: {} as never,
             analyticsModel: {} as never,

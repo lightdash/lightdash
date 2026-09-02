@@ -71,6 +71,7 @@ function buildService(
     } = {},
 ) {
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             lightdashSecret: 'test-secret',
             lightdashSecrets: testLightdashSecrets,

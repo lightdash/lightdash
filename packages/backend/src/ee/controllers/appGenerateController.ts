@@ -97,6 +97,7 @@ export class AppGenerateController extends BaseController {
             body.claudeModel,
             {
                 creationExperience: body.creationExperience,
+                templateSlug: body.templateSlug,
                 designUuidInput: body.designUuid,
                 externalConnections: body.externalConnections,
                 codexModelInput: body.codexModel,

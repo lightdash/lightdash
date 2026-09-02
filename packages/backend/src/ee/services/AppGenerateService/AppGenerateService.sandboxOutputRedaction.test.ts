@@ -43,6 +43,7 @@ const buildService = (codingAgent: 'claude' | 'codex') => {
         recordBuildNarration: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: { dataAppCodingAgent: codingAgent },
         },

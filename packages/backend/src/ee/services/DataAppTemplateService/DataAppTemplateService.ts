@@ -11,10 +11,12 @@ import {
     DATA_APP_TEMPLATE_GUARDRAILS_PATH,
     DATA_APP_TEMPLATE_MANIFEST_PATH,
     DataAppTemplatePackageError,
+    FeatureFlags,
     ForbiddenError,
     MAX_DATA_APP_TEMPLATE_FILE_BYTES,
     MAX_DATA_APP_TEMPLATE_FILES,
     MAX_DATA_APP_TEMPLATE_PACKAGE_BYTES,
+    MAX_DATA_APP_TEMPLATES_PER_ORG,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -29,6 +31,7 @@ import { extract as tarExtract } from 'tar-stream';
 import { v4 as uuidv4 } from 'uuid';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import { type DataAppTemplateModel } from '../../models/DataAppTemplateModel';
 import { readS3ObjectAsBuffer } from '../AppGenerateService/s3Utils';
@@ -36,6 +39,7 @@ import { readS3ObjectAsBuffer } from '../AppGenerateService/s3Utils';
 type DataAppTemplateServiceArguments = {
     lightdashConfig: LightdashConfig;
     dataAppTemplateModel: DataAppTemplateModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export type DataAppTemplateSourceFile = {
@@ -82,6 +86,7 @@ export const parseDataAppTemplatePackage = (
 ): Promise<PackageFile[]> =>
     new Promise((resolve, reject) => {
         const files: PackageFile[] = [];
+        const seen = new Set<string>();
         const extractor = tarExtract();
         extractor.on('entry', (header, stream, next) => {
             const chunks: Buffer[] = [];
@@ -93,6 +98,12 @@ export const parseDataAppTemplatePackage = (
                         const filename = validateDataAppTemplateEntryPath(
                             header.name,
                         );
+                        if (seen.has(filename)) {
+                            throw new DataAppTemplatePackageError(
+                                `Template package names ${filename} twice`,
+                            );
+                        }
+                        seen.add(filename);
                         const body = Buffer.concat(chunks);
                         if (body.length > MAX_DATA_APP_TEMPLATE_FILE_BYTES) {
                             throw new DataAppTemplatePackageError(
@@ -123,13 +134,35 @@ export class DataAppTemplateService extends BaseService {
 
     private readonly dataAppTemplateModel: DataAppTemplateModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         dataAppTemplateModel,
+        featureFlagModel,
     }: DataAppTemplateServiceArguments) {
         super({ serviceName: 'DataAppTemplateService' });
         this.lightdashConfig = lightdashConfig;
         this.dataAppTemplateModel = dataAppTemplateModel;
+        this.featureFlagModel = featureFlagModel;
+    }
+
+    /**
+     * The UI is flag-gated; the API must be too, or packages could be
+     * stored for orgs the feature is not rolled out to.
+     */
+    private async assertTemplatesEnabled(account: Account): Promise<void> {
+        assertRegisteredAccount(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.EnableDataAppTemplates,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Data app templates are not enabled');
+        }
     }
 
     private accountContext(account: Account): {
@@ -242,6 +275,7 @@ export class DataAppTemplateService extends BaseService {
         input: { body: Readable; contentLength: number },
     ): Promise<DataAppTemplateImportResult> {
         const { organizationUuid, userUuid } = this.accountContext(account);
+        await this.assertTemplatesEnabled(account);
         if (
             input.contentLength <= 0 ||
             input.contentLength > MAX_DATA_APP_TEMPLATE_PACKAGE_BYTES
@@ -297,6 +331,15 @@ export class DataAppTemplateService extends BaseService {
             this.assertCanManageTemplate(account, existing);
         } else {
             this.assertCanCreate(account, organizationUuid);
+            const count =
+                await this.dataAppTemplateModel.countByOrganization(
+                    organizationUuid,
+                );
+            if (count >= MAX_DATA_APP_TEMPLATES_PER_ORG) {
+                throw new ParameterError(
+                    `An organization can hold at most ${MAX_DATA_APP_TEMPLATES_PER_ORG} data app templates; delete one before publishing another`,
+                );
+            }
         }
         const templateUuid = existing?.templateUuid ?? uuidv4();
         const previousFiles = existing
@@ -371,11 +414,13 @@ export class DataAppTemplateService extends BaseService {
     }
 
     async list(account: Account): Promise<DataAppTemplateSummary[]> {
+        await this.assertTemplatesEnabled(account);
         const { organizationUuid } = this.assertCanBrowse(account);
         return this.dataAppTemplateModel.listByOrganization(organizationUuid);
     }
 
     async get(account: Account, slug: string): Promise<DataAppTemplateSummary> {
+        await this.assertTemplatesEnabled(account);
         const { organizationUuid } = this.assertCanBrowse(account);
         const template = await this.dataAppTemplateModel.findBySlug(
             organizationUuid,
@@ -389,6 +434,7 @@ export class DataAppTemplateService extends BaseService {
 
     async delete(account: Account, slug: string): Promise<void> {
         const { organizationUuid } = this.accountContext(account);
+        await this.assertTemplatesEnabled(account);
         const template = await this.dataAppTemplateModel.findBySlug(
             organizationUuid,
             slug,
@@ -418,6 +464,17 @@ export class DataAppTemplateService extends BaseService {
                 }),
             );
         }
+    }
+
+    /**
+     * Account-less lookup for the generate path, which has already checked
+     * the caller's create:DataAppFromTemplate grant.
+     */
+    async findForBuild(
+        organizationUuid: string,
+        slug: string,
+    ): Promise<DataAppTemplateSummary | undefined> {
+        return this.dataAppTemplateModel.findBySlug(organizationUuid, slug);
     }
 
     /**

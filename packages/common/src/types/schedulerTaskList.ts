@@ -65,6 +65,10 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     // shipped remain valid while workers are rolling forward.
     creationExperience?: DataAppCreationExperience;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
+    // Organization template (uploaded package) selected on creation; the
+    // worker seeds its source from storage. Absent on iteration, where the
+    // app row's template_slug is the source of truth.
+    templateSlug?: string;
     /** @deprecated Use `fileIds` — still read so jobs enqueued before the
      *  rename keep working after a deploy. */
     imageIds?: string[];

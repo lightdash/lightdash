@@ -63,6 +63,7 @@ function buildService() {
     const getCatalogItemsSummary = vi.fn().mockResolvedValue(CATALOG_ITEMS);
     const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: { sampleDataEnabled: true },
         } as never,

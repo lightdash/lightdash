@@ -92,6 +92,7 @@ import {
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
+    type DataAppTemplateSummary,
     type DataAppViz,
     type DataAppVizRenderMetadata,
     type DataAppVizSchema,
@@ -190,6 +191,7 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
+import type { DataAppTemplateService } from '../DataAppTemplateService/DataAppTemplateService';
 import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
     createSandboxManager,
@@ -302,8 +304,10 @@ import {
 } from './templateDependencies';
 import { getTemplateInstructions } from './templates';
 import {
+    buildOrgTemplateInstructions,
     getTemplateBindInstructions,
     getTemplateSource,
+    shouldSeedOrgTemplate,
     shouldSeedTemplateSource,
 } from './templateSources';
 
@@ -375,6 +379,7 @@ type AppGenerateServiceDeps = {
     /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
+    dataAppTemplateService: DataAppTemplateService;
 };
 
 // Inputs for the AI agent's code-free data app read: manifest fields, the
@@ -405,6 +410,8 @@ export type DataAppReadSource = {
 
 type GenerateAppOptions = {
     creationExperience?: DataAppCreationExperience;
+    // Organization template (uploaded package) to seed the build from.
+    templateSlug?: string;
     designUuidInput?: string | null;
     externalConnections?: AppExternalConnectionReference[];
     codexModelInput?: DataAppCodexModel;
@@ -588,6 +595,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly dataAppTemplateService: DataAppTemplateService;
+
     private readonly promoteService: PromoteService;
 
     private readonly externalConnectionModel: ExternalConnectionModel;
@@ -625,6 +634,7 @@ export class AppGenerateService extends BaseService {
         coderService,
         dashboardService,
         projectService,
+        dataAppTemplateService,
         promoteService,
         externalConnectionModel,
         sandboxRegistryModel,
@@ -652,6 +662,7 @@ export class AppGenerateService extends BaseService {
         this.coderService = coderService;
         this.dashboardService = dashboardService;
         this.projectService = projectService;
+        this.dataAppTemplateService = dataAppTemplateService;
         this.promoteService = promoteService;
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
@@ -2921,6 +2932,7 @@ export class AppGenerateService extends BaseService {
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
         seedTemplateSource: boolean,
+        orgTemplate?: { organizationUuid: string; slug: string; seed: boolean },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -3016,6 +3028,47 @@ export class AppGenerateService extends BaseService {
             }
         }
 
+        // Organization template: same seeding mechanism, source read from
+        // the org's template storage. The package's AGENTS.md is not a
+        // sandbox file; it travels as the template's prompt instructions.
+        let orgTemplateInstructions: string | null = null;
+        if (orgTemplate) {
+            const resolved = await this.dataAppTemplateService.getSourceFiles(
+                orgTemplate.organizationUuid,
+                orgTemplate.slug,
+            );
+            if (orgTemplate.seed) {
+                const sourceFiles = resolved.files.filter((file) =>
+                    file.filename.startsWith('src/'),
+                );
+                if (sourceFiles.length > 0) {
+                    await sandbox.files.write(
+                        '/tmp/template-src.tar',
+                        await AppGenerateService.packModelFiles(sourceFiles),
+                    );
+                    const seededRoots = [
+                        ...new Set(
+                            sourceFiles.map(
+                                (file) => `/app/${file.filename.split('/')[0]}`,
+                            ),
+                        ),
+                    ].join(' ');
+                    await sandbox.commands.run(
+                        `tar -xf /tmp/template-src.tar -C /app && chmod -R a+rwX ${seededRoots} && rm -f /tmp/template-src.tar`,
+                        { timeoutMs: 60_000 },
+                    );
+                    this.logger.info(
+                        `App ${appUuid}: seeded ${sourceFiles.length} files from org template ${orgTemplate.slug}`,
+                    );
+                }
+            }
+            orgTemplateInstructions = buildOrgTemplateInstructions({
+                name: resolved.template.name,
+                guardrails: resolved.guardrails,
+                seeded: orgTemplate.seed,
+            });
+        }
+
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
         if (chartReferences && chartReferences.length > 0) {
@@ -3062,7 +3115,9 @@ export class AppGenerateService extends BaseService {
         const instructionsTemplate = isDataAppViz
             ? DATA_APP_VIZ_TEMPLATE
             : template;
-        if (instructionsTemplate) {
+        if (orgTemplateInstructions) {
+            finalPrompt = `${orgTemplateInstructions}\n\n${finalPrompt}`;
+        } else if (instructionsTemplate) {
             const templateInstructions =
                 (seedTemplateSource
                     ? getTemplateBindInstructions(instructionsTemplate)
@@ -4917,6 +4972,10 @@ export class AppGenerateService extends BaseService {
         // iteration, and retry — not just the ones that remembered to set it.
         const pipelineApp = await this.appModel.getApp(appUuid, projectUuid);
         const isDataAppViz = pipelineApp.template === DATA_APP_VIZ_TEMPLATE;
+        // Org template: the payload carries it on the seeding build; the app
+        // row is the source of truth on iterations and retries.
+        const orgTemplateSlug =
+            payload.templateSlug ?? pipelineApp.template_slug ?? undefined;
         // Resolve the model once per pipeline run. Jobs enqueued before the
         // picker shipped (or any future caller that omits the field) fall back
         // to the default so we never run with `--model undefined`.
@@ -5133,6 +5192,16 @@ export class AppGenerateService extends BaseService {
                         version,
                         wasResumed,
                     }),
+                    orgTemplateSlug
+                        ? {
+                              organizationUuid: payload.organizationUuid,
+                              slug: orgTemplateSlug,
+                              seed: shouldSeedOrgTemplate({
+                                  version,
+                                  wasResumed,
+                              }),
+                          }
+                        : undefined,
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -6191,6 +6260,46 @@ export class AppGenerateService extends BaseService {
         return lines.join('\n');
     }
 
+    /**
+     * A build from an organization template needs the templates feature,
+     * create:DataAppFromTemplate in the org, and an existing template. The
+     * summary is returned so the version can snapshot what it was built from.
+     */
+    private async resolveOrgTemplateForBuild(
+        user: SessionUser,
+        organizationUuid: string,
+        templateSlug: string,
+    ): Promise<DataAppTemplateSummary> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.EnableDataAppTemplates,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Data app templates are not enabled');
+        }
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'create',
+                subject('DataAppFromTemplate', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to build data apps from templates',
+            );
+        }
+        const template = await this.dataAppTemplateService.findForBuild(
+            organizationUuid,
+            templateSlug,
+        );
+        if (!template) {
+            throw new NotFoundError(
+                `Data app template "${templateSlug}" not found`,
+            );
+        }
+        return template;
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -6199,7 +6308,7 @@ export class AppGenerateService extends BaseService {
         preGeneratedAppUuid?: string,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
-        template?: DataAppTemplate,
+        templateInput?: DataAppTemplate,
         clarifications?: AppClarification[],
         spaceUuid?: string,
         claudeModelInput?: DataAppClaudeModel,
@@ -6211,6 +6320,7 @@ export class AppGenerateService extends BaseService {
             externalConnections,
             codexModelInput,
             aiAgentToolCall,
+            templateSlug,
         } = options;
         await this.assertDataAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
@@ -6219,6 +6329,16 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             'Insufficient permissions to create data apps',
         );
+        // An org template replaces the built-in flavour: its own source is
+        // seeded and its AGENTS.md carries the instructions.
+        const orgTemplate = templateSlug
+            ? await this.resolveOrgTemplateForBuild(
+                  user,
+                  organizationUuid,
+                  templateSlug,
+              )
+            : null;
+        const template = orgTemplate ? undefined : templateInput;
         const claudeModel =
             this.dataAppCodingAgent === 'claude'
                 ? await this.resolveClaudeModel(
@@ -6353,6 +6473,15 @@ export class AppGenerateService extends BaseService {
             clarifications: clarifications ?? [],
             ...(codexModel ? { codexModel } : { claudeModel }),
             design: designSnapshot,
+            ...(orgTemplate
+                ? {
+                      orgTemplate: {
+                          templateUuid: orgTemplate.templateUuid,
+                          slug: orgTemplate.slug,
+                          name: orgTemplate.name,
+                      },
+                  }
+                : {}),
         };
 
         // Persist app record so we can track status immediately. 'custom' is
@@ -6366,6 +6495,7 @@ export class AppGenerateService extends BaseService {
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
                     template: persistedTemplate,
+                    template_slug: orgTemplate?.slug ?? null,
                     space_uuid: spaceUuid ?? null,
                     design_uuid: resolvedDesignUuid,
                 },
@@ -6397,6 +6527,7 @@ export class AppGenerateService extends BaseService {
                 imageCount: stagedFiles.filter((f) => f.isImage).length,
                 fileCount: stagedFiles.filter((f) => !f.isImage).length,
                 template: template ?? null,
+                templateSlug: orgTemplate?.slug ?? null,
                 ...(this.dataAppCodingAgent === 'claude'
                     ? { claudeModel }
                     : {}),
@@ -6419,6 +6550,7 @@ export class AppGenerateService extends BaseService {
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
             template,
+            ...(orgTemplate ? { templateSlug: orgTemplate.slug } : {}),
             fileIds: fileIds.length > 0 ? fileIds : undefined,
             isIteration: false,
             claudeEffort,
