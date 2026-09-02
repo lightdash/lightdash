@@ -100,11 +100,14 @@ describe('getDeprecatedRouteMiddleware', () => {
         );
 
         expect(Logger.warn).toHaveBeenCalledTimes(1);
-        expect(Logger.warn).toHaveBeenCalledWith('Deprecated endpoint called.', {
-            route: 'GET /api/v1/old',
-            deprecatedOn: deprecatedOn.toISOString(),
-            removeOn: removeOn.toISOString(),
-        });
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'Deprecated endpoint called.',
+            {
+                route: 'GET /api/v1/old',
+                deprecatedOn: deprecatedOn.toISOString(),
+                removeOn: removeOn.toISOString(),
+            },
+        );
         expect(Logger.error).not.toHaveBeenCalled();
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
