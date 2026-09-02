@@ -2627,18 +2627,53 @@ const parseCertificateFingerprints = (value: string | undefined): string[] =>
         .map((fingerprint) => fingerprint.trim())
         .filter((fingerprint) => fingerprint.length > 0);
 
+const normalizeCredentialEnvironmentVariable = (
+    value: string | undefined,
+): string | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const parseMobilePushFcmCredential = ():
     | MobilePushNotificationsConfig['fcm']
     | undefined => {
-    const projectId = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID;
-    const clientEmail = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL;
-    const privateKey = process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY;
+    const projectId = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID,
+    );
+    const clientEmail = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL,
+    );
+    const privateKey = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY,
+    );
 
-    return projectId === undefined ||
-        clientEmail === undefined ||
-        privateKey === undefined
-        ? undefined
-        : { projectId, clientEmail, privateKey };
+    if (
+        projectId !== undefined &&
+        clientEmail !== undefined &&
+        privateKey !== undefined
+    ) {
+        return { projectId, clientEmail, privateKey };
+    }
+
+    const missingVariables = [
+        projectId === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID',
+        clientEmail === undefined &&
+            'MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL',
+        privateKey === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+    ].filter((name): name is string => name !== false);
+
+    if (missingVariables.length < 3) {
+        console.warn(
+            `Mobile push FCM credential is missing: ${missingVariables.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return undefined;
 };
 
 const parseMobilePushCredential = (
