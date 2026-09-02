@@ -1,3 +1,10 @@
+## [2.89.2](https://github.com/lightdash/lightdash/compare/2.89.1...2.89.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **ai:** match active data app card to active artifact card ([#28501](https://github.com/lightdash/lightdash/issues/28501)) ([6a85cb4](https://github.com/lightdash/lightdash/commit/6a85cb454a1c4fe367345414f2e9ee4fb74ed5d6))
+
 ## [2.89.1](https://github.com/lightdash/lightdash/compare/2.89.0...2.89.1) (2026-09-02)
 
 
