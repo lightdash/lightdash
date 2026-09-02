@@ -2356,6 +2356,21 @@ const parseDataAppOtelConfig = (): DataAppOtelConfig => {
     };
 };
 
+const parseChartRegistryAllowInsecure = (): boolean => {
+    const enabled =
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true';
+    if (enabled) {
+        console.warn(
+            'SECURITY WARNING: LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE is enabled. ' +
+                'SSRF defenses for chart registry fetches are OFF (http:// and ' +
+                'private addresses allowed, IP pinning skipped). Only use this ' +
+                'with a local dev fixture or a fully trusted internal registry ' +
+                'mirror — never with a registry you do not control.',
+        );
+    }
+    return enabled;
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
     const dataAppCodingAgent = (() => {
@@ -2546,11 +2561,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
                 const trimmed = raw.trim();
                 return trimmed === '' ? null : trimmed.replace(/\/$/, '');
             })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
-            // DEV ONLY — never set in production. Disables the registry
-            // client's SSRF defenses (allows http:// and private/loopback
-            // addresses, skips IP pinning) so a local fixture registry works.
-            allowInsecure:
-                process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE === 'true',
+            // Disables the registry client's SSRF defenses (allows http://
+            // and private/loopback addresses, skips IP pinning). Only for
+            // local dev fixtures and trusted internal registry mirrors —
+            // never with a registry URL you do not fully control.
+            allowInsecure: parseChartRegistryAllowInsecure(),
         },
     };
 };
