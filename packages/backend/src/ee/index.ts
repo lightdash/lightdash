@@ -450,6 +450,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     dataAppTemplateModel:
                         models.getDataAppTemplateModel<DataAppTemplateModel>(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
@@ -476,6 +477,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     projectService: repository.getProjectService(),
                     promoteService: repository.getPromoteService(),
+                    dataAppTemplateService:
+                        repository.getDataAppTemplateService<DataAppTemplateService>(),
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     sandboxRegistryModel:

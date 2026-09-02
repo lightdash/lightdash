@@ -141,6 +141,7 @@ function buildService() {
     };
 
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: {},
         } as never,

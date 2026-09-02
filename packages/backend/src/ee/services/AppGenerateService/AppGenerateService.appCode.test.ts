@@ -210,6 +210,7 @@ function buildService(
     };
 
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: lightdashConfig as never,
         analytics: analytics as never,
         analyticsModel: {} as never,

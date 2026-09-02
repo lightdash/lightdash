@@ -47,6 +47,28 @@ const MANIFEST = JSON.stringify({
     bindings: { history: { explore: 'orders' } },
 });
 
+const packFilesWithDuplicate = (name: string): Promise<Buffer> =>
+    new Promise((resolve, reject) => {
+        const packer = tarPack();
+        const chunks: Buffer[] = [];
+        packer.on('data', (c: Buffer) => chunks.push(c));
+        packer.on('end', () => resolve(Buffer.concat(chunks)));
+        packer.on('error', reject);
+        packer.entry({ name: 'src/template.json' }, MANIFEST, (e1) => {
+            if (e1) return reject(e1);
+            packer.entry({ name }, 'first', (e2) => {
+                if (e2) return reject(e2);
+                packer.entry({ name }, 'second', (e3) => {
+                    if (e3) return reject(e3);
+                    packer.finalize();
+                    return undefined;
+                });
+                return undefined;
+            });
+            return undefined;
+        });
+    });
+
 const buildService = (overrides: Partial<DataAppTemplateModel> = {}) => {
     const model = {
         findBySlug: vi.fn().mockResolvedValue(undefined),
@@ -67,13 +89,18 @@ const buildService = (overrides: Partial<DataAppTemplateModel> = {}) => {
             },
         })),
         listByOrganization: vi.fn().mockResolvedValue([]),
+        countByOrganization: vi.fn().mockResolvedValue(0),
         delete: vi.fn().mockResolvedValue(true),
         ...overrides,
     } as unknown as DataAppTemplateModel;
     const send = vi.fn(async (_command: unknown) => ({}));
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
+    };
     const service = new DataAppTemplateService({
         lightdashConfig: lightdashConfigMock,
         dataAppTemplateModel: model,
+        featureFlagModel: featureFlagModel as never,
     });
     (
         service as unknown as {
@@ -91,7 +118,7 @@ const buildService = (overrides: Partial<DataAppTemplateModel> = {}) => {
             createAuditedAbility: () => { cannot: () => boolean };
         }
     ).createAuditedAbility = () => ({ cannot: () => false });
-    return { service, model, send };
+    return { service, model, send, featureFlagModel };
 };
 
 /**
@@ -273,6 +300,47 @@ describe('DataAppTemplateService.importPackage', () => {
             owner.service.delete(buildAccount(), 'scorecard'),
         ).resolves.toBeUndefined();
         expect(owner.model.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects a package that names the same file twice before touching storage', async () => {
+        const { service, model, send } = buildService();
+        // packFiles keys are unique by construction, so build the duplicate
+        // entry by hand: two entries for src/App.jsx in one tar.
+        const duplicate = await packFilesWithDuplicate('src/App.jsx');
+        await expect(importArchive(service, duplicate)).rejects.toThrow(
+            /twice/,
+        );
+        expect(model.upsert).not.toHaveBeenCalled();
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('caps the number of templates an organization can hold', async () => {
+        const { service, model, send } = buildService({
+            countByOrganization: vi.fn().mockResolvedValue(50),
+        } as unknown as Partial<DataAppTemplateModel>);
+        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        await expect(importArchive(service, archive)).rejects.toThrow(
+            /at most 50/,
+        );
+        expect(model.upsert).not.toHaveBeenCalled();
+        expect(send).not.toHaveBeenCalled();
+    });
+
+    it('refuses uploads and browsing when the templates feature flag is off', async () => {
+        const { service, featureFlagModel } = buildService();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        await expect(importArchive(service, archive)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await expect(service.list(buildAccount())).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(featureFlagModel.get).toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureFlagId: 'enable-data-app-templates',
+            }),
+        );
     });
 
     it('lets anyone who can build from templates browse them, and nobody below', async () => {

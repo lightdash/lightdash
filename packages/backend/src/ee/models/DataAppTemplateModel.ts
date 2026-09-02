@@ -68,6 +68,13 @@ export class DataAppTemplateModel {
         );
     }
 
+    async countByOrganization(organizationUuid: string): Promise<number> {
+        const [row] = await this.database(DataAppTemplatesTableName)
+            .where('organization_uuid', organizationUuid)
+            .count<{ count: string }[]>('* as count');
+        return Number(row?.count ?? 0);
+    }
+
     async findBySlug(
         organizationUuid: string,
         slug: string,

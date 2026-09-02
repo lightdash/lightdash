@@ -300,6 +300,10 @@ export const formatPromptWithClarifications = (
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
+    // Organization data app template (uploaded package) to build from. The
+    // sandbox is seeded with its source and the agent binds it instead of
+    // generating; `template` is ignored when this is set. Ignored on iteration.
+    templateSlug?: string;
     // Product surface that submitted this version's AI generation. Optional for
     // API compatibility; older callers remain unattributed.
     creationExperience?: DataAppCreationExperience;
@@ -434,11 +438,20 @@ export type AppVersionResources = {
     // history reflects which theme was active even if it was later renamed
     // or deleted.
     design?: AppVersionDesignSnapshot | null;
+    // Snapshot of the organization template this version was built from.
+    // Absent/null for apps not built from an org template.
+    orgTemplate?: AppVersionOrgTemplateSnapshot | null;
     // The viz declaration (fields + configOptions) for a data_app_viz version,
     // sourced from app_versions.viz_schema. Null/absent for non-viz versions or
     // versions whose generation emitted no valid schema. Optional for rows
     // predating this field.
     vizSchema?: DataAppVizSchema | null;
+};
+
+export type AppVersionOrgTemplateSnapshot = {
+    templateUuid: string;
+    slug: string;
+    name: string;
 };
 
 export type AppVersionDependencyEntry = {

@@ -47,6 +47,7 @@ function buildService(
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: {
                 sampleDataEnabled: true,

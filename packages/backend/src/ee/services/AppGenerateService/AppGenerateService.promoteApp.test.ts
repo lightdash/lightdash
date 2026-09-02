@@ -274,6 +274,7 @@ async function buildScenario() {
         }),
     });
     const service = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: {
                 dataAppCodingAgent: 'claude',

@@ -133,6 +133,7 @@ function buildService(
     };
 
     const raw = new AppGenerateService({
+        dataAppTemplateService: {} as never,
         lightdashConfig: {
             appRuntime: {
                 dependencyRegistryHosts: REGISTRY_HOSTS,
