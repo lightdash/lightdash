@@ -151,6 +151,84 @@ describe('mobile push notification config', () => {
 
         expect(lightdashConfig.mobilePushNotifications.enabled).toBe(false);
     });
+
+    describe('FCM credential', () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+        });
+
+        it('is absent when all FCM variables are blank', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = '';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY = '';
+
+            expect(parseConfig().mobilePushNotifications).toEqual({
+                enabled: false,
+                bundleId: 'com.lightdash.mobile',
+                teamId: undefined,
+                sandbox: undefined,
+                production: undefined,
+                fcm: undefined,
+            });
+        });
+
+        it('is absent when all FCM variables are whitespace only', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = '   ';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '\t';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY = '  \n ';
+
+            expect(parseConfig().mobilePushNotifications.fcm).toBeUndefined();
+        });
+
+        it('is present with trimmed values when all FCM variables are set', () => {
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID =
+                '  project-id  ';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL =
+                ' client@example.com\n';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY =
+                '\tprivate-key';
+
+            expect(parseConfig().mobilePushNotifications).toEqual({
+                enabled: true,
+                bundleId: 'com.lightdash.mobile',
+                teamId: undefined,
+                sandbox: undefined,
+                production: undefined,
+                fcm: {
+                    projectId: 'project-id',
+                    clientEmail: 'client@example.com',
+                    privateKey: 'private-key',
+                },
+            });
+        });
+
+        it('warns once and stays absent when only some FCM variables are set', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID = 'project-id';
+            process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL = '   ';
+
+            const config = parseConfig();
+
+            expect(config.mobilePushNotifications.fcm).toBeUndefined();
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn).toHaveBeenCalledWith(
+                'Mobile push FCM credential is missing: MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL, MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+            );
+        });
+
+        it('does not warn when all FCM variables are absent', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+
+            parseConfig();
+
+            expect(warn).not.toHaveBeenCalled();
+        });
+    });
 });
 
 describe('license config', () => {
