@@ -295,6 +295,8 @@ const DATABRICKS_QUERY_TIMEOUT_SECONDS = 300;
 const DATABRICKS_FETCH_CHUNK_MAX_ROWS = 5000;
 const DATABRICKS_SESSION_MAX_ATTEMPTS = 3;
 const DATABRICKS_SESSION_RETRY_DELAY_MS = 250;
+// The driver exposes these as generic StatusErrors without a distinct error code;
+// match the message narrowly while allowing for the dynamic session handle.
 const DATABRICKS_INVALID_SESSION_REGEX =
     /Session handle:? .* (has not been initialized|had already closed)/;
 
