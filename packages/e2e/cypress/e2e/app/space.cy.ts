@@ -134,9 +134,6 @@ describe('Space', () => {
                 // Complete user onboarding
                 cy.findByPlaceholderText('Select your role').click();
                 cy.contains('Product').click();
-                cy.findByPlaceholderText(
-                    'Google, a colleague, a podcast...',
-                ).type('Cypress');
                 cy.contains('Next').click();
 
                 // Don't show private spaces in navbar
