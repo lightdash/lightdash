@@ -177,6 +177,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     notificationStore,
                     threadStore,
                     apnsClient,
+                    fcmClient: clients.getFcmClient(),
                     scheduler,
                     analytics: context.lightdashAnalytics,
                     completionAlert: undefined,

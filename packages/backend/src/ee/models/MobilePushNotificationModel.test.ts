@@ -49,6 +49,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
         });
@@ -105,6 +106,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'new-organization-uuid',
             userUuid: 'new-user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });
@@ -154,6 +156,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });

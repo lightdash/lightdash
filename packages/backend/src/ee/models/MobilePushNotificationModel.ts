@@ -12,6 +12,7 @@ import {
     type DbMobilePushInstallation,
     type LiveActivityStartAttemptStatus,
     type MobilePushEnvironment,
+    type MobilePushPlatform,
 } from '../database/entities/mobilePushNotifications';
 
 type MobilePushNotificationModelDependencies = {
@@ -24,6 +25,7 @@ export type MobilePushInstallation = {
     installationUuid: string;
     organizationUuid: string;
     userUuid: string;
+    platform: MobilePushPlatform;
     environment: MobilePushEnvironment;
 };
 
@@ -37,6 +39,7 @@ export type AiAgentLiveActivity = {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    platform: MobilePushPlatform;
     environment: MobilePushEnvironment;
     deviceToken: string;
     pushToken: string;
@@ -93,6 +96,7 @@ export class MobilePushNotificationModel {
                 installationUuid: 'installation_uuid',
                 organizationUuid: 'organization_uuid',
                 userUuid: 'user_uuid',
+                platform: 'platform',
                 environment: 'environment',
             })
             .where('installation_uuid', installationUuid)
@@ -103,6 +107,7 @@ export class MobilePushNotificationModel {
         installationUuid: string;
         organizationUuid: string;
         userUuid: string;
+        platform: MobilePushPlatform;
         environment: MobilePushEnvironment;
         deviceToken: string;
     }): Promise<MobilePushInstallation> {
@@ -123,6 +128,7 @@ export class MobilePushNotificationModel {
                     'mobile_push_installation_uuid',
                     'organization_uuid',
                     'user_uuid',
+                    'platform',
                     'environment',
                 )
                 .where('installation_uuid', args.installationUuid)
@@ -135,7 +141,8 @@ export class MobilePushNotificationModel {
                     existing.user_uuid !== args.userUuid);
             const environmentChanged =
                 existing !== undefined &&
-                existing.environment !== args.environment;
+                (existing.environment !== args.environment ||
+                    existing.platform !== args.platform);
 
             if (ownershipChanged && existing !== undefined) {
                 await trx<DbAiAgentLiveActivity>(AiAgentLiveActivitiesTableName)
@@ -164,6 +171,7 @@ export class MobilePushNotificationModel {
                 MobilePushInstallationsTableName,
             )
                 .where({
+                    platform: args.platform,
                     environment: args.environment,
                     device_token_fingerprint: fingerprint,
                 })
@@ -177,6 +185,7 @@ export class MobilePushNotificationModel {
                     installation_uuid: args.installationUuid,
                     organization_uuid: args.organizationUuid,
                     user_uuid: args.userUuid,
+                    platform: args.platform,
                     environment: args.environment,
                     encrypted_device_token: encryptedDeviceToken,
                     device_token_fingerprint: fingerprint,
@@ -185,6 +194,7 @@ export class MobilePushNotificationModel {
                 .merge({
                     organization_uuid: args.organizationUuid,
                     user_uuid: args.userUuid,
+                    platform: args.platform,
                     environment: args.environment,
                     encrypted_device_token: encryptedDeviceToken,
                     device_token_fingerprint: fingerprint,
@@ -201,6 +211,7 @@ export class MobilePushNotificationModel {
                     'installation_uuid',
                     'organization_uuid',
                     'user_uuid',
+                    'platform',
                     'environment',
                 ]);
 
@@ -209,6 +220,7 @@ export class MobilePushNotificationModel {
                 installationUuid: row.installation_uuid,
                 organizationUuid: row.organization_uuid,
                 userUuid: row.user_uuid,
+                platform: row.platform,
                 environment: row.environment,
             };
         });
@@ -330,6 +342,7 @@ export class MobilePushNotificationModel {
                 .andWhere((candidates) => {
                     candidates.where((eligible) =>
                         eligible
+                            .where('platform', 'ios')
                             .whereIn('environment', args.environments)
                             .whereNotNull('encrypted_push_to_start_token')
                             .whereNotNull('push_to_start_token_fingerprint'),
@@ -426,6 +439,7 @@ export class MobilePushNotificationModel {
                     `${MobilePushInstallationsTableName}.user_uuid`,
                     args.userUuid,
                 )
+                .where(`${MobilePushInstallationsTableName}.platform`, 'ios')
                 .whereIn(
                     `${MobilePushInstallationsTableName}.environment`,
                     args.environments,
@@ -614,6 +628,7 @@ export class MobilePushNotificationModel {
                             ),
                     ),
             )
+            .where(`${MobilePushInstallationsTableName}.platform`, 'ios')
             .whereIn(
                 `${MobilePushInstallationsTableName}.environment`,
                 args.environments,
@@ -764,6 +779,7 @@ export class MobilePushNotificationModel {
                 agentUuid: `${AiAgentLiveActivitiesTableName}.agent_uuid`,
                 threadUuid: `${AiAgentLiveActivitiesTableName}.thread_uuid`,
                 promptUuid: `${AiAgentLiveActivitiesTableName}.prompt_uuid`,
+                platform: `${MobilePushInstallationsTableName}.platform`,
                 environment: `${MobilePushInstallationsTableName}.environment`,
                 encryptedDeviceToken: `${MobilePushInstallationsTableName}.encrypted_device_token`,
                 encryptedPushToken: `${AiAgentLiveActivitiesTableName}.encrypted_push_token`,
@@ -790,6 +806,7 @@ export class MobilePushNotificationModel {
             agentUuid: row.agentUuid,
             threadUuid: row.threadUuid,
             promptUuid: row.promptUuid,
+            platform: row.platform,
             environment: row.environment,
             deviceToken: this.encryptionUtil.decrypt(row.encryptedDeviceToken),
             pushToken: this.encryptionUtil.decrypt(row.encryptedPushToken),

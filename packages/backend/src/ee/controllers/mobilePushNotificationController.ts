@@ -67,6 +67,7 @@ export class MobilePushNotificationController extends BaseController {
         await this.getMobilePushNotificationService().registerInstallation({
             user: toSessionUser(req.account),
             installationUuid,
+            platform: body.platform ?? 'ios',
             environment: body.environment,
             deviceToken: body.deviceToken,
         });
