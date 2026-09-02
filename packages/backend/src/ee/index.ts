@@ -217,7 +217,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         ),
                 });
             },
-            jiraAppService: ({ models, context }) => {
+            jiraAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
                 return new JiraAppService({
@@ -225,6 +225,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getJiraAppInstallationsModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
+                    encryptionUtil: utils.getEncryptionUtil(),
                     onWorkspaceChanged: (organizationUuid, trx) =>
                         aiAgentReviewNotificationModel.clearJiraDestinations(
                             organizationUuid,
