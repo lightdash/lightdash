@@ -3,6 +3,7 @@ import {
     DirectAccessResourceType,
     ChartSourceType,
     canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -58,6 +59,11 @@ import {
 } from 'react';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../ee/features/contentReview';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
@@ -247,6 +253,14 @@ const SavedChartsHeader: FC = () => {
     const [isDirectAccessModalOpen, directAccessModalHandlers] =
         useDisclosure(false);
     const directAccessAvailability = useDirectAccessAvailability();
+    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+        useDisclosure(false);
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: ContentReviewContentType.CHART,
+        contentUuid: savedChart?.uuid,
+        spaceUuid: savedChart?.spaceUuid,
+    });
     const canManageChartAccess = useCanManageDirectAccess({
         projectUuid,
         spaceUuid: savedChart?.spaceUuid ?? null,
@@ -639,6 +653,12 @@ const SavedChartsHeader: FC = () => {
                                     </Badge>
                                 )}
 
+                                {contentReview.pendingRequest && (
+                                    <PendingReviewBadge
+                                        request={contentReview.pendingRequest}
+                                    />
+                                )}
+
                                 {isChartVerified && (
                                     <Tooltip
                                         label={
@@ -887,6 +907,19 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         >
                                             Move to space
+                                        </Menu.Item>
+                                    )}
+                                {contentReview.canRequest &&
+                                    !hasUnsavedChanges && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={
+                                                requestReviewModalHandlers.open
+                                            }
+                                        >
+                                            Request review
                                         </Menu.Item>
                                     )}
 
@@ -1300,6 +1333,16 @@ const SavedChartsHeader: FC = () => {
                         resourceUuid: savedChart.uuid,
                         name: savedChart.name,
                     }}
+                />
+            )}
+            {isRequestReviewModalOpen && projectUuid && savedChart && (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={ContentReviewContentType.CHART}
+                    contentUuid={savedChart.uuid}
+                    contentName={savedChart.name}
+                    opened={isRequestReviewModalOpen}
+                    onClose={requestReviewModalHandlers.close}
                 />
             )}
             {isTransferToSpaceModalOpen && projectUuid && (
