@@ -248,6 +248,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
+import { getUnderlyingDataAvailableTables } from './getUnderlyingDataAvailableTables';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     applyMergeExportLimit,
@@ -6584,16 +6585,10 @@ export class AsyncQueryService extends ProjectService {
             ? metricQueryFields[underlyingDataItemId]
             : undefined;
 
-        const joinedTables = explore.joinedTables.map(
-            (joinedTable) => joinedTable.table,
+        const availableTables = getUnderlyingDataAvailableTables(
+            explore,
+            metricQueryFields,
         );
-
-        const availableTables = new Set([
-            ...joinedTables,
-            ...Object.values(metricQueryFields)
-                .filter(isField)
-                .map((field) => field.table),
-        ]);
 
         const itemShowUnderlyingValues =
             isField(underlyingDataItem) && isMetric(underlyingDataItem)
