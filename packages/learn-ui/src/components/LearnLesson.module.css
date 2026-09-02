@@ -1,0 +1,241 @@
+/* Styles for the lesson HTML published by Lightdash University, which is
+   injected verbatim (sanitised) and carries no stylesheet of its own. The
+   citation and highlight rules mirror the lesson's own inline CSS, which the
+   sanitiser drops; their classes come from the lesson, hence :global(). */
+.lesson {
+    line-height: 1.6;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.lesson h1 {
+    font-size: 24px;
+    line-height: 1.2;
+    margin: 0 0 12px;
+}
+
+.lesson h2 {
+    font-size: 17px;
+    line-height: 1.3;
+    margin: 24px 0 8px;
+}
+
+.lesson p {
+    margin: 0 0 12px;
+}
+
+.lesson ul,
+.lesson ol {
+    margin: 0 0 12px;
+    padding-left: 22px;
+}
+
+.lesson img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px #eceff3;
+}
+
+.lesson figure {
+    margin: 16px 0 20px;
+}
+
+.lesson figcaption {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #818898;
+}
+
+.lesson a {
+    color: var(--learn-accent, #7262FF);
+}
+
+/* Citation pins: a numbered dot after the sentence that describes a region of
+   the figure below it. */
+.lesson :global(a.cit) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--learn-accent, #7262FF);
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: super;
+    margin: 0 1px 0 3px;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
+}
+
+.lesson :global(a.cit:hover),
+.lesson :global(a.cit:focus) {
+    background: #4536d6;
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.lesson :global(a.cit.active) {
+    background: #1a1b25;
+}
+
+/* A figure that carries highlight regions. */
+.lesson :global(.figwrap) {
+    position: relative;
+    display: block;
+    overflow: hidden;
+    border: 1px solid #eceff3;
+    border-radius: 10px;
+    margin: 8px 0 20px;
+    line-height: 0;
+    scroll-margin-top: 28px;
+}
+
+.lesson :global(.figwrap) img {
+    width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}
+
+/* Positioned by inline percentages from the lesson; the rest is here. The
+   huge spread shadow dims everything outside the box. */
+.lesson :global(.hlbox) {
+    position: absolute;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow:
+        0 0 0 2px var(--learn-accent, #7262FF),
+        0 0 0 9999px rgba(39, 40, 53, 0.58);
+    transition: opacity 0.18s ease;
+}
+
+.lesson :global(.hlbox.active) {
+    opacity: 1;
+}
+
+.lesson :global(.hlbox)::after {
+    content: attr(data-label);
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 100%;
+    margin-bottom: 6px;
+    background: var(--learn-accent, #7262FF);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    padding: 6px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.lesson :global(.hlbox.below)::after {
+    bottom: auto;
+    top: 100%;
+    margin-bottom: 0;
+    margin-top: 6px;
+}
+
+.lesson :global(.hlbox.pl-r)::after {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+.lesson :global(.hlbox.pl-l)::after {
+    left: 0;
+    right: auto;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lesson :global(a.cit),
+    .lesson :global(.hlbox) {
+        transition: none;
+    }
+}
+
+/* Click-through demos mounted where the lesson left a `data-demo` div. */
+.demo {
+    margin: 8px 0 20px;
+}
+
+.demoStage {
+    position: relative;
+    border: 1px solid #eceff3;
+    border-radius: 10px;
+    overflow: hidden;
+    line-height: 0;
+}
+
+.demoStage img {
+    display: block;
+    width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    margin: 0;
+}
+
+.demoHotspot {
+    position: absolute;
+    background: transparent;
+    border: 2px solid var(--learn-accent, #7262FF);
+    border-radius: 6px;
+    padding: 0;
+    cursor: pointer;
+    animation: demoPulse 1.6s ease-in-out infinite;
+}
+
+.demoHotspot:hover,
+.demoHotspot:focus-visible {
+    background: rgba(94, 76, 255, 0.12);
+}
+
+@keyframes demoPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(94, 76, 255, 0.45);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(94, 76, 255, 0);
+    }
+}
+
+.demoCaption {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #818898;
+}
+
+.demoStepCount {
+    font-weight: 600;
+    color: var(--learn-accent, #7262FF);
+    margin-right: 6px;
+}
+
+.demoButton {
+    margin-left: 8px;
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 13px;
+    border-radius: 999px;
+    border: 1px solid #dfe1e7;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .demoHotspot {
+        animation: none;
+    }
+}

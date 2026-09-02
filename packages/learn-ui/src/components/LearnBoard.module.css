@@ -1,0 +1,595 @@
+/* Neutrals are the design README's literals (authoritative for tokens; the
+   ldGray ramp has no exact matches); brand purple uses the Mantine var. */
+.scroller {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.card {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow:
+        0 1px 2px rgba(10, 13, 18, 0.05),
+        0 0 0 1px #eceff3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.boardColumn {
+    flex: 1 1 1120px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Measures the column; the 1120px board scales down to fit inside it. */
+.boardViewport {
+    width: 100%;
+    overflow: hidden;
+}
+
+.boardScaled {
+    transform-origin: top left;
+}
+
+.header {
+    padding: 24px 28px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.title {
+    margin: 0;
+    font-size: 32px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+}
+
+.sub {
+    font-size: 14px;
+    color: #818898;
+}
+
+.tabsRow {
+    padding: 4px 28px 10px;
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tab {
+    height: 32px;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 0;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    background: #ffffff;
+    color: #818898;
+    box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.tabSelected {
+    background: #272835;
+    color: #ffffff;
+    box-shadow: inset 0 0 0 1px #272835;
+}
+
+.board {
+    position: relative;
+    width: 1120px;
+}
+
+.connectors {
+    position: absolute;
+    left: 0;
+    top: 0;
+    pointer-events: none;
+}
+
+.connectorTrunk {
+    stroke: #e5e7eb;
+    stroke-width: 1.5;
+    stroke-dasharray: 3 6;
+}
+
+.connectorRing {
+    stroke: var(--learn-accent, #7262FF);
+    stroke-width: 3;
+}
+
+.caption {
+    position: absolute;
+    width: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transform: translateY(-100%);
+}
+
+.captionName {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #272835;
+}
+
+.captionBar {
+    width: 96px;
+    height: 5px;
+    border-radius: 999px;
+    background: #f1f3f5;
+    overflow: hidden;
+}
+
+.captionFill {
+    height: 100%;
+    background: var(--learn-accent, #7262FF);
+}
+
+.node {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    color: #272835;
+    /* Mantine exposes no rgb triplet variable for the accent; alpha shades stay literal. */
+    box-shadow: inset 0 0 0 1.5px rgba(94, 76, 255, 0.38);
+}
+
+.nodeLocked {
+    background: #ffffff;
+    color: #818898;
+    box-shadow: inset 0 0 0 1.5px #e5e7eb;
+    pointer-events: none;
+}
+
+.nodeDone {
+    color: #ffffff;
+    box-shadow:
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.85),
+        0 4px 14px rgba(94, 76, 255, 0.45);
+}
+
+.nodeSelected {
+    box-shadow:
+        inset 0 0 0 1.5px #272835,
+        0 0 0 4px rgba(39, 40, 53, 0.12);
+}
+
+.nodeNextUp {
+    animation: nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes nudge {
+    0%,
+    100% {
+        box-shadow:
+            inset 0 0 0 2px var(--learn-accent, #7262FF),
+            0 0 0 0 rgba(94, 76, 255, 0.35);
+    }
+    50% {
+        box-shadow:
+            inset 0 0 0 2px var(--learn-accent, #7262FF),
+            0 0 0 10px rgba(94, 76, 255, 0);
+    }
+}
+
+/* Ask states. Dimming is the inline opacity from askOpacity(); these classes
+   carry only the ring treatment. */
+.nodeMatched {
+    box-shadow:
+        inset 0 0 0 2px var(--learn-accent, #7262FF),
+        0 0 0 8px rgba(94, 76, 255, 0.18);
+}
+
+.nodeLockedMatch {
+    background: #ffffff;
+    color: #818898;
+    box-shadow: inset 0 0 0 1.5px #818898;
+}
+
+.rail {
+    flex: 0 1 320px;
+    max-width: 100%;
+    min-width: 0;
+    border-left: 1px solid #eceff3;
+    background: #f8fafb;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.overline {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #818898;
+}
+
+.bigPct {
+    font-size: 44px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+}
+
+.bar {
+    display: block;
+    width: 100%;
+    border-radius: 999px;
+    background: #eceff3;
+    overflow: hidden;
+}
+
+.barSm {
+    height: 5px;
+}
+
+.barMd {
+    height: 6px;
+}
+
+.barLg {
+    height: 8px;
+}
+
+.barFill {
+    display: block;
+    height: 100%;
+    background: var(--learn-accent, #7262FF);
+}
+
+.queueCard {
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    background: #ffffff;
+    border: 0;
+    border-radius: 16px;
+    padding: 14px;
+    box-shadow: 0 0 0 1px #eceff3;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 120ms ease-out;
+}
+
+.queueCard:hover {
+    box-shadow:
+        0 0 0 1px #dfe1e7,
+        0 4px 12px rgba(10, 13, 18, 0.06);
+}
+
+.completedRow {
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 8px 0;
+    border-top: 1px solid #eceff3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkDisc {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--learn-accent, #7262FF);
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    flex: none;
+}
+
+.paneTitle {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    font-weight: 500;
+}
+
+.closeButton {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 0;
+    background: #ffffff;
+    box-shadow: inset 0 0 0 1px #e5e7eb;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.scopeChip {
+    align-self: flex-start;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+    background: #ffffff;
+    box-shadow: inset 0 0 0 1px #eceff3;
+    border-radius: 4px;
+    padding: 3px 8px;
+}
+
+.lessonRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.lessonDisc {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    flex: none;
+    color: #ffffff;
+}
+
+.lessonDiscDone {
+    background: var(--learn-accent, #7262FF);
+    box-shadow: none;
+}
+
+.lessonDiscPending {
+    background: #ffffff;
+    box-shadow: inset 0 0 0 1px #dfe1e7;
+}
+
+.lessonLabel {
+    color: #272835;
+}
+
+.lessonLabelDone {
+    color: #818898;
+}
+
+.muted {
+    color: #818898;
+}
+
+.cta {
+    height: 38px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--learn-accent, #7262FF);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 120ms ease-out;
+}
+
+.cta:hover {
+    /* No accent shade matches this hover tone; kept as a literal. */
+    background: #1200b2;
+}
+
+.ask {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.askForm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 4px 4px 4px 16px;
+    box-shadow: inset 0 0 0 1px #e5e7eb;
+}
+
+.askInput {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 36px;
+    border: 0;
+    outline: none;
+    font: inherit;
+    font-size: 14px;
+    background: transparent;
+    color: #272835;
+}
+
+.askInput::placeholder {
+    color: #818898;
+}
+
+.askClear {
+    width: 24px;
+    height: 24px;
+    flex: none;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: #818898;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.askSubmit {
+    height: 36px;
+    flex: none;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--learn-accent, #7262FF);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* One row: the chip list is capped, so it never needs to wrap. */
+.askChips {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+}
+
+.askChip {
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #818898;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px #eceff3;
+}
+
+.askResults {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.askGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.askModule {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #818898;
+}
+
+.askRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.askLesson {
+    color: #272835;
+}
+
+.askOpen {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--learn-accent, #7262FF);
+    cursor: pointer;
+}
+
+.badgeHero {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.badgeEmblem {
+    display: inline-flex;
+    flex: none;
+    line-height: 0;
+}
+
+.badgeRung {
+    font-size: 20px;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    font-weight: 500;
+}
+
+.badgeHowto {
+    font-size: 12px;
+}
+
+.badgeHowtoSummary {
+    cursor: pointer;
+    color: #818898;
+}
+
+.badgeHowtoList {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.badgeHowtoRung {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #818898;
+}
+
+.badgeHowtoEmblem {
+    display: inline-flex;
+    flex: none;
+    line-height: 0;
+}
+
+.badgeHowtoReq {
+    color: #818898;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nodeNextUp {
+        animation: none;
+        box-shadow: inset 0 0 0 2px var(--learn-accent, #7262FF);
+    }
+    .queueCard,
+    .cta {
+        transition: none;
+    }
+}
+
+/* Below the card's two-column width the rail wraps under the board. */
+@media (max-width: 1100px) {
+    .rail {
+        border-left: 0;
+        border-top: 1px solid #eceff3;
+    }
+}
