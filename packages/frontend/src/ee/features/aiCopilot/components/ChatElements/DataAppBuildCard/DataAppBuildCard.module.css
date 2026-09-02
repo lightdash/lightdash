@@ -4,11 +4,24 @@
     --card-icon-size: 22px;
 }
 
+/* Same active treatment as AiArtifactButton, so an open app and an open
+   artifact read the same in the thread. */
 .cardActive {
-    border-color: var(--mantine-color-ldDark-9);
     background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-7)
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 3.5%,
+            var(--mantine-color-white)
+        ),
+        var(--mantine-color-dark-6)
+    );
+    border-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 18%,
+            var(--mantine-color-ldGray-2)
+        ),
+        var(--mantine-color-ldGray-3)
     );
 }
 
