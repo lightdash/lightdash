@@ -309,6 +309,7 @@ describe('AppGenerateService.listRegistryChartTypes', () => {
                     app_id: 'app-uuid-sankey',
                     registry_slug: 'sankey',
                     latest_ready_registry_version: '1.2.0',
+                    created_by_user_uuid: 'installer-user-uuid',
                 },
             ]),
         };
@@ -321,11 +322,13 @@ describe('AppGenerateService.listRegistryChartTypes', () => {
         expect(sankey?.state).toBe('update_available');
         expect(sankey?.installedAppUuid).toBe('app-uuid-sankey');
         expect(sankey?.installedRegistryVersion).toBe('1.2.0');
+        expect(sankey?.installedCreatedByUserUuid).toBe('installer-user-uuid');
 
         const radar = result.charts.find((c) => c.slug === 'radar');
         expect(radar?.state).toBe('not_installed');
         expect(radar?.installedAppUuid).toBeNull();
         expect(radar?.installedRegistryVersion).toBeNull();
+        expect(radar?.installedCreatedByUserUuid).toBeNull();
     });
 
     it('marks entries above the instance version incompatible', async () => {
@@ -344,6 +347,7 @@ describe('AppGenerateService.listRegistryChartTypes', () => {
         expect(result.charts).toHaveLength(1);
         expect(result.charts[0].state).toBe('incompatible');
         expect(result.charts[0].installedAppUuid).toBeNull();
+        expect(result.charts[0].installedCreatedByUserUuid).toBeNull();
     });
 });
 

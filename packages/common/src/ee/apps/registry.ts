@@ -121,6 +121,7 @@ export type RegistryChartTypeListItem = ChartRegistryEntry & {
     state: RegistryChartTypeState;
     installedAppUuid: string | null;
     installedRegistryVersion: string | null;
+    installedCreatedByUserUuid: string | null;
 };
 
 export type ApiListRegistryChartTypesResponse = ApiSuccess<{
