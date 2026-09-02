@@ -135,6 +135,11 @@ export const lightdashConfigMock: LightdashConfig = {
     headway: {
         enabled: false,
     },
+    learn: {
+        contentBaseUrl: 'https://learn-content.test',
+        progressApiUrl: 'https://learn-progress.test',
+        serviceToken: null,
+    },
     lightdashSecret: 'look away this is a secret',
     lightdashSecrets: {
         active: 'look away this is a secret',
