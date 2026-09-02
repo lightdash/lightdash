@@ -152,6 +152,10 @@ import {
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
 import {
+    JiraAppInstallationTable,
+    JiraAppInstallationTableName,
+} from '../database/entities/jiraAppInstallation';
+import {
     JobsTable,
     JobsTableName,
     JobStepsTable,
@@ -522,6 +526,8 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewJiraDestinationTable,
+    AiReviewJiraDestinationTableName,
     AiReviewLinearDestinationTable,
     AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTable,
@@ -715,6 +721,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [JiraAppInstallationTableName]: JiraAppInstallationTable;
         [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
@@ -773,6 +780,7 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
+        [AiReviewJiraDestinationTableName]: AiReviewJiraDestinationTable;
         [AiReviewLinearDestinationTableName]: AiReviewLinearDestinationTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
