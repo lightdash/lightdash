@@ -1,3 +1,10 @@
+# [2.91.0](https://github.com/lightdash/lightdash/compare/2.90.0...2.91.0) (2026-09-02)
+
+
+### Features
+
+* add opt-in OpenTelemetry tracing for Knex queries ([#28498](https://github.com/lightdash/lightdash/issues/28498)) ([ff25ec2](https://github.com/lightdash/lightdash/commit/ff25ec2b5eb5a53a3237daf68d9ce16228a24fdd))
+
 # [2.90.0](https://github.com/lightdash/lightdash/compare/2.89.3...2.90.0) (2026-09-02)
 
 
