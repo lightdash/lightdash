@@ -44,6 +44,7 @@ const meta: Meta<typeof DataAppBuildCard> = {
     component: DataAppBuildCard,
     args: {
         compact: false,
+        isActive: false,
         onOpenBuilder: fn(),
         onView: fn(),
     },
@@ -101,6 +102,11 @@ export const CompactReady: Story = {
 
 export const CompactFailed: Story = {
     args: { state: states.failed, compact: true },
+};
+
+/** Open in the preview panel — should match an active artifact card. */
+export const CompactReadyActive: Story = {
+    args: { state: states.ready, compact: true, isActive: true },
 };
 
 /** Every state at a phone-width column; nothing should overflow. */
