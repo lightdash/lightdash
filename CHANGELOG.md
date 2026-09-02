@@ -1,3 +1,10 @@
+## [2.101.1](https://github.com/lightdash/lightdash/compare/2.101.0...2.101.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **ai:** track input tokens inclusive of cache + make keyManagement unmissable ([#28548](https://github.com/lightdash/lightdash/issues/28548)) ([1000bb2](https://github.com/lightdash/lightdash/commit/1000bb25ca8a33bc5bd0b0597c2b6e764c26c91e))
+
 # [2.101.0](https://github.com/lightdash/lightdash/compare/2.100.0...2.101.0) (2026-09-02)
 
 
