@@ -8,3 +8,4 @@ export {
 } from './account';
 export type { AccountWriteContext } from './account';
 export { requestContextFromExpress } from './requestContext';
+export { serializeAccount } from './serializeAccount';

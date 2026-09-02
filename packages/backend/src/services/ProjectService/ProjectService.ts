@@ -334,6 +334,7 @@ import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
+import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     applyMergeTerminalWrapper,
@@ -2553,6 +2554,10 @@ export class ProjectService extends BaseService {
         });
         if (auditedAbility.cannot('view', projectSubject)) {
             throw new ForbiddenError();
+        }
+
+        if (account.isJwtUser()) {
+            return pickEmbedProject(project);
         }
 
         if (auditedAbility.cannot('update', projectSubject)) {
