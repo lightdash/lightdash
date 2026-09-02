@@ -69,7 +69,7 @@ const allByoProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
         ...bothProvidersConfig.providers,
         google: {
             apiKey: 'instance-google-key',
-            modelName: 'gemini-3.7-flash',
+            modelName: 'gemini-3.8-flash',
         },
     },
 });
@@ -181,7 +181,7 @@ describe('overlayOrgProviderApiKeys', () => {
         });
 
         expect(result.providers.google?.apiKey).toBe('org-google-key');
-        expect(result.providers.google?.modelName).toBe('gemini-3.7-flash');
+        expect(result.providers.google?.modelName).toBe('gemini-3.8-flash');
         expect(result.defaultProvider).toBe('google');
         expect(result.byoProviders).toEqual(['google']);
     });

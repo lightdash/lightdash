@@ -267,10 +267,10 @@ export const MODEL_PRESETS: {
     ],
     google: [
         {
-            name: 'gemini-3.7-flash',
+            name: 'gemini-3.8-flash',
             provider: 'google',
-            modelId: 'gemini-3.7-flash',
-            displayName: 'Gemini 3.7 Flash',
+            modelId: 'gemini-3.8-flash',
+            displayName: 'Gemini 3.8 Flash',
             description: 'Latest Gemini model for fast agentic tasks',
             // Deliberately compact below the model's 1,048,576-token maximum
             // to bound per-turn cost while retaining a large working context.

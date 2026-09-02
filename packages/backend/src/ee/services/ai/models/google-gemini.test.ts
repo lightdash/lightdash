@@ -16,10 +16,10 @@ vi.mock('@ai-sdk/google', () => ({
 }));
 
 const preset: ModelPreset<'google'> = {
-    name: 'gemini-3.7-flash',
+    name: 'gemini-3.8-flash',
     provider: 'google',
-    modelId: 'gemini-3.7-flash',
-    displayName: 'Gemini 3.7 Flash',
+    modelId: 'gemini-3.8-flash',
+    displayName: 'Gemini 3.8 Flash',
     description: '',
     contextWindowTokens: 1_048_576,
     supportsReasoning: true,
@@ -80,7 +80,7 @@ describe('getGoogleGeminiModel', () => {
             baseURL: 'https://gateway.example/google/v1beta',
             headers: { 'x-gateway-tenant': 'lightdash' },
         });
-        expect(mockGoogleInteractions).toHaveBeenCalledWith('gemini-3.7-flash');
+        expect(mockGoogleInteractions).toHaveBeenCalledWith('gemini-3.8-flash');
     });
 
     it('sets Gemini reasoning and retention options', () => {

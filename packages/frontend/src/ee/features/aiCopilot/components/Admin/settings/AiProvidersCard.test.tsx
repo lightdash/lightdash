@@ -19,11 +19,11 @@ const renderCard = () =>
             modelVisibility={null}
             configurableModelOptions={[
                 {
-                    name: 'gemini-3.7-flash',
+                    name: 'gemini-3.8-flash',
                     provider: 'google',
-                    displayName: 'Gemini 3.7 Flash',
+                    displayName: 'Gemini 3.8 Flash',
                     description: 'Gemini model',
-                    modelId: 'gemini-3.7-flash',
+                    modelId: 'gemini-3.8-flash',
                     default: true,
                     supportsReasoning: true,
                     deprecated: false,

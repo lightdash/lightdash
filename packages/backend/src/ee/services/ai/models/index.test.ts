@@ -436,7 +436,7 @@ describe('Google Gemini models', () => {
         providers: {
             google: {
                 apiKey: 'fake-gemini-key',
-                modelName: 'gemini-3.7-flash',
+                modelName: 'gemini-3.8-flash',
                 availableModels: undefined,
                 customHeaders: {},
                 supportsStreaming: true,
@@ -447,13 +447,13 @@ describe('Google Gemini models', () => {
     it('lists the shipped Gemini presets', () => {
         expect(
             getAvailableModels(googleCopilotConfig).map((model) => model.name),
-        ).toEqual(['gemini-3.7-flash', 'gemini-3.5-flash-lite']);
+        ).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
     });
 
     it('resolves Gemini through the Interactions-backed model factory', () => {
         const { model, providerOptions } = getModel(googleCopilotConfig);
 
-        expect(model.modelId).toBe('gemini-3.7-flash');
+        expect(model.modelId).toBe('gemini-3.8-flash');
         expect(providerOptions).toEqual({
             google: { store: false, thinkingLevel: 'low' },
         });
@@ -941,7 +941,7 @@ describe('getFastModelForAccessibleKey', () => {
                     ...anthropicByoConfig.providers,
                     google: {
                         apiKey: 'fake-gemini-key',
-                        modelName: 'gemini-3.7-flash',
+                        modelName: 'gemini-3.8-flash',
                         customHeaders: {},
                         supportsStreaming: true,
                     },

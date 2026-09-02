@@ -813,13 +813,13 @@ test('Should configure Gemini only when an explicit API key is set', () => {
 
     process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.GEMINI_AVAILABLE_MODELS =
-        'gemini-3.7-flash,gemini-3.5-flash-lite';
+        'gemini-3.8-flash,gemini-3.5-flash-lite';
 
     expect(parseConfig().ai.copilot.providers.google).toEqual({
         apiKey: 'test-gemini-key',
         modelName: 'gemini-3.5-flash-lite',
         baseUrl: undefined,
-        availableModels: ['gemini-3.7-flash', 'gemini-3.5-flash-lite'],
+        availableModels: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
         customHeaders: {},
         supportsStreaming: true,
     });
