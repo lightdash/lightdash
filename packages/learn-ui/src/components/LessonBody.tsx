@@ -12,7 +12,11 @@ export type LessonBodyProps = {
     html: string;
     demos: Record<string, LearnDemoManifest>;
     assetBaseUrl: string;
-    /** Runs after every html change with the lesson root; defaults to citation wiring. */
+    /**
+     * Runs after every html change with the lesson root; defaults to citation
+     * wiring. Held in a ref, so an inline function is safe: the effect keys on
+     * `html` alone and a new callback identity never re-runs it.
+     */
     onMount?: (root: HTMLElement) => (() => void) | void;
 };
 
@@ -27,6 +31,8 @@ export const LessonBody: FC<LessonBodyProps> = ({
     const markup = useMemo(() => ({ __html: html }), [html]);
     const rootRef = useRef<HTMLDivElement>(null);
     const [mounts, setMounts] = useState<DemoMount[]>([]);
+    const onMountRef = useRef(onMount);
+    onMountRef.current = onMount;
 
     useEffect(() => {
         const el = rootRef.current;
@@ -42,8 +48,8 @@ export const LessonBody: FC<LessonBodyProps> = ({
                 }),
             ),
         );
-        return onMount(el) ?? undefined;
-    }, [html, onMount]);
+        return onMountRef.current(el) ?? undefined;
+    }, [html]);
 
     return (
         <>

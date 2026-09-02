@@ -40,6 +40,9 @@ export {
     type ClusterBoardProps,
 } from './components/ClusterBoard';
 export { LearnDemo } from './components/LearnDemo';
+// The component export above shadows the star-exported `LearnDemo` manifest
+// type from './types'. Alias it so consumers can still name that type.
+export type { LearnDemo as LearnDemoManifest } from './types/course';
 export { LessonBody, type LessonBodyProps } from './components/LessonBody';
 export { ModulePane } from './components/ModulePane';
 export {
