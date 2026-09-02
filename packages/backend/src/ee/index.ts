@@ -88,6 +88,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
+import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
 import { ContentReviewRequestService } from './services/ContentReviewRequestService/ContentReviewRequestService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
@@ -273,9 +274,23 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
+            contentReviewNotificationService: ({
+                models,
+                repository,
+                clients,
+            }) =>
+                new ContentReviewNotificationService({
+                    groupsModel: models.getGroupsModel(),
+                    notificationsModel: models.getNotificationsModel(),
+                    schedulerClient: clients.getSchedulerClient(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
+                }),
             contentReviewRequestService: ({ models, repository, context }) =>
                 new ContentReviewRequestService({
                     analytics: context.lightdashAnalytics,
+                    contentReviewNotificationService:
+                        repository.getContentReviewNotificationService<ContentReviewNotificationService>(),
                     contentReviewRequestModel:
                         models.getContentReviewRequestModel(),
                     contentReviewSettingsModel:
@@ -1442,6 +1457,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getExternalSourceService<ExternalSourceService>(),
                 mobilePushNotificationService:
                     context.serviceRepository.getMobilePushNotificationService<MobilePushNotificationService>(),
+                contentReviewRequestModel:
+                    context.models.getContentReviewRequestModel(),
+                contentReviewSettingsModel:
+                    context.models.getContentReviewSettingsModel(),
+                userModel: context.models.getUserModel(),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {

@@ -3,12 +3,14 @@ import {
     assertUnreachable,
     ConflictError,
     ContentReviewContentType,
+    ContentReviewNotificationEvent,
     ContentReviewRequestStatus,
     ContentReviewRequestView,
     ContentType,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
+    getErrorMessage,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     NotFoundError,
@@ -31,6 +33,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { type LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import Logger from '../../../logging/logger';
 import {
     type ContentReviewContentLocation,
     type ContentReviewRequestModel,
@@ -49,9 +52,11 @@ import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/Dir
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type ContentReviewNotificationService } from '../ContentReviewNotificationService/ContentReviewNotificationService';
 
 type ContentReviewRequestServiceArguments = {
     analytics: LightdashAnalytics;
+    contentReviewNotificationService: ContentReviewNotificationService;
     contentReviewRequestModel: ContentReviewRequestModel;
     contentReviewSettingsModel: ContentReviewSettingsModel;
     contentVerificationModel: ContentVerificationModel;
@@ -95,6 +100,8 @@ const toDirectAccessResourceType = (
 export class ContentReviewRequestService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
+    private readonly contentReviewNotificationService: ContentReviewNotificationService;
+
     private readonly contentReviewRequestModel: ContentReviewRequestModel;
 
     private readonly contentReviewSettingsModel: ContentReviewSettingsModel;
@@ -124,6 +131,8 @@ export class ContentReviewRequestService extends BaseService {
     constructor(args: ContentReviewRequestServiceArguments) {
         super({ serviceName: 'ContentReviewRequestService' });
         this.analytics = args.analytics;
+        this.contentReviewNotificationService =
+            args.contentReviewNotificationService;
         this.contentReviewRequestModel = args.contentReviewRequestModel;
         this.contentReviewSettingsModel = args.contentReviewSettingsModel;
         this.contentVerificationModel = args.contentVerificationModel;
@@ -728,7 +737,26 @@ export class ContentReviewRequestService extends BaseService {
             },
         });
 
-        return this.toDetail(user, context, request, settings);
+        const detail = await this.toDetail(user, context, request, settings);
+        await this.notify(() =>
+            this.contentReviewNotificationService.notifySubmitted({
+                item: detail,
+                settings,
+                organizationUuid: context.organizationUuid,
+            }),
+        );
+        return detail;
+    }
+
+    // A failed notification must not fail the request itself
+    private async notify(send: () => Promise<void>): Promise<void> {
+        try {
+            await send();
+        } catch (error) {
+            Logger.error(
+                `Content review notification failed: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     async list(
@@ -980,12 +1008,21 @@ export class ContentReviewRequestService extends BaseService {
             },
         });
 
-        return this.toDetail(
+        const detail = await this.toDetail(
             user,
             context,
             { ...approved, grantedPrincipals: [] },
             settings,
         );
+        await this.notify(() =>
+            this.contentReviewNotificationService.notifyDecided({
+                item: detail,
+                event: ContentReviewNotificationEvent.APPROVED,
+                organizationUuid: context.organizationUuid,
+                actorUserUuid: user.userUuid,
+            }),
+        );
+        return detail;
     }
 
     async reject(
@@ -1036,12 +1073,21 @@ export class ContentReviewRequestService extends BaseService {
             },
         });
 
-        return this.toDetail(
+        const detail = await this.toDetail(
             user,
             context,
             { ...rejected, grantedPrincipals: [] },
             settings,
         );
+        await this.notify(() =>
+            this.contentReviewNotificationService.notifyDecided({
+                item: detail,
+                event: ContentReviewNotificationEvent.REJECTED,
+                organizationUuid: context.organizationUuid,
+                actorUserUuid: user.userUuid,
+            }),
+        );
+        return detail;
     }
 
     async cancel(

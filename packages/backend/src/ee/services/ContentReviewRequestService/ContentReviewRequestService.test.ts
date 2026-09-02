@@ -32,6 +32,7 @@ import { type DirectAccessFeatureGate } from '../../../services/DirectAccess/Dir
 import { type SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { type ContentReviewNotificationService } from '../ContentReviewNotificationService/ContentReviewNotificationService';
 import { ContentReviewRequestService } from './ContentReviewRequestService';
 
 const ORG = 'org-uuid';
@@ -223,9 +224,15 @@ const buildService = () => {
         }),
     };
     const analytics = { track: vi.fn() };
+    const contentReviewNotificationService = {
+        notifySubmitted: vi.fn().mockResolvedValue(undefined),
+        notifyDecided: vi.fn().mockResolvedValue(undefined),
+    };
 
     const service = new ContentReviewRequestService({
         analytics: analytics as unknown as LightdashAnalytics,
+        contentReviewNotificationService:
+            contentReviewNotificationService as unknown as ContentReviewNotificationService,
         contentReviewRequestModel:
             contentReviewRequestModel as unknown as ContentReviewRequestModel,
         contentReviewSettingsModel:
@@ -259,6 +266,7 @@ const buildService = () => {
         savedChartService,
         spacePermissionService,
         analytics,
+        contentReviewNotificationService,
     };
 };
 
