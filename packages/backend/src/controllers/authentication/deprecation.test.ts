@@ -1,4 +1,3 @@
-import { DeprecatedRouteError } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Request, Response } from 'express';
 import Logger from '../../logging/logger';
@@ -101,7 +100,7 @@ describe('getDeprecatedRouteMiddleware', () => {
         expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 
-    it('logs an error and reports a DeprecatedRouteError to Sentry when the removal date has passed', () => {
+    it('logs an error and does not report to Sentry when the removal date has passed', () => {
         const { res } = buildResponse();
         getDeprecatedRouteMiddleware(new Date('2020-01-01T00:00:00Z'), {
             removeOn: new Date('2020-04-01T00:00:00Z'),
@@ -109,9 +108,6 @@ describe('getDeprecatedRouteMiddleware', () => {
 
         expect(Logger.error).toHaveBeenCalledTimes(1);
         expect(Logger.warn).not.toHaveBeenCalled();
-        expect(Sentry.captureException).toHaveBeenCalledTimes(1);
-        expect(
-            (Sentry.captureException as import('vitest').Mock).mock.calls[0][0],
-        ).toBeInstanceOf(DeprecatedRouteError);
+        expect(Sentry.captureException).not.toHaveBeenCalled();
     });
 });

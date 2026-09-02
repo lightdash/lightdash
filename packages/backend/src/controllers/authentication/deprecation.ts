@@ -1,5 +1,3 @@
-import { DeprecatedRouteError } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { RequestHandler } from 'express';
 import Logger from '../../logging/logger';
 
@@ -46,14 +44,6 @@ export const getDeprecatedRouteMiddleware = (
         const message = `Deprecated endpoint called: ${req.method} ${req.path} (deprecated ${deprecatedOn.toISOString()}, removal ${removeOn.toISOString()}).${suffix}`;
         if (shouldEscalateToError(removeOn, new Date())) {
             Logger.error(message);
-            Sentry.captureException(
-                new DeprecatedRouteError(message, {
-                    method: req.method,
-                    path: req.path,
-                    deprecatedOn: deprecatedOn.toISOString(),
-                    removeOn: removeOn.toISOString(),
-                }),
-            );
         } else {
             Logger.warn(message);
         }
