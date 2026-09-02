@@ -17,12 +17,14 @@ import {
     useSpaceSummaries,
 } from '../../../../hooks/useSpaces';
 import { useCreateContentReviewRequest } from '../hooks/useContentReviewRequests';
+import { useSimilarContent } from '../hooks/useSimilarContent';
 import {
     getContentTypeColor,
     getContentTypeIcon,
     getContentTypeNoun,
 } from '../utils';
 import classes from './RequestReviewModal.module.css';
+import SimilarContentPanel from './SimilarContentPanel';
 
 type Props = {
     projectUuid: string;
@@ -81,6 +83,13 @@ const RequestReviewModal: FC<Props> = ({
     );
     const { mutateAsync: createRequest, isLoading: isSubmitting } =
         useCreateContentReviewRequest(projectUuid);
+    const { data: similarContent = [] } = useSimilarContent(
+        projectUuid,
+        { contentType, name: contentName, excludeContentUuid: contentUuid },
+        opened,
+    );
+    // When lookalikes exist the requester has to say what theirs adds
+    const noteRequired = similarContent.length > 0;
 
     const form = useForm<{ targetSpaceUuid: string | null; note: string }>({
         initialValues: { targetSpaceUuid: null, note: '' },
@@ -98,12 +107,13 @@ const RequestReviewModal: FC<Props> = ({
     const handleSubmit = form.onSubmit(async (values) => {
         if (values.targetSpaceUuid === null) return;
         const note = values.note.trim();
+        if (noteRequired && note.length === 0) return;
         await createRequest({
             contentType,
             contentUuid,
             targetSpaceUuid: values.targetSpaceUuid,
             note: note.length > 0 ? note : null,
-            similarContent: [],
+            similarContent,
         });
         handleClose();
     });
@@ -143,7 +153,11 @@ const RequestReviewModal: FC<Props> = ({
                         type="submit"
                         form="request-review-form"
                         loading={isSubmitting}
-                        disabled={form.values.targetSpaceUuid === null}
+                        disabled={
+                            form.values.targetSpaceUuid === null ||
+                            (noteRequired &&
+                                form.values.note.trim().length === 0)
+                        }
                     >
                         Request review
                     </Button>
@@ -202,9 +216,19 @@ const RequestReviewModal: FC<Props> = ({
                                 </Text>
                             </Group>
                         </Group>
+                        <SimilarContentPanel
+                            projectUuid={projectUuid}
+                            items={similarContent}
+                        />
                         <Textarea
                             label="Note for reviewers"
-                            description="What does it show, and who is it for?"
+                            description={
+                                noteRequired
+                                    ? 'What does yours add that the existing content does not?'
+                                    : 'What does it show, and who is it for?'
+                            }
+                            required={noteRequired}
+                            withAsterisk={noteRequired}
                             autosize
                             minRows={3}
                             maxRows={6}

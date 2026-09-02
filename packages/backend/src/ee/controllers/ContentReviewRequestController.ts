@@ -5,6 +5,7 @@ import {
     type ApiContentReviewRequestOrNullResponse,
     type ApiContentReviewRequestResponse,
     type ApiContentReviewSettingsResponse,
+    type ApiContentReviewSimilarContentResponse,
     type ApiErrorPayload,
     type ApproveContentReviewRequestBody,
     type ContentReviewContentType,
@@ -96,6 +97,37 @@ export class ContentReviewRequestController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 body,
+            ),
+        };
+    }
+
+    /**
+     * Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting
+     * @summary Find similar content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/similar')
+    @OperationId('findSimilarContentForReview')
+    async findSimilar(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() contentType: ContentReviewContentType,
+        @Query() name: string,
+        @Query() excludeContentUuid?: UUID,
+    ): Promise<ApiContentReviewSimilarContentResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().findSimilarContent(
+                toSessionUser(req.account),
+                projectUuid,
+                {
+                    contentType,
+                    name,
+                    excludeContentUuid: excludeContentUuid ?? null,
+                },
             ),
         };
     }

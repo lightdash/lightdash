@@ -5,6 +5,11 @@ import { renderWithProviders } from '../../../../testing/testUtils';
 import RequestReviewModal from './RequestReviewModal';
 
 const createRequest = vi.fn().mockResolvedValue({});
+const similarContent = vi.fn().mockReturnValue({ data: [] });
+
+vi.mock('../hooks/useSimilarContent', () => ({
+    useSimilarContent: () => similarContent(),
+}));
 
 vi.mock('../hooks/useContentReviewRequests', () => ({
     useCreateContentReviewRequest: () => ({
@@ -79,6 +84,7 @@ const pickFinanceAndContinue = async () => {
 describe('RequestReviewModal', () => {
     beforeEach(() => {
         createRequest.mockClear();
+        similarContent.mockReturnValue({ data: [] });
     });
 
     it('offers only shared spaces and waits for a target before continuing', async () => {
@@ -119,5 +125,45 @@ describe('RequestReviewModal', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Back' }));
         expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    });
+
+    it('requires a note when similar content exists and snapshots it', async () => {
+        const match = {
+            contentType: ContentReviewContentType.CHART,
+            contentUuid: 'existing',
+            name: 'Weekly revenue by region',
+            slug: 'weekly-revenue-by-region',
+            spaceUuid: 'finance',
+            spaceName: 'Finance',
+            isVerified: true,
+            score: 150,
+        };
+        similarContent.mockReturnValue({ data: [match] });
+        renderModal();
+
+        await pickFinanceAndContinue();
+        expect(
+            screen.getByText('Something similar already exists'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Request review' }),
+        ).toBeDisabled();
+
+        await userEvent.type(
+            screen.getByLabelText(/Note for reviewers/),
+            'Adds a forecast',
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Request review' }),
+        );
+
+        await waitFor(() =>
+            expect(createRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    note: 'Adds a forecast',
+                    similarContent: [match],
+                }),
+            ),
+        );
     });
 });

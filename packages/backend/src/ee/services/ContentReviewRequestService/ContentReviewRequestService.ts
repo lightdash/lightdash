@@ -23,6 +23,7 @@ import {
     type ContentReviewRequestDetail,
     type ContentReviewRequestListItem,
     type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
     type CreateContentReviewRequestBody,
     type DirectAccessPrincipalRef,
     type KnexPaginateArgs,
@@ -73,6 +74,10 @@ type ContentReviewRequestServiceArguments = {
 };
 
 type ProjectContext = { organizationUuid: string; projectUuid: string };
+
+const SIMILAR_CANDIDATE_LIMIT = 20;
+const SIMILAR_RESULT_LIMIT = 5;
+const VERIFIED_SCORE_BOOST = 10;
 
 type ContentLookups = {
     locations: Map<string, ContentReviewContentLocation>;
@@ -1127,6 +1132,75 @@ export class ContentReviewRequestService extends BaseService {
             { ...cancelled, grantedPrincipals: [] },
             settings,
         );
+    }
+
+    // Name lookalikes in shared spaces the caller can see, verified ones
+    // first so the sanctioned version is easy to spot
+    async findSimilarContent(
+        user: SessionUser,
+        projectUuid: string,
+        params: {
+            contentType: ContentReviewContentType;
+            name: string;
+            excludeContentUuid: string | null;
+        },
+    ): Promise<ContentReviewSimilarContentItem[]> {
+        await this.getProjectContext(user, projectUuid);
+        if (params.name.trim().length === 0) return [];
+        const candidates =
+            await this.contentReviewRequestModel.findSimilarByName({
+                projectUuid,
+                contentType: params.contentType,
+                name: params.name,
+                excludeContentUuid: params.excludeContentUuid,
+                limit: SIMILAR_CANDIDATE_LIMIT,
+            });
+        if (candidates.length === 0) return [];
+        const accessible = new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                [...new Set(candidates.map((c) => c.spaceUuid))],
+            ),
+        );
+        const visible = candidates.filter((c) => accessible.has(c.spaceUuid));
+        const verifiedByType = new Map<ContentReviewContentType, Set<string>>();
+        await Promise.all(
+            [...new Set(visible.map((c) => c.contentType))].map(
+                async (candidateType) => {
+                    const verifiableType =
+                        ContentReviewRequestService.toVerifiableContentType(
+                            candidateType,
+                        );
+                    if (verifiableType === null) return;
+                    const verified =
+                        await this.contentVerificationModel.getByContentUuids(
+                            verifiableType,
+                            visible
+                                .filter((c) => c.contentType === candidateType)
+                                .map((c) => c.uuid),
+                        );
+                    verifiedByType.set(candidateType, new Set(verified.keys()));
+                },
+            ),
+        );
+        return visible
+            .map((c) => {
+                const isVerified =
+                    verifiedByType.get(c.contentType)?.has(c.uuid) ?? false;
+                return {
+                    contentType: c.contentType,
+                    contentUuid: c.uuid,
+                    name: c.name,
+                    slug: c.slug,
+                    spaceUuid: c.spaceUuid,
+                    spaceName: c.spaceName,
+                    isVerified,
+                    score: c.score + (isVerified ? VERIFIED_SCORE_BOOST : 0),
+                };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, SIMILAR_RESULT_LIMIT);
     }
 
     private assertCanManageSettings(
