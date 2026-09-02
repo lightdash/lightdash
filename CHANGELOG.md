@@ -1,3 +1,15 @@
+# [2.90.0](https://github.com/lightdash/lightdash/compare/2.89.3...2.90.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **frontend:** stop PolymorphicPaperButton dropping the caller's className ([#28514](https://github.com/lightdash/lightdash/issues/28514)) ([f5ab643](https://github.com/lightdash/lightdash/commit/f5ab643799dc3c2894accdb5821f67a3abda6680)), closes [#28457](https://github.com/lightdash/lightdash/issues/28457)
+
+
+### Features
+
+* **ai:** query inspector in the thread's data app preview panel ([#28513](https://github.com/lightdash/lightdash/issues/28513)) ([32af728](https://github.com/lightdash/lightdash/commit/32af728819c29566500ad71067b99a7769ee70d9))
+
 ## [2.89.3](https://github.com/lightdash/lightdash/compare/2.89.2...2.89.3) (2026-09-02)
 
 
