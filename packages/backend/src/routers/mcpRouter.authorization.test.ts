@@ -227,7 +227,12 @@ describe('MCP tool catalogue activity', () => {
 
         expect(response.status).toBe(200);
         expect(mcpService.recordToolList).toHaveBeenCalledWith({
-            server: expect.anything(),
+            catalogue: expect.objectContaining({
+                projectPinned: false,
+                runSqlEnabled: false,
+                runMetricQueryEnabled: false,
+                filterExpressionsEnabled: true,
+            }),
             authInfo: expect.objectContaining({ clientId: 'API key' }),
             durationMs: expect.any(Number),
         });

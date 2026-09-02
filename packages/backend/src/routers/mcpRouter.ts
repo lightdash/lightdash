@@ -23,6 +23,7 @@ import {
     ExtraContext,
     isProjectScopedMcpTool,
     McpService,
+    type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
@@ -395,7 +396,7 @@ mcpRouter.all(
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
-                const mcpServer = await mcpService.createServer({
+                const toolOptions: McpServerToolOptions = {
                     projectPinned: pinnedProjectUuid !== undefined,
                     // The run_ai_writeback tool is always registered now that
                     // AI writeback has graduated from its dark-launch flag.
@@ -405,7 +406,8 @@ mcpRouter.all(
                     runSqlEnabled,
                     runMetricQueryEnabled,
                     filterExpressionsEnabled,
-                });
+                };
+                const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,
                     sessionIdGenerator: undefined,
@@ -487,7 +489,7 @@ mcpRouter.all(
                 await transport.handleRequest(authReq, res, req.body);
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({
-                        server: mcpServer,
+                        catalogue: toolOptions,
                         authInfo: authReq.auth,
                         durationMs: Date.now() - startedAt,
                     });

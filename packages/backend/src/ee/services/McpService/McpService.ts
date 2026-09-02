@@ -457,13 +457,18 @@ const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
+export type McpServerToolOptions = {
+    projectPinned?: boolean;
+    aiWritebackEnabled?: boolean;
+    mcpContentWritesEnabled?: boolean;
+    scheduledDeliveryEnabled?: boolean;
+    runSqlEnabled?: boolean;
+    runMetricQueryEnabled?: boolean;
+    filterExpressionsEnabled?: boolean;
+};
+
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
-
-    private readonly registeredToolNames = new WeakMap<
-        McpServer,
-        Set<string>
-    >();
 
     private analytics: LightdashAnalytics;
 
@@ -4040,15 +4045,9 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public async createServer(options?: {
-        projectPinned?: boolean;
-        aiWritebackEnabled?: boolean;
-        mcpContentWritesEnabled?: boolean;
-        scheduledDeliveryEnabled?: boolean;
-        runSqlEnabled?: boolean;
-        runMetricQueryEnabled?: boolean;
-        filterExpressionsEnabled?: boolean;
-    }): Promise<McpServer> {
+    public async createServer(
+        options?: McpServerToolOptions,
+    ): Promise<McpServer> {
         const newServer = this.buildMcpServer({
             runSqlEnabled: options?.runSqlEnabled ?? false,
             runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
@@ -4406,28 +4405,21 @@ export class McpService extends BaseService {
         name,
         config,
         handler,
-    ) => {
-        const names =
-            this.registeredToolNames.get(this.mcpServer) ?? new Set<string>();
-        this.registeredToolNames.set(this.mcpServer, names.add(name));
-        return this.mcpServer.registerTool(
+    ) =>
+        this.mcpServer.registerTool(
             name,
             config,
             this.wrapToolCallback(name, handler),
         );
-    };
-
-    public getRegisteredToolNames(server: McpServer): string[] {
-        return Array.from(this.registeredToolNames.get(server) ?? []).sort();
-    }
 
     /**
-     * Records the catalogue served by a tools/list request as an mcp_tool_call
-     * row, so a session's claimed tool set can be checked against what it was
-     * actually given. Kept out of analytics: it is not tool usage.
+     * Records the flags that decided the catalogue served by a tools/list
+     * request as an mcp_tool_call row, so a session's claimed tool set can be
+     * checked against what it was actually given. Kept out of analytics: it
+     * is not tool usage.
      */
     public recordToolList(params: {
-        server: McpServer;
+        catalogue: McpServerToolOptions;
         authInfo: AuthInfo;
         durationMs: number;
     }): void {
@@ -4442,9 +4434,7 @@ export class McpService extends BaseService {
                     durationMs: params.durationMs,
                     status: 'success',
                     errorMessage: null,
-                    resultMetadata: {
-                        tools: this.getRegisteredToolNames(params.server),
-                    },
+                    resultMetadata: { catalogue: params.catalogue },
                     trackAnalytics: false,
                 }),
             )

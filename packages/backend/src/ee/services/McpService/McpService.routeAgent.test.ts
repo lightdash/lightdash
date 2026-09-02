@@ -12,7 +12,6 @@ vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
-    startSpan: (_options: unknown, callback: CallableFunction) => callback({}),
     startSpanManual: (_options: unknown, callback: CallableFunction) =>
         callback({ spanContext: () => ({ spanId: 'span-id' }) }, vi.fn()),
     wrapMcpServerWithSentry: (server: unknown) => server,
@@ -150,8 +149,6 @@ const makeMcpService = () => {
 
     const aiAgentService = {
         getAgent: vi.fn().mockResolvedValue(selectedAgent),
-        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
-        listAgents: vi.fn().mockResolvedValue([selectedAgent]),
     };
 
     const aiAgentToolsService = {
@@ -232,16 +229,7 @@ const makeMcpService = () => {
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel,
-        projectModel: {
-            getAllByOrganizationUuid: vi.fn().mockResolvedValue([
-                {
-                    projectUuid,
-                    name: 'Project',
-                    type: 'DEFAULT',
-                    expiresAt: undefined,
-                },
-            ]),
-        },
+        projectModel: {},
         projectService: {
             getProject: vi
                 .fn()
@@ -268,23 +256,6 @@ describe('McpService route_agent', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.clear();
     });
-
-    it.each([true, false])(
-        'tracks the registered tool names per server when runMetricQueryEnabled is %s',
-        async (runMetricQueryEnabled) => {
-            const { service } = makeMcpService();
-            const server = await service.createServer({
-                runMetricQueryEnabled,
-            });
-
-            const toolNames = service.getRegisteredToolNames(server);
-
-            expect(toolNames).toContain(McpToolName.GET_CONTEXT);
-            expect(toolNames.includes(McpToolName.RUN_METRIC_QUERY)).toBe(
-                runMetricQueryEnabled,
-            );
-        },
-    );
 
     it('writes the routed agent into context and get_current_agent returns it', async () => {
         const { aiRouterService, mcpContextModel } = makeMcpService();
