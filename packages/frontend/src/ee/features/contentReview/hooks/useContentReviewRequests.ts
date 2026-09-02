@@ -5,8 +5,8 @@ import {
     type ContentReviewRequest,
     type ContentReviewRequestDetail,
     type ContentReviewRequestListItem,
-    type ContentReviewRequestStatus,
-    type ContentReviewRequestView,
+    ContentReviewRequestStatus,
+    ContentReviewRequestView,
     type ContentReviewSettings,
     type CreateContentReviewRequestBody,
     type KnexPaginatedData,
@@ -238,3 +238,26 @@ export const useUpdateContentReviewSettings = (projectUuid: string) => {
         },
     });
 };
+
+// Cheap count for nav badges: one row, read the pagination total
+export const usePendingContentReviewCount = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useQuery<
+        KnexPaginatedData<ContentReviewRequestListItem[]>,
+        ApiError,
+        number
+    >({
+        queryKey: [CONTENT_REVIEW_QUERY_KEY, projectUuid, 'pending-count'],
+        queryFn: () =>
+            listContentReviewRequests(projectUuid, {
+                view: ContentReviewRequestView.TO_REVIEW,
+                status: ContentReviewRequestStatus.PENDING,
+                page: 1,
+                pageSize: 1,
+            }),
+        select: (data) => data.pagination?.totalResults ?? 0,
+        enabled,
+        staleTime: 60_000,
+    });
