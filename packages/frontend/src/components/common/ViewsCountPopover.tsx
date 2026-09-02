@@ -1,7 +1,4 @@
-import {
-    type DailyViewCount,
-    type DetailedViewStatistics,
-} from '@lightdash/common';
+import { type DetailedViewStatistics, type ViewTrend } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -21,9 +18,15 @@ import classes from './ViewsCountPopover.module.css';
 
 const LINE_COLOR = 'var(--mantine-color-violet-5)';
 
-const formatDay = (date: string) => dayjs(date).format('MMM D');
+const formatBucket = (date: string, granularity: ViewTrend['granularity']) =>
+    dayjs(date).format(granularity === 'hour' ? 'MMM D, h A' : 'MMM D');
 
-const ViewsSparkline: FC<{ data: DailyViewCount[] }> = ({ data }) => {
+const getWindowLabel = ({ granularity, points }: ViewTrend) =>
+    granularity === 'hour'
+        ? `Last ${points.length} hours`
+        : `Last ${points.length} ${points.length === 1 ? 'day' : 'days'}`;
+
+const ViewsSparkline: FC<{ data: ViewTrend['points'] }> = ({ data }) => {
     const option = useMemo<EChartsOption>(
         () => ({
             animation: false,
@@ -91,31 +94,31 @@ const ViewStatsCard: FC<{ stats: DetailedViewStatistics | undefined }> = ({
         );
     }
 
-    const trend = stats.dailyViews;
-    const recentViews = trend.reduce((total, point) => total + point.views, 0);
-    const firstDay = trend[0];
-    const lastDay = trend[trend.length - 1];
+    const { points, granularity } = stats.viewTrend;
+    const recentViews = points.reduce((total, point) => total + point.views, 0);
+    const firstPoint = points[0];
+    const lastPoint = points[points.length - 1];
 
     return (
         <Stack gap={6}>
             <Box>
                 <Group justify="space-between" mb={4} wrap="nowrap">
                     <Text className={classes.heading}>
-                        Last {trend.length} days
+                        {getWindowLabel(stats.viewTrend)}
                     </Text>
                     <Text className={classes.heading}>
                         {recentViews.toLocaleString()}{' '}
                         {recentViews === 1 ? 'view' : 'views'}
                     </Text>
                 </Group>
-                <ViewsSparkline data={trend} />
-                {firstDay && lastDay && (
+                <ViewsSparkline data={points} />
+                {firstPoint && lastPoint && (
                     <Group justify="space-between" mt={2} wrap="nowrap">
                         <Text className={classes.axisLabel}>
-                            {formatDay(firstDay.date)}
+                            {formatBucket(firstPoint.date, granularity)}
                         </Text>
                         <Text className={classes.axisLabel}>
-                            {formatDay(lastDay.date)}
+                            {formatBucket(lastPoint.date, granularity)}
                         </Text>
                     </Group>
                 )}

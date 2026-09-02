@@ -7,7 +7,7 @@ import {
     UnusedContentReason,
     UserActivity,
     UserWithCount,
-    VIEW_STATS_TREND_DAYS,
+    ViewTrend,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -51,19 +51,74 @@ type DbUserWithCount = {
     count: number | null;
 };
 
-// UTC calendar days ending today, oldest first
-const getTrendDays = (now: Date): string[] =>
-    Array.from({ length: VIEW_STATS_TREND_DAYS }, (_, index) => {
-        const offset = VIEW_STATS_TREND_DAYS - 1 - index;
-        const day = new Date(
-            Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate() - offset,
-            ),
+const TREND_MAX_DAYS = 30;
+const TREND_HOURS = 24;
+const HOURLY_TREND_MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000;
+
+type TrendWindow = {
+    granularity: ViewTrend['granularity'];
+    /** Bucket keys in the same format the SQL produces, oldest first */
+    keys: string[];
+};
+
+const toDayKey = (date: Date) => date.toISOString().slice(0, 10);
+const toHourKey = (date: Date) => `${date.toISOString().slice(0, 13)}:00:00Z`;
+
+const getTrendWindow = (firstViewedAt: Date | null, now: Date): TrendWindow => {
+    const ageMs = firstViewedAt
+        ? now.getTime() - firstViewedAt.getTime()
+        : null;
+    if (ageMs !== null && ageMs < HOURLY_TREND_MAX_AGE_MS) {
+        const currentHour = Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            now.getUTCHours(),
         );
-        return day.toISOString().slice(0, 10);
-    });
+        return {
+            granularity: 'hour',
+            keys: Array.from({ length: TREND_HOURS }, (_, index) =>
+                toHourKey(
+                    new Date(
+                        currentHour -
+                            (TREND_HOURS - 1 - index) * 60 * 60 * 1000,
+                    ),
+                ),
+            ),
+        };
+    }
+    const today = Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+    );
+    const daysSinceFirstView = firstViewedAt
+        ? Math.floor(
+              (today -
+                  Date.UTC(
+                      firstViewedAt.getUTCFullYear(),
+                      firstViewedAt.getUTCMonth(),
+                      firstViewedAt.getUTCDate(),
+                  )) /
+                  (24 * 60 * 60 * 1000),
+          ) + 1
+        : TREND_MAX_DAYS;
+    const days = Math.min(TREND_MAX_DAYS, Math.max(1, daysSinceFirstView));
+    return {
+        granularity: 'day',
+        keys: Array.from({ length: days }, (_, index) =>
+            toDayKey(
+                new Date(today - (days - 1 - index) * 24 * 60 * 60 * 1000),
+            ),
+        ),
+    };
+};
+
+// Matches toHourKey / toDayKey so rows can be joined to the zero-filled keys
+const TREND_KEY_FORMAT: Record<ViewTrend['granularity'], string> = {
+    hour: 'YYYY-MM-DD"T"HH24":00:00Z"',
+    day: 'YYYY-MM-DD',
+};
 
 export class AnalyticsModel {
     private database: Knex;
@@ -111,43 +166,49 @@ export class AnalyticsModel {
         uuidColumn: 'chart_uuid' | 'dashboard_uuid',
         uuid: string,
     ): Promise<DetailedViewStatistics> {
-        const trendDays = getTrendDays(new Date());
-        const [totals, dailyRows] = await Promise.all([
-            this.database(tableName)
-                .count({ views: '*' })
-                .countDistinct({ unique_viewer_count: 'user_uuid' })
-                .count({
-                    anonymous_view_count: this.database.raw(
-                        'CASE WHEN user_uuid IS NULL THEN 1 END',
-                    ),
-                })
-                .min({ first_viewed_at: 'timestamp' })
-                .where(uuidColumn, uuid)
-                .first(),
-            this.database(tableName)
-                .select<{ day: string; views: string | number }[]>(
-                    this.database.raw(
-                        "to_char(timestamp, 'YYYY-MM-DD') AS day",
-                    ),
-                    this.database.raw('COUNT(*) AS views'),
-                )
-                .where(uuidColumn, uuid)
-                .andWhere('timestamp', '>=', trendDays[0])
-                .groupBy('day'),
-        ]);
-        const viewsByDay = new Map(
-            dailyRows.map((row) => [row.day, Number(row.views)]),
+        const totals = await this.database(tableName)
+            .count({ views: '*' })
+            .countDistinct({ unique_viewer_count: 'user_uuid' })
+            .count({
+                anonymous_view_count: this.database.raw(
+                    'CASE WHEN user_uuid IS NULL THEN 1 END',
+                ),
+            })
+            .min({ first_viewed_at: 'timestamp' })
+            .where(uuidColumn, uuid)
+            .first();
+        const firstViewedAt = totals?.first_viewed_at ?? null;
+        const window = getTrendWindow(firstViewedAt, new Date());
+        const trendRows = await this.database(tableName)
+            .select<{ bucket: string; views: string | number }[]>(
+                this.database.raw(
+                    `to_char(timestamp, '${TREND_KEY_FORMAT[window.granularity]}') AS bucket`,
+                ),
+                this.database.raw('COUNT(*) AS views'),
+            )
+            .where(uuidColumn, uuid)
+            .andWhere(
+                'timestamp',
+                '>=',
+                window.keys[0].replace('T', ' ').replace('Z', ''),
+            )
+            .groupBy('bucket');
+        const viewsByBucket = new Map(
+            trendRows.map((row) => [row.bucket, Number(row.views)]),
         );
 
         return {
             views: Number(totals?.views ?? 0),
-            firstViewedAt: totals?.first_viewed_at ?? null,
+            firstViewedAt,
             uniqueViewerCount: Number(totals?.unique_viewer_count ?? 0),
             anonymousViewCount: Number(totals?.anonymous_view_count ?? 0),
-            dailyViews: trendDays.map((date) => ({
-                date,
-                views: viewsByDay.get(date) ?? 0,
-            })),
+            viewTrend: {
+                granularity: window.granularity,
+                points: window.keys.map((date) => ({
+                    date,
+                    views: viewsByBucket.get(date) ?? 0,
+                })),
+            },
         };
     }
 

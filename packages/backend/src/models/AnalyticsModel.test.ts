@@ -22,14 +22,28 @@ describe('AnalyticsModel', () => {
     });
 
     describe('detailed view statistics', () => {
+        const now = new Date('2025-03-01T10:30:00Z');
+        const totalsQuery = /count\(distinct "user_uuid"\)/i;
+        const trendQuery = /group by "bucket"/i;
+
         beforeEach(() => {
             vi.useFakeTimers({ toFake: ['Date'] });
-            vi.setSystemTime(new Date('2025-03-01T10:00:00Z'));
+            vi.setSystemTime(now);
         });
 
         afterEach(() => {
             vi.useRealTimers();
         });
+
+        const mockTotals = (firstViewedAt: Date | null) =>
+            tracker.on.select(totalsQuery).response([
+                {
+                    views: '12',
+                    unique_viewer_count: '4',
+                    anonymous_view_count: '2',
+                    first_viewed_at: firstViewedAt,
+                },
+            ]);
 
         it.each([
             ['chart', 'chart_uuid', () => model.getChartViewStats(projectUuid)],
@@ -39,34 +53,13 @@ describe('AnalyticsModel', () => {
                 () => model.getDashboardViewStats(projectUuid),
             ],
         ])(
-            'returns detailed %s view statistics with a zero-filled daily trend',
+            'returns %s totals with a rolling 30-day daily trend for older assets',
             async (_resourceType, uuidColumn, getStats) => {
-                tracker.on
-                    .select(
-                        new RegExp(
-                            `count\\(distinct "user_uuid"\\).*where "${uuidColumn}" =`,
-                            'is',
-                        ),
-                    )
-                    .response([
-                        {
-                            views: '12',
-                            unique_viewer_count: '4',
-                            anonymous_view_count: '2',
-                            first_viewed_at: new Date('2025-01-01'),
-                        },
-                    ]);
-                tracker.on
-                    .select(
-                        new RegExp(
-                            `where "${uuidColumn}" = .* and "timestamp" >= .* group by "day"`,
-                            'is',
-                        ),
-                    )
-                    .response([
-                        { day: '2025-02-27', views: '3' },
-                        { day: '2025-03-01', views: '1' },
-                    ]);
+                mockTotals(new Date('2025-01-01'));
+                tracker.on.select(trendQuery).response([
+                    { bucket: '2025-02-27', views: '3' },
+                    { bucket: '2025-03-01', views: '1' },
+                ]);
 
                 const stats = await getStats();
 
@@ -76,30 +69,90 @@ describe('AnalyticsModel', () => {
                     anonymousViewCount: 2,
                     firstViewedAt: new Date('2025-01-01'),
                 });
-                expect(stats.dailyViews).toHaveLength(30);
-                expect(stats.dailyViews[0]).toEqual({
+                expect(stats.viewTrend.granularity).toBe('day');
+                expect(stats.viewTrend.points).toHaveLength(30);
+                expect(stats.viewTrend.points[0]).toEqual({
                     date: '2025-01-31',
                     views: 0,
                 });
-                expect(stats.dailyViews[27]).toEqual({
+                expect(stats.viewTrend.points[27]).toEqual({
                     date: '2025-02-27',
                     views: 3,
                 });
-                expect(stats.dailyViews[28]).toEqual({
-                    date: '2025-02-28',
-                    views: 0,
-                });
-                expect(stats.dailyViews[29]).toEqual({
+                expect(stats.viewTrend.points[29]).toEqual({
                     date: '2025-03-01',
                     views: 1,
                 });
 
-                const trendQuery = tracker.history.select.find((query) =>
-                    query.sql.includes('group by "day"'),
+                const trend = tracker.history.select.find((query) =>
+                    trendQuery.test(query.sql),
                 );
-                expect(trendQuery?.bindings).toContain('2025-01-31');
+                expect(trend?.sql).toContain(`where "${uuidColumn}" =`);
+                expect(trend?.bindings).toContain('2025-01-31');
             },
         );
+
+        it('shortens the daily trend to the days since the first view', async () => {
+            mockTotals(new Date('2025-02-24T18:00:00Z'));
+            tracker.on
+                .select(trendQuery)
+                .response([{ bucket: '2025-02-24', views: '5' }]);
+
+            const stats = await model.getChartViewStats(projectUuid);
+
+            expect(stats.viewTrend.granularity).toBe('day');
+            expect(stats.viewTrend.points.map((point) => point.date)).toEqual([
+                '2025-02-24',
+                '2025-02-25',
+                '2025-02-26',
+                '2025-02-27',
+                '2025-02-28',
+                '2025-03-01',
+            ]);
+            expect(stats.viewTrend.points[0].views).toBe(5);
+        });
+
+        it('uses hourly buckets over the last 24 hours for assets first viewed under two days ago', async () => {
+            mockTotals(new Date('2025-02-28T09:00:00Z'));
+            tracker.on
+                .select(trendQuery)
+                .response([{ bucket: '2025-03-01T09:00:00Z', views: '2' }]);
+
+            const stats = await model.getChartViewStats(projectUuid);
+
+            expect(stats.viewTrend.granularity).toBe('hour');
+            expect(stats.viewTrend.points).toHaveLength(24);
+            expect(stats.viewTrend.points[0]).toEqual({
+                date: '2025-02-28T11:00:00Z',
+                views: 0,
+            });
+            expect(stats.viewTrend.points[22]).toEqual({
+                date: '2025-03-01T09:00:00Z',
+                views: 2,
+            });
+            expect(stats.viewTrend.points[23].date).toBe(
+                '2025-03-01T10:00:00Z',
+            );
+
+            const trend = tracker.history.select.find((query) =>
+                trendQuery.test(query.sql),
+            );
+            expect(trend?.sql).toContain('HH24');
+            expect(trend?.bindings).toContain('2025-02-28 11:00:00');
+        });
+
+        it('falls back to a rolling 30-day daily trend when there are no views', async () => {
+            mockTotals(null);
+            tracker.on.select(trendQuery).response([]);
+
+            const stats = await model.getChartViewStats(projectUuid);
+
+            expect(stats.viewTrend.granularity).toBe('day');
+            expect(stats.viewTrend.points).toHaveLength(30);
+            expect(
+                stats.viewTrend.points.every((point) => point.views === 0),
+            ).toBe(true);
+        });
     });
 
     it('includes organization custom-role users in the project population', () => {

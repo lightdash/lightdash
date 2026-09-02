@@ -22,6 +22,7 @@ export const useDashboardViewStats = (
         () => getDashboardViewStats(dashboardUuid ?? '', projectUuid ?? ''),
         {
             enabled: !!dashboardUuid && !!projectUuid,
+            staleTime: 5 * 60 * 1000,
             ...queryOptions,
         },
     );

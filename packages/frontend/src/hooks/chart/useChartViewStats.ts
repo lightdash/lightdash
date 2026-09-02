@@ -19,6 +19,7 @@ export const useChartViewStats = (
         () => getChartViewStats(chartUuid || ''),
         {
             enabled: !!chartUuid,
+            staleTime: 5 * 60 * 1000,
             ...queryOptions,
         },
     );

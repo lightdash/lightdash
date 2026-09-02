@@ -8,10 +8,13 @@ vi.mock('../EChartsReactWrapper', () => ({
     default: () => <div data-testid="views-sparkline" />,
 }));
 
-const dailyViews = Array.from({ length: 30 }, (_, index) => ({
-    date: `2026-08-${String(index + 1).padStart(2, '0')}`,
-    views: index === 29 ? 5 : 0,
-}));
+const viewTrend = {
+    granularity: 'day' as const,
+    points: Array.from({ length: 30 }, (_, index) => ({
+        date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+        views: index === 29 ? 5 : 0,
+    })),
+};
 
 vi.mock('../../hooks/chart/useChartViewStats', () => ({
     useChartViewStats: (
@@ -25,7 +28,7 @@ vi.mock('../../hooks/chart/useChartViewStats', () => ({
                       uniqueViewerCount: 4,
                       anonymousViewCount: 2,
                       firstViewedAt: '2026-08-28T10:12:00.000Z',
-                      dailyViews,
+                      viewTrend,
                   }
                 : undefined,
     }),
