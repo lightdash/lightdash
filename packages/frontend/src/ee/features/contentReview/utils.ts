@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ContentReviewContentType,
+    type ContentReviewContentSummary,
     type ContentReviewUser,
 } from '@lightdash/common';
 import {
@@ -66,3 +67,41 @@ export const getUserFullName = (user: ContentReviewUser): string =>
 
 export const getUserInitials = (user: ContentReviewUser): string =>
     `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+
+export const getContentHref = (
+    projectUuid: string,
+    contentType: ContentReviewContentType,
+    content: ContentReviewContentSummary,
+): string => {
+    switch (contentType) {
+        case ContentReviewContentType.CHART:
+            return `/projects/${projectUuid}/saved/${content.slug}`;
+        case ContentReviewContentType.SQL_CHART:
+            return `/projects/${projectUuid}/sql-runner/${content.slug}`;
+        case ContentReviewContentType.DASHBOARD:
+            return `/projects/${projectUuid}/dashboards/${content.slug}`;
+        default:
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
+    }
+};
+
+export const getContentTypeLabel = (
+    contentType: ContentReviewContentType,
+): string => {
+    switch (contentType) {
+        case ContentReviewContentType.CHART:
+            return 'Chart';
+        case ContentReviewContentType.SQL_CHART:
+            return 'SQL chart';
+        case ContentReviewContentType.DASHBOARD:
+            return 'Dashboard';
+        default:
+            return assertUnreachable(
+                contentType,
+                'Unknown review content type',
+            );
+    }
+};

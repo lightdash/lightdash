@@ -30,6 +30,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { ReviewRequestsMenuItem } from '../../ee/features/contentReview';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -191,6 +192,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 {!hasMetrics && (
                     <MetricsLink projectUuid={projectUuid} asMenu />
                 )}
+
+                <ReviewRequestsMenuItem projectUuid={projectUuid} />
 
                 {hasFavorites ? (
                     <>
