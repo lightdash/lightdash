@@ -167,6 +167,16 @@
     --sidebar-padding: 0px;
 }
 
+/* Only the edge that meets the content gets a hairline; the other sides sit
+   against the navbar and viewport, where a border reads as a stray box. */
+.sidebarPaper[data-position='left'] {
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.sidebarPaper[data-position='right'] {
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+
 .sidebarContent {
     display: flex;
     flex-grow: 1;

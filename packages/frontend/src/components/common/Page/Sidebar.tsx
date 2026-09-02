@@ -171,9 +171,11 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                     {(style) => (
                         <>
                             <Paper
+                                withBorder={false}
                                 radius={0}
                                 className={classes.sidebarPaper}
                                 style={style}
+                                data-position={position}
                                 data-no-padding={noSidebarPadding}
                                 data-testid="common-sidebar"
                             >

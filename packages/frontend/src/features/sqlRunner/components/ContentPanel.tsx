@@ -438,7 +438,7 @@ export const ContentPanel: FC = () => {
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
-        <Stack gap={0} p="lg" pt="md" className={styles.root}>
+        <Stack gap={0} p="lg" className={styles.root}>
             <Tooltip.Group>
                 <PanelGroup
                     direction="vertical"
