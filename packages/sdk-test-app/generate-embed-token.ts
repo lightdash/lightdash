@@ -209,6 +209,9 @@ async function main() {
                     // map filter labels) can be exercised in the test app
                     hidden: false,
                 },
+                parameterInteractivity: {
+                    enabled: true,
+                },
                 canExportCsv: false,
                 canExportImages: false,
                 isPreview: false,

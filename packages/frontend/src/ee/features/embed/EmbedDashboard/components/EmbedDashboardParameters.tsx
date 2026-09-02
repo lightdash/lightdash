@@ -6,6 +6,7 @@ import FilterGroupSeparator from '../../../../../features/dashboardFilters/Filte
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
 const parametersSeparator: ReactNode = (
@@ -31,6 +32,7 @@ type Props = {
 };
 
 const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
+    const getUiString = useUiStrings();
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
@@ -60,6 +62,7 @@ const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
                     'ld-dashboard-parameter-dropdown',
                 )}
                 separator={parametersSeparator}
+                getUiString={getUiString}
             />
         </Group>
     );

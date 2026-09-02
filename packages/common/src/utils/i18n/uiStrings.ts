@@ -39,6 +39,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.summary.filterPlural': 'filters',
     'filters.summary.parameterSingular': 'parameter',
     'filters.summary.parameterPlural': 'parameters',
+    'parameters.is': 'is',
     'filters.summary.dateZoomLabel': 'Date Zoom:',
     'filters.summary.default': 'Default',
     'filters.summary.showFilters': 'Show filters',
