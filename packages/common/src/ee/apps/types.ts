@@ -108,6 +108,7 @@ export const DATA_APP_TEMPLATES = [
     'custom',
     DATA_APP_VIZ_TEMPLATE,
     'forecaster',
+    'scorecard',
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 

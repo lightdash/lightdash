@@ -23,6 +23,14 @@ describe('data app template registry', () => {
         expect(def.requiredFlag).toBe(FeatureFlags.EnableDataAppTemplates);
     });
 
+    it('includes scorecard, gallery-surfaced behind the templates flag', () => {
+        expect(DATA_APP_TEMPLATES).toContain('scorecard');
+        const def = DATA_APP_TEMPLATE_DEFINITIONS.scorecard;
+        expect(def.inPicker).toBe(false);
+        expect(def.inGallery).toBe(true);
+        expect(def.requiredFlag).toBe(FeatureFlags.EnableDataAppTemplates);
+    });
+
     it('keeps the original five templates ungated', () => {
         const originalIds = [
             'dashboard',

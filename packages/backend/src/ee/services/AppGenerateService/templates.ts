@@ -58,6 +58,13 @@ Build a scenario-forecast app for one monthly metric:
 - Close with a copyable plain-text plan summary of the assumptions and the outcome.
 - Every number traces to governed semantic-layer metrics: no hardcoded history, no invented data.`;
 
+const SCORECARD_INSTRUCTIONS = `[Starter template: KPI Scorecard]
+Build a tiled scorecard of the user's key metrics:
+- One tile per metric: period total, delta vs the previous period, a day-grain sparkline, and an optional target with progress.
+- Query period aggregates WITHOUT a time dimension (so averages, rates, and distinct counts are computed by the warehouse over the window), plus a separate day-grain series for the sparkline. Use inThePast/notInThePast filters for the current and previous windows.
+- Offer period (e.g. 30/90/365 days) and comparison controls via \`useUrlState\` so any view is a shareable link.
+- Ruled grid of tiles, compact numerals, mono labels; every number traces to a governed metric.`;
+
 // Exhaustive by construction: a new DataAppTemplate value fails to compile
 // until its instructions (or an explicit null, for free-form templates) are
 // registered here.
@@ -68,6 +75,7 @@ const TEMPLATE_INSTRUCTIONS: Record<DataAppTemplate, string | null> = {
     custom: null,
     data_app_viz: DATA_APP_VIZ_INSTRUCTIONS,
     forecaster: FORECASTER_INSTRUCTIONS,
+    scorecard: SCORECARD_INSTRUCTIONS,
 };
 
 export const getTemplateInstructions = (
