@@ -1,14 +1,25 @@
 {
   "schemaVersion": "2",
-  "version": "2.89.2",
-  "previousVersion": "2.89.1",
-  "releaseDate": "2026-09-02T13:10:01.715Z",
+  "version": "2.89.3",
+  "previousVersion": "2.89.2",
+  "releaseDate": "2026-09-02T13:26:18.540Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260902120000_grant_verified_content_scope_to_content_verification_roles.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

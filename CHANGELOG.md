@@ -1,3 +1,10 @@
+## [2.89.3](https://github.com/lightdash/lightdash/compare/2.89.2...2.89.3) (2026-09-02)
+
+
+### Bug Fixes
+
+* **auth:** grant manage:VerifiedContent to org developers ([#28503](https://github.com/lightdash/lightdash/issues/28503)) ([f273a10](https://github.com/lightdash/lightdash/commit/f273a10f64edd6cf2930a3e1d113a610ecabc959)), closes [#28072](https://github.com/lightdash/lightdash/issues/28072) [#28500](https://github.com/lightdash/lightdash/issues/28500)
+
 ## [2.89.2](https://github.com/lightdash/lightdash/compare/2.89.1...2.89.2) (2026-09-02)
 
 
