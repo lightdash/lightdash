@@ -120,6 +120,7 @@ import {
     useTrackedAppQueries,
 } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
+import TemplateQuestionsForm from '../features/apps/TemplateQuestionsForm';
 import { getTemplate } from '../features/apps/templates';
 import {
     toAppClarifyParams,
@@ -894,6 +895,13 @@ const AppGenerate: FC = () => {
             : null;
     // New-app empty screen: arch + composer, centered, no preview/split yet.
     const newAppLanding = isNewApp && messages.length === 0 && !isLoading;
+    // A gallery template with declared questions swaps the composer for its
+    // question form on the landing view; the form is the clarification round.
+    const templateQuestionsDefinition = useMemo(() => {
+        if (!selectedTemplate || !newAppLanding) return null;
+        const def = getTemplate(selectedTemplate);
+        return def.questions && def.questions.length > 0 ? def : null;
+    }, [selectedTemplate, newAppLanding]);
 
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
@@ -1709,6 +1717,68 @@ const AppGenerate: FC = () => {
         }
     };
 
+    // Build straight from a template's question form: the answers are the
+    // clarifications, so the generic clarify round is skipped and the first
+    // build runs immediately through the same path a clarified build takes.
+    const handleTemplateFormBuild = ({
+        clarifications,
+        prompt,
+    }: {
+        clarifications: AppClarification[];
+        prompt: string;
+    }) => {
+        if (isLoading || isSubmittingRef.current || !selectedTemplate) return;
+        isSubmittingRef.current = true;
+        if (newAppLanding) {
+            withViewTransition(() => {
+                setIsSubmitting(true);
+            });
+        } else {
+            setIsSubmitting(true);
+        }
+        try {
+            const targetAppUuid = uuid4();
+            setThemeChipOverride({
+                appUuid: targetAppUuid,
+                designUuid: selectedThemeUuid,
+            });
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    ...emptyChatMessage(),
+                    role: 'user',
+                    content: prompt,
+                    timestamp: new Date(),
+                    userName:
+                        [user.data?.firstName, user.data?.lastName]
+                            .filter((s): s is string => !!s && s.length > 0)
+                            .join(' ') || null,
+                    submittedAtVersion: maxHistoryVersion,
+                },
+            ]);
+            resetGenerate();
+            resetIterate();
+            onClarifiedBuild(
+                {
+                    prompt,
+                    template: selectedTemplate,
+                    fileIds: undefined,
+                    appUuid: targetAppUuid,
+                    charts: undefined,
+                    dashboard: undefined,
+                    externalConnections: undefined,
+                    spaceUuid: targetSpaceUuid,
+                    modelRequest,
+                    designUuid: selectedThemeUuid,
+                },
+                clarifications,
+            );
+        } finally {
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
+        }
+    };
+
     const handleCancel = () => {
         if (
             !projectUuid ||
@@ -1771,14 +1841,21 @@ const AppGenerate: FC = () => {
                                         Build a Data App
                                     </Text>
                                     <Text size="sm" c="dimmed">
-                                        Pick a starting point, then describe
-                                        what you want to build.
+                                        {templateQuestionsDefinition
+                                            ? 'Answer a few questions and the template is bound to your data.'
+                                            : 'Pick a starting point, then describe what you want to build.'}
                                     </Text>
                                 </Stack>
-                                <AppTemplatePicker
-                                    selected={selectedTemplate}
-                                    onSelectedChange={setSelectedTemplate}
-                                />
+                                {/* Once a template with questions is chosen the
+                                    fan is the previous step: collapse it so the
+                                    form fits, and let "Change template" bring
+                                    it back. */}
+                                {templateQuestionsDefinition ? null : (
+                                    <AppTemplatePicker
+                                        selected={selectedTemplate}
+                                        onSelectedChange={setSelectedTemplate}
+                                    />
+                                )}
                             </Stack>
                         )}
                         <Box
@@ -2486,464 +2563,508 @@ const AppGenerate: FC = () => {
                                         )}
                                     </Group>
                                 )}
-                                <Box
-                                    onDragOver={handleDragOver}
-                                    onDrop={handleDrop}
-                                >
-                                    <PromptComposer
-                                        ref={promptEditorRef}
-                                        size="md"
-                                        placeholder="Describe the app you want to build..."
-                                        autoFocus
-                                        // Editable while the agent works so the next prompt
-                                        // can be drafted; disabled only during the
-                                        // client-side submit, where clear() would wipe text.
-                                        disabled={isSubmitting}
-                                        submitDisabled={isLoading}
-                                        onEmptyChange={setIsPromptEmpty}
-                                        onSubmit={() => void handleSubmit()}
-                                        onPaste={handlePaste}
-                                        attachments={
-                                            (selectedCharts.length > 0 ||
-                                                selectedDashboard ||
-                                                selectedConnections.length >
-                                                    0 ||
-                                                selectedElementRefs.length >
-                                                    0 ||
-                                                fileAttachments.length > 0) && (
-                                                <Box
-                                                    className={
-                                                        classes.attachedResources
-                                                    }
-                                                >
-                                                    {selectedElementRefs.length >
-                                                        0 && (
-                                                        <Group gap={4}>
-                                                            {selectedElementRefs.map(
-                                                                (ref) => (
-                                                                    <ElementRefChip
-                                                                        key={elementRefKey(
-                                                                            ref,
-                                                                        )}
-                                                                        elementRef={
-                                                                            ref
-                                                                        }
-                                                                        onRemove={() =>
-                                                                            setSelectedElementRefs(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    prev.filter(
-                                                                                        (
-                                                                                            r,
-                                                                                        ) =>
-                                                                                            elementRefKey(
-                                                                                                r,
-                                                                                            ) !==
-                                                                                            elementRefKey(
-                                                                                                ref,
-                                                                                            ),
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                ),
-                                                            )}
-                                                        </Group>
-                                                    )}
-                                                    {selectedConnections.length >
-                                                        0 && (
-                                                        <Group gap="xs">
-                                                            {selectedConnections.map(
-                                                                (c) => (
-                                                                    <ConnectionChip
-                                                                        key={
-                                                                            c.externalConnectionUuid
-                                                                        }
-                                                                        name={
-                                                                            c.name
-                                                                        }
-                                                                        onRemove={() =>
-                                                                            setSelectedConnections(
-                                                                                (
-                                                                                    prev,
-                                                                                ) =>
-                                                                                    prev.filter(
-                                                                                        (
-                                                                                            x,
-                                                                                        ) =>
-                                                                                            x.externalConnectionUuid !==
-                                                                                            c.externalConnectionUuid,
-                                                                                    ),
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                ),
-                                                            )}
-                                                        </Group>
-                                                    )}
-                                                    {selectedCharts.length >
-                                                        0 && (
-                                                        <SelectedQuerySection
-                                                            sampleDataEnabled={
-                                                                sampleDataEnabled
-                                                            }
-                                                            charts={
-                                                                selectedCharts
-                                                            }
-                                                            onRemove={(uuid) =>
-                                                                setSelectedCharts(
-                                                                    (prev) =>
-                                                                        prev.filter(
-                                                                            (
-                                                                                c,
-                                                                            ) =>
-                                                                                c.uuid !==
-                                                                                uuid,
-                                                                        ),
-                                                                )
-                                                            }
-                                                            onToggleSampleData={(
-                                                                uuid,
-                                                            ) =>
-                                                                setSelectedCharts(
-                                                                    (prev) =>
-                                                                        prev.map(
-                                                                            (
-                                                                                c,
-                                                                            ) =>
-                                                                                c.uuid ===
-                                                                                uuid
-                                                                                    ? {
-                                                                                          ...c,
-                                                                                          includeSampleData:
-                                                                                              !c.includeSampleData,
-                                                                                      }
-                                                                                    : c,
-                                                                        ),
-                                                                )
-                                                            }
-                                                            onToggleLink={(
-                                                                uuid,
-                                                            ) =>
-                                                                setSelectedCharts(
-                                                                    (prev) =>
-                                                                        prev.map(
-                                                                            (
-                                                                                c,
-                                                                            ) =>
-                                                                                c.uuid ===
-                                                                                uuid
-                                                                                    ? {
-                                                                                          ...c,
-                                                                                          linkLive:
-                                                                                              !c.linkLive,
-                                                                                          includeSampleData:
-                                                                                              c.linkLive
-                                                                                                  ? c.includeSampleData
-                                                                                                  : false,
-                                                                                      }
-                                                                                    : c,
-                                                                        ),
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                        />
-                                                    )}
-                                                    {selectedDashboard && (
-                                                        <SelectedDashboardSection
-                                                            sampleDataEnabled={
-                                                                sampleDataEnabled
-                                                            }
-                                                            dashboard={
-                                                                selectedDashboard
-                                                            }
-                                                            onRemove={() =>
-                                                                setSelectedDashboard(
-                                                                    null,
-                                                                )
-                                                            }
-                                                            onToggleSampleData={() =>
-                                                                setSelectedDashboard(
-                                                                    (prev) =>
-                                                                        prev
-                                                                            ? {
-                                                                                  ...prev,
-                                                                                  includeSampleData:
-                                                                                      !prev.includeSampleData,
-                                                                              }
-                                                                            : null,
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                        />
-                                                    )}
-                                                    {fileAttachments.length >
-                                                        0 && (
-                                                        <SelectedAttachmentSection
-                                                            attachments={fileAttachments.map(
-                                                                (att) => ({
-                                                                    id: att.localId,
-                                                                    previewUrl:
-                                                                        att.previewUrl,
-                                                                    filename:
-                                                                        att.file
-                                                                            .name,
-                                                                }),
-                                                            )}
-                                                            onRemove={
-                                                                clearAttachment
-                                                            }
-                                                            disabled={
-                                                                isSubmitting
-                                                            }
-                                                            loading={
-                                                                isSubmitting
-                                                            }
-                                                        />
-                                                    )}
-                                                </Box>
-                                            )
+                                {templateQuestionsDefinition ? (
+                                    <TemplateQuestionsForm
+                                        key={templateQuestionsDefinition.id}
+                                        template={templateQuestionsDefinition}
+                                        disabled={isSubmitting || isLoading}
+                                        onBuild={handleTemplateFormBuild}
+                                        onChangeTemplate={() =>
+                                            setSelectedTemplate(null)
                                         }
-                                        toolbarLeft={
-                                            <Group gap={4}>
-                                                <AttachButton
-                                                    selectedCharts={
-                                                        selectedCharts
-                                                    }
-                                                    onSelectChart={(chart) =>
-                                                        setSelectedCharts(
-                                                            (prev) =>
-                                                                prev.some(
-                                                                    (c) =>
-                                                                        c.uuid ===
-                                                                        chart.uuid,
-                                                                )
-                                                                    ? prev
-                                                                    : [
-                                                                          ...prev,
-                                                                          chart,
-                                                                      ],
-                                                        )
-                                                    }
-                                                    onDeselectChart={(uuid) =>
-                                                        setSelectedCharts(
-                                                            (prev) =>
-                                                                prev.filter(
-                                                                    (c) =>
-                                                                        c.uuid !==
-                                                                        uuid,
-                                                                ),
-                                                        )
-                                                    }
-                                                    selectedDashboard={
-                                                        selectedDashboard
-                                                    }
-                                                    onSelectDashboard={
-                                                        setSelectedDashboard
-                                                    }
-                                                    onDeselectDashboard={() =>
-                                                        setSelectedDashboard(
-                                                            null,
-                                                        )
-                                                    }
-                                                    selectedConnections={
-                                                        selectedConnections
-                                                    }
-                                                    onSelectConnection={(
-                                                        connection,
-                                                    ) =>
-                                                        setSelectedConnections(
-                                                            (prev) => [
-                                                                ...prev,
-                                                                connection,
-                                                            ],
-                                                        )
-                                                    }
-                                                    onDeselectConnection={(
-                                                        uuid,
-                                                    ) =>
-                                                        setSelectedConnections(
-                                                            (prev) =>
-                                                                prev.filter(
-                                                                    (c) =>
-                                                                        c.externalConnectionUuid !==
-                                                                        uuid,
-                                                                ),
-                                                        )
-                                                    }
-                                                    onAddFiles={() =>
-                                                        fileInputRef.current?.click()
-                                                    }
-                                                    disabled={isSubmitting}
-                                                    filesDisabled={
-                                                        fileAttachments.length >=
-                                                        MAX_APP_FILES_PER_VERSION
-                                                    }
-                                                    linkedAppUuid={
-                                                        activeAppUuid
-                                                    }
-                                                />
-                                                {previewApp &&
-                                                    screenshotAvailable && (
-                                                        <ScreenshotButton
-                                                            onClick={() =>
-                                                                void handleCaptureScreenshot()
+                                    />
+                                ) : (
+                                    <Box
+                                        onDragOver={handleDragOver}
+                                        onDrop={handleDrop}
+                                    >
+                                        <PromptComposer
+                                            ref={promptEditorRef}
+                                            size="md"
+                                            placeholder="Describe the app you want to build..."
+                                            autoFocus
+                                            // Editable while the agent works so the next prompt
+                                            // can be drafted; disabled only during the
+                                            // client-side submit, where clear() would wipe text.
+                                            disabled={isSubmitting}
+                                            submitDisabled={isLoading}
+                                            onEmptyChange={setIsPromptEmpty}
+                                            onSubmit={() => void handleSubmit()}
+                                            onPaste={handlePaste}
+                                            attachments={
+                                                (selectedCharts.length > 0 ||
+                                                    selectedDashboard ||
+                                                    selectedConnections.length >
+                                                        0 ||
+                                                    selectedElementRefs.length >
+                                                        0 ||
+                                                    fileAttachments.length >
+                                                        0) && (
+                                                    <Box
+                                                        className={
+                                                            classes.attachedResources
+                                                        }
+                                                    >
+                                                        {selectedElementRefs.length >
+                                                            0 && (
+                                                            <Group gap={4}>
+                                                                {selectedElementRefs.map(
+                                                                    (ref) => (
+                                                                        <ElementRefChip
+                                                                            key={elementRefKey(
+                                                                                ref,
+                                                                            )}
+                                                                            elementRef={
+                                                                                ref
+                                                                            }
+                                                                            onRemove={() =>
+                                                                                setSelectedElementRefs(
+                                                                                    (
+                                                                                        prev,
+                                                                                    ) =>
+                                                                                        prev.filter(
+                                                                                            (
+                                                                                                r,
+                                                                                            ) =>
+                                                                                                elementRefKey(
+                                                                                                    r,
+                                                                                                ) !==
+                                                                                                elementRefKey(
+                                                                                                    ref,
+                                                                                                ),
+                                                                                        ),
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                )}
+                                                            </Group>
+                                                        )}
+                                                        {selectedConnections.length >
+                                                            0 && (
+                                                            <Group gap="xs">
+                                                                {selectedConnections.map(
+                                                                    (c) => (
+                                                                        <ConnectionChip
+                                                                            key={
+                                                                                c.externalConnectionUuid
+                                                                            }
+                                                                            name={
+                                                                                c.name
+                                                                            }
+                                                                            onRemove={() =>
+                                                                                setSelectedConnections(
+                                                                                    (
+                                                                                        prev,
+                                                                                    ) =>
+                                                                                        prev.filter(
+                                                                                            (
+                                                                                                x,
+                                                                                            ) =>
+                                                                                                x.externalConnectionUuid !==
+                                                                                                c.externalConnectionUuid,
+                                                                                        ),
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                )}
+                                                            </Group>
+                                                        )}
+                                                        {selectedCharts.length >
+                                                            0 && (
+                                                            <SelectedQuerySection
+                                                                sampleDataEnabled={
+                                                                    sampleDataEnabled
+                                                                }
+                                                                charts={
+                                                                    selectedCharts
+                                                                }
+                                                                onRemove={(
+                                                                    uuid,
+                                                                ) =>
+                                                                    setSelectedCharts(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev.filter(
+                                                                                (
+                                                                                    c,
+                                                                                ) =>
+                                                                                    c.uuid !==
+                                                                                    uuid,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onToggleSampleData={(
+                                                                    uuid,
+                                                                ) =>
+                                                                    setSelectedCharts(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev.map(
+                                                                                (
+                                                                                    c,
+                                                                                ) =>
+                                                                                    c.uuid ===
+                                                                                    uuid
+                                                                                        ? {
+                                                                                              ...c,
+                                                                                              includeSampleData:
+                                                                                                  !c.includeSampleData,
+                                                                                          }
+                                                                                        : c,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                onToggleLink={(
+                                                                    uuid,
+                                                                ) =>
+                                                                    setSelectedCharts(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev.map(
+                                                                                (
+                                                                                    c,
+                                                                                ) =>
+                                                                                    c.uuid ===
+                                                                                    uuid
+                                                                                        ? {
+                                                                                              ...c,
+                                                                                              linkLive:
+                                                                                                  !c.linkLive,
+                                                                                              includeSampleData:
+                                                                                                  c.linkLive
+                                                                                                      ? c.includeSampleData
+                                                                                                      : false,
+                                                                                          }
+                                                                                        : c,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting
+                                                                }
+                                                            />
+                                                        )}
+                                                        {selectedDashboard && (
+                                                            <SelectedDashboardSection
+                                                                sampleDataEnabled={
+                                                                    sampleDataEnabled
+                                                                }
+                                                                dashboard={
+                                                                    selectedDashboard
+                                                                }
+                                                                onRemove={() =>
+                                                                    setSelectedDashboard(
+                                                                        null,
+                                                                    )
+                                                                }
+                                                                onToggleSampleData={() =>
+                                                                    setSelectedDashboard(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            prev
+                                                                                ? {
+                                                                                      ...prev,
+                                                                                      includeSampleData:
+                                                                                          !prev.includeSampleData,
+                                                                                  }
+                                                                                : null,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting
+                                                                }
+                                                            />
+                                                        )}
+                                                        {fileAttachments.length >
+                                                            0 && (
+                                                            <SelectedAttachmentSection
+                                                                attachments={fileAttachments.map(
+                                                                    (att) => ({
+                                                                        id: att.localId,
+                                                                        previewUrl:
+                                                                            att.previewUrl,
+                                                                        filename:
+                                                                            att
+                                                                                .file
+                                                                                .name,
+                                                                    }),
+                                                                )}
+                                                                onRemove={
+                                                                    clearAttachment
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting
+                                                                }
+                                                                loading={
+                                                                    isSubmitting
+                                                                }
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                )
+                                            }
+                                            toolbarLeft={
+                                                <Group gap={4}>
+                                                    <AttachButton
+                                                        selectedCharts={
+                                                            selectedCharts
+                                                        }
+                                                        onSelectChart={(
+                                                            chart,
+                                                        ) =>
+                                                            setSelectedCharts(
+                                                                (prev) =>
+                                                                    prev.some(
+                                                                        (c) =>
+                                                                            c.uuid ===
+                                                                            chart.uuid,
+                                                                    )
+                                                                        ? prev
+                                                                        : [
+                                                                              ...prev,
+                                                                              chart,
+                                                                          ],
+                                                            )
+                                                        }
+                                                        onDeselectChart={(
+                                                            uuid,
+                                                        ) =>
+                                                            setSelectedCharts(
+                                                                (prev) =>
+                                                                    prev.filter(
+                                                                        (c) =>
+                                                                            c.uuid !==
+                                                                            uuid,
+                                                                    ),
+                                                            )
+                                                        }
+                                                        selectedDashboard={
+                                                            selectedDashboard
+                                                        }
+                                                        onSelectDashboard={
+                                                            setSelectedDashboard
+                                                        }
+                                                        onDeselectDashboard={() =>
+                                                            setSelectedDashboard(
+                                                                null,
+                                                            )
+                                                        }
+                                                        selectedConnections={
+                                                            selectedConnections
+                                                        }
+                                                        onSelectConnection={(
+                                                            connection,
+                                                        ) =>
+                                                            setSelectedConnections(
+                                                                (prev) => [
+                                                                    ...prev,
+                                                                    connection,
+                                                                ],
+                                                            )
+                                                        }
+                                                        onDeselectConnection={(
+                                                            uuid,
+                                                        ) =>
+                                                            setSelectedConnections(
+                                                                (prev) =>
+                                                                    prev.filter(
+                                                                        (c) =>
+                                                                            c.externalConnectionUuid !==
+                                                                            uuid,
+                                                                    ),
+                                                            )
+                                                        }
+                                                        onAddFiles={() =>
+                                                            fileInputRef.current?.click()
+                                                        }
+                                                        disabled={isSubmitting}
+                                                        filesDisabled={
+                                                            fileAttachments.length >=
+                                                            MAX_APP_FILES_PER_VERSION
+                                                        }
+                                                        linkedAppUuid={
+                                                            activeAppUuid
+                                                        }
+                                                    />
+                                                    {previewApp &&
+                                                        screenshotAvailable && (
+                                                            <ScreenshotButton
+                                                                onClick={() =>
+                                                                    void handleCaptureScreenshot()
+                                                                }
+                                                                disabled={
+                                                                    isSubmitting ||
+                                                                    fileAttachments.length >=
+                                                                        MAX_APP_FILES_PER_VERSION
+                                                                }
+                                                                loading={
+                                                                    isCapturingScreenshot
+                                                                }
+                                                            />
+                                                        )}
+                                                    {inspectorAvailable && (
+                                                        <InspectButton
+                                                            enabled={
+                                                                inspectorEnabled
                                                             }
-                                                            disabled={
-                                                                isSubmitting ||
-                                                                fileAttachments.length >=
-                                                                    MAX_APP_FILES_PER_VERSION
+                                                            onToggle={() => {
+                                                                setInspectorEnabled(
+                                                                    (v) => {
+                                                                        const next =
+                                                                            !v;
+                                                                        if (
+                                                                            next
+                                                                        )
+                                                                            setLineageEnabled(
+                                                                                false,
+                                                                            );
+                                                                        return next;
+                                                                    },
+                                                                );
+                                                                // Entering inspector
+                                                                // mode force-disables
+                                                                // lineage — drop its
+                                                                // selection too.
+                                                                setFocusedQueryUuid(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                        />
+                                                    )}
+                                                    {newAppLanding && (
+                                                        <Divider
+                                                            orientation="vertical"
+                                                            h={16}
+                                                            my="auto"
+                                                        />
+                                                    )}
+                                                    {newAppLanding && (
+                                                        <ThemePicker
+                                                            compact
+                                                            value={
+                                                                currentThemeUuid
                                                             }
-                                                            loading={
-                                                                isCapturingScreenshot
+                                                            onChange={
+                                                                handleThemeChange
                                                             }
                                                         />
                                                     )}
-                                                {inspectorAvailable && (
-                                                    <InspectButton
-                                                        enabled={
-                                                            inspectorEnabled
-                                                        }
-                                                        onToggle={() => {
-                                                            setInspectorEnabled(
-                                                                (v) => {
-                                                                    const next =
-                                                                        !v;
-                                                                    if (next)
-                                                                        setLineageEnabled(
-                                                                            false,
-                                                                        );
-                                                                    return next;
-                                                                },
-                                                            );
-                                                            // Entering inspector
-                                                            // mode force-disables
-                                                            // lineage — drop its
-                                                            // selection too.
-                                                            setFocusedQueryUuid(
-                                                                null,
-                                                            );
-                                                        }}
-                                                    />
-                                                )}
-                                                {newAppLanding && (
-                                                    <Divider
-                                                        orientation="vertical"
-                                                        h={16}
-                                                        my="auto"
-                                                    />
-                                                )}
-                                                {newAppLanding && (
-                                                    <ThemePicker
-                                                        compact
-                                                        value={currentThemeUuid}
-                                                        onChange={
-                                                            handleThemeChange
-                                                        }
-                                                    />
-                                                )}
-                                                {newAppLanding &&
-                                                    selectedTemplate !==
-                                                        null && (
-                                                        <Group
-                                                            gap={5}
-                                                            wrap="nowrap"
-                                                            className={
-                                                                classes.startingFromChip
-                                                            }
-                                                            title={`Starting from ${
-                                                                getTemplate(
-                                                                    selectedTemplate,
-                                                                ).title
-                                                            }`}
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    getTemplate(
-                                                                        selectedTemplate,
-                                                                    ).icon
-                                                                }
-                                                                size={14}
-                                                            />
-                                                            <Text
-                                                                span
-                                                                size="xs"
-                                                                fw={500}
-                                                                lh={1.2}
+                                                    {newAppLanding &&
+                                                        selectedTemplate !==
+                                                            null && (
+                                                            <Group
+                                                                gap={5}
+                                                                wrap="nowrap"
                                                                 className={
-                                                                    classes.startingFromLabel
+                                                                    classes.startingFromChip
                                                                 }
-                                                            >
-                                                                Template:
-                                                            </Text>
-                                                            <Text
-                                                                span
-                                                                size="xs"
-                                                                fw={600}
-                                                                lh={1.2}
-                                                                c="inherit"
-                                                                lineClamp={1}
-                                                            >
-                                                                {
+                                                                title={`Starting from ${
                                                                     getTemplate(
                                                                         selectedTemplate,
                                                                     ).title
-                                                                }
-                                                            </Text>
-                                                        </Group>
-                                                    )}
-                                            </Group>
-                                        }
-                                        toolbarRight={
-                                            <Group gap="xs">
-                                                <ModelPicker
-                                                    value={selectedModel}
-                                                    onChange={handleModelChange}
-                                                    codingAgent={codingAgent}
-                                                    disabled={
-                                                        isSubmitting ||
-                                                        isModelVisibilityLoading
-                                                    }
-                                                    visibleModels={
-                                                        visibleModels
-                                                    }
-                                                />
-                                                {isBuilding ? (
-                                                    <ComposerSubmitButton
-                                                        icon={IconPlayerStop}
-                                                        label="Stop generation"
-                                                        onClick={handleCancel}
-                                                        loading={isCancelling}
-                                                    />
-                                                ) : (
-                                                    <ComposerSubmitButton
-                                                        icon={IconArrowUp}
-                                                        label="Send message"
-                                                        onClick={() =>
-                                                            void handleSubmit()
+                                                                }`}
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        getTemplate(
+                                                                            selectedTemplate,
+                                                                        ).icon
+                                                                    }
+                                                                    size={14}
+                                                                />
+                                                                <Text
+                                                                    span
+                                                                    size="xs"
+                                                                    fw={500}
+                                                                    lh={1.2}
+                                                                    className={
+                                                                        classes.startingFromLabel
+                                                                    }
+                                                                >
+                                                                    Template:
+                                                                </Text>
+                                                                <Text
+                                                                    span
+                                                                    size="xs"
+                                                                    fw={600}
+                                                                    lh={1.2}
+                                                                    c="inherit"
+                                                                    lineClamp={
+                                                                        1
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        getTemplate(
+                                                                            selectedTemplate,
+                                                                        ).title
+                                                                    }
+                                                                </Text>
+                                                            </Group>
+                                                        )}
+                                                </Group>
+                                            }
+                                            toolbarRight={
+                                                <Group gap="xs">
+                                                    <ModelPicker
+                                                        value={selectedModel}
+                                                        onChange={
+                                                            handleModelChange
+                                                        }
+                                                        codingAgent={
+                                                            codingAgent
                                                         }
                                                         disabled={
-                                                            (isPromptEmpty &&
-                                                                selectedElementRefs.length ===
-                                                                    0) ||
-                                                            isLoading
-                                                        }
-                                                        loading={
                                                             isSubmitting ||
-                                                            isGenerating ||
-                                                            isIterating
+                                                            isModelVisibilityLoading
+                                                        }
+                                                        visibleModels={
+                                                            visibleModels
                                                         }
                                                     />
-                                                )}
-                                            </Group>
-                                        }
-                                    />
-                                </Box>
+                                                    {isBuilding ? (
+                                                        <ComposerSubmitButton
+                                                            icon={
+                                                                IconPlayerStop
+                                                            }
+                                                            label="Stop generation"
+                                                            onClick={
+                                                                handleCancel
+                                                            }
+                                                            loading={
+                                                                isCancelling
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <ComposerSubmitButton
+                                                            icon={IconArrowUp}
+                                                            label="Send message"
+                                                            onClick={() =>
+                                                                void handleSubmit()
+                                                            }
+                                                            disabled={
+                                                                (isPromptEmpty &&
+                                                                    selectedElementRefs.length ===
+                                                                        0) ||
+                                                                isLoading
+                                                            }
+                                                            loading={
+                                                                isSubmitting ||
+                                                                isGenerating ||
+                                                                isIterating
+                                                            }
+                                                        />
+                                                    )}
+                                                </Group>
+                                            }
+                                        />
+                                    </Box>
+                                )}
                             </Box>
                         )}
                     </Box>

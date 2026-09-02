@@ -31,6 +31,29 @@ describe('data app template registry', () => {
         expect(def.requiredFlag).toBe(FeatureFlags.EnableDataAppTemplates);
     });
 
+    it('declares template questions for the seeded templates', () => {
+        for (const id of ['forecaster', 'scorecard'] as const) {
+            const questions = DATA_APP_TEMPLATE_DEFINITIONS[id].questions ?? [];
+            expect(questions.length).toBeGreaterThanOrEqual(3);
+            expect(new Set(questions.map((q) => q.key)).size).toBe(
+                questions.length,
+            );
+            for (const q of questions) {
+                expect(q.label.length).toBeGreaterThan(0);
+            }
+        }
+        // The scorecard's tiles are a repeatable list, not a single value.
+        expect(
+            DATA_APP_TEMPLATE_DEFINITIONS.scorecard.questions?.some(
+                (q) => q.kind === 'list',
+            ),
+        ).toBe(true);
+        // Built-ins keep the freeform composer.
+        expect(
+            DATA_APP_TEMPLATE_DEFINITIONS.dashboard.questions,
+        ).toBeUndefined();
+    });
+
     it('keeps the original five templates ungated', () => {
         const originalIds = [
             'dashboard',

@@ -2,6 +2,7 @@ import {
     DATA_APP_TEMPLATE_DEFINITIONS,
     type DataAppTemplate,
     type FeatureFlags,
+    type TemplateQuestion,
 } from '@lightdash/common';
 import {
     IconChartLine,
@@ -20,6 +21,7 @@ export type TemplateDefinition = {
     description: string;
     category: string;
     icon: TablerIcon;
+    questions?: TemplateQuestion[];
 };
 
 // Icons are React components so they stay on the frontend; everything else
@@ -45,6 +47,7 @@ const toDefinition = (id: DataAppTemplate): TemplateDefinition => {
         description: def.description,
         category: def.category,
         icon: TEMPLATE_ICONS[id],
+        questions: def.questions,
     };
 };
 
