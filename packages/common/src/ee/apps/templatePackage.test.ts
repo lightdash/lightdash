@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildDataAppTemplateManifest,
     DataAppTemplatePackageError,
+    getDataAppTemplateKind,
     parseDataAppTemplateManifest,
     validateDataAppTemplateEntryPath,
 } from './templatePackage';
@@ -178,6 +179,24 @@ describe('parseDataAppTemplateManifest', () => {
                     questions: [],
                 }),
             ).toThrow(DataAppTemplatePackageError);
+        });
+    });
+
+    describe('getDataAppTemplateKind', () => {
+        it('is seeded when the package carries source beyond the manifest', () => {
+            expect(
+                getDataAppTemplateKind([
+                    'src/template.json',
+                    'src/App.jsx',
+                    'AGENTS.md',
+                ]),
+            ).toBe('seeded');
+        });
+
+        it('is instructions-only when only the manifest and AGENTS.md travel', () => {
+            expect(
+                getDataAppTemplateKind(['src/template.json', 'AGENTS.md']),
+            ).toBe('instructions');
         });
     });
 });

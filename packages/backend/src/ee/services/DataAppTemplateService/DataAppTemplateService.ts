@@ -14,6 +14,7 @@ import {
     DataAppTemplatePackageError,
     FeatureFlags,
     ForbiddenError,
+    getDataAppTemplateKind,
     MAX_DATA_APP_TEMPLATE_FILE_BYTES,
     MAX_DATA_APP_TEMPLATE_FILES,
     MAX_DATA_APP_TEMPLATE_GUARDRAILS_CHARS,
@@ -415,6 +416,19 @@ export class DataAppTemplateService extends BaseService {
         if (!manifestFile) {
             throw new ParameterError(
                 `Template package must contain ${DATA_APP_TEMPLATE_MANIFEST_PATH}`,
+            );
+        }
+        // An instructions-only template has nothing to build from without
+        // AGENTS.md; a seeded one can omit it (the source is the template).
+        if (
+            getDataAppTemplateKind(files.map((file) => file.filename)) ===
+                'instructions' &&
+            !files.some(
+                (file) => file.filename === DATA_APP_TEMPLATE_GUARDRAILS_PATH,
+            )
+        ) {
+            throw new ParameterError(
+                `A template without source files must include ${DATA_APP_TEMPLATE_GUARDRAILS_PATH} with the instructions to build from`,
             );
         }
         let manifest;

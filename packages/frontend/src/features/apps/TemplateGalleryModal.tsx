@@ -1,6 +1,7 @@
 import { type DataAppTemplateSummary } from '@lightdash/common';
 import {
     Badge,
+    Group,
     Modal,
     Paper,
     SimpleGrid,
@@ -73,9 +74,33 @@ const TemplateGalleryModal: FC<Props> = ({
                                 <Text fw={600} size="sm">
                                     {template.name}
                                 </Text>
-                                <Badge size="xs" variant="light" color="gray">
-                                    {template.category}
-                                </Badge>
+                                <Group gap={4}>
+                                    <Badge
+                                        size="xs"
+                                        variant="light"
+                                        color="gray"
+                                    >
+                                        {template.category}
+                                    </Badge>
+                                    <Badge
+                                        size="xs"
+                                        variant="outline"
+                                        color={
+                                            template.kind === 'seeded'
+                                                ? 'teal'
+                                                : 'grape'
+                                        }
+                                        title={
+                                            template.kind === 'seeded'
+                                                ? "Seeded: the app is built from the template's own source and bound to your data"
+                                                : "Prompt: the app is generated from the template author's instructions"
+                                        }
+                                    >
+                                        {template.kind === 'seeded'
+                                            ? 'Seeded'
+                                            : 'Prompt'}
+                                    </Badge>
+                                </Group>
                                 <Text size="xs" c="dimmed" lineClamp={3}>
                                     {template.description}
                                 </Text>

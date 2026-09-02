@@ -17,6 +17,7 @@ const FORECASTER: DataAppTemplateSummary = {
     description: 'A live what-if forecast.',
     category: 'Forecasting',
     questions: [{ key: 'metric', label: 'What should we forecast?' }],
+    kind: 'seeded',
     fileCount: 3,
     createdByUserUuid: 'user-1',
     createdAt: new Date(),
