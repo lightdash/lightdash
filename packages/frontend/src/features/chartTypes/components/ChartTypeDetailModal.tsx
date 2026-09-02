@@ -1,4 +1,8 @@
-import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    isOfficialChartType,
+    type DataAppViz,
+} from '@lightdash/common';
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';

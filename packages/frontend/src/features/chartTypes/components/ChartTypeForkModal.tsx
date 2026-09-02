@@ -1,6 +1,7 @@
 import { Button, Stack, TextInput, type ModalProps } from '@mantine/core';
-import { useForm, zodResolver } from '@mantine/form';
+import { useForm } from '@mantine/form';
 import { IconGitFork } from '@tabler/icons-react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { z } from 'zod';
