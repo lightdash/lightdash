@@ -259,17 +259,18 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
         const bCreated = await model.create(b);
         await model.cancel(bCreated.uuid);
 
-        const found = await model.findPendingByContentUuids(ContentReviewContentType.CHART, [
-            a.contentUuid,
-            b.contentUuid,
-            randomUUID(),
-        ]);
+        const found = await model.findPendingByContentUuids(
+            ContentReviewContentType.CHART,
+            [a.contentUuid, b.contentUuid, randomUUID()],
+        );
         expect([...found.keys()]).toEqual([a.contentUuid]);
     });
 
     test('cancelPendingContentReviewRequests cancels pending rows for deleted content', async () => {
         const a = buildRequest();
-        const b = buildRequest({ contentType: ContentReviewContentType.DASHBOARD });
+        const b = buildRequest({
+            contentType: ContentReviewContentType.DASHBOARD,
+        });
         const aCreated = await model.create(a);
         const bCreated = await model.create(b);
 
