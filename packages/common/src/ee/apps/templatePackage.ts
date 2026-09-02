@@ -36,6 +36,26 @@ export type DataAppTemplateManifest = {
     questions?: TemplateQuestion[];
 };
 
+/**
+ * How a template shapes a build. `seeded`: the package carries source, the
+ * sandbox is seeded with it and the agent binds the manifest. `instructions`:
+ * only the manifest and AGENTS.md travel, and AGENTS.md is the prompt the
+ * agent generates from (the same mechanism as the built-in flavours, but
+ * org-authored). Both live in the same gallery so they can be compared.
+ */
+export type DataAppTemplateKind = 'seeded' | 'instructions';
+
+export const getDataAppTemplateKind = (
+    filenames: string[],
+): DataAppTemplateKind =>
+    filenames.some(
+        (filename) =>
+            filename.startsWith('src/') &&
+            filename !== DATA_APP_TEMPLATE_MANIFEST_PATH,
+    )
+        ? 'seeded'
+        : 'instructions';
+
 export type DataAppTemplateSummary = {
     templateUuid: string;
     organizationUuid: string;
@@ -44,6 +64,7 @@ export type DataAppTemplateSummary = {
     description: string;
     category: string;
     questions: TemplateQuestion[];
+    kind: DataAppTemplateKind;
     fileCount: number;
     /** Uploader; the ownership condition behind manage:DataAppTemplate@self. */
     createdByUserUuid: string | null;

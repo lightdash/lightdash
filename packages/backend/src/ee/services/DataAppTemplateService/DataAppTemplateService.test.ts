@@ -203,7 +203,10 @@ describe('DataAppTemplateService.importPackage', () => {
                 return true;
             },
         });
-        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        const archive = await packFiles({
+            'src/template.json': MANIFEST,
+            'src/App.jsx': 'export {};',
+        });
 
         await expect(importArchive(service, archive)).rejects.toThrow(
             ForbiddenError,
@@ -235,7 +238,10 @@ describe('DataAppTemplateService.importPackage', () => {
             }),
         } as unknown as Partial<DataAppTemplateModel>);
         withRole(own.service, OrganizationMemberRole.EDITOR);
-        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        const archive = await packFiles({
+            'src/template.json': MANIFEST,
+            'src/App.jsx': 'export {};',
+        });
         await expect(
             importArchive(own.service, archive),
         ).resolves.toMatchObject({ action: 'updated' });
@@ -318,7 +324,10 @@ describe('DataAppTemplateService.importPackage', () => {
         const { service, model, send } = buildService({
             countByOrganization: vi.fn().mockResolvedValue(50),
         } as unknown as Partial<DataAppTemplateModel>);
-        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        const archive = await packFiles({
+            'src/template.json': MANIFEST,
+            'src/App.jsx': 'export {};',
+        });
         await expect(importArchive(service, archive)).rejects.toThrow(
             /at most 50/,
         );
@@ -329,7 +338,10 @@ describe('DataAppTemplateService.importPackage', () => {
     it('refuses uploads and browsing when the templates feature flag is off', async () => {
         const { service, featureFlagModel } = buildService();
         featureFlagModel.get.mockResolvedValue({ enabled: false });
-        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        const archive = await packFiles({
+            'src/template.json': MANIFEST,
+            'src/App.jsx': 'export {};',
+        });
         await expect(importArchive(service, archive)).rejects.toThrow(
             ForbiddenError,
         );
@@ -357,6 +369,25 @@ describe('DataAppTemplateService.importPackage', () => {
             OrganizationMemberRole.EDITOR,
         );
         await expect(editor.list(buildAccount())).resolves.toEqual([]);
+    });
+
+    it('accepts an instructions-only package (manifest + AGENTS.md) and rejects one with nothing to build from', async () => {
+        const { service, model } = buildService();
+        const withGuidance = await packFiles({
+            'src/template.json': MANIFEST,
+            'AGENTS.md': 'Build a one-page executive summary.',
+        });
+        await expect(
+            importArchive(service, withGuidance),
+        ).resolves.toMatchObject({ action: 'created' });
+        expect(model.upsert).toHaveBeenCalledTimes(1);
+
+        const bare = buildService();
+        const manifestOnly = await packFiles({ 'src/template.json': MANIFEST });
+        await expect(importArchive(bare.service, manifestOnly)).rejects.toThrow(
+            /AGENTS\.md/,
+        );
+        expect(bare.model.upsert).not.toHaveBeenCalled();
     });
 
     it('rejects a package without a manifest', async () => {
@@ -400,7 +431,10 @@ describe('DataAppTemplateService.importPackage', () => {
                 summary: { ...existing, name: 'Forecaster' },
             }),
         } as unknown as Partial<DataAppTemplateModel>);
-        const archive = await packFiles({ 'src/template.json': MANIFEST });
+        const archive = await packFiles({
+            'src/template.json': MANIFEST,
+            'src/App.jsx': 'export {};',
+        });
         const result = await importArchive(service, archive);
         expect(result.action).toBe('updated');
         expect(result.templateUuid).toBe(existing.templateUuid);

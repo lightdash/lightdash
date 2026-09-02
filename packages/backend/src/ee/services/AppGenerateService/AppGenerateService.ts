@@ -230,6 +230,10 @@ import {
     CLARIFY_VIZ_SYSTEM_PROMPT,
 } from './clarifierPrompts';
 import {
+    buildClaudeAllowedTools,
+    type CodingAgentEditScope,
+} from './claudeAllowedTools';
+import {
     classifyClaudeCliFailure,
     ClaudeGenerationError,
 } from './claudeCliFailure';
@@ -2935,6 +2939,7 @@ export class AppGenerateService extends BaseService {
         dimensionCount: number;
         metricCount: number;
         yamlBytes: number;
+        editScope: CodingAgentEditScope;
     }> {
         const start = performance.now();
 
@@ -3000,12 +3005,16 @@ export class AppGenerateService extends BaseService {
         // src/components/ui, css) untouched. The package's AGENTS.md is not
         // a sandbox file; it travels as the template's prompt instructions.
         let orgTemplateInstructions: string | null = null;
+        let editScope: CodingAgentEditScope = 'source';
         if (orgTemplate) {
             const resolved = await this.dataAppTemplateService.getSourceFiles(
                 orgTemplate.organizationUuid,
                 orgTemplate.slug,
             );
-            if (orgTemplate.seed) {
+            // Instructions-only templates carry no source: nothing to seed,
+            // and AGENTS.md is the build prompt itself.
+            const isSeededKind = resolved.template.kind === 'seeded';
+            if (orgTemplate.seed && isSeededKind) {
                 const sourceFiles = resolved.files.filter((file) =>
                     file.filename.startsWith('src/'),
                 );
@@ -3033,8 +3042,18 @@ export class AppGenerateService extends BaseService {
             orgTemplateInstructions = buildOrgTemplateInstructions({
                 name: resolved.template.name,
                 guardrails: resolved.guardrails,
-                seeded: orgTemplate.seed,
+                seeded: orgTemplate.seed && isSeededKind,
+                kind: resolved.template.kind,
+                iteration: !orgTemplate.seed,
             });
+            // An app built from a seeded template stays an instance of that
+            // template: on every version the agent may only write the
+            // manifest. Changing what the template can do belongs to the
+            // template author; a user who wants a free copy duplicates the
+            // app or starts from scratch.
+            if (isSeededKind) {
+                editScope = 'manifest';
+            }
         }
 
         // Write chart reference files and prepend summary to prompt
@@ -3152,6 +3171,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount,
             metricCount,
             yamlBytes: totalBytes,
+            editScope,
         };
     }
 
@@ -3533,6 +3553,7 @@ export class AppGenerateService extends BaseService {
         // for runs that don't collect a structured schema (metadata, builds).
         structuredOutputSchema: string | null,
         onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
+        editScope: CodingAgentEditScope = 'source',
     ): Promise<CodingAgentGenerationResult> {
         const start = performance.now();
         let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
@@ -3605,7 +3626,7 @@ export class AppGenerateService extends BaseService {
                         `--model ${claudeModel} ${effortFlag}` +
                         `--thinking-display summarized ` +
                         `--verbose --output-format stream-json --include-partial-messages ` +
-                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/uploads/**),Read(//tmp/metric-queries/**),Read(//tmp/dashboard/**),Read(//tmp/external-data/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/uploads/**),Glob(//tmp/metric-queries/**),Glob(//tmp/dashboard/**),Glob(//tmp/external-data/**),Grep(//app/**),Grep(//tmp/dbt-repo/**),Grep(//tmp/uploads/**),Grep(//tmp/external-data/**)" ` +
+                        `--allowedTools "${buildClaudeAllowedTools(editScope)}" ` +
                         `${jsonSchemaFlag}--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
                     {
                         cwd: '/app',
@@ -4026,6 +4047,9 @@ export class AppGenerateService extends BaseService {
         reasoningEffort: DataAppClaudeEffort,
         structuredOutputSchema: string | null,
         onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
+        // Claude only: Codex keeps its own sandbox policy, so a seeded
+        // template build under Codex is guided by the prompt alone.
+        editScope: CodingAgentEditScope = 'source',
     ): Promise<CodingAgentGenerationResult> {
         if (this.dataAppCodingAgent === 'codex') {
             return this.runCodexGeneration(
@@ -4048,6 +4072,7 @@ export class AppGenerateService extends BaseService {
             reasoningEffort,
             structuredOutputSchema,
             onTelemetry,
+            editScope,
         );
     }
 
@@ -4229,6 +4254,7 @@ export class AppGenerateService extends BaseService {
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
         onTelemetry?: (telemetry: DataAppBuildFixTelemetry) => void,
+        editScope: CodingAgentEditScope = 'source',
     ): Promise<{
         buildMs: number;
         fixAttempts: number;
@@ -4347,6 +4373,7 @@ export class AppGenerateService extends BaseService {
                             AppGenerateService.elapsed(fixStart),
                     });
                 },
+                editScope,
             );
             fixGenerationMs += generation.durationMs;
             fixUsage = addClaudeUsage(fixUsage, generation.usage);
@@ -5061,6 +5088,9 @@ export class AppGenerateService extends BaseService {
             await AppGenerateService.prepareCodexProjectContext(sandbox);
         }
 
+        // Narrowed to the manifest by the catalog stage for a seeded
+        // template's first build; every other build writes anywhere in src.
+        let editScope: CodingAgentEditScope = 'source';
         let catalogStats = {
             tableCount: 0,
             dimensionCount: 0,
@@ -5165,6 +5195,7 @@ export class AppGenerateService extends BaseService {
                         : undefined,
                 );
                 durations.catalogMs = catalogResult.durationMs;
+                editScope = catalogResult.editScope;
                 catalogStats = {
                     tableCount: catalogResult.tableCount,
                     dimensionCount: catalogResult.dimensionCount,
@@ -5232,6 +5263,7 @@ export class AppGenerateService extends BaseService {
                     // structured output; other apps don't declare one.
                     isDataAppViz ? JSON.stringify(dataAppVizJsonSchema) : null,
                     captureMainGenerationTelemetry,
+                    editScope,
                 );
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
@@ -5400,6 +5432,7 @@ export class AppGenerateService extends BaseService {
                             telemetry.usage,
                         );
                     },
+                    editScope,
                 );
                 durations.buildMs = buildResult.buildMs;
                 buildFixAttempts = buildResult.fixAttempts;

@@ -27,6 +27,7 @@ const TEMPLATE = {
     description: 'x',
     category: 'Forecasting',
     questions: [],
+    kind: 'seeded',
     fileCount: 3,
     createdByUserUuid: 'someone',
     createdAt: new Date(),

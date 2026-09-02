@@ -1,4 +1,6 @@
 import {
+    getDataAppTemplateKind,
+    type DataAppTemplateKind,
     type DataAppTemplateSummary,
     type TemplateQuestion,
 } from '@lightdash/common';
@@ -23,7 +25,7 @@ export type DataAppTemplateWrite = {
 
 const toSummary = (
     row: DbDataAppTemplate,
-    fileCount: number,
+    filenames: string[],
 ): DataAppTemplateSummary => ({
     templateUuid: row.template_uuid,
     organizationUuid: row.organization_uuid,
@@ -32,7 +34,8 @@ const toSummary = (
     description: row.description,
     category: row.category,
     questions: row.questions ?? [],
-    fileCount,
+    kind: getDataAppTemplateKind(filenames),
+    fileCount: filenames.length,
     createdByUserUuid: row.created_by_user_uuid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -52,19 +55,20 @@ export class DataAppTemplateModel {
             .where('organization_uuid', organizationUuid)
             .orderBy('name', 'asc');
         if (rows.length === 0) return [];
-        const counts = await this.database(DataAppTemplateFilesTableName)
+        const files = await this.database(DataAppTemplateFilesTableName)
             .whereIn(
                 'template_uuid',
                 rows.map((r) => r.template_uuid),
             )
-            .groupBy('template_uuid')
-            .select('template_uuid')
-            .count<{ template_uuid: string; count: string }[]>('* as count');
-        const countByUuid = new Map(
-            counts.map((c) => [c.template_uuid, Number(c.count)]),
-        );
+            .select('template_uuid', 'filename');
+        const filenamesByUuid = new Map<string, string[]>();
+        files.forEach((file) => {
+            const list = filenamesByUuid.get(file.template_uuid) ?? [];
+            list.push(file.filename);
+            filenamesByUuid.set(file.template_uuid, list);
+        });
         return rows.map((row) =>
-            toSummary(row, countByUuid.get(row.template_uuid) ?? 0),
+            toSummary(row, filenamesByUuid.get(row.template_uuid) ?? []),
         );
     }
 
@@ -84,7 +88,10 @@ export class DataAppTemplateModel {
             .first();
         if (!row) return undefined;
         const files = await this.listFiles(row.template_uuid);
-        return toSummary(row, files.length);
+        return toSummary(
+            row,
+            files.map((file) => file.filename),
+        );
     }
 
     async listFiles(templateUuid: string): Promise<DbDataAppTemplateFile[]> {
@@ -149,7 +156,10 @@ export class DataAppTemplateModel {
                 );
             }
             return {
-                summary: toSummary(row, write.files.length),
+                summary: toSummary(
+                    row,
+                    write.files.map((file) => file.filename),
+                ),
                 created: !existing,
             };
         });

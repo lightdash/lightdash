@@ -49,5 +49,27 @@ describe('template sources', () => {
             expect(instructions).toContain('Plain');
             expect(instructions).not.toContain('Template guardrails');
         });
+
+        it('turns an instructions-only template into the build prompt, on first build and on iteration', () => {
+            const first = buildOrgTemplateInstructions({
+                name: 'Executive Summary',
+                guardrails: 'One page. Three KPIs. A short narrative.',
+                seeded: false,
+                kind: 'instructions',
+            });
+            expect(first).toContain('Executive Summary');
+            expect(first).toContain('One page. Three KPIs.');
+            expect(first).not.toMatch(/src\/template\.json/);
+            expect(first).toMatch(/generate|build/i);
+            const later = buildOrgTemplateInstructions({
+                name: 'Executive Summary',
+                guardrails: 'One page. Three KPIs. A short narrative.',
+                seeded: false,
+                kind: 'instructions',
+                iteration: true,
+            });
+            expect(later).toContain('One page. Three KPIs.');
+            expect(later).not.toMatch(/src\/template\.json/);
+        });
     });
 });
