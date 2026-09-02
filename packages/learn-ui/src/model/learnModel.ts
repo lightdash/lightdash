@@ -13,7 +13,7 @@ export const createLearnModel = (source: ScopeSource): LearnModel => {
     return {
         ...board,
         ...ask,
-        ...createAskViewModel(board, ask),
+        ...createAskViewModel(ask),
         ...createVisibilityModel(board),
     };
 };

@@ -22,7 +22,7 @@ const entries = [
 
 const board = createBoardModel(commonScopeSource);
 const ask = createAskModel(board);
-const askView = createAskViewModel(board, ask);
+const askView = createAskViewModel(ask);
 
 const viewerScopes = commonScopeSource.getAllScopesForRole(
     ProjectMemberRole.VIEWER,

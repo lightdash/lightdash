@@ -2,7 +2,6 @@
 
 import { type LearnAskMatch, type LearnCatalogueEntry } from '../types';
 import { type AskHighlights, type AskMatch, type AskModel } from './ask';
-import { type BoardModel } from './model';
 
 /** The results list stops at five: past that it stops reading as an answer. */
 export const ASK_RESULT_LIMIT = 5;
@@ -108,10 +107,7 @@ export type AskViewModel = {
     lockedNote: (entry: LearnCatalogueEntry) => string;
 };
 
-export const createAskViewModel = (
-    board: BoardModel,
-    ask: AskModel,
-): AskViewModel => {
+export const createAskViewModel = (ask: AskModel): AskViewModel => {
     const boardHighlights = (
         matches: LearnAskMatch[],
         entries: LearnCatalogueEntry[],
