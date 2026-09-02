@@ -1,3 +1,11 @@
+## [2.97.1](https://github.com/lightdash/lightdash/compare/2.97.0...2.97.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **backend:** treat a blank FCM push credential as unset ([#28544](https://github.com/lightdash/lightdash/issues/28544)) ([7bb921c](https://github.com/lightdash/lightdash/commit/7bb921c2247341338b2db0be14a07a0f3335b439))
+* **oauth:** send an OAuth error when the account has no organization ([#28543](https://github.com/lightdash/lightdash/issues/28543)) ([1e51c34](https://github.com/lightdash/lightdash/commit/1e51c340811af7a5ad5aa7c0fcf8af79a2bf2b9a))
+
 # [2.97.0](https://github.com/lightdash/lightdash/compare/2.96.0...2.97.0) (2026-09-02)
 
 
