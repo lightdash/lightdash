@@ -223,6 +223,12 @@ const getTagsForTask: {
         'content_review_request.uuid': payload.requestUuid,
     }),
 
+    [SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'project.uuid': payload.projectUuid,
+        'user.uuid': payload.userUuid ?? '',
+    }),
+
     [SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'project.uuid': payload.projectUuid,

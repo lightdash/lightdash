@@ -1417,6 +1417,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedByUserUuid:
                         item?.status_updated_by_user_uuid ?? null,
                     linkedIssueUrl: item?.linked_issue_url ?? null,
+                    linkedJiraIssueUrl: item?.jira_linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
                     prWritebackStatus: writebackStale
@@ -1593,6 +1594,7 @@ export class AiAgentReviewClassifierModel {
                     statusUpdatedAt: row.status_updated_at ?? row.updated_at,
                     statusUpdatedByUserUuid: row.status_updated_by_user_uuid,
                     linkedIssueUrl: row.linked_issue_url,
+                    linkedJiraIssueUrl: row.jira_linked_issue_url,
                     linkedPrUrl: row.linked_pr_url,
                     prState: row.pr_state,
                     prWritebackStatus: writebackStale
@@ -2578,6 +2580,34 @@ export class AiAgentReviewClassifierModel {
         );
     }
 
+    async listUnlinkedReviewItemsForJiraExport(args: {
+        organizationUuid: string;
+        projectUuids: string[] | null;
+    }): Promise<Array<{ fingerprint: string; projectUuid: string }>> {
+        if (args.projectUuids && args.projectUuids.length === 0) return [];
+        const query = this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .select('fingerprint', 'project_uuid')
+            .where('organization_uuid', args.organizationUuid)
+            .whereNull('jira_linked_issue_url')
+            .whereNotNull('project_uuid')
+            .whereIn('status', ['triage', 'open', 'in_progress']);
+        const rows = await (args.projectUuids
+            ? query.whereIn('project_uuid', args.projectUuids)
+            : query);
+        return rows.flatMap((row) =>
+            row.project_uuid
+                ? [
+                      {
+                          fingerprint: row.fingerprint,
+                          projectUuid: row.project_uuid,
+                      },
+                  ]
+                : [],
+        );
+    }
+
     // Holds a row lock while the external issue is created so concurrent jobs
     // for the same item cannot each create one.
     async withReviewItemLinkedIssueLock<T>(
@@ -2607,6 +2637,39 @@ export class AiAgentReviewClassifierModel {
                         .where('organization_uuid', args.organizationUuid)
                         .update({
                             linked_issue_url: linkedIssueUrl,
+                            updated_at: trx.fn.now() as never,
+                        });
+                },
+            );
+        });
+    }
+
+    async withReviewItemJiraLinkedIssueLock<T>(
+        args: { fingerprint: string; organizationUuid: string },
+        run: (
+            linkedIssueUrl: string | null,
+            setLinkedIssueUrl: (linkedIssueUrl: string) => Promise<void>,
+        ) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx<AiAgentReviewItemTable>(
+                AiAgentReviewItemTableName,
+            )
+                .select('jira_linked_issue_url')
+                .where('fingerprint', args.fingerprint)
+                .where('organization_uuid', args.organizationUuid)
+                .forUpdate()
+                .first();
+            return run(
+                row?.jira_linked_issue_url ?? null,
+                async (linkedIssueUrl) => {
+                    await trx<AiAgentReviewItemTable>(
+                        AiAgentReviewItemTableName,
+                    )
+                        .where('fingerprint', args.fingerprint)
+                        .where('organization_uuid', args.organizationUuid)
+                        .update({
+                            jira_linked_issue_url: linkedIssueUrl,
                             updated_at: trx.fn.now() as never,
                         });
                 },
@@ -3011,6 +3074,7 @@ export class AiAgentReviewClassifierModel {
                         .whereIn('status', ['triage', 'open'])
                         .whereNull('assigned_to_user_uuid')
                         .whereNull('linked_issue_url')
+                        .whereNull('jira_linked_issue_url')
                         .whereNull('linked_pr_url')
                         .whereNull('pr_writeback_thread_uuid')
                         .whereNull('status_updated_by_user_uuid')
