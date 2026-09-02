@@ -274,6 +274,15 @@ export type DashboardAutoRefreshUpdateEvent = {
     };
 };
 
+type LearnClickedEvent = {
+    name: EventName.LEARN_CLICKED;
+    properties: {
+        userId: string | undefined;
+        organizationId: string | undefined;
+        projectId: string;
+    };
+};
+
 type MetricsCatalogClickedEvent = {
     name: EventName.METRICS_CATALOG_CLICKED;
     properties: {
@@ -964,6 +973,7 @@ export type EventData =
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
     | DashboardAutoRefreshUpdateEvent
+    | LearnClickedEvent
     | MetricsCatalogClickedEvent
     | MetricsCatalogChartUsageClickedEvent
     | MetricsCatalogExploreClickedEvent
