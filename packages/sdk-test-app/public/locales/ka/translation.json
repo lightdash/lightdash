@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "მეტრიკის ტიპი"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle-ის დაფა",
@@ -82,6 +87,7 @@
         }
     },
     "uiOverrides": {
+        "parameters.is": "არის",
         "tileMenu.exploreFromHere": "გამოიკვლიეთ აქედან",
         "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
         "tileMenu.exportImage": "სურათის ექსპორტი",

@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "Tipo de métrica"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Tablero de Jaffle",
@@ -82,6 +87,7 @@
         }
     },
     "uiOverrides": {
+        "parameters.is": "es",
         "tileMenu.exploreFromHere": "Explorar desde aquí",
         "tileMenu.downloadData": "Descargar datos",
         "tileMenu.exportImage": "Exportar imagen",
