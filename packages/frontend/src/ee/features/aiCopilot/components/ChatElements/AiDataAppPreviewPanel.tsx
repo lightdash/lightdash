@@ -16,16 +16,20 @@ import {
     IconExternalLink,
     IconX,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode, useState } from 'react';
+import { useCallback, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
+import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
+import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import { type ElementRef } from '../../../../../features/apps/utils/elementRefs';
+import { addThreadElementReference } from '../../store/aiAgentThreadElementRefsSlice';
 import {
     clearPreview,
     type DataAppPreviewData,
@@ -35,8 +39,8 @@ import artifactStyles from './AiArtifactPanel.module.css';
 
 type Props = {
     dataAppPreview: DataAppPreviewData;
-    /** Only the full-page thread panel hosts the query inspector; the
-     *  floating launcher preview is too small for it. */
+    /** Only the full-page thread panel hosts the network inspector and the
+     *  element picker; the floating launcher preview is too small for them. */
     showInspector: boolean;
 };
 
@@ -45,7 +49,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     showInspector,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { appUuid, projectUuid } = dataAppPreview;
+    const { appUuid, projectUuid, threadUuid } = dataAppPreview;
 
     const previewOrigin = usePreviewOrigin();
     const appQuery = useGetApp(projectUuid, appUuid);
@@ -75,6 +79,47 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             setInspectorPinned(true);
             inspector.show();
         }
+    };
+    const { onLineageCancelled } = inspector.iframeProps;
+
+    // Picked references go to the thread's composer state, not the hook's own
+    // list, so they outlive closing the panel and the next version.
+    const appSlug = app?.slug;
+    const appName = app?.name;
+    const handlePick = useCallback(
+        (ref: ElementRef) => {
+            if (
+                appSlug === undefined ||
+                appName === undefined ||
+                latestReadyVersion === undefined
+            ) {
+                return;
+            }
+            dispatch(
+                addThreadElementReference({
+                    threadUuid,
+                    reference: {
+                        appUuid,
+                        appSlug,
+                        appDisplayName: getAppDisplayName(appName, appUuid),
+                        version: latestReadyVersion,
+                        ...ref,
+                    },
+                }),
+            );
+        },
+        [dispatch, threadUuid, appUuid, appSlug, appName, latestReadyVersion],
+    );
+    // Picker and lineage both claim clicks in the preview: one at a time.
+    const picker = useElementPicker({
+        identityKey,
+        onEnabled: onLineageCancelled,
+        onPick: handlePick,
+    });
+    const { lineageEnabled, onToggleLineage } = inspector.panelProps;
+    const handleToggleLineage = () => {
+        if (!lineageEnabled) picker.cancel();
+        onToggleLineage();
     };
 
     const {
@@ -177,13 +222,16 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                     appUuid={appUuid}
                     identityKey={identityKey}
                     capabilities={{ gsheetExport: true }}
-                    {...(showInspector ? inspector.iframeProps : {})}
+                    {...(showInspector
+                        ? { ...inspector.iframeProps, ...picker.iframeProps }
+                        : {})}
                 />
                 {showInspector && !inspector.hidden && (
                     <AppInspectorPanel
                         projectUuid={projectUuid}
                         hideWhenEmpty={!inspectorPinned}
                         {...inspector.panelProps}
+                        onToggleLineage={handleToggleLineage}
                     />
                 )}
             </>
@@ -251,6 +299,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 )}
                             </Menu.Dropdown>
                         </Menu>
+                        {showInspector && picker.available && (
+                            <ElementPickerButton
+                                enabled={picker.enabled}
+                                onToggle={picker.toggle}
+                            />
+                        )}
                         {closeButton}
                     </Group>
                 </Box>

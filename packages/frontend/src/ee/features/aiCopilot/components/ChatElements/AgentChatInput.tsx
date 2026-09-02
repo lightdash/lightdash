@@ -66,7 +66,17 @@ import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
 } from '../../hooks/useProjectAiAgents';
+import {
+    clearThreadElementReferences,
+    removeThreadElementReference,
+    selectThreadElementReferences,
+    type ThreadElementReference,
+} from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
@@ -88,6 +98,66 @@ import {
 import { getAgentSuggestionModes } from './suggestionModes';
 
 const SUGGESTION_CHIP_MENTION_NAME = 'suggestionChip';
+
+type SubmitContext = {
+    context?: AiPromptContextInput;
+    optimisticContext?: AiPromptContextItem[];
+};
+
+/** Context the composer submits with a prompt; keys are omitted when empty. */
+const buildSubmitContext = ({
+    mentionContext,
+    externalSources,
+    elementReferences,
+}: {
+    mentionContext: SubmitContext;
+    externalSources: ExternalSourceAttachment[];
+    elementReferences: ThreadElementReference[];
+}): SubmitContext => {
+    const context: AiPromptContextItemInput[] = [
+        ...(mentionContext.context ?? []),
+        ...externalSources.map(({ sourceUuid }) => ({
+            type: 'external_source' as const,
+            sourceUuid,
+        })),
+        ...elementReferences.map(({ appUuid, version, tag, text, loc }) => ({
+            type: 'data_app_element' as const,
+            appUuid,
+            version,
+            tag,
+            text,
+            loc,
+        })),
+    ];
+    const optimisticContext: AiPromptContextItem[] = [
+        ...(mentionContext.optimisticContext ?? []),
+        ...externalSources,
+        ...elementReferences.map(
+            ({
+                appUuid,
+                appSlug,
+                appDisplayName,
+                version,
+                tag,
+                text,
+                loc,
+            }) => ({
+                type: 'data_app_element' as const,
+                appUuid,
+                version,
+                tag,
+                text,
+                loc,
+                appSlug,
+                displayName: appDisplayName,
+            }),
+        ),
+    ];
+    return {
+        ...(context.length > 0 ? { context } : {}),
+        ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
+    };
+};
 const ACTIVE_DEEP_RESEARCH_DISABLED_REASON =
     'Only one deep research run can be active in a thread at a time.';
 
@@ -113,11 +183,9 @@ const SuggestionChipMention = Mention.extend({
     },
 });
 
-type SubmitArgs = {
+type SubmitArgs = SubmitContext & {
     message: string;
     toolHints: string[];
-    context?: AiPromptContextInput;
-    optimisticContext?: AiPromptContextItem[];
 };
 
 interface AgentChatInputProps {
@@ -207,6 +275,16 @@ export const AgentChatInput = ({
     const [externalSourceAttachments, setExternalSourceAttachments] = useState<
         ExternalSourceAttachment[]
     >([]);
+    // Picked in the thread's data app preview panel.
+    const storeDispatch = useAiAgentStoreDispatch();
+    const elementReferences = useAiAgentStoreSelector(
+        selectThreadElementReferences(threadUuid),
+    );
+    const clearElementReferences = useCallback(() => {
+        if (threadUuid) {
+            storeDispatch(clearThreadElementReferences({ threadUuid }));
+        }
+    }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -485,22 +563,17 @@ export const AgentChatInput = ({
             onSubmitRef.current({
                 message: chip.label,
                 toolHints: [chip.tool],
-                ...(externalSourceAttachments.length > 0
-                    ? {
-                          context: externalSourceAttachments.map(
-                              ({ sourceUuid }) => ({
-                                  type: 'external_source' as const,
-                                  sourceUuid,
-                              }),
-                          ),
-                          optimisticContext: externalSourceAttachments,
-                      }
-                    : {}),
+                ...buildSubmitContext({
+                    mentionContext: {},
+                    externalSources: externalSourceAttachments,
+                    elementReferences,
+                }),
             });
             if (clearOnSubmitRef.current) {
                 editor?.commands.clearContent();
                 setValueState('');
                 setExternalSourceAttachments([]);
+                clearElementReferences();
             }
             trackClick();
         },
@@ -515,6 +588,8 @@ export const AgentChatInput = ({
             emptyStateMode,
             navigate,
             externalSourceAttachments,
+            elementReferences,
+            clearElementReferences,
             isPreparingCsv,
             retainCsvSources,
         ],
@@ -640,34 +715,23 @@ export const AgentChatInput = ({
             dismissDeepResearchNudgeForSession();
             setNudgeState('done');
         }
-        const mentionContext = extractContentMentionContext(ed);
-        const context = [
-            ...(mentionContext.context ?? []),
-            ...externalSourceAttachments.map(
-                ({ sourceUuid }) =>
-                    ({
-                        type: 'external_source',
-                        sourceUuid,
-                    }) satisfies AiPromptContextItemInput,
-            ),
-        ];
-        const optimisticContext = [
-            ...(mentionContext.optimisticContext ?? []),
-            ...externalSourceAttachments,
-        ];
         retainCsvSources(
             externalSourceAttachments.map(({ sourceUuid }) => sourceUuid),
         );
         onSubmitRef.current({
             message: text,
             toolHints: extractToolHints(ed),
-            ...(context.length > 0 ? { context } : {}),
-            ...(optimisticContext.length > 0 ? { optimisticContext } : {}),
+            ...buildSubmitContext({
+                mentionContext: extractContentMentionContext(ed),
+                externalSources: externalSourceAttachments,
+                elementReferences,
+            }),
         });
         if (clearOnSubmitRef.current) {
             ed.commands.clearContent();
             setValueState('');
             setExternalSourceAttachments([]);
+            clearElementReferences();
         }
     };
 
@@ -929,11 +993,13 @@ export const AgentChatInput = ({
     };
 
     const renderedAttachments =
-        externalSourceAttachments.length > 0 || pendingCsvFiles.length > 0 ? (
+        externalSourceAttachments.length > 0 ||
+        pendingCsvFiles.length > 0 ||
+        elementReferences.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
-                elementRefs={[]}
+                elementRefs={elementReferences}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
                         attachments.filter(
@@ -943,7 +1009,15 @@ export const AgentChatInput = ({
                     );
                     void discardCsvSource(sourceUuid);
                 }}
-                onRemoveElementRef={() => {}}
+                onRemoveElementRef={(reference) => {
+                    if (!threadUuid) return;
+                    storeDispatch(
+                        removeThreadElementReference({
+                            threadUuid,
+                            reference,
+                        }),
+                    );
+                }}
             />
         ) : undefined;
 

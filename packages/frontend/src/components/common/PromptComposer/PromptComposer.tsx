@@ -235,22 +235,29 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                 )}
 
                 {isInline ? (
-                    <Box className={classes.inlineEditorWrap}>
-                        {editorSurface}
-                        {isEmpty && placeholder && (
-                            <Text
-                                aria-hidden
-                                className={classes.inlinePlaceholder}
-                            >
-                                {placeholder}
-                            </Text>
+                    <Box className={classes.inlineMain}>
+                        <Box className={classes.inlineEditorWrap}>
+                            {editorSurface}
+                            {isEmpty && placeholder && (
+                                <Text
+                                    aria-hidden
+                                    className={classes.inlinePlaceholder}
+                                >
+                                    {placeholder}
+                                </Text>
+                            )}
+                        </Box>
+                        {attachments && (
+                            <Box className={classes.attachments}>
+                                {attachments}
+                            </Box>
                         )}
                     </Box>
                 ) : (
                     editorSurface
                 )}
 
-                {attachments && (
+                {!isInline && attachments && (
                     <Box className={classes.attachments}>{attachments}</Box>
                 )}
 
