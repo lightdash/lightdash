@@ -1,3 +1,10 @@
+# [2.86.0](https://github.com/lightdash/lightdash/compare/2.85.1...2.86.0) (2026-09-02)
+
+
+### Features
+
+* chart type library gallery section + official/fork UX ([#28376](https://github.com/lightdash/lightdash/issues/28376)) ([4914a8b](https://github.com/lightdash/lightdash/commit/4914a8b929232cfddf61cfc110ccb9f8dff865eb)), closes [#28375](https://github.com/lightdash/lightdash/issues/28375) [#28374](https://github.com/lightdash/lightdash/issues/28374) [#28219](https://github.com/lightdash/lightdash/issues/28219) [#28220](https://github.com/lightdash/lightdash/issues/28220)
+
 ## [2.85.1](https://github.com/lightdash/lightdash/compare/2.85.0...2.85.1) (2026-09-02)
 
 
