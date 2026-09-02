@@ -1,5 +1,6 @@
 /* Neutrals are the design README's literals (authoritative for tokens; the
-   ldGray ramp has no exact matches); brand purple uses the Mantine var. */
+   ldGray ramp has no exact matches); the accent comes from the host-set
+   --learn-accent custom property, with a violet fallback. */
 .scroller {
     width: 100%;
     overflow-x: auto;
