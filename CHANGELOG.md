@@ -1,3 +1,10 @@
+# [2.89.0](https://github.com/lightdash/lightdash/compare/2.88.1...2.89.0) (2026-09-02)
+
+
+### Features
+
+* **ai:** AI agent iterates on a data app from a thread ([#28428](https://github.com/lightdash/lightdash/issues/28428)) ([472d4b3](https://github.com/lightdash/lightdash/commit/472d4b390102ec7fc2524bb8d26f2d4f49c1a615)), closes [#28413](https://github.com/lightdash/lightdash/issues/28413)
+
 ## [2.88.1](https://github.com/lightdash/lightdash/compare/2.88.0...2.88.1) (2026-09-02)
 
 

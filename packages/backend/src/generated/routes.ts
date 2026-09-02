@@ -23736,6 +23736,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['getProjectInfo'] },
                 { dataType: 'enum', enums: ['getPullRequestDiff'] },
                 { dataType: 'enum', enums: ['grepFields'] },
+                { dataType: 'enum', enums: ['iterateDataApp'] },
                 { dataType: 'enum', enums: ['listContent'] },
                 { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
                 { dataType: 'enum', enums: ['listProjects'] },
@@ -25388,6 +25389,20 @@ const models: TsoaRoute.Models = {
                                         {
                                             dataType: 'nestedObjectLiteral',
                                             nestedProperties: {
+                                                slug: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'string' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
                                                 href: {
                                                     dataType: 'string',
                                                     required: true,
