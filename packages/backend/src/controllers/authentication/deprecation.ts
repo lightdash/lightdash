@@ -1,10 +1,7 @@
-import { DeprecatedRouteError } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
 import { RequestHandler } from 'express';
 import Logger from '../../logging/logger';
 
 const SUNSET_MONTHS_FROM_DEPRECATION = 3;
-const ERROR_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 export const getDefaultSunsetDate = (deprecatedOn: Date): Date => {
     const sunset = new Date(deprecatedOn);
@@ -12,22 +9,11 @@ export const getDefaultSunsetDate = (deprecatedOn: Date): Date => {
     return sunset;
 };
 
-export const shouldEscalateToError = (removeOn: Date, now: Date): boolean =>
-    removeOn.getTime() - now.getTime() <= ERROR_WINDOW_MS;
-
 type DeprecatedRouteOptions = {
     removeOn?: Date;
     suffixMessage?: string;
 };
 
-/**
- * Handles a deprecated API route: sets deprecation response headers and logs
- * every call. Logs escalate from warn to error once the removal date is within
- * two weeks or has passed.
- * @param deprecatedOn - The date the endpoint was deprecated
- * @param options.removeOn - Removal date (defaults to deprecatedOn + 3 months)
- * @param options.suffixMessage - Replacement hint appended to logs and headers
- */
 export const getDeprecatedRouteMiddleware = (
     deprecatedOn: Date,
     options?: DeprecatedRouteOptions,
@@ -43,20 +29,11 @@ export const getDeprecatedRouteMiddleware = (
             `299 - "This API endpoint is deprecated and will be removed after ${removeOn.toUTCString()}.${suffix}"`,
         );
 
-        const message = `Deprecated endpoint called: ${req.method} ${req.path} (deprecated ${deprecatedOn.toISOString()}, removal ${removeOn.toISOString()}).${suffix}`;
-        if (shouldEscalateToError(removeOn, new Date())) {
-            Logger.error(message);
-            Sentry.captureException(
-                new DeprecatedRouteError(message, {
-                    method: req.method,
-                    path: req.path,
-                    deprecatedOn: deprecatedOn.toISOString(),
-                    removeOn: removeOn.toISOString(),
-                }),
-            );
-        } else {
-            Logger.warn(message);
-        }
+        Logger.warn(`Deprecated endpoint called.${suffix}`, {
+            route: `${req.method} ${req.path}`,
+            deprecatedOn: deprecatedOn.toISOString(),
+            removeOn: removeOn.toISOString(),
+        });
 
         next();
     };
