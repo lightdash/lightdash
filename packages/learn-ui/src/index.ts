@@ -1,1 +1,8 @@
-export const LEARN_UI_PACKAGE = '@lightdash/learn-ui';
+export { LearnUiProvider, useScopeSource } from './scope/context';
+export {
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    ScopeGroup,
+    type Scope,
+    type ScopeSource,
+} from './scope/types';
