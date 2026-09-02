@@ -12,6 +12,7 @@ export type TrackingParams = {
     userUuid: string;
     organizationUuid: string;
     projectUuid: string;
+    jobUuid?: string;
 };
 
 export interface ProjectAdapter {
