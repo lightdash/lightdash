@@ -1,43 +1,25 @@
 {
   "schemaVersion": "2",
-  "version": "2.95.0",
-  "previousVersion": "2.94.0",
-  "releaseDate": "2026-09-02T14:45:10.389Z",
+  "version": "2.95.1",
+  "previousVersion": "2.95.0",
+  "releaseDate": "2026-09-02T14:53:01.913Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260902100000_add_mobile_push_installation_platform.ts",
-        "edition": "ee",
-        "tables": [
-          "mobile_push_installations"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} — added the pattern `[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}` to the `path` request parameter `installationUuid`",
-        "DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} — for the `path` request parameter `installationUuid`, the `format` was changed from `none` to `uuid`",
-        "PUT /api/v1/mobile/push-notifications/installations/{installationUuid} — added the pattern `[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}` to the `path` request parameter `installationUuid`",
-        "PUT /api/v1/mobile/push-notifications/installations/{installationUuid} — for the `path` request parameter `installationUuid`, the `format` was changed from `none` to `uuid`"
-      ],
-      "breakingCount": 4,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -59,11 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "mobile-push-installation-uuid-path-params",
-      "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }

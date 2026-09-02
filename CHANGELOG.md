@@ -1,3 +1,10 @@
+## [2.95.1](https://github.com/lightdash/lightdash/compare/2.95.0...2.95.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **backend:** keep mobile push installations with their owner ([#28522](https://github.com/lightdash/lightdash/issues/28522)) ([555aa71](https://github.com/lightdash/lightdash/commit/555aa71adfe7da18a79dc79dacca6fd2fe5e88db))
+
 # [2.95.0](https://github.com/lightdash/lightdash/compare/2.94.0...2.95.0) (2026-09-02)
 
 
