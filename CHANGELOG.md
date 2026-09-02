@@ -1,3 +1,16 @@
+# [2.92.0](https://github.com/lightdash/lightdash/compare/2.91.0...2.92.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **mcp:** keep run_metric_query discoverable when a client's tool catalogue is stale ([#28419](https://github.com/lightdash/lightdash/issues/28419)) ([08ff6d3](https://github.com/lightdash/lightdash/commit/08ff6d33ad31d428e95a212e6d632ff964949e22))
+
+
+### Features
+
+* **review-requests:** schema, common types and models ([#28426](https://github.com/lightdash/lightdash/issues/28426)) ([290ce75](https://github.com/lightdash/lightdash/commit/290ce75871f1bb858b2b1b9461dc9be818386b6f)), closes [#26967](https://github.com/lightdash/lightdash/issues/26967)
+* uninstall official chart types from the library ([#28490](https://github.com/lightdash/lightdash/issues/28490)) ([eec9689](https://github.com/lightdash/lightdash/commit/eec9689db2d3140934a30b010f5f46dea070d85f))
+
 # [2.91.0](https://github.com/lightdash/lightdash/compare/2.90.0...2.91.0) (2026-09-02)
 
 
