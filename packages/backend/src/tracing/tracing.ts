@@ -3,9 +3,9 @@
  * LIGHTDASH_OTEL_TRACES_ENABLED:
  *
  * - OTel mode (Lightdash Cloud, and local dev): spans are created via the OTel
- *   SDK and exported over OTLP — GCP Cloud Trace in Cloud, Maple local mode in
- *   dev. Sentry does NOT receive or create spans — it is errors-only (see
- *   sentry.ts, which strips Sentry's span-emitting integrations in this mode).
+ *   SDK and exported according to OTEL_TRACES_EXPORTER. Sentry does NOT receive
+ *   or create spans — it is errors-only (see sentry.ts, which strips Sentry's
+ *   span-emitting integrations in this mode).
  * - Sentry mode (self-hosted): spans are created via Sentry's SDK exactly as
  *   before OTLP export existed.
  *
@@ -16,22 +16,27 @@ import type {
     Attributes,
     AttributeValue,
     Context,
+    DiagLogger,
     Link,
     Span as OtelSpan,
     SpanKind,
 } from '@opentelemetry/api';
 import {
     context,
+    diag,
+    DiagConsoleLogger,
     propagation,
     SpanStatusCode,
     trace,
 } from '@opentelemetry/api';
 import {
     CompositePropagator,
+    diagLogLevelFromString,
+    getStringFromEnv,
+    getStringListFromEnv,
     W3CBaggagePropagator,
     W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
     ExpressInstrumentation,
     ExpressLayerType,
@@ -43,7 +48,6 @@ import {
 } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
-    BatchSpanProcessor,
     ParentBasedSampler,
     SamplingDecision,
     TraceIdRatioBasedSampler,
@@ -86,10 +90,161 @@ const serviceVersion = String(VERSION);
 
 const parseBoolean = (value: string | undefined) => value === 'true';
 
+const SENSITIVE_OTEL_DIAGNOSTIC_VALUE =
+    /\b(authorization|proxy-authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|token|password)["']?\s*[:=]/iu;
+
+const redactOtelDiagnosticString = (value: string): string => {
+    const redactedUrls = value.replace(
+        /https?:\/\/[^\s'"<>]+/giu,
+        (candidate) => {
+            try {
+                const url = new URL(candidate);
+                url.username = '';
+                url.password = '';
+                url.search = '';
+                url.pathname = url.pathname.endsWith('/v1/traces')
+                    ? '/v1/traces'
+                    : '/';
+                return url.toString();
+            } catch {
+                return '[REDACTED_URL]';
+            }
+        },
+    );
+
+    return SENSITIVE_OTEL_DIAGNOSTIC_VALUE.test(redactedUrls)
+        ? '[sensitive diagnostic omitted]'
+        : redactedUrls;
+};
+
+const sanitizeOtelDiagnosticValue = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+        return redactOtelDiagnosticString(value);
+    }
+    if (value instanceof Error) {
+        return `${value.name}: ${redactOtelDiagnosticString(value.message)}`;
+    }
+    if (typeof value === 'object' && value !== null) {
+        return '[diagnostic details omitted]';
+    }
+    return value;
+};
+
+export const sanitizeOtelDiagnosticArguments = (
+    message: unknown,
+    ...args: unknown[]
+): [string, ...unknown[]] => {
+    if (message === 'OTLPExportDelegate' && args[0] === 'items to be sent') {
+        return [message, 'items to be sent (payload omitted)'];
+    }
+
+    return [
+        String(sanitizeOtelDiagnosticValue(message)),
+        ...args.map(sanitizeOtelDiagnosticValue),
+    ];
+};
+
+const createRedactingOtelDiagLogger = (): DiagLogger => {
+    const delegate = new DiagConsoleLogger();
+    const redact =
+        (log: DiagLogger['debug']): DiagLogger['debug'] =>
+        (message, ...args) =>
+            log(...sanitizeOtelDiagnosticArguments(message, ...args));
+
+    return {
+        error: redact(delegate.error),
+        warn: redact(delegate.warn),
+        info: redact(delegate.info),
+        debug: redact(delegate.debug),
+        verbose: redact(delegate.verbose),
+    };
+};
+
+export const installRedactingOtelDiagnostics = (): (() => void) => {
+    const originalOtelLogLevel = process.env.OTEL_LOG_LEVEL;
+    const otelLogLevel = getStringFromEnv('OTEL_LOG_LEVEL');
+    if (!otelLogLevel) return () => undefined;
+
+    diag.setLogger(createRedactingOtelDiagLogger(), {
+        logLevel: diagLogLevelFromString(otelLogLevel),
+        suppressOverrideMessage: true,
+    });
+    delete process.env.OTEL_LOG_LEVEL;
+
+    return () => {
+        process.env.OTEL_LOG_LEVEL = originalOtelLogLevel;
+    };
+};
+
 export const otelTracingEnabled = () =>
     parseBoolean(process.env.LIGHTDASH_OTEL_TRACES_ENABLED) &&
-    process.env.OTEL_SDK_DISABLED !== 'true' &&
-    process.env.OTEL_TRACES_EXPORTER !== 'none';
+    process.env.OTEL_SDK_DISABLED !== 'true';
+
+const SUPPORTED_TRACE_EXPORTERS = new Set(['console', 'otlp', 'zipkin']);
+const SUPPORTED_OTLP_PROTOCOLS = new Set([
+    'grpc',
+    'http/json',
+    'http/protobuf',
+]);
+
+type OtelTraceExportConfig = {
+    exporters: string[];
+    protocol: string | null;
+    warnings: string[];
+};
+
+export const configureOtelTraceExport = (): OtelTraceExportConfig => {
+    let requestedExporters = Array.from(
+        new Set(getStringListFromEnv('OTEL_TRACES_EXPORTER') ?? []),
+    ).filter((exporter) => exporter !== 'null');
+    const warnings: string[] = [];
+
+    if (requestedExporters.includes('none')) {
+        process.env.OTEL_TRACES_EXPORTER = 'none';
+        if (requestedExporters.length > 1) {
+            warnings.push(
+                'OTEL_TRACES_EXPORTER contains "none" with other exporters; only "none" will be used',
+            );
+        }
+        return { exporters: ['none'], protocol: null, warnings };
+    }
+
+    if (requestedExporters.length === 0) {
+        requestedExporters = ['otlp'];
+    }
+
+    const exporters = requestedExporters.filter((exporter) => {
+        if (SUPPORTED_TRACE_EXPORTERS.has(exporter)) return true;
+
+        warnings.push(
+            `Unsupported OTEL_TRACES_EXPORTER value "${exporter}" was ignored; supported values are otlp, console, zipkin, and none`,
+        );
+        return false;
+    });
+
+    if (exporters.length === 0) {
+        warnings.push(
+            'OpenTelemetry could not configure trace export because no supported exporter was selected',
+        );
+    }
+
+    if (!exporters.includes('otlp')) {
+        return { exporters, protocol: null, warnings };
+    }
+
+    const requestedProtocol =
+        getStringFromEnv('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL') ??
+        getStringFromEnv('OTEL_EXPORTER_OTLP_PROTOCOL') ??
+        'http/protobuf';
+    if (SUPPORTED_OTLP_PROTOCOLS.has(requestedProtocol)) {
+        return { exporters, protocol: requestedProtocol, warnings };
+    }
+
+    warnings.push(
+        `Unsupported OTLP traces protocol "${requestedProtocol}"; OpenTelemetry will use "http/protobuf"`,
+    );
+    return { exporters, protocol: 'http/protobuf', warnings };
+};
 
 const getSampleRate = () => {
     const sampleRate = Number(
@@ -348,50 +503,70 @@ class OtelTracingStrategy implements TracingStrategy {
     initialize() {
         if (!this.isEnabled() || this.sdk) return;
 
-        this.sdk = new NodeSDK({
-            // Sentry's context manager (an AsyncLocalStorage manager that also
-            // forks Sentry scopes per context) is required for per-request
-            // error isolation — Sentry still captures errors in OTel mode.
-            contextManager: new Sentry.SentryContextManager(),
-            resource: defaultResource().merge(
-                resourceFromAttributes({
-                    'service.name':
-                        process.env.OTEL_SERVICE_NAME || 'lightdash',
-                    'service.version': serviceVersion,
-                }),
-            ),
-            sampler: createTraceSampler(),
-            metricReaders: [],
-            textMapPropagator: new CompositePropagator({
-                propagators: [
-                    new LightdashTraceContextPropagator(),
-                    new W3CBaggagePropagator(),
-                ],
-            }),
-            spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())],
-            instrumentations: [
-                new HttpInstrumentation({
-                    ignoreIncomingRequestHook: (req) =>
-                        isIgnoredIncomingRequest(
-                            req.url ?? '',
-                            req.headers['user-agent'],
-                        ),
-                }),
-                new ExpressInstrumentation({
-                    // A span per middleware layer floods traces; the request
-                    // handler layer alone still names the HTTP span with the
-                    // resolved route.
-                    ignoreLayersType: [
-                        ExpressLayerType.MIDDLEWARE,
-                        ExpressLayerType.ROUTER,
+        const exportConfig = configureOtelTraceExport();
+        exportConfig.warnings.forEach((warning) => Logger.warn(warning));
+
+        const restoreOtelLogLevel = installRedactingOtelDiagnostics();
+
+        // Leaving spanProcessors unset delegates exporter and protocol
+        // selection to the Node SDK's standard OTEL_* environment handling.
+        try {
+            this.sdk = new NodeSDK({
+                // Sentry's context manager (an AsyncLocalStorage manager that also
+                // forks Sentry scopes per context) is required for per-request
+                // error isolation — Sentry still captures errors in OTel mode.
+                contextManager: new Sentry.SentryContextManager(),
+                resource: defaultResource().merge(
+                    resourceFromAttributes({
+                        'service.name':
+                            process.env.OTEL_SERVICE_NAME || 'lightdash',
+                        'service.version': serviceVersion,
+                    }),
+                ),
+                sampler: createTraceSampler(),
+                metricReaders: [],
+                textMapPropagator: new CompositePropagator({
+                    propagators: [
+                        new LightdashTraceContextPropagator(),
+                        new W3CBaggagePropagator(),
                     ],
                 }),
-            ],
-        });
+                instrumentations: [
+                    new HttpInstrumentation({
+                        ignoreIncomingRequestHook: (req) =>
+                            isIgnoredIncomingRequest(
+                                req.url ?? '',
+                                req.headers['user-agent'],
+                            ),
+                    }),
+                    new ExpressInstrumentation({
+                        // A span per middleware layer floods traces; the request
+                        // handler layer alone still names the HTTP span with the
+                        // resolved route.
+                        ignoreLayersType: [
+                            ExpressLayerType.MIDDLEWARE,
+                            ExpressLayerType.ROUTER,
+                        ],
+                    }),
+                ],
+            });
+        } finally {
+            restoreOtelLogLevel();
+        }
         this.sdk.start();
         this.tracer = trace.getTracer('lightdash-backend', serviceVersion);
 
-        Logger.info('OTEL trace export enabled');
+        const exporters = exportConfig.exporters.join(', ') || 'none';
+        const protocol = exportConfig.protocol
+            ? `; OTLP protocol: ${exportConfig.protocol}`
+            : '';
+        const aiSampling =
+            process.env.LIGHTDASH_OTEL_ALWAYS_SAMPLE_AI_TRACES === 'false'
+                ? ''
+                : '; AI/agent roots are always sampled';
+        Logger.info(
+            `OpenTelemetry tracing configured; trace exporters: ${exporters}${protocol}; Lightdash sampling ratio: ${getSampleRate()}${aiSampling}; OTEL_TRACES_SAMPLER and OTEL_TRACES_SAMPLER_ARG are overridden by Lightdash; exporter connectivity has not been validated. Set OTEL_LOG_LEVEL=DEBUG for OpenTelemetry SDK/exporter diagnostics`,
+        );
     }
 
     async shutdown() {
