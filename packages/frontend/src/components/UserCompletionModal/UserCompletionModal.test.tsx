@@ -450,7 +450,8 @@ describe('UserCompletionModal', () => {
                 organizationName: 'test organization',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'a podcast',
-                enableEmailDomainAccess: false,
+                // org creator on a custom domain: enabled by default
+                enableEmailDomainAccess: true,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
