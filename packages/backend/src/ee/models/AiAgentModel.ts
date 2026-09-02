@@ -75,8 +75,8 @@ import {
     isAiAgentToolName,
     isAiWritebackRunInProgress,
     isThreadPrompt,
+    isToolDataAppBuildResult,
     isToolEditDbtProjectResult,
-    isToolGenerateDataAppResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -504,19 +504,19 @@ const isPendingEditDbtProjectToolResult = (
 ): result is PendingEditDbtProjectToolResult =>
     isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
 
-type PendingGenerateDataAppToolResult = AiAgentToolResult & {
+type PendingDataAppBuildToolResult = AiAgentToolResult & {
     toolType: 'built-in';
-    toolName: 'generateDataApp';
+    toolName: 'generateDataApp' | 'iterateDataApp';
     metadata: Extract<
         ToolGenerateDataAppOutput['metadata'],
         { status: 'pending' }
     >;
 };
 
-const isPendingGenerateDataAppToolResult = (
+const isPendingDataAppBuildToolResult = (
     result: AiAgentToolResult,
-): result is PendingGenerateDataAppToolResult =>
-    isToolGenerateDataAppResult(result) && result.metadata.status === 'pending';
+): result is PendingDataAppBuildToolResult =>
+    isToolDataAppBuildResult(result) && result.metadata.status === 'pending';
 
 const getTerminalWritebackFallback = (
     run: DbAiWritebackRun,
@@ -7392,9 +7392,7 @@ export class AiAgentModel {
         results: AiAgentToolResult[],
         now = Date.now(),
     ): Promise<AiAgentToolResult[]> {
-        const pendingResults = results.filter(
-            isPendingGenerateDataAppToolResult,
-        );
+        const pendingResults = results.filter(isPendingDataAppBuildToolResult);
         if (pendingResults.length === 0) {
             return results;
         }
@@ -7411,7 +7409,7 @@ export class AiAgentModel {
             )
             .select<
                 Array<
-                    Pick<DbApp, 'app_id' | 'name'> &
+                    Pick<DbApp, 'app_id' | 'name' | 'slug'> &
                         Pick<
                             DbAppVersion,
                             'version' | 'status' | 'error' | 'status_message'
@@ -7420,6 +7418,7 @@ export class AiAgentModel {
             >(
                 `${AppsTableName}.app_id`,
                 `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
                 `${AppVersionsTableName}.version`,
                 `${AppVersionsTableName}.status`,
                 `${AppVersionsTableName}.error`,
@@ -7446,7 +7445,7 @@ export class AiAgentModel {
         );
 
         return results.map((result) => {
-            if (!isPendingGenerateDataAppToolResult(result)) {
+            if (!isPendingDataAppBuildToolResult(result)) {
                 return result;
             }
             const { appUuid, version } = result.metadata;
@@ -7458,6 +7457,7 @@ export class AiAgentModel {
                       appUuid,
                       version,
                       name: row.name,
+                      slug: row.slug,
                       status: row.status,
                       error: row.error,
                       statusMessage: row.status_message,

@@ -24,8 +24,9 @@ export const DATA_APP_VIZ_LINE_FORMAT =
     '[viz title][explore; metrics; dimensions; filters; sort]';
 
 export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
-    "Start building a data app — an interactive application generated from a brief on top of this project's semantic layer.",
+    "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer.",
     'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
+    'This tool always creates a new app: to change an app that already exists, use iterateDataApp instead.',
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending"). One request, one call: tell the user the build has started and that you will link them to the app afterwards, then end your turn — never wait, poll, or call this tool again for the same request.',
     'A later turn sees the outcome on this call\'s result: "success" carries the app name and the builder link (href) to share; "error" carries the failure message.',
 ].join(' ');
@@ -72,6 +73,8 @@ export const toolGenerateDataAppOutputSchema = z.object({
             appUuid: z.string(),
             version: z.number(),
             name: z.string(),
+            // Nullish: results persisted before slugs were recorded lack it.
+            slug: z.string().nullish(),
             href: z.string(),
         }),
         z.object({
@@ -116,6 +119,7 @@ export const getGenerateDataAppBuildOutcome = ({
     appUuid,
     version,
     name,
+    slug,
     status,
     error,
     statusMessage,
@@ -125,6 +129,7 @@ export const getGenerateDataAppBuildOutcome = ({
     appUuid: string;
     version: number;
     name: string;
+    slug: string | null;
     status: AppVersionStatus;
     error: string | null;
     statusMessage: string | null;
@@ -135,9 +140,13 @@ export const getGenerateDataAppBuildOutcome = ({
     if (status === 'ready') {
         // Canonical URL: the thread renders it as a link and the agent shares it.
         const href = `${siteUrl}${getDataAppBuilderPath(projectUuid, appUuid)}`;
+        const readyPhrase =
+            version === 1
+                ? `The data app "${name}" is ready.`
+                : `Version ${version} of the data app "${name}" is ready.`;
         return {
-            result: `The data app "${name}" is ready. Share this link so the user can open it in the builder: ${href}`,
-            metadata: { status: 'success', appUuid, version, name, href },
+            result: `${readyPhrase} Share this link so the user can open it in the builder: ${href}`,
+            metadata: { status: 'success', appUuid, version, name, slug, href },
         };
     }
     const cancelled = error === APP_VERSION_CANCELLED_BY_USER;

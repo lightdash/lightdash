@@ -4,7 +4,7 @@ import {
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
-    isToolGenerateDataAppResult,
+    isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
@@ -556,10 +556,11 @@ const AssistantBubbleContent: FC<{
     const generateDataAppMetadata:
         | ToolGenerateDataAppOutput['metadata']
         | null = (() => {
-        const persisted = message.toolResults.find(isToolGenerateDataAppResult);
+        const persisted = message.toolResults.find(isToolDataAppBuildResult);
         if (persisted) return persisted.metadata;
         const liveOutput = findLiveToolPart(streamingState?.parts, [
             'generateDataApp',
+            'iterateDataApp',
         ])?.toolResult as ToolGenerateDataAppOutput | undefined;
         return liveOutput?.metadata ?? null;
     })();
