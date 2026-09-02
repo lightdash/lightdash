@@ -61,15 +61,10 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
     feature: AiCallFeature;
     /**
-     * This field is necessary. It can be null. The `keyManagement` field on
-     * AiCallAttribution is optional, but this field is not. Each emitter must
-     * show the key that the call used. The key is a Lightdash-managed key, a
-     * self-managed (BYO) key, or null. Use null for a path that does not record
-     * the key origin. Examples are embeddings and internal evaluations. If an
-     * emitter does not set this field, the code does not compile. Before this
-     * change, an emitter could set null by mistake. The call then did not show
-     * in the managed-key reports. Several features were absent because of this,
-     * for example the review-classifier, which uses the Haiku model.
+     * The key origin for the call. This field is necessary, unlike the optional
+     * `keyManagement` on AiCallAttribution. Use a Lightdash-managed key, a
+     * self-managed (BYO) key, or null. Use null only for a path that does not
+     * record the key origin, for example embeddings or internal evaluations.
      */
     keyManagement: AiKeyManagement | null;
     /**
