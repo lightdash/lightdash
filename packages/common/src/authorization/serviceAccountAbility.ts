@@ -352,6 +352,12 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'OrganizationDesign', {
             organizationUuid,
         });
+        can('manage', 'DataAppTemplate', {
+            organizationUuid,
+        });
+        can('create', 'DataAppFromTemplate', {
+            organizationUuid,
+        });
         can('manage', 'Dashboard', {
             organizationUuid,
         });

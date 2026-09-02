@@ -125,6 +125,59 @@ describe('Organization member permissions', () => {
         ).toBe(false);
     });
 
+    describe('data app templates', () => {
+        const ownTemplate = subject('DataAppTemplate', {
+            organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+            createdByUserUuid: ORGANIZATION_EDITOR.userUuid,
+        });
+        const colleagueTemplate = subject('DataAppTemplate', {
+            organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+            createdByUserUuid: 'another-user',
+        });
+        const otherOrgTemplate = subject('DataAppTemplate', {
+            organizationUuid: 'another-organization',
+            createdByUserUuid: ORGANIZATION_EDITOR.userUuid,
+        });
+        const fromTemplate = subject('DataAppFromTemplate', {
+            organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+        });
+
+        it('lets editors publish templates, look after their own, and build from any', () => {
+            const ability =
+                defineAbilityForOrganizationMember(ORGANIZATION_EDITOR);
+            expect(ability.can('create', ownTemplate)).toBe(true);
+            expect(ability.can('manage', ownTemplate)).toBe(true);
+            expect(ability.can('manage', colleagueTemplate)).toBe(false);
+            expect(ability.can('create', otherOrgTemplate)).toBe(false);
+            expect(ability.can('create', fromTemplate)).toBe(true);
+        });
+
+        it('lets admins replace or delete any template in their organization', () => {
+            const ability =
+                defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+            expect(ability.can('manage', colleagueTemplate)).toBe(true);
+            expect(ability.can('manage', otherOrgTemplate)).toBe(false);
+            expect(ability.can('create', fromTemplate)).toBe(true);
+        });
+
+        it('keeps developers on the editor grants: own templates only', () => {
+            const ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_DEVELOPER,
+            );
+            expect(ability.can('create', ownTemplate)).toBe(true);
+            expect(ability.can('manage', colleagueTemplate)).toBe(false);
+        });
+
+        it('gives interactive viewers neither publishing nor building from templates', () => {
+            const ability = defineAbilityForOrganizationMember(
+                ORGANIZATION_INTERACTIVE_VIEWER,
+            );
+            expect(ability.can('create', ownTemplate)).toBe(false);
+            expect(ability.can('manage', ownTemplate)).toBe(false);
+            expect(ability.can('create', fromTemplate)).toBe(false);
+        });
+    });
+
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         describe('when user is an organization admin', () => {

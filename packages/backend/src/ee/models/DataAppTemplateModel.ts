@@ -33,6 +33,7 @@ const toSummary = (
     category: row.category,
     questions: row.questions ?? [],
     fileCount,
+    createdByUserUuid: row.created_by_user_uuid,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });

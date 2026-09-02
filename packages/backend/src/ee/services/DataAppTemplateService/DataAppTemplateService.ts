@@ -132,42 +132,80 @@ export class DataAppTemplateService extends BaseService {
         this.dataAppTemplateModel = dataAppTemplateModel;
     }
 
-    private assertCanManage(account: Account): {
+    private accountContext(account: Account): {
         organizationUuid: string;
         userUuid: string;
     } {
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
-        // Permission placeholder (flagged for review): templates are org
-        // content packages with the same audience as themes-as-code, so they
-        // borrow the OrganizationDesign subject. A dedicated DataAppTemplate
-        // subject needs matching scopes + role-parity entries — follow-up.
+        return {
+            organizationUuid: account.organization.organizationUuid,
+            userUuid: account.user.userUuid,
+        };
+    }
+
+    /** create:DataAppTemplate — publishing a template the org does not have yet. */
+    private assertCanCreate(account: Account, organizationUuid: string) {
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'create',
+                subject('DataAppTemplate', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to publish data app templates',
+            );
+        }
+    }
+
+    /**
+     * manage:DataAppTemplate(@self) — replacing or deleting an existing
+     * template. The subject carries the uploader so the @self rule can
+     * match; the org-wide rule ignores it.
+     */
+    private assertCanManageTemplate(
+        account: Account,
+        template: DataAppTemplateSummary,
+    ) {
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(
                 'manage',
-                subject('OrganizationDesign', { organizationUuid }),
+                subject('DataAppTemplate', {
+                    organizationUuid: template.organizationUuid,
+                    createdByUserUuid: template.createdByUserUuid,
+                }),
             )
         ) {
             throw new ForbiddenError(
-                'Insufficient permissions to manage data app templates',
+                `Insufficient permissions to change data app template "${template.slug}"`,
             );
         }
-        return { organizationUuid, userUuid: account.user.userUuid };
     }
 
-    private assertCanView(account: Account): { organizationUuid: string } {
-        assertRegisteredAccount(account);
-        assertIsAccountWithOrg(account);
-        const { organizationUuid } = account.organization;
+    /**
+     * Browsing is part of building from a template
+     * (create:DataAppFromTemplate); template authors and curators can
+     * browse too, so they can see what they published.
+     */
+    private assertCanBrowse(account: Account): { organizationUuid: string } {
+        const { organizationUuid } = this.accountContext(account);
         const ability = this.createAuditedAbility(account);
-        if (
-            ability.cannot(
-                'view',
-                subject('OrganizationDesign', { organizationUuid }),
-            )
-        ) {
+        const canBrowse =
+            ability.can(
+                'create',
+                subject('DataAppFromTemplate', { organizationUuid }),
+            ) ||
+            ability.can(
+                'create',
+                subject('DataAppTemplate', { organizationUuid }),
+            ) ||
+            ability.can(
+                'manage',
+                subject('DataAppTemplate', { organizationUuid }),
+            );
+        if (!canBrowse) {
             throw new ForbiddenError(
                 'Insufficient permissions to view data app templates',
             );
@@ -203,7 +241,7 @@ export class DataAppTemplateService extends BaseService {
         account: Account,
         input: { body: Readable; contentLength: number },
     ): Promise<DataAppTemplateImportResult> {
-        const { organizationUuid, userUuid } = this.assertCanManage(account);
+        const { organizationUuid, userUuid } = this.accountContext(account);
         if (
             input.contentLength <= 0 ||
             input.contentLength > MAX_DATA_APP_TEMPLATE_PACKAGE_BYTES
@@ -255,6 +293,11 @@ export class DataAppTemplateService extends BaseService {
             organizationUuid,
             manifest.template.id,
         );
+        if (existing) {
+            this.assertCanManageTemplate(account, existing);
+        } else {
+            this.assertCanCreate(account, organizationUuid);
+        }
         const templateUuid = existing?.templateUuid ?? uuidv4();
         const previousFiles = existing
             ? await this.dataAppTemplateModel.listFiles(existing.templateUuid)
@@ -328,12 +371,12 @@ export class DataAppTemplateService extends BaseService {
     }
 
     async list(account: Account): Promise<DataAppTemplateSummary[]> {
-        const { organizationUuid } = this.assertCanView(account);
+        const { organizationUuid } = this.assertCanBrowse(account);
         return this.dataAppTemplateModel.listByOrganization(organizationUuid);
     }
 
     async get(account: Account, slug: string): Promise<DataAppTemplateSummary> {
-        const { organizationUuid } = this.assertCanView(account);
+        const { organizationUuid } = this.assertCanBrowse(account);
         const template = await this.dataAppTemplateModel.findBySlug(
             organizationUuid,
             slug,
@@ -345,7 +388,7 @@ export class DataAppTemplateService extends BaseService {
     }
 
     async delete(account: Account, slug: string): Promise<void> {
-        const { organizationUuid } = this.assertCanManage(account);
+        const { organizationUuid } = this.accountContext(account);
         const template = await this.dataAppTemplateModel.findBySlug(
             organizationUuid,
             slug,
@@ -353,6 +396,7 @@ export class DataAppTemplateService extends BaseService {
         if (!template) {
             throw new NotFoundError(`Data app template "${slug}" not found`);
         }
+        this.assertCanManageTemplate(account, template);
         const files = await this.dataAppTemplateModel.listFiles(
             template.templateUuid,
         );
