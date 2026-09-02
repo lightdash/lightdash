@@ -8,6 +8,7 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import Editor, {
     useMonaco,
     type BeforeMount,
+    type EditorProps,
     type OnChange,
     type OnMount,
 } from '../../../components/MonacoEditor';
@@ -28,6 +29,7 @@ import {
     registerCustomCompletionProvider,
     registerMonacoLanguage,
 } from '../utils/monaco';
+import styles from './SqlEditor.module.css';
 
 // monaco highlight character
 export type MonacoHighlightChar = {
@@ -42,6 +44,13 @@ type MonacoHighlightLine = {
 };
 
 const DEBOUNCE_TIME = 500;
+
+// Widgets escape the card's overflow clipping; padding keeps line 1 off the toolbar.
+const SQL_RUNNER_MONACO_OPTIONS: EditorProps['options'] = {
+    ...MONACO_DEFAULT_OPTIONS,
+    padding: { top: 12, bottom: 12 },
+    fixedOverflowWidgets: true,
+};
 
 export const SqlEditor: FC<{
     onSubmit?: (sql: string) => void;
@@ -286,13 +295,14 @@ export const SqlEditor: FC<{
 
     return (
         <Editor
+            className={styles.editor}
             loading={<Loader color="gray" size="xs" />}
             beforeMount={beforeMount}
             onMount={onMount}
             language={language}
             value={sql}
             onChange={onChange}
-            options={MONACO_DEFAULT_OPTIONS}
+            options={SQL_RUNNER_MONACO_OPTIONS}
             theme={monacoTheme}
         />
     );
