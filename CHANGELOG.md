@@ -1,3 +1,11 @@
+## [2.89.1](https://github.com/lightdash/lightdash/compare/2.89.0...2.89.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **ai:** tighten data app prompt copy for the thread agent ([#28496](https://github.com/lightdash/lightdash/issues/28496)) ([c96c6f0](https://github.com/lightdash/lightdash/commit/c96c6f0c69a455f295f713973ab3cfd6185b9034))
+* **frontend:** save data app query chart into the app's project, not the route project ([#28495](https://github.com/lightdash/lightdash/issues/28495)) ([f4a8751](https://github.com/lightdash/lightdash/commit/f4a875145c3a7e847bf20ea8568c31f9e6c5cc05))
+
 # [2.89.0](https://github.com/lightdash/lightdash/compare/2.88.1...2.89.0) (2026-09-02)
 
 
