@@ -42,6 +42,7 @@ import {
     ExpressLayerType,
 } from '@opentelemetry/instrumentation-express';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { KnexInstrumentation } from '@opentelemetry/instrumentation-knex';
 import {
     defaultResource,
     resourceFromAttributes,
@@ -179,6 +180,10 @@ export const installRedactingOtelDiagnostics = (): (() => void) => {
 export const otelTracingEnabled = () =>
     parseBoolean(process.env.LIGHTDASH_OTEL_TRACES_ENABLED) &&
     process.env.OTEL_SDK_DISABLED !== 'true';
+
+export const otelDatabaseTracingEnabled = () =>
+    otelTracingEnabled() &&
+    parseBoolean(process.env.LIGHTDASH_OTEL_DB_TRACES_ENABLED);
 
 const SUPPORTED_TRACE_EXPORTERS = new Set(['console', 'otlp', 'zipkin']);
 const SUPPORTED_OTLP_PROTOCOLS = new Set([
@@ -493,6 +498,29 @@ const isIgnoredIncomingRequest = (
     );
 };
 
+export const createOtelInstrumentations = () => [
+    new HttpInstrumentation({
+        ignoreIncomingRequestHook: (req) =>
+            isIgnoredIncomingRequest(req.url ?? '', req.headers['user-agent']),
+    }),
+    new ExpressInstrumentation({
+        // A span per middleware layer floods traces; the request handler layer
+        // alone still names the HTTP span with the resolved route.
+        ignoreLayersType: [
+            ExpressLayerType.MIDDLEWARE,
+            ExpressLayerType.ROUTER,
+        ],
+    }),
+    ...(otelDatabaseTracingEnabled()
+        ? [
+              new KnexInstrumentation({
+                  requireParentSpan: true,
+                  maxQueryLength: 1022,
+              }),
+          ]
+        : []),
+];
+
 class OtelTracingStrategy implements TracingStrategy {
     private readonly isEnabled = otelTracingEnabled;
 
@@ -531,24 +559,7 @@ class OtelTracingStrategy implements TracingStrategy {
                         new W3CBaggagePropagator(),
                     ],
                 }),
-                instrumentations: [
-                    new HttpInstrumentation({
-                        ignoreIncomingRequestHook: (req) =>
-                            isIgnoredIncomingRequest(
-                                req.url ?? '',
-                                req.headers['user-agent'],
-                            ),
-                    }),
-                    new ExpressInstrumentation({
-                        // A span per middleware layer floods traces; the request
-                        // handler layer alone still names the HTTP span with the
-                        // resolved route.
-                        ignoreLayersType: [
-                            ExpressLayerType.MIDDLEWARE,
-                            ExpressLayerType.ROUTER,
-                        ],
-                    }),
-                ],
+                instrumentations: createOtelInstrumentations(),
             });
         } finally {
             restoreOtelLogLevel();
@@ -564,8 +575,11 @@ class OtelTracingStrategy implements TracingStrategy {
             process.env.LIGHTDASH_OTEL_ALWAYS_SAMPLE_AI_TRACES === 'false'
                 ? ''
                 : '; AI/agent roots are always sampled';
+        const databaseTracing = otelDatabaseTracingEnabled()
+            ? '; database traces enabled'
+            : '';
         Logger.info(
-            `OpenTelemetry tracing configured; trace exporters: ${exporters}${protocol}; Lightdash sampling ratio: ${getSampleRate()}${aiSampling}; OTEL_TRACES_SAMPLER and OTEL_TRACES_SAMPLER_ARG are overridden by Lightdash; exporter connectivity has not been validated. Set OTEL_LOG_LEVEL=DEBUG for OpenTelemetry SDK/exporter diagnostics`,
+            `OpenTelemetry tracing configured; trace exporters: ${exporters}${protocol}; Lightdash sampling ratio: ${getSampleRate()}${aiSampling}${databaseTracing}; OTEL_TRACES_SAMPLER and OTEL_TRACES_SAMPLER_ARG are overridden by Lightdash; exporter connectivity has not been validated. Set OTEL_LOG_LEVEL=DEBUG for OpenTelemetry SDK/exporter diagnostics`,
         );
     }
 

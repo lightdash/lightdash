@@ -1,4 +1,4 @@
-import './sentry'; // Sentry has to be initialized before anything else
+import './tracing/bootstrap'; // Must run before modules that can load Knex
 import {
     AnyType,
     ApiError,
