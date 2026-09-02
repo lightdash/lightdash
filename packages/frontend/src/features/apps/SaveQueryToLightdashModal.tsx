@@ -27,7 +27,10 @@ const SaveQueryToLightdashModal: FC<Props> = ({
 }) => {
     const { data: spaces, isLoading: spacesLoading } =
         useSpaceSummaries(projectUuid);
-    const createChart = useCreateMutation({ redirectOnSuccess: false });
+    const createChart = useCreateMutation({
+        redirectOnSuccess: false,
+        projectUuid,
+    });
 
     const [name, setName] = useState(
         query.label || query.exploreName || 'Untitled query',
