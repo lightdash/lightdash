@@ -328,4 +328,21 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             'copy the bracketed reference verbatim into the iterateDataApp brief',
         );
     });
+
+    it('renders a data app restore as one line naming both versions', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app_restore',
+                appUuid: 'app-1',
+                version: 5,
+                restoredFromVersion: 2,
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Data app restore: version 2 of "F1 standings" (appSlug: f1-standings) was restored as version 5 — the app now matches version 2; iterate from version 5.',
+        );
+    });
 });
