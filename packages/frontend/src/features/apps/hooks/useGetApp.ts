@@ -8,7 +8,7 @@ const PAGE_SIZE = 5;
 
 const fetchAppVersions = async (
     projectUuid: string,
-    appUuid: string,
+    appUuidOrSlug: string,
     beforeVersion?: number,
 ): Promise<GetAppResult> => {
     const params = new URLSearchParams();
@@ -19,7 +19,7 @@ const fetchAppVersions = async (
     const qs = params.toString();
     const data = await lightdashApi<GetAppResult>({
         method: 'GET',
-        url: `/ee/projects/${projectUuid}/apps/${appUuid}?${qs}`,
+        url: `/ee/projects/${projectUuid}/apps/${appUuidOrSlug}?${qs}`,
         body: undefined,
     });
     return data;
@@ -27,14 +27,14 @@ const fetchAppVersions = async (
 
 export const useGetApp = (
     projectUuid: string | undefined,
-    appUuid: string | undefined,
+    appUuidOrSlug: string | undefined,
 ) => {
     const query = useInfiniteQuery<GetAppResult, ApiError>({
-        queryKey: ['app', projectUuid, appUuid],
+        queryKey: ['app', projectUuid, appUuidOrSlug],
         queryFn: ({ pageParam }) =>
             fetchAppVersions(
                 projectUuid!,
-                appUuid!,
+                appUuidOrSlug!,
                 pageParam as number | undefined,
             ),
         getNextPageParam: (lastPage) => {
@@ -42,7 +42,7 @@ export const useGetApp = (
                 return undefined;
             return lastPage.versions[lastPage.versions.length - 1].version;
         },
-        enabled: !!projectUuid && !!appUuid,
+        enabled: !!projectUuid && !!appUuidOrSlug,
     });
     return query;
 };

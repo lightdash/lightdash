@@ -750,7 +750,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'apps/:appUuid/versions/:version/view',
-        handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
                 './pages/AppPreviewTest',
@@ -761,7 +760,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'apps/:appUuid/view',
-        handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
                 './pages/AppPreviewTest',

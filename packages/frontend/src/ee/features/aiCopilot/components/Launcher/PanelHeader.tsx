@@ -23,10 +23,6 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
-import {
-    AI_ROUTING_AUTO_VALUE,
-    AI_ROUTING_SEARCH_PARAM,
-} from '../AgentSelector/AgentSelectorUtils';
 import styles from './AiAgentsLauncher.module.css';
 import {
     getConcreteLauncherAgent,
@@ -34,6 +30,7 @@ import {
     LAUNCHER_AUTO_AGENT,
 } from './launcherAgentSelection';
 import { launcherSession } from './launcherSession';
+import { buildNewThreadUrl } from './newThreadUrl';
 
 type Props = {
     projectUuid: string;
@@ -88,22 +85,7 @@ export const PanelHeader: FC<Props> = ({
             if (isAuto) return;
             target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads/${threadId}`;
         } else {
-            const params = new URLSearchParams();
-            if (pendingContext?.chartUuid) {
-                params.set('chartUuid', pendingContext.chartUuid);
-            }
-            if (pendingContext?.dashboardUuid) {
-                params.set('dashboardUuid', pendingContext.dashboardUuid);
-            }
-            if (isAuto) {
-                params.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);
-            }
-            const search = params.toString();
-            target = isAuto
-                ? `/projects/${projectUuid}/ai-agents${search ? `?${search}` : ''}`
-                : `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads${
-                      search ? `?${search}` : ''
-                  }`;
+            target = buildNewThreadUrl({ projectUuid, agent, pendingContext });
         }
         dispatch(closePanel());
         void navigate(target);
