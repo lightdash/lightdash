@@ -13,9 +13,13 @@ export const useIsLauncherMounted = (
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
+    const currentDataApp = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDataApp,
+    );
+    const isContentPage =
+        currentDashboard?.projectUuid === projectUuid ||
+        currentDataApp?.projectUuid === projectUuid;
     return (
-        isPanelOpen ||
-        dock.length > 0 ||
-        (currentDashboard?.projectUuid === projectUuid && isAiAgentEnabled)
+        isPanelOpen || dock.length > 0 || (isContentPage && isAiAgentEnabled)
     );
 };

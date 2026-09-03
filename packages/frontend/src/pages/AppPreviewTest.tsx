@@ -13,6 +13,7 @@ import AppIframePreview, {
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
@@ -251,6 +252,12 @@ export default function AppPreviewTest() {
                     : classes.previewContainer
             }
         >
+            {firstPage && (
+                <DataAppAiAgentContextBridge
+                    projectUuid={projectUuid}
+                    appUuid={firstPage.appUuid}
+                />
+            )}
             {!isFullscreen && (
                 <AppHeader
                     projectUuid={projectUuid}

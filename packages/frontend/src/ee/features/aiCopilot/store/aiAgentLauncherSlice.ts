@@ -24,6 +24,12 @@ export type LauncherCurrentDashboard = {
     runtimeOverrides: AiDashboardRuntimeOverrides | null;
 };
 
+// The data app page the user is on; no runtime overrides are captured.
+export type LauncherCurrentDataApp = {
+    projectUuid: string;
+    uuid: string;
+};
+
 export type DashboardRefreshRequest = {
     dashboardUuid: string;
     focusChartSlug: string | null;
@@ -38,6 +44,7 @@ export interface AiAgentLauncherState {
     activeAgentUuid: LauncherActiveAgentUuid | null;
     pendingContext: LauncherPendingContext | null;
     currentDashboard: LauncherCurrentDashboard | null;
+    currentDataApp: LauncherCurrentDataApp | null;
     dashboardRefreshRequest: DashboardRefreshRequest | null;
 }
 
@@ -47,6 +54,7 @@ const initialState: AiAgentLauncherState = {
     activeAgentUuid: null,
     pendingContext: null,
     currentDashboard: null,
+    currentDataApp: null,
     dashboardRefreshRequest: null,
 };
 
@@ -112,6 +120,12 @@ export const aiAgentLauncherSlice = createSlice({
         ) => {
             state.currentDashboard = action.payload;
         },
+        setCurrentDataApp: (
+            state,
+            action: PayloadAction<LauncherCurrentDataApp | null>,
+        ) => {
+            state.currentDataApp = action.payload;
+        },
         requestDashboardRefresh: (
             state,
             action: PayloadAction<{
@@ -136,5 +150,6 @@ export const {
     resetActivePanel,
     dockItemRemoved,
     setCurrentDashboard,
+    setCurrentDataApp,
     requestDashboardRefresh,
 } = aiAgentLauncherSlice.actions;
