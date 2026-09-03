@@ -5,10 +5,12 @@ import AuthLayout from '../components/common/AuthLayout';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import LoginLanding from '../features/users/components/LoginLanding';
 
+const LOGIN_BACKGROUND_COLOR = 'pink.1';
+
 const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
     if (minimal) {
         return (
-            <Stack m="xl">
+            <Stack bg={LOGIN_BACKGROUND_COLOR} mih="100vh" p="xl">
                 <Box mx="auto" my="lg">
                     <LightdashLogo />
                 </Box>
@@ -35,6 +37,7 @@ const Login: FC<{ minimal?: boolean }> = ({ minimal = false }) => {
             subtitle="Welcome back — pick up where you left off."
             legacyTitle="Sign in"
             cardId={LOGIN_PAGE_ID}
+            formBackgroundColor={LOGIN_BACKGROUND_COLOR}
         >
             <LoginLanding />
         </AuthLayout>
