@@ -297,10 +297,16 @@ const HeaderCell = <TData extends RowData>({
             table={table}
         />
     );
+    // `ta` lands on the <th> as text-align, which flex wrappers ignore;
+    // mirror it as a data attribute so the CSS can justify the content.
+    const textAlign = headCellProps.ta ?? headCellProps.style?.textAlign;
+    const contentAlign =
+        textAlign === 'right' || textAlign === 'center' ? textAlign : undefined;
 
     return (
         <Table.Th
             {...headCellProps}
+            data-align={contentAlign}
             aria-sort={
                 sortState === 'asc'
                     ? 'ascending'

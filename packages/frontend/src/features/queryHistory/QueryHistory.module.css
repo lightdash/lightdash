@@ -1,447 +1,39 @@
-/*
- * Metrics and colors come from the Claude Design build spec
- * ("Query History - Build.dc.html"). The grays are Lightdash's ldBrandGray
- * ramp; #f1f3f6 (control/selected background) sits between steps 0 and 1 of
- * the ramp and is kept literal to match the spec.
- */
-
 .page {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
-    height: 100%;
+    gap: var(--mantine-spacing-md);
     min-height: 0;
-    background: #fff;
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+    overflow: hidden;
 }
 
-/* ---------- header ---------- */
+/* ---------- table ---------- */
 
-.header {
+/* Grows with its rows and only scrolls once it hits the viewport. */
+.tablePaper {
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 26px 28px 16px;
+    flex: 0 1 auto;
+    flex-direction: column;
+    min-height: 0;
 }
 
-.title {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
-    line-height: 1.2;
-    letter-spacing: -0.02em;
-    color: var(--mantine-color-ldBrandGray-9);
+.tableContainer {
+    flex: 1 1 auto;
+    min-height: 0;
 }
-
-.subtitle {
-    margin: 6px 0 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--mantine-color-ldBrandGray-6);
-}
-
-.search {
-    min-width: 280px;
-}
-
-.search input {
-    height: 34px;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    font-size: 13px;
-}
-
-/* ---------- toolbar ---------- */
 
 .toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 0 28px 16px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-.toolbarRight {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+/* One step darker than the header and hover grey so groups read as bands. */
+.windowRow :global(td) {
+    background: var(--mantine-color-ldGray-1);
 }
 
-.segmented {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    padding: 3px;
-    background: #f1f3f6;
-    border-radius: 9px;
-}
-
-.segmentedOption {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    height: 30px;
-    padding: 0 13px;
-    border: none;
-    background: none;
-    border-radius: 7px;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-6);
-    cursor: pointer;
-}
-
-.segmentedOptionActive {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(10, 13, 18, 0.05);
-    font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.segmentedCount {
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.segmentedOptionActive .segmentedCount {
-    color: var(--mantine-color-ldBrandGray-6);
-}
-
-.segmentedSmall .segmentedOption {
-    height: 26px;
-    padding: 0 11px;
-    border-radius: 6px;
-    font-size: 12px;
-}
-
-.statusButton {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 11px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
-    cursor: pointer;
-}
-
-/* ---------- list ---------- */
-
-.list {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-}
-
-.columnHeader {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    display: grid;
-    grid-template-columns: 1fr 84px 110px 100px 88px 96px;
-    align-items: center;
-    gap: 18px;
-    padding: 0 28px 8px;
-    background: #fff;
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-2);
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.columnHeaderCompact {
-    grid-template-columns: 1fr 84px 96px 92px;
-    gap: 14px;
-    padding: 0 24px 8px;
-}
-
-.columnRight {
-    text-align: right;
-}
-
-.sortButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 4px;
-    border: none;
-    background: none;
-    padding: 0;
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: inherit;
-    color: inherit;
-    cursor: pointer;
-}
-
-.sortButtonActive {
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.windowHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 14px 28px 8px;
-    border: none;
-    background: var(--mantine-color-ldBrandGray-0);
-    border-top: 1px solid var(--mantine-color-ldBrandGray-1);
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-1);
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.windowHeaderCollapsed {
-    padding: 14px 28px;
-}
-
-.windowTitle {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.windowCount {
-    font-weight: 400;
-    color: var(--mantine-color-ldBrandGray-5);
-}
-
-.windowRange {
-    font-size: 11.5px;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.row {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 84px 110px 100px 88px 96px;
-    align-items: center;
-    gap: 18px;
-    width: 100%;
-    padding: 12px 28px;
-    border: none;
-    background: none;
-    border-bottom: 1px solid #f1f3f6;
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.rowCompact {
-    grid-template-columns: 1fr 84px 96px 92px;
-    gap: 14px;
-    padding: 11px 24px;
-}
-
-.row:hover {
-    background: var(--mantine-color-ldBrandGray-0);
-}
-
-.rowSelected,
-.rowSelected:hover {
-    background: #f1f3f6;
-    box-shadow: inset 2px 0 0 var(--mantine-color-ldBrandGray-9);
-}
-
-.rowMain {
-    min-width: 0;
-}
-
-.rowTitleLine {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-}
-
-.rowTitle {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.rowCompact .rowTitle {
-    font-size: 13px;
-}
-
-.rowSubline {
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--mantine-color-ldBrandGray-5);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.rowSublineMono {
-    font-family: var(--mantine-font-family-monospace);
-}
-
-.rowSublineError {
-    color: var(--mantine-color-ldBrandGray-6);
-}
-
-.languageTag {
-    justify-self: start;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-}
-
-.languageTagSemantic {
-    color: var(--mantine-color-ldBrandGray-7);
-    background: #f1f3f6;
-}
-
-.languageTagSql {
-    color: var(--mantine-color-ldBrandGray-9);
-    background: var(--mantine-color-ldBrandGray-1);
-}
-
-.rowTrigger {
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-6);
-}
-
-.rowRunTime {
-    text-align: right;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.rowRunTimeMuted {
-    color: var(--mantine-color-ldBrandGray-5);
-}
-
-.rowCount {
-    text-align: right;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-7);
-}
-
-.rowCountEmpty {
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.rowWhen {
-    text-align: right;
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-5);
-    white-space: nowrap;
-}
-
-.statusChip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    flex: 0 0 auto;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
-.statusChipRunning {
-    color: var(--mantine-color-ldBrandGray-7);
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-}
-
-.statusChipFailed {
-    color: var(--mantine-color-ldBrandGray-9);
-    border: 1px solid var(--mantine-color-ldBrandGray-9);
-}
-
-.statusChipCached {
-    color: var(--mantine-color-ldBrandGray-5);
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
-    background: var(--mantine-color-ldBrandGray-0);
-}
-
-.pulseDot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--mantine-color-ldBrandGray-9);
-    animation: pulseDot 1.4s ease-in-out infinite;
-}
-
-@keyframes pulseDot {
-    0%,
-    100% {
-        opacity: 0.25;
-    }
-    50% {
-        opacity: 1;
-    }
-}
-
-.rowCta {
-    position: absolute;
-    right: 28px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: none;
-    align-items: center;
-    height: 28px;
-    padding: 0 13px;
-    background: var(--mantine-color-ldBrandGray-9);
-    color: #fff;
-    border-radius: 7px;
-    font-size: 12.5px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.row:hover .rowCta {
-    display: inline-flex;
-}
-
-.showMore {
-    display: block;
-    width: 100%;
-    padding: 11px 28px;
-    border: none;
-    background: none;
-    border-bottom: 1px solid #f1f3f6;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-6);
-    text-align: left;
-    cursor: pointer;
-}
-
-.showMore:hover {
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.emptyState {
-    padding: 48px 28px;
-    text-align: center;
-    font-size: 13px;
-    color: var(--mantine-color-ldBrandGray-5);
+.showMoreRow :global(td) {
+    background: var(--mantine-color-body);
 }
 
 /* ---------- detail panel ---------- */
@@ -451,295 +43,44 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: #fff;
-    border-left: 1px solid var(--mantine-color-ldBrandGray-2);
 }
 
 .panelHeader {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 20px 22px 16px;
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-1);
-}
-
-.panelTitleLine {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-}
-
-.panelTitle {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.panelMeta {
-    margin-top: 6px;
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-5);
-}
-
-.panelNav {
-    display: flex;
-    align-items: center;
-    gap: 6px;
     flex: 0 0 auto;
-}
-
-.panelNavButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 6px;
-    color: var(--mantine-color-ldBrandGray-6);
-    cursor: pointer;
-}
-
-.panelNavButton:disabled {
-    color: var(--mantine-color-ldBrandGray-3);
-    cursor: default;
+    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .panelBody {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    padding: 18px 22px;
-}
-
-.timingStrip {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.timingCell {
-    padding: 11px 14px;
-}
-
-.timingCell + .timingCell {
-    border-left: 1px solid var(--mantine-color-ldBrandGray-1);
-}
-
-.timingLabel {
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.timingValue {
-    margin-top: 4px;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
-}
-
-.timingValueMuted {
-    color: var(--mantine-color-ldBrandGray-6);
-}
-
-.sectionHeader {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-
-.sectionLabel {
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-5);
-}
-
-.sectionMeta {
-    font-size: 11.5px;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.sectionAction {
-    border: none;
-    background: none;
-    padding: 0;
-    font-family: inherit;
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
-    text-decoration: underline;
-    cursor: pointer;
-}
-
-.resultsTable {
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
-    border-radius: 8px;
-    overflow-x: auto;
-}
-
-.resultsTable table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.resultsTable th {
-    padding: 8px 12px;
-    background: var(--mantine-color-ldBrandGray-0);
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-1);
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-5);
-    text-align: left;
-    white-space: nowrap;
-}
-
-.resultsTable td {
-    padding: 9px 12px;
-    border-bottom: 1px solid #f1f3f6;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-9);
-    white-space: nowrap;
-}
-
-.resultsTable tr:last-child td {
-    border-bottom: none;
-}
-
-.resultsPlaceholder {
-    padding: 24px 14px;
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
-    border-radius: 8px;
-    text-align: center;
-    font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-5);
-}
-
-.sqlBlock {
-    background: var(--mantine-color-ldBrandGray-0);
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 11.5px;
-    line-height: 1.75;
-    color: var(--mantine-color-ldBrandGray-7);
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin: 0;
-}
-
-.sqlTruncated {
-    margin-top: 8px;
-    font-size: 11.5px;
-    color: var(--mantine-color-ldBrandGray-4);
-}
-
-.errorBlock {
-    background: var(--mantine-color-ldBrandGray-0);
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-family: var(--mantine-font-family-monospace);
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--mantine-color-ldBrandGray-9);
 }
 
 .panelFooter {
-    border-top: 1px solid var(--mantine-color-ldBrandGray-1);
-    padding: 14px 22px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    flex: 0 0 auto;
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
-.askAi {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(10, 13, 18, 0.05);
+.timings {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow: hidden;
 }
 
-.askAi input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: none;
-    font-family: inherit;
-    font-size: 13px;
-    color: var(--mantine-color-ldBrandGray-9);
+.timingCell + .timingCell {
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
-.askAi input::placeholder {
-    color: var(--mantine-color-ldBrandGray-4);
+.resultsTable {
+    overflow-x: auto;
 }
 
-.panelActions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+.resultsTable :global(th),
+.resultsTable :global(td) {
+    white-space: nowrap;
 }
 
-.secondaryButton {
-    display: inline-flex;
-    align-items: center;
-    height: 36px;
-    padding: 0 14px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.primaryButton {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    height: 36px;
-    padding: 0 16px;
-    background: var(--mantine-color-ldBrandGray-9);
-    border: none;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 500;
-    color: #fff;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.primaryButton:hover {
-    background: var(--mantine-color-ldBrandGray-8);
-    color: #fff;
+.sql :global(.mantine-CodeHighlight-code) {
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-md);
 }
