@@ -1,90 +1,126 @@
 # rainbow.toml — how Lightdash runs on Rainbow.
-# Everything here describes the app. How Rainbow forks it in ~160ms is not your
-# concern: the kernel, the network pool, the guest-access transport, the paint
-# and warm harnesses, and the per-env IP/origin/secret values all live with the
-# platform (design/repo-config-and-ownership.md §6, §7), not in this file.
+# This file describes the app only (system-description/repo-config.md §4). The
+# kernel, network, guest access, paint/warm harnesses and per-env origin and
+# secret values are the platform's, not this file's.
 
+# One process: `pnpm dev` runs the common and warehouses tsc watchers, the
+# backend (tsx watch, :8080) and the Vite frontend (:3000, which proxies /api
+# to :8080). The browser hits 3000.
 [[app.service]]
-name = "backend"
-command = "pnpm -F backend dev"
-port = 8080
-
-[[app.service]]
-name = "frontend"
-command = "pnpm -F frontend dev"
-port = 3000
-serve = true                       # the port a browser hits; exactly one service sets it
+name = "dev"
+command = "pnpm dev"
+ports = [8080, 3000]
+serve_port = 3000
 
 [resources]
 cpu = 8
-memory = "8gb"                      # a starting guess; the measured working set corrects an over-guess
+memory = "8gb"
+max_memory = "16gb"                # headroom the migrate rung and the pnpm install borrow
 
-# No [runtime] block: node comes from .nvmrc, pnpm from package.json's
-# packageManager field, and postgresql-16 from [datastores] below. Add
-# [runtime] only to override a pin or to list an OS package nothing else owns.
-
-# Previews exist to exercise unreleased work, so they enable the curated preview
-# flag set (PREVIEW_ENABLED_FEATURE_FLAGS) and the flag-management API that lets
-# an admin toggle a flag at runtime — see docs/preview-feature-flags.md. Okteto
-# previews got this from LIGHTDASH_MODE=pr; here the backend's dev script pins
-# LIGHTDASH_MODE=development, so it has to be set outright.
-[env]
-LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
+# node comes from .nvmrc and pnpm from package.json's packageManager. The first
+# build step bakes formula/common/warehouses dist into the image so the backend
+# and the migrate rung can import them; from then on the `pnpm dev` watchers
+# keep common and warehouses current (no common-build rung below; formula has
+# no watcher, so it is a run rung). The second is the dbt venv the seed's
+# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+[runtime]
+system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
+build = [
+  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+]
 
 [datastores]
-postgres = true                    # provisioned, localhost, seeded once
+postgres = true
+minio = true                       # the backend requires S3-compatible storage at boot
+mailpit = true                     # catches the mail the backend sends
+
+# The app's own names for the platform's datastores (localhost, fixed dev
+# credentials), plus its non-secret dev settings.
+[env]
+PORT = "8080"
+NODE_ENV = "development"
+LIGHTDASH_MODE = "development"
+LIGHTDASH_LOG_LEVEL = "info"
+SECURE_COOKIES = "false"
+TRUST_PROXY = "false"
+SCHEDULER_ENABLED = "false"
+ALLOW_MULTIPLE_ORGS = "false"
+HEADLESS = "true"
+CI = "true"
+PGHOST = "localhost"
+PGPORT = "5432"
+PGUSER = "postgres"
+PGDATABASE = "postgres"
+DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
+DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
+S3_ENDPOINT = "http://localhost:9000"
+S3_PUBLIC_ENDPOINT = "http://localhost:9000"
+S3_REGION = "us-east-1"
+S3_BUCKET = "default"
+S3_ACCESS_KEY = "minioadmin"
+S3_SECRET_KEY = "minioadmin"
+S3_FORCE_PATH_STYLE = "true"
+APPS_S3_BUCKET = "lightdash-apps"
+EMAIL_SMTP_HOST = "localhost"
+EMAIL_SMTP_PORT = "1025"
+EMAIL_SMTP_SECURE = "false"
+EMAIL_SMTP_USE_AUTH = "false"
+EMAIL_SMTP_ALLOW_INVALID_CERT = "true"
+EMAIL_SMTP_SENDER_NAME = "Lightdash"
+EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
+# Previews exercise unreleased work: enable the curated preview flag set and the
+# flag-management API (docs/preview-feature-flags.md). Okteto got this from
+# LIGHTDASH_MODE=pr; LIGHTDASH_MODE=development here, so set it outright.
+LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 
 [seed]
-run = "pnpm -F backend seed"       # the migrate tier below has already run by now
-env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # dummy: the backend config loads it; enables nothing
+run = "pnpm -F backend seed"       # the migrate rung has already run by now
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
 
-# Readiness — truths about the app, in the app's own frame (localhost, not the
-# guest IP). The platform decides when each runs: http polls during boot and
-# re-runs at the snapshot gate; paints drives headless Chrome at the gate and
-# records first_paint_ms so a slow-parent regression becomes a tracked number.
+# Readiness, in the app's own frame. http polls during boot; paints drives
+# headless Chrome at the snapshot gate and records first_paint_ms.
 [ready]
 http = "http://localhost:8080/api/v1/health"
 paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
 
 [warm]
-routes = ["/", "/login"]           # pre-served so the first preview is instant
+routes = ["/", "/login"]
 
-# The cache-tier ladder (cache-tiers.md), deepest first. The apply verb is the
-# key that carries the command; the list is ordered and first-match-wins.
+# The cache-tier ladder (cache-tiers.md), deepest first; first match wins.
 [[tier]]
-rebuild = "pnpm install --frozen-lockfile"
-preset = "pnpm"                     # lockfile globs; explicit files win
+preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
 
 [[tier]]
-name = "common-build"
-files = ["packages/common/**", "packages/warehouses/**"]
-run = "pnpm common-build && pnpm warehouses-build"
+name = "formula-build"
+files = ["packages/formula/**"]
+run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
 
 [[tier]]
 name = "migrate"
 files = ["packages/backend/src/database/migrations/**"]
 run = "pnpm -F backend migrate"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+memory = "12gb"
 
 [[tier]]
 name = "app"
-watch = ["**"]                     # Vite HMR / tsx watch notice the write; bottom catch-all
+watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
 
-# The browser learns its origin from one field of one response (results.siteUrl),
-# so the ingress corrects it in flight and forks stay fast. No service carries
-# restart_on_inject: Lightdash previews are stub-only and patch-based, so nothing
-# is re-execed on fork.
+# The browser learns its origin from one field of one response, so the ingress
+# corrects it in flight; nothing is re-execed on fork.
 [origin]
 vars = ["SITE_URL"]
 patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
-# Names, not values: the platform holds what they resolve to. The licence pair
-# is the offline (ed25519-signed) form Okteto previews use, so it verifies
-# locally without reaching api.keygen.sh. Until both are provisioned in the
-# platform's store these two resolve to nothing and previews stay OSS-only —
-# an unprovisioned name injects no variable rather than failing the fork.
+# Names, not values: the platform holds what they resolve to, and every
+# environment of this repo has them from the moment it boots. A name with no
+# stored value is simply absent (a kind the platform knows gets a placeholder
+# so the app can boot with nothing set). The licence pair is the offline
+# (ed25519-signed) form, so it verifies locally without reaching
+# api.keygen.sh; until both are stored, previews run Community Edition.
 [secrets]
 LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
-LIGHTDASH_LICENSE_KEY = "lightdash-license-key"
-LIGHTDASH_LICENSE_CERTIFICATE = "lightdash-license-certificate"
+LIGHTDASH_LICENSE_KEY = "licence"
+LIGHTDASH_LICENSE_CERTIFICATE = "licence"
