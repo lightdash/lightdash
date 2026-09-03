@@ -706,6 +706,10 @@ describe('SDK host page isolation', () => {
 
         const portal = document.body.querySelector(':scope > .ld-sdk-portal');
         expect(portal?.getAttribute('data-mantine-color-scheme')).toBe('dark');
+        // Nothing portalled before the SDK container existed.
+        expect(
+            document.querySelector('[data-mantine-shared-portal-node]'),
+        ).toBeNull();
 
         const variableSheets = [
             ...document.querySelectorAll('style[data-mantine-styles]'),
@@ -717,5 +721,39 @@ describe('SDK host page isolation', () => {
 
         unmount();
         expect(document.body.querySelector('.ld-sdk-portal')).toBeNull();
+    });
+
+    it('gives each mounted component its own portal container', async () => {
+        const { container } = render(
+            <>
+                <Dashboard
+                    token={mockToken}
+                    instanceUrl="http://localhost:3000"
+                    filters={[]}
+                    theme="light"
+                />
+                <Dashboard
+                    token={mockToken}
+                    instanceUrl="http://localhost:3000"
+                    filters={[]}
+                    theme="dark"
+                />
+            </>,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll('.ld-sdk-root')).toHaveLength(2);
+        });
+
+        const portals = [
+            ...document.body.querySelectorAll(':scope > .ld-sdk-portal'),
+        ];
+        expect(portals).toHaveLength(2);
+        expect(new Set(portals.map((node) => node.id)).size).toBe(2);
+        expect(
+            portals.map((node) =>
+                node.getAttribute('data-mantine-color-scheme'),
+            ),
+        ).toEqual(['light', 'dark']);
     });
 });

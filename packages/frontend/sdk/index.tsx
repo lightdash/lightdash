@@ -304,6 +304,8 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
+let sdkInstanceCount = 0;
+
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -317,8 +319,11 @@ const SdkProviders: FC<
     // Body-level container for everything Mantine portals out of the inline
     // root (dropdowns, modals, notifications), so they escape the host's
     // overflow and stacking contexts while keeping the SDK's variables and
-    // colour scheme.
-    const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null);
+    // colour scheme. Mantine resolves a selector target in its layout effect,
+    // by which time the container below is in the DOM, so no render round-trip.
+    const [portalId] = useState(
+        () => `lightdash-sdk-portal-${++sdkInstanceCount}`,
+    );
     const fontFamily = styles?.fontFamily;
     // Only override the font when the consumer sets one: Mantine 8's CSS-vars
     // generator stringifies an explicit undefined into `font-family: undefined`.
@@ -330,17 +335,13 @@ const SdkProviders: FC<
                       other: { tableFont: fontFamily, chartFont: fontFamily },
                   }
                 : {}),
-            ...(portalNode
-                ? {
-                      components: {
-                          Portal: Portal.extend({
-                              defaultProps: { target: portalNode },
-                          }),
-                      },
-                  }
-                : {}),
+            components: {
+                Portal: Portal.extend({
+                    defaultProps: { target: `#${portalId}` },
+                }),
+            },
         }),
-        [fontFamily, portalNode],
+        [fontFamily, portalId],
     );
     const route = projectUuid ? `/projects/${projectUuid}` : '/';
     const routedChildren = projectUuid ? (
@@ -351,19 +352,11 @@ const SdkProviders: FC<
         children
     );
 
-    if (typeof document === 'undefined') {
-        return null;
-    }
-
-    // Mantine's Portal reads its target from the theme when it mounts, and
-    // Notifications mounts one straight away, so the provider stack waits for
-    // the container to exist. The fragment keeps the tree shape stable across
-    // both renders; otherwise React would remount the container and reset it.
     return (
         <>
             {createPortal(
                 <div
-                    ref={setPortalNode}
+                    id={portalId}
                     className={embedContractClass(
                         'ld-sdk-portal',
                         SDK_SCOPE_CLASS,
@@ -372,58 +365,50 @@ const SdkProviders: FC<
                 />,
                 document.body,
             )}
-            {portalNode && (
-                <ReactQueryProvider>
-                    <MantineProvider
-                        themeOverride={themeOverride}
-                        notificationsLimit={0}
-                        forceColorScheme={colorScheme}
-                        cssVariablesSelector={SDK_SCOPE_SELECTOR}
-                        getRootElement={getRootElement}
-                        syncBodyColorMode={false}
+            <ReactQueryProvider>
+                <MantineProvider
+                    themeOverride={themeOverride}
+                    notificationsLimit={0}
+                    forceColorScheme={colorScheme}
+                    cssVariablesSelector={SDK_SCOPE_SELECTOR}
+                    getRootElement={getRootElement}
+                    syncBodyColorMode={false}
+                >
+                    <div
+                        ref={rootRef}
+                        className={embedContractClass(
+                            'ld-sdk-root',
+                            SDK_SCOPE_CLASS,
+                        )}
                     >
-                        <div
-                            ref={rootRef}
-                            className={embedContractClass(
-                                'ld-sdk-root',
-                                SDK_SCOPE_CLASS,
-                            )}
-                        >
-                            <ModalsProvider>
-                                <AppProvider>
-                                    <FullscreenProvider enabled={false}>
-                                        <ThirdPartyServicesProvider
-                                            enabled={false}
-                                        >
-                                            <ErrorBoundary
-                                                wrapper={{ mt: '4xl' }}
+                        <ModalsProvider>
+                            <AppProvider>
+                                <FullscreenProvider enabled={false}>
+                                    <ThirdPartyServicesProvider enabled={false}>
+                                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                            <MemoryRouter
+                                                initialEntries={[route]}
                                             >
-                                                <MemoryRouter
-                                                    initialEntries={[route]}
+                                                <TrackingProvider
+                                                    enabled={true}
                                                 >
-                                                    <TrackingProvider
-                                                        enabled={true}
-                                                    >
-                                                        <AbilityProvider>
-                                                            <ChartColorMappingContextProvider>
-                                                                <ActiveJobProvider>
-                                                                    {
-                                                                        routedChildren
-                                                                    }
-                                                                </ActiveJobProvider>
-                                                            </ChartColorMappingContextProvider>
-                                                        </AbilityProvider>
-                                                    </TrackingProvider>
-                                                </MemoryRouter>
-                                            </ErrorBoundary>
-                                        </ThirdPartyServicesProvider>
-                                    </FullscreenProvider>
-                                </AppProvider>
-                            </ModalsProvider>
-                        </div>
-                    </MantineProvider>
-                </ReactQueryProvider>
-            )}
+                                                    <AbilityProvider>
+                                                        <ChartColorMappingContextProvider>
+                                                            <ActiveJobProvider>
+                                                                {routedChildren}
+                                                            </ActiveJobProvider>
+                                                        </ChartColorMappingContextProvider>
+                                                    </AbilityProvider>
+                                                </TrackingProvider>
+                                            </MemoryRouter>
+                                        </ErrorBoundary>
+                                    </ThirdPartyServicesProvider>
+                                </FullscreenProvider>
+                            </AppProvider>
+                        </ModalsProvider>
+                    </div>
+                </MantineProvider>
+            </ReactQueryProvider>
         </>
     );
 };
