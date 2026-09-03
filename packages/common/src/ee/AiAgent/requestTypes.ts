@@ -245,6 +245,14 @@ export type AiPromptContextItemInput =
           tag: string;
           text: string;
           loc: string;
+      }
+    | {
+          // A thread restore: the new version and the ready one it copies.
+          // System-only, never user-attached.
+          type: 'data_app_restore';
+          appUuid: string;
+          version: number;
+          restoredFromVersion: number;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -342,6 +350,14 @@ export type AiPromptContextItem =
           tag: string;
           text: string;
           loc: string;
+          appSlug: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'data_app_restore';
+          appUuid: string;
+          version: number;
+          restoredFromVersion: number;
           appSlug: string | null;
           displayName: string | null;
       };

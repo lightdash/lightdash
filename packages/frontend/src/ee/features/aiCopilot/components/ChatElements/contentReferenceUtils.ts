@@ -5,14 +5,16 @@ import {
 } from '@lightdash/common';
 
 // Element references never render inline; they always show as pills.
+// Restore items live on hidden turns and are rendered as build cards.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
-    { type: 'data_app_element' }
+    { type: 'data_app_element' | 'data_app_restore' }
 >;
 
 const isInlineReferenceItem = (
     item: AiPromptContextItem,
-): item is InlineReferenceItem => item.type !== 'data_app_element';
+): item is InlineReferenceItem =>
+    item.type !== 'data_app_element' && item.type !== 'data_app_restore';
 
 export type ContentReferenceSegment =
     | {
@@ -50,6 +52,8 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `preview_environment:${item.previewProjectUuid}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
+        case 'data_app_restore':
+            return `data_app_restore:${item.appUuid}:${item.version}`;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -118,8 +122,10 @@ export const getPromptContextItemHref = (
         case 'review_finding':
         case 'proposed_change':
             return null;
-        // An element reference points inside a running app, not at a route.
+        // An element reference points inside a running app, not at a route;
+        // a restore is surfaced by its build card instead.
         case 'data_app_element':
+        case 'data_app_restore':
             return null;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');

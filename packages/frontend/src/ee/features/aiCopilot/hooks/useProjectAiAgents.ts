@@ -784,10 +784,11 @@ const toOptimisticContextItem = (
                 appSlug: null,
                 displayName: null,
             };
-        // System-only pins are seeded by the remediation flow, never optimistically
-        // attached from the UI, so they have no client-resolvable shape.
+        // System-only pins are seeded by the remediation flow or the thread
+        // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':
         case 'review_finding':
+        case 'data_app_restore':
             throw new Error(
                 `Cannot optimistically resolve system-only context item: ${item.type}`,
             );
