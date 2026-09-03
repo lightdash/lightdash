@@ -1,3 +1,10 @@
+# [2.109.0](https://github.com/lightdash/lightdash/compare/2.108.2...2.109.0) (2026-09-03)
+
+
+### Features
+
+* **scim:** request log screen in org admin settings ([#28415](https://github.com/lightdash/lightdash/issues/28415)) ([105d073](https://github.com/lightdash/lightdash/commit/105d0731ae5a07db5c12fbb3b870e39c3ece30ba))
+
 ## [2.108.2](https://github.com/lightdash/lightdash/compare/2.108.1...2.108.2) (2026-09-03)
 
 

@@ -10757,6 +10757,158 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ScimRequestAction": {
+                "enum": [
+                    "create_user",
+                    "update_user",
+                    "deactivate_user",
+                    "delete_user",
+                    "role_change",
+                    "membership_change",
+                    "create_group",
+                    "update_group",
+                    "delete_group",
+                    "lookup",
+                    "list",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "ScimRequestLog": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "scimType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedRoles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "targetUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetIdentity": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/ScimRequestAction"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "tokenDescription": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "serviceAccountUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "scimType",
+                    "errorDetail",
+                    "status",
+                    "affectedRoles",
+                    "targetUuid",
+                    "targetIdentity",
+                    "action",
+                    "url",
+                    "method",
+                    "tokenDescription",
+                    "serviceAccountUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ScimRequestLog-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRequestLog"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiScimRequestLogListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ScimRequestLog-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCreateScimServiceAccountRequest": {
                 "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description_"
             },
@@ -19026,20 +19178,6 @@
                     "name",
                     "dataAppVizUuid"
                 ],
-                "type": "object"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
                 "type": "object"
             },
             "KnexPaginatedData_DataAppViz-Array_": {
@@ -43725,6 +43863,7 @@
                     "cleanMcpToolCalls",
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
+                    "cleanScimRequestLogs",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "ingestExternalSource",
@@ -59341,7 +59480,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.108.2",
+        "version": "2.109.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
