@@ -10,6 +10,7 @@ import {
     isPeriodOverPeriodAdditionalMetric,
     type AdditionalMetric,
 } from '../types/metricQuery';
+import { getItemId } from './item';
 
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
@@ -90,4 +91,26 @@ export const getCustomMetricType = (type: DimensionType): MetricType[] => {
         default:
             return [];
     }
+};
+
+/**
+ * Merges a chart's custom metrics into a dashboard registry, keyed by
+ * `getItemId()`. Existing registry definitions win (frozen once saved) and
+ * system-generated metrics (e.g. period-over-period) are skipped. Returns the
+ * original array identity when nothing was added.
+ */
+export const mergeDashboardCustomMetrics = (
+    registry: AdditionalMetric[],
+    fromChart: AdditionalMetric[],
+): AdditionalMetric[] => {
+    const seenIds = new Set(registry.map(getItemId));
+    const additions = fromChart.filter((metric) => {
+        if (metric.generationType !== undefined) return false;
+        const id = getItemId(metric);
+        if (seenIds.has(id)) return false;
+        seenIds.add(id);
+        return true;
+    });
+
+    return additions.length === 0 ? registry : [...registry, ...additions];
 };
