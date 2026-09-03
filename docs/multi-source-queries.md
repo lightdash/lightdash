@@ -72,7 +72,7 @@ than referencing expired results.
 - `QuerySourceService.ts` — endpoint logic: validation, dependency-ordered
   submission, batch status.
 
-The reference wait lives in `AsyncQueryService.runComposeSqlQuery` (the
+The reference wait lives in `AsyncQueryService.runDuckdbQuery` (the
 background phase of `executeAsyncComposeSqlQuery`): references are validated
 and authorized at submit time with the exact access checks of fetching results
 by uuid, then resolved to S3-backed CTEs once the referenced queries complete.

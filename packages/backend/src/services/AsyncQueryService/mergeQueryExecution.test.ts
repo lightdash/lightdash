@@ -8,10 +8,12 @@ import {
     type MergeQuery,
     type MergeTypedColumn,
     type MetricQuery,
+    type QueryHistory,
 } from '@lightdash/common';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
+    buildMergeRowCapGuard,
     getMergeOutputColumnCount,
     getMergeRowCapError,
     getMergeSourceLabels,
@@ -277,6 +279,46 @@ describe('getMergeRowCapError', () => {
                 legs: [{ label: 'Orders', rowCount: null }],
                 sourceRowCap: 500,
             }),
+        ).toBeNull();
+    });
+});
+
+describe('buildMergeRowCapGuard', () => {
+    const completed = (rowCountByTable: Record<string, number | null>) =>
+        Object.fromEntries(
+            Object.entries(rowCountByTable).map(([table, totalRowCount]) => [
+                table,
+                { totalRowCount } as QueryHistory,
+            ]),
+        );
+    const guard = buildMergeRowCapGuard({
+        legLabelByReferenceTable: {
+            merge_source_0: 'Orders',
+            merge_source_1: 'Payments',
+        },
+        sourceRowCap: 500,
+    });
+
+    test('reads each leg row count from its completed query history', () => {
+        expect(
+            guard(completed({ merge_source_0: 500, merge_source_1: 12 })),
+        ).toBe(
+            'Orders returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to Orders, then merge again.',
+        );
+        expect(
+            guard(completed({ merge_source_0: 499, merge_source_1: 12 })),
+        ).toBeNull();
+    });
+
+    test('checks only the legs it was given, never a referenced result', () => {
+        expect(
+            guard(
+                completed({
+                    merge_source_0: 1,
+                    merge_source_1: 1,
+                    merge_source_2: 500,
+                }),
+            ),
         ).toBeNull();
     });
 });
