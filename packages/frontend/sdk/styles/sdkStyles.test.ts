@@ -4,7 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import scopeDocumentRules from './scopeDocumentRules.cjs';
+import { SDK_SCOPE_SELECTOR } from './scope';
+import { SCOPE_SELECTOR, scopeDocumentRules } from './postcss.cjs';
 
 // Every stylesheet the SDK entry imports is injected into the customer's page.
 // After scoping, no rule may be able to match markup Lightdash did not render:
@@ -40,10 +41,14 @@ const listSelectors = (css: string) => {
 const canMatchHostMarkup = (selector: string) => !/[.[#]/.test(selector);
 
 describe('SDK stylesheets', () => {
+    it('scopes to the class the SDK puts on its containers', () => {
+        expect(SCOPE_SELECTOR).toBe(SDK_SCOPE_SELECTOR);
+    });
+
     it.each(sdkStylesheets.map(({ specifier, file }) => [specifier, file]))(
         '%s cannot style the host page once scoped',
         (_specifier, file) => {
-            const scoped = postcss([scopeDocumentRules()]).process(
+            const scoped = postcss([scopeDocumentRules]).process(
                 readFileSync(file, 'utf-8'),
                 { from: file },
             ).css;
