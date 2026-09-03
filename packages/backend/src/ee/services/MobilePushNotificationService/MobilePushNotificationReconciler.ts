@@ -50,6 +50,7 @@ export type MobilePushReconciliationStore = {
     findLiveActivity(
         liveActivityUuid: string,
     ): Promise<ReconciliationActivity | undefined>;
+    installationHasLiveGrant(installationUuid: string): Promise<boolean>;
     markLiveActivityDelivered(args: {
         liveActivityUuid: string;
         state: 'working' | 'waiting_for_you' | 'idle';
@@ -270,6 +271,26 @@ export class MobilePushNotificationReconciler {
         const activity =
             await this.notificationStore.findLiveActivity(liveActivityUuid);
         if (activity === undefined) return;
+
+        if (
+            !(await this.notificationStore.installationHasLiveGrant(
+                activity.installationUuid,
+            ))
+        ) {
+            await this.notificationStore.deleteInstallation({
+                installationUuid: activity.installationUuid,
+                organizationUuid: activity.organizationUuid,
+                userUuid: activity.userUuid,
+            });
+            Logger.info(
+                'Removed a mobile push installation without a live grant',
+                {
+                    installationUuid: activity.installationUuid,
+                    userUuid: activity.userUuid,
+                },
+            );
+            return;
+        }
 
         const ownership = await this.threadStore.findThreadOwnership({
             organizationUuid: activity.organizationUuid,

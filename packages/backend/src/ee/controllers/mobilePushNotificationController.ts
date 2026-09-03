@@ -64,12 +64,17 @@ export class MobilePushNotificationController extends BaseController {
         @Body() body: ApiMobilePushInstallationRequest,
     ): Promise<ApiMobilePushInstallationResponse> {
         assertRegisteredAccount(req.account);
+        const { authentication } = req.account;
         await this.getMobilePushNotificationService().registerInstallation({
             user: toSessionUser(req.account),
             installationUuid,
             platform: body.platform ?? 'ios',
             environment: body.environment,
             deviceToken: body.deviceToken,
+            oauthClientId:
+                authentication.type === 'oauth'
+                    ? authentication.clientId
+                    : null,
         });
         this.setStatus(200);
         return { status: 'ok', results: undefined };

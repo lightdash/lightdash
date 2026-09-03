@@ -29,6 +29,7 @@ export type DbMobilePushInstallation = {
     device_token_fingerprint: string;
     encrypted_push_to_start_token: Buffer | null;
     push_to_start_token_fingerprint: string | null;
+    oauth_client_id: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -40,6 +41,7 @@ export type MobilePushInstallationTable = Knex.CompositeTableType<
         | 'mobile_push_installation_uuid'
         | 'encrypted_push_to_start_token'
         | 'push_to_start_token_fingerprint'
+        | 'oauth_client_id'
         | 'created_at'
         | 'updated_at'
     > &
@@ -48,6 +50,7 @@ export type MobilePushInstallationTable = Knex.CompositeTableType<
                 DbMobilePushInstallation,
                 | 'encrypted_push_to_start_token'
                 | 'push_to_start_token_fingerprint'
+                | 'oauth_client_id'
             >
         >,
     Partial<
