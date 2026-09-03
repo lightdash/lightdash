@@ -24,6 +24,7 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
@@ -302,36 +303,6 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
-/**
- * Body-level container for everything Mantine portals out of the inline root
- * (dropdowns, modals, notifications). It carries the scope class and colour
- * scheme so portalled content keeps the SDK's variables without the SDK ever
- * tagging the host's <html> or <body>.
- */
-const useSdkPortalNode = (colorScheme: 'light' | 'dark') => {
-    const [node, setNode] = useState<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        const element = document.createElement('div');
-        element.className = embedContractClass(
-            'ld-sdk-portal',
-            SDK_SCOPE_CLASS,
-        );
-        document.body.appendChild(element);
-        setNode(element);
-        return () => {
-            element.remove();
-            setNode(null);
-        };
-    }, []);
-
-    useEffect(() => {
-        node?.setAttribute('data-mantine-color-scheme', colorScheme);
-    }, [node, colorScheme]);
-
-    return node;
-};
-
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -342,7 +313,11 @@ const SdkProviders: FC<
     const colorScheme = theme ?? 'light';
     const rootRef = useRef<HTMLDivElement>(null);
     const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
-    const portalNode = useSdkPortalNode(colorScheme);
+    // Body-level container for everything Mantine portals out of the inline
+    // root (dropdowns, modals, notifications), so they escape the host's
+    // overflow and stacking contexts while keeping the SDK's variables and
+    // colour scheme.
+    const [portalNode, setPortalNode] = useState<HTMLDivElement | null>(null);
     const fontFamily = styles?.fontFamily;
     // Only override the font when the consumer sets one: Mantine 8's CSS-vars
     // generator stringifies an explicit undefined into `font-family: undefined`.
@@ -375,12 +350,23 @@ const SdkProviders: FC<
         children
     );
 
-    if (!portalNode) {
+    if (typeof document === 'undefined') {
         return null;
     }
 
     return (
         <ReactQueryProvider>
+            {createPortal(
+                <div
+                    ref={setPortalNode}
+                    className={embedContractClass(
+                        'ld-sdk-portal',
+                        SDK_SCOPE_CLASS,
+                    )}
+                    data-mantine-color-scheme={colorScheme}
+                />,
+                document.body,
+            )}
             <MantineProvider
                 themeOverride={themeOverride}
                 notificationsLimit={0}
@@ -396,6 +382,7 @@ const SdkProviders: FC<
                         SDK_SCOPE_CLASS,
                     )}
                 >
+                    {portalNode && (
                     <ModalsProvider>
                         <AppProvider>
                             <FullscreenProvider enabled={false}>
@@ -417,6 +404,7 @@ const SdkProviders: FC<
                             </FullscreenProvider>
                         </AppProvider>
                     </ModalsProvider>
+                    )}
                 </div>
             </MantineProvider>
         </ReactQueryProvider>
