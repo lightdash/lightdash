@@ -63,9 +63,11 @@ error: it is the feature working.
 _Avoid_: validation error, failure
 
 **Row cap**:
-The maximum rows one source may contribute. Reaching it is reported, never
-silently trimmed, because a join over a trimmed side returns numbers that look
-complete and are not.
+The maximum rows one source may contribute. A leg that reaches it is refused
+before the join, naming the source, never silently trimmed, because a join over
+a trimmed side returns numbers that look complete and are not. It is known only
+once the leg has run, so unlike other refusals it arrives as the merged query's
+error.
 _Avoid_: limit (collides with the merged result's own limit), truncation
 
 **Compose engine**:

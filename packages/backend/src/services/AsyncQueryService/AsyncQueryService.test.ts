@@ -5415,3 +5415,113 @@ describe('getQueryHistoryList', () => {
         expect(counts.total).toBe(347);
     });
 });
+
+describe('runComposeMergeQuery row cap refusal', () => {
+    const SOURCE_ROW_CAP = 3;
+
+    // Lowered through config rather than by seeding cap-many rows: the run
+    // path reads the cap from the same config the legs were submitted with.
+    const cappedConfig = {
+        ...lightdashConfigMock,
+        query: { ...lightdashConfigMock.query, maxLimit: SOURCE_ROW_CAP },
+    };
+
+    const legHistory = (totalRowCount: number | null) =>
+        ({
+            queryUuid: 'leg-uuid',
+            projectUuid,
+            status: QueryHistoryStatus.READY,
+            totalRowCount,
+            resultsFileName: 'leg-results.jsonl',
+            resultsExpiresAt: null,
+            columns: {},
+            context: QueryExecutionContext.EXPLORE,
+        }) as unknown as QueryHistory;
+
+    const runRefusalCase = async (totalRowCount: number | null) => {
+        const service = getMockedAsyncQueryService(cappedConfig);
+        const storageClient = service.resultsStorageClient as unknown as {
+            configuration: { bucket: string };
+        };
+        storageClient.configuration = { bucket: 'results-bucket' };
+
+        (
+            service.queryHistoryModel as unknown as {
+                pollForQueryCompletion: import('vitest').Mock;
+            }
+        ).pollForQueryCompletion = vi.fn(async () => legHistory(totalRowCount));
+
+        const runWarehouseQuery = vi
+            .spyOn(
+                service as unknown as {
+                    runAsyncWarehouseQuery: (
+                        ...args: unknown[]
+                    ) => Promise<void>;
+                },
+                'runAsyncWarehouseQuery',
+            )
+            .mockResolvedValue(undefined);
+
+        await (
+            service as unknown as {
+                runComposeMergeQuery: (
+                    args: Record<string, unknown>,
+                ) => Promise<void>;
+            }
+        ).runComposeMergeQuery({
+            account: buildAccount(),
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            isPreviewProject: false,
+            onboardingFlow: 'default' as AnyType,
+            queryUuid: 'merge-query-uuid',
+            sql: 'SELECT 1',
+            references: { merge_source_0: 'leg-uuid' },
+            legLabelByReferenceTable: { merge_source_0: 'Orders' },
+            warehouseClient: warehouseClientMock,
+            queryTags: {} as AnyType,
+            queryCreatedAt: new Date(),
+            cacheKey: 'cache-key',
+            context: QueryExecutionContext.EXPLORE,
+            fieldsMap: {} as ItemsMap,
+            usedParameters: {},
+            pivotConfiguration: undefined,
+            originalColumns: {} as ResultColumns,
+        });
+
+        return {
+            runWarehouseQuery,
+            update: service.queryHistoryModel.update as import('vitest').Mock,
+        };
+    };
+
+    it('refuses before the join when a leg reached the row cap, naming the source', async () => {
+        const { runWarehouseQuery, update } =
+            await runRefusalCase(SOURCE_ROW_CAP);
+
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledWith(
+            'merge-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.ERROR,
+                error: `Orders returned the maximum of ${SOURCE_ROW_CAP} rows, so the merged results would be missing data. Add a filter to Orders, then merge again.`,
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('runs the join when every leg is under the row cap', async () => {
+        const { runWarehouseQuery, update } = await runRefusalCase(
+            SOURCE_ROW_CAP - 1,
+        );
+
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+    });
+});

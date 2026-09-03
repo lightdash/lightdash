@@ -127,7 +127,9 @@ These exist because getting them wrong produces confident wrong numbers.
   null-ness equality that keeps the sentinel collision-safe. On DuckDB this
   reduces to the null-safe operator.
 - **Fan-out is refused before execution**, naming the source and the dimension.
-- **Reaching the row cap is reported, never trimmed.**
+- **A leg that reaches the row cap is refused before the join**, from the leg's
+  own `query_history` row count. On the compose path the legs run at the cap,
+  so no guard inside the join SQL could ever see past it.
 - **Table calculations that depend on a source's own row set are refused**,
   because merging changes those rows.
 
@@ -143,7 +145,8 @@ These exist because getting them wrong produces confident wrong numbers.
 Known gaps in that coverage, so you do not assume it is proving more than it is:
 the parity suite compares values numerically, so it cannot catch a formatting
 regression; there is no end-to-end test of merging at all; and a live row-cap
-trip needs more rows than the seed carries.
+trip needs more rows than the seed carries (the refusal itself is proven in
+`AsyncQueryService.test.ts` with the cap lowered through config).
 
 ## Current work
 
