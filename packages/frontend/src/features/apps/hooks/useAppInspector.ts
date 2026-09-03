@@ -40,9 +40,11 @@ export type AppInspectorPanelProps = {
 };
 
 export type UseAppInspectorResult = {
-    /** Parent-owned visibility: the panel's X hides it, `show` re-opens it. */
+    /** Parent-owned visibility: the panel's X (or `hide`) hides it, `show`
+     *  re-opens it. */
     hidden: boolean;
     show: () => void;
+    hide: () => void;
     /** Persist-aware rollover for a host-triggered iframe reload (manual
      *  refresh). Version switches roll over via `identityKey`. */
     rolloverLogs: () => void;
@@ -169,6 +171,7 @@ export const useAppInspector = ({
     return {
         hidden,
         show,
+        hide,
         rolloverLogs,
         readyQueryCount: countReadyQueriesSinceBoundary(
             queries,

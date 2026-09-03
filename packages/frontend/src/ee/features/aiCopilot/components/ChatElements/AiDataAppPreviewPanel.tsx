@@ -10,8 +10,13 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconExternalLink, IconX } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import {
+    IconArrowsUpDown,
+    IconDots,
+    IconExternalLink,
+    IconX,
+} from '@tabler/icons-react';
+import { type FC, type ReactNode, useState } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
@@ -53,6 +58,24 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     // Lives here, not next to the iframe, so logs and dismissal survive the
     // token reload between versions. Only wired in when `showInspector`.
     const inspector = useAppInspector({ identityKey, defaultHidden: false });
+    // Opened from the menu: keep the panel visible (collapsed bar) even before
+    // the app issues its first query.
+    const [inspectorPinned, setInspectorPinned] = useState(false);
+    const hasInspectorLogs =
+        inspector.panelProps.queries.length > 0 ||
+        inspector.panelProps.externalRequests.length > 0;
+    const isInspectorVisible =
+        showInspector &&
+        !inspector.hidden &&
+        (inspectorPinned || hasInspectorLogs);
+    const toggleInspector = () => {
+        if (isInspectorVisible) {
+            inspector.hide();
+        } else {
+            setInspectorPinned(true);
+            inspector.show();
+        }
+    };
 
     const {
         data: token,
@@ -159,6 +182,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                 {showInspector && !inspector.hidden && (
                     <AppInspectorPanel
                         projectUuid={projectUuid}
+                        hideWhenEmpty={!inspectorPinned}
                         {...inspector.panelProps}
                     />
                 )}
@@ -210,6 +234,21 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 >
                                     Open in new tab
                                 </Menu.Item>
+                                {showInspector && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconArrowsUpDown}
+                                                size="sm"
+                                            />
+                                        }
+                                        onClick={toggleInspector}
+                                    >
+                                        {isInspectorVisible
+                                            ? 'Hide network'
+                                            : 'Show network'}
+                                    </Menu.Item>
+                                )}
                             </Menu.Dropdown>
                         </Menu>
                         {closeButton}

@@ -1,4 +1,5 @@
 import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { QueryEvent } from '../../../../../features/apps/hooks/useAppSdkBridge';
 import { renderWithProviders } from '../../../../../testing/testUtils';
@@ -143,6 +144,33 @@ describe('AiDataAppPreviewPanel inspector', () => {
         act(() => latestIframeProps().onQueryEvent?.(readyQuery('r2')));
 
         expect(screen.getByText('Queries (2)')).toBeInTheDocument();
+    });
+
+    it('re-opens a dismissed inspector from the menu', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(panel(true));
+        act(() => latestIframeProps().onQueryEvent?.(readyQuery('r1')));
+        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('Close inspector panel'));
+        expect(screen.queryByText('Queries (1)')).not.toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('More options'));
+        await user.click(await screen.findByText('Show network'));
+        expect(screen.getByText('Queries (1)')).toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('More options'));
+        expect(await screen.findByText('Hide network')).toBeInTheDocument();
+    });
+
+    it('shows the inspector from the menu before the first query', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(panel(true));
+        expect(screen.queryByText(/Queries \(/)).not.toBeInTheDocument();
+
+        await user.click(screen.getByLabelText('More options'));
+        await user.click(await screen.findByText('Show network'));
+        expect(screen.getByText('Queries (0)')).toBeInTheDocument();
     });
 
     it('leaves the launcher preview without inspector wiring', () => {
