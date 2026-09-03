@@ -1,3 +1,10 @@
+# [2.115.0](https://github.com/lightdash/lightdash/compare/2.114.1...2.115.0) (2026-09-03)
+
+
+### Features
+
+* **ai-agents:** battle mode behind a feature flag with response timings ([#28605](https://github.com/lightdash/lightdash/issues/28605)) ([c90db03](https://github.com/lightdash/lightdash/commit/c90db03438c9887e507e5797dbaa14c737657fcc))
+
 ## [2.114.1](https://github.com/lightdash/lightdash/compare/2.114.0...2.114.1) (2026-09-03)
 
 

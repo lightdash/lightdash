@@ -26812,8 +26812,34 @@
                 "type": "object",
                 "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
+            "AiPromptResponseTiming": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string"
+                    },
+                    "firstTokenAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "First chunk the model produced (text, reasoning, or tool input). Null when nothing streamed."
+                    },
+                    "startedAt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["finishedAt", "firstTokenAt", "startedAt"],
+                "type": "object",
+                "description": "Wall-clock timing of one model run, stamped by the agent loop. ISO strings."
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "responseTiming": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptResponseTiming"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "tokenUsage": {
                         "allOf": [
                             {
@@ -26906,6 +26932,7 @@
                     }
                 },
                 "required": [
+                    "responseTiming",
                     "tokenUsage",
                     "modelConfig",
                     "referencedArtifacts",
@@ -59538,7 +59565,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.114.1",
+        "version": "2.115.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
