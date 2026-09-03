@@ -18,6 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { convertDateFilters } from '../utils/dateFilter';
 import { useProjectUuid } from './useProjectUuid';
+import { getAsyncQueryError } from './useQueryResults';
 
 type UnderlyingDataResults = ApiQueryResults & {
     queryUuid: string;
@@ -95,15 +96,7 @@ export const getUnderlyingDataResults = async (
                 };
             case QueryHistoryStatus.ERROR:
             case QueryHistoryStatus.EXPIRED:
-                throw <ApiError>{
-                    status: 'error',
-                    error: {
-                        name: 'Error',
-                        statusCode: 500,
-                        message: currentPage.error ?? 'Query failed',
-                        data: {},
-                    },
-                };
+                throw getAsyncQueryError(currentPage.error);
             case QueryHistoryStatus.READY:
                 allRows = allRows.concat(currentPage.rows);
                 break;
