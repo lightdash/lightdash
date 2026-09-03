@@ -12,6 +12,11 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import { type ContentType } from './rehypeContentLinks';
@@ -54,6 +59,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const dispatch = useAiAgentStoreDispatch();
+    const currentPreview = useAiAgentStoreSelector(selectPreview);
     const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;
     const dataAppUuid =
