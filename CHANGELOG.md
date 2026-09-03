@@ -1,3 +1,11 @@
+# [2.103.0](https://github.com/lightdash/lightdash/compare/2.102.1...2.103.0) (2026-09-03)
+
+
+### Features
+
+* **ai:** data app element references as prompt context ([#28539](https://github.com/lightdash/lightdash/issues/28539)) ([b372e8e](https://github.com/lightdash/lightdash/commit/b372e8e40f45cd0e2d96dbbc07c2d87af6f18157))
+* **ai:** element picker in the thread's data app preview panel ([#28529](https://github.com/lightdash/lightdash/issues/28529)) ([e69ada7](https://github.com/lightdash/lightdash/commit/e69ada757893bc3821ff7ea4139f6ccd1f3fffb5))
+
 ## [2.102.1](https://github.com/lightdash/lightdash/compare/2.102.0...2.102.1) (2026-09-03)
 
 

@@ -25163,6 +25163,50 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "appSlug",
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -27059,6 +27103,40 @@
                             }
                         },
                         "required": ["previewProjectUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -59147,7 +59225,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.102.1",
+        "version": "2.103.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
