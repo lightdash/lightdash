@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.109.0",
-  "previousVersion": "2.108.2",
-  "releaseDate": "2026-09-03T13:00:47.137Z",
+  "version": "2.110.0",
+  "previousVersion": "2.109.0",
+  "releaseDate": "2026-09-03T13:33:35.233Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260901150000_create_scim_request_logs.ts",
-        "edition": "ee",
-        "tables": [
-          "organizations",
-          "scim_request_logs",
-          "service_accounts"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -35,11 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `cleanScimRequestLogs` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `cleanScimRequestLogs` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
-      ],
-      "advisoryCount": 2
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
