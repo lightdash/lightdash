@@ -144,9 +144,7 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
-import {
-    chunkRowsByBytes,
-} from '../../utils/chunkRowsByBytes';
+import { chunkRowsByBytes } from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
