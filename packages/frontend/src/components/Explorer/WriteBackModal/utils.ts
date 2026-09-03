@@ -2,7 +2,6 @@ import {
     convertCustomMetricToDbt,
     isAdditionalMetric,
     isCustomDimension,
-    previewConvertCustomDimensionToDbt,
     type AdditionalMetric,
     type CustomDimension,
 } from '@lightdash/common';
@@ -19,24 +18,10 @@ export const match = <T, U = T>(
     throw new Error(`Invalid item type: ${JSON.stringify(item)}`);
 };
 
-export const convertToDbt = (item: CustomDimension | AdditionalMetric) => {
-    const key = match(
-        item,
-        (customDimension) => customDimension.id,
-        (customMetric) => customMetric.name,
-    );
-
-    const value = match(
-        item,
-        (i) => previewConvertCustomDimensionToDbt(i),
-        (i) => convertCustomMetricToDbt(i),
-    );
-
-    return {
-        key,
-        value,
-    };
-};
+export const convertToDbt = (item: AdditionalMetric) => ({
+    key: item.name,
+    value: convertCustomMetricToDbt(item),
+});
 
 export const getItemId = (item: CustomDimension | AdditionalMetric) => {
     return match(
