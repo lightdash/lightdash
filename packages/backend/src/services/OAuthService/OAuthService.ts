@@ -22,10 +22,16 @@ export enum OAuthScope {
     MCP_WRITE = 'mcp:write',
 }
 
+export type OAuthGrantRevokedHandler = (args: {
+    userId: number;
+    clientId: string;
+}) => Promise<void>;
+
 type OAuthServiceArguments = {
     userModel: UserModel;
     oauthModel: OAuth2Model;
     lightdashConfig: LightdashConfig;
+    onGrantRevoked?: OAuthGrantRevokedHandler;
 };
 
 export class OAuthService extends BaseService {
@@ -37,15 +43,19 @@ export class OAuthService extends BaseService {
 
     private lightdashConfig: LightdashConfig;
 
+    private onGrantRevoked: OAuthGrantRevokedHandler | undefined;
+
     constructor({
         userModel,
         oauthModel,
         lightdashConfig,
+        onGrantRevoked,
     }: OAuthServiceArguments) {
         super();
         this.userModel = userModel;
         this.oauthModel = oauthModel;
         this.lightdashConfig = lightdashConfig;
+        this.onGrantRevoked = onGrantRevoked;
         this.initializeOAuthServer();
     }
 
@@ -107,10 +117,19 @@ export class OAuthService extends BaseService {
     }
 
     public async revokeToken(token: string): Promise<boolean> {
-        // Try to revoke as access token first
         const refreshToken = await this.oauthModel.getRefreshToken(token);
-        if (refreshToken) return this.oauthModel.revokeToken(refreshToken);
-        return false;
+        if (refreshToken) {
+            const deleted = await this.oauthModel.deleteRefreshToken(token);
+            const { userId } = refreshToken.user as UserWithOrganizationUuid;
+            if (deleted && this.onGrantRevoked !== undefined) {
+                await this.onGrantRevoked({
+                    userId,
+                    clientId: refreshToken.client.id,
+                });
+            }
+            return deleted;
+        }
+        return this.oauthModel.deleteAccessToken(token);
     }
 
     public async getClientDisplayName(clientId: string): Promise<string> {
