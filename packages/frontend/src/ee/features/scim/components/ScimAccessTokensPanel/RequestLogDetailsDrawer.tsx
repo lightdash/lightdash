@@ -9,8 +9,8 @@ const DetailRow: FC<{ label: string; children: ReactNode }> = ({
     label,
     children,
 }) => (
-    <Stack gap={2}>
-        <Text size="xs" c="dimmed" fw={600}>
+    <Stack gap="xxs">
+        <Text size="xs" c="dimmed" fw={500}>
             {label}
         </Text>
         {children}
@@ -33,11 +33,7 @@ export const RequestLogDetailsDrawer: FC<RequestLogDetailsDrawerProps> = ({
         onClose={onClose}
         position="right"
         size="md"
-        title={
-            <Text fw={600} fz="lg">
-                SCIM request details
-            </Text>
-        }
+        title="SCIM request details"
     >
         {log && (
             <Stack gap="md">
@@ -80,7 +76,7 @@ export const RequestLogDetailsDrawer: FC<RequestLogDetailsDrawerProps> = ({
                     <DetailRow label="Roles">
                         <Group gap="xs">
                             {log.affectedRoles.map((role) => (
-                                <Badge key={role} variant="light" color="blue">
+                                <Badge key={role} variant="light">
                                     {role}
                                 </Badge>
                             ))}

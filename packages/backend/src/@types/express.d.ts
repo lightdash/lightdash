@@ -12,10 +12,7 @@ declare global {
         interface Request {
             services: ServiceRepository;
             serviceAccount?: Pick<ServiceAccount, 'organizationUuid' | 'uuid'>;
-            /**
-             * SCIM request-log attribution for requests that resolved a
-             * service account but failed auth (e.g. expired token)
-             */
+            // SCIM request-log attribution when auth resolved a token but rejected it
             scimLogAttribution?: {
                 organizationUuid: string;
                 serviceAccountUuid: string;

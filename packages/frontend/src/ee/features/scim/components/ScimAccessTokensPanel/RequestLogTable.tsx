@@ -1,5 +1,5 @@
 import { type ScimRequestLog } from '@lightdash/common';
-import { Text, useMantineTheme } from '@mantine/core';
+import { Text } from '@mantine/core';
 import { format } from 'date-fns';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -7,17 +7,17 @@ import {
     useContentTable,
     type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
+import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteScroll } from '../../../../../hooks/useInfiniteScroll';
 import { useScimRequestLogs } from '../../hooks/useScimRequestLogs';
 import { RequestLogDetailsDrawer } from './RequestLogDetailsDrawer';
 import { RequestLogStatusBadges } from './RequestLogStatusBadges';
+import styles from './RequestLogTable.module.css';
 import { SCIM_ACTION_LABELS } from './scimActionLabels';
 
 const fetchSize = 50;
 
 export const RequestLogTable: FC = () => {
-    const theme = useMantineTheme();
-
     const [drawerOpened, setDrawerOpened] = useState(false);
     const [selectedLog, setSelectedLog] = useState<ScimRequestLog | null>(null);
 
@@ -83,9 +83,9 @@ export const RequestLogTable: FC = () => {
                 size: 240,
                 Cell: ({ row }) =>
                     row.original.targetIdentity ? (
-                        <Text size="xs" truncate maw={220}>
+                        <TruncatedText fz="xs" maxWidth={220}>
                             {row.original.targetIdentity}
-                        </Text>
+                        </TruncatedText>
                     ) : (
                         <Text size="xs" c="dimmed">
                             —
@@ -126,10 +126,7 @@ export const RequestLogTable: FC = () => {
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: {
-                minHeight: 400,
-                maxHeight: 'calc(100dvh - 220px)',
-            },
+            className: styles.container,
             onScroll,
         },
         mantineTableProps: {
@@ -138,25 +135,7 @@ export const RequestLogTable: FC = () => {
         },
         mantineTableBodyRowProps: ({ row }) => ({
             onClick: () => handleRowClick(row.original),
-            style: { cursor: 'pointer' },
         }),
-        mantineTableHeadCellProps: {
-            h: '3xl',
-            pos: 'relative',
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                backgroundColor: theme.colors.ldGray[0],
-                fontWeight: 600,
-                fontSize: theme.fontSizes.xs,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                fontSize: theme.fontSizes.xs,
-                color: theme.colors.ldGray[7],
-            },
-        },
         rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },
         state: {
             isLoading,

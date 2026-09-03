@@ -38,7 +38,6 @@ export class ScimRequestLogModel {
             action: log.action,
             target_identity: log.targetIdentity,
             target_uuid: log.targetUuid,
-            // stringified: pg would treat a JS array as a Postgres array, not jsonb
             affected_roles: JSON.stringify(log.affectedRoles),
             status: log.status,
             error_detail: log.errorDetail,
