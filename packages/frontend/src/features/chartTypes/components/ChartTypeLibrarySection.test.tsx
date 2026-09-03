@@ -174,6 +174,27 @@ describe('ChartTypeLibrarySection', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('explains how library chart types become available to the organization', () => {
+        setFlag(true);
+        setRegistryData([makeItem({})]);
+
+        renderWithProviders(
+            <ChartTypeLibrarySection
+                projectUuid={PROJECT_UUID}
+                withHeader={false}
+            />,
+        );
+
+        expect(
+            screen.getByText(
+                'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Chart type library'),
+        ).not.toBeInTheDocument();
+    });
+
     it('renders cards with state badges for the happy path', () => {
         setFlag(true);
         setRegistryData([
