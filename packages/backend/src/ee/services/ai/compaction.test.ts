@@ -273,6 +273,36 @@ describe('AI context compaction helpers', () => {
         expect(serialized).toContain('active tab "Customers"');
     });
 
+    it('serializes an element reference with its wire string and app', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Make this bigger',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'data_app_element',
+                        appUuid: 'app-1',
+                        version: 3,
+                        tag: 'button',
+                        text: 'Send',
+                        loc: '',
+                        appSlug: 'f1-standings',
+                        displayName: 'F1 standings',
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain(
+            'element reference [button "Send"] in data app F1 standings (app-1, version 3',
+        );
+    });
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

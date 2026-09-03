@@ -773,6 +773,17 @@ const toOptimisticContextItem = (
                 status: null,
                 projectName: null,
             };
+        case 'data_app_element':
+            return {
+                type: 'data_app_element',
+                appUuid: item.appUuid,
+                version: item.version,
+                tag: item.tag,
+                text: item.text,
+                loc: item.loc,
+                appSlug: null,
+                displayName: null,
+            };
         // System-only pins are seeded by the remediation flow, never optimistically
         // attached from the UI, so they have no client-resolvable shape.
         case 'proposed_change':

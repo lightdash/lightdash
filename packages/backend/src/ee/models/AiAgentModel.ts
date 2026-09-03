@@ -67,7 +67,9 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    elementReferenceToWireString,
     generateSlug,
+    getAppDisplayName,
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
@@ -143,6 +145,7 @@ import {
     AiOrganizationSettingsTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
+    AiPromptDataAppElementSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -6502,6 +6505,21 @@ export class AiAgentModel {
         const dashboardUuids = context.flatMap((c) =>
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
+        const appUuids = context.flatMap((c) =>
+            c.type === 'data_app_element' ? [c.appUuid] : [],
+        );
+
+        const appNameByUuid = new Map(
+            (
+                await trx(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<{ app_id: string; name: string }[]>(
+                        'app_id',
+                        'name',
+                    )
+            ).map((r) => [r.app_id, r.name] as const),
+        );
 
         const chartLookup = new Map(
             (
@@ -6762,6 +6780,29 @@ export class AiAgentModel {
                         entity_uuid: ctx.previewProjectUuid,
                         display_name: null,
                     };
+                // entity_ref is the natural key, so one prompt can hold
+                // several references to the same app.
+                case 'data_app_element': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_element' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.appUuid}:${ctx.version}:${elementReferenceToWireString(ctx)}`,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            appUuid: ctx.appUuid,
+                            version: ctx.version,
+                            tag: ctx.tag,
+                            text: ctx.text,
+                            loc: ctx.loc,
+                        } satisfies AiPromptDataAppElementSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6898,6 +6939,27 @@ export class AiAgentModel {
             }),
         );
 
+        const appUuids = rows.flatMap((r) =>
+            r.entity_type === 'data_app_element'
+                ? [
+                      (r.runtime_overrides as AiPromptDataAppElementSnapshot)
+                          .appUuid,
+                  ]
+                : [],
+        );
+        const appDataByUuid = new Map(
+            (
+                await this.database(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<{ app_id: string; slug: string; name: string }[]>(
+                        'app_id',
+                        'slug',
+                        'name',
+                    )
+            ).map((r) => [r.app_id, { slug: r.slug, name: r.name }] as const),
+        );
+
         const previewProjectUuids = rows
             .filter((r) => r.entity_type === 'preview_environment')
             .map((r) => r.entity_uuid)
@@ -6930,6 +6992,7 @@ export class AiAgentModel {
                     dashboardSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
+                    appDataByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
@@ -6974,6 +7037,7 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
+        appDataByUuid: Map<string, { slug: string; name: string }>,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -7073,6 +7137,28 @@ export class AiAgentModel {
                     previewThreadUuid: null,
                     status: null,
                     projectName: projectNameByUuid.get(entityUuid) ?? null,
+                };
+            }
+            case 'data_app_element': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_element' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppElementSnapshot;
+                const app = appDataByUuid.get(snapshot.appUuid);
+                return {
+                    type: 'data_app_element',
+                    appUuid: snapshot.appUuid,
+                    version: snapshot.version,
+                    tag: snapshot.tag,
+                    text: snapshot.text,
+                    loc: snapshot.loc,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, snapshot.appUuid)
+                        : row.display_name,
                 };
             }
             default:
