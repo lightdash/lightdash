@@ -1,14 +1,10 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
-import { type FC, type MouseEvent } from 'react';
+import { type FC } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
-import { selectDataAppPreview, setPreview } from '../../store/aiArtifactSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../store/hooks';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import { getDataAppContextItemLabel } from '../ChatElements/contentReferenceUtils';
+import { useDataAppPreviewLink } from '../ChatElements/useDataAppPreviewLink';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
 // The sent thread message the chip belongs to; lets a data app chip open the
@@ -97,40 +93,15 @@ const getItemMeta = (
     }
 };
 
-const isPlainLeftClick = (e: MouseEvent<HTMLAnchorElement>) =>
-    !e.defaultPrevented &&
-    e.button === 0 &&
-    !e.metaKey &&
-    !e.altKey &&
-    !e.ctrlKey &&
-    !e.shiftKey;
-
 const PinnedDataAppCard: FC<{
     item: Extract<AiPromptContextItem, { type: 'data_app' }>;
     projectUuid: string;
     previewScope: PinnedContextPreviewScope | null;
 }> = ({ item, projectUuid, previewScope }) => {
-    const dispatch = useAiAgentStoreDispatch();
-    const currentPreview = useAiAgentStoreSelector(selectDataAppPreview);
-    const isActive =
-        currentPreview !== null && currentPreview.appUuid === item.appUuid;
-
-    // Plain click opens the in-thread preview; modified clicks fall through
-    // to the anchor and open the full page in a new tab.
-    const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
-        if (!previewScope || !isPlainLeftClick(e)) return;
-        e.preventDefault();
-        dispatch(
-            setPreview({
-                type: 'dataApp',
-                appUuid: item.appUuid,
-                messageUuid: previewScope.messageUuid,
-                threadUuid: previewScope.threadUuid,
-                projectUuid,
-                agentUuid: previewScope.agentUuid,
-            }),
-        );
-    };
+    const { isActive, onClick } = useDataAppPreviewLink(
+        item.appUuid,
+        previewScope ? { ...previewScope, projectUuid } : null,
+    );
 
     return (
         <ContentReferenceLink
@@ -138,7 +109,7 @@ const PinnedDataAppCard: FC<{
             rel="noreferrer"
             to={dataAppHref(projectUuid, item.appUuid)}
             target="_blank"
-            onClick={handleClick}
+            onClick={onClick}
             data-app-active={isActive || undefined}
             showArrow
         >
