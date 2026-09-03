@@ -2019,16 +2019,11 @@ export class ProjectModel {
                     let largestChunkBytes = 0;
                     // Sequential, not Promise.all: every chunk statement was alive at once.
                     // eslint-disable-next-line no-restricted-syntax
-                    for (const rows of chunkRowsByBytes(sizedRows())) {
+                    for (const { rows, bytes } of chunkRowsByBytes(
+                        sizedRows(),
+                    )) {
                         chunkCount += 1;
-                        largestChunkBytes = Math.max(
-                            largestChunkBytes,
-                            rows.reduce(
-                                (sum, row) =>
-                                    sum + Buffer.byteLength(row.explore),
-                                0,
-                            ),
-                        );
+                        largestChunkBytes = Math.max(largestChunkBytes, bytes);
                         const insertQuery = trx<DbCachedExplore>(
                             CachedExploreTableName,
                         ).insert(rows);

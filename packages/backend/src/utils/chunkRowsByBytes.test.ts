@@ -10,7 +10,9 @@ const sized = (...sizes: number[]) =>
 
 describe('chunkRowsByBytes', () => {
     it('bounds a chunk by bytes', () => {
-        const chunks = [...chunkRowsByBytes(sized(40, 40, 40, 40), 100, 1000)];
+        const chunks = [
+            ...chunkRowsByBytes(sized(40, 40, 40, 40), 100, 1000),
+        ].map((c) => c.rows);
         expect(chunks).toEqual([
             ['row0', 'row1'],
             ['row2', 'row3'],
@@ -18,18 +20,22 @@ describe('chunkRowsByBytes', () => {
     });
 
     it('bounds a chunk by row count as well', () => {
-        const chunks = [...chunkRowsByBytes(sized(1, 1, 1, 1, 1), 1000, 2)];
+        const chunks = [...chunkRowsByBytes(sized(1, 1, 1, 1, 1), 1000, 2)].map(
+            (c) => c.rows,
+        );
         expect(chunks).toEqual([['row0', 'row1'], ['row2', 'row3'], ['row4']]);
     });
 
     it('emits an oversized single row on its own rather than dropping it', () => {
-        const chunks = [...chunkRowsByBytes(sized(10, 500, 10), 100, 1000)];
+        const chunks = [...chunkRowsByBytes(sized(10, 500, 10), 100, 1000)].map(
+            (c) => c.rows,
+        );
         expect(chunks).toEqual([['row0'], ['row1'], ['row2']]);
     });
 
     it('keeps every row exactly once and in order', () => {
         const input = sized(...Array.from({ length: 97 }, (_, i) => i + 1));
-        const chunks = [...chunkRowsByBytes(input, 250, 7)];
+        const chunks = [...chunkRowsByBytes(input, 250, 7)].map((c) => c.rows);
         expect(chunks.flat()).toEqual(input.map(({ row }) => row));
     });
 
@@ -37,14 +43,16 @@ describe('chunkRowsByBytes', () => {
         const input = sized(
             ...Array.from({ length: 200 }, (_, i) => (i % 13) + 1),
         );
-        const chunks = [...chunkRowsByBytes(input, 30, 5)];
+        const chunks = [...chunkRowsByBytes(input, 30, 5)].map((c) => c.rows);
         chunks.forEach((rows) => {
             expect(rows.length).toBeLessThanOrEqual(5);
         });
     });
 
     it('yields nothing for an empty input', () => {
-        expect([...chunkRowsByBytes([], 100, 10)]).toEqual([]);
+        expect([...chunkRowsByBytes([], 100, 10)].map((c) => c.rows)).toEqual(
+            [],
+        );
     });
 
     it('consumes a lazy generator without materialising every row', () => {
@@ -63,10 +71,9 @@ describe('chunkRowsByBytes', () => {
     });
 
     it('treats a non-positive limit as one', () => {
-        expect([...chunkRowsByBytes(sized(5, 5), 0, 0)]).toEqual([
-            ['row0'],
-            ['row1'],
-        ]);
+        expect(
+            [...chunkRowsByBytes(sized(5, 5), 0, 0)].map((c) => c.rows),
+        ).toEqual([['row0'], ['row1']]);
     });
 });
 
