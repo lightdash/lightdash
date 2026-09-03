@@ -1,3 +1,10 @@
+## [2.118.1](https://github.com/lightdash/lightdash/compare/2.118.0...2.118.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **data-apps:** keep the chat scroll position when loading earlier messages ([#28612](https://github.com/lightdash/lightdash/issues/28612)) ([b99065c](https://github.com/lightdash/lightdash/commit/b99065c9d3ab424152dff359a53bd703596fd7c7))
+
 # [2.118.0](https://github.com/lightdash/lightdash/compare/2.117.1...2.118.0) (2026-09-03)
 
 
