@@ -160,11 +160,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                             </ActionIcon>
                         </Tooltip>
 
-                        <Button
-                            variant="dark"
-                            size="compact-xs"
-                            onClick={handleSave}
-                        >
+                        <Button size="compact-xs" onClick={handleSave}>
                             Save
                         </Button>
                     </Group>

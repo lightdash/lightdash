@@ -239,7 +239,6 @@ const AgentsWelcome = () => {
                         <Box mt="lg">
                             {canCreateAgent ? (
                                 <Button
-                                    variant="dark"
                                     leftSection={
                                         <MantineIcon icon={IconPlus} />
                                     }
