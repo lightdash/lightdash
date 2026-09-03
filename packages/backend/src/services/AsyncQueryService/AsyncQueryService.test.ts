@@ -389,6 +389,7 @@ const getMockedAsyncQueryService = (
         } as unknown as OrganizationAccessService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
         composeEngineClient: new ComposeEngineClient({
+            resolveCaCertFile: () => '/etc/ssl/certs/ca-certificates.crt',
             lightdashConfig,
             createDuckdbWarehouseClient: () => warehouseClientMock,
         }),
@@ -626,6 +627,8 @@ describe('AsyncQueryService', () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: composeFlags,
                 composeEngineClient: new ComposeEngineClient({
+                    resolveCaCertFile: () =>
+                        '/etc/ssl/certs/ca-certificates.crt',
                     lightdashConfig: lightdashConfigMock,
                     createDuckdbWarehouseClient,
                 }),
@@ -665,6 +668,7 @@ describe('AsyncQueryService', () => {
                 s3Config: {
                     endpoint: 'mock_endpoint',
                     region: 'mock_region',
+                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
                     accessKey: undefined,
                     secretKey: undefined,
                     forcePathStyle: false,

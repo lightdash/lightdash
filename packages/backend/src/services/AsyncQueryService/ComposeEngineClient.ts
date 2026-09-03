@@ -12,6 +12,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
+import { resolveCaCertFile } from '../../utils/duckdb/resolveCaCertFile';
 
 export const COMPOSE_ENGINE_INSTANCE_CACHE_KEY = 'compose-engine-instance';
 
@@ -25,6 +26,9 @@ export const COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE =
 
 export const COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE =
     'External sources need the pre-aggregates S3 configuration (PRE_AGGREGATE_RESULTS_S3_*) to read their ingested files.';
+
+export const COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE =
+    'The compose engine reads object storage over HTTPS but found no CA certificate bundle to verify it with. Install ca-certificates in the image, or set SSL_CERT_FILE to a PEM bundle.';
 
 const SCOPED_SESSION_RESOURCE_LIMITS: DuckdbResourceLimits = {
     memoryLimit: '512MB',
@@ -59,6 +63,7 @@ type ComposeEngineClientArgs = {
     lightdashConfig: LightdashConfig;
     prometheusMetrics?: PrometheusMetrics;
     createDuckdbWarehouseClient?: CreateComposeEngineWarehouseClient;
+    resolveCaCertFile?: () => string | null;
 };
 
 /**
@@ -74,6 +79,8 @@ export class ComposeEngineClient {
 
     private readonly createDuckdbWarehouseClient: CreateComposeEngineWarehouseClient;
 
+    private readonly resolveCaCertFile: () => string | null;
+
     private readonly sharedWarehouseClients = new Map<
         ComposeEngineStorage,
         WarehouseClient
@@ -86,6 +93,8 @@ export class ComposeEngineClient {
             args.lightdashConfig.preAggregates.duckdbQueryMemoryLimit;
         this.sharedResourceLimits = memoryLimit ? { memoryLimit } : null;
         const { prometheusMetrics } = args;
+        this.resolveCaCertFile =
+            args.resolveCaCertFile ?? (() => resolveCaCertFile());
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) =>
@@ -106,6 +115,24 @@ export class ComposeEngineClient {
                 ));
     }
 
+    /**
+     * httpfs must load a CA bundle to speak HTTPS at all, and the runtime
+     * image only has one if it was installed. Refuse up front with the fix
+     * named rather than let every read fail with an opaque IO error.
+     */
+    private withCaCertFile(
+        sessionConfig: DuckdbS3SessionConfig,
+    ): DuckdbS3SessionConfig {
+        if (!sessionConfig.useSsl) return sessionConfig;
+        const caCertFile = this.resolveCaCertFile();
+        if (caCertFile === null) {
+            throw new MissingConfigError(
+                COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE,
+            );
+        }
+        return { ...sessionConfig, caCertFile };
+    }
+
     private getSessionConfig(
         storage: ComposeEngineStorage,
     ): DuckdbS3SessionConfig {
@@ -119,7 +146,7 @@ export class ComposeEngineClient {
                         COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
                     );
                 }
-                return sessionConfig;
+                return this.withCaCertFile(sessionConfig);
             }
             case 'externalSources': {
                 const sessionConfig = getDuckdbRuntimeConfig(
@@ -130,7 +157,7 @@ export class ComposeEngineClient {
                         COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
                     );
                 }
-                return sessionConfig;
+                return this.withCaCertFile(sessionConfig);
             }
             default:
                 return assertUnreachable(

@@ -5,6 +5,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
     COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+    COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE,
     COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
     COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
     ComposeEngineClient,
@@ -46,6 +47,9 @@ const withPreAggregateBucket: LightdashConfig = {
     },
 };
 
+const CA_BUNDLE = '/etc/ssl/certs/ca-certificates.crt';
+const resolveCaCertFile = () => CA_BUNDLE;
+
 const resultsSession = {
     endpoint: 'results.example.com',
     region: 'results-region',
@@ -53,6 +57,7 @@ const resultsSession = {
     secretKey: 'results-secret-key',
     forcePathStyle: false,
     useSsl: true,
+    caCertFile: CA_BUNDLE,
 };
 
 const preAggregateSession = {
@@ -72,6 +77,7 @@ describe('ComposeEngineClient', () => {
     test('configures the shared results session from the results S3 config', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: ossConfig,
             createDuckdbWarehouseClient,
         });
@@ -96,6 +102,7 @@ describe('ComposeEngineClient', () => {
     test('a results locator gets the results session even with a pre-aggregate bucket configured', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: withPreAggregateBucket,
             createDuckdbWarehouseClient,
         });
@@ -113,6 +120,7 @@ describe('ComposeEngineClient', () => {
     test('an external-source locator gets the pre-aggregate bucket session, shared with managed pre-aggregates', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: withPreAggregateBucket,
             createDuckdbWarehouseClient,
         });
@@ -146,6 +154,7 @@ describe('ComposeEngineClient', () => {
     test('a scoped external-source session uses the pre-aggregate bucket session and is never cached', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: withPreAggregateBucket,
             createDuckdbWarehouseClient,
         });
@@ -175,7 +184,10 @@ describe('ComposeEngineClient', () => {
             DuckdbWarehouseClient,
             'createForPreAggregate',
         );
-        const client = new ComposeEngineClient({ lightdashConfig: ossConfig });
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            lightdashConfig: ossConfig,
+        });
 
         const warehouseClient = client.createExecutionWarehouseClient({
             storage: 'results',
@@ -194,6 +206,7 @@ describe('ComposeEngineClient', () => {
     test('applies the shared memory budget to the engine instance', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: {
                 ...ossConfig,
                 preAggregates: {
@@ -216,6 +229,7 @@ describe('ComposeEngineClient', () => {
     test('refuses a results session with the missing results storage configuration', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: {
                 ...ossConfig,
                 results: { ...ossConfig.results, s3: undefined },
@@ -236,6 +250,7 @@ describe('ComposeEngineClient', () => {
     test('refuses an external-source session without the pre-aggregates configuration', () => {
         const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
         const client = new ComposeEngineClient({
+            resolveCaCertFile,
             lightdashConfig: ossConfig,
             createDuckdbWarehouseClient,
         });
@@ -257,5 +272,39 @@ describe('ComposeEngineClient', () => {
             }),
         ).toThrow(MissingConfigError);
         expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+    });
+
+    test('refuses an HTTPS session when no CA bundle can be found', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile: () => null,
+            lightdashConfig: withPreAggregateBucket,
+            createDuckdbWarehouseClient,
+        });
+
+        expect(() =>
+            client.createExecutionWarehouseClient({ storage: 'results' }),
+        ).toThrow(
+            new MissingConfigError(COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE),
+        );
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
+    });
+
+    test('a plain HTTP session needs no CA bundle', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile: () => null,
+            lightdashConfig: withPreAggregateBucket,
+            createDuckdbWarehouseClient,
+        });
+
+        client.createExecutionWarehouseClient({
+            storage: 'externalSources',
+            scope: null,
+        });
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.objectContaining({ s3Config: preAggregateSession }),
+        );
     });
 });

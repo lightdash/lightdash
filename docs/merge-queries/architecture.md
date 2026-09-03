@@ -111,6 +111,10 @@ through its own pre-aggregate-bucket session. Do not route a composed query
 through the strategy. An instance without results storage is refused with a
 `MissingConfigError` naming the variables; the engine is never a silent
 fallback.
+An HTTPS session with no CA bundle is refused the same way: httpfs verifies
+object storage with the system bundle (`SSL_CERT_FILE` overrides it), which the
+runtime image installs as `ca-certificates`; Node's own trust store does not
+help it.
 
 **The compose path has no resource governance.** No query timeout (the deadline
 that exists applies only to the playground path), memory limit unset by default,
