@@ -21982,6 +21982,7 @@ const models: TsoaRoute.Models = {
                 deprecated: { dataType: 'boolean', required: true },
                 supportsReasoning: { dataType: 'boolean', required: true },
                 default: { dataType: 'boolean', required: true },
+                groupLabel: { dataType: 'string' },
                 provider: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },

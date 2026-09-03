@@ -1,3 +1,10 @@
+# [2.113.0](https://github.com/lightdash/lightdash/compare/2.112.0...2.113.0) (2026-09-03)
+
+
+### Features
+
+* **ai:** add selectable OpenRouter models ([#28600](https://github.com/lightdash/lightdash/issues/28600)) ([460810e](https://github.com/lightdash/lightdash/commit/460810ea44a42570a726b9ef5cb1930d0c82981a))
+
 # [2.112.0](https://github.com/lightdash/lightdash/compare/2.111.0...2.112.0) (2026-09-03)
 
 
