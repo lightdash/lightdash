@@ -1,3 +1,10 @@
+# [2.114.0](https://github.com/lightdash/lightdash/compare/2.113.0...2.114.0) (2026-09-03)
+
+
+### Features
+
+* **frontend:** add tabs to chart type gallery ([#28602](https://github.com/lightdash/lightdash/issues/28602)) ([3a614f9](https://github.com/lightdash/lightdash/commit/3a614f9d20a8021844dc89fb397b96850d749a50))
+
 # [2.113.0](https://github.com/lightdash/lightdash/compare/2.112.0...2.113.0) (2026-09-03)
 
 
