@@ -415,7 +415,6 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
-import { toToolCallProviderOptions } from '../ai/utils/toolCallProviderMetadata';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
@@ -8916,16 +8915,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
     ): ModelMessage[] {
         return toolCallsAndResults.flatMap(
             ({ toolCall, toolResult, approvalDecision }) => {
-                const providerOptions = toToolCallProviderOptions(
-                    toolCall.providerMetadata,
-                );
                 const assistantContent: AssistantModelMessage['content'] = [
                     {
                         type: 'tool-call' as const,
                         toolCallId: toolCall.toolCallId,
                         toolName: toolCall.toolName,
                         input: toolCall.toolArgs,
-                        ...(providerOptions ? { providerOptions } : {}),
                     },
                     ...(approvalDecision
                         ? [

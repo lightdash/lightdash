@@ -454,7 +454,7 @@ describe('Google Gemini models', () => {
 
         expect(model.modelId).toBe('gemini-3.8-flash');
         expect(providerOptions).toEqual({
-            google: { store: false, thinkingLevel: 'low' },
+            google: { thinkingLevel: 'low' },
         });
     });
 

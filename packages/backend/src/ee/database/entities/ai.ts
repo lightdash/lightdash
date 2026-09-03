@@ -15,7 +15,6 @@ import {
     type DataAppModelVisibility,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import type { AiAgentToolCallProviderMetadata } from './aiAgentToolCallProviderMetadata';
 
 export const AiThreadTableName = 'ai_thread';
 
@@ -390,13 +389,9 @@ export type DbAiAgentToolCall = {
     tool_args: object;
     ai_mcp_server_uuid: string | null;
     parent_tool_call_id: string | null;
-    provider_metadata: Record<string, unknown> | null;
     created_at: Date;
 };
 
-// JSONB reads remain untrusted until parsed, while inserts accept only the
-// validated continuity metadata union. Keep the insert field optional so older
-// application versions can omit this nullable column during rolling deploys.
 export type AiAgentToolCallTable = Knex.CompositeTableType<
     DbAiAgentToolCall,
     Pick<
@@ -407,9 +402,7 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
         | 'tool_args'
         | 'ai_mcp_server_uuid'
         | 'parent_tool_call_id'
-    > & {
-        provider_metadata?: AiAgentToolCallProviderMetadata | null;
-    },
+    >,
     never
 >;
 

@@ -1,4 +1,3 @@
-import type { AiAgentToolCallProviderMetadata } from '../../database/entities/aiAgentToolCallProviderMetadata';
 import { AiAgentService } from './AiAgentService';
 
 type Row = Parameters<
@@ -7,17 +6,8 @@ type Row = Parameters<
 
 type History = Parameters<typeof AiAgentService.backfillDanglingToolResults>[0];
 
-const call = (
-    toolCallId: string,
-    sql: string,
-    providerMetadata: AiAgentToolCallProviderMetadata | null = null,
-) =>
-    ({
-        toolCallId,
-        toolName: 'runSql',
-        toolArgs: { sql },
-        providerMetadata,
-    }) as Row['toolCall'];
+const call = (toolCallId: string, sql: string) =>
+    ({ toolCallId, toolName: 'runSql', toolArgs: { sql } }) as Row['toolCall'];
 
 const result = (toolCallId: string, value: string) =>
     ({
@@ -32,66 +22,6 @@ const content = (msg: { content: unknown }) => msg.content as Array<AnyType>;
 type AnyType = Record<string, unknown> & { type: string };
 
 describe('AiAgentService SQL-approval history reconstruction', () => {
-    // Reasoning-step provider metadata is not persisted yet; this is separate
-    // from the function-call signatures covered by the passing tests below.
-    it.todo(
-        'replays provider metadata (Gemini thought signatures) on reconstructed reasoning steps once it is persisted',
-    );
-
-    it('replays a Google signature on a prior-turn tool call', () => {
-        const msgs = AiAgentService.buildToolCallTurnMessages(
-            [
-                {
-                    toolCall: call('tc1', 'SELECT 1', {
-                        provider: 'google',
-                        signature: 'google-signature',
-                    }),
-                    toolResult: result('tc1', '3 rows'),
-                    approvalDecision: null,
-                },
-            ],
-            false,
-        );
-
-        expect(content(msgs[0])).toEqual([
-            {
-                type: 'tool-call',
-                toolCallId: 'tc1',
-                toolName: 'runSql',
-                input: { sql: 'SELECT 1' },
-                providerOptions: {
-                    google: { signature: 'google-signature' },
-                },
-            },
-        ]);
-    });
-
-    it('keeps a Google signature on the current approved-unexecuted resume call', () => {
-        const msgs = AiAgentService.buildToolCallTurnMessages(
-            [
-                {
-                    toolCall: call('tc1', 'SELECT 1', {
-                        provider: 'google',
-                        signature: 'google-signature',
-                    }),
-                    toolResult: null,
-                    approvalDecision: 'approved',
-                },
-            ],
-            true,
-        );
-
-        expect(content(msgs[0])[0]).toEqual({
-            type: 'tool-call',
-            toolCallId: 'tc1',
-            toolName: 'runSql',
-            input: { sql: 'SELECT 1' },
-            providerOptions: {
-                google: { signature: 'google-signature' },
-            },
-        });
-    });
-
     it('a normal tool call emits assistant(call) + tool(result), no approval parts', () => {
         const msgs = AiAgentService.buildToolCallTurnMessages(
             [

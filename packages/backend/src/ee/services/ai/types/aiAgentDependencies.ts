@@ -55,7 +55,6 @@ import {
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
-import type { AiAgentToolCallProviderMetadata } from '../../../database/entities/aiAgentToolCallProviderMetadata';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import { AiAgentSkill } from '../skills/types';
 
@@ -481,7 +480,6 @@ export type StoreToolCallFn = (data: {
     toolArgs: object;
     mcpServerUuid?: string | null;
     parentToolCallId: string | null;
-    providerMetadata: AiAgentToolCallProviderMetadata | null;
 }) => Promise<void>;
 
 // Persists tool-call attempts the AI SDK rejected before execution

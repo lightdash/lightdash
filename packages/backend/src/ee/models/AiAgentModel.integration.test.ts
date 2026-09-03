@@ -15,7 +15,6 @@ import { AppsTableName } from '../../database/entities/apps';
 import { type AppModel } from '../../models/AppModel';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
-    AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptTableName,
     AiThreadTableName,
@@ -496,7 +495,6 @@ describe('AiAgentModel prompt activity', () => {
                     toolName: 'findExplores',
                     toolArgs: {},
                     parentToolCallId: null,
-                    providerMetadata: null,
                 }),
             ),
         );
@@ -520,103 +518,6 @@ describe('AiAgentModel prompt activity', () => {
                 history.map(({ toolResult }) => toolResult?.result),
             ),
         ).toEqual(expectedResults.map((result) => [result]));
-    });
-
-    it('round-trips internal tool-call signatures without exposing them publicly', async () => {
-        const threadUuid = await createWebAppThread();
-        const promptUuid = await model.createWebAppPrompt({
-            threadUuid,
-            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            prompt: 'Test provider metadata',
-        });
-
-        await Promise.all([
-            model.createToolCall({
-                promptUuid,
-                toolCallId: 'signed-call',
-                toolName: 'findExplores',
-                toolArgs: {},
-                parentToolCallId: null,
-                providerMetadata: {
-                    provider: 'google',
-                    signature: 'google-signature',
-                },
-            }),
-            model.createToolCall({
-                promptUuid,
-                toolCallId: 'legacy-call',
-                toolName: 'findExplores',
-                toolArgs: {},
-                parentToolCallId: null,
-                providerMetadata: null,
-            }),
-        ]);
-        await database.raw(
-            `INSERT INTO ${AiAgentToolCallTableName} (
-                ai_prompt_uuid,
-                tool_call_id,
-                tool_name,
-                tool_args,
-                ai_mcp_server_uuid,
-                parent_tool_call_id,
-                provider_metadata
-            ) VALUES (?, ?, ?, ?::jsonb, ?, ?, ?::jsonb)`,
-            [
-                promptUuid,
-                'unknown-provider-call',
-                'findExplores',
-                JSON.stringify({}),
-                null,
-                null,
-                JSON.stringify({
-                    provider: 'future',
-                    signature: 'not-replayed',
-                }),
-            ],
-        );
-        await model.createToolResults([
-            {
-                promptUuid,
-                toolCallId: 'signed-call',
-                toolName: 'findExplores',
-                result: 'signed result',
-            },
-            {
-                promptUuid,
-                toolCallId: 'legacy-call',
-                toolName: 'findExplores',
-                result: 'legacy result',
-            },
-            {
-                promptUuid,
-                toolCallId: 'unknown-provider-call',
-                toolName: 'findExplores',
-                result: 'unknown provider result',
-            },
-        ]);
-
-        const history = await model.getToolCallsAndResultsForPrompt(promptUuid);
-        expect(
-            Object.fromEntries(
-                history.map(({ toolCall }) => [
-                    toolCall.toolCallId,
-                    toolCall.providerMetadata,
-                ]),
-            ),
-        ).toEqual({
-            'signed-call': {
-                provider: 'google',
-                signature: 'google-signature',
-            },
-            'legacy-call': null,
-            'unknown-provider-call': null,
-        });
-
-        const publicToolCalls = await model.getToolCallsForPrompt(promptUuid);
-        for (const toolCall of publicToolCalls) {
-            expect(toolCall).not.toHaveProperty('providerMetadata');
-            expect(toolCall).not.toHaveProperty('provider_metadata');
-        }
     });
 
     it('keeps Slack prompt activity monotonic', async () => {
@@ -736,7 +637,6 @@ describe('AiAgentModel prompt activity', () => {
                 startNewPullRequest: null,
             },
             parentToolCallId: null,
-            providerMetadata: null,
         });
         const run = await writebackRunModel.create({
             organizationUuid: SEED_ORG_1.organization_uuid,
@@ -990,7 +890,6 @@ describe('AiAgentModel prompt activity', () => {
                 startNewPullRequest: null,
             },
             parentToolCallId: null,
-            providerMetadata: null,
         });
         const outOfScopeRun = await writebackRunModel.create({
             organizationUuid: SEED_ORG_2.organization_uuid,
@@ -1220,7 +1119,6 @@ describe('AiAgentModel pending data app builds', () => {
                 chartSlugs: null,
             },
             parentToolCallId: null,
-            providerMetadata: null,
         });
         await model.createToolResults([
             {
