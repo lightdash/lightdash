@@ -25,8 +25,18 @@ It reads only existing tables and writes nothing to the database.
 ```bash
 psql "$DATABASE_URL" -v org_uuid="'<organization_uuid>'" -v days=30 \
      -At -F $'\t' -f extract_events.sql > events.tsv
-python3 sessionise.py events.tsv --gap-minutes 20 --sample 50 --out-dir out
+python3 prepare_events.py < events.tsv > events_prepared.tsv
+python3 sessionise.py events_prepared.tsv --gap-minutes 20 --sample 50 --out-dir out
 ```
+
+For a Lightdash Cloud customer, `run_cloud_sql.sh <customer> <org_uuid> [days]`
+wraps the first line: it starts `cloud-sql-proxy`, reads the database password
+from Secret Manager into the environment only, and runs the extraction read
+only (needs `gcloud auth login --update-adc`, `cloud-sql-proxy`, `psql`).
+
+`prepare_events.py` hashes user ids and emails, drops `api`, `cli` and totals,
+and collapses dashboard tile loads, metrics-catalog previews and view events to
+one row per user/object/minute. Without it a dashboard load is thirty steps.
 
 `out/episodes.md` is the artefact to read. `out/episodes.jsonl` holds every
 episode for further analysis. The summary printed to stdout gives the episode
