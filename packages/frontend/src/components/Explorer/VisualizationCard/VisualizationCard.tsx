@@ -15,7 +15,9 @@ import {
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import {
+    lazy,
     memo,
+    Suspense,
     useCallback,
     useLayoutEffect,
     useMemo,
@@ -26,6 +28,7 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectChartTypeAuthoring,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
@@ -63,6 +66,11 @@ import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTa
 import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
 
+// Lazy-load so the Explorer bundle stays small when nothing is authored.
+const ExplorerChartTypeAuthoring = lazy(
+    () => import('../ChartTypeAuthoring/ExplorerChartTypeAuthoring'),
+);
+
 export type EchartsClickEvent = {
     event: EchartsSeriesClickEvent;
     dimensions: string[];
@@ -96,6 +104,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+
+    // Authoring opens the builder modal from inside this card's provider
+    // tree, so the modal's config column shares the chart's viz context.
+    const chartTypeAuthoring = useExplorerSelector(selectChartTypeAuthoring);
 
     const sorts = useExplorerSelector(selectSorts);
 
@@ -410,6 +422,10 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                  * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
                                  */}
                                 {portalTarget &&
+                                    // The modal owns the config while a type
+                                    // is authored; a second mount in the
+                                    // sidebar would echo its state.
+                                    !chartTypeAuthoring &&
                                     createPortal(
                                         isChartGalleryEnabled ? (
                                             <ExplorerChartSidebar
@@ -479,6 +495,13 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         </>
                     )}
                 </CollapsableCard>
+                {chartTypeAuthoring && (
+                    <Suspense fallback={null}>
+                        <ExplorerChartTypeAuthoring
+                            authoring={chartTypeAuthoring}
+                        />
+                    </Suspense>
+                )}
             </VisualizationProvider>
         </ErrorBoundary>
     );

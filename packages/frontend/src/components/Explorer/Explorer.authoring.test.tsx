@@ -19,9 +19,6 @@ vi.mock('./VisualizationCard/VisualizationCard', () => ({
         return <div data-testid="visualization-card" />;
     },
 }));
-vi.mock('./ChartTypeAuthoring/ExplorerChartTypeAuthoring', () => ({
-    default: () => <div data-testid="chart-type-authoring" />,
-}));
 vi.mock('./ExplorerHeader', () => ({
     default: () => <div data-testid="explorer-header" />,
 }));
@@ -121,19 +118,16 @@ describe('Explorer while a chart type is authored', () => {
         expect(cardProps.at(-1)?.renderVisualization).toBe(true);
     });
 
-    it('puts the builder in the chart’s place and keeps the card alive without drawing it', async () => {
+    it('keeps the page as-is behind the builder modal and pauses the chart', () => {
         renderExplorer({ authoring: true });
 
-        // The builder chunk is lazy-loaded, so its mount is a tick away.
-        expect(
-            await screen.findByTestId('chart-type-authoring'),
-        ).toBeInTheDocument();
-        // The query controls stay where they always are.
+        // The modal opens over an unchanged page; the card hosts the modal
+        // itself (covered by its own tests) and only pauses the chart render.
         expect(screen.getByTestId('explorer-header')).toBeInTheDocument();
-        expect(screen.queryByTestId('results-card')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('filters-card')).not.toBeInTheDocument();
+        expect(screen.getByTestId('results-card')).toBeInTheDocument();
+        expect(screen.getByTestId('filters-card')).toBeInTheDocument();
         expect(screen.getByTestId('merge-auto-run')).toBeInTheDocument();
-        expect(screen.getByTestId('visualization-card')).not.toBeVisible();
+        expect(screen.getByTestId('visualization-card')).toBeVisible();
         expect(cardProps.at(-1)?.renderVisualization).toBe(false);
     });
 });

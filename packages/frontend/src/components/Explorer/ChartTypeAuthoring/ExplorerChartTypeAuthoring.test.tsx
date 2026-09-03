@@ -93,6 +93,14 @@ vi.mock(
         },
     }),
 );
+// The modal's config column needs the chart card's viz context, which this
+// container test does not mount.
+vi.mock(
+    '../../VisualizationConfigs/DataAppVizConfig/DataAppVizConfigTabs',
+    () => ({
+        ConfigTabs: () => <div data-testid="config-tabs" />,
+    }),
+);
 
 const itemsMap = {
     orders_status: {
