@@ -136,11 +136,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                     state={{ sql: item.compiledSql }}
                 >
                     Open in SQL runner
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        size={13}
-                        color="white"
-                    />
+                    <MantineIcon icon={IconArrowRight} size={13} />
                 </Link>
             );
         }
@@ -148,11 +144,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
             return (
                 <Link className={styles.primaryButton} to={exploreUrl}>
                     {failed ? 'Fix in Explore' : 'Open in Explore'}
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        size={13}
-                        color="white"
-                    />
+                    <MantineIcon icon={IconArrowRight} size={13} />
                 </Link>
             );
         }
@@ -162,7 +154,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
     return (
         <div className={styles.panel}>
             <div className={styles.panelHeader}>
-                <div style={{ minWidth: 0 }}>
+                <div className={styles.panelTitleWrap}>
                     <div className={styles.panelTitleLine}>
                         <span className={styles.panelTitle}>{item.title}</span>
                         <span
@@ -356,7 +348,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                         <MantineIcon
                             icon={IconSparkles}
                             size={14}
-                            color="ldBrandGray.9"
+                            color="dimmed"
                         />
                         <input
                             value={aiPrompt}

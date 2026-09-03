@@ -255,6 +255,7 @@ export const QueryHistoryPage: FC = () => {
                 ) : undefined
             }
             isRightSidebarOpen={isPanelOpen}
+            noRightSidebarPadding
             rightSidebarWidthProps={{
                 defaultWidth: DETAIL_PANEL_WIDTH,
                 minWidth: 480,

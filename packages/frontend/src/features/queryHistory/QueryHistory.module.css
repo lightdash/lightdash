@@ -1,15 +1,10 @@
-/*
- * Metrics and colors come from the Claude Design build spec
- * ("Query History - Build.dc.html"). The grays are Lightdash's ldBrandGray
- * ramp; #f1f3f6 (control/selected background) sits between steps 0 and 1 of
- * the ramp and is kept literal to match the spec.
- */
-
 .page {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    overflow: hidden;
     background: var(--mantine-color-body);
 }
 
@@ -17,6 +12,7 @@
 
 .header {
     display: flex;
+    flex-shrink: 0;
     align-items: flex-end;
     justify-content: space-between;
     gap: 16px;
@@ -29,31 +25,25 @@
     font-weight: 600;
     line-height: 1.2;
     letter-spacing: -0.02em;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
 }
 
 .subtitle {
     margin: 6px 0 0;
     font-size: 13px;
     line-height: 1.5;
-    color: var(--mantine-color-ldBrandGray-6);
+    color: var(--mantine-color-dimmed);
 }
 
 .search {
     min-width: 280px;
 }
 
-.search input {
-    height: 34px;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
-    border-radius: 8px;
-    font-size: 13px;
-}
-
 /* ---------- toolbar ---------- */
 
 .toolbar {
     display: flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
@@ -71,7 +61,7 @@
     align-items: center;
     gap: 2px;
     padding: 3px;
-    background: #f1f3f6;
+    background: var(--mantine-color-ldGray-1);
     border-radius: 9px;
 }
 
@@ -87,26 +77,26 @@
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-6);
+    color: var(--mantine-color-dimmed);
     cursor: pointer;
 }
 
 .segmentedOptionActive {
-    background: #fff;
-    box-shadow: 0 1px 2px rgba(10, 13, 18, 0.05);
+    background: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-xs);
     font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
 }
 
 .segmentedCount {
     font-family: var(--mantine-font-family-monospace);
     font-size: 11px;
     font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-4);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .segmentedOptionActive .segmentedCount {
-    color: var(--mantine-color-ldBrandGray-6);
+    color: var(--mantine-color-dimmed);
 }
 
 .segmentedSmall .segmentedOption {
@@ -122,13 +112,13 @@
     gap: 6px;
     height: 32px;
     padding: 0 11px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
+    color: var(--mantine-color-ldGray-7);
     cursor: pointer;
 }
 
@@ -136,20 +126,23 @@
 
 .tableWrap {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
     padding: 0 var(--mantine-spacing-xl) var(--mantine-spacing-md);
 }
 
 .tablePaper {
-    flex: 1;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
     height: 100%;
     min-height: 0;
 }
 
 .tableContainer {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
 }
 
@@ -192,13 +185,13 @@
 }
 
 .languageTagSemantic {
-    color: var(--mantine-color-ldBrandGray-7);
+    color: var(--mantine-color-ldGray-7);
     background: var(--mantine-color-ldGray-1);
 }
 
 .languageTagSql {
-    color: var(--mantine-color-ldBrandGray-9);
-    background: var(--mantine-color-ldBrandGray-1);
+    color: var(--mantine-color-text);
+    background: var(--mantine-color-ldGray-1);
 }
 
 /* ---------- detail panel ---------- */
@@ -208,8 +201,7 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: #fff;
-    border-left: 1px solid var(--mantine-color-ldBrandGray-2);
+    background: var(--mantine-color-body);
 }
 
 .panelHeader {
@@ -218,7 +210,11 @@
     justify-content: space-between;
     gap: 16px;
     padding: 20px 22px 16px;
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-1);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.panelTitleWrap {
+    min-width: 0;
 }
 
 .panelTitleLine {
@@ -231,7 +227,7 @@
 .panelTitle {
     font-size: 16px;
     font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -240,7 +236,7 @@
 .panelMeta {
     margin-top: 6px;
     font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-5);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .panelNav {
@@ -256,15 +252,15 @@
     justify-content: center;
     width: 26px;
     height: 26px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 6px;
-    color: var(--mantine-color-ldBrandGray-6);
+    color: var(--mantine-color-dimmed);
     cursor: pointer;
 }
 
 .panelNavButton:disabled {
-    color: var(--mantine-color-ldBrandGray-3);
+    color: var(--mantine-color-ldGray-3);
     cursor: default;
 }
 
@@ -281,7 +277,7 @@
 .timingStrip {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     overflow: hidden;
 }
@@ -291,7 +287,7 @@
 }
 
 .timingCell + .timingCell {
-    border-left: 1px solid var(--mantine-color-ldBrandGray-1);
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .timingLabel {
@@ -299,7 +295,7 @@
     font-weight: 500;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-4);
+    color: var(--mantine-color-ldGray-4);
 }
 
 .timingValue {
@@ -307,11 +303,11 @@
     font-family: var(--mantine-font-family-monospace);
     font-size: 15px;
     font-weight: 600;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
 }
 
 .timingValueMuted {
-    color: var(--mantine-color-ldBrandGray-6);
+    color: var(--mantine-color-dimmed);
 }
 
 .sectionHeader {
@@ -326,12 +322,12 @@
     font-weight: 500;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-5);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .sectionMeta {
     font-size: 11.5px;
-    color: var(--mantine-color-ldBrandGray-4);
+    color: var(--mantine-color-ldGray-4);
 }
 
 .sectionAction {
@@ -341,13 +337,13 @@
     font-family: inherit;
     font-size: 11.5px;
     font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
+    color: var(--mantine-color-ldGray-7);
     text-decoration: underline;
     cursor: pointer;
 }
 
 .resultsTable {
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     overflow-x: auto;
 }
@@ -359,23 +355,23 @@
 
 .resultsTable th {
     padding: 8px 12px;
-    background: var(--mantine-color-ldBrandGray-0);
-    border-bottom: 1px solid var(--mantine-color-ldBrandGray-1);
+    background: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-default-border);
     font-size: 10.5px;
     font-weight: 500;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: var(--mantine-color-ldBrandGray-5);
+    color: var(--mantine-color-ldGray-5);
     text-align: left;
     white-space: nowrap;
 }
 
 .resultsTable td {
     padding: 9px 12px;
-    border-bottom: 1px solid #f1f3f6;
+    border-bottom: 1px solid var(--mantine-color-default-border);
     font-family: var(--mantine-font-family-monospace);
     font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
     white-space: nowrap;
 }
 
@@ -385,22 +381,22 @@
 
 .resultsPlaceholder {
     padding: 24px 14px;
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     text-align: center;
     font-size: 12.5px;
-    color: var(--mantine-color-ldBrandGray-5);
+    color: var(--mantine-color-ldGray-5);
 }
 
 .sqlBlock {
-    background: var(--mantine-color-ldBrandGray-0);
-    border: 1px solid var(--mantine-color-ldBrandGray-1);
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     padding: 12px 14px;
     font-family: var(--mantine-font-family-monospace);
     font-size: 11.5px;
     line-height: 1.75;
-    color: var(--mantine-color-ldBrandGray-7);
+    color: var(--mantine-color-ldGray-7);
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
@@ -409,22 +405,22 @@
 .sqlTruncated {
     margin-top: 8px;
     font-size: 11.5px;
-    color: var(--mantine-color-ldBrandGray-4);
+    color: var(--mantine-color-ldGray-4);
 }
 
 .errorBlock {
-    background: var(--mantine-color-ldBrandGray-0);
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
+    background: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     padding: 12px 14px;
     font-family: var(--mantine-font-family-monospace);
     font-size: 12px;
     line-height: 1.6;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
 }
 
 .panelFooter {
-    border-top: 1px solid var(--mantine-color-ldBrandGray-1);
+    border-top: 1px solid var(--mantine-color-default-border);
     padding: 14px 22px 16px;
     display: flex;
     flex-direction: column;
@@ -437,9 +433,8 @@
     gap: 9px;
     height: 38px;
     padding: 0 12px;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
-    box-shadow: 0 1px 2px rgba(10, 13, 18, 0.05);
 }
 
 .askAi input {
@@ -449,11 +444,11 @@
     background: none;
     font-family: inherit;
     font-size: 13px;
-    color: var(--mantine-color-ldBrandGray-9);
+    color: var(--mantine-color-text);
 }
 
 .askAi input::placeholder {
-    color: var(--mantine-color-ldBrandGray-4);
+    color: var(--mantine-color-ldGray-4);
 }
 
 .panelActions {
@@ -468,13 +463,13 @@
     align-items: center;
     height: 36px;
     padding: 0 14px;
-    background: #fff;
-    border: 1px solid var(--mantine-color-ldBrandGray-2);
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
     border-radius: 8px;
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 500;
-    color: var(--mantine-color-ldBrandGray-7);
+    color: var(--mantine-color-ldGray-7);
     cursor: pointer;
     text-decoration: none;
 }
@@ -485,18 +480,22 @@
     gap: 8px;
     height: 36px;
     padding: 0 16px;
-    background: var(--mantine-color-ldBrandGray-9);
+    background: var(--mantine-color-text);
     border: none;
     border-radius: 8px;
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
-    color: #fff;
+    color: var(--mantine-color-body);
     cursor: pointer;
     text-decoration: none;
 }
 
 .primaryButton:hover {
-    background: var(--mantine-color-ldBrandGray-8);
-    color: #fff;
+    background: var(--mantine-color-ldGray-8);
+    color: var(--mantine-color-body);
+}
+
+.primaryButton :global(svg) {
+    color: inherit;
 }

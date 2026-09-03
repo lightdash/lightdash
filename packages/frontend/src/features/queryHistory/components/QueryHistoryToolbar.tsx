@@ -107,7 +107,7 @@ export const QueryHistoryToolbar: FC<Props> = ({
                             <MantineIcon
                                 icon={IconChevronDown}
                                 size={12}
-                                color="ldBrandGray.5"
+                                color="dimmed"
                             />
                         </button>
                     </Menu.Target>
