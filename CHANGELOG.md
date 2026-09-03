@@ -1,3 +1,10 @@
+# [2.118.0](https://github.com/lightdash/lightdash/compare/2.117.1...2.118.0) (2026-09-03)
+
+
+### Features
+
+* **frontend:** explain chart type library availability ([#28608](https://github.com/lightdash/lightdash/issues/28608)) ([2089099](https://github.com/lightdash/lightdash/commit/20890993cd45551d5dee163ddd3729f456cf9d07))
+
 ## [2.117.1](https://github.com/lightdash/lightdash/compare/2.117.0...2.117.1) (2026-09-03)
 
 
