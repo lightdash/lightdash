@@ -70,7 +70,6 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import chunk from 'lodash/chunk';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
@@ -145,6 +144,12 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
+import {
+    chunkRowsByBytes,
+    describeWholeSetOverflow,
+    POSTGRES_JSONB_MAX_BYTES,
+    serialisedArrayBytes,
+} from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -1985,28 +1990,92 @@ export class ProjectModel {
                             .delete();
                     }
 
-                    const rowsToSave = exploresToSave.map((explore) => ({
-                        project_uuid: projectUuid,
-                        name: explore.name,
-                        table_names: Object.keys(explore.tables || {}),
-                        explore: JSON.stringify(explore),
-                    }));
-                    const savedExploreBatches = await Promise.all(
-                        chunk(rowsToSave, 1000).map((rows) => {
-                            const insertQuery = trx<DbCachedExplore>(
-                                CachedExploreTableName,
-                            ).insert(rows);
-                            return complete
-                                ? insertQuery.returning('cached_explore_uuid')
-                                : insertQuery
-                                      .onConflict(['name', 'project_uuid'])
-                                      .merge(['table_names', 'explore'])
-                                      .returning('cached_explore_uuid');
-                        }),
-                    );
-                    const individualCachedExplores = savedExploreBatches.flat();
+                    // Serialise one explore at a time so a chunk can be built, inserted and
+                    // released. Building every row up front held the whole set as strings.
+                    let savedBytes = 0;
+                    function* sizedRows() {
+                        // eslint-disable-next-line no-restricted-syntax
+                        for (const explore of exploresToSave) {
+                            const serialised = JSON.stringify(explore);
+                            savedBytes += Buffer.byteLength(serialised);
+                            yield {
+                                row: {
+                                    project_uuid: projectUuid,
+                                    name: explore.name,
+                                    table_names: Object.keys(
+                                        explore.tables || {},
+                                    ),
+                                    explore: serialised,
+                                },
+                                bytes: Buffer.byteLength(serialised),
+                            };
+                        }
+                    }
 
-                    // Cache explores together
+                    const individualCachedExplores: {
+                        cached_explore_uuid: string;
+                    }[] = [];
+                    let chunkCount = 0;
+                    let largestChunkBytes = 0;
+                    // Sequential, not Promise.all: every chunk statement was alive at once.
+                    // eslint-disable-next-line no-restricted-syntax
+                    for (const rows of chunkRowsByBytes(sizedRows())) {
+                        chunkCount += 1;
+                        largestChunkBytes = Math.max(
+                            largestChunkBytes,
+                            rows.reduce(
+                                (sum, row) =>
+                                    sum + Buffer.byteLength(row.explore),
+                                0,
+                            ),
+                        );
+                        const insertQuery = trx<DbCachedExplore>(
+                            CachedExploreTableName,
+                        ).insert(rows);
+                        // eslint-disable-next-line no-await-in-loop
+                        const saved = await (complete
+                            ? insertQuery.returning('cached_explore_uuid')
+                            : insertQuery
+                                  .onConflict(['name', 'project_uuid'])
+                                  .merge(['table_names', 'explore'])
+                                  .returning('cached_explore_uuid'));
+                        individualCachedExplores.push(...saved);
+                    }
+
+                    // Cache explores together. This is one jsonb column value holding every
+                    // explore, so it has a hard ceiling that chunking cannot move. Name the
+                    // size when it is exceeded rather than surfacing a bare RangeError.
+                    const wholeSetBytes =
+                        exploresToSave === uniqueExplores
+                            ? savedBytes + uniqueExplores.length + 1
+                            : serialisedArrayBytes(uniqueExplores);
+                    if (wholeSetBytes > POSTGRES_JSONB_MAX_BYTES) {
+                        throw new ParameterError(
+                            describeWholeSetOverflow(
+                                uniqueExplores.length,
+                                wholeSetBytes,
+                            ),
+                        );
+                    }
+                    Logger.info(
+                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${uniqueExplores.length} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes} wholeSetBytes=${wholeSetBytes} wholeSetPercentOfLimit=${(
+                            (wholeSetBytes / POSTGRES_JSONB_MAX_BYTES) *
+                            100
+                        ).toFixed(1)}`,
+                        {
+                            event: 'dbt.compile.saveExplores',
+                            projectUuid,
+                            explores: uniqueExplores.length,
+                            chunks: chunkCount,
+                            largestChunkBytes,
+                            savedBytes,
+                            wholeSetBytes,
+                            wholeSetLimitBytes: POSTGRES_JSONB_MAX_BYTES,
+                            wholeSetPercentOfLimit:
+                                (wholeSetBytes / POSTGRES_JSONB_MAX_BYTES) *
+                                100,
+                        },
+                    );
                     await trx(CachedExploresTableName)
                         .insert({
                             project_uuid: projectUuid,
