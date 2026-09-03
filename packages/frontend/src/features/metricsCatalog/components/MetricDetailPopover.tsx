@@ -224,7 +224,6 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
 
             {showExploreButton && (
                 <Button
-                    variant="dark"
                     size="xs"
                     fullWidth
                     onClick={() => {
