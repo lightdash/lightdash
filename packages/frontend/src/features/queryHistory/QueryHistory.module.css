@@ -10,9 +10,10 @@
 
 /* ---------- table ---------- */
 
+/* Grows with its rows and only scrolls once it hits the viewport. */
 .tablePaper {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     flex-direction: column;
     min-height: 0;
 }
