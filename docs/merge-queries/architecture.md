@@ -99,10 +99,11 @@ behind three feature flags and a permission it should not need. The join node
 calls the shared execution tail directly, below the flag gate.
 
 **User attribute overrides are load-bearing.** They were silently dropped on the
-merge path once and fixed as an embed row-level-security risk. When threading
-execution context through query sources, make them a required field rather than
-optional: the failure mode is a user seeing another tenant's rows, and no test
-currently catches it.
+merge path once and fixed as an embed row-level-security risk. The query source
+submit contract therefore requires them (`SourceQueryExecutionContext` in
+`QuerySourceService/types.ts`): a caller without overrides passes an empty map,
+never leaves the field out. Keep it that way when adding callers or sources; the
+failure mode is a user seeing another tenant's rows.
 
 **The engine is OSS; managed pre-aggregates are not.** `ComposeEngineClient`
 (`services/AsyncQueryService/`) owns the compose engine in every edition. A

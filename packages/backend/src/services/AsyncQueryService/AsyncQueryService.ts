@@ -6838,6 +6838,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         limit,
         parameters,
+        userAttributeOverrides,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -6899,6 +6900,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             parameters: combinedParameters,
             pivotConfiguration,
+            userAttributeOverrides,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -7111,6 +7113,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         limit,
         references,
+        parameters,
     }: ExecuteAsyncComposeSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -7171,6 +7174,12 @@ export class AsyncQueryService extends ProjectService {
                 storage: 'results',
             });
 
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameters,
+        );
+
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
@@ -7189,16 +7198,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseClient,
             pivotConfiguration: undefined,
             limit,
-            parameters: undefined,
+            parameters: combinedParameters,
             dashboardFilters: undefined,
             tileUuid: undefined,
             dashboardSorts: undefined,
         });
 
+        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
+
+        // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 sql,
                 references: normalizedReferences ?? null,
+                parameters: combinedParameters,
             }),
             userUuid: null,
         });
@@ -7208,6 +7221,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             context,
             references,
+            parameters: combinedParameters,
         };
 
         const queryCreatedAt = new Date();
@@ -7250,7 +7264,11 @@ export class AsyncQueryService extends ProjectService {
                 references: normalizedReferences ?? {},
                 guard: null,
             },
-            columns: { mode: 'discover', limit },
+            columns: {
+                mode: 'discover',
+                limit,
+                parameters: combinedParameters,
+            },
             storedCompiledSql: null,
             warehouseClient,
             queryTags,
@@ -7282,6 +7300,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         limit,
         tables,
+        parameters,
     }: ExecuteAsyncExternalSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -7385,6 +7404,12 @@ export class AsyncQueryService extends ProjectService {
                 )})`,
         );
 
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameters,
+        );
+
         // Table versions invalidate cached SQL results after refresh.
         const externalSourceSalt = resolvedTables
             .map(({ tableUuid, version }) => `esv:${tableUuid}:${version}`)
@@ -7396,6 +7421,7 @@ export class AsyncQueryService extends ProjectService {
                 tables: [...tableEntries].sort(([a], [b]) =>
                     a.localeCompare(b),
                 ),
+                parameters: combinedParameters,
             }),
             userUuid: null,
             externalSourceSalt,
@@ -7423,17 +7449,20 @@ export class AsyncQueryService extends ProjectService {
             warehouseClient,
             pivotConfiguration: undefined,
             limit,
-            parameters: undefined,
+            parameters: combinedParameters,
             dashboardFilters: undefined,
             tileUuid: undefined,
             dashboardSorts: undefined,
         });
+
+        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
 
         const requestParameters: ExecuteAsyncExternalSqlQueryRequestParams = {
             sql,
             limit,
             context,
             tables,
+            parameters: combinedParameters,
         };
 
         const queryCreatedAt = new Date();
@@ -7472,7 +7501,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             sql,
             references: { kind: 'bound', referenceCtes },
-            columns: { mode: 'discover', limit },
+            columns: {
+                mode: 'discover',
+                limit,
+                parameters: combinedParameters,
+            },
             // Only persist the user SQL; resolved SQL contains private URIs.
             storedCompiledSql: sql,
             warehouseClient,
@@ -7510,6 +7543,19 @@ export class AsyncQueryService extends ProjectService {
                   ',\n',
               )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
             : sql;
+    }
+
+    /** Refuses at submit time, before a query history row exists. */
+    private static throwIfMissingParameterValues(
+        composer: SqlQueryComposer,
+    ): void {
+        const missing = composer.getMissingParameterReferences();
+        if (missing.length > 0) {
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
+            );
+        }
     }
 
     /**
@@ -7675,6 +7721,7 @@ export class AsyncQueryService extends ProjectService {
                 return this.discoverDuckdbQueryColumns({
                     resolvedSql,
                     limit: columns.limit,
+                    parameters: columns.parameters,
                     warehouseClient,
                     queryTags,
                 });
@@ -7689,18 +7736,34 @@ export class AsyncQueryService extends ProjectService {
     private async discoverDuckdbQueryColumns({
         resolvedSql,
         limit,
+        parameters,
         warehouseClient,
         queryTags,
     }: {
         resolvedSql: string;
         limit: number | undefined;
+        parameters: ParametersValuesMap;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
     }): Promise<DuckdbQueryExecution> {
-        // Column discovery (LIMIT 1) also validates the SQL
+        // Column discovery (LIMIT 1) also validates the SQL, so
+        // parameters resolve first and a missing value refuses here
+        const { replacedSql: sqlWithParameters, missingReferences } =
+            safeReplaceParametersWithSqlBuilder(
+                resolvedSql,
+                parameters,
+                warehouseClient,
+            );
+        if (missingReferences.size > 0) {
+            const missing = Array.from(missingReferences);
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
+            );
+        }
         const columns: { name: string; type: DimensionType }[] = [];
         const columnDiscoverySql = applyLimitToSqlQuery({
-            sqlQuery: resolvedSql,
+            sqlQuery: sqlWithParameters,
             limit: 1,
         });
         try {
@@ -7730,19 +7793,11 @@ export class AsyncQueryService extends ProjectService {
             warehouseClient,
             pivotConfiguration: undefined,
             limit,
-            parameters: undefined,
+            parameters,
             dashboardFilters: undefined,
             tileUuid: undefined,
             dashboardSorts: undefined,
         });
-        const compiled = composer.compile();
-        if (compiled.missingParameterReferences.size > 0) {
-            const missing = Array.from(compiled.missingParameterReferences);
-            throw new ParameterError(
-                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
-                { missingReferences: missing },
-            );
-        }
 
         // Compose columns carry only the reference, the probed type, and
         // a label derived from the reference. Metadata is never inferred
@@ -8414,6 +8469,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         chartUuid,
         dashboardUuid,
+        userAttributeOverrides,
     }: {
         account: Account;
         projectUuid: string;
@@ -8429,6 +8485,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration?: PivotConfiguration;
         chartUuid?: string;
         dashboardUuid?: string;
+        userAttributeOverrides?: UserAttributeValueMap;
     }) {
         const startTime = performance.now();
 
@@ -8437,7 +8494,7 @@ export class AsyncQueryService extends ProjectService {
         const sectionStartWarehouse = performance.now();
         const [
             warehouseCredentials,
-            { userAttributes, intrinsicUserAttributes },
+            { userAttributes: baseUserAttributes, intrinsicUserAttributes },
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
@@ -8447,6 +8504,9 @@ export class AsyncQueryService extends ProjectService {
             }),
             this.getUserAttributes({ account }),
         ]);
+        const userAttributes = userAttributeOverrides
+            ? { ...baseUserAttributes, ...userAttributeOverrides }
+            : baseUserAttributes;
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
