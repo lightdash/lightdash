@@ -297,4 +297,3 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
             return assertUnreachable(content, `Unsupported content type`);
     }
 };
-

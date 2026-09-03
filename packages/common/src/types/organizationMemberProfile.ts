@@ -96,4 +96,3 @@ export type ApiOrganizationMemberProfile = {
     status: 'ok';
     results: OrganizationMemberProfile;
 };
-
