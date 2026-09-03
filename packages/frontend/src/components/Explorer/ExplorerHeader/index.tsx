@@ -16,9 +16,11 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
+import { useIsModalHosted } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import { RefreshButton } from '../../RefreshButton';
@@ -68,6 +70,8 @@ const ExplorerHeader: FC = memo(() => {
     );
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
+    const isModalHosted = useIsModalHosted();
+    const verificationSavePrompt = useVerificationSavePrompt(savedChart);
     const hasEmbedWriteActions =
         !!embed.writeActions?.spaceUuid &&
         (!!embed.writeActions.userUuid ||
@@ -185,9 +189,10 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {/* For saved charts the main app saves from SavedChartsHeader;
-                    embeds edit saved charts here, so keep the button ("Save changes") */}
-                {(!savedChart || isEmbedded) &&
+                {/* For saved charts the main app saves from SavedChartsHeader.
+                    Embeds and modal hosts have no such header, so they edit
+                    saved charts here and keep the button ("Save changes") */}
+                {(!savedChart || isEmbedded || isModalHosted) &&
                     (!isEmbedded || canCreateEmbedSavedChart) && (
                         <Tooltip
                             disabled={buttonDisabledMessage === null}
@@ -197,6 +202,9 @@ const ExplorerHeader: FC = memo(() => {
                             <div>
                                 <SaveChartButton
                                     disabled={buttonDisabledMessage !== null}
+                                    verificationSavePrompt={
+                                        verificationSavePrompt
+                                    }
                                 />
                             </div>
                         </Tooltip>

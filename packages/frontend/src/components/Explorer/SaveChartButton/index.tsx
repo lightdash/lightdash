@@ -133,6 +133,7 @@ const SaveChartButton: FC<{
                     onSuccess: (data) => {
                         if (!hasVersionChanges && !hasMergeChanges) {
                             embed.onChartSaved?.(data, 'updated');
+                            onModalHostChartSaved?.(data);
                         }
                     },
                 },
@@ -149,9 +150,12 @@ const SaveChartButton: FC<{
                     },
                 },
                 {
-                    // Lets the embed dashboard builder react to the update
+                    // Lets a dashboard builder react to the update
                     // (e.g. close its chart editor modal)
-                    onSuccess: (data) => embed.onChartSaved?.(data, 'updated'),
+                    onSuccess: (data) => {
+                        embed.onChartSaved?.(data, 'updated');
+                        onModalHostChartSaved?.(data);
+                    },
                 },
             );
         }

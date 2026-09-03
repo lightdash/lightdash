@@ -65,6 +65,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardChartEdit';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
@@ -1130,38 +1131,46 @@ const Dashboard: FC = () => {
                     ) : null}
 
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
-                    <FilterBarPopoversProvider>
-                        <DashboardTabs
-                            isEditMode={isEditMode}
-                            hasTilesThatSupportFilters={
-                                hasTilesThatSupportFilters
-                            }
-                            // parameters
-                            shadowedReservedNames={shadowedReservedNames}
-                            parameterValues={parameterValues}
-                            onParameterChange={handleParameterChange}
-                            onParameterClearAll={clearAllParameters}
-                            isParameterLoading={!areAllChartsLoaded}
-                            missingRequiredParameters={
-                                missingRequiredParameters
-                            }
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={toggleParameterPin}
-                            parameterOrder={parameterOrder}
-                            onParameterReorder={setParameterOrder}
-                            // tabs
-                            activeTab={activeTab}
-                            addingTab={addingTab}
-                            dashboardTiles={dashboardTiles}
-                            handleAddTiles={handleAddTiles}
-                            handleUpdateTiles={handleUpdateTiles}
-                            handleDeleteTile={handleDeleteTile}
-                            handleBatchDeleteTiles={handleBatchDeleteTiles}
-                            handleEditTile={handleEditTiles}
-                            setGridWidth={setGridWidth}
-                            setAddingTab={setAddingTab}
-                        />
-                    </FilterBarPopoversProvider>
+                    <DashboardChartEditContext.Provider
+                        value={
+                            isDashboardCustomMetricsEnabled
+                                ? setChartToEdit
+                                : undefined
+                        }
+                    >
+                        <FilterBarPopoversProvider>
+                            <DashboardTabs
+                                isEditMode={isEditMode}
+                                hasTilesThatSupportFilters={
+                                    hasTilesThatSupportFilters
+                                }
+                                // parameters
+                                shadowedReservedNames={shadowedReservedNames}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onParameterClearAll={clearAllParameters}
+                                isParameterLoading={!areAllChartsLoaded}
+                                missingRequiredParameters={
+                                    missingRequiredParameters
+                                }
+                                pinnedParameters={pinnedParameters}
+                                onParameterPin={toggleParameterPin}
+                                parameterOrder={parameterOrder}
+                                onParameterReorder={setParameterOrder}
+                                // tabs
+                                activeTab={activeTab}
+                                addingTab={addingTab}
+                                dashboardTiles={dashboardTiles}
+                                handleAddTiles={handleAddTiles}
+                                handleUpdateTiles={handleUpdateTiles}
+                                handleDeleteTile={handleDeleteTile}
+                                handleBatchDeleteTiles={handleBatchDeleteTiles}
+                                handleEditTile={handleEditTiles}
+                                setGridWidth={setGridWidth}
+                                setAddingTab={setAddingTab}
+                            />
+                        </FilterBarPopoversProvider>
+                    </DashboardChartEditContext.Provider>
                 </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
