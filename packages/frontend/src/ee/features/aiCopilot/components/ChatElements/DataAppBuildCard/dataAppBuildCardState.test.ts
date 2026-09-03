@@ -392,6 +392,12 @@ describe('getDataAppRestoreCardState', () => {
         ).toMatchObject({ name: 'Data app' });
     });
 
+    it('writes its own completion message when the turn has none', () => {
+        expect(
+            getDataAppRestoreCardState(restoreItem, null, { kind: 'loading' }),
+        ).toMatchObject({ completionMessage: message });
+    });
+
     it('is unavailable when the app was deleted since', () => {
         expect(
             getDataAppRestoreCardState(restoreItem, message, {

@@ -152,7 +152,7 @@ export const getDataAppRestoreItem = (
  */
 export const getDataAppRestoreCardState = (
     item: DataAppRestoreContextItem,
-    completionMessage: string,
+    response: string | null,
     source: DataAppBuildCardAppSource,
 ): DataAppBuildCardState => {
     if (source.kind === 'unavailable') return { kind: 'unavailable' };
@@ -167,7 +167,9 @@ export const getDataAppRestoreCardState = (
         version: item.version,
         durationMs: null,
         restoredFromVersion: item.restoredFromVersion,
-        completionMessage,
+        completionMessage:
+            response ??
+            `Restored version ${item.restoredFromVersion} as version ${item.version}.`,
     };
 };
 

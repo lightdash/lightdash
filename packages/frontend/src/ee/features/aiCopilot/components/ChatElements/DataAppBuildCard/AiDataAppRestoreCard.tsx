@@ -11,7 +11,7 @@ import { useDataAppCardPreview } from './useDataAppCardPreview';
 type Props = {
     item: DataAppRestoreContextItem;
     /** The assistant's response to the restore turn. */
-    completionMessage: string;
+    completionMessage: string | null;
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
