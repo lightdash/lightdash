@@ -1,3 +1,10 @@
+# [2.105.0](https://github.com/lightdash/lightdash/compare/2.104.1...2.105.0) (2026-09-03)
+
+
+### Features
+
+* translate embedded dashboard tab names ([#28524](https://github.com/lightdash/lightdash/issues/28524)) ([0f38b37](https://github.com/lightdash/lightdash/commit/0f38b372f29c9d223771d47063fefb6625b8d34b))
+
 ## [2.104.1](https://github.com/lightdash/lightdash/compare/2.104.0...2.104.1) (2026-09-03)
 
 
