@@ -99,16 +99,15 @@ execution context through query sources, make them a required field rather than
 optional: the failure mode is a user seeing another tenant's rows, and no test
 currently catches it.
 
-**The engine is EE-only today, and that is a defect, not a design.** The
-execution client lives under `ee/` and OSS resolves to a strategy that throws,
-so composed queries do not run in OSS at all. The failure is caught and logged
-at debug, which is why it looks like nothing is wrong. Merges are meant to be
-available to everyone; the strategy is being split so the execution half is OSS
-while managed pre-aggregates stay licensed.
-
-**The engine's session is configured from the pre-aggregate S3 config**, which
-an OSS instance does not have. It should come from the results config, which
-every instance that can run a query already has.
+**The engine is OSS; managed pre-aggregates are not.** `ComposeEngineClient`
+(`services/AsyncQueryService/`) owns the compose engine in every edition, and
+its session is configured from the results S3 config, which every instance
+that can run a query already has. `PreAggregateStrategy` is only about managed
+pre-aggregates (routing, resolution, stats, audit) and reads materializations
+through its own pre-aggregate-bucket session. Do not route a composed query
+through the strategy, and do not read pre-aggregate config from the engine.
+An instance without results storage is refused with a `MissingConfigError`
+naming the variables; the engine is never a silent fallback.
 
 **The compose path has no resource governance.** No query timeout (the deadline
 that exists applies only to the playground path), memory limit unset by default,

@@ -134,7 +134,9 @@ export class PreAggregationDuckDbClient {
                 ));
     }
 
-    private getOrCreateWarehouseClient(): WarehouseClient {
+    // Reads managed materializations, so its session is the pre-aggregate
+    // bucket's; composed queries run on the OSS compose engine instead
+    createPreAggregateWarehouseClient(): WarehouseClient {
         if (!this.cachedWarehouseClient) {
             const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
                 this.lightdashConfig.preAggregates.s3,
@@ -186,32 +188,6 @@ export class PreAggregationDuckDbClient {
                     'Unknown pre-aggregate resolution reason',
                 );
         }
-    }
-
-    createExecutionWarehouseClient(scope?: string): WarehouseClient {
-        if (scope) {
-            const s3Config = getDuckdbRuntimeConfig(
-                this.lightdashConfig.preAggregates.s3,
-            );
-            if (!s3Config) {
-                throw new MissingConfigError(
-                    'External source DuckDB execution is unavailable',
-                );
-            }
-            // External-source credentials are isolated and URI-scoped. Never
-            // place this client in the bucket-wide pre-aggregate cache.
-            return this.createDuckdbWarehouseClient({
-                s3Config: { ...s3Config, scope },
-                resourceLimits: this.sharedResourceLimits ?? {
-                    memoryLimit: '512MB',
-                    threads: 2,
-                },
-                organizationConcurrencyLimit:
-                    this.lightdashConfig.externalSources
-                        .maxConcurrentDuckdbQueriesPerOrganization,
-            });
-        }
-        return this.getOrCreateWarehouseClient();
     }
 
     async resolve(
@@ -418,7 +394,7 @@ export class PreAggregationDuckDbClient {
                 }),
         );
 
-        const warehouseClient = this.getOrCreateWarehouseClient();
+        const warehouseClient = this.createPreAggregateWarehouseClient();
 
         return {
             resolved: true,

@@ -20,6 +20,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
+import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
@@ -1002,6 +1003,10 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     resultsStorageClient:
                         this.clients.getResultsFileStorageClient(),
+                    composeEngineClient: new ComposeEngineClient({
+                        lightdashConfig: this.context.lightdashConfig,
+                        prometheusMetrics: this.prometheusMetrics,
+                    }),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),

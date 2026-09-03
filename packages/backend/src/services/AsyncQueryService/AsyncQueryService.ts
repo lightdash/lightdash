@@ -246,6 +246,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { type ComposeEngineClient } from './ComposeEngineClient';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
@@ -398,6 +399,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     natsClient: INatsClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
+    composeEngineClient: ComposeEngineClient;
     preAggregateStrategy?: PreAggregateStrategy;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
@@ -531,6 +533,8 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly organizationAccessService: OrganizationAccessService;
 
+    private readonly composeEngineClient: ComposeEngineClient;
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -550,6 +554,7 @@ export class AsyncQueryService extends ProjectService {
         this.natsClient = args.natsClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
+        this.composeEngineClient = args.composeEngineClient;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -658,7 +663,7 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<void> {
         try {
             const warehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient(
+                this.composeEngineClient.createExecutionWarehouseClient(
                     objectScope,
                 );
             await this.runAsyncWarehouseQuery({
@@ -2849,7 +2854,7 @@ export class AsyncQueryService extends ProjectService {
             // external ones run on the normal project warehouse client.
             const duckDbWarehouseClient =
                 preAggregateExecution === 'duckdb'
-                    ? this.preAggregateStrategy.createExecutionWarehouseClient()
+                    ? this.preAggregateStrategy.createPreAggregateWarehouseClient()
                     : undefined;
 
             await this.runAsyncWarehouseQuery({
@@ -7049,9 +7054,8 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs raw SQL directly on the shared pre-aggregate DuckDB engine (the
-     * one that serves managed materializations) and streams results through
-     * the standard async query pipeline, so results are polled with
+     * Runs raw SQL directly on the compose engine and streams results
+     * through the standard async query pipeline, so results are polled with
      * getAsyncQueryResults like any other async query.
      *
      * The references map ({"orders": "<queryUuid>"}) exposes previous
@@ -7132,9 +7136,9 @@ export class AsyncQueryService extends ProjectService {
             });
         }
 
-        // Throws NotImplementedError when pre-aggregate execution is unavailable
+        // Throws MissingConfigError when results storage is not configured
         const warehouseClient =
-            this.preAggregateStrategy.createExecutionWarehouseClient();
+            this.composeEngineClient.createExecutionWarehouseClient();
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -7361,9 +7365,9 @@ export class AsyncQueryService extends ProjectService {
             externalSourceSalt,
         });
 
-        // Throws NotImplementedError when the engine is unavailable
+        // Throws MissingConfigError when results storage is not configured
         const warehouseClient =
-            this.preAggregateStrategy.createExecutionWarehouseClient();
+            this.composeEngineClient.createExecutionWarehouseClient();
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -8073,18 +8077,10 @@ export class AsyncQueryService extends ProjectService {
         });
         if (!enabled) return null;
 
-        let warehouseClient: WarehouseClient;
-        try {
-            warehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
-        } catch (e) {
-            this.logger.debug(
-                `Merge-on-compose unavailable, using the warehouse merge: ${getErrorMessage(
-                    e,
-                )}`,
-            );
-            return null;
-        }
+        // Throws MissingConfigError when results storage is not configured:
+        // a merge without an engine is refused, never silently downgraded
+        const warehouseClient =
+            this.composeEngineClient.createExecutionWarehouseClient();
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const sourceRowCap = this.lightdashConfig.query.maxLimit;

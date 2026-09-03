@@ -16,6 +16,7 @@ import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
 import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { ComposeEngineClient } from '../services/AsyncQueryService/ComposeEngineClient';
 import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { JiraAppService } from '../services/JiraAppService/JiraAppService';
@@ -1166,6 +1167,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     resultsStorageClient: clients.getResultsFileStorageClient(),
+                    composeEngineClient: new ComposeEngineClient({
+                        lightdashConfig: context.lightdashConfig,
+                        prometheusMetrics,
+                    }),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:

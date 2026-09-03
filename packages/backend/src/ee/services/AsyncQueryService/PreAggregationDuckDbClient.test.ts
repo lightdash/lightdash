@@ -166,7 +166,7 @@ describe('PreAggregationDuckDbClient', () => {
         ).not.toHaveBeenCalled();
     });
 
-    test('creates the explicitly scoped pre-aggregate DuckDB client', () => {
+    test('creates the pre-aggregate DuckDB client from the pre-aggregate S3 config', () => {
         const createForPreAggregateSpy = vi.spyOn(
             DuckdbWarehouseClient,
             'createForPreAggregate',
@@ -187,7 +187,7 @@ describe('PreAggregationDuckDbClient', () => {
             },
         });
 
-        const warehouseClient = client.createExecutionWarehouseClient();
+        const warehouseClient = client.createPreAggregateWarehouseClient();
 
         expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
         expect(createForPreAggregateSpy).toHaveBeenCalledWith(
