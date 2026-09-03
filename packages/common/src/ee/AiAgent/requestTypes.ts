@@ -245,6 +245,13 @@ export type AiPromptContextItemInput =
           tag: string;
           text: string;
           loc: string;
+      }
+    | {
+          // A data app the user pinned; the server snapshots its name and
+          // latest ready version number at attach time.
+          type: 'data_app';
+          appUuid: string;
+          appSlug?: string | null;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -344,6 +351,13 @@ export type AiPromptContextItem =
           loc: string;
           appSlug: string | null;
           displayName: string | null;
+      }
+    | {
+          type: 'data_app';
+          appUuid: string;
+          appSlug: string | null;
+          displayName: string | null;
+          pinnedVersion: number | null;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

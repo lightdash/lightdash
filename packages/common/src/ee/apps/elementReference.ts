@@ -31,3 +31,7 @@ export const dataAppElementContextKey = ({
     loc,
 }: DataAppElementReference & { appUuid: string; version: number }): string =>
     `data_app_element:${appUuid}:${version}:${elementReferenceToWireString({ tag, text, loc })}`;
+
+/** Identity of a pinned data app as prompt context. */
+export const dataAppContextKey = (appUuid: string): string =>
+    `data_app:${appUuid}`;

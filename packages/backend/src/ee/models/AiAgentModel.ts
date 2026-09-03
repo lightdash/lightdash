@@ -146,6 +146,7 @@ import {
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
+    AiPromptDataAppSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -6506,7 +6507,9 @@ export class AiAgentModel {
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
         const appUuids = context.flatMap((c) =>
-            c.type === 'data_app_element' ? [c.appUuid] : [],
+            c.type === 'data_app_element' || c.type === 'data_app'
+                ? [c.appUuid]
+                : [],
         );
 
         const appNameByUuid = new Map(
@@ -6519,6 +6522,22 @@ export class AiAgentModel {
                         'name',
                     )
             ).map((r) => [r.app_id, r.name] as const),
+        );
+
+        const pinnedAppUuids = context.flatMap((c) =>
+            c.type === 'data_app' ? [c.appUuid] : [],
+        );
+        const latestReadyVersionByAppUuid = new Map(
+            (
+                await trx(AppVersionsTableName)
+                    .whereIn('app_id', pinnedAppUuids)
+                    .where('status', 'ready')
+                    .groupBy('app_id')
+                    .select<{ app_id: string; version: number }[]>(
+                        'app_id',
+                        trx.raw('max(version) as version'),
+                    )
+            ).map((r) => [r.app_id, r.version] as const),
         );
 
         const chartLookup = new Map(
@@ -6803,6 +6822,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'data_app': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'data_app' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version:
+                                latestReadyVersionByAppUuid.get(ctx.appUuid) ??
+                                null,
+                        } satisfies AiPromptDataAppSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6939,14 +6975,18 @@ export class AiAgentModel {
             }),
         );
 
-        const appUuids = rows.flatMap((r) =>
-            r.entity_type === 'data_app_element'
-                ? [
-                      (r.runtime_overrides as AiPromptDataAppElementSnapshot)
-                          .appUuid,
-                  ]
-                : [],
-        );
+        const appUuids = rows.flatMap((r) => {
+            if (r.entity_type === 'data_app_element') {
+                return [
+                    (r.runtime_overrides as AiPromptDataAppElementSnapshot)
+                        .appUuid,
+                ];
+            }
+            if (r.entity_type === 'data_app' && r.entity_uuid !== null) {
+                return [r.entity_uuid];
+            }
+            return [];
+        });
         const appDataByUuid = new Map(
             (
                 await this.database(AppsTableName)
@@ -7159,6 +7199,21 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
                         : row.display_name,
+                };
+            }
+            case 'data_app': {
+                const appUuid = requireEntityUuid();
+                const app = appDataByUuid.get(appUuid);
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppSnapshot | null;
+                return {
+                    type: 'data_app',
+                    appUuid,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                    pinnedVersion: snapshot?.version ?? null,
                 };
             }
             default:
