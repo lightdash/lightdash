@@ -2113,6 +2113,42 @@ export class ProjectModel {
         });
     }
 
+    /**
+     * Who holds the compile lock for a project, and for how long.
+     *
+     * A retry blocked by a zombie compile otherwise reads "Compilation is already in progress"
+     * about a job the server has already declared failed, with nothing to identify the holder.
+     */
+    async getProjectLockHolder(projectUuid: string): Promise<{
+        heldForSeconds: number;
+        backendPid: number;
+        applicationName: string | null;
+    } | null> {
+        const result = await this.database.raw(
+            `
+            SELECT a.pid,
+                   a.application_name,
+                   EXTRACT(EPOCH FROM (now() - a.xact_start)) AS held_for_seconds
+            FROM pg_locks l
+            JOIN pg_stat_activity a ON a.pid = l.pid
+            JOIN projects p ON p.project_uuid = ?
+            WHERE l.locktype = 'advisory'
+              AND l.classid = ?
+              AND l.objid = p.project_id
+              AND l.granted
+            ORDER BY a.xact_start ASC
+            LIMIT 1`,
+            [projectUuid, CACHED_EXPLORES_PG_LOCK_NAMESPACE],
+        );
+        const row = result.rows[0];
+        if (!row) return null;
+        return {
+            heldForSeconds: Math.round(Number(row.held_for_seconds ?? 0)),
+            backendPid: Number(row.pid),
+            applicationName: row.application_name ?? null,
+        };
+    }
+
     async getWarehouseFromCache(
         projectUuid: string,
     ): Promise<WarehouseCatalog | undefined> {
