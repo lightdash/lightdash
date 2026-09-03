@@ -144,12 +144,7 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
-import {
-    chunkRowsByBytes,
-    describeWholeSetOverflow,
-    POSTGRES_JSONB_MAX_BYTES,
-    serialisedArrayBytes,
-} from '../../utils/chunkRowsByBytes';
+import { chunkRowsByBytes } from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -2037,26 +2032,8 @@ export class ProjectModel {
                         individualCachedExplores.push(...saved);
                     }
 
-                    // Cache explores together. This is one jsonb column value holding every
-                    // explore, so it has a hard ceiling that chunking cannot move. Name the
-                    // size when it is exceeded rather than surfacing a bare RangeError.
-                    const wholeSetBytes =
-                        exploresToSave === uniqueExplores
-                            ? savedBytes + uniqueExplores.length + 1
-                            : serialisedArrayBytes(uniqueExplores);
-                    if (wholeSetBytes > POSTGRES_JSONB_MAX_BYTES) {
-                        throw new ParameterError(
-                            describeWholeSetOverflow(
-                                uniqueExplores.length,
-                                wholeSetBytes,
-                            ),
-                        );
-                    }
                     Logger.info(
-                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${uniqueExplores.length} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes} wholeSetBytes=${wholeSetBytes} wholeSetPercentOfLimit=${(
-                            (wholeSetBytes / POSTGRES_JSONB_MAX_BYTES) *
-                            100
-                        ).toFixed(1)}`,
+                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${uniqueExplores.length} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes}`,
                         {
                             event: 'dbt.compile.saveExplores',
                             projectUuid,
@@ -2064,21 +2041,8 @@ export class ProjectModel {
                             chunks: chunkCount,
                             largestChunkBytes,
                             savedBytes,
-                            wholeSetBytes,
-                            wholeSetLimitBytes: POSTGRES_JSONB_MAX_BYTES,
-                            wholeSetPercentOfLimit:
-                                (wholeSetBytes / POSTGRES_JSONB_MAX_BYTES) *
-                                100,
                         },
                     );
-                    await trx(CachedExploresTableName)
-                        .insert({
-                            project_uuid: projectUuid,
-                            explores: JSON.stringify(uniqueExplores),
-                        })
-                        .onConflict('project_uuid')
-                        .merge()
-                        .returning('*');
 
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
@@ -4626,7 +4590,6 @@ export class ProjectModel {
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
             });
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
 
         return virtualView;
@@ -4675,7 +4638,6 @@ export class ProjectModel {
                 })
                 .where('project_uuid', projectUuid)
                 .andWhere('name', exploreName);
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
 
         return translatedToExplore;
@@ -4689,7 +4651,6 @@ export class ProjectModel {
                 .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
                 .andWhere('name', name)
                 .delete();
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4735,7 +4696,6 @@ export class ProjectModel {
                     explore,
                 });
             }
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4751,7 +4711,6 @@ export class ProjectModel {
                 .whereRaw("explore->>'type' = ?", [ExploreType.EXTERNAL_SOURCE])
                 .whereIn('name', names)
                 .delete();
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4767,23 +4726,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid)
             .forUpdate()
             .first();
-    }
-
-    private static async rebuildCachedExplores(
-        trx: Transaction,
-        projectUuid: string,
-    ): Promise<void> {
-        const cachedExplores = await trx(CachedExploreTableName)
-            .select<{ explore: Explore | ExploreError }[]>('explore')
-            .where('project_uuid', projectUuid)
-            .orderBy('name');
-        await trx(CachedExploresTableName)
-            .where('project_uuid', projectUuid)
-            .update({
-                explores: JSON.stringify(
-                    cachedExplores.map(({ explore }) => explore),
-                ),
-            });
     }
 
     async updateSchedulerSettings(

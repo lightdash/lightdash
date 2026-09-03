@@ -37,7 +37,7 @@ import {
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import {
-    CachedExploresTableName,
+    CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -1573,37 +1573,38 @@ export class SearchModel {
             value: projects[0].table_selection_value,
         };
 
-        const explores = await this.database(CachedExploresTableName)
-            .select(['explores'])
+        // One row per explore, not the whole-set blob. That blob was a single jsonb value
+        // holding every explore, so a global search parsed the entire catalog on every
+        // request. The pre-aggregate exclusion is pushed into SQL so those rows never leave
+        // Postgres. Explores with no type predate the column and must be kept, hence
+        // IS DISTINCT FROM rather than <>.
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ explore: Explore | ExploreError }[]>('explore')
             .where('project_uuid', projectUuid)
-            .limit(1);
+            .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
+                ExploreType.PRE_AGGREGATE,
+            ])
+            .orderBy('name');
 
-        if (explores.length > 0 && explores[0].explores) {
-            return explores[0].explores.filter(
-                (explore: Explore | ExploreError) => {
-                    if (explore.type === ExploreType.PRE_AGGREGATE) {
-                        return false;
-                    }
-                    if (tableSelection.type === TableSelectionType.WITH_TAGS) {
-                        return (
-                            hasIntersection(
-                                explore.tags || [],
-                                tableSelection.value || [],
-                            ) || isUserManagedExplore(explore)
-                        );
-                    }
-                    if (tableSelection.type === TableSelectionType.WITH_NAMES) {
-                        return (
-                            (tableSelection.value || []).includes(
-                                explore.name,
-                            ) || isUserManagedExplore(explore)
-                        );
-                    }
-                    return true;
-                },
-            );
-        }
-        return [];
+        return rows
+            .map(({ explore }) => explore)
+            .filter((explore: Explore | ExploreError) => {
+                if (tableSelection.type === TableSelectionType.WITH_TAGS) {
+                    return (
+                        hasIntersection(
+                            explore.tags || [],
+                            tableSelection.value || [],
+                        ) || isUserManagedExplore(explore)
+                    );
+                }
+                if (tableSelection.type === TableSelectionType.WITH_NAMES) {
+                    return (
+                        (tableSelection.value || []).includes(explore.name) ||
+                        isUserManagedExplore(explore)
+                    );
+                }
+                return true;
+            }) as Explore[];
     }
 
     static searchTablesAndFields(
