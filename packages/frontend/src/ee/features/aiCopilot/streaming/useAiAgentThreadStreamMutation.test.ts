@@ -23,10 +23,7 @@ describe('getReasoningFromPart', () => {
         });
     });
 
-    it('generates a unique id when a Gemini reasoning block has no signature', () => {
-        const randomUuid = vi
-            .spyOn(crypto, 'randomUUID')
-            .mockReturnValue('00000000-0000-4000-8000-000000000000');
+    it('ignores Gemini reasoning blocks without a stable signature', () => {
         const part: ReasoningUIPart = {
             type: 'reasoning',
             text: 'Reasoning summary',
@@ -35,11 +32,7 @@ describe('getReasoningFromPart', () => {
             },
         };
 
-        expect(getReasoningFromPart(part)).toEqual({
-            reasoningId: '00000000-0000-4000-8000-000000000000',
-            text: 'Reasoning summary',
-        });
-        randomUuid.mockRestore();
+        expect(getReasoningFromPart(part)).toBeNull();
     });
 });
 

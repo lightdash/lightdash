@@ -15,7 +15,7 @@ export type ProviderOptionsMap = {
     anthropic: Omit<AnthropicProviderOptions, 'fallbacks'>;
     google: Pick<
         GoogleLanguageModelInteractionsOptions,
-        'thinkingLevel' | 'thinkingSummaries'
+        'store' | 'thinkingLevel' | 'thinkingSummaries'
     >;
     openrouter: Record<string, JSONValue>;
     bedrock: BedrockProviderOptions;

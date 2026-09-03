@@ -39,9 +39,9 @@ const storedAiOrgProviderApiKeyFields = {
 
 // Keep known provider keys strongly typed and exhaustive, but strip unknown
 // future-provider keys so mixed-version deploys do not invalidate the whole blob.
-const storedAiOrgProviderApiKeysSchema = z
-    .object(storedAiOrgProviderApiKeyFields)
-    .strip();
+const storedAiOrgProviderApiKeysSchema = z.object(
+    storedAiOrgProviderApiKeyFields,
+);
 
 export type AiOrgProviderApiKeys = z.infer<
     typeof storedAiOrgProviderApiKeysSchema
