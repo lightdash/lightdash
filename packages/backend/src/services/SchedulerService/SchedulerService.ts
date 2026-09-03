@@ -2278,6 +2278,17 @@ export class SchedulerService extends BaseService {
         return { reassignedCount };
     }
 
+    private static stuckJobError(
+        taskIdentifier: string,
+        durationMinutes: number | undefined,
+    ): string {
+        const ran =
+            durationMinutes === undefined
+                ? ''
+                : ` It ran for ${durationMinutes} minutes.`;
+        return `This ${taskIdentifier} job took longer than expected and was stopped after 1 hour.${ran} Please try again. If the issue persists, contact support.`;
+    }
+
     async checkForStuckJobs(): Promise<{
         runningCount: number;
         warningCount: number;
@@ -2313,7 +2324,14 @@ export class SchedulerService extends BaseService {
             if (durationMs >= ONE_HOUR_MS) {
                 // Over 1 hour: log error and schedule for DB logging
                 this.logger.error(
-                    `Stuck job detected (over 1 hour): ${job.taskIdentifier} (job ${job.id}) running for ${durationMinutes} min`,
+                    `Stuck job detected (over 1 hour): ${job.taskIdentifier} graphileJobId=${
+                        job.id
+                    } lightdashJobUuid=${
+                        getLightdashJobUuid(job.payload) ?? 'none'
+                    } projectUuid=${
+                        (job.payload.projectUuid as string | undefined) ??
+                        'none'
+                    } durationMinutes=${durationMinutes}`,
                     logContext,
                 );
                 jobsToLog.push({ job, durationMinutes });
@@ -2339,7 +2357,15 @@ export class SchedulerService extends BaseService {
                     scheduledTime: job.runAt,
                     status: SchedulerJobStatus.ERROR,
                     details: {
-                        error: 'This job took longer than expected and was stopped after 1 hour—please try again. If the issue persists, contact support.',
+                        error: SchedulerService.stuckJobError(
+                            job.taskIdentifier,
+                            durationMinutes,
+                        ),
+                        durationMinutes,
+                        graphileJobId: job.id,
+                        taskIdentifier: job.taskIdentifier,
+                        lightdashJobUuid:
+                            getLightdashJobUuid(job.payload) ?? null,
                         lockedAt: job.lockedAt.toISOString(),
                         lockedBy: job.lockedBy,
                         projectUuid: job.payload.projectUuid as
@@ -2375,11 +2401,23 @@ export class SchedulerService extends BaseService {
 
         // Update Lightdash job status to ERROR for tasks that track a Lightdash job row
         await Promise.all(
-            lightdashJobUuids.map((jobUuid) =>
-                this.jobModel.update(jobUuid, {
+            lightdashJobUuids.map(async (jobUuid) => {
+                const stuck = jobsToLog.find(
+                    ({ job }) => getLightdashJobUuid(job.payload) === jobUuid,
+                );
+                await this.jobModel.update(jobUuid, {
                     jobStatus: JobStatusType.ERROR,
-                }),
-            ),
+                });
+                // The drawer renders stepError, so the job row alone shows an error title
+                // above a step that is still spinning with nothing to read.
+                await this.jobModel.failRunningSteps(
+                    jobUuid,
+                    SchedulerService.stuckJobError(
+                        stuck?.job.taskIdentifier ?? 'compileProject',
+                        stuck?.durationMinutes,
+                    ),
+                );
+            }),
         );
 
         // Remove stuck jobs from graphile queue to prevent indefinite running

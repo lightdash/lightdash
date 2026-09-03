@@ -339,6 +339,24 @@ export class JobModel {
             .andWhere('step_status', JobStepStatusType.PENDING);
     }
 
+    /**
+     * Mark every still-running step of a job as failed with `error`.
+     *
+     * The stuck-job reaper sets `job_status` only, which leaves the drawer rendering a red
+     * error title above a step that is still spinning with no message, because the drawer
+     * renders `stepError` and nothing writes it.
+     */
+    async failRunningSteps(jobUuid: string, error: string): Promise<void> {
+        await this.database(JobStepsTableName)
+            .update({
+                step_status: JobStepStatusType.ERROR,
+                step_error: error,
+                updated_at: new Date(),
+            })
+            .where('job_uuid', jobUuid)
+            .andWhere('step_status', JobStepStatusType.RUNNING);
+    }
+
     async tryJobStep<T>(
         jobUuid: string,
         jobStepType: JobStepType,
