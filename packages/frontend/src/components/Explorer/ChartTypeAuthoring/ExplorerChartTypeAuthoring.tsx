@@ -275,40 +275,54 @@ const ExplorerChartTypeAuthoring: FC<Props> = ({ authoring }) => {
 
     return (
         <>
-            <ExplorerChartTypeAuthoringView
-                projectUuid={projectUuid}
-                app={
-                    dataAppViz
-                        ? {
-                              appUuid: dataAppViz.dataAppVizUuid,
-                              name: dataAppViz.name,
-                              description: dataAppViz.description,
-                          }
-                        : null
-                }
-                upgrade={
-                    dataAppVizUuid !== null &&
-                    history.latestReadyVersion !== null
-                        ? {
-                              ...workspace.sdkUpgradeOffer,
-                              disabled: workspace.isBuilding,
-                          }
-                        : null
-                }
-                workspace={workspace}
-                previewContext={previewContext}
-                warning={
-                    <VisualizationWarning
-                        dirtyPivotConfiguration={dirtyPivotConfiguration}
-                        chartConfig={chartConfig}
-                        resultsData={resultsData}
-                        isLoading={isLoadingQueryResults}
-                        maxColumnLimit={health.data?.pivotTable?.maxColumnLimit}
-                    />
-                }
-                onDetailsSaved={handleDetailsSaved}
-                onDone={handleDone}
-            />
+            {/* Esc routes through the same exit flow as Done; a stray click
+                outside must not dump a running build. */}
+            <MantineModal
+                opened
+                onClose={handleDone}
+                title="Chart type builder"
+                fullScreen
+                cancelLabel={false}
+                modalRootProps={{ closeOnClickOutside: false }}
+                modalBodyProps={{ px: 'md', py: 'md' }}
+            >
+                <ExplorerChartTypeAuthoringView
+                    projectUuid={projectUuid}
+                    app={
+                        dataAppViz
+                            ? {
+                                  appUuid: dataAppViz.dataAppVizUuid,
+                                  name: dataAppViz.name,
+                                  description: dataAppViz.description,
+                              }
+                            : null
+                    }
+                    upgrade={
+                        dataAppVizUuid !== null &&
+                        history.latestReadyVersion !== null
+                            ? {
+                                  ...workspace.sdkUpgradeOffer,
+                                  disabled: workspace.isBuilding,
+                              }
+                            : null
+                    }
+                    workspace={workspace}
+                    previewContext={previewContext}
+                    warning={
+                        <VisualizationWarning
+                            dirtyPivotConfiguration={dirtyPivotConfiguration}
+                            chartConfig={chartConfig}
+                            resultsData={resultsData}
+                            isLoading={isLoadingQueryResults}
+                            maxColumnLimit={
+                                health.data?.pivotTable?.maxColumnLimit
+                            }
+                        />
+                    }
+                    onDetailsSaved={handleDetailsSaved}
+                    onDone={handleDone}
+                />
+            </MantineModal>
             {isExitConfirmOpen && (
                 <MantineModal
                     opened
