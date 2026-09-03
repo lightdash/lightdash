@@ -22,6 +22,7 @@ import {
     isDataAppBuildInProgress,
     type DataAppBuildCardAppSource,
 } from './dataAppBuildCardState';
+import { isDataAppCardActive } from './dataAppPreviewVersion';
 
 type Props = {
     metadata: ToolGenerateDataAppOutput['metadata'];
@@ -63,11 +64,20 @@ export const AiDataAppBuildCard: FC<Props> = ({
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { appUuid } = metadata;
+    // A failed build names no version and can never be on show.
+    const cardVersion = metadata.status === 'error' ? null : metadata.version;
     const preview = useAiAgentStoreSelector(selectDataAppPreview);
-    const isActive = appUuid !== null && preview?.appUuid === appUuid;
 
     const appQuery = useGetApp(projectUuid, appUuid ?? undefined);
     const source = toAppSource(appQuery);
+    const latestReadyVersion =
+        source.kind === 'loaded' ? source.app.latestReadyVersion : null;
+    const isActive = isDataAppCardActive({
+        preview,
+        appUuid,
+        version: cardVersion,
+        latestReadyVersion,
+    });
     const state = getDataAppBuildCardState(metadata, source);
     const inProgress = state !== null && isDataAppBuildInProgress(state);
     const isPolling = metadata.status === 'pending' && inProgress;
@@ -100,9 +110,20 @@ export const AiDataAppBuildCard: FC<Props> = ({
                 threadUuid,
                 projectUuid,
                 agentUuid,
+                version: cardVersion,
+                latestReadyVersionAtOpen: latestReadyVersion,
             }),
         );
-    }, [dispatch, appUuid, messageUuid, threadUuid, projectUuid, agentUuid]);
+    }, [
+        dispatch,
+        appUuid,
+        messageUuid,
+        threadUuid,
+        projectUuid,
+        agentUuid,
+        cardVersion,
+        latestReadyVersion,
+    ]);
 
     // Open the preview once when a build watched in this session lands.
     // Never on reload, and never again after the user closes it.

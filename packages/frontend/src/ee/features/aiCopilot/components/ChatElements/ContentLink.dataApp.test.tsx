@@ -68,6 +68,8 @@ describe('ContentLink data-app chip', () => {
             threadUuid: 'thread-1',
             projectUuid: 'project-1',
             agentUuid: 'agent-1',
+            version: null,
+            latestReadyVersionAtOpen: null,
         });
     });
 
@@ -84,6 +86,31 @@ describe('ContentLink data-app chip', () => {
 
         expect(defaultNotPrevented).toBe(true);
         expect(store.getState().aiArtifact.preview).toBeNull();
+    });
+
+    it('opens the latest ready version even after a card pinned an older one', () => {
+        renderDataAppChip();
+        act(() => {
+            store.dispatch(
+                setPreview({
+                    type: 'dataApp',
+                    appUuid: APP_UUID,
+                    messageUuid: 'message-1',
+                    threadUuid: 'thread-1',
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    version: 1,
+                    latestReadyVersionAtOpen: 3,
+                }),
+            );
+        });
+
+        fireEvent.click(screen.getByRole('link', { name: /Revenue explorer/ }));
+
+        expect(store.getState().aiArtifact.preview).toMatchObject({
+            version: null,
+            latestReadyVersionAtOpen: null,
+        });
     });
 
     it('shows the active indicator only while its app is previewed', () => {

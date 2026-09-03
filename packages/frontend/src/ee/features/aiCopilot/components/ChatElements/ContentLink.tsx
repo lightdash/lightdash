@@ -118,13 +118,15 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 typeof props['data-app-uuid'] === 'string'
                     ? props['data-app-uuid']
                     : undefined;
+            // App-level match: the link has no app data to tell which
+            // version the panel is on, so it lights up for any version.
             const isActive =
                 !!appUuid &&
                 currentPreview?.type === 'dataApp' &&
                 currentPreview.appUuid === appUuid;
 
             // Modified clicks fall through to the anchor and open the full
-            // page in a new tab.
+            // page in a new tab. A link always opens the latest ready version.
             const handleDataAppClick = (e: MouseEvent<HTMLAnchorElement>) => {
                 if (!appUuid || !isPlainLeftClick(e)) {
                     return;
@@ -139,6 +141,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                         threadUuid: message.threadUuid,
                         projectUuid,
                         agentUuid,
+                        version: null,
+                        latestReadyVersionAtOpen: null,
                     }),
                 );
             };
