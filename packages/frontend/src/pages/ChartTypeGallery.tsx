@@ -6,6 +6,7 @@ import {
     Paper,
     SimpleGrid,
     Stack,
+    Tabs,
     Text,
     TextInput,
 } from '@mantine/core';
@@ -34,6 +35,9 @@ const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartTypeRegistryFlag = useServerFeatureFlag(
+        FeatureFlags.ChartTypeRegistry,
+    );
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -69,6 +73,7 @@ const ChartTypeGallery = () => {
     // types at all yet: the empty state below carries its own CTA.
     const isEmptyGallery =
         !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
+    const isLibraryEnabled = chartTypeRegistryFlag.data?.enabled === true;
 
     if (!projectUuid) {
         return null;
@@ -90,7 +95,7 @@ const ChartTypeGallery = () => {
             withXLargePaddedContent
             withLargeContent
         >
-            <Stack gap="xxl" w="100%">
+            <Stack gap="xl" w="100%">
                 <PageBreadcrumbs
                     items={[
                         { title: 'Home', to: '/home' },
@@ -98,118 +103,136 @@ const ChartTypeGallery = () => {
                     ]}
                 />
 
-                <Stack gap="md">
-                    {/* A section rather than the page title: the gallery holds
-                        only chart types today, other kinds sit beside them. */}
-                    <Group justify="space-between" align="center">
-                        <Group gap={6} align="baseline">
-                            <Text size="md" fw={600} c="ldGray.8">
+                <Tabs defaultValue="chart-types" keepMounted={false}>
+                    <Tabs.List>
+                        <Tabs.Tab value="chart-types">
+                            <Group gap={6} wrap="nowrap">
                                 Chart types
-                            </Text>
-                            {!isEmptyGallery && totalCount !== null && (
-                                <Text fz="xs" c="dimmed">
-                                    ({totalCount})
-                                </Text>
-                            )}
-                        </Group>
+                                {!isEmptyGallery && totalCount !== null && (
+                                    <Text span fz="xs" c="dimmed">
+                                        ({totalCount})
+                                    </Text>
+                                )}
+                            </Group>
+                        </Tabs.Tab>
+                        {isLibraryEnabled && (
+                            <Tabs.Tab value="library">Library</Tabs.Tab>
+                        )}
+                    </Tabs.List>
 
-                        {!isEmptyGallery && (
-                            <Group gap="xs">
-                                <TextInput
-                                    size="xs"
-                                    w={220}
-                                    placeholder="Search by name or description"
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconSearch}
-                                            size={15}
-                                        />
-                                    }
-                                    value={search}
-                                    onChange={(e) =>
-                                        setSearch(e.currentTarget.value)
-                                    }
-                                />
-                                <Can
-                                    I="create"
-                                    this={subject('DataApp', {
-                                        organizationUuid:
-                                            user.data?.organizationUuid,
-                                        projectUuid,
-                                    })}
-                                >
-                                    <Button
+                    <Tabs.Panel value="chart-types" pt="xl">
+                        <Stack gap="md">
+                            {!isEmptyGallery && (
+                                <Group justify="flex-end" gap="xs">
+                                    <TextInput
                                         size="xs"
-                                        component={Link}
-                                        to={chartTypeBuilderPath(projectUuid)}
+                                        w={220}
+                                        placeholder="Search by name or description"
                                         leftSection={
                                             <MantineIcon
-                                                icon={IconPlus}
+                                                icon={IconSearch}
                                                 size={15}
                                             />
                                         }
-                                    >
-                                        New chart type
-                                    </Button>
-                                </Can>
-                            </Group>
-                        )}
-                    </Group>
-
-                    {isInitialLoading ? (
-                        <EmptyStateLoader title="Loading chart types…" />
-                    ) : error ? (
-                        <InlineErrorState
-                            message="Failed to load chart types"
-                            onRetry={() => refetch()}
-                        />
-                    ) : dataAppVizs.length === 0 ? (
-                        debouncedSearch ? (
-                            <Paper variant="dotted" p="xl">
-                                <Text ta="center" fz="xs" c="dimmed">
-                                    No chart types match &ldquo;
-                                    {debouncedSearch}&rdquo;
-                                </Text>
-                            </Paper>
-                        ) : (
-                            <ChartTypeGalleryEmptyState
-                                projectUuid={projectUuid}
-                            />
-                        )
-                    ) : (
-                        <>
-                            <SimpleGrid
-                                cols={{ base: 1, sm: 2, lg: 3 }}
-                                spacing="md"
-                            >
-                                {dataAppVizs.map((viz) => (
-                                    <ChartTypeGalleryCard
-                                        key={viz.dataAppVizUuid}
-                                        dataAppViz={viz}
-                                        onClick={() =>
-                                            setSelectedUuid(viz.dataAppVizUuid)
-                                        }
-                                        onDelete={() =>
-                                            setDeleteUuid(viz.dataAppVizUuid)
+                                        value={search}
+                                        onChange={(e) =>
+                                            setSearch(e.currentTarget.value)
                                         }
                                     />
-                                ))}
-                            </SimpleGrid>
-                            {hasNextPage && (
-                                <Button
-                                    variant="default"
-                                    loading={isFetchingNextPage}
-                                    onClick={() => fetchNextPage()}
-                                    mx="auto"
-                                >
-                                    Load more
-                                </Button>
+                                    <Can
+                                        I="create"
+                                        this={subject('DataApp', {
+                                            organizationUuid:
+                                                user.data?.organizationUuid,
+                                            projectUuid,
+                                        })}
+                                    >
+                                        <Button
+                                            size="xs"
+                                            component={Link}
+                                            to={chartTypeBuilderPath(
+                                                projectUuid,
+                                            )}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPlus}
+                                                    size={15}
+                                                />
+                                            }
+                                        >
+                                            New chart type
+                                        </Button>
+                                    </Can>
+                                </Group>
                             )}
-                        </>
-                    )}
-                </Stack>
 
-                <ChartTypeLibrarySection projectUuid={projectUuid} />
+                            {isInitialLoading ? (
+                                <EmptyStateLoader title="Loading chart types…" />
+                            ) : error ? (
+                                <InlineErrorState
+                                    message="Failed to load chart types"
+                                    onRetry={() => refetch()}
+                                />
+                            ) : dataAppVizs.length === 0 ? (
+                                debouncedSearch ? (
+                                    <Paper variant="dotted" p="xl">
+                                        <Text ta="center" fz="xs" c="dimmed">
+                                            No chart types match &ldquo;
+                                            {debouncedSearch}&rdquo;
+                                        </Text>
+                                    </Paper>
+                                ) : (
+                                    <ChartTypeGalleryEmptyState
+                                        projectUuid={projectUuid}
+                                    />
+                                )
+                            ) : (
+                                <>
+                                    <SimpleGrid
+                                        cols={{ base: 1, sm: 2, lg: 3 }}
+                                        spacing="md"
+                                    >
+                                        {dataAppVizs.map((viz) => (
+                                            <ChartTypeGalleryCard
+                                                key={viz.dataAppVizUuid}
+                                                dataAppViz={viz}
+                                                onClick={() =>
+                                                    setSelectedUuid(
+                                                        viz.dataAppVizUuid,
+                                                    )
+                                                }
+                                                onDelete={() =>
+                                                    setDeleteUuid(
+                                                        viz.dataAppVizUuid,
+                                                    )
+                                                }
+                                            />
+                                        ))}
+                                    </SimpleGrid>
+                                    {hasNextPage && (
+                                        <Button
+                                            variant="default"
+                                            loading={isFetchingNextPage}
+                                            onClick={() => fetchNextPage()}
+                                            mx="auto"
+                                        >
+                                            Load more
+                                        </Button>
+                                    )}
+                                </>
+                            )}
+                        </Stack>
+                    </Tabs.Panel>
+
+                    {isLibraryEnabled && (
+                        <Tabs.Panel value="library" pt="xl">
+                            <ChartTypeLibrarySection
+                                projectUuid={projectUuid}
+                                withHeader={false}
+                            />
+                        </Tabs.Panel>
+                    )}
+                </Tabs>
             </Stack>
 
             {selected && (
