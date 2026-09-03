@@ -339,6 +339,7 @@ describe('AiAgentService.createPinnedContextMessage data app pins', () => {
                 appSlug: 'f1-standings',
                 displayName: 'F1 standings',
                 pinnedVersion: 3,
+                isPersonal: false,
             },
         ]);
 
@@ -365,6 +366,7 @@ describe('AiAgentService.createPinnedContextMessage data app pins', () => {
                 appSlug: 'f1-standings',
                 displayName: 'F1 standings',
                 pinnedVersion: null,
+                isPersonal: false,
             },
             {
                 type: 'chart',

@@ -27,6 +27,7 @@ const app = {
     name: 'Sales explorer',
     slug: 'sales-explorer',
     latestReadyVersion: 3,
+    spaceUuid: 'space-1',
 };
 
 const dashboard = {
@@ -74,6 +75,7 @@ describe('usePinnedContext', () => {
                     appSlug: 'sales-explorer',
                     displayName: 'Sales explorer',
                     pinnedVersion: 3,
+                    isPersonal: false,
                 },
             ]);
             expect(result.current.contentMentionItems).toEqual([
@@ -82,6 +84,7 @@ describe('usePinnedContext', () => {
                     uuid: 'app-1',
                     slug: 'sales-explorer',
                     label: 'Sales explorer',
+                    isPersonalDataApp: false,
                     group: 'current',
                 }),
             ]);

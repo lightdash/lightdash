@@ -164,6 +164,29 @@ describe('contentMentions', () => {
             expect(items.map((item) => item.uuid)).toEqual(['app-1']);
         });
 
+        it('hides personal apps offered by priority groups when the agent is space-restricted', async () => {
+            mockContentSearch([dataAppResult({ uuid: 'app-1' })]);
+
+            const items = await buildContentMentionSuggestionItems({
+                projectUuid: 'project-uuid',
+                query: 'app',
+                priorityItems: [
+                    {
+                        id: 'current:data_app:app-personal',
+                        label: 'App scratch',
+                        contentType: ContentType.DATA_APP,
+                        uuid: 'app-personal',
+                        slug: 'scratch',
+                        isPersonalDataApp: true,
+                        group: 'current',
+                    },
+                ],
+                hidePersonalDataApps: true,
+            });
+
+            expect(items.map((item) => item.uuid)).toEqual(['app-1']);
+        });
+
         it('dedupes an already mentioned app against search results by uuid', async () => {
             mockContentSearch([
                 dataAppResult({ uuid: 'app-1', name: 'F1 standings' }),
@@ -179,6 +202,7 @@ describe('contentMentions', () => {
                         contentType: ContentType.DATA_APP,
                         uuid: 'app-1',
                         slug: 'f1-standings',
+                        isPersonalDataApp: false,
                         group: 'thread',
                     },
                 ],
@@ -198,6 +222,7 @@ describe('contentMentions', () => {
                             appSlug: 'f1-standings',
                             displayName: 'F1 standings',
                             pinnedVersion: 3,
+                            isPersonal: false,
                         },
                     ],
                     'thread',
@@ -209,6 +234,7 @@ describe('contentMentions', () => {
                     contentType: ContentType.DATA_APP,
                     uuid: 'app-1',
                     slug: 'f1-standings',
+                    isPersonalDataApp: false,
                     group: 'thread',
                 },
             ]);
@@ -245,6 +271,7 @@ describe('contentMentions', () => {
                         appSlug: 'f1-standings',
                         displayName: 'F1 standings',
                         pinnedVersion: null,
+                        isPersonal: false,
                     },
                 ],
             });
@@ -377,6 +404,7 @@ describe('contentMentions', () => {
             contentType: ContentType.CHART,
             uuid: 'chart-1',
             slug: 'revenue-chart',
+            isPersonalDataApp: false,
             group: 'thread',
         };
         const tileChart: ContentMentionSuggestionItem = {
@@ -385,6 +413,7 @@ describe('contentMentions', () => {
             contentType: ContentType.CHART,
             uuid: 'chart-1',
             slug: 'revenue-chart',
+            isPersonalDataApp: false,
             group: 'dashboardTile',
         };
         const tileChart2: ContentMentionSuggestionItem = {
@@ -393,6 +422,7 @@ describe('contentMentions', () => {
             contentType: ContentType.CHART,
             uuid: 'chart-2',
             slug: 'active-users',
+            isPersonalDataApp: false,
             group: 'dashboardTile',
         };
 
@@ -428,6 +458,7 @@ describe('contentMentions', () => {
                 uuid: 'chart-1',
                 slug: 'revenue-chart',
                 chartKind: ChartKind.VERTICAL_BAR,
+                isPersonalDataApp: false,
                 group: 'thread',
             },
         ]);
@@ -445,6 +476,7 @@ describe('contentMentions', () => {
                         contentType: ContentType.DASHBOARD,
                         uuid: 'dashboard-1',
                         slug: 'exec-dashboard',
+                        isPersonalDataApp: false,
                         group: 'current',
                     },
                     {
@@ -453,6 +485,7 @@ describe('contentMentions', () => {
                         contentType: ContentType.CHART,
                         uuid: 'chart-1',
                         slug: 'revenue-by-month',
+                        isPersonalDataApp: false,
                         group: 'dashboardTile',
                     },
                 ],
@@ -464,6 +497,7 @@ describe('contentMentions', () => {
                 contentType: ContentType.CHART,
                 uuid: 'chart-1',
                 slug: 'revenue-by-month',
+                isPersonalDataApp: false,
                 group: 'dashboardTile',
             },
         ]);

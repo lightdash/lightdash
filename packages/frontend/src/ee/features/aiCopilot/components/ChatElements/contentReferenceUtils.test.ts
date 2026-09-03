@@ -218,6 +218,7 @@ describe('contentReferenceUtils', () => {
             appSlug: 'f1-standings',
             displayName: 'F1 standings',
             pinnedVersion: 3,
+            isPersonal: false,
         };
 
         expect(getPromptContextItemKey(item)).toBe('data_app:app-1');

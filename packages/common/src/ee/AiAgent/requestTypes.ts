@@ -358,6 +358,8 @@ export type AiPromptContextItem =
           appSlug: string | null;
           displayName: string | null;
           pinnedVersion: number | null;
+          // Personal apps have no space; space-restricted agents cannot read them.
+          isPersonal: boolean;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

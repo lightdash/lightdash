@@ -320,6 +320,7 @@ describe('AI context compaction helpers', () => {
                         appSlug: 'f1-standings',
                         displayName: 'F1 standings',
                         pinnedVersion: 3,
+                        isPersonal: false,
                     },
                 ],
                 steers: [],

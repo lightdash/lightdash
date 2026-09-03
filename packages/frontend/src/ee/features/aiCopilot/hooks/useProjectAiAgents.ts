@@ -791,6 +791,7 @@ const toOptimisticContextItem = (
                 appSlug: item.appSlug ?? null,
                 displayName: null,
                 pinnedVersion: null,
+                isPersonal: false,
             };
         // System-only pins are seeded by the remediation flow, never optimistically
         // attached from the UI, so they have no client-resolvable shape.

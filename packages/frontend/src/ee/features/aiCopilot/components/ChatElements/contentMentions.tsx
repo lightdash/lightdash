@@ -82,7 +82,7 @@ export type ContentMentionSuggestionItem = SuggestionItem & {
     chartKind?: ChartKind | null;
     spaceName?: string | null;
     // Personal data apps have no space; agents restricted to spaces hide them.
-    isPersonalDataApp?: boolean;
+    isPersonalDataApp: boolean;
     group: ContentMentionGroup;
     dashboardUuid?: string | null;
     dashboardSlug?: string | null;
@@ -387,6 +387,7 @@ export const contextItemsToContentMentionSuggestions = (
                 uuid: item.chartUuid,
                 slug: item.chartSlug,
                 chartKind: item.chartKind,
+                isPersonalDataApp: false,
                 group,
             };
         }
@@ -397,6 +398,7 @@ export const contextItemsToContentMentionSuggestions = (
                 contentType: ContentType.DASHBOARD,
                 uuid: item.dashboardUuid,
                 slug: item.dashboardSlug,
+                isPersonalDataApp: false,
                 group,
             };
         }
@@ -407,6 +409,7 @@ export const contextItemsToContentMentionSuggestions = (
                 contentType: ContentType.DATA_APP,
                 uuid: item.appUuid,
                 slug: item.appSlug,
+                isPersonalDataApp: item.isPersonal,
                 group,
             };
         }
@@ -427,6 +430,7 @@ const summaryContentToSuggestion = (
             slug: item.slug,
             chartKind: item.chartKind,
             spaceName: item.space.name,
+            isPersonalDataApp: false,
             group: 'search',
             verified: item.verification !== null,
         };
@@ -440,6 +444,7 @@ const summaryContentToSuggestion = (
             uuid: item.uuid,
             slug: item.slug,
             spaceName: item.space.name,
+            isPersonalDataApp: false,
             group: 'search',
             verified: item.verification !== null,
         };
@@ -509,15 +514,13 @@ export const buildContentMentionSuggestionItems = async ({
     const matchingPriorityItems = priorityItems.filter((item) =>
         fuzzyContentMentionLabelMatch(item.label, query),
     );
-    const allSearchItems = projectUuid
+    const searchItems = projectUuid
         ? await getSearchSuggestions(projectUuid, query)
         : [];
-    const searchItems = hidePersonalDataApps
-        ? allSearchItems.filter((item) => !item.isPersonalDataApp)
-        : allSearchItems;
 
     const seen = new Set<string>();
     return [...matchingPriorityItems, ...searchItems].filter((item) => {
+        if (hidePersonalDataApps && item.isPersonalDataApp) return false;
         const key = `${item.contentType}:${item.uuid}`;
         if (seen.has(key)) return false;
         seen.add(key);
@@ -725,6 +728,7 @@ const generateContentMentionSuggestion = ({
             uuid: null,
             slug: null,
             chartKind: null,
+            isPersonalDataApp: false,
             dashboardUuid: null,
             dashboardSlug: null,
             dashboardName: null,
@@ -754,6 +758,7 @@ const generateContentMentionSuggestion = ({
                 slug: item.slug,
                 label: item.label,
                 chartKind: item.chartKind ?? null,
+                isPersonalDataApp: item.isPersonalDataApp,
                 dashboardUuid: item.dashboardUuid ?? null,
                 dashboardSlug: item.dashboardSlug ?? null,
                 dashboardName: item.dashboardName ?? null,
@@ -873,6 +878,7 @@ export const createContentMentionExtension = ({
                 slug: { default: null },
                 label: { default: null },
                 chartKind: { default: null },
+                isPersonalDataApp: { default: false },
                 dashboardUuid: { default: null },
                 dashboardSlug: { default: null },
                 dashboardName: { default: null },
@@ -959,6 +965,7 @@ export const extractContentMentionContext = (
             slug?: string | null;
             label?: string | null;
             chartKind?: ChartKind | null;
+            isPersonalDataApp?: boolean;
             dashboardUuid?: string | null;
             dashboardSlug?: string | null;
             dashboardName?: string | null;
@@ -1027,6 +1034,7 @@ export const extractContentMentionContext = (
                 appSlug: attrs.slug ?? null,
                 displayName: attrs.label ?? null,
                 pinnedVersion: null,
+                isPersonal: attrs.isPersonalDataApp === true,
             });
             return;
         }

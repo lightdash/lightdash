@@ -137,6 +137,7 @@ export const usePinnedContext = ({
                 appSlug: dataApp.slug,
                 displayName: getAppDisplayName(dataApp.name, dataApp.appUuid),
                 pinnedVersion: dataApp.latestReadyVersion,
+                isPersonal: dataApp.spaceUuid === null,
             });
         }
         return sortPinnedContext(items);
@@ -152,6 +153,7 @@ export const usePinnedContext = ({
         dataApp?.slug,
         dataApp?.name,
         dataApp?.latestReadyVersion,
+        dataApp?.spaceUuid,
     ]);
 
     const contentMentionItems = useMemo<ContentMentionSuggestionItem[]>(() => {
@@ -169,6 +171,7 @@ export const usePinnedContext = ({
                     uuid: tile.properties.savedChartUuid!,
                     slug: tile.properties.chartSlug ?? null,
                     chartKind: tile.properties.lastVersionChartKind ?? null,
+                    isPersonalDataApp: false,
                     group: 'dashboardTile',
                     dashboardUuid: dashboard.uuid,
                     dashboardSlug: dashboard.slug,

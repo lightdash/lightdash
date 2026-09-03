@@ -6992,12 +6992,25 @@ export class AiAgentModel {
                 await this.database(AppsTableName)
                     .whereIn('app_id', appUuids)
                     .whereNull('deleted_at')
-                    .select<{ app_id: string; slug: string; name: string }[]>(
-                        'app_id',
-                        'slug',
-                        'name',
-                    )
-            ).map((r) => [r.app_id, { slug: r.slug, name: r.name }] as const),
+                    .select<
+                        {
+                            app_id: string;
+                            slug: string;
+                            name: string;
+                            space_uuid: string | null;
+                        }[]
+                    >('app_id', 'slug', 'name', 'space_uuid')
+            ).map(
+                (r) =>
+                    [
+                        r.app_id,
+                        {
+                            slug: r.slug,
+                            name: r.name,
+                            spaceUuid: r.space_uuid,
+                        },
+                    ] as const,
+            ),
         );
 
         const previewProjectUuids = rows
@@ -7077,7 +7090,10 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
-        appDataByUuid: Map<string, { slug: string; name: string }>,
+        appDataByUuid: Map<
+            string,
+            { slug: string; name: string; spaceUuid: string | null }
+        >,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -7214,6 +7230,7 @@ export class AiAgentModel {
                         ? getAppDisplayName(app.name, appUuid)
                         : row.display_name,
                     pinnedVersion: snapshot?.version ?? null,
+                    isPersonal: app !== undefined && app.spaceUuid === null,
                 };
             }
             default:
