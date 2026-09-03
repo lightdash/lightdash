@@ -1904,7 +1904,3 @@ export const agentToolNames = agentToolDefinitions.map((tool) => tool.name) as [
 export const mcpToolNames = mcpToolDefinitions.map(
     (tool) => tool.for('mcp').name,
 ) as [string, ...string[]];
-
-export const mcpToolDefinitionsByName = Object.fromEntries(
-    mcpToolDefinitions.map((tool) => [tool.for('mcp').name, tool]),
-) as Record<string, McpToolDefinition>;

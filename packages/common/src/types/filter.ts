@@ -551,32 +551,6 @@ export enum FilterGroupOperator {
     or = 'or',
 }
 
-export const convertDashboardFiltersToFilters = (
-    dashboardFilters: DashboardFilters,
-): Filters => {
-    const { dimensions, metrics, tableCalculations } = dashboardFilters;
-    const filters: Filters = {};
-    if (dimensions.length > 0) {
-        filters.dimensions = {
-            id: 'dashboard_dimension_filters',
-            and: dimensions.map((dimension) => dimension),
-        };
-    }
-    if (metrics.length > 0) {
-        filters.metrics = {
-            id: 'dashboard_dimension_metrics',
-            and: metrics.map((metric) => metric),
-        };
-    }
-    if (tableCalculations.length > 0) {
-        filters.tableCalculations = {
-            id: 'dashboard_tablecalculation_filters',
-            and: tableCalculations.map((tableCalculation) => tableCalculation),
-        };
-    }
-    return filters;
-};
-
 const isDashboardTileTargetFilterOverride = (
     filter: string | Record<string, DashboardTileTarget>,
 ): filter is Record<string, DashboardTileTarget> =>
