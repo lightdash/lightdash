@@ -251,9 +251,23 @@ The spike's `sessionise.py` already produces most of this from
 
 This is the part AfterQuery does not have to solve and Lightdash must.
 
+- **What the contracts say today.** The standard Cloud Service Agreement
+  (usage-data clause, §9.7 in the current version, §8.7 in the public 2023
+  terms) lets Lightdash use data relating to Customer Data to "improve and
+  enhance the Services" and for "development, diagnostic and corrective
+  purposes", and to disclose it only in aggregated or de-identified form. It
+  does not mention AI or ML. So training Lightdash's own agent on de-identified
+  usage is arguably inside the standard terms; licensing traces to a third
+  party is not. Two negotiated precedents already exist: a DPA addendum that
+  commits LLM sub-processors to zero retention and zero training, and a §9.7
+  redline that limits Lightdash's own rights to aggregated and anonymised data
+  only. At least one enterprise agreement forbids using customer data to
+  create or improve software or ML models outright.
 - **Opt-in per organisation**, off by default, as a data-sharing tier with a
-  DPA addendum. Some contracts already forbid AI training on customer data;
-  those organisations are excluded at the query level, not the policy level.
+  DPA addendum. Organisations on a restrictive redline or a no-training clause
+  are excluded at the query level, not the policy level. Add an explicit
+  AI-training clause to the online terms before anything leaves the internal
+  organisation; the standard wording predates the agent.
 - **Two tiers.** Tier 1: internal use only, to improve the organisation's own
   agent (memory, evals, self-improvement already exist as features). Tier 2:
   contribution to a pooled, anonymised corpus.
