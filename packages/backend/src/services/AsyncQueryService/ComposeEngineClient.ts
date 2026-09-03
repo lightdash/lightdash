@@ -1,4 +1,8 @@
-import { MissingConfigError, type WarehouseClient } from '@lightdash/common';
+import {
+    assertUnreachable,
+    MissingConfigError,
+    type WarehouseClient,
+} from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
     type DuckdbResourceLimits,
@@ -11,13 +15,33 @@ import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfi
 
 export const COMPOSE_ENGINE_INSTANCE_CACHE_KEY = 'compose-engine-instance';
 
+// External-source files share the pre-aggregates bucket, so they share its
+// warm instance with managed pre-aggregates too
+export const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY =
+    'pre-aggregate-query-instance';
+
 export const COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE =
     'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.';
+
+export const COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE =
+    'External sources need the pre-aggregates S3 configuration (PRE_AGGREGATE_RESULTS_S3_*) to read their ingested files.';
 
 const SCOPED_SESSION_RESOURCE_LIMITS: DuckdbResourceLimits = {
     memoryLimit: '512MB',
     threads: 2,
 };
+
+/**
+ * Which S3 config owns the files a session reads. The DuckDB secret pins one
+ * endpoint and region, so a session must be built from the config of the
+ * bucket it reads: results storage for result files, the pre-aggregates
+ * bucket for external-source files.
+ */
+export type ComposeEngineSession =
+    | { storage: 'results' }
+    | { storage: 'externalSources'; scope: string | null };
+
+type ComposeEngineStorage = ComposeEngineSession['storage'];
 
 type CreateComposeEngineWarehouseClientArgs = {
     s3Config: DuckdbS3SessionConfig;
@@ -39,8 +63,8 @@ type ComposeEngineClientArgs = {
 
 /**
  * The DuckDB engine that executes composed queries (compose SQL, merges and
- * external SQL) over materialized results. Available in every edition: its
- * session is configured from results storage, which every instance that can
+ * external SQL) over materialized results. Available in every edition: the
+ * results session only needs results storage, which every instance that can
  * run an async query already has.
  */
 export class ComposeEngineClient {
@@ -50,7 +74,10 @@ export class ComposeEngineClient {
 
     private readonly createDuckdbWarehouseClient: CreateComposeEngineWarehouseClient;
 
-    private sharedWarehouseClient: WarehouseClient | null = null;
+    private readonly sharedWarehouseClients = new Map<
+        ComposeEngineStorage,
+        WarehouseClient
+    >();
 
     constructor(args: ComposeEngineClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
@@ -79,29 +106,68 @@ export class ComposeEngineClient {
                 ));
     }
 
-    private getSessionConfig(): DuckdbS3SessionConfig {
-        const sessionConfig = getDuckdbRuntimeConfig(
-            this.lightdashConfig.results.s3,
-        );
-        if (!sessionConfig) {
-            throw new MissingConfigError(
-                COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
-            );
+    private getSessionConfig(
+        storage: ComposeEngineStorage,
+    ): DuckdbS3SessionConfig {
+        switch (storage) {
+            case 'results': {
+                const sessionConfig = getDuckdbRuntimeConfig(
+                    this.lightdashConfig.results.s3,
+                );
+                if (!sessionConfig) {
+                    throw new MissingConfigError(
+                        COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
+                    );
+                }
+                return sessionConfig;
+            }
+            case 'externalSources': {
+                const sessionConfig = getDuckdbRuntimeConfig(
+                    this.lightdashConfig.preAggregates.s3,
+                );
+                if (!sessionConfig) {
+                    throw new MissingConfigError(
+                        COMPOSE_ENGINE_MISSING_EXTERNAL_SOURCES_STORAGE_MESSAGE,
+                    );
+                }
+                return sessionConfig;
+            }
+            default:
+                return assertUnreachable(
+                    storage,
+                    'Unknown compose engine storage',
+                );
         }
-        return sessionConfig;
+    }
+
+    private static getInstanceCacheKey(storage: ComposeEngineStorage): string {
+        switch (storage) {
+            case 'results':
+                return COMPOSE_ENGINE_INSTANCE_CACHE_KEY;
+            case 'externalSources':
+                return PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY;
+            default:
+                return assertUnreachable(
+                    storage,
+                    'Unknown compose engine storage',
+                );
+        }
     }
 
     /**
-     * A warehouse client on the compose engine. Without a scope this is the
-     * shared warm instance; with one it is an isolated, resource-limited
-     * session whose S3 secret only reaches that URI, and it is never cached.
+     * A warehouse client on the compose engine for the given session. A
+     * session without a scope is the shared warm instance of its storage; a
+     * scoped one is an isolated, resource-limited session whose S3 secret
+     * only reaches that URI, and it is never cached.
      */
-    createExecutionWarehouseClient(scope?: string): WarehouseClient {
-        const s3Config = this.getSessionConfig();
+    createExecutionWarehouseClient(
+        session: ComposeEngineSession,
+    ): WarehouseClient {
+        const s3Config = this.getSessionConfig(session.storage);
 
-        if (scope !== undefined) {
+        if (session.storage === 'externalSources' && session.scope !== null) {
             return this.createDuckdbWarehouseClient({
-                s3Config: { ...s3Config, scope },
+                s3Config: { ...s3Config, scope: session.scope },
                 resourceLimits:
                     this.sharedResourceLimits ?? SCOPED_SESSION_RESOURCE_LIMITS,
                 organizationConcurrencyLimit:
@@ -110,14 +176,21 @@ export class ComposeEngineClient {
             });
         }
 
-        if (!this.sharedWarehouseClient) {
-            this.sharedWarehouseClient = this.createDuckdbWarehouseClient({
-                s3Config,
-                sharedResourceLimits: this.sharedResourceLimits ?? undefined,
-                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
-            });
-            Logger.info('Compose engine warehouse client created and cached');
+        const cached = this.sharedWarehouseClients.get(session.storage);
+        if (cached) {
+            return cached;
         }
-        return this.sharedWarehouseClient;
+        const warehouseClient = this.createDuckdbWarehouseClient({
+            s3Config,
+            sharedResourceLimits: this.sharedResourceLimits ?? undefined,
+            instanceCacheKey: ComposeEngineClient.getInstanceCacheKey(
+                session.storage,
+            ),
+        });
+        this.sharedWarehouseClients.set(session.storage, warehouseClient);
+        Logger.info(
+            `Compose engine warehouse client created and cached for ${session.storage}`,
+        );
+        return warehouseClient;
     }
 }

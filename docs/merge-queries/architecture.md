@@ -100,14 +100,17 @@ optional: the failure mode is a user seeing another tenant's rows, and no test
 currently catches it.
 
 **The engine is OSS; managed pre-aggregates are not.** `ComposeEngineClient`
-(`services/AsyncQueryService/`) owns the compose engine in every edition, and
-its session is configured from the results S3 config, which every instance
-that can run a query already has. `PreAggregateStrategy` is only about managed
+(`services/AsyncQueryService/`) owns the compose engine in every edition. A
+session is built from the S3 config that owns the bucket it reads, because a
+DuckDB S3 secret pins one endpoint and region: compose SQL and merges read
+result files on the results session, which every instance that can run a
+query already has; external SQL reads external-source files on the
+pre-aggregates bucket's session. `PreAggregateStrategy` is only about managed
 pre-aggregates (routing, resolution, stats, audit) and reads materializations
 through its own pre-aggregate-bucket session. Do not route a composed query
-through the strategy, and do not read pre-aggregate config from the engine.
-An instance without results storage is refused with a `MissingConfigError`
-naming the variables; the engine is never a silent fallback.
+through the strategy. An instance without results storage is refused with a
+`MissingConfigError` naming the variables; the engine is never a silent
+fallback.
 
 **The compose path has no resource governance.** No query timeout (the deadline
 that exists applies only to the playground path), memory limit unset by default,

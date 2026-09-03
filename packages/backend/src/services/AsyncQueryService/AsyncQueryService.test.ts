@@ -701,6 +701,53 @@ describe('AsyncQueryService', () => {
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
 
+        test('reads external-source files on the pre-aggregate bucket session', async () => {
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_table_uuid: 'table-uuid',
+                    external_source_scope: null,
+                    external_source_created_by_user_uuid: null,
+                    version: 3,
+                    locator: {
+                        storage: 's3',
+                        format: 'parquet',
+                        uri: 's3://mock_preagg_bucket/external-sources/file.parquet',
+                    },
+                    columns: {
+                        one: { reference: 'one', type: DimensionType.NUMBER },
+                    },
+                })),
+            } as never);
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT one FROM attachment',
+                tables: { attachment: 'table-uuid' },
+            });
+
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'externalSources',
+                scope: null,
+            });
+        });
+
         test('refuses a merge naming the missing results storage instead of downgrading it', async () => {
             const service = getMockedAsyncQueryService(withoutResultsStorage, {
                 featureFlagModel: composeFlags,

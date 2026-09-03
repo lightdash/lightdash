@@ -663,9 +663,10 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<void> {
         try {
             const warehouseClient =
-                this.composeEngineClient.createExecutionWarehouseClient(
-                    objectScope,
-                );
+                this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'externalSources',
+                    scope: objectScope,
+                });
             await this.runAsyncWarehouseQuery({
                 ...warehouseArgs,
                 warehouseClientOverride: warehouseClient,
@@ -7138,7 +7139,9 @@ export class AsyncQueryService extends ProjectService {
 
         // Throws MissingConfigError when results storage is not configured
         const warehouseClient =
-            this.composeEngineClient.createExecutionWarehouseClient();
+            this.composeEngineClient.createExecutionWarehouseClient({
+                storage: 'results',
+            });
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -7365,9 +7368,13 @@ export class AsyncQueryService extends ProjectService {
             externalSourceSalt,
         });
 
-        // Throws MissingConfigError when results storage is not configured
+        // External-source files live in the pre-aggregates bucket, so the
+        // session is that bucket's. Throws MissingConfigError without it
         const warehouseClient =
-            this.composeEngineClient.createExecutionWarehouseClient();
+            this.composeEngineClient.createExecutionWarehouseClient({
+                storage: 'externalSources',
+                scope: null,
+            });
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -8080,7 +8087,9 @@ export class AsyncQueryService extends ProjectService {
         // Throws MissingConfigError when results storage is not configured:
         // a merge without an engine is refused, never silently downgraded
         const warehouseClient =
-            this.composeEngineClient.createExecutionWarehouseClient();
+            this.composeEngineClient.createExecutionWarehouseClient({
+                storage: 'results',
+            });
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const sourceRowCap = this.lightdashConfig.query.maxLimit;

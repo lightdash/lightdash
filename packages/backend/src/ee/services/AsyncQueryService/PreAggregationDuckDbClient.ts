@@ -27,6 +27,7 @@ import { type LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
@@ -37,8 +38,6 @@ import {
 import { getDuckdbRuntimeConfig } from '../../../utils/duckdb/getDuckdbRuntimeConfig';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
-
-const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY = 'pre-aggregate-query-instance';
 
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;

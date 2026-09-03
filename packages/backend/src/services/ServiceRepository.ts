@@ -960,6 +960,19 @@ export class ServiceRepository
         );
     }
 
+    private composeEngineClient: ComposeEngineClient | null = null;
+
+    // One engine per process; enterprise wiring injects this same instance
+    public getComposeEngineClient(): ComposeEngineClient {
+        if (!this.composeEngineClient) {
+            this.composeEngineClient = new ComposeEngineClient({
+                lightdashConfig: this.context.lightdashConfig,
+                prometheusMetrics: this.prometheusMetrics,
+            });
+        }
+        return this.composeEngineClient;
+    }
+
     public getAsyncQueryService(): AsyncQueryService {
         return this.getService(
             'asyncQueryService',
@@ -1003,10 +1016,7 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     resultsStorageClient:
                         this.clients.getResultsFileStorageClient(),
-                    composeEngineClient: new ComposeEngineClient({
-                        lightdashConfig: this.context.lightdashConfig,
-                        prometheusMetrics: this.prometheusMetrics,
-                    }),
+                    composeEngineClient: this.getComposeEngineClient(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
