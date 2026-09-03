@@ -21,6 +21,9 @@ const DOCUMENT_ROOT = /^(:root|:host|html|body)$/;
 
 const scopeDocumentRules = prefixSelector({
     prefix: SDK_SCOPE_SELECTOR,
+    // CSS Modules get hashed class names that cannot match host markup, and
+    // `composes` requires their selectors to stay a single class.
+    ignoreFiles: [/\.module\.css$/],
     transform: (prefix, selector) => {
         if (SCHEME_ATTRIBUTE.test(selector)) {
             return selector.replace(
