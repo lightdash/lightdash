@@ -7536,6 +7536,44 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
         ],
     };
 
+    const snowflakeWrappedDimensionSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', \${TABLE}.occurred_at))`;
+    const snowflakeWrappedSql = `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', "events".occurred_at))`;
+    const snowflakeClientMock = {
+        ...warehouseClientMock,
+        getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+    };
+    // Mirrors the compile-time wrap the translator applies to every Snowflake
+    // TIMESTAMP dimension when the connection's timestamp conversion is on.
+    const buildSnowflakeWrappedExplore = () => {
+        const explore = buildNaiveExplore(
+            SupportedDbtAdapter.SNOWFLAKE,
+            'naive',
+        );
+        ['occurred_at', 'occurred_at_raw'].forEach((dimensionName) => {
+            const dimension = explore.tables.events.dimensions[dimensionName];
+            dimension.sql = snowflakeWrappedDimensionSql;
+            dimension.compiledSql = snowflakeWrappedSql;
+        });
+        return explore;
+    };
+    const buildSnowflakeWrappedQuery = ({
+        explore,
+        compiledMetricQuery,
+    }: {
+        explore: Explore;
+        compiledMetricQuery: CompiledMetricQuery;
+    }) =>
+        buildQuery({
+            explore,
+            compiledMetricQuery,
+            warehouseSqlBuilder: snowflakeClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'Asia/Tokyo',
+            useTimezoneAwareDateTrunc: true,
+            columnTimezone: 'UTC',
+            dataTimezone: 'Asia/Tokyo',
+        }).query;
+
     test('MIN/MAX over a known-naive TIMESTAMP base converts the aggregate operand (Postgres)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.POSTGRES, 'naive'),
@@ -7609,33 +7647,102 @@ describe('Naive timestamp domain — explicit, session-independent conversion', 
     });
 
     test('MIN/MAX over a known-naive base rebases the aggregate from the DATA timezone (Snowflake, wrap enabled)', () => {
-        const snowflakeClientMock = {
-            ...warehouseClientMock,
-            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
-        };
         // Production wiring for wrap-enabled Snowflake: dimension SQL is
-        // compile-time normalized to UTC (columnTimezone) while the bare
-        // column the aggregate reads stays in the data timezone.
-        const { query } = buildQuery({
-            explore: buildNaiveExplore(SupportedDbtAdapter.SNOWFLAKE, 'naive'),
+        // compile-time normalized to UTC (columnTimezone) while a metric
+        // written against the bare column reads the data timezone.
+        const query = buildSnowflakeWrappedQuery({
+            explore: buildSnowflakeWrappedExplore(),
             compiledMetricQuery: maxNaiveQuery,
-            warehouseSqlBuilder: snowflakeClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: 'Asia/Tokyo',
-            useTimezoneAwareDateTrunc: true,
-            columnTimezone: 'UTC',
-            dataTimezone: 'Asia/Tokyo',
         });
         expect(query).toContain(
             `MAX(CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', "events".occurred_at)) AS "events_max_ts"`,
         );
     });
 
-    test('MIN/MAX over an unknown TIMESTAMP base stays byte-identical on Snowflake (identity cast)', () => {
-        const snowflakeClientMock = {
-            ...warehouseClientMock,
-            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+    test('MIN/MAX inherited from a wrapped Snowflake timestamp dimension is not rebased a second time', () => {
+        const query = buildSnowflakeWrappedQuery({
+            explore: buildSnowflakeWrappedExplore(),
+            compiledMetricQuery: {
+                ...maxNaiveQuery,
+                dimensions: ['events_occurred_at_raw'],
+                additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                    (metric) => ({
+                        ...metric,
+                        sql: snowflakeWrappedDimensionSql,
+                    }),
+                ),
+                compiledAdditionalMetrics:
+                    maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                        ...metric,
+                        sql: snowflakeWrappedDimensionSql,
+                        compiledSql: `MAX(${snowflakeWrappedSql})`,
+                    })),
+            },
+        });
+
+        expect(query).toContain(
+            `${snowflakeWrappedSql} AS "events_occurred_at_raw"`,
+        );
+        expect(query).toContain(
+            `MAX(${snowflakeWrappedSql}) AS "events_max_ts"`,
+        );
+        expect(query).not.toContain(`CONVERT_TIMEZONE('Asia/Tokyo'`);
+    });
+
+    test('Snowflake filtered MIN/MAX rebases a bare column but not the inherited wrapped dimension SQL', () => {
+        const filters = [
+            {
+                id: 'f1',
+                target: { fieldRef: 'events.occurred_at' },
+                operator: FilterOperator.NOT_NULL,
+                values: [],
+            },
+        ];
+        const inheritedFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN ${snowflakeWrappedSql} ELSE NULL END)`;
+        const explicitFilteredSql = `MAX(CASE WHEN "events".occurred_at IS NOT NULL THEN "events".occurred_at ELSE NULL END)`;
+        const inheritedQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            additionalMetrics: maxNaiveQuery.additionalMetrics?.map(
+                (metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                }),
+            ),
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    sql: snowflakeWrappedDimensionSql,
+                    filters,
+                    compiledSql: inheritedFilteredSql,
+                })),
         };
+        const explicitQuery: CompiledMetricQuery = {
+            ...maxNaiveQuery,
+            compiledAdditionalMetrics:
+                maxNaiveQuery.compiledAdditionalMetrics?.map((metric) => ({
+                    ...metric,
+                    filters,
+                    compiledSql: explicitFilteredSql,
+                })),
+        };
+
+        expect(
+            buildSnowflakeWrappedQuery({
+                explore: buildSnowflakeWrappedExplore(),
+                compiledMetricQuery: inheritedQuery,
+            }),
+        ).toContain(`${inheritedFilteredSql} AS "events_max_ts"`);
+        expect(
+            buildSnowflakeWrappedQuery({
+                explore: buildSnowflakeWrappedExplore(),
+                compiledMetricQuery: explicitQuery,
+            }),
+        ).toContain(
+            `CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', ${explicitFilteredSql}) AS "events_max_ts"`,
+        );
+    });
+
+    test('MIN/MAX over an unknown TIMESTAMP base stays byte-identical on Snowflake (identity cast)', () => {
         const { query } = buildQuery({
             explore: buildNaiveExplore(SupportedDbtAdapter.SNOWFLAKE),
             compiledMetricQuery: maxNaiveQuery,
