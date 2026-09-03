@@ -111,6 +111,18 @@ const Dashboard: FC = () => {
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
+    const dashboardCustomMetrics = useDashboardContext(
+        (c) => c.dashboardCustomMetrics,
+    );
+    const setDashboardCustomMetrics = useDashboardContext(
+        (c) => c.setDashboardCustomMetrics,
+    );
+    const haveCustomMetricsChanged = useDashboardContext(
+        (c) => c.haveCustomMetricsChanged,
+    );
+    const setHaveCustomMetricsChanged = useDashboardContext(
+        (c) => c.setHaveCustomMetricsChanged,
+    );
 
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -397,6 +409,7 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isSuccess) {
             setHaveTilesChanged(false);
+            setHaveCustomMetricsChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
             setHaveDateZoomGranularitiesChanged(false);
@@ -431,6 +444,7 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        setHaveCustomMetricsChanged,
         setHavePinnedParametersChanged,
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
@@ -641,6 +655,8 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard.tiles);
         setHaveTilesChanged(false);
+        setDashboardCustomMetrics(dashboard.config?.customMetrics ?? []);
+        setHaveCustomMetricsChanged(false);
         setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
@@ -682,6 +698,8 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setDashboardFilters,
         setHaveTilesChanged,
+        setDashboardCustomMetrics,
+        setHaveCustomMetricsChanged,
         setHaveTabsChanged,
         setDashboardTabs,
         dashboardTabs,
@@ -719,7 +737,12 @@ const Dashboard: FC = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+            if (
+                isEditMode &&
+                (haveTilesChanged ||
+                    haveFiltersChanged ||
+                    haveCustomMetricsChanged)
+            ) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -728,13 +751,21 @@ const Dashboard: FC = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
+    }, [
+        haveTilesChanged,
+        haveFiltersChanged,
+        haveCustomMetricsChanged,
+        isEditMode,
+    ]);
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {
         if (
             isEditMode &&
-            (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
+            (haveTilesChanged ||
+                haveFiltersChanged ||
+                haveTabsChanged ||
+                haveCustomMetricsChanged) &&
             // A URL may carry either the uuid or the slug for both the project
             // and the dashboard, so accept any combination — but compare whole
             // segments, and require the project to match too: dashboard slugs
@@ -908,6 +939,9 @@ const Dashboard: FC = () => {
                 dateZoomConfig,
                 hasDateZoomConfigChanged,
                 requiredFiltersNote,
+                stagedCustomMetrics: haveCustomMetricsChanged
+                    ? dashboardCustomMetrics
+                    : undefined,
             }),
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
@@ -934,6 +968,7 @@ const Dashboard: FC = () => {
         onToggleFullscreen: handleToggleFullscreen,
         hasDashboardChanged:
             haveTilesChanged ||
+            haveCustomMetricsChanged ||
             haveFiltersChanged ||
             hasTemporaryFilters ||
             haveTabsChanged ||
