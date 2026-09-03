@@ -22,7 +22,6 @@ import {
     IconArrowRight,
     IconChevronDown,
     IconChevronUp,
-    IconSparkles,
     IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -36,6 +35,7 @@ import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
 } from '../../../ee/features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
+import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
@@ -393,14 +393,16 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                                 }`}
                             </Text>
                         </Group>
-                        <CodeBlock
-                            code={item.compiledSql}
-                            language="sql"
-                            radius="md"
-                            withExpandButton
-                            defaultExpanded={false}
-                            maxCollapsedHeight={SQL_COLLAPSED_HEIGHT}
-                        />
+                        <Box className={styles.sql}>
+                            <CodeBlock
+                                code={item.compiledSql}
+                                language="sql"
+                                radius="md"
+                                withExpandButton
+                                defaultExpanded={false}
+                                maxCollapsedHeight={SQL_COLLAPSED_HEIGHT}
+                            />
+                        </Box>
                     </Stack>
                 </Stack>
             </Box>
@@ -416,9 +418,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
                             if (event.key === 'Enter') submitAiPrompt();
                         }}
                         placeholder="Ask AI about these results"
-                        leftSection={
-                            <MantineIcon icon={IconSparkles} color="dimmed" />
-                        }
+                        leftSection={<AiAgentIcon size={14} />}
                     />
                 ) : null}
                 <Group justify="space-between">

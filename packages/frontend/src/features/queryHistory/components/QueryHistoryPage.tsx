@@ -32,7 +32,11 @@ import { QueryHistoryWindowSection } from './QueryHistoryWindowSection';
 const DETAIL_PANEL_WIDTH = 640;
 const FLAT_PAGE_SIZE = 25;
 
-/** Newest three windows start expanded; 7d/30d load on demand. */
+/**
+ * Newest three windows start expanded so something loads immediately; the
+ * first window that actually has runs is expanded too, so a filter whose
+ * only matches are days old never lands on a page of collapsed groups.
+ */
 const DEFAULT_EXPANDED_WINDOWS = new Set([
     QueryHistoryWindow.LAST_FEW_MINUTES,
     QueryHistoryWindow.LAST_HOUR,
@@ -58,9 +62,9 @@ export const QueryHistoryPage: FC = () => {
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [sorting, setSorting] =
         useState<ContentTableSortingState>(DEFAULT_SORTING);
-    const [expandedWindows, setExpandedWindows] = useState(
-        DEFAULT_EXPANDED_WINDOWS,
-    );
+    const [windowOverrides, setWindowOverrides] = useState<
+        Partial<Record<QueryHistoryWindow, boolean>>
+    >({});
     const [selectedItem, setSelectedItem] =
         useState<QueryHistoryListItem | null>(null);
     const [counts, setCounts] = useState<QueryHistoryCounts | undefined>(
@@ -139,6 +143,25 @@ export const QueryHistoryPage: FC = () => {
         [],
     );
 
+    const firstNonEmptyWindow = counts
+        ? QUERY_HISTORY_WINDOWS_ORDERED.find(
+              (window) => counts.windows[window] > 0,
+          )
+        : undefined;
+
+    const expandedWindows = useMemo(
+        () =>
+            new Set(
+                QUERY_HISTORY_WINDOWS_ORDERED.filter(
+                    (window) =>
+                        windowOverrides[window] ??
+                        (DEFAULT_EXPANDED_WINDOWS.has(window) ||
+                            window === firstNonEmptyWindow),
+                ),
+            ),
+        [windowOverrides, firstNonEmptyWindow],
+    );
+
     const handleRegisterFetchNext = useCallback(
         (window: QueryHistoryWindow, fetchNext: () => void) => {
             fetchNextByWindowRef.current[window] = fetchNext;
@@ -183,17 +206,15 @@ export const QueryHistoryPage: FC = () => {
         if (nextItem) setSelectedItem(nextItem);
     };
 
-    const toggleWindow = useCallback((window: QueryHistoryWindow) => {
-        setExpandedWindows((current) => {
-            const next = new Set(current);
-            if (next.has(window)) {
-                next.delete(window);
-            } else {
-                next.add(window);
-            }
-            return next;
-        });
-    }, []);
+    const toggleWindow = useCallback(
+        (window: QueryHistoryWindow) => {
+            setWindowOverrides((current) => ({
+                ...current,
+                [window]: !expandedWindows.has(window),
+            }));
+        },
+        [expandedWindows],
+    );
 
     const handleShowMore = useCallback((window: QueryHistoryWindow) => {
         fetchNextByWindowRef.current[window]?.();

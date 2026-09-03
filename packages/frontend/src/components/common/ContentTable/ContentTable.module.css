@@ -209,8 +209,13 @@
     border-bottom: 0;
 }
 
+/* Neutral selection: one step over the hover grey, with an ink bar. */
 .rowSelected .bodyCell {
-    background: var(--mantine-color-blue-0);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.rowSelected .bodyCell:first-child {
+    box-shadow: inset 2px 0 0 var(--mantine-color-text);
 }
 
 .headCellContent {
@@ -388,10 +393,6 @@
 
     .highlightOnHover .bodyRow:hover .bodyCell {
         background: var(--mantine-color-ldDark-3);
-    }
-
-    .rowSelected .bodyCell {
-        background: var(--mantine-color-blue-9);
     }
 
     .progress {
