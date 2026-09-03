@@ -1,3 +1,10 @@
+## [2.117.1](https://github.com/lightdash/lightdash/compare/2.117.0...2.117.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* log a failed compile as failed ([#28609](https://github.com/lightdash/lightdash/issues/28609)) ([45153d1](https://github.com/lightdash/lightdash/commit/45153d1bdb3b12bd4a31eb1b9df0ed94ad9d02cc))
+
 # [2.117.0](https://github.com/lightdash/lightdash/compare/2.116.0...2.117.0) (2026-09-03)
 
 
