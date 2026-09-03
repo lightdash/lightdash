@@ -1802,8 +1802,9 @@ export class ProjectService extends BaseService {
                 };
             }
             case WarehouseTypes.REDSHIFT: {
+                const { authenticationType, ...rest } = credentials;
                 return {
-                    ...credentials,
+                    ...rest,
                     user: '',
                     password: '',
                     accessKeyId: '',

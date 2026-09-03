@@ -2,6 +2,7 @@ import {
     AthenaAuthenticationType,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -125,6 +126,30 @@ const athenaAuthIs =
         values.warehouse.authenticationType !== undefined &&
         types.includes(values.warehouse.authenticationType);
 
+const redshiftAuthIs =
+    (...types: RedshiftAuthenticationType[]) =>
+    (values: ProjectConnectionForm) =>
+        values.warehouse.type === WarehouseTypes.REDSHIFT &&
+        values.warehouse.authenticationType !== undefined &&
+        types.includes(values.warehouse.authenticationType);
+
+const isRedshiftServerless = (values: ProjectConnectionForm) =>
+    values.warehouse.type === WarehouseTypes.REDSHIFT &&
+    (values.warehouse.isServerless ?? false);
+
+const redshiftUserIsRequired = (values: ProjectConnectionForm) =>
+    redshiftAuthIs(RedshiftAuthenticationType.PASSWORD)(values) ||
+    (redshiftAuthIs(RedshiftAuthenticationType.IAM)(values) &&
+        !isRedshiftServerless(values));
+
+const redshiftClusterIdentifierIsRequired = (values: ProjectConnectionForm) =>
+    redshiftAuthIs(RedshiftAuthenticationType.IAM)(values) &&
+    !isRedshiftServerless(values);
+
+const redshiftWorkgroupNameIsRequired = (values: ProjectConnectionForm) =>
+    redshiftAuthIs(RedshiftAuthenticationType.IAM)(values) &&
+    isRedshiftServerless(values);
+
 const isMotherduck = (values: ProjectConnectionForm) =>
     values.warehouse.type === WarehouseTypes.DUCKDB &&
     values.warehouse.connectionType === DuckdbConnectionType.MOTHERDUCK;
@@ -169,9 +194,27 @@ export const createWarehouseValueValidators: Record<
     [WarehouseTypes.REDSHIFT]: {
         schema: required('Schema', hasNoWhiteSpaces),
         host: required('Host', hasNoWhiteSpaces),
-        user: required('User', hasNoWhiteSpaces),
-        password: required('Password'),
+        user: requiredWhen('User', redshiftUserIsRequired, hasNoWhiteSpaces),
+        password: requiredWhen(
+            'Password',
+            redshiftAuthIs(RedshiftAuthenticationType.PASSWORD),
+        ),
         dbname: required('Database name', hasNoWhiteSpaces),
+        region: requiredWhen(
+            'AWS region',
+            redshiftAuthIs(
+                RedshiftAuthenticationType.IAM,
+                RedshiftAuthenticationType.IAM_BROWSER,
+            ),
+        ),
+        clusterIdentifier: requiredWhen(
+            'Cluster identifier',
+            redshiftClusterIdentifierIsRequired,
+        ),
+        workgroupName: requiredWhen(
+            'Workgroup name',
+            redshiftWorkgroupNameIsRequired,
+        ),
     },
     [WarehouseTypes.SNOWFLAKE]: {
         schema: required('Schema', hasNoWhiteSpaces),

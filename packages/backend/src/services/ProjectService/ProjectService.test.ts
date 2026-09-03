@@ -2423,6 +2423,71 @@ describe('ProjectService', () => {
             );
         });
 
+        test('should not give a legacy Redshift password credential the project IAM mode', async () => {
+            service.warehouseClients = {};
+
+            const projectRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'cluster.redshift.amazonaws.com',
+                user: 'shared_project_user',
+                password: 'shared-project-password',
+                port: 5439,
+                dbname: 'dev',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.IAM,
+                region: 'us-east-1',
+                clusterIdentifier: 'analytics-cluster',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectRedshiftCredentials);
+
+            // Stored before authenticationType was persisted: no auth type.
+            const userCredentials = {
+                uuid: 'legacy-redshift-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.REDSHIFT,
+                    user: 'analyst',
+                    password: 'analyst-password',
+                },
+            };
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets = vi.fn(
+                async () => userCredentials,
+            );
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<Record<string, unknown>>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            // Absent, not 'iam': the client then falls back to password auth
+            // instead of minting IAM credentials for a user identity that
+            // was never configured for IAM.
+            expect(mergedCredentials.authenticationType).toBeUndefined();
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    user: 'analyst',
+                    password: 'analyst-password',
+                }),
+            );
+        });
+
         test('should use user refreshToken instead of project refreshToken when requireUserCredentials is true', async () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};
