@@ -6,22 +6,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useAppBuildPoller } from '../../../../../../features/apps/hooks/useAppBuildPoller';
-import { useGetApp } from '../../../../../../features/apps/hooks/useGetApp';
 import { getAiAgentThreadQueryKey } from '../../../hooks/useProjectAiAgents';
-import {
-    selectDataAppPreview,
-    setPreview,
-} from '../../../store/aiArtifactSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../../store/hooks';
 import { DataAppBuildCard } from './DataAppBuildCard';
 import {
     getDataAppBuildCardState,
     isDataAppBuildInProgress,
-    type DataAppBuildCardAppSource,
 } from './dataAppBuildCardState';
+import { useDataAppCardPreview } from './useDataAppCardPreview';
 
 type Props = {
     metadata: ToolGenerateDataAppOutput['metadata'];
@@ -30,20 +21,6 @@ type Props = {
     threadUuid: string;
     messageUuid: string;
     compact: boolean;
-};
-
-const toAppSource = (
-    query: ReturnType<typeof useGetApp>,
-): DataAppBuildCardAppSource => {
-    const app = query.data?.pages[0];
-    if (app) return { kind: 'loaded', app };
-    if (query.error) {
-        const statusCode = query.error.error?.statusCode;
-        return statusCode === 403 || statusCode === 404
-            ? { kind: 'unavailable' }
-            : { kind: 'error' };
-    }
-    return { kind: 'loading' };
 };
 
 /**
@@ -59,15 +36,18 @@ export const AiDataAppBuildCard: FC<Props> = ({
     messageUuid,
     compact,
 }) => {
-    const dispatch = useAiAgentStoreDispatch();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { appUuid } = metadata;
-    const preview = useAiAgentStoreSelector(selectDataAppPreview);
-    const isActive = appUuid !== null && preview?.appUuid === appUuid;
-
-    const appQuery = useGetApp(projectUuid, appUuid ?? undefined);
-    const source = toAppSource(appQuery);
+    const { source, isActive, openPreview } = useDataAppCardPreview({
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        messageUuid,
+        appUuid,
+        // A failed build names no version and can never be on show.
+        version: metadata.status === 'error' ? null : metadata.version,
+    });
     const state = getDataAppBuildCardState(metadata, source);
     const inProgress = state !== null && isDataAppBuildInProgress(state);
     const isPolling = metadata.status === 'pending' && inProgress;
@@ -89,20 +69,6 @@ export const AiDataAppBuildCard: FC<Props> = ({
         isPolling,
         refetchThread,
     );
-
-    const openPreview = useCallback(() => {
-        if (!appUuid) return;
-        dispatch(
-            setPreview({
-                type: 'dataApp',
-                appUuid,
-                messageUuid,
-                threadUuid,
-                projectUuid,
-                agentUuid,
-            }),
-        );
-    }, [dispatch, appUuid, messageUuid, threadUuid, projectUuid, agentUuid]);
 
     // Open the preview once when a build watched in this session lands.
     // Never on reload, and never again after the user closes it.

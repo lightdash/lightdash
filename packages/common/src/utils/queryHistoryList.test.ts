@@ -37,6 +37,10 @@ describe('query trigger taxonomy', () => {
         expect(getQueryTrigger(QueryExecutionContext.DASHBOARD)).toBe(
             QueryTrigger.APPS,
         );
+        // Metric cards run themselves on load, not because a person hit run.
+        expect(getQueryTrigger(QueryExecutionContext.METRICS_EXPLORER)).toBe(
+            QueryTrigger.APPS,
+        );
         expect(getQueryTrigger(QueryExecutionContext.EMBED)).toBe(
             QueryTrigger.APPS,
         );

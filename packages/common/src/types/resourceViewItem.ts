@@ -297,18 +297,3 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
             return assertUnreachable(content, `Unsupported content type`);
     }
 };
-
-export const resourceToContent = (resource: ResourceViewItem) => {
-    switch (resource.type) {
-        case ResourceViewItemType.CHART:
-            return resource.data;
-        case ResourceViewItemType.DASHBOARD:
-            return resource.data;
-        case ResourceViewItemType.SPACE:
-            return resource.data;
-        case ResourceViewItemType.DATA_APP:
-            return resource.data;
-        default:
-            return assertUnreachable(resource, `Unsupported resource type`);
-    }
-};

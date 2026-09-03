@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type ApiContentResponse,
@@ -17,7 +18,6 @@ import {
     IconBrandGitlab,
     IconCircleCheck,
     IconFile,
-    IconLayoutDashboard,
 } from '@tabler/icons-react';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
 import { type DOMOutputSpec } from '@tiptap/pm/model';
@@ -31,7 +31,6 @@ import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import { lightdashApi } from '../../../../../api';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
-import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import {
     SuggestionList,
     type SuggestionItem,
@@ -40,8 +39,17 @@ import {
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
+import {
+    FILE_MENTION_CONTENT_TYPE,
+    getContentMentionContentType,
+    REPOSITORY_MENTION_CONTENT_TYPE,
+} from './contentMentionContentType';
+import { getContentMentionIcon } from './contentMentionIcon';
 import { ContentMentionNodeView } from './ContentMentionNodeView';
-import { getPromptContextItemKey } from './contentReferenceUtils';
+import {
+    getDataAppContextItemName,
+    getPromptContextItemKey,
+} from './contentReferenceUtils';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
@@ -65,11 +73,16 @@ const DOM_RECT_FALLBACK: DOMRect = {
 type ContentMentionGroup = 'thread' | 'current' | 'dashboardTile' | 'search';
 
 export type ContentMentionSuggestionItem = SuggestionItem & {
-    contentType: ContentType.CHART | ContentType.DASHBOARD;
+    contentType:
+        | ContentType.CHART
+        | ContentType.DASHBOARD
+        | ContentType.DATA_APP;
     uuid: string;
     slug: string | null;
     chartKind?: ChartKind | null;
     spaceName?: string | null;
+    // Personal data apps have no space; agents restricted to spaces hide them.
+    isPersonalDataApp: boolean;
     group: ContentMentionGroup;
     dashboardUuid?: string | null;
     dashboardSlug?: string | null;
@@ -78,9 +91,6 @@ export type ContentMentionSuggestionItem = SuggestionItem & {
 };
 
 const FILE_MENTION_GROUP = 'file';
-// `contentType` value marking a content-mention node as a file (vs chart /
-// dashboard). The node carries the path in `label`; no context payload.
-const FILE_MENTION_CONTENT_TYPE = 'file';
 const MAX_FILE_SUGGESTIONS = 8;
 
 // A dbt source file the user can `@`-mention. Unlike content mentions it carries
@@ -93,10 +103,6 @@ export type FileMentionSuggestionItem = SuggestionItem & {
 };
 
 const REPOSITORY_MENTION_GROUP = 'repository';
-// `contentType` value marking a content-mention node as a repository (vs chart /
-// dashboard / file). The node carries `owner/repo` in `label`; no context
-// payload — the agent reads the repo via its exploreRepo tool.
-const REPOSITORY_MENTION_CONTENT_TYPE = 'repository';
 const MAX_REPOSITORY_SUGGESTIONS = 8;
 
 // A GitHub or GitLab repository the org's installation can access. Like file
@@ -279,15 +285,6 @@ export const contentMentionMenuOwnsEnter = (
     }
 };
 
-const getContentMentionContentType = (value: unknown) => {
-    if (value === FILE_MENTION_CONTENT_TYPE) return FILE_MENTION_CONTENT_TYPE;
-    if (value === REPOSITORY_MENTION_CONTENT_TYPE)
-        return REPOSITORY_MENTION_CONTENT_TYPE;
-    return value === ContentType.DASHBOARD
-        ? ContentType.DASHBOARD
-        : ContentType.CHART;
-};
-
 const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
     'span',
     {
@@ -296,36 +293,6 @@ const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
         'data-icon-type': contentType,
     },
 ];
-
-const getContextKey = (item: AiPromptContextInput[number]) => {
-    switch (item.type) {
-        case 'chart':
-            return `chart:${item.chartUuid}`;
-        case 'dashboard':
-            return `dashboard:${item.dashboardUuid}`;
-        case 'thread':
-            return `thread:${item.threadUuid}`;
-        case 'file':
-            return `file:${item.path}`;
-        case 'repository':
-            return `repository:${item.fullName}`;
-        case 'external_source':
-            return `external_source:${item.sourceUuid}`;
-        case 'pull_request':
-            return `pull_request:${item.prUrl}`;
-        case 'proposed_change':
-            return `proposed_change:${item.fingerprint}`;
-        case 'review_finding':
-            return `review_finding:${item.fingerprint}`;
-        case 'preview_environment':
-            return `preview_environment:${item.previewProjectUuid}`;
-        default:
-            return assertUnreachable(
-                item,
-                'Unknown AiPromptContextItemInput type',
-            );
-    }
-};
 
 const normalizeSearchText = (value: string) =>
     value
@@ -365,7 +332,7 @@ export const mergeAiPromptContextInput = (
     contextGroups
         .flatMap((context) => context ?? [])
         .forEach((item) => {
-            const key = getContextKey(item);
+            const key = getPromptContextItemKey(item);
             if (seen.has(key)) {
                 return;
             }
@@ -420,6 +387,7 @@ export const contextItemsToContentMentionSuggestions = (
                 uuid: item.chartUuid,
                 slug: item.chartSlug,
                 chartKind: item.chartKind,
+                isPersonalDataApp: false,
                 group,
             };
         }
@@ -430,6 +398,18 @@ export const contextItemsToContentMentionSuggestions = (
                 contentType: ContentType.DASHBOARD,
                 uuid: item.dashboardUuid,
                 slug: item.dashboardSlug,
+                isPersonalDataApp: false,
+                group,
+            };
+        }
+        if (item.type === 'data_app') {
+            return {
+                id: `${group}:data_app:${item.appUuid}`,
+                label: getDataAppContextItemName(item),
+                contentType: ContentType.DATA_APP,
+                uuid: item.appUuid,
+                slug: item.appSlug,
+                isPersonalDataApp: item.isPersonal,
                 group,
             };
         }
@@ -450,6 +430,7 @@ const summaryContentToSuggestion = (
             slug: item.slug,
             chartKind: item.chartKind,
             spaceName: item.space.name,
+            isPersonalDataApp: false,
             group: 'search',
             verified: item.verification !== null,
         };
@@ -463,8 +444,25 @@ const summaryContentToSuggestion = (
             uuid: item.uuid,
             slug: item.slug,
             spaceName: item.space.name,
+            isPersonalDataApp: false,
             group: 'search',
             verified: item.verification !== null,
+        };
+    }
+
+    // Project chart types are data apps under the hood but not content the
+    // agent reads, so they never show up as mentions.
+    if (item.contentType === ContentType.DATA_APP) {
+        if (item.template === DATA_APP_VIZ_TEMPLATE) return null;
+        return {
+            id: `search:data_app:${item.uuid}`,
+            label: item.name,
+            contentType: ContentType.DATA_APP,
+            uuid: item.uuid,
+            slug: item.slug,
+            spaceName: item.space?.name ?? null,
+            isPersonalDataApp: item.space === null,
+            group: 'search',
         };
     }
 
@@ -482,6 +480,9 @@ const getSearchSuggestions = async (
     params.append('projectUuids', projectUuid);
     params.append('contentTypes', ContentType.CHART);
     params.append('contentTypes', ContentType.DASHBOARD);
+    params.append('contentTypes', ContentType.DATA_APP);
+    params.set('includePersonalDataApps', 'true');
+    params.set('dataAppVizsFilter', 'exclude');
     params.set('pageSize', '20');
     params.set('page', '1');
     params.set('search', trimmedQuery);
@@ -502,10 +503,13 @@ export const buildContentMentionSuggestionItems = async ({
     projectUuid,
     query,
     priorityItems,
+    hidePersonalDataApps = false,
 }: {
     projectUuid: string | undefined;
     query: string;
     priorityItems: ContentMentionSuggestionItem[];
+    // A space-restricted agent cannot read personal apps, so don't offer them.
+    hidePersonalDataApps?: boolean;
 }) => {
     const matchingPriorityItems = priorityItems.filter((item) =>
         fuzzyContentMentionLabelMatch(item.label, query),
@@ -516,6 +520,7 @@ export const buildContentMentionSuggestionItems = async ({
 
     const seen = new Set<string>();
     return [...matchingPriorityItems, ...searchItems].filter((item) => {
+        if (hidePersonalDataApps && item.isPersonalDataApp) return false;
         const key = `${item.contentType}:${item.uuid}`;
         if (seen.has(key)) return false;
         seen.add(key);
@@ -625,12 +630,10 @@ const renderContentMentionItem = (
     if (isRepositoryMentionItem(item)) {
         return renderRepositoryMentionItem(item, isSelected, onClick);
     }
-    const Icon =
-        item.contentType === ContentType.DASHBOARD
-            ? IconLayoutDashboard
-            : getChartIcon(item.chartKind ?? undefined);
-    const iconColor =
-        item.contentType === ContentType.DASHBOARD ? 'green.7' : 'blue.7';
+    const { icon: Icon, color: iconColor } = getContentMentionIcon(
+        item.contentType,
+        item.chartKind ?? null,
+    );
     const detail = item.spaceName ?? groupLabels[item.group];
 
     return (
@@ -676,11 +679,13 @@ const renderContentMentionItem = (
 const generateContentMentionSuggestion = ({
     getProjectUuid,
     getPriorityItems,
+    getHidePersonalDataApps,
     onMenuStateChange,
     includeFilesAndRepositories,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    getHidePersonalDataApps: () => boolean;
     onMenuStateChange?: (state: ContentMentionMenuState) => void;
     includeFilesAndRepositories: boolean;
 }): MentionOptions['suggestion'] => ({
@@ -696,6 +701,7 @@ const generateContentMentionSuggestion = ({
                 projectUuid,
                 query,
                 priorityItems: getPriorityItems(),
+                hidePersonalDataApps: getHidePersonalDataApps(),
             });
         }
         // Fetch all three in parallel so files/repos don't wait on content.
@@ -704,6 +710,7 @@ const generateContentMentionSuggestion = ({
                 projectUuid,
                 query,
                 priorityItems: getPriorityItems(),
+                hidePersonalDataApps: getHidePersonalDataApps(),
             }),
             getProjectFileSuggestions(projectUuid, query),
             getRepositorySuggestions(projectUuid, query),
@@ -721,6 +728,7 @@ const generateContentMentionSuggestion = ({
             uuid: null,
             slug: null,
             chartKind: null,
+            isPersonalDataApp: false,
             dashboardUuid: null,
             dashboardSlug: null,
             dashboardName: null,
@@ -750,6 +758,7 @@ const generateContentMentionSuggestion = ({
                 slug: item.slug,
                 label: item.label,
                 chartKind: item.chartKind ?? null,
+                isPersonalDataApp: item.isPersonalDataApp,
                 dashboardUuid: item.dashboardUuid ?? null,
                 dashboardSlug: item.dashboardSlug ?? null,
                 dashboardName: item.dashboardName ?? null,
@@ -849,11 +858,13 @@ const generateContentMentionSuggestion = ({
 export const createContentMentionExtension = ({
     getProjectUuid,
     getPriorityItems,
+    getHidePersonalDataApps = () => false,
     onMenuStateChange,
     includeFilesAndRepositories = true,
 }: {
     getProjectUuid: () => string | undefined;
     getPriorityItems: () => ContentMentionSuggestionItem[];
+    getHidePersonalDataApps?: () => boolean;
     onMenuStateChange?: (state: ContentMentionMenuState) => void;
     includeFilesAndRepositories?: boolean;
 }) =>
@@ -867,6 +878,7 @@ export const createContentMentionExtension = ({
                 slug: { default: null },
                 label: { default: null },
                 chartKind: { default: null },
+                isPersonalDataApp: { default: false },
                 dashboardUuid: { default: null },
                 dashboardSlug: { default: null },
                 dashboardName: { default: null },
@@ -902,6 +914,7 @@ export const createContentMentionExtension = ({
         suggestion: generateContentMentionSuggestion({
             getProjectUuid,
             getPriorityItems,
+            getHidePersonalDataApps,
             onMenuStateChange,
             includeFilesAndRepositories,
         }),
@@ -952,6 +965,7 @@ export const extractContentMentionContext = (
             slug?: string | null;
             label?: string | null;
             chartKind?: ChartKind | null;
+            isPersonalDataApp?: boolean;
             dashboardUuid?: string | null;
             dashboardSlug?: string | null;
             dashboardName?: string | null;
@@ -1004,6 +1018,23 @@ export const extractContentMentionContext = (
                 displayName: attrs.label ?? null,
                 pinnedVersionUuid: null,
                 runtimeOverrides: null,
+            });
+            return;
+        }
+
+        if (attrs.contentType === ContentType.DATA_APP && attrs.uuid) {
+            context.push({
+                type: 'data_app',
+                appUuid: attrs.uuid,
+                appSlug: attrs.slug ?? null,
+            });
+            optimisticContext.push({
+                type: 'data_app',
+                appUuid: attrs.uuid,
+                appSlug: attrs.slug ?? null,
+                displayName: attrs.label ?? null,
+                pinnedVersion: null,
+                isPersonal: attrs.isPersonalDataApp === true,
             });
             return;
         }

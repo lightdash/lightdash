@@ -74,6 +74,16 @@ const contextItems: AiPromptContextItem[] = [
         path: 'analytics/revenue_definitions.md',
     },
     {
+        type: 'data_app_element',
+        appUuid: 'app-revenue-explorer',
+        appSlug: 'revenue-explorer',
+        displayName: 'Revenue explorer',
+        version: 3,
+        tag: 'button',
+        text: 'Send',
+        loc: 'src/App.jsx:42',
+    },
+    {
         type: 'repository',
         fullName: 'lightdash/customer-analytics',
     },
@@ -791,6 +801,7 @@ const buildCardStates: DataAppBuildCardState[] = [
         name: 'Weekly revenue by region',
         version: 1,
         durationMs: 372_000,
+        restoredFromVersion: null,
         completionMessage:
             'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
     },
@@ -922,6 +933,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 reasoning: true,
             },
             tokenUsage: null,
+            responseTiming: null,
         };
     });
 
@@ -989,6 +1001,7 @@ const ComponentInventory = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>
@@ -1104,11 +1117,12 @@ const PinnedContextScenario = () => (
             description="What the user sees before sending a context-aware prompt."
         >
             <Group gap="xs" wrap="wrap">
-                {contextItems.slice(0, 4).map((item) => (
+                {contextItems.slice(0, 5).map((item) => (
                     <PinnedContextCard
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>

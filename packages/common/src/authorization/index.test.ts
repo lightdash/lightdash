@@ -1,4 +1,7 @@
 import { subject } from '@casl/ability';
+import { OrganizationMemberRole } from '../types/organizationMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
+import { canMutateVerifiedContent } from './canMutateVerifiedContent';
 import { defineUserAbility } from './index';
 import {
     adminOrgProfile,
@@ -434,6 +437,54 @@ describe('Lightdash member permissions', () => {
                     }),
                 ),
             ).toEqual(true);
+        });
+    });
+
+    describe('when user is an org developer and project editor', () => {
+        const verification = {
+            verifiedBy: {
+                userUuid: 'verifier-uuid',
+                firstName: 'Ver',
+                lastName: 'Ifier',
+            },
+            verifiedAt: new Date('2026-01-01'),
+        };
+
+        beforeEach(() => {
+            ability = defineUserAbility(
+                { ...orgProfile, role: OrganizationMemberRole.DEVELOPER },
+                [{ ...projectProfile, role: ProjectMemberRole.EDITOR }],
+            );
+            conditions = {
+                organizationUuid: orgProfile.organizationUuid,
+                projectUuid: projectProfile.projectUuid,
+                inheritsFromOrgOrProject: true,
+            };
+        });
+
+        it('can edit verified content in the project', () => {
+            expect(
+                canMutateVerifiedContent(
+                    ability,
+                    conditions,
+                    verification,
+                    orgProfile.userUuid,
+                ),
+            ).toEqual(true);
+        });
+
+        it('cannot edit verified content in another org', () => {
+            expect(
+                canMutateVerifiedContent(
+                    ability,
+                    {
+                        organizationUuid: 'another-org',
+                        projectUuid: projectProfile.projectUuid,
+                    },
+                    verification,
+                    orgProfile.userUuid,
+                ),
+            ).toEqual(false);
         });
     });
 });

@@ -417,6 +417,11 @@ describe('generateAgentResponse token usage persistence', () => {
                 totalTokens: 31000,
                 finalStepTotalTokens: 31000,
             },
+            responseTiming: {
+                startedAt: expect.any(String),
+                firstTokenAt: null,
+                finishedAt: expect.any(String),
+            },
         });
     });
 });
@@ -468,7 +473,8 @@ describe('recordAgentStepUsage', () => {
             event: 'ai.usage',
             properties: {
                 feature: 'agent',
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -528,7 +534,8 @@ describe('recordAgentStepUsage', () => {
             runUuid: 'run-1',
             phase: 'investigating',
             tokens: {
-                inputTokens: 10,
+                // The total includes the cache tokens: 10 uncached + 4 read + 2 write.
+                inputTokens: 16,
                 outputTokens: 7,
                 cacheReadTokens: 4,
                 cacheWriteTokens: 2,
@@ -1137,7 +1144,7 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('editRepo');
     });
 
-    it('exposes generateDataApp only when the data app gate is satisfied', () => {
+    it('exposes generateDataApp and iterateDataApp only when the data app gate is satisfied', () => {
         const withGate = toolNames({
             enableCodingAgent: false,
             enableAiWriteback: false,
@@ -1150,7 +1157,9 @@ describe('getAgentTools workstream tool gate', () => {
         });
 
         expect(withGate).toContain('generateDataApp');
+        expect(withGate).toContain('iterateDataApp');
         expect(withoutGate).not.toContain('generateDataApp');
+        expect(withoutGate).not.toContain('iterateDataApp');
     });
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {

@@ -1,0 +1,15 @@
+.panel {
+    overflow: hidden;
+    border-color: var(--mantine-color-yellow-outline);
+}
+
+.header {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    background-color: var(--mantine-color-yellow-light);
+    border-bottom: 1px solid var(--mantine-color-yellow-outline);
+}
+
+.toggle {
+    align-self: flex-start;
+    margin: 2px var(--mantine-spacing-xs) 4px;
+}

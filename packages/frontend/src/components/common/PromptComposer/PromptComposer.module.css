@@ -266,20 +266,27 @@
 
 /* --- inline editor surface --- */
 
-.inlineEditorWrap {
+/* Editor stacked above the attachment row; wrapped pills must never share
+ * the editor's row or they squeeze the text into a single column. */
+.inlineMain {
     /* Single source of truth for where inline text begins. The caret sits at
        the ProseMirror padding edge, and the placeholder overlay has to land on
        exactly the same pixel — binding both to this var stops them drifting. */
     --composer-inline-inset: rem(22px);
-    position: relative;
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-width: 0;
 }
 
 /* The root's 4px gap plus this inset matches its 10px horizontal padding,
  * keeping a leading action visually centered between the border and text. */
-.inlineActions + .inlineEditorWrap {
+.inlineActions + .inlineMain {
     --composer-inline-inset: rem(6px);
+}
+
+.inlineEditorWrap {
+    position: relative;
 }
 
 .inlineEditorContent {
@@ -341,6 +348,10 @@
 
 .root[data-size='md'] .attachments {
     padding: 0 rem(12px);
+}
+
+.root[data-variant='inline'] .attachments {
+    padding: 0 var(--mantine-spacing-xs) rem(4px) var(--composer-inline-inset);
 }
 
 .toolbar {

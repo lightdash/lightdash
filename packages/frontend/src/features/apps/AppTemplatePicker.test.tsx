@@ -2,6 +2,7 @@
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AppTemplatePicker from './AppTemplatePicker';
+import classes from './AppTemplatePicker.module.css';
 
 const setup = (
     selected:
@@ -65,6 +66,13 @@ describe('AppTemplatePicker', () => {
         const { onSelectedChange } = setup(null);
         fireEvent.click(screen.getByRole('button', { name: /From scratch/i }));
         expect(onSelectedChange).toHaveBeenCalledWith('custom');
+    });
+
+    it('keeps the card layout class on each button', () => {
+        setup(null);
+        expect(screen.getByRole('button', { name: /Dashboard/i })).toHaveClass(
+            classes.card,
+        );
     });
 
     it('clicking the selected card deselects it', () => {

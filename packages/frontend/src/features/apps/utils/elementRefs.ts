@@ -1,18 +1,10 @@
-/**
- * Element references picked from the iframe inspector. They render as
- * removable pills alongside the other prompt attachments and serialize to the
- * bracketed wire format (`[h1 "FORMULA 1" @src/App.jsx:14]`) appended to the
- * prompt, so the agent receives the same text it always has.
- */
+import {
+    elementReferenceToWireString,
+    type DataAppElementReference,
+} from '@lightdash/common';
 
-export type ElementRef = {
-    /** Rendered HTML tag (e.g. `h1`, `div`, `button`). */
-    tag: string;
-    /** Visible text content of the clicked element, possibly truncated. */
-    text: string;
-    /** Build-time source location `path:line`. Empty when unavailable. */
-    loc: string;
-};
+/** An element reference picked from the iframe inspector. */
+export type ElementRef = DataAppElementReference;
 
 /**
  * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
@@ -32,10 +24,7 @@ export function parseElementRefLabel(label: string): ElementRef | null {
 }
 
 /** Serialize back to the wire format the agent receives in the prompt. */
-export function refToWireString({ tag, text, loc }: ElementRef): string {
-    const head = text ? `${tag} "${text}"` : tag;
-    return loc ? `[${head} @${loc}]` : `[${head}]`;
-}
+export const refToWireString = elementReferenceToWireString;
 
 /** Stable identity for dedupe and React keys. */
 export function elementRefKey(ref: ElementRef): string {

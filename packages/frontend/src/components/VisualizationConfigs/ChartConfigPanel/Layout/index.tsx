@@ -30,6 +30,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
 import { RowLimitControls } from '../../common/RowLimitControls';
+import { useAddFieldsToQuery } from '../../common/useAddFieldsToQuery';
 import { MAX_PIVOTS } from '../../TableConfigPanel/constants';
 
 type Props = {
@@ -39,9 +40,18 @@ type Props = {
 export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
+    const { addableItems, addFieldToQuery, isFieldPending } =
+        useAddFieldsToQuery();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
+
+    // Whether picking this option must first put its field on the query.
+    const isAddableField = useCallback(
+        (value: Field | TableCalculation | CustomDimension) =>
+            !items.some((i) => getItemId(i) === getItemId(value)),
+        [items],
+    );
 
     const cartesianType = isCartesianChart
         ? visualizationConfig.chartConfig.dirtyChartType
@@ -79,8 +89,11 @@ export const Layout: FC<Props> = ({ items }) => {
         if (!isCartesianChart) return undefined;
         const { dirtyLayout } = visualizationConfig.chartConfig;
 
-        return items.find((item) => getItemId(item) === dirtyLayout?.xField);
-    }, [items, isCartesianChart, visualizationConfig]);
+        return (
+            items.find((item) => getItemId(item) === dirtyLayout?.xField) ??
+            addableItems.find((item) => getItemId(item) === dirtyLayout?.xField)
+        );
+    }, [items, addableItems, isCartesianChart, visualizationConfig]);
 
     const isXAxisFieldNumeric = useMemo(
         () => isNumericItem(xAxisField),
@@ -97,9 +110,12 @@ export const Layout: FC<Props> = ({ items }) => {
 
     const yActiveField = useCallback(
         (field: string) => {
-            return items.find((item) => getItemId(item) === field);
+            return (
+                items.find((item) => getItemId(item) === field) ??
+                addableItems.find((item) => getItemId(item) === field)
+            );
         },
-        [items],
+        [items, addableItems],
     );
 
     const availableYFields = useMemo(() => {
@@ -111,6 +127,11 @@ export const Layout: FC<Props> = ({ items }) => {
             (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
         );
     }, [isCartesianChart, items, visualizationConfig]);
+
+    const addableYItems = useMemo(
+        () => addableItems.filter((item) => !yFields.includes(getItemId(item))),
+        [addableItems, yFields],
+    );
 
     // Group series logic
     const availableDimensions = useMemo(() => {
@@ -151,13 +172,42 @@ export const Layout: FC<Props> = ({ items }) => {
         ],
     );
 
+    const addableDimensions = useMemo(
+        () =>
+            addableItems.filter(
+                (item) => isDimension(item) || isCustomDimension(item),
+            ),
+        [addableItems],
+    );
+
+    const addableGroupByDimensions = useMemo(
+        () =>
+            addableDimensions.filter(
+                (item) =>
+                    !pivotDimensions?.includes(getItemId(item)) &&
+                    (!isCartesianChart ||
+                        getItemId(item) !==
+                            visualizationConfig.chartConfig.dirtyLayout
+                                ?.xField),
+            ),
+        [
+            addableDimensions,
+            visualizationConfig.chartConfig,
+            isCartesianChart,
+            pivotDimensions,
+        ],
+    );
+
     const canAddPivot = useMemo(
         () =>
             chartHasMetricOrTableCalc &&
-            availableGroupByDimensions.length > 0 &&
+            availableGroupByDimensions.length +
+                addableGroupByDimensions.length >
+                0 &&
             (!pivotDimensions || pivotDimensions.length < MAX_PIVOTS),
         [
             availableGroupByDimensions.length,
+            addableGroupByDimensions.length,
             pivotDimensions,
             chartHasMetricOrTableCalc,
         ],
@@ -167,6 +217,10 @@ export const Layout: FC<Props> = ({ items }) => {
         (newValue: Field | TableCalculation | CustomDimension | undefined) => {
             if (!isCartesianChart) return;
             const { setXField, setStacking } = visualizationConfig.chartConfig;
+
+            if (newValue && isAddableField(newValue)) {
+                addFieldToQuery(newValue);
+            }
 
             const fieldId = newValue ? getItemId(newValue) : undefined;
             setXField(fieldId ?? undefined);
@@ -180,7 +234,13 @@ export const Layout: FC<Props> = ({ items }) => {
                 setCurrentStackMode(StackType.NONE);
             }
         },
-        [isCartesianChart, visualizationConfig, currentStackMode],
+        [
+            isCartesianChart,
+            visualizationConfig,
+            currentStackMode,
+            isAddableField,
+            addFieldToQuery,
+        ],
     );
 
     if (!isCartesianChart) return null;
@@ -229,17 +289,33 @@ export const Layout: FC<Props> = ({ items }) => {
                             </Tooltip>
                             {dirtyLayout?.xField === EMPTY_X_AXIS &&
                                 (() => {
-                                    const availableXField = items.find(
-                                        (item) =>
-                                            !pivotDimensions?.includes(
-                                                getItemId(item),
-                                            ),
-                                    );
+                                    const availableXField =
+                                        items.find(
+                                            (item) =>
+                                                !pivotDimensions?.includes(
+                                                    getItemId(item),
+                                                ),
+                                        ) ??
+                                        addableItems.find(
+                                            (item) =>
+                                                !pivotDimensions?.includes(
+                                                    getItemId(item),
+                                                ),
+                                        );
                                     return (
                                         <AddButton
                                             disabled={!availableXField}
                                             onClick={() => {
                                                 if (availableXField) {
+                                                    if (
+                                                        isAddableField(
+                                                            availableXField,
+                                                        )
+                                                    ) {
+                                                        addFieldToQuery(
+                                                            availableXField,
+                                                        );
+                                                    }
                                                     setXField(
                                                         getItemId(
                                                             availableXField,
@@ -257,6 +333,8 @@ export const Layout: FC<Props> = ({ items }) => {
                             data-testid="x-axis-field-select"
                             item={xAxisField}
                             items={items}
+                            addItems={addableItems}
+                            loading={isFieldPending(dirtyLayout?.xField)}
                             inactiveItemIds={pivotDimensions}
                             onChange={handleOnChangeOfXAxisField}
                             rightSection={
@@ -280,13 +358,18 @@ export const Layout: FC<Props> = ({ items }) => {
                         <Config.Heading>{`${
                             validConfig?.layout.flipAxes ? 'X' : 'Y'
                         }-axis`}</Config.Heading>
-                        {availableYFields.length > 0 && (
+                        {(availableYFields.length > 0 ||
+                            addableYItems.length > 0) && (
                             <AddButton
-                                onClick={() =>
-                                    addSingleSeries(
-                                        getItemId(availableYFields[0]),
-                                    )
-                                }
+                                onClick={() => {
+                                    const nextYField =
+                                        availableYFields[0] ?? addableYItems[0];
+                                    if (!nextYField) return;
+                                    if (isAddableField(nextYField)) {
+                                        addFieldToQuery(nextYField);
+                                    }
+                                    addSingleSeries(getItemId(nextYField));
+                                }}
                             />
                         )}
                     </Config.Group>
@@ -302,7 +385,12 @@ export const Layout: FC<Props> = ({ items }) => {
                                 data-testid="y-axis-field-select"
                                 item={activeField}
                                 items={yFieldsOptions}
+                                addItems={addableYItems}
+                                loading={isFieldPending(field)}
                                 onChange={(newValue) => {
+                                    if (newValue && isAddableField(newValue)) {
+                                        addFieldToQuery(newValue);
+                                    }
                                     updateYField(
                                         index,
                                         newValue ? getItemId(newValue) : '',
@@ -335,14 +423,19 @@ export const Layout: FC<Props> = ({ items }) => {
                             </Group>
                             {canAddPivot && (
                                 <AddButton
-                                    onClick={() =>
+                                    onClick={() => {
+                                        const nextGroupField =
+                                            availableGroupByDimensions[0] ??
+                                            addableGroupByDimensions[0];
+                                        if (!nextGroupField) return;
+                                        if (isAddableField(nextGroupField)) {
+                                            addFieldToQuery(nextGroupField);
+                                        }
                                         setPivotDimensions([
                                             ...(pivotDimensions || []),
-                                            getItemId(
-                                                availableGroupByDimensions[0],
-                                            ),
-                                        ])
-                                    }
+                                            getItemId(nextGroupField),
+                                        ]);
+                                    }}
                                 />
                             )}
                         </Config.Group>
@@ -363,6 +456,9 @@ export const Layout: FC<Props> = ({ items }) => {
                                 // Group series logic
                                 const groupSelectedField =
                                     availableDimensions.find(
+                                        (item) => getItemId(item) === pivotKey,
+                                    ) ??
+                                    addableDimensions.find(
                                         (item) => getItemId(item) === pivotKey,
                                     );
                                 const activeField = chartHasMetricOrTableCalc
@@ -411,11 +507,16 @@ export const Layout: FC<Props> = ({ items }) => {
                                             placeholder="Select a field to group by"
                                             item={activeField}
                                             items={availableDimensions}
+                                            addItems={addableDimensions}
+                                            loading={isFieldPending(pivotKey)}
                                             inactiveItemIds={inactiveItemIds.filter(
                                                 (id) => id !== pivotKey,
                                             )} // keep current value enabled
                                             onChange={(newValue) => {
                                                 if (!newValue) return;
+                                                if (isAddableField(newValue)) {
+                                                    addFieldToQuery(newValue);
+                                                }
                                                 setPivotDimensions(
                                                     pivotDimensions
                                                         ? replaceStringInArray(

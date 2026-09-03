@@ -1,6 +1,7 @@
 import {
     ContentType,
     contentToResourceViewItem,
+    ResourceViewItemType,
     type SummaryContent,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine/core';
@@ -10,7 +11,12 @@ import { Link } from 'react-router';
 import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
-import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import {
+    getResourceUrl,
+    getResourceViewsSinceWhenDescription,
+    getViewStatsResourceType,
+} from '../../../../components/common/ResourceView/resourceUtils';
+import ViewsCountPopover from '../../../../components/common/ViewsCountPopover';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import classes from './blockStyles.module.css';
@@ -61,7 +67,37 @@ const CONTENT_KIND_LABEL: Record<SummaryContent['contentType'], string> = {
     [ContentType.DATA_APP]: 'App',
 };
 
-const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
+const ViewsCount: FC<{ content: SummaryContent; projectUuid: string }> = ({
+    content,
+    projectUuid,
+}) => {
+    const item = contentToResourceViewItem(content);
+    return (
+        <ViewsCountPopover
+            resourceType={getViewStatsResourceType(item)}
+            resourceUuid={content.uuid}
+            projectUuid={projectUuid}
+            views={content.views}
+            fallbackTooltip={
+                item.type === ResourceViewItemType.SPACE
+                    ? undefined
+                    : getResourceViewsSinceWhenDescription(item)
+            }
+        >
+            <Group gap={4} wrap="nowrap" component="span">
+                <MantineIcon icon={IconEye} size={12} color="dimmed" />
+                <Text size="xs" c="dimmed" span>
+                    {content.views}
+                </Text>
+            </Group>
+        </ViewsCountPopover>
+    );
+};
+
+const KindAndViews: FC<{ content: SummaryContent; projectUuid: string }> = ({
+    content,
+    projectUuid,
+}) => (
     <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
         <Text size="xs" c="dimmed" span>
             {CONTENT_KIND_LABEL[content.contentType]}
@@ -69,10 +105,7 @@ const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
         <Text size="xs" c="dimmed" span>
             ·
         </Text>
-        <MantineIcon icon={IconEye} size={12} color="dimmed" />
-        <Text size="xs" c="dimmed" span>
-            {content.views}
-        </Text>
+        <ViewsCount content={content} projectUuid={projectUuid} />
     </Group>
 );
 
@@ -150,12 +183,7 @@ export const ContentCard: FC<Props> = ({
                     </Text>
                     <VerifiedBadge content={content} />
                 </Group>
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon icon={IconEye} size={12} color="dimmed" />
-                    <Text size="xs" c="dimmed" span>
-                        {content.views}
-                    </Text>
-                </Group>
+                <ViewsCount content={content} projectUuid={projectUuid} />
                 <Box className={classes.tileActions}>
                     <CardActions
                         content={content}
@@ -183,7 +211,7 @@ export const ContentCard: FC<Props> = ({
                         </Text>
                         <VerifiedBadge content={content} />
                     </Group>
-                    <KindAndViews content={content} />
+                    <KindAndViews content={content} projectUuid={projectUuid} />
                     <TileExtra content={content} />
                 </Box>
                 <Box className={classes.tileActions}>
@@ -208,7 +236,7 @@ export const ContentCard: FC<Props> = ({
                         </Text>
                         <VerifiedBadge content={content} />
                     </Group>
-                    <KindAndViews content={content} />
+                    <KindAndViews content={content} projectUuid={projectUuid} />
                 </Box>
                 <CardActions
                     content={content}

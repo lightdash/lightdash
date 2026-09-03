@@ -2,6 +2,7 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import {
     DimensionType,
     FieldType,
+    MERGE_ROW_PRESENT_COLUMN,
     MERGE_TRUNCATED_COLUMN,
     MergeJoinType,
     MetricType,
@@ -125,7 +126,6 @@ const build = (
         fieldTypes,
         outputAliasByColumn,
         limit: 500,
-        sourceRowCap: 100,
         ...overrides,
     });
 
@@ -137,8 +137,8 @@ const toSql = (result: ReturnType<typeof buildComposeMergeSql>) =>
  * Executes the generated statement on a real in-memory DuckDB with the
  * reference tables predefined — exactly how the compose engine sees it,
  * minus the S3 read_json binding. This is the dialect-validity proof: the
- * FULL OUTER JOIN, typed null placeholders and truncation guard must run on
- * the actual engine, not just look plausible.
+ * FULL OUTER JOIN and typed null placeholders must run on the actual engine,
+ * not just look plausible.
  */
 const runOnDuckdb = async (
     sql: string,
@@ -201,11 +201,14 @@ describe('buildComposeMergeSql', () => {
         expect(sql).toContain('1970-01-01');
     });
 
-    test('guards truncation by counting the capped reference tables', () => {
-        const sql = toSql(build({ sourceRowCap: 100 }));
-        expect(sql).toContain(MERGE_TRUNCATED_COLUMN);
-        expect(sql).toMatch(/SELECT COUNT\(\*\) FROM \(\s*SELECT \* FROM \(/);
-        expect(sql).toContain('> 100');
+    // The sources are legs that already ran at the row cap, so a guard here
+    // could never see past it. The run path reads the legs' own row counts
+    // instead (getMergeRowCapError).
+    test('carries no in-SQL row cap guard', () => {
+        const sql = toSql(build());
+        expect(sql).not.toContain(MERGE_TRUNCATED_COLUMN);
+        expect(sql).not.toContain(MERGE_ROW_PRESENT_COLUMN);
+        expect(sql).not.toContain('COUNT(*)');
     });
 
     test('full outer join merges on the key, keeps unmatched sides and matches null keys', async () => {
@@ -223,19 +226,6 @@ describe('buildComposeMergeSql', () => {
             // Null keys match each other via the typed placeholder
             [null, '2', '4'],
         ]);
-        expect(
-            rows.every((row) => row[MERGE_TRUNCATED_COLUMN] === 'false'),
-        ).toBe(true);
-    });
-
-    test('reports truncation when a source reaches the row cap', async () => {
-        const rows = await runOnDuckdb(
-            toSql(build({ sourceRowCap: 2 })),
-            SETUP,
-        );
-        expect(
-            rows.every((row) => row[MERGE_TRUNCATED_COLUMN] === 'true'),
-        ).toBe(true);
     });
 
     test('left join keeps only the first source keys', async () => {

@@ -33,12 +33,8 @@ export const countReadyQueriesSinceBoundary = (
  * single timeline entry per query, plus the "interrupted by reload" recovery
  * used by the builder when the preview iframe restarts mid-query.
  *
- * Shared between the builder (`AppGenerate`) where the queries panel is
- * always-on, and the preview (`AppPreviewTest`) where it's opt-in via a menu.
- * Preview uses only `queries`, `handleQueryEvent`, `clearQueries`, and
- * `resetKey` — the persist/interrupt machinery is builder-specific (the
- * builder handles its own version-switch reset because it must choose
- * between clearing and interrupting based on "Persist").
+ * Used directly by the builder (`AppGenerate`) and through `useAppInspector`
+ * by the viewer page and the AI thread preview.
  *
  * @param resetKey - When this changes (e.g. the previewed app version),
  * queries are reset automatically (see resetQueries). Omit to manage resets

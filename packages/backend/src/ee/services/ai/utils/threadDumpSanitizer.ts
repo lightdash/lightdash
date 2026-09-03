@@ -35,6 +35,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     generateUuids: 'keep',
     loadMcpTools: 'keep',
     generateDataApp: 'keep',
+    iterateDataApp: 'keep',
     editDbtProject: 'keep',
     editRepo: 'keep',
     syncDbtProject: 'keep',

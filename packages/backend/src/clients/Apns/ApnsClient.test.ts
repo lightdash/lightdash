@@ -16,6 +16,7 @@ const config: MobilePushNotificationsConfig = {
     teamId: 'TEAMID',
     sandbox: { keyId: 'SANDBOX', privateKey: 'sandbox-private-key' },
     production: { keyId: 'PRODUCTION', privateKey: 'production-private-key' },
+    fcm: undefined,
 };
 
 const createClient = (response: { status: number; body?: string }) => {

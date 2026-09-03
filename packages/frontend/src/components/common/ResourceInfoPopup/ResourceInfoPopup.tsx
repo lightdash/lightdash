@@ -31,6 +31,7 @@ import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
+import ViewsCountPopover from '../ViewsCountPopover';
 import { DashboardList } from './DashboardList';
 import styles from './ResourceInfoPopup.module.css';
 
@@ -52,6 +53,7 @@ export type ResourceInfoPopupProps = {
     spaceUuid?: string | null;
     projectUuid: string;
     viewStats?: number;
+    viewStatsResourceType?: 'chart' | 'dashboard';
     firstViewedAt?: Date | string | null;
     latestVersion?: { number: number; status: AppVersionStatus } | null;
 };
@@ -86,6 +88,7 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
     spaceUuid,
     projectUuid,
     viewStats,
+    viewStatsResourceType,
     firstViewedAt,
     withChartData = false,
     latestVersion,
@@ -151,13 +154,15 @@ export const ResourceInfoPopupContent: FC<ResourceInfoPopupProps> = ({
 
                 {viewStats !== undefined ? (
                     <InfoRow icon={IconEye} label="Views">
-                        <Tooltip
-                            position="top-start"
-                            label={label}
-                            disabled={!viewStats || !firstViewedAt}
+                        <ViewsCountPopover
+                            resourceType={viewStatsResourceType}
+                            resourceUuid={resourceUuid}
+                            projectUuid={projectUuid}
+                            views={viewStats}
+                            fallbackTooltip={label}
                         >
-                            <span>{viewStats.toLocaleString()}</span>
-                        </Tooltip>
+                            {viewStats.toLocaleString()}
+                        </ViewsCountPopover>
                     </InfoRow>
                 ) : null}
 

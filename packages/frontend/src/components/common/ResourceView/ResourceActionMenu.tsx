@@ -2,7 +2,9 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
+    ContentReviewContentType,
     DirectAccessResourceType,
+    isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -23,6 +25,7 @@ import {
     IconLayoutGridAdd,
     IconPin,
     IconPinnedOff,
+    IconSend,
     IconStar,
     IconStarFilled,
     IconTrash,
@@ -31,6 +34,7 @@ import {
 import { type FC, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { useContentReviewEligibility } from '../../../ee/features/contentReview';
 import { FavoritePersonalDataAppModal } from '../../../features/apps/components/FavoritePersonalDataAppModal';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
@@ -193,6 +197,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isSqlChart =
         item.type === ResourceViewItemType.CHART &&
         item.data.source === ChartSourceType.SQL;
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: isResourceViewItemDashboard(item)
+            ? ContentReviewContentType.DASHBOARD
+            : isSqlChart
+              ? ContentReviewContentType.SQL_CHART
+              : ContentReviewContentType.CHART,
+        contentUuid: isChartOrDashboard ? item.data.uuid : undefined,
+        spaceUuid: isChartOrDashboard ? item.data.spaceUuid : null,
+    });
 
     // Personal (space-less) data apps can't be pinned — the backend rejects it.
     const isPersonalDataApp =
@@ -446,6 +460,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         </>
                     )}
 
+                    {isResourceViewDataAppItem(item) && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            dataAppUuid={item.data.uuid}
+                            clickedFrom="data_app_resource_action_menu"
+                        />
+                    )}
+
                     {(userCanManage || canDuplicateDataApp) &&
                         favoritesContext && <Menu.Divider />}
 
@@ -689,6 +711,24 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             : 'Verify'}
                                     </Menu.Item>
                                 )}
+
+                            {contentReview.canRequest && isChartOrDashboard && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={
+                                        <MantineIcon icon={IconSend} />
+                                    }
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.REQUEST_REVIEW,
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Request review
+                                </Menu.Item>
+                            )}
 
                             <Menu.Divider
                                 display={isSqlChart ? 'none' : 'block'}

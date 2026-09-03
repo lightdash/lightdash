@@ -1,4 +1,24 @@
-import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
+import {
+    assertUnreachable,
+    dataAppContextKey,
+    dataAppElementContextKey,
+    dataAppRestoreContextKey,
+    type AiPromptContextInput,
+    type AiPromptContextItem,
+} from '@lightdash/common';
+import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
+
+// Element references never render inline; they always show as pills.
+// Restore items live on hidden turns and are rendered as build cards.
+type InlineReferenceItem = Exclude<
+    AiPromptContextItem,
+    { type: 'data_app_element' | 'data_app_restore' }
+>;
+
+const isInlineReferenceItem = (
+    item: AiPromptContextItem,
+): item is InlineReferenceItem =>
+    item.type !== 'data_app_element' && item.type !== 'data_app_restore';
 
 export type ContentReferenceSegment =
     | {
@@ -7,12 +27,14 @@ export type ContentReferenceSegment =
       }
     | {
           type: 'reference';
-          item: AiPromptContextItem;
+          item: InlineReferenceItem;
           key: string;
           label: string;
       };
 
-export const getPromptContextItemKey = (item: AiPromptContextItem) => {
+export const getPromptContextItemKey = (
+    item: AiPromptContextItem | AiPromptContextInput[number],
+) => {
     switch (item.type) {
         case 'chart':
             return `chart:${item.chartUuid}`;
@@ -34,9 +56,31 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `review_finding:${item.fingerprint}`;
         case 'preview_environment':
             return `preview_environment:${item.previewProjectUuid}`;
+        case 'data_app_element':
+            return dataAppElementContextKey(item);
+        case 'data_app_restore':
+            return dataAppRestoreContextKey(item);
+        case 'data_app':
+            return dataAppContextKey(item.appUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
+};
+
+export const getDataAppContextItemName = (
+    item: Pick<
+        Extract<AiPromptContextItem, { type: 'data_app' }>,
+        'displayName' | 'appSlug'
+    >,
+): string => item.displayName ?? item.appSlug ?? 'Data app';
+
+export const getDataAppContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'data_app' }>,
+): string => {
+    const name = getDataAppContextItemName(item);
+    return item.pinnedVersion === null
+        ? name
+        : `${name} v${item.pinnedVersion}`;
 };
 
 const getProposedChangeLabel = (
@@ -46,7 +90,7 @@ const getProposedChangeLabel = (
         ? item.payload.entry.content
         : item.payload.recommendation.title;
 
-const getPromptContextItemLabel = (item: AiPromptContextItem) => {
+const getPromptContextItemLabel = (item: InlineReferenceItem) => {
     switch (item.type) {
         case 'chart':
             return item.displayName ?? item.chartSlug ?? 'Chart';
@@ -68,6 +112,8 @@ const getPromptContextItemLabel = (item: AiPromptContextItem) => {
             return item.title;
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
+        case 'data_app':
+            return getDataAppContextItemName(item);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -102,6 +148,13 @@ export const getPromptContextItemHref = (
         case 'review_finding':
         case 'proposed_change':
             return null;
+        // An element reference points inside a running app, not at a route;
+        // a restore is surfaced by its build card instead.
+        case 'data_app_element':
+        case 'data_app_restore':
+            return null;
+        case 'data_app':
+            return dataAppHref(projectUuid, item.appUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -142,12 +195,18 @@ export const buildContentReferenceSegments = (
     context: AiPromptContextItem[],
 ): { matchedKeys: Set<string>; segments: ContentReferenceSegment[] } => {
     const candidates = context
-        .map((item, index) => ({
-            item,
-            index,
-            key: getPromptContextItemKey(item),
-            label: getPromptContextItemLabel(item),
-        }))
+        .flatMap((item, index) =>
+            isInlineReferenceItem(item)
+                ? [
+                      {
+                          item,
+                          index,
+                          key: getPromptContextItemKey(item),
+                          label: getPromptContextItemLabel(item),
+                      },
+                  ]
+                : [],
+        )
         .filter(({ label }) => label.length > 0);
 
     const matchedKeys = new Set<string>();

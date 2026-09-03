@@ -10,6 +10,8 @@ export const AiReviewNotificationSettingsTableName =
     'ai_agent_review_notification_settings';
 export const AiReviewLinearDestinationTableName =
     'ai_agent_review_linear_destinations';
+export const AiReviewJiraDestinationTableName =
+    'ai_agent_review_jira_destinations';
 
 export type DbAiReviewNotificationSettings = {
     organization_uuid: string;
@@ -19,6 +21,10 @@ export type DbAiReviewNotificationSettings = {
     linear_team_id: string | null;
     linear_project_id: string | null;
     linear_apply_to_all_projects: boolean | null;
+    jira_enabled: boolean;
+    jira_project_id: string | null;
+    jira_issue_type_id: string | null;
+    jira_apply_to_all_projects: boolean | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -49,6 +55,17 @@ export type DbAiReviewLinearDestination = {
     updated_at: Date;
 };
 
+export type DbAiReviewJiraDestination = {
+    ai_review_jira_destination_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    enabled: boolean;
+    jira_project_id: string | null;
+    jira_issue_type_id: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
 export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
     DbAiReviewNotificationSettings,
     Pick<
@@ -63,7 +80,13 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
         Partial<
             Pick<
                 DbAiReviewNotificationSettings,
-                'linear_apply_to_all_projects' | 'created_at' | 'updated_at'
+                | 'linear_apply_to_all_projects'
+                | 'jira_enabled'
+                | 'jira_project_id'
+                | 'jira_issue_type_id'
+                | 'jira_apply_to_all_projects'
+                | 'created_at'
+                | 'updated_at'
             >
         >,
     Partial<
@@ -75,6 +98,10 @@ export type AiReviewNotificationSettingsTable = Knex.CompositeTableType<
             | 'linear_team_id'
             | 'linear_project_id'
             | 'linear_apply_to_all_projects'
+            | 'jira_enabled'
+            | 'jira_project_id'
+            | 'jira_issue_type_id'
+            | 'jira_apply_to_all_projects'
             | 'updated_at'
         >
     >
@@ -130,6 +157,30 @@ export type AiReviewLinearDestinationTable = Knex.CompositeTableType<
         Pick<
             DbAiReviewLinearDestination,
             'enabled' | 'linear_team_id' | 'linear_project_id' | 'updated_at'
+        >
+    >
+>;
+
+export type AiReviewJiraDestinationTable = Knex.CompositeTableType<
+    DbAiReviewJiraDestination,
+    Pick<
+        DbAiReviewJiraDestination,
+        | 'organization_uuid'
+        | 'project_uuid'
+        | 'enabled'
+        | 'jira_project_id'
+        | 'jira_issue_type_id'
+    > &
+        Partial<
+            Pick<
+                DbAiReviewJiraDestination,
+                'ai_review_jira_destination_uuid' | 'created_at' | 'updated_at'
+            >
+        >,
+    Partial<
+        Pick<
+            DbAiReviewJiraDestination,
+            'enabled' | 'jira_project_id' | 'jira_issue_type_id' | 'updated_at'
         >
     >
 >;

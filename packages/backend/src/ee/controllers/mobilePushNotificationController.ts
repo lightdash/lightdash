@@ -60,13 +60,14 @@ export class MobilePushNotificationController extends BaseController {
     @OperationId('registerMobilePushInstallation')
     async registerInstallation(
         @Request() req: express.Request,
-        @Path() installationUuid: string,
+        @Path() installationUuid: UUID,
         @Body() body: ApiMobilePushInstallationRequest,
     ): Promise<ApiMobilePushInstallationResponse> {
         assertRegisteredAccount(req.account);
         await this.getMobilePushNotificationService().registerInstallation({
             user: toSessionUser(req.account),
             installationUuid,
+            platform: body.platform ?? 'ios',
             environment: body.environment,
             deviceToken: body.deviceToken,
         });
@@ -99,7 +100,7 @@ export class MobilePushNotificationController extends BaseController {
     @OperationId('revokeMobilePushInstallation')
     async revokeInstallation(
         @Request() req: express.Request,
-        @Path() installationUuid: string,
+        @Path() installationUuid: UUID,
     ): Promise<ApiMobilePushInstallationResponse> {
         assertRegisteredAccount(req.account);
         await this.getMobilePushNotificationService().revokeInstallation({

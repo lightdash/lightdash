@@ -49,6 +49,13 @@
     min-height: 0;
 }
 
+/* Positioned so the app inspector can overlay the preview's bottom edge. */
+.previewBody {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+}
+
 .head {
     display: flex;
     align-items: center;

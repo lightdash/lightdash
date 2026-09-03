@@ -39,6 +39,8 @@ export type DataAppBuildCardState =
           name: string;
           version: number;
           durationMs: number | null;
+          /** Set when this version was restored from an earlier one. */
+          restoredFromVersion: number | null;
           completionMessage: string;
       }
     | { kind: 'failed'; message: string }
@@ -59,10 +61,14 @@ const FAILED_TITLE = "The app couldn't be built";
 
 const readySubtitle = (
     state: Extract<DataAppBuildCardState, { kind: 'ready' }>,
-) =>
-    state.durationMs === null
+) => {
+    if (state.restoredFromVersion !== null) {
+        return `v${state.version} · restored from v${state.restoredFromVersion}`;
+    }
+    return state.durationMs === null
         ? `v${state.version}`
         : `v${state.version} · built in ${formatBuildDuration(state.durationMs)}`;
+};
 
 const BuilderButton: FC<{
     label: 'Continue in builder' | 'Open in builder';

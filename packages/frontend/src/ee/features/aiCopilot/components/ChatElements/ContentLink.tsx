@@ -20,19 +20,15 @@ import {
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import { type ContentType } from './rehypeContentLinks';
+import {
+    isPlainLeftClick,
+    useDataAppPreviewLink,
+} from './useDataAppPreviewLink';
 
 export type SqlRunnerLinkState = {
     sql: string;
     limit?: number;
 };
-
-const isPlainLeftClick = (e: MouseEvent<HTMLAnchorElement>) =>
-    !e.defaultPrevented &&
-    e.button === 0 &&
-    !e.metaKey &&
-    !e.altKey &&
-    !e.ctrlKey &&
-    !e.shiftKey;
 
 const REFERENCE_LINK_KINDS = {
     'dashboard-link': 'dashboard',
@@ -63,10 +59,20 @@ export const ContentLink: FC<ContentLinkProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    const resourceHref = typeof props.href === 'string' ? props.href : '';
-    const title = typeof props.title === 'string' ? props.title : undefined;
     const dispatch = useAiAgentStoreDispatch();
     const currentPreview = useAiAgentStoreSelector(selectPreview);
+    const resourceHref = typeof props.href === 'string' ? props.href : '';
+    const title = typeof props.title === 'string' ? props.title : undefined;
+    const dataAppUuid =
+        'data-app-uuid' in props && typeof props['data-app-uuid'] === 'string'
+            ? props['data-app-uuid']
+            : null;
+    const dataAppPreviewLink = useDataAppPreviewLink(dataAppUuid, {
+        messageUuid: message.uuid,
+        threadUuid: message.threadUuid,
+        projectUuid,
+        agentUuid,
+    });
 
     const handleResourceClick = (e: MouseEvent<HTMLAnchorElement>) => {
         if (!resourceHref || !isPlainLeftClick(e)) {
@@ -112,43 +118,13 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 </ContentReferenceLink>
             );
 
-        case 'data-app-link': {
-            const appUuid =
-                'data-app-uuid' in props &&
-                typeof props['data-app-uuid'] === 'string'
-                    ? props['data-app-uuid']
-                    : undefined;
-            const isActive =
-                !!appUuid &&
-                currentPreview?.type === 'dataApp' &&
-                currentPreview.appUuid === appUuid;
-
-            // Modified clicks fall through to the anchor and open the full
-            // page in a new tab.
-            const handleDataAppClick = (e: MouseEvent<HTMLAnchorElement>) => {
-                if (!appUuid || !isPlainLeftClick(e)) {
-                    return;
-                }
-
-                e.preventDefault();
-                dispatch(
-                    setPreview({
-                        type: 'dataApp',
-                        appUuid,
-                        messageUuid: message.uuid,
-                        threadUuid: message.threadUuid,
-                        projectUuid,
-                        agentUuid,
-                    }),
-                );
-            };
-
+        case 'data-app-link':
             return (
                 <ContentReferenceLink
                     to={resourceHref || undefined}
                     kind={REFERENCE_LINK_KINDS[contentType]}
-                    data-app-active={isActive || undefined}
-                    onClick={handleDataAppClick}
+                    data-app-active={dataAppPreviewLink.isActive || undefined}
+                    onClick={dataAppPreviewLink.onClick}
                     target="_blank"
                     rel="noreferrer"
                     title={title}
@@ -156,7 +132,6 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     {children}
                 </ContentReferenceLink>
             );
-        }
 
         case 'chart-link': {
             const chartUuid =

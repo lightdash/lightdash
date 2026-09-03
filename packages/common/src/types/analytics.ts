@@ -94,6 +94,11 @@ export type ViewStatistics = {
     firstViewedAt: Date | string | null;
 };
 
+export type DetailedViewStatistics = ViewStatistics & {
+    uniqueViewerCount: number;
+    anonymousViewCount: number;
+};
+
 export type DownloadAuditEntry = {
     downloadUuid: string;
     queryUuid: string;

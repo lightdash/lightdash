@@ -1,0 +1,26 @@
+/* Element reference pill — tinted violet to mark element references apart from chart/dashboard pills. */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 2px 1px 6px;
+    border-radius: 999px;
+    height: 22px;
+    max-width: 240px;
+    min-width: 0;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+}
+
+.pillStatic {
+    padding-right: 6px;
+}
+
+.label {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 11px;
+    line-height: 1;
+}

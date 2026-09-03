@@ -6430,6 +6430,7 @@ export class AppGenerateService extends BaseService {
             designUuidInput,
             externalConnections,
             codexModelInput,
+            aiAgentToolCall,
         } = options;
         await this.assertDataAppsEnabled(user);
 
@@ -6635,6 +6636,7 @@ export class AppGenerateService extends BaseService {
             dashboardBlueprint: dashboardBlueprint ?? undefined,
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: effectiveDesignUuid,
+            ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
         });
 
         return { appUuid, version: newVersion };
@@ -8658,6 +8660,8 @@ export class AppGenerateService extends BaseService {
                     installedAppUuid: inst?.app_id ?? null,
                     installedRegistryVersion:
                         inst?.latest_ready_registry_version ?? null,
+                    installedCreatedByUserUuid:
+                        inst?.created_by_user_uuid ?? null,
                 };
             },
         );

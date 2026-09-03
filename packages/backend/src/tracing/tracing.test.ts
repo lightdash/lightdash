@@ -11,9 +11,12 @@ import Logger from '../logging/logger';
 import {
     AlwaysSampleAiRootsSampler,
     configureOtelTraceExport,
+    createOtelInstrumentations,
+    getOtelDatabaseTraceMaxQueryLength,
     initOtelTracing,
     installRedactingOtelDiagnostics,
     LightdashTraceContextPropagator,
+    otelDatabaseTracingEnabled,
     otelTracingEnabled,
     sanitizeOtelDiagnosticArguments,
     sentryTraceToTraceparent,
@@ -36,6 +39,75 @@ describe('otelTracingEnabled', () => {
         vi.stubEnv('OTEL_TRACES_EXPORTER', 'none');
 
         expect(otelTracingEnabled()).toBe(true);
+    });
+});
+
+describe('otelDatabaseTracingEnabled', () => {
+    it('requires both OTel tracing and database tracing to be enabled', () => {
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', 'true');
+
+        expect(otelDatabaseTracingEnabled()).toBe(true);
+
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', undefined);
+        expect(otelDatabaseTracingEnabled()).toBe(false);
+
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', undefined);
+        expect(otelDatabaseTracingEnabled()).toBe(false);
+    });
+
+    it('stays disabled when the OTel SDK is disabled', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', 'true');
+        vi.stubEnv('OTEL_SDK_DISABLED', 'true');
+
+        expect(otelDatabaseTracingEnabled()).toBe(false);
+    });
+
+    it('adds parent-scoped Knex instrumentation', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_MAX_QUERY_LENGTH', '2048');
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+
+        const knexInstrumentation = createOtelInstrumentations().find(
+            ({ instrumentationName }) =>
+                instrumentationName === '@opentelemetry/instrumentation-knex',
+        );
+
+        expect(knexInstrumentation?.getConfig()).toMatchObject({
+            requireParentSpan: true,
+            maxQueryLength: 2048,
+        });
+    });
+
+    it.each([
+        [undefined, 1022],
+        ['2048', 2048],
+        ['0', 0],
+        ['-1', 1022],
+        ['1.5', 1022],
+        ['invalid', 1022],
+    ])('uses max query length %s as %i', (configured, expected) => {
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_MAX_QUERY_LENGTH', configured);
+
+        expect(getOtelDatabaseTraceMaxQueryLength()).toBe(expected);
+    });
+
+    it('omits Knex instrumentation by default', () => {
+        vi.stubEnv('LIGHTDASH_OTEL_TRACES_ENABLED', 'true');
+        vi.stubEnv('LIGHTDASH_OTEL_DB_TRACES_ENABLED', undefined);
+        vi.stubEnv('OTEL_SDK_DISABLED', undefined);
+
+        expect(
+            createOtelInstrumentations().some(
+                ({ instrumentationName }) =>
+                    instrumentationName ===
+                    '@opentelemetry/instrumentation-knex',
+            ),
+        ).toBe(false);
     });
 });
 

@@ -1348,6 +1348,9 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.OPENROUTER_MODEL_NAME ||
                       DEFAULT_OPENROUTER_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_AVAILABLE_MODELS',
+                  ),
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
@@ -1430,6 +1433,13 @@ export type MobilePushNotificationsConfig = {
               privateKey: string;
           }
         | undefined;
+    fcm:
+        | {
+              projectId: string;
+              clientEmail: string;
+              privateKey: string;
+          }
+        | undefined;
 };
 
 export type MobileAppAssociationConfig = {
@@ -1506,6 +1516,7 @@ export type LightdashConfig = {
     };
     dbt: {
         environmentVariableAllowlist: string[];
+        sourceFetchConcurrency: number | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -1584,6 +1595,15 @@ export type LightdashConfig = {
                 delayMs: number;
                 maxBatches?: number;
                 schedule: string;
+            };
+        };
+        scimRequestLogs: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
             };
         };
     };
@@ -2620,6 +2640,55 @@ const parseCertificateFingerprints = (value: string | undefined): string[] =>
         .map((fingerprint) => fingerprint.trim())
         .filter((fingerprint) => fingerprint.length > 0);
 
+const normalizeCredentialEnvironmentVariable = (
+    value: string | undefined,
+): string | undefined => {
+    if (value === undefined) {
+        return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const parseMobilePushFcmCredential = ():
+    | MobilePushNotificationsConfig['fcm']
+    | undefined => {
+    const projectId = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID,
+    );
+    const clientEmail = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL,
+    );
+    const privateKey = normalizeCredentialEnvironmentVariable(
+        process.env.MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY,
+    );
+
+    if (
+        projectId !== undefined &&
+        clientEmail !== undefined &&
+        privateKey !== undefined
+    ) {
+        return { projectId, clientEmail, privateKey };
+    }
+
+    const missingVariables = [
+        projectId === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PROJECT_ID',
+        clientEmail === undefined &&
+            'MOBILE_PUSH_NOTIFICATIONS_FCM_CLIENT_EMAIL',
+        privateKey === undefined && 'MOBILE_PUSH_NOTIFICATIONS_FCM_PRIVATE_KEY',
+    ].filter((name): name is string => name !== false);
+
+    if (missingVariables.length < 3) {
+        console.warn(
+            `Mobile push FCM credential is missing: ${missingVariables.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    return undefined;
+};
+
 const parseMobilePushCredential = (
     environment: 'SANDBOX' | 'PRODUCTION',
 ): MobilePushNotificationsConfig['sandbox'] => {
@@ -2767,6 +2836,7 @@ export const parseConfig = (): LightdashConfig => {
     const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
     const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
     const mobilePushTeamId = process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_TEAM_ID;
+    const mobilePushFcm = parseMobilePushFcmCredential();
     const motherduckInstanceCache = {
         enabled: process.env.MOTHERDUCK_INSTANCE_CACHE_ENABLED === 'true',
         projectUuids: getArrayFromCommaSeparatedList(
@@ -2849,15 +2919,17 @@ export const parseConfig = (): LightdashConfig => {
         mobilePushNotifications: {
             enabled:
                 lightdashCloudInstance !== undefined &&
-                mobilePushTeamId !== undefined &&
-                (mobilePushSandbox !== undefined ||
-                    mobilePushProduction !== undefined),
+                ((mobilePushTeamId !== undefined &&
+                    (mobilePushSandbox !== undefined ||
+                        mobilePushProduction !== undefined)) ||
+                    mobilePushFcm !== undefined),
             bundleId:
                 process.env.MOBILE_PUSH_NOTIFICATIONS_APNS_BUNDLE_ID ??
                 'com.lightdash.mobile',
             teamId: mobilePushTeamId,
             sandbox: mobilePushSandbox,
             production: mobilePushProduction,
+            fcm: mobilePushFcm,
         },
         cookieSameSite: iframeEmbeddingEnabled ? 'none' : 'lax',
         license: {
@@ -3160,6 +3232,9 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_CONCURRENCY',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -3337,6 +3412,29 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+            },
+            scimRequestLogs: {
+                cleanup: {
+                    enabled:
+                        process.env.SCIM_REQUEST_LOG_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_RETENTION_DAYS',
+                        ) ?? 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
                 },
             },
         },

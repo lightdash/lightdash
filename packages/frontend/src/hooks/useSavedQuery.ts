@@ -388,13 +388,17 @@ export const useCreateMutation = ({
     redirectOnSuccess = true,
     showToastOnSuccess = true,
     showViewChartAction = true,
+    projectUuid: explicitProjectUuid,
 }: {
     redirectOnSuccess?: boolean;
     showToastOnSuccess?: boolean;
     showViewChartAction?: boolean;
+    /** Overrides the route/embed project — for surfaces not mounted under a project route */
+    projectUuid?: string;
 } = {}) => {
     const navigate = useNavigate();
-    const projectUuid = useProjectUuid();
+    const routeProjectUuid = useProjectUuid();
+    const projectUuid = explicitProjectUuid ?? routeProjectUuid;
     const queryClient = useQueryClient();
     const { embedToken } = useEmbed();
     const isEmbedded = embedToken !== undefined;

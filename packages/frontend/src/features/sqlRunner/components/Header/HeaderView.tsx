@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ContentReviewContentType,
     DashboardTileTypes,
     DirectAccessResourceType,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ import {
     IconDatabaseExport,
     IconDots,
     IconLayoutGridAdd,
+    IconSend,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
@@ -29,6 +31,11 @@ import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInf
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../../ee/features/contentReview';
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
 import {
@@ -89,6 +96,14 @@ export const HeaderView: FC = () => {
     }, [dispatch]);
 
     const [isSyncModalOpen, syncModalHandlers] = useDisclosure();
+    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+        useDisclosure(false);
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: ContentReviewContentType.SQL_CHART,
+        contentUuid: savedSqlChart?.savedSqlUuid,
+        spaceUuid: savedSqlChart?.space.uuid ?? null,
+    });
 
     // Open sync modal when navigating from schedulers settings page
     const hasProcessedUrlParams = useRef(false);
@@ -197,6 +212,11 @@ export const HeaderView: FC = () => {
                             <Title order={5} maw={500} lineClamp={1}>
                                 {savedSqlChart.name}
                             </Title>
+                            {contentReview.pendingRequest && (
+                                <PendingReviewBadge
+                                    request={contentReview.pendingRequest}
+                                />
+                            )}
                         </Group>
                         <Group gap="xs">
                             <UpdatedInfo
@@ -232,7 +252,9 @@ export const HeaderView: FC = () => {
                             </Button>
                         )}
 
-                        {(canManageChart || canSyncWithGoogleSheets) && (
+                        {(canManageChart ||
+                            canSyncWithGoogleSheets ||
+                            contentReview.canRequest) && (
                             <Menu position="bottom" withArrow width={200}>
                                 <Menu.Target>
                                     <ActionIcon>
@@ -260,6 +282,18 @@ export const HeaderView: FC = () => {
                                                 Add to dashboard
                                             </Menu.Item>
                                         </>
+                                    )}
+                                    {contentReview.canRequest && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={
+                                                requestReviewModalHandlers.open
+                                            }
+                                        >
+                                            Request review
+                                        </Menu.Item>
                                     )}
                                     {canSyncWithGoogleSheets && (
                                         <Menu.Item
@@ -369,6 +403,16 @@ export const HeaderView: FC = () => {
                 onClose={onCloseDeleteModal}
                 onSuccess={() => navigate(`/projects/${projectUuid}/home`)}
             />
+            {isRequestReviewModalOpen && (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={ContentReviewContentType.SQL_CHART}
+                    contentUuid={savedSqlChart.savedSqlUuid}
+                    contentName={savedSqlChart.name}
+                    opened={isRequestReviewModalOpen}
+                    onClose={requestReviewModalHandlers.close}
+                />
+            )}
             {isAddToDashboardModalOpen && (
                 <AddTilesToDashboardModal
                     isOpen={true}

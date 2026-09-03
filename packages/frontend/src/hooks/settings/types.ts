@@ -86,6 +86,7 @@ export type SettingsContext = {
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
     isGitProject: boolean;
+    isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
     isUserLoading: boolean;

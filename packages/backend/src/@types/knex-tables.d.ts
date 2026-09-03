@@ -55,6 +55,14 @@ import {
     ContentDraftsTableName,
 } from '../database/entities/contentDrafts';
 import {
+    ContentReviewRequestsTable,
+    ContentReviewRequestsTableName,
+} from '../database/entities/contentReviewRequests';
+import {
+    ContentReviewSettingsTable,
+    ContentReviewSettingsTableName,
+} from '../database/entities/contentReviewSettings';
+import {
     ContentVerificationTable,
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
@@ -143,6 +151,10 @@ import {
     InviteLinkTable,
     InviteLinkTableName,
 } from '../database/entities/inviteLinks';
+import {
+    JiraAppInstallationTable,
+    JiraAppInstallationTableName,
+} from '../database/entities/jiraAppInstallation';
 import {
     JobsTable,
     JobsTableName,
@@ -514,6 +526,8 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiReviewJiraDestinationTable,
+    AiReviewJiraDestinationTableName,
     AiReviewLinearDestinationTable,
     AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTable,
@@ -597,6 +611,10 @@ import {
     SchedulerAiAugmentationTable,
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
+import {
+    ScimRequestLogsTableName,
+    ScimRequestLogTable,
+} from '../ee/database/entities/scimRequestLogs';
 import {
     ServiceAccountsTableName,
     ServiceAccountTable,
@@ -707,6 +725,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [JiraAppInstallationTableName]: JiraAppInstallationTable;
         [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
@@ -765,6 +784,7 @@ declare module 'knex/types/tables' {
         [NotificationsTableName]: NotificationsTable;
         [AiReviewNotificationLogTableName]: AiReviewNotificationLogTable;
         [AiReviewNotificationSettingsTableName]: AiReviewNotificationSettingsTable;
+        [AiReviewJiraDestinationTableName]: AiReviewJiraDestinationTable;
         [AiReviewLinearDestinationTableName]: AiReviewLinearDestinationTable;
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
@@ -773,6 +793,7 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
+        [ScimRequestLogsTableName]: ScimRequestLogTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;
@@ -804,6 +825,8 @@ declare module 'knex/types/tables' {
         [ContentAsCodeProjectSettingsTableName]: ContentAsCodeProjectSettingsTable;
         [ContentAsCodeWritebacksTableName]: ContentAsCodeWritebackTable;
         [ContentVerificationTableName]: ContentVerificationTable;
+        [ContentReviewRequestsTableName]: ContentReviewRequestsTable;
+        [ContentReviewSettingsTableName]: ContentReviewSettingsTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
         [AppUserAccessTableName]: AppUserAccessTable;

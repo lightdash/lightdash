@@ -27,6 +27,7 @@ import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
+import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -137,6 +138,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         loadSkill: getLoadSkill({ loadSkill: noop }),
         loadMcpTools: getLoadMcpTools(['mcp_linear__get_issue']),
         generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
+        iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),

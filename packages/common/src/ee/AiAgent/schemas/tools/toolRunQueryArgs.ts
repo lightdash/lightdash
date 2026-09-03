@@ -4,6 +4,7 @@ import {
     customMetricsSchema,
     customMetricsSchemaTransformed,
 } from '../customMetrics';
+import { type ToolDescriptionContext } from '../defineTool';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
@@ -271,7 +272,15 @@ export const isCustomChartTypeSlugChartConfig = (
 ): chartConfig is ToolRunQueryCustomChartTypeConfig =>
     !!chartConfig && 'customChartTypeSlug' in chartConfig;
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
+// The MCP lead paragraph carries the keywords lexical tool search ranks on;
+// the agent runtime has its own prompt and different sibling tool names.
+const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.`;
+
+export const TOOL_RUN_QUERY_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string => `${
+    runtime === 'mcp' ? MCP_RUN_QUERY_LEAD : 'Execute a metric query.'
+}
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 

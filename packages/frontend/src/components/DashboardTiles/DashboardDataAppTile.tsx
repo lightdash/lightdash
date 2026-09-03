@@ -21,6 +21,7 @@ import {
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
+import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import AppIframePreview from '../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
@@ -125,6 +126,7 @@ const DataAppTile: FC<Props> = (props) => {
         },
     } = props;
     const projectUuid = useProjectUuid();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -281,6 +283,14 @@ const DataAppTile: FC<Props> = (props) => {
     return (
         <TileBase
             title={title}
+            titleLeftIcon={
+                <AskAiAgentButton
+                    projectUuid={projectUuid}
+                    dataAppUuid={appUuid}
+                    dashboardUuid={dashboardUuid}
+                    clickedFrom="dashboard_data_app_tile"
+                />
+            }
             lockHeaderVisibility={isCommentsMenuOpen}
             visibleHeaderElement={
                 tileHasComments ? dashboardComments : undefined

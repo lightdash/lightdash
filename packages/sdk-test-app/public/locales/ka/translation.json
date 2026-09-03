@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "მეტრიკის ტიპი"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle-ის დაფა",
@@ -79,9 +84,17 @@
                     }
                 }
             ]
+        },
+        "repro-prod-10299": {
+            "tabs": [
+                { "name": "პირველი ჩანართი" },
+                { "name": "მეორე ჩანართი" },
+                { "name": "მესამე ჩანართი" }
+            ]
         }
     },
     "uiOverrides": {
+        "parameters.is": "არის",
         "tileMenu.exploreFromHere": "გამოიკვლიეთ აქედან",
         "tileMenu.downloadData": "მონაცემების ჩამოტვირთვა",
         "tileMenu.exportImage": "სურათის ექსპორტი",

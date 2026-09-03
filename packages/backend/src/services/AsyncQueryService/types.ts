@@ -21,6 +21,7 @@ import {
     type ParametersValuesMap,
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
+    type QueryHistory,
     type QuerySourceTableName,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -30,6 +31,7 @@ import {
     type UserAccessControls,
     type UserAttributeValueMap,
     type UUID,
+    type WarehouseClient,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -291,4 +293,63 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     preAggregateQuery: string;
     warehouseQuery: string;
     preAggregateExecution: PreAggregateExecutionEngine;
+};
+
+/** Where a DuckDB query's output columns come from. */
+export type DuckdbQueryColumns =
+    | {
+          /** Probe the SQL with a one-row query: raw SQL has no known shape. */
+          mode: 'discover';
+          limit: number | undefined;
+          parameters: ParametersValuesMap;
+      }
+    | {
+          /** Known at compile time, so nothing is probed and nothing overwritten. */
+          mode: 'supplied';
+          fieldsMap: ItemsMap;
+          usedParameters: ParametersValuesMap | null;
+          originalColumns: ResultColumns;
+          pivotConfiguration: PivotConfiguration | undefined;
+      };
+
+/**
+ * Runs once every referenced query has completed and before anything
+ * executes. Returns the refusal message, or null to proceed.
+ */
+export type DuckdbQueryReferenceGuard = (
+    completed: Record<string, QueryHistory>,
+) => string | null;
+
+/** How a DuckDB query binds the results it reads. */
+export type DuckdbQueryReferences =
+    | {
+          /** CTEs built at submit time, such as over ingested external tables. */
+          kind: 'bound';
+          referenceCtes: string[];
+      }
+    | {
+          /** Other queries' results, waited on and bound once they complete. */
+          kind: 'queries';
+          references: Record<string, string>;
+          guard: DuckdbQueryReferenceGuard | null;
+      };
+
+export type RunDuckdbQueryArgs = {
+    account: Account;
+    projectUuid: string;
+    organizationUuid: string;
+    isPreviewProject: boolean;
+    onboardingFlow: OnboardingFlow;
+    queryUuid: string;
+    /** The statement before its reference CTEs are attached. */
+    sql: string;
+    references: DuckdbQueryReferences;
+    columns: DuckdbQueryColumns;
+    /** Persisted instead of the executed SQL when that carries private URIs. */
+    storedCompiledSql: string | null;
+    warehouseClient: WarehouseClient;
+    queryTags: RunQueryTags;
+    queryCreatedAt: Date;
+    cacheKey: string;
+    context: QueryExecutionContext;
 };

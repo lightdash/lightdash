@@ -15,6 +15,8 @@ import {
     type RouteObject,
 } from 'react-router';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
+import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
@@ -121,6 +123,19 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         (user.data?.ability.can(
             'manage',
             subject('ExternalSource', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+
+    const contentReviewAvailability = useContentReviewAvailability();
+    const canViewContentReviewSettings =
+        contentReviewAvailability.isAvailable &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Project', {
                 organizationUuid: project.organizationUuid,
                 projectUuid: project.projectUuid,
             }),
@@ -236,6 +251,23 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canViewContentReviewSettings
+                ? [
+                      {
+                          path: `/reviewRequests`,
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Review requests"
+                                  description="Who reviews content submitted from personal spaces, and what happens on approval."
+                              >
+                                  <ContentReviewSettingsPanel
+                                      projectUuid={projectUuid}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/dataOps`,
                 element: (
@@ -505,6 +537,7 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
         user.data?.ability,
         canManageExternalConnections,
         canManageExternalSources,
+        canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
     ]);
     const routesElements = useRoutes(routes);
@@ -529,13 +562,20 @@ const ProjectSettings: FC<{ externalSourcesEnabled: boolean }> = ({
             '/generalSettings/projectManagement/:projectUuid/caching',
             location.pathname,
         );
+    const isAwaitingReviewRequestsRoute =
+        contentReviewAvailability.isLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/reviewRequests',
+            location.pathname,
+        );
 
     if (
         isInitialLoading ||
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute
+        isAwaitingCachingRoute ||
+        isAwaitingReviewRequestsRoute
     ) {
         return (
             <div style={{ marginTop: '20px' }}>

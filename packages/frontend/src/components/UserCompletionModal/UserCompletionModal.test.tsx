@@ -349,6 +349,12 @@ describe('UserCompletionModal', () => {
         });
         expect(emailDomainCheckbox).not.toBeInTheDocument();
 
+        // invited members do not see the referral question
+        const referralInput = screen.queryByRole('textbox', {
+            name: /How did you hear about us/,
+        });
+        expect(referralInput).not.toBeInTheDocument();
+
         // select role
         const roleSelect =
             await screen.findByPlaceholderText('Select your role');
@@ -357,19 +363,13 @@ describe('UserCompletionModal', () => {
         const roleOption = await screen.findByText('Software Engineer');
         await user.click(roleOption);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, 'a podcast');
-
         // submit button should be enabled now
         expect(submitButton).toBeEnabled();
 
-        // mock api call
+        // mock api call — no referral answer for invited members
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
@@ -384,11 +384,11 @@ describe('UserCompletionModal', () => {
         await waitFor(() => expect(scope.isDone()).toBe(true));
     });
 
-    it('should render the how did you hear about us input', async () => {
+    it('should render the how did you hear about us input for the org creator', async () => {
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: 'test organization',
+                organizationName: '',
             },
         });
 
@@ -400,9 +400,7 @@ describe('UserCompletionModal', () => {
         ).toBeInTheDocument();
     });
 
-    it('should submit the trimmed how did you hear about us answer', async () => {
-        const user = userEvent.setup();
-
+    it('should not render the how did you hear about us input for invited members', async () => {
         renderModal({
             user: {
                 isSetupComplete: false,
@@ -410,9 +408,31 @@ describe('UserCompletionModal', () => {
             },
         });
 
+        const welcomeModal = await screen.findByRole('dialog');
+        expect(
+            within(welcomeModal).queryByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('should submit the trimmed how did you hear about us answer', async () => {
+        const user = userEvent.setup();
+
+        renderModal({
+            user: {
+                isSetupComplete: false,
+                organizationName: '',
+            },
+        });
+
         const submitButton = await screen.findByRole('button', {
             name: 'Next',
         });
+
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
+        await user.type(nameInput, 'test organization');
 
         const roleSelect =
             await screen.findByPlaceholderText('Select your role');
@@ -427,9 +447,11 @@ describe('UserCompletionModal', () => {
 
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
+                organizationName: 'test organization',
                 jobTitle: 'Software Engineer',
                 howDidYouHearAboutUs: 'a podcast',
-                enableEmailDomainAccess: false,
+                // org creator on a custom domain: enabled by default
+                enableEmailDomainAccess: true,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
@@ -447,13 +469,17 @@ describe('UserCompletionModal', () => {
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: 'test organization',
+                organizationName: '',
             },
         });
 
         const submitButton = await screen.findByRole('button', {
             name: 'Next',
         });
+
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
+        await user.type(nameInput, 'test organization');
 
         const roleSelect =
             await screen.findByPlaceholderText('Select your role');

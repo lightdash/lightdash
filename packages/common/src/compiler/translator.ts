@@ -52,8 +52,10 @@ import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
     getCatalogTimestampDomain,
+    WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
     type WarehouseSqlBuilder,
+    type WarehouseTableSchema,
 } from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
@@ -1553,44 +1555,119 @@ export const convertExplores = async (
     return [...explores, ...exploreErrors];
 };
 
+export type AttachTypesDiagnostics = {
+    durationMs: number;
+    modelCount: number;
+    columnCount: number;
+    catalogTableCount: number;
+    schemaPairs: { databaseSchema: string; models: number }[];
+    exactLookups: number;
+    caseInsensitiveLookups: number;
+    missingLookups: number;
+};
+
 export const attachTypesToModels = (
     models: DbtModelNode[],
     warehouseCatalog: WarehouseCatalog,
     throwOnMissingCatalogEntry: boolean = true,
     caseSensitiveMatching: boolean = true,
+    onDiagnostics?: (diagnostics: AttachTypesDiagnostics) => void,
 ): DbtModelNode[] => {
+    const startedAt = Date.now();
+    let exactLookups = 0;
+    let caseInsensitiveLookups = 0;
+    let missingLookups = 0;
+    let columnCount = 0;
+
+    // Indexed once instead of rescanning Object.keys() at three catalog levels for every
+    // column of every model, which made the cost models x columns x tables-in-schema.
+    const exactIndex = new Map<string, WarehouseTableSchema>();
+    const foldedIndex = new Map<string, WarehouseTableSchema>();
+    const exactLocation = new Map<
+        string,
+        { database: string; schema: string; table: string }
+    >();
+    const foldedLocation = new Map<
+        string,
+        { database: string; schema: string; table: string }
+    >();
+    const key = (database: string, schema: string, table: string) =>
+        `${database}\u0000${schema}\u0000${table}`;
+    const foldedKey = (database: string, schema: string, table: string) =>
+        key(database.toLowerCase(), schema.toLowerCase(), table.toLowerCase());
+
+    let catalogTableCount = 0;
+    Object.keys(warehouseCatalog).forEach((database) => {
+        // The reserved timestamp-domain sidecar sits beside the database keys and is not one.
+        if (database === WAREHOUSE_TIMESTAMP_DOMAINS_KEY) return;
+        const schemas = warehouseCatalog[database];
+        if (schemas === undefined || schemas === null) return;
+        Object.keys(schemas).forEach((schema) => {
+            const tables = schemas[schema];
+            if (tables === undefined || tables === null) return;
+            Object.keys(tables).forEach((table) => {
+                const columns = tables[table];
+                if (columns === undefined || columns === null) return;
+                catalogTableCount += 1;
+                const location = { database, schema, table };
+                const exact = key(database, schema, table);
+                // Object.keys() yields insertion order and the replaced code took the FIRST
+                // match, so only absent keys are set — that preserves which duplicate wins.
+                if (!exactIndex.has(exact)) {
+                    exactIndex.set(exact, columns);
+                    exactLocation.set(exact, location);
+                }
+                const folded = foldedKey(database, schema, table);
+                if (!foldedIndex.has(folded)) {
+                    foldedIndex.set(folded, columns);
+                    foldedLocation.set(folded, location);
+                }
+            });
+        });
+    });
+
+    const lookup = (
+        database: string,
+        schema: string,
+        table: string,
+    ):
+        | {
+              columns: WarehouseTableSchema;
+              location: { database: string; schema: string; table: string };
+              caseInsensitive: boolean;
+          }
+        | undefined => {
+        const exact = key(database, schema, table);
+        const exactHit = exactIndex.get(exact);
+        if (exactHit !== undefined) {
+            return {
+                columns: exactHit,
+                location: exactLocation.get(exact)!,
+                caseInsensitive: false,
+            };
+        }
+        if (caseSensitiveMatching) return undefined;
+        const folded = foldedKey(database, schema, table);
+        const foldedHit = foldedIndex.get(folded);
+        if (foldedHit !== undefined) {
+            return {
+                columns: foldedHit,
+                location: foldedLocation.get(folded)!,
+                caseInsensitive: true,
+            };
+        }
+        return undefined;
+    };
+
     // Check that all models appear in the warehouse
     models.forEach(({ database, schema, name }) => {
-        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
-            caseSensitiveMatching
-                ? db === database
-                : db.toLowerCase() === database.toLowerCase(),
-        );
-        // Explicit undefined checks: a matched key can be the empty string
-        // (ClickHouse table_catalog), which is falsy but a real match.
-        const schemaMatch =
-            databaseMatch !== undefined
-                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                      caseSensitiveMatching
-                          ? s === schema
-                          : s.toLowerCase() === schema.toLowerCase(),
-                  )
-                : undefined;
-        const tableMatch =
-            databaseMatch !== undefined && schemaMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch],
-                  ).find((t) =>
-                      caseSensitiveMatching
-                          ? t === name
-                          : t.toLowerCase() === name.toLowerCase(),
-                  )
-                : undefined;
-        if (tableMatch === undefined && throwOnMissingCatalogEntry) {
-            throw new MissingCatalogEntryError(
-                `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
-                {},
-            );
+        if (lookup(database, schema, name) === undefined) {
+            if (throwOnMissingCatalogEntry) {
+                throw new MissingCatalogEntryError(
+                    `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
+                    {},
+                );
+            }
         }
     });
 
@@ -1601,60 +1678,33 @@ export const attachTypesToModels = (
         | { type: DimensionType; timestampDomain: TimestampDomain | undefined }
         | undefined => {
         const tableName = alias || name;
-        const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
-            caseSensitiveMatching
-                ? db === database
-                : db.toLowerCase() === database.toLowerCase(),
-        );
-        const schemaMatch =
-            databaseMatch !== undefined
-                ? Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
-                      caseSensitiveMatching
-                          ? s === schema
-                          : s.toLowerCase() === schema.toLowerCase(),
-                  )
-                : undefined;
-        const tableMatch =
-            databaseMatch !== undefined && schemaMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch],
-                  ).find((t) =>
-                      caseSensitiveMatching
-                          ? t === tableName
-                          : t.toLowerCase() === tableName.toLowerCase(),
-                  )
-                : undefined;
-        const columnMatch =
-            databaseMatch !== undefined &&
-            schemaMatch !== undefined &&
-            tableMatch !== undefined
-                ? Object.keys(
-                      warehouseCatalog[databaseMatch][schemaMatch][tableMatch],
-                  ).find((c) =>
-                      caseSensitiveMatching
-                          ? c === columnName
-                          : c.toLowerCase() === columnName.toLowerCase(),
-                  )
-                : undefined;
-        if (
-            databaseMatch !== undefined &&
-            schemaMatch !== undefined &&
-            tableMatch !== undefined &&
-            columnMatch !== undefined
-        ) {
-            return {
-                type: warehouseCatalog[databaseMatch][schemaMatch][tableMatch][
-                    columnMatch
-                ],
-                timestampDomain: getCatalogTimestampDomain(
-                    warehouseCatalog,
-                    databaseMatch,
-                    schemaMatch,
-                    tableMatch,
-                    columnMatch,
-                ),
-            };
+        const hit = lookup(database, schema, tableName);
+        if (hit !== undefined) {
+            const columnMatch = Object.keys(hit.columns).find((column) =>
+                caseSensitiveMatching
+                    ? column === columnName
+                    : column.toLowerCase() === columnName.toLowerCase(),
+            );
+            if (columnMatch !== undefined) {
+                // A lookup is only exact when BOTH the table and the column matched exactly.
+                if (hit.caseInsensitive || columnMatch !== columnName) {
+                    caseInsensitiveLookups += 1;
+                } else {
+                    exactLookups += 1;
+                }
+                return {
+                    type: hit.columns[columnMatch],
+                    timestampDomain: getCatalogTimestampDomain(
+                        warehouseCatalog,
+                        hit.location.database,
+                        hit.location.schema,
+                        hit.location.table,
+                        columnMatch,
+                    ),
+                };
+            }
         }
+        missingLookups += 1;
         if (throwOnMissingCatalogEntry) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
@@ -1665,10 +1715,11 @@ export const attachTypesToModels = (
     };
 
     // Update the dbt models with type info
-    return models.map((model) => ({
+    const typedModels = models.map((model) => ({
         ...model,
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => {
+                columnCount += 1;
                 const columnType = getColumnType(model, column_name);
                 return [
                     column_name,
@@ -1685,6 +1736,31 @@ export const attachTypesToModels = (
             }),
         ),
     }));
+
+    if (onDiagnostics) {
+        const modelsByPair = new Map<string, number>();
+        models.forEach(({ database, schema }) => {
+            const pair = `${database}.${schema}`;
+            modelsByPair.set(pair, (modelsByPair.get(pair) ?? 0) + 1);
+        });
+        onDiagnostics({
+            durationMs: Date.now() - startedAt,
+            modelCount: models.length,
+            columnCount,
+            catalogTableCount,
+            schemaPairs: [...modelsByPair.entries()]
+                .map(([databaseSchema, count]) => ({
+                    databaseSchema,
+                    models: count,
+                }))
+                .sort((a, b) => b.models - a.models),
+            exactLookups,
+            caseInsensitiveLookups,
+            missingLookups,
+        });
+    }
+
+    return typedModels;
 };
 
 export const getSchemaStructureFromDbtModels = (

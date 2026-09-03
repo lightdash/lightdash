@@ -13,6 +13,8 @@ import { ContentAsCodeSnapshotModel } from './ContentAsCodeSnapshotModel';
 import { ContentAsCodeWritebackModel } from './ContentAsCodeWritebackModel';
 import { ContentDraftModel } from './ContentDraftModel';
 import { ContentModel } from './ContentModel/ContentModel';
+import { ContentReviewRequestModel } from './ContentReviewRequestModel';
+import { ContentReviewSettingsModel } from './ContentReviewSettingsModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
@@ -29,6 +31,7 @@ import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentials
 import { GroupsModel } from './GroupsModel';
 import { HeadlessBrowserLoginGrantModel } from './HeadlessBrowserLoginGrantModel';
 import { InviteLinkModel } from './InviteLinkModel';
+import { JiraAppInstallationsModel } from './JiraAppInstallations/JiraAppInstallationsModel';
 import { JobModel } from './JobModel/JobModel';
 import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
 import { McpContextModel } from './McpContextModel';
@@ -106,6 +109,7 @@ export type ModelManifest = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+    jiraAppInstallationsModel: JiraAppInstallationsModel;
     linearAppInstallationsModel: LinearAppInstallationsModel;
     groupsModel: GroupsModel;
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
@@ -163,6 +167,8 @@ export type ModelManifest = {
     contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     contentAsCodeWritebackModel: ContentAsCodeWritebackModel;
     contentDraftModel: ContentDraftModel;
+    contentReviewRequestModel: ContentReviewRequestModel;
+    contentReviewSettingsModel: ContentReviewSettingsModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -194,6 +200,7 @@ export type ModelManifest = {
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
+    scimRequestLogModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
 };
@@ -436,6 +443,17 @@ export class ModelRepository
             'linearAppInstallationsModel',
             () =>
                 new LinearAppInstallationsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getJiraAppInstallationsModel(): JiraAppInstallationsModel {
+        return this.getModel(
+            'jiraAppInstallationsModel',
+            () =>
+                new JiraAppInstallationsModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
@@ -911,6 +929,20 @@ export class ModelRepository
         );
     }
 
+    public getContentReviewRequestModel(): ContentReviewRequestModel {
+        return this.getModel(
+            'contentReviewRequestModel',
+            () => new ContentReviewRequestModel({ database: this.database }),
+        );
+    }
+
+    public getContentReviewSettingsModel(): ContentReviewSettingsModel {
+        return this.getModel(
+            'contentReviewSettingsModel',
+            () => new ContentReviewSettingsModel({ database: this.database }),
+        );
+    }
+
     public getContentVerificationModel(): ContentVerificationModel {
         return this.getModel(
             'contentVerificationModel',
@@ -1026,6 +1058,10 @@ export class ModelRepository
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {
         return this.getModel('serviceAccountModel');
+    }
+
+    public getScimRequestLogModel<ModelImplT>(): ModelImplT {
+        return this.getModel('scimRequestLogModel');
     }
 
     public getExternalConnectionModel<ModelImplT>(): ModelImplT {

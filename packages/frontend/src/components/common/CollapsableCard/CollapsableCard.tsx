@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
+import { Button, Card, Flex, Group, Title, Tooltip } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
@@ -66,8 +66,9 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     gap="xxs"
                     align="center"
                     mr="xs"
-                    h="xxl"
+                    mih="xxl"
                     w="100%"
+                    wrap="wrap"
                     onClick={onClickHeading}
                     className={
                         disabled
@@ -106,29 +107,35 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                             />
                         </Button>
                     </Tooltip>
-                    <Group>
-                        <Title order={5} fw={500} fz="sm">
+                    <Group className={classes.leftHeader} gap="xs" wrap="wrap">
+                        <Title
+                            className={classes.title}
+                            order={5}
+                            fw={500}
+                            fz="sm"
+                        >
                             {title}
                         </Title>
                         <Group
+                            className={classes.headerElement}
                             gap="xs"
+                            wrap="wrap"
                             onClick={(e: MouseEvent) => e.stopPropagation()}
                         >
                             {headerElement}
                         </Group>
                     </Group>
                     {rightHeaderElement && (
-                        <>
-                            <Box flex={1} />
-                            <Group
-                                gap="xs"
-                                pos="relative"
-                                right={2}
-                                onClick={(e: MouseEvent) => e.stopPropagation()}
-                            >
-                                {rightHeaderElement}
-                            </Group>
-                        </>
+                        <Group
+                            className={classes.rightHeaderElement}
+                            gap="xs"
+                            pos="relative"
+                            right={2}
+                            wrap="wrap"
+                            onClick={(e: MouseEvent) => e.stopPropagation()}
+                        >
+                            {rightHeaderElement}
+                        </Group>
                     )}
                 </Flex>
             )}

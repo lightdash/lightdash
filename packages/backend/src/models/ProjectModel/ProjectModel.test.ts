@@ -8,6 +8,7 @@ import {
     CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateSnowflakeCredentials,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     DbtCloudIDEProjectConfig,
     DbtGithubProjectConfig,
@@ -353,6 +354,37 @@ describe('ProjectModel', () => {
         );
     });
 
+    test('updates a project that was created without warehouse credentials', async () => {
+        vi.spyOn(model, 'getWarehouseCredentialsForProject').mockRejectedValue(
+            new NotFoundError('Cannot find any warehouse credentials'),
+        );
+        const invalidate = vi
+            .spyOn(MotherduckInstanceCache, 'invalidateByConnectionString')
+            .mockImplementation(() => undefined);
+        tracker.on
+            .update(({ sql }) => sql.includes('projects'))
+            .response([{ project_id: 1 }]);
+        tracker.on
+            .insert(({ sql }) => sql.includes('warehouse_credentials'))
+            .response([]);
+
+        await model.update(projectUuid, {
+            name: expectedProject.name,
+            dbtConnection: expectedProject.dbtConnection,
+            dbtVersion: expectedProject.dbtVersion,
+            warehouseConnection: {
+                type: WarehouseTypes.BIGQUERY,
+            } as CreateWarehouseCredentials,
+        });
+
+        expect(
+            tracker.history.insert.some(({ sql }) =>
+                sql.includes('warehouse_credentials'),
+            ),
+        ).toBe(true);
+        expect(invalidate).not.toHaveBeenCalled();
+    });
+
     test('checks project membership without requiring an email row', async () => {
         tracker.on
             .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
@@ -670,15 +702,19 @@ describe('ProjectModel', () => {
                     }),
                     expect.objectContaining({
                         bindings: expect.arrayContaining([
-                            JSON.stringify([
-                                cachedExplore,
-                                virtualView,
-                                incomingExplore,
-                            ]),
+                            JSON.stringify(incomingExplore),
                         ]),
                     }),
                 ]),
             );
+            // The cached explores are preserved by upserting the incoming row and deleting
+            // nothing, rather than by rewriting a whole-set value. The only write to
+            // cached_explores is the lock row, which carries an empty array.
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
         });
 
         test('accepts an empty additive payload when cached explores exist', async () => {
@@ -768,11 +804,16 @@ describe('ProjectModel', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         bindings: expect.arrayContaining([
-                            JSON.stringify([virtualView]),
+                            JSON.stringify(virtualView),
                         ]),
                     }),
                 ]),
             );
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
         });
 
         // TODO: this test is skipped because there is an issue in our version of knex-mock-client

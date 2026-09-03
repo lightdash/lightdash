@@ -3,6 +3,7 @@ import {
     Paper,
     type PaperProps,
 } from '@mantine/core';
+import { clsx } from 'clsx';
 import { forwardRef, type Ref } from 'react';
 
 /**
@@ -14,8 +15,12 @@ export const PolymorphicPaperButton = createPolymorphicComponent<
     PaperProps
 >(
     forwardRef<HTMLDivElement, PaperProps>(
-        (props: PaperProps, ref: Ref<HTMLDivElement>) => (
-            <Paper ref={ref} {...props} className="ld-pointer" />
+        ({ className, ...props }: PaperProps, ref: Ref<HTMLDivElement>) => (
+            <Paper
+                ref={ref}
+                {...props}
+                className={clsx('ld-pointer', className)}
+            />
         ),
     ),
 );

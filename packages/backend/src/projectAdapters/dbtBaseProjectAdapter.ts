@@ -30,6 +30,7 @@ import {
     ParseError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
+    type AttachTypesDiagnostics,
     type LightdashProjectConfig,
     type ProjectContextEntry,
 } from '@lightdash/common';
@@ -308,12 +309,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     {},
                 );
             }
-            Logger.info(`Attach types to ${validModels.length} models`);
             const lazyTypedModels = attachTypesToModels(
                 validModels,
                 this.cachedWarehouse.warehouseCatalog,
                 true,
                 adapterType !== 'snowflake',
+                (diagnostics) =>
+                    DbtBaseProjectAdapter.logAttachTypesPhase(
+                        'cached_catalog',
+                        trackingParams,
+                        diagnostics,
+                    ),
             );
             Logger.info('Convert explores');
             const disableTimestampConversion =
@@ -342,12 +348,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 );
                 const modelCatalog =
                     getSchemaStructureFromDbtModels(validModels);
-                Logger.info(
-                    `Fetching table metadata for ${modelCatalog.length} tables`,
-                );
-
+                const catalogFetchStartedAt = Date.now();
                 const warehouseCatalog =
                     await this.warehouseClient.getCatalog(modelCatalog);
+                Logger.info('dbt.compile.warehouseCatalogFetch', {
+                    event: 'dbt.compile.warehouseCatalogFetch',
+                    projectUuid: trackingParams?.projectUuid ?? null,
+                    jobUuid: trackingParams?.jobUuid ?? null,
+                    warehouseType: this.warehouseClient.credentials.type,
+                    requestedTables: modelCatalog.length,
+                    durationMs: Date.now() - catalogFetchStartedAt,
+                });
                 // Clients only create the sidecar when they classify a column;
                 // stamp it (possibly empty) so the staleness check above can't
                 // refetch again on domain-less warehouses.
@@ -356,15 +367,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     warehouseCatalog,
                 );
 
-                Logger.info(
-                    'Attach types to models after missing catalog error',
-                );
                 // Some types were missing so refresh the schema and try again
                 const typedModels = attachTypesToModels(
                     validModels,
                     warehouseCatalog,
                     false,
                     adapterType !== 'snowflake',
+                    (diagnostics) =>
+                        DbtBaseProjectAdapter.logAttachTypesPhase(
+                            'refetched_catalog',
+                            trackingParams,
+                            diagnostics,
+                        ),
                 );
                 Logger.info('Convert explores after missing catalog error');
                 const disableTimestampConversion =
@@ -391,6 +405,28 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             }
             throw e;
         }
+    }
+
+    private static logAttachTypesPhase(
+        catalogSource: 'cached_catalog' | 'refetched_catalog',
+        trackingParams: TrackingParams | undefined,
+        diagnostics: AttachTypesDiagnostics,
+    ) {
+        Logger.info('dbt.compile.attachTypes', {
+            event: 'dbt.compile.attachTypes',
+            projectUuid: trackingParams?.projectUuid ?? null,
+            jobUuid: trackingParams?.jobUuid ?? null,
+            catalogSource,
+            durationMs: diagnostics.durationMs,
+            modelCount: diagnostics.modelCount,
+            columnCount: diagnostics.columnCount,
+            catalogTableCount: diagnostics.catalogTableCount,
+            distinctSchemaCount: diagnostics.schemaPairs.length,
+            schemaPairs: diagnostics.schemaPairs.slice(0, 20),
+            exactLookups: diagnostics.exactLookups,
+            caseInsensitiveLookups: diagnostics.caseInsensitiveLookups,
+            missingLookups: diagnostics.missingLookups,
+        });
     }
 
     static _validateDbtModel(

@@ -69,6 +69,9 @@ const AiAgentsLauncherInner: FC = () => {
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
+    const currentDataApp = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDataApp,
+    );
     const { dock } = useLauncherDock(activeProjectUuid);
 
     const prevProjectUuidRef = useRef(activeProjectUuid);
@@ -165,13 +168,15 @@ const AiAgentsLauncherInner: FC = () => {
     }
     const transitionDataAppPreview =
         activeDataAppPreview ?? lastDataAppPreviewRef.current;
-    const isDashboardPage = currentDashboard?.projectUuid === activeProjectUuid;
+    const isContentPage =
+        currentDashboard?.projectUuid === activeProjectUuid ||
+        currentDataApp?.projectUuid === activeProjectUuid;
 
     if (!isAllowed || !activeProjectUuid) return null;
     if (
         !isPanelOpenSafe &&
         dock.length === 0 &&
-        (!selectedAgent || !isDashboardPage)
+        (!selectedAgent || !isContentPage)
     ) {
         return null;
     }
@@ -221,6 +226,7 @@ const AiAgentsLauncherInner: FC = () => {
                         >
                             <AiDataAppPreviewPanel
                                 dataAppPreview={transitionDataAppPreview}
+                                showInspector={false}
                             />
                         </Box>
                     )}

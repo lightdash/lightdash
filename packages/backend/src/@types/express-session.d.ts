@@ -14,6 +14,11 @@ declare module 'express-session' {
                 codeVerifier: string;
                 redirectUri: string;
             };
+            jira?: {
+                redirectUri: string;
+                clientId: string;
+                encryptedClientSecret: string;
+            };
             isPopup?: boolean | undefined;
             databricks?: {
                 projectUuid?: string | undefined;

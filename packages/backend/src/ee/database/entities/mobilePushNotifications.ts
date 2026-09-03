@@ -8,6 +8,8 @@ export const AiAgentLiveActivityStartAttemptsTableName =
 
 export type MobilePushEnvironment = 'sandbox' | 'production';
 
+export type MobilePushPlatform = 'ios' | 'android';
+
 export type LiveActivityStartAttemptStatus =
     | 'excluded'
     | 'pending'
@@ -21,6 +23,7 @@ export type DbMobilePushInstallation = {
     installation_uuid: string;
     organization_uuid: string;
     user_uuid: string;
+    platform: MobilePushPlatform;
     environment: MobilePushEnvironment;
     encrypted_device_token: Buffer;
     device_token_fingerprint: string;

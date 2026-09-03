@@ -421,18 +421,17 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
+        // Paired with manage:ContentVerification: anyone who can unverify
+        // content can already bypass the edit lock, so grant it outright.
+        can('manage', 'VerifiedContent', {
+            organizationUuid: member.organizationUuid,
+        });
         can('create', 'AiDeepResearch', {
             organizationUuid: member.organizationUuid,
         });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
-
-        // Project-restrictable edit lock: not granted to org developer so
-        // project custom roles can withhold it. Org admins always retain it.
-        can('manage', 'VerifiedContent', {
-            organizationUuid: member.organizationUuid,
-        });
 
         can('view', 'Roadmap', {
             organizationUuid: member.organizationUuid,

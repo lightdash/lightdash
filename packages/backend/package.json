@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "2.88.0",
+    "version": "2.115.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -89,6 +89,7 @@
         "@opentelemetry/exporter-trace-otlp-http": "0.219.0",
         "@opentelemetry/instrumentation-express": "0.60.0",
         "@opentelemetry/instrumentation-http": "0.219.0",
+        "@opentelemetry/instrumentation-knex": "0.63.0",
         "@opentelemetry/resources": "2.8.0",
         "@opentelemetry/sdk-metrics": "2.8.0",
         "@opentelemetry/sdk-node": "0.219.0",

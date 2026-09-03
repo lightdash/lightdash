@@ -27,6 +27,7 @@ import {
     type DateZoomConfig,
     type FilterableDimension,
     type InteractivityOptions,
+    type LanguageMap,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -80,6 +81,7 @@ import {
 } from './dashboardParametersUrl';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
 import { getActiveTabForTabs } from './getActiveTabForTabs';
+import { applyParameterLabelOverrides } from './parameterLabelOverrides';
 import useDashboardContext from './useDashboardContext';
 import useDashboardTileStatusContext from './useDashboardTileStatusContext';
 
@@ -100,6 +102,7 @@ type DashboardProviderProps = React.PropsWithChildren<{
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     defaultInvalidateCache?: boolean;
     sdkFilters?: SdkFilter[];
+    parameterLabelOverrides?: LanguageMap['parameters'];
     // Interactive dashboard page only. The /minimal render used for exports
     // and scheduled deliveries must leave this off so a viewer's unpublished
     // draft never reaches a delivered image, PDF or spreadsheet.
@@ -117,6 +120,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     dashboardCommentsCheck,
     defaultInvalidateCache,
     includeUnpublishedDraft = false,
+    parameterLabelOverrides,
     children,
 }) => {
     const { search, pathname } = useLocation();
@@ -293,6 +297,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const [parameterDefinitions, setParameterDefinitions] =
         useState<ParameterDefinitions>({});
+
+    const translatedParameterDefinitions = useMemo(
+        () =>
+            applyParameterLabelOverrides(
+                parameterDefinitions,
+                parameterLabelOverrides,
+            ),
+        [parameterDefinitions, parameterLabelOverrides],
+    );
 
     const addParameterDefinitions = useCallback(
         (parameters: ParameterDefinitions) => {
@@ -763,9 +776,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         return getMissingRequiredParameters(
             Array.from(dashboardParameterReferences),
             dashboardParameterValues,
-            parameterDefinitions,
+            translatedParameterDefinitions,
         );
-    }, [dashboardParameterReferences, parameters, parameterDefinitions]);
+    }, [
+        dashboardParameterReferences,
+        parameters,
+        translatedParameterDefinitions,
+    ]);
 
     const [tilesWithDateZoomApplied, setTilesWithDateZoomApplied] =
         useState<Set<string>>();
@@ -1867,7 +1884,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         parameterValues,
         selectedParametersCount,
         setParameter,
-        parameterDefinitions,
+        parameterDefinitions: translatedParameterDefinitions,
         clearAllParameters,
         dashboardParameterReferences,
         addParameterReferences,

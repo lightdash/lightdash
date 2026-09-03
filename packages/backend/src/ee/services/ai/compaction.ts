@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    elementReferenceToWireString,
     type AiAgentMessage,
     type AiPromptContext,
     type AiPromptContextItem,
@@ -233,6 +234,12 @@ export class Compaction {
                 return `preview environment${
                     item.projectName ? ` (${item.projectName})` : ''
                 }${item.status ? ` — ${item.status}` : ''}`;
+            case 'data_app':
+                return `data app ${item.displayName ?? item.appUuid} (${item.appSlug ?? item.appUuid})`;
+            case 'data_app_element':
+                return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
+            case 'data_app_restore':
+                return `data app ${item.displayName ?? item.appUuid} (${item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
             default:
                 return assertUnreachable(
                     item,

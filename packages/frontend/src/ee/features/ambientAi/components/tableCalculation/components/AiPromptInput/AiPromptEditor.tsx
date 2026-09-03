@@ -111,6 +111,9 @@ export const AiPromptEditor: FC<Props> = ({
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,
+                link: false,
+                underline: false,
+                trailingNode: false,
             }),
             MentionWithLabel.configure({
                 suggestion: generateFieldSuggestion(fieldSuggestions),

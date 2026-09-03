@@ -67,6 +67,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             loadProjectContext: IconVocabulary,
             loadMcpTools: IconPlugConnected,
             generateDataApp: IconAppWindow,
+            iterateDataApp: IconAppWindow,
             editDbtProject: IconPencil,
             editProjectContext: IconVocabulary,
             editRepo: IconPencil,

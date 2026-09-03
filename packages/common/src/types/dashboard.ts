@@ -3,6 +3,7 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFieldTarget, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
+import { type AdditionalMetric } from './metricQuery';
 import { type DashboardParameters } from './parameters';
 import {
     type ChartKind,
@@ -244,6 +245,9 @@ export type DashboardConfig = {
     dateZoomConfig?: DateZoomConfig;
     /** Editor-authored note shown to viewers while filter rules are unmet */
     requiredFiltersNote?: string;
+    /** Custom metrics offered to charts built inside this dashboard. Interim
+     *  store — moves to a semantic-layer draft later; don't read it elsewhere. */
+    customMetrics?: AdditionalMetric[];
 };
 
 export type DashboardOwner = {

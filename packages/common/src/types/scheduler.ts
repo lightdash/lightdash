@@ -3,6 +3,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
+import { type ContentReviewNotificationEvent } from './contentReviewRequests';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import {
@@ -1025,6 +1026,16 @@ export type SendReviewNotificationPayload = {
     userUuid?: string;
 };
 
+export type SendContentReviewNotificationPayload = {
+    organizationUuid: string;
+    projectUuid: string;
+    requestUuid: string;
+    event: ContentReviewNotificationEvent;
+    recipientUserUuids: string[];
+    userUuid: string;
+    schedulerUuid?: string;
+};
+
 export type CreateReviewLinearIssuePayload = {
     organizationUuid: string;
     projectUuid: string;
@@ -1033,3 +1044,5 @@ export type CreateReviewLinearIssuePayload = {
     schedulerUuid?: string;
     userUuid?: string;
 };
+
+export type CreateReviewJiraIssuePayload = CreateReviewLinearIssuePayload;

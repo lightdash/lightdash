@@ -29,6 +29,13 @@ export type StepProgressMessage = {
     progressStatus: 'in_progress' | 'complete' | 'error' | null;
 };
 
+/** Client-clock stopwatch for the live stream; ms since epoch. */
+export type StreamTiming = {
+    startedAt: number;
+    firstTokenAt: number | null;
+    finishedAt: number | null;
+};
+
 export type StreamPart =
     | { type: 'text'; text: string }
     | (ToolCall & { type: 'toolCall' });
@@ -112,6 +119,7 @@ export interface AiAgentThreadStreamingState {
      * hover, etc.) without changing the wire protocol.
      */
     stepProgressMessages: StepProgressMessage[];
+    timing: StreamTiming;
 }
 
 type State = Record<string, AiAgentThreadStreamingState>;
@@ -119,7 +127,7 @@ type State = Record<string, AiAgentThreadStreamingState>;
 const initialState: State = {};
 const initialThread: Omit<
     AiAgentThreadStreamingState,
-    'threadUuid' | 'messageUuid'
+    'threadUuid' | 'messageUuid' | 'timing'
 > = {
     content: '',
     parts: [],
@@ -144,7 +152,24 @@ export const aiAgentThreadStreamSlice = createSlice({
                 threadUuid,
                 messageUuid,
                 ...initialThread,
+                timing: {
+                    startedAt: Date.now(),
+                    firstTokenAt: null,
+                    finishedAt: null,
+                },
             };
+        },
+        markFirstToken: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const streamingThread = state[action.payload.threadUuid];
+            if (
+                streamingThread &&
+                streamingThread.timing.firstTokenAt === null
+            ) {
+                streamingThread.timing.firstTokenAt = Date.now();
+            }
         },
         setMessage: {
             reducer: (
@@ -236,6 +261,7 @@ export const aiAgentThreadStreamSlice = createSlice({
             const streamingThread = state[action.payload.threadUuid];
             if (streamingThread) {
                 streamingThread.connection = { status: 'complete' };
+                streamingThread.timing.finishedAt ??= Date.now();
             }
         },
         addToolCall: {
@@ -271,6 +297,7 @@ export const aiAgentThreadStreamSlice = createSlice({
             const streamingThread = state[threadUuid];
             if (streamingThread) {
                 streamingThread.connection = { status: 'error', error };
+                streamingThread.timing.finishedAt ??= Date.now();
             }
         },
         addReasoning: {
@@ -383,6 +410,7 @@ export const aiAgentThreadStreamSlice = createSlice({
 
 export const {
     startStreaming,
+    markFirstToken,
     setMessage,
     setParts,
     markToolCallDecided,

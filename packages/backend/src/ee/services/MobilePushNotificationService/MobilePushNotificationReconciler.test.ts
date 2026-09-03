@@ -2,6 +2,7 @@ import {
     MobilePushNotificationReconciler,
     type AiAgentThreadLiveStateSignals,
     type MobilePushApnsClient,
+    type MobilePushFcmClient,
     type MobilePushReconciliationStore,
     type MobilePushReconciliationThreadStore,
     type ReconciliationActivity,
@@ -18,6 +19,7 @@ const activity: ReconciliationActivity = {
     agentUuid: 'agent-uuid',
     threadUuid: 'thread-uuid',
     promptUuid: 'prompt-uuid',
+    platform: 'ios' as const,
     environment: 'sandbox' as const,
     deviceToken: 'device-token',
     pushToken: 'activity-token',
@@ -72,6 +74,14 @@ const createDependencies = () => {
             status: 'sent',
         })),
     };
+    const fcmClient = {
+        sendAgentRunUpdate: vi.fn<MobilePushFcmClient['sendAgentRunUpdate']>(
+            async () => ({ status: 'sent' }),
+        ),
+        sendAgentRunAlert: vi.fn<MobilePushFcmClient['sendAgentRunAlert']>(
+            async () => ({ status: 'sent' }),
+        ),
+    };
     const scheduler = {
         mobilePushLiveActivity: vi.fn(async () => ({ jobId: 'job-uuid' })),
     };
@@ -85,6 +95,7 @@ const createDependencies = () => {
         notificationStore,
         threadStore,
         apnsClient,
+        fcmClient,
         scheduler,
         analytics,
         completionAlert,
@@ -148,6 +159,7 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
                 promptId: 'prompt-uuid',
                 installationId: 'public-installation-uuid',
                 liveActivityId: 'activity-uuid',
+                platform: 'ios',
                 environment: 'sandbox',
                 state: 'working',
                 activityEvent: 'update',
@@ -305,7 +317,7 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
 
         await expect(
             reconciler.reconcileLiveActivity(activity.liveActivityUuid),
-        ).rejects.toThrow('APNs alert delivery is retryable');
+        ).rejects.toThrow('Mobile push alert delivery is retryable');
 
         expect(dependencies.apnsClient.sendLiveActivity).not.toHaveBeenCalled();
         expect(
@@ -394,7 +406,9 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
 
         await expect(
             reconciler.reconcileLiveActivity(activity.liveActivityUuid),
-        ).rejects.toThrow('APNs delivery is retryable: ServiceUnavailable');
+        ).rejects.toThrow(
+            'Mobile push delivery is retryable: ServiceUnavailable',
+        );
         expect(
             dependencies.notificationStore.markLiveActivityDelivered,
         ).not.toHaveBeenCalled();
@@ -444,5 +458,189 @@ describe('MobilePushNotificationReconciler.reconcileLiveActivity', () => {
             dependencies.notificationStore.deleteLiveActivity,
         ).toHaveBeenCalledWith({ liveActivityUuid: 'activity-uuid' });
         expect(dependencies.apnsClient.sendLiveActivity).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobilePushNotificationReconciler platform routing', () => {
+    const androidActivity: ReconciliationActivity = {
+        ...activity,
+        platform: 'android',
+        deviceToken: 'fcm-registration-token',
+    };
+
+    it('keeps an ios activity on APNs and never calls FCM', async () => {
+        const dependencies = createDependencies();
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.apnsClient.sendLiveActivity).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(
+            dependencies.fcmClient.sendAgentRunUpdate,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('sends an android update to FCM with the device token', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue(
+            androidActivity,
+        );
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.apnsClient.sendLiveActivity).not.toHaveBeenCalled();
+        expect(dependencies.fcmClient.sendAgentRunUpdate).toHaveBeenCalledWith({
+            pushToken: 'fcm-registration-token',
+            payload: {
+                data: {
+                    type: 'agent_run',
+                    state: 'working',
+                    event: 'update',
+                    liveActivityUuid: 'activity-uuid',
+                    projectUuid: 'project-uuid',
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                    timestamp: '1788091260',
+                    staleAt: '1788091560',
+                },
+                android: {
+                    priority: 'high',
+                    collapse_key: 'activity-uuid',
+                    ttl: '300s',
+                },
+            },
+        });
+    });
+
+    it('sends to the installation device token, not the stored activity token', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue({
+            ...androidActivity,
+            pushToken: 'a-stale-registration-token',
+        });
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.fcmClient.sendAgentRunUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ pushToken: 'fcm-registration-token' }),
+        );
+    });
+
+    it('records the platform on an android delivery', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue(
+            androidActivity,
+        );
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'mobile_push.live_activity_delivery',
+                properties: expect.objectContaining({
+                    platform: 'android',
+                    activityEvent: 'update',
+                    outcome: 'sent',
+                }),
+            }),
+        );
+    });
+
+    it('sends an android completion alert to FCM', async () => {
+        const dependencies = {
+            ...createDependencies(),
+            completionAlert: {
+                title: 'Approved title',
+                body: 'Approved body',
+            },
+        };
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue({
+            ...androidActivity,
+            lastDeliveredState: 'idle',
+            endedAt: now,
+        });
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(dependencies.apnsClient.sendAlert).not.toHaveBeenCalled();
+        expect(dependencies.fcmClient.sendAgentRunAlert).toHaveBeenCalledWith({
+            pushToken: 'fcm-registration-token',
+            payload: {
+                notification: {
+                    title: 'Approved title',
+                    body: 'Approved body',
+                },
+                data: {
+                    type: 'agent_run_completed',
+                    projectUuid: 'project-uuid',
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                },
+                android: {
+                    priority: 'high',
+                    collapse_key: 'activity-uuid',
+                },
+            },
+        });
+        expect(
+            dependencies.notificationStore.markCompletionAlertCompleted,
+        ).toHaveBeenCalledWith('activity-uuid');
+    });
+
+    it('deletes the installation when FCM rejects the android token', async () => {
+        const dependencies = {
+            ...createDependencies(),
+            completionAlert: {
+                title: 'Approved title',
+                body: 'Approved body',
+            },
+        };
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue({
+            ...androidActivity,
+            lastDeliveredState: 'idle',
+            endedAt: now,
+        });
+        dependencies.fcmClient.sendAgentRunAlert.mockResolvedValue({
+            status: 'invalid_token',
+            reason: 'UNREGISTERED',
+        });
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await reconciler.reconcileLiveActivity(activity.liveActivityUuid);
+
+        expect(
+            dependencies.notificationStore.deleteInstallation,
+        ).toHaveBeenCalledWith({
+            installationUuid: 'public-installation-uuid',
+            organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
+        });
+    });
+
+    it('surfaces a retryable android delivery to the job runner', async () => {
+        const dependencies = createDependencies();
+        dependencies.notificationStore.findLiveActivity.mockResolvedValue(
+            androidActivity,
+        );
+        dependencies.fcmClient.sendAgentRunUpdate.mockResolvedValue({
+            status: 'retryable',
+            reason: 'UNAVAILABLE',
+        });
+        const reconciler = new MobilePushNotificationReconciler(dependencies);
+
+        await expect(
+            reconciler.reconcileLiveActivity(activity.liveActivityUuid),
+        ).rejects.toThrow('Mobile push delivery is retryable: UNAVAILABLE');
+        expect(
+            dependencies.notificationStore.markLiveActivityDelivered,
+        ).not.toHaveBeenCalled();
     });
 });

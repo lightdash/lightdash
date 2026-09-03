@@ -61,6 +61,13 @@ export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
     feature: AiCallFeature;
     /**
+     * The key origin for the call. This field is necessary, unlike the optional
+     * `keyManagement` on AiCallAttribution. Use a Lightdash-managed key, a
+     * self-managed (BYO) key, or null. Use null only for a path that does not
+     * record the key origin, for example embeddings or internal evaluations.
+     */
+    keyManagement: AiKeyManagement | null;
+    /**
      * Record the prompt/response content on the span. Gated separately from span
      * emission because content can contain user data — emission (token usage +
      * attribution) is always on, content capture is opt-in.
@@ -148,8 +155,9 @@ export const getGeneratorTelemetry = (
         ...(modelOptions.model != null
             ? getLanguageModelAttribution(modelOptions.model)
             : {}),
-        ...(modelOptions.keyManagement != null
-            ? { keyManagement: modelOptions.keyManagement }
-            : {}),
         ...(modelOptions.telemetry ?? {}),
+        // Always set this field. Set it last so that it is the final value.
+        // The model builder is the correct source for the key origin. This
+        // necessary field must be present.
+        keyManagement: modelOptions.keyManagement ?? null,
     });

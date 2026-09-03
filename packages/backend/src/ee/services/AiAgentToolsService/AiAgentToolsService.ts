@@ -110,6 +110,7 @@ import {
     GetProjectInfoFn,
     GetSavedChartFn,
     GetVerifiedFieldUsageFn,
+    IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
     ListExploresFn,
@@ -256,6 +257,7 @@ export type AiAgentToolsRuntime = {
     createScheduledDelivery: CreateScheduledDeliveryFn;
     updateUserName: UpdateUserNameFn;
     generateDataApp: GenerateDataAppFn;
+    iterateDataApp: IterateDataAppFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -277,6 +279,7 @@ export type McpAiAgentToolsRuntime = Omit<
     | 'findFields'
     | 'updateUserName'
     | 'generateDataApp'
+    | 'iterateDataApp'
 > & {
     getExplore: (
         args: Parameters<GetExploreFn>[0],
@@ -608,7 +611,7 @@ export class AiAgentToolsService extends BaseService {
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<
             AiAgentToolsRuntime,
-            'updateUserName' | 'generateDataApp'
+            'updateUserName' | 'generateDataApp' | 'iterateDataApp'
         > = {
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
@@ -674,13 +677,14 @@ export class AiAgentToolsService extends BaseService {
                   updateUserName: (args) => this.updateUserName(context, args),
                   generateDataApp: (args) =>
                       this.generateDataApp(context, args),
+                  iterateDataApp: (args) => this.iterateDataApp(context, args),
               };
     }
 
     private withMcpRuntimeResults(
         runtime: Omit<
             AiAgentToolsRuntime,
-            'updateUserName' | 'generateDataApp'
+            'updateUserName' | 'generateDataApp' | 'iterateDataApp'
         >,
     ): McpAiAgentToolsRuntime {
         return {
@@ -1684,6 +1688,79 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    private iterateDataApp(
+        context: AiAgentToolsRuntimeContext,
+        {
+            appSlug,
+            prompt,
+            dashboardSlug,
+            chartSlugs,
+            toolCallId,
+        }: Parameters<IterateDataAppFn>[0],
+    ): ReturnType<IterateDataAppFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.iterateDataApp`,
+            {
+                fromDashboard: dashboardSlug !== null,
+                chartCount: chartSlugs?.length ?? 0,
+            },
+            async () => {
+                const { promptUuid } = context;
+                if (!promptUuid) {
+                    throw new UnexpectedServerError(
+                        'iterateDataApp requires a prompt',
+                    );
+                }
+                const app = await this.appModel.findAppBySlug(
+                    context.projectUuid,
+                    appSlug,
+                );
+                if (!app) {
+                    throw new NotFoundError(
+                        `Data app "${appSlug}" was not found`,
+                    );
+                }
+                AiAgentToolsService.assertDataAppInAgentScope(
+                    context,
+                    app.space_uuid,
+                    appSlug,
+                );
+                const dashboard =
+                    dashboardSlug === null
+                        ? undefined
+                        : await this.resolveDataAppDashboardReference(
+                              context,
+                              dashboardSlug,
+                          );
+                const charts =
+                    chartSlugs === null || chartSlugs.length === 0
+                        ? undefined
+                        : await Promise.all(
+                              chartSlugs.map((chartSlug) =>
+                                  this.resolveDataAppChartReference(
+                                      context,
+                                      chartSlug,
+                                  ),
+                              ),
+                          );
+                return this.appGenerateService.iterateApp(
+                    context.user,
+                    context.projectUuid,
+                    app.app_id,
+                    prompt,
+                    [],
+                    charts,
+                    dashboard,
+                    undefined,
+                    {
+                        creationExperience: 'ai_agent',
+                        aiAgentToolCall: { promptUuid, toolCallId },
+                    },
+                );
+            },
+        );
+    }
+
     private async resolveDataAppDashboardReference(
         context: AiAgentToolsRuntimeContext,
         slug: string,
@@ -1761,7 +1838,7 @@ export class AiAgentToolsService extends BaseService {
                             );
                         AiAgentToolsService.assertDataAppInAgentScope(
                             context,
-                            source,
+                            source.app.spaceUuid,
                             slug,
                         );
                         return {
@@ -1859,17 +1936,17 @@ export class AiAgentToolsService extends BaseService {
     /** Same scoping as findContent: personal apps only under unrestricted search. */
     private static assertDataAppInAgentScope(
         context: AiAgentToolsRuntimeContext,
-        source: DataAppReadSource,
+        spaceUuid: string | null,
         slug: string,
     ) {
         const scoped =
             context.spaceAccess !== null && context.spaceAccess.length > 0;
         const inScope =
-            source.app.spaceUuid === null
+            spaceUuid === null
                 ? !scoped
                 : AiAgentToolsService.hasAgentSpaceAccess(
                       context.spaceAccess,
-                      source.app.spaceUuid,
+                      spaceUuid,
                   );
         if (!inScope) {
             throw new NotFoundError(`Data app "${slug}" was not found`);
@@ -2791,6 +2868,10 @@ export class AiAgentToolsService extends BaseService {
                         projectUuid: context.projectUuid,
                         queries,
                         context: context.defaultQueryExecutionContext,
+                        parameters: {},
+                        userAttributeOverrides:
+                            context.userAttributeOverrides ?? {},
+                        invalidateCache: false,
                     });
 
                 // Per-node status emission is best-effort UI telemetry: only

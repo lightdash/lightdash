@@ -3,6 +3,7 @@ import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -129,6 +130,8 @@ export const useSettingsContext = (): SettingsContext => {
     } = useProject(settingsProjectUuid);
 
     const isGitProject = useIsGitProject(settingsProjectUuid ?? '');
+    const { isAvailable: isContentReviewAvailable } =
+        useContentReviewAvailability();
 
     // "Ask AI" settings are visible to org AI admins (all projects) and to
     // project-scoped AI admins (only the projects they can reach). These are
@@ -215,6 +218,7 @@ export const useSettingsContext = (): SettingsContext => {
         isGroupManagementEnabled,
         isWarehouseCredentialsEnabled,
         isGitProject,
+        isContentReviewAvailable,
         isHealthLoading,
         healthError,
         isUserLoading,

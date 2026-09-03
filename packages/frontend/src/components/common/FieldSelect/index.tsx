@@ -14,10 +14,13 @@ import {
     Box,
     CheckIcon,
     Group,
+    Loader,
     Select,
     Text,
     Tooltip,
     type ComboboxItem,
+    type ComboboxParsedItem,
+    type OptionsFilter,
     type SelectProps,
 } from '@mantine/core';
 import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -29,7 +32,45 @@ interface FieldSelectItem extends ComboboxItem {
     item: Item;
     description?: string;
     size?: SelectProps['size'];
+    /** Dimmed table context rendered before the label; the "Add to query"
+     *  group has no per-table headers to carry it. */
+    tablePrefix?: string;
 }
+
+const ADD_TO_QUERY_GROUP_LABEL = 'Add to query';
+
+// Mantine's default filter only sees `label`, which no longer carries the
+// table name for "Add to query" options — match the prefix too, so searching
+// "orders amount" still finds them.
+const optionsFilter: OptionsFilter = ({ options, search, limit }) => {
+    const words = search.toLowerCase().trim().split(/\s+/);
+    const matches = (option: ComboboxItem) => {
+        const { label, tablePrefix } = option as FieldSelectItem;
+        const haystack = `${tablePrefix ?? ''} ${label}`.toLowerCase();
+        return words.every((word) => haystack.includes(word));
+    };
+
+    const result: ComboboxParsedItem[] = [];
+    let count = 0;
+    for (const item of options) {
+        if (count >= limit) break;
+        if ('group' in item) {
+            const kept: ComboboxItem[] = [];
+            for (const option of item.items) {
+                if (count >= limit) break;
+                if (matches(option)) {
+                    kept.push(option);
+                    count += 1;
+                }
+            }
+            if (kept.length > 0) result.push({ ...item, items: kept });
+        } else if (matches(item)) {
+            result.push(item);
+            count += 1;
+        }
+    }
+    return result;
+};
 
 type FieldSelectProps<T extends Item = Item> = Omit<
     SelectProps,
@@ -37,6 +78,12 @@ type FieldSelectProps<T extends Item = Item> = Omit<
 > & {
     item?: T;
     items: T[];
+    /** Fields not in the query yet, offered under an "Add to query" group.
+     *  Picking one reaches `onChange` like any other item. */
+    addItems?: T[];
+    /** Shows a spinner while the slot waits on a query run, replacing any
+     *  `rightSection` for the duration. */
+    loading?: boolean;
     inactiveItemIds?: string[];
     onChange: (value: T | undefined) => void;
     onClosed?: () => void;
@@ -54,6 +101,8 @@ const getLabel = (item: Item, hasGrouping: boolean) => {
 const FieldSelectComponent = <T extends Item = Item>({
     item,
     items,
+    addItems,
+    loading = false,
     onChange,
     onClosed,
     inactiveItemIds = [],
@@ -74,7 +123,7 @@ const FieldSelectComponent = <T extends Item = Item>({
         }
     }, [focusOnRender]);
 
-    const [tableLabelMap, sortedItems] = useMemo(() => {
+    const [tableLabelMap, sortedItems, sortedAddItems] = useMemo(() => {
         const map = new Map<string, string>();
 
         const getTypePriority = (i: Item): number => {
@@ -96,77 +145,73 @@ const FieldSelectComponent = <T extends Item = Item>({
             return i.name;
         };
 
-        return [
-            map,
-            [...items].sort((a, b) => {
-                /**
-                 * Sorting logic:
-                 * Sorts by table first
-                 * Then sorts by type
-                 * 1. Dimensions & Custom dimensions (interval-type dimensions are sorted by time frame, instead of label)
-                 * 2. Metrics & Additional metrics
-                 * 3. Table calculations
-                 * Then sorts by label
-                 */
-                if (
-                    isField(a) &&
-                    !isCustomDimension(a) &&
-                    a.table &&
-                    a.tableLabel
-                ) {
-                    map.set(a.table, a.tableLabel);
-                }
-                if (
-                    isField(b) &&
-                    !isCustomDimension(b) &&
-                    b.table &&
-                    b.tableLabel
-                ) {
-                    map.set(b.table, b.tableLabel);
-                }
+        /**
+         * Sorting logic:
+         * Sorts by table first
+         * Then sorts by type
+         * 1. Dimensions & Custom dimensions (interval-type dimensions are sorted by time frame, instead of label)
+         * 2. Metrics & Additional metrics
+         * 3. Table calculations
+         * Then sorts by label
+         */
+        const compare = (a: T, b: T): number => {
+            // Prioritise items from the base table
+            if (baseTable) {
+                const aIsInTable = 'table' in a && a.table === baseTable;
+                const bIsInTable = 'table' in b && b.table === baseTable;
+                if (aIsInTable !== bIsInTable) return aIsInTable ? -1 : 1;
+            }
 
-                // Prioritise items from the base table
-                if (baseTable) {
-                    const aIsInTable = 'table' in a && a.table === baseTable;
-                    const bIsInTable = 'table' in b && b.table === baseTable;
-                    if (aIsInTable !== bIsInTable) return aIsInTable ? -1 : 1;
-                }
+            // Sort by table label for items from different tables
+            if (isField(a) && isField(b) && a.table !== b.table) {
+                return (a.tableLabel || '').localeCompare(b.tableLabel || '');
+            }
 
-                // Sort by table label for items from different tables
-                if (isField(a) && isField(b) && a.table !== b.table) {
-                    return (a.tableLabel || '').localeCompare(
-                        b.tableLabel || '',
-                    );
-                }
+            // Sort by item type priority (dimensions + custom dimensions > metrics + custom metrics > table calculations)
+            const priorityDiff = getTypePriority(a) - getTypePriority(b);
+            if (priorityDiff !== 0) return priorityDiff;
 
-                // Sort by item type priority (dimensions + custom dimensions > metrics + custom metrics > table calculations)
-                const priorityDiff = getTypePriority(a) - getTypePriority(b);
-                if (priorityDiff !== 0) return priorityDiff;
+            // Sort by group (timeIntervalBaseDimensionName or name)
+            const groupComparison = getGroupKey(a).localeCompare(
+                getGroupKey(b),
+            );
+            if (groupComparison !== 0) return groupComparison;
 
-                // Sort by group (timeIntervalBaseDimensionName or name)
-                const groupComparison = getGroupKey(a).localeCompare(
-                    getGroupKey(b),
-                );
-                if (groupComparison !== 0) return groupComparison;
+            // Within the same group, sort time-based dimensions by their time interval
+            if (
+                isDimension(a) &&
+                isDimension(b) &&
+                'timeInterval' in a &&
+                'timeInterval' in b &&
+                a.timeInterval &&
+                b.timeInterval
+            ) {
+                return sortTimeFrames(a.timeInterval, b.timeInterval);
+            }
 
-                // Within the same group, sort time-based dimensions by their time interval
-                if (
-                    isDimension(a) &&
-                    isDimension(b) &&
-                    'timeInterval' in a &&
-                    'timeInterval' in b &&
-                    a.timeInterval &&
-                    b.timeInterval
-                ) {
-                    return sortTimeFrames(a.timeInterval, b.timeInterval);
-                }
+            return getLabel(a, hasGrouping).localeCompare(
+                getLabel(b, hasGrouping),
+            );
+        };
 
-                return getLabel(a, hasGrouping).localeCompare(
-                    getLabel(b, hasGrouping),
-                );
-            }),
-        ];
-    }, [items, baseTable, hasGrouping]);
+        const itemIds = new Set(items.map(getItemId));
+        const dedupedAddItems = (addItems ?? []).filter(
+            (i) => !itemIds.has(getItemId(i)),
+        );
+
+        [...items, ...dedupedAddItems].forEach((i) => {
+            if (
+                isField(i) &&
+                !isCustomDimension(i) &&
+                i.table &&
+                i.tableLabel
+            ) {
+                map.set(i.table, i.tableLabel);
+            }
+        });
+
+        return [map, [...items].sort(compare), dedupedAddItems.sort(compare)];
+    }, [items, addItems, baseTable, hasGrouping]);
 
     const selectedItemId = useMemo(() => {
         return item ? getItemId(item) : null;
@@ -175,11 +220,12 @@ const FieldSelectComponent = <T extends Item = Item>({
     const handleChange = useCallback(
         (value: string | null) => {
             const selectedField = value
-                ? items.find((f) => getItemId(f) === value)
+                ? (items.find((f) => getItemId(f) === value) ??
+                  sortedAddItems.find((f) => getItemId(f) === value))
                 : undefined;
             onChange(selectedField);
         },
-        [items, onChange],
+        [items, sortedAddItems, onChange],
     );
 
     const selectData = useMemo(() => {
@@ -225,8 +271,38 @@ const FieldSelectComponent = <T extends Item = Item>({
             }),
         );
 
-        return [...ungrouped, ...groupedData];
-    }, [sortedItems, hasGrouping, tableLabelMap, inactiveItemIds]);
+        // Not-in-query fields sit in one trailing group. The label matches
+        // the in-query options (and the input once picked); the dimmed
+        // tablePrefix keeps same-named fields from different tables readable.
+        const addEntries: FieldSelectItem[] = sortedAddItems.map((i) => ({
+            item: i,
+            value: getItemId(i),
+            label: getLabel(i, hasGrouping),
+            tablePrefix: hasGrouping
+                ? isField(i) && !isCustomDimension(i)
+                    ? i.tableLabel
+                    : isCustomDimension(i)
+                      ? tableLabelMap.get(i.table)
+                      : undefined
+                : undefined,
+            description: isField(i) ? i.description : undefined,
+            disabled: inactiveItemIds.includes(getItemId(i)),
+        }));
+
+        return [
+            ...ungrouped,
+            ...groupedData,
+            ...(addEntries.length > 0
+                ? [{ group: ADD_TO_QUERY_GROUP_LABEL, items: addEntries }]
+                : []),
+        ];
+    }, [
+        sortedItems,
+        sortedAddItems,
+        hasGrouping,
+        tableLabelMap,
+        inactiveItemIds,
+    ]);
 
     const renderOption = useCallback(
         ({ option, checked }: { option: ComboboxItem; checked?: boolean }) => {
@@ -253,6 +329,11 @@ const FieldSelectComponent = <T extends Item = Item>({
                             size={rest.size}
                             style={{ wordBreak: 'normal' }}
                         >
+                            {fieldOption.tablePrefix && (
+                                <Text span inherit c="dimmed">
+                                    {fieldOption.tablePrefix}{' '}
+                                </Text>
+                            )}
                             {fieldOption.label}
                         </Text>
                         {checked && (
@@ -270,6 +351,7 @@ const FieldSelectComponent = <T extends Item = Item>({
     return (
         <Select
             limit={FILTER_SELECT_LIMIT}
+            filter={optionsFilter}
             ref={inputRef}
             w="100%"
             miw={250}
@@ -285,6 +367,10 @@ const FieldSelectComponent = <T extends Item = Item>({
                 rest.clearable || rest.rightSection ? 'all' : 'none'
             }
             {...rest}
+            {...(loading && {
+                rightSection: <Loader size="xs" />,
+                rightSectionPointerEvents: 'none' as const,
+            })}
             value={selectedItemId}
             data={selectData}
             onChange={handleChange}

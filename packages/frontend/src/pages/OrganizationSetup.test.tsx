@@ -57,7 +57,7 @@ describe('OrganizationSetup', () => {
         } as ReturnType<typeof useServerFeatureFlag>);
     });
 
-    it('submits an empty referral answer when a user joining an existing organization skips it', async () => {
+    it('does not ask invited members how they heard about us', async () => {
         const user = userEvent.setup();
 
         mockOrgApi('test organization');
@@ -77,10 +77,12 @@ describe('OrganizationSetup', () => {
             screen.queryByPlaceholderText('Acme Analytics'),
         ).not.toBeInTheDocument();
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        expect(referralInput).toBeInTheDocument();
+        // invited members do not see the referral question
+        expect(
+            screen.queryByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
+        ).not.toBeInTheDocument();
 
         const submitButton = await screen.findByRole('button', {
             name: 'Finish',
@@ -92,17 +94,12 @@ describe('OrganizationSetup', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
             .reply(200);
 
-        const referralInputCreate = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInputCreate, 'a podcast');
         expect(submitButton).toBeEnabled();
 
         await user.click(submitButton);
@@ -186,17 +183,18 @@ describe('OrganizationSetup', () => {
         const scope = nock(BASE_API_URL)
             .patch('/api/v1/user/me/complete', {
                 jobTitle: 'Software Engineer',
-                howDidYouHearAboutUs: 'a podcast',
                 enableEmailDomainAccess: false,
                 isMarketingOptedIn: true,
                 isTrackingAnonymized: false,
             })
             .reply(200);
 
-        const referralInput = await screen.findByRole('textbox', {
-            name: /How did you hear about us/,
-        });
-        await user.type(referralInput, 'a podcast');
+        // invited members do not see the referral question
+        expect(
+            screen.queryByRole('textbox', {
+                name: /How did you hear about us/,
+            }),
+        ).not.toBeInTheDocument();
 
         await user.click(await screen.findByRole('button', { name: 'Finish' }));
 

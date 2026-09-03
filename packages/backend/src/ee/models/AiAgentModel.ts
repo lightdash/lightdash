@@ -67,7 +67,9 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    elementReferenceToWireString,
     generateSlug,
+    getAppDisplayName,
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
@@ -75,8 +77,8 @@ import {
     isAiAgentToolName,
     isAiWritebackRunInProgress,
     isThreadPrompt,
+    isToolDataAppBuildResult,
     isToolEditDbtProjectResult,
-    isToolGenerateDataAppResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -143,6 +145,9 @@ import {
     AiOrganizationSettingsTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
+    AiPromptDataAppElementSnapshot,
+    AiPromptDataAppRestoreSnapshot,
+    AiPromptDataAppSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -504,19 +509,19 @@ const isPendingEditDbtProjectToolResult = (
 ): result is PendingEditDbtProjectToolResult =>
     isEditDbtProjectToolResult(result) && result.metadata.status === 'pending';
 
-type PendingGenerateDataAppToolResult = AiAgentToolResult & {
+type PendingDataAppBuildToolResult = AiAgentToolResult & {
     toolType: 'built-in';
-    toolName: 'generateDataApp';
+    toolName: 'generateDataApp' | 'iterateDataApp';
     metadata: Extract<
         ToolGenerateDataAppOutput['metadata'],
         { status: 'pending' }
     >;
 };
 
-const isPendingGenerateDataAppToolResult = (
+const isPendingDataAppBuildToolResult = (
     result: AiAgentToolResult,
-): result is PendingGenerateDataAppToolResult =>
-    isToolGenerateDataAppResult(result) && result.metadata.status === 'pending';
+): result is PendingDataAppBuildToolResult =>
+    isToolDataAppBuildResult(result) && result.metadata.status === 'pending';
 
 const getTerminalWritebackFallback = (
     run: DbAiWritebackRun,
@@ -4317,6 +4322,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -4341,6 +4347,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -4446,6 +4453,7 @@ export class AiAgentModel {
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
+                responseTiming: row.response_timing,
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5035,6 +5043,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -5059,6 +5068,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -5204,6 +5214,7 @@ export class AiAgentModel {
                     referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
+                    responseTiming: row.response_timing,
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -5567,6 +5578,9 @@ export class AiAgentModel {
                     : {}),
                 ...(data.tokenUsage !== undefined
                     ? { token_usage: data.tokenUsage }
+                    : {}),
+                ...(data.responseTiming !== undefined
+                    ? { response_timing: data.responseTiming }
                     : {}),
             })
             .where({
@@ -6502,6 +6516,41 @@ export class AiAgentModel {
         const dashboardUuids = context.flatMap((c) =>
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
+        const appUuids = context.flatMap((c) =>
+            c.type === 'data_app_element' ||
+            c.type === 'data_app_restore' ||
+            c.type === 'data_app'
+                ? [c.appUuid]
+                : [],
+        );
+
+        const appNameByUuid = new Map(
+            (
+                await trx(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<{ app_id: string; name: string }[]>(
+                        'app_id',
+                        'name',
+                    )
+            ).map((r) => [r.app_id, r.name] as const),
+        );
+
+        const pinnedAppUuids = context.flatMap((c) =>
+            c.type === 'data_app' ? [c.appUuid] : [],
+        );
+        const latestReadyVersionByAppUuid = new Map(
+            (
+                await trx(AppVersionsTableName)
+                    .whereIn('app_id', pinnedAppUuids)
+                    .where('status', 'ready')
+                    .groupBy('app_id')
+                    .select<{ app_id: string; version: number }[]>(
+                        'app_id',
+                        trx.raw('max(version) as version'),
+                    )
+            ).map((r) => [r.app_id, r.version] as const),
+        );
 
         const chartLookup = new Map(
             (
@@ -6762,6 +6811,64 @@ export class AiAgentModel {
                         entity_uuid: ctx.previewProjectUuid,
                         display_name: null,
                     };
+                // entity_ref is the natural key, so one prompt can hold
+                // several references to the same app.
+                case 'data_app_element': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_element' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: `${ctx.appUuid}:${ctx.version}:${elementReferenceToWireString(ctx)}`,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            appUuid: ctx.appUuid,
+                            version: ctx.version,
+                            tag: ctx.tag,
+                            text: ctx.text,
+                            loc: ctx.loc,
+                        } satisfies AiPromptDataAppElementSnapshot,
+                    };
+                }
+                case 'data_app_restore': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_restore' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        entity_ref: null,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version: ctx.version,
+                            restoredFromVersion: ctx.restoredFromVersion,
+                        } satisfies AiPromptDataAppRestoreSnapshot,
+                    };
+                }
+                case 'data_app': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'data_app' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version:
+                                latestReadyVersionByAppUuid.get(ctx.appUuid) ??
+                                null,
+                        } satisfies AiPromptDataAppSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6898,6 +7005,48 @@ export class AiAgentModel {
             }),
         );
 
+        const appUuids = rows.flatMap((r) => {
+            if (r.entity_type === 'data_app_element') {
+                return [
+                    (r.runtime_overrides as AiPromptDataAppElementSnapshot)
+                        .appUuid,
+                ];
+            }
+            if (
+                (r.entity_type === 'data_app_restore' ||
+                    r.entity_type === 'data_app') &&
+                r.entity_uuid !== null
+            ) {
+                return [r.entity_uuid];
+            }
+            return [];
+        });
+        const appDataByUuid = new Map(
+            (
+                await this.database(AppsTableName)
+                    .whereIn('app_id', appUuids)
+                    .whereNull('deleted_at')
+                    .select<
+                        {
+                            app_id: string;
+                            slug: string;
+                            name: string;
+                            space_uuid: string | null;
+                        }[]
+                    >('app_id', 'slug', 'name', 'space_uuid')
+            ).map(
+                (r) =>
+                    [
+                        r.app_id,
+                        {
+                            slug: r.slug,
+                            name: r.name,
+                            spaceUuid: r.space_uuid,
+                        },
+                    ] as const,
+            ),
+        );
+
         const previewProjectUuids = rows
             .filter((r) => r.entity_type === 'preview_environment')
             .map((r) => r.entity_uuid)
@@ -6930,6 +7079,7 @@ export class AiAgentModel {
                     dashboardSlugByUuid,
                     reviewItem,
                     projectNameByUuid,
+                    appDataByUuid,
                 ),
             );
             grouped.set(row.ai_prompt_uuid, existing);
@@ -6974,6 +7124,10 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
+        appDataByUuid: Map<
+            string,
+            { slug: string; name: string; spaceUuid: string | null }
+        >,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -7073,6 +7227,65 @@ export class AiAgentModel {
                     previewThreadUuid: null,
                     status: null,
                     projectName: projectNameByUuid.get(entityUuid) ?? null,
+                };
+            }
+            case 'data_app_element': {
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_element' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppElementSnapshot;
+                const app = appDataByUuid.get(snapshot.appUuid);
+                return {
+                    type: 'data_app_element',
+                    appUuid: snapshot.appUuid,
+                    version: snapshot.version,
+                    tag: snapshot.tag,
+                    text: snapshot.text,
+                    loc: snapshot.loc,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, snapshot.appUuid)
+                        : row.display_name,
+                };
+            }
+            case 'data_app_restore': {
+                const appUuid = requireEntityUuid();
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_restore' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppRestoreSnapshot;
+                const app = appDataByUuid.get(appUuid);
+                return {
+                    type: 'data_app_restore',
+                    appUuid,
+                    version: snapshot.version,
+                    restoredFromVersion: snapshot.restoredFromVersion,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                };
+            }
+            case 'data_app': {
+                const appUuid = requireEntityUuid();
+                const app = appDataByUuid.get(appUuid);
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppSnapshot | null;
+                return {
+                    type: 'data_app',
+                    appUuid,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                    pinnedVersion: snapshot?.version ?? null,
+                    isPersonal: app !== undefined && app.spaceUuid === null,
                 };
             }
             default:
@@ -7392,9 +7605,7 @@ export class AiAgentModel {
         results: AiAgentToolResult[],
         now = Date.now(),
     ): Promise<AiAgentToolResult[]> {
-        const pendingResults = results.filter(
-            isPendingGenerateDataAppToolResult,
-        );
+        const pendingResults = results.filter(isPendingDataAppBuildToolResult);
         if (pendingResults.length === 0) {
             return results;
         }
@@ -7411,7 +7622,7 @@ export class AiAgentModel {
             )
             .select<
                 Array<
-                    Pick<DbApp, 'app_id' | 'name'> &
+                    Pick<DbApp, 'app_id' | 'name' | 'slug'> &
                         Pick<
                             DbAppVersion,
                             'version' | 'status' | 'error' | 'status_message'
@@ -7420,6 +7631,7 @@ export class AiAgentModel {
             >(
                 `${AppsTableName}.app_id`,
                 `${AppsTableName}.name`,
+                `${AppsTableName}.slug`,
                 `${AppVersionsTableName}.version`,
                 `${AppVersionsTableName}.status`,
                 `${AppVersionsTableName}.error`,
@@ -7446,7 +7658,7 @@ export class AiAgentModel {
         );
 
         return results.map((result) => {
-            if (!isPendingGenerateDataAppToolResult(result)) {
+            if (!isPendingDataAppBuildToolResult(result)) {
                 return result;
             }
             const { appUuid, version } = result.metadata;
@@ -7458,6 +7670,7 @@ export class AiAgentModel {
                       appUuid,
                       version,
                       name: row.name,
+                      slug: row.slug,
                       status: row.status,
                       error: row.error,
                       statusMessage: row.status_message,

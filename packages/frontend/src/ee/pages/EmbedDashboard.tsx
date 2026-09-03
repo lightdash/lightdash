@@ -15,7 +15,11 @@ const EmbedDashboardPage: FC<{
 }> = ({ containerStyles, initialDashboard, isEditMode, onEditModeChange }) => {
     const projectUuidFromParams = useProjectUuid();
 
-    const { embedToken, projectUuid: projectUuidFromEmbed } = useEmbed();
+    const {
+        embedToken,
+        languageMap,
+        projectUuid: projectUuidFromEmbed,
+    } = useEmbed();
 
     const projectUuid = projectUuidFromEmbed ?? projectUuidFromParams;
 
@@ -31,7 +35,11 @@ const EmbedDashboardPage: FC<{
     }
 
     return (
-        <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
+        <DashboardProvider
+            embedToken={embedToken}
+            projectUuid={projectUuid}
+            parameterLabelOverrides={languageMap?.parameters}
+        >
             <EmbedDashboard
                 containerStyles={containerStyles}
                 initialDashboard={initialDashboard}

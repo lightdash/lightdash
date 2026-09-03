@@ -628,6 +628,40 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         },
     },
     {
+        path: 'review-requests',
+        lazy: async () => {
+            const ContentReviewRequestsPage = await loadLazyRouteDefault(
+                './ee/features/contentReview/pages/ContentReviewRequestsPage',
+                () =>
+                    import('./ee/features/contentReview/pages/ContentReviewRequestsPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.CONTENT_REVIEW_REQUESTS}>
+                        <ContentReviewRequestsPage />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
+        path: 'review-requests/:requestUuid',
+        lazy: async () => {
+            const ContentReviewRequestPage = await loadLazyRouteDefault(
+                './ee/features/contentReview/pages/ContentReviewRequestPage',
+                () =>
+                    import('./ee/features/contentReview/pages/ContentReviewRequestPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.CONTENT_REVIEW_REQUEST}>
+                        <ContentReviewRequestPage />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
+    {
         path: 'autopilot',
         lazy: async () => {
             const ManagedAgentActivityPage = await loadLazyRouteDefault(
@@ -716,7 +750,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'apps/:appUuid/versions/:version/view',
-        handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
                 './pages/AppPreviewTest',
@@ -727,7 +760,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'apps/:appUuid/view',
-        handle: { hideAILauncher: true },
         lazy: async () => {
             const AppPreviewTest = await loadLazyRouteDefault(
                 './pages/AppPreviewTest',

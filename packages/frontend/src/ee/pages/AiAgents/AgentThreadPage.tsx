@@ -258,6 +258,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dataAppUuid = searchParams.get('dataAppUuid');
     const {
         contextInput: pageContextInput,
         previewItems: pagePreviewItems,
@@ -265,6 +266,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     } = usePinnedContext({
         projectUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
 
     const contentMentionItems = useMemo(

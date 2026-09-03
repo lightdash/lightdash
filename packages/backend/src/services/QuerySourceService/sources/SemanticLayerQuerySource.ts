@@ -41,6 +41,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             'Metric queries against the explores of this project. Tables are explores; columns are their dimensions and metrics, referenced by field id. Result columns are named by field id — exactly the dimensions and metrics requested.',
     };
 
+    readonly supportsPivot = true;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;
@@ -132,6 +134,10 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         query,
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        pivotConfiguration,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
 
@@ -155,6 +161,10 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             projectUuid,
             metricQuery,
             context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
         return { queryUuid: results.queryUuid };

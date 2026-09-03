@@ -106,6 +106,8 @@ export type DuckdbS3SessionConfig = {
     useSsl: boolean;
     /** Limit this DuckDB secret to one trusted S3 URI or prefix. */
     scope?: string;
+    /** PEM bundle httpfs verifies HTTPS object storage with. */
+    caCertFile?: string;
 };
 
 export type DuckdbResourceLimits = {
@@ -895,6 +897,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             // For DuckLake mode, httpfs and the ducklake/postgres/mysql/azure
             // extensions are autoloaded by ATTACH — no explicit INSTALL/LOAD.
             await client.loadExtension(db, 'httpfs');
+            if (client.s3Config?.caCertFile) {
+                await db.run(
+                    `SET ca_cert_file = '${DuckdbWarehouseClient.escapeDuckdbString(
+                        client.s3Config.caCertFile,
+                    )}';`,
+                );
+            }
             await client.loadAwsExtensionForCredentialChain(db);
         }
         const httpfsMs = performance.now() - httpfsStart;

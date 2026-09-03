@@ -1,6 +1,10 @@
 import type {
     AiAgent,
+    AiAgentModelConfig,
     AiAgentThreadFilters,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
@@ -8,6 +12,8 @@ import type {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -18,14 +24,11 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
-    AiPromptContext,
-    AiPromptContextItem,
-    AiPromptContextItemInput,
+    ApiAiMcpServerListResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
-    ApiCloneAiAgentThreadShareResponse,
     ApiError,
-    ApiAiMcpServerListResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
@@ -42,6 +45,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { invalidateAppAfterRestore } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -773,10 +777,31 @@ const toOptimisticContextItem = (
                 status: null,
                 projectName: null,
             };
-        // System-only pins are seeded by the remediation flow, never optimistically
-        // attached from the UI, so they have no client-resolvable shape.
+        case 'data_app_element':
+            return {
+                type: 'data_app_element',
+                appUuid: item.appUuid,
+                version: item.version,
+                tag: item.tag,
+                text: item.text,
+                loc: item.loc,
+                appSlug: null,
+                displayName: null,
+            };
+        case 'data_app':
+            return {
+                type: 'data_app',
+                appUuid: item.appUuid,
+                appSlug: item.appSlug ?? null,
+                displayName: null,
+                pinnedVersion: null,
+                isPersonal: false,
+            };
+        // System-only pins are seeded by the remediation flow or the thread
+        // restore endpoint, never optimistically attached from the UI.
         case 'proposed_change':
         case 'review_finding':
+        case 'data_app_restore':
             throw new Error(
                 `Cannot optimistically resolve system-only context item: ${item.type}`,
             );
@@ -805,6 +830,7 @@ const createOptimisticMessages = (
     context: AiPromptContext = [],
     hidden = false,
     includeAssistantResponse = true,
+    modelConfig: AiAgentModelConfig | null = null,
 ) => {
     const userMessage = {
         role: 'user' as const,
@@ -851,8 +877,9 @@ const createOptimisticMessages = (
             savedQueryUuid: null,
             artifacts: null,
             referencedArtifacts: null,
-            modelConfig: null,
+            modelConfig,
             tokenUsage: null,
+            responseTiming: null,
         },
     ];
 };
@@ -1031,6 +1058,7 @@ export const useCreateAgentThreadMutation = (
                                 variables.context?.map(toOptimisticContextItem),
                             false,
                             !variables.skipAgentResponse,
+                            variables.modelConfig ?? null,
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -1218,6 +1246,7 @@ export const useCreateAgentThreadMessageMutation = (
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
                                 !data.skipAgentResponse,
+                                data.modelConfig ?? null,
                             ),
                         ],
                     };
@@ -1455,6 +1484,42 @@ export const useCreateAiAgentThreadMessageSteerMutation = () => {
                 },
             );
         },
+    });
+};
+
+export const useRestoreAiAgentThreadDataAppVersionMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadDataAppRestoreResponse['results'],
+        ApiError,
+        ApiAiAgentThreadDataAppRestoreRequest
+    >({
+        mutationFn: (body) =>
+            lightdashApi<ApiAiAgentThreadDataAppRestoreResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/data-app-restores`,
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+        // The thread gained a hidden restore turn; the app gained a version.
+        // Awaited so per-call onSuccess runs once the app refetch has landed.
+        onSuccess: (_result, { appUuid }) =>
+            Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+                invalidateAppAfterRestore(queryClient, projectUuid, appUuid),
+            ]),
     });
 };
 

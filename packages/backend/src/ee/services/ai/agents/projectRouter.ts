@@ -54,6 +54,7 @@ export async function routeProjectForSlack(
         feature: 'project-router',
         ...getLanguageModelAttribution(model),
         ...telemetry,
+        keyManagement: telemetry?.keyManagement ?? null,
     });
     const result = await generateObject({
         model,

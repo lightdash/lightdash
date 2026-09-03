@@ -1069,11 +1069,13 @@ describe('AiAgentModel pending data app builds', () => {
         error = null,
         statusMessage = null,
         startedAgoMs = 0,
+        toolName = 'generateDataApp',
     }: {
         status: AppVersionStatus;
         error?: string | null;
         statusMessage?: string | null;
         startedAgoMs?: number;
+        toolName?: 'generateDataApp' | 'iterateDataApp';
     }) => {
         const { app } = await appModel.createWithVersion(
             {
@@ -1109,7 +1111,7 @@ describe('AiAgentModel pending data app builds', () => {
         await model.createToolCall({
             promptUuid,
             toolCallId,
-            toolName: 'generateDataApp',
+            toolName,
             toolArgs: {
                 prompt: 'Build a revenue app',
                 template: null,
@@ -1122,7 +1124,7 @@ describe('AiAgentModel pending data app builds', () => {
             {
                 promptUuid,
                 toolCallId,
-                toolName: 'generateDataApp',
+                toolName,
                 result: 'Started the data app build.',
                 metadata: {
                     status: 'pending',
@@ -1140,11 +1142,11 @@ describe('AiAgentModel pending data app builds', () => {
                 promptUuid,
             ]);
         }
-        return { promptUuid, appUuid: app.app_id };
+        return { promptUuid, appUuid: app.app_id, appSlug: app.slug };
     };
 
     it('resolves a pending result to success once the version is ready', async () => {
-        const { promptUuid, appUuid } = await createPendingBuild({
+        const { promptUuid, appUuid, appSlug } = await createPendingBuild({
             status: 'ready',
         });
 
@@ -1155,6 +1157,25 @@ describe('AiAgentModel pending data app builds', () => {
             appUuid,
             version: 1,
             name: 'Revenue app',
+            slug: appSlug,
+            href: `${lightdashConfig.siteUrl}/projects/${SEED_PROJECT.project_uuid}/apps/${appUuid}`,
+        });
+    });
+
+    it('resolves a pending iterateDataApp result the same way', async () => {
+        const { promptUuid, appUuid, appSlug } = await createPendingBuild({
+            status: 'ready',
+            toolName: 'iterateDataApp',
+        });
+
+        const [result] = await model.getToolResultsForPrompt(promptUuid);
+
+        expect(result.metadata).toEqual({
+            status: 'success',
+            appUuid,
+            version: 1,
+            name: 'Revenue app',
+            slug: appSlug,
             href: `${lightdashConfig.siteUrl}/projects/${SEED_PROJECT.project_uuid}/apps/${appUuid}`,
         });
     });

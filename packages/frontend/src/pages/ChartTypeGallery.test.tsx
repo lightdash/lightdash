@@ -91,11 +91,26 @@ const setData = (data: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-const setFlag = (enabled: boolean) => {
-    vi.mocked(useServerFeatureFlag).mockReturnValue({
-        data: { id: FeatureFlags.EnableDataApps, enabled },
-        isLoading: false,
-    } as ReturnType<typeof useServerFeatureFlag>);
+const setFlags = ({
+    dataApps = true,
+    chartTypeRegistry = true,
+}: {
+    dataApps?: boolean;
+    chartTypeRegistry?: boolean;
+} = {}) => {
+    vi.mocked(useServerFeatureFlag).mockImplementation(
+        (flag) =>
+            ({
+                data: {
+                    id: flag,
+                    enabled:
+                        flag === FeatureFlags.EnableDataApps
+                            ? dataApps
+                            : chartTypeRegistry,
+                },
+                isLoading: false,
+            }) as ReturnType<typeof useServerFeatureFlag>,
+    );
 };
 
 const renderPage = () =>
@@ -119,7 +134,7 @@ const mockedDeleteApp = vi.fn();
 describe('ChartTypeGallery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        setFlag(true);
+        setFlags();
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useDuplicateApp).mockReturnValue({
@@ -167,6 +182,37 @@ describe('ChartTypeGallery', () => {
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
         expect(screen.getByText('Value')).toBeInTheDocument();
+    });
+
+    it('separates chart types and the library into top-level tabs', () => {
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        const chartTypesTab = screen.getByRole('tab', {
+            name: 'Chart types (1)',
+        });
+        const libraryTab = screen.getByRole('tab', { name: 'Library' });
+
+        expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
+        expect(libraryTab).toHaveAttribute('aria-selected', 'false');
+        expect(screen.getByText('Radial gauge')).toBeInTheDocument();
+
+        fireEvent.click(libraryTab);
+
+        expect(libraryTab).toHaveAttribute('aria-selected', 'true');
+        expect(
+            screen.queryByRole('button', { name: 'Radial gauge' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides the library tab when the chart type registry is disabled', () => {
+        setFlags({ chartTypeRegistry: false });
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        expect(
+            screen.queryByRole('tab', { name: 'Library' }),
+        ).not.toBeInTheDocument();
     });
 
     it('shows origin author and last update in the detail modal', () => {
@@ -308,7 +354,7 @@ describe('ChartTypeGallery', () => {
 
     it('redirects home when data apps are disabled', () => {
         setData([]);
-        setFlag(false);
+        setFlags({ dataApps: false });
         renderPage();
 
         expect(screen.getByText('home')).toBeInTheDocument();

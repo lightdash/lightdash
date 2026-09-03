@@ -761,6 +761,7 @@ export type AiAgentReviewItem = {
     statusUpdatedAt: Date;
     statusUpdatedByUserUuid: string | null;
     linkedIssueUrl: string | null;
+    linkedJiraIssueUrl?: string | null;
     linkedPrUrl: string | null;
     prState: AiAgentReviewItemPrState | null;
     prWritebackStatus: AiAgentReviewItemWritebackStatus | null;

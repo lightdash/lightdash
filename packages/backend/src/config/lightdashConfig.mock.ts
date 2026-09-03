@@ -117,6 +117,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     dbt: {
         environmentVariableAllowlist: [],
+        sourceFetchConcurrency: undefined,
     },
     dashboard: {
         maxTilesPerTab: 50,
@@ -211,6 +212,15 @@ export const lightdashConfigMock: LightdashConfig = {
                 schedule: '0 2 * * *',
             },
         },
+        scimRequestLogs: {
+            cleanup: {
+                enabled: true,
+                retentionDays: 30,
+                batchSize: 1000,
+                delayMs: 100,
+                maxBatches: 100,
+            },
+        },
     },
     secureCookies: false,
     sentry: {
@@ -248,6 +258,7 @@ export const lightdashConfigMock: LightdashConfig = {
         teamId: undefined,
         sandbox: undefined,
         production: undefined,
+        fcm: undefined,
     },
     license: {
         licenseKey: null,

@@ -6,22 +6,20 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
+import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import {
-    countReadyQueriesSinceBoundary,
-    useTrackedAppQueries,
-} from '../features/apps/hooks/useTrackedAppQueries';
-import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -91,33 +89,11 @@ export default function AppPreviewTest() {
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    const [networkPanelHidden, setNetworkPanelHidden] = useState(true);
-
-    // Data-lineage ("Inspect data"): click a value to reveal the query behind
-    // it; hover a query row to highlight where it renders.
-    const [lineageEnabled, setLineageEnabled] = useState(false);
-    const [lineageAvailable, setLineageAvailable] = useState(false);
-    const [hoveredQueryUuid, setHoveredQueryUuid] = useState<string | null>(
-        null,
-    );
-    const [focusedQueryUuid, setFocusedQueryUuid] = useState<string | null>(
-        null,
-    );
-
-    // Query tracking from the preview iframe. The panel is opt-in (hidden by
-    // default in preview because most viewers aren't technical), but we wire
-    // up the SDK bridge callback unconditionally so queries that run before
-    // the user opens the panel are still captured. `version` as the reset key
-    // clears stale entries on version navigation — this component re-renders
-    // rather than remounting, so without it a previous version's queries
-    // would survive and corrupt the live capturedQueryCount gate.
-    const { queries, handleQueryEvent, clearQueries, resetQueries } =
-        useTrackedAppQueries(version);
-    const {
-        externalRequests,
-        handleExternalRequestEvent,
-        clearExternalRequests,
-    } = useTrackedExternalRequests();
+    // Panel is opt-in here (most viewers aren't technical), but bridge events
+    // are captured regardless so earlier queries show once it's opened.
+    const identityKey = `${appUuid}:${version}`;
+    const inspector = useAppInspector({ identityKey, defaultHidden: true });
+    const { rolloverLogs } = inspector;
 
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
@@ -128,32 +104,8 @@ export default function AppPreviewTest() {
     const handleRefresh = useCallback(() => {
         setRefreshKey((k) => k + 1);
         setInvalidateCache(true);
-        // resetQueries (not clearQueries): the reload doesn't tear down the
-        // parent-owned fetch/poll, so an in-flight query's late terminal event
-        // would otherwise land as a phantom row.
-        resetQueries();
-        clearExternalRequests();
-    }, [resetQueries, clearExternalRequests]);
-
-    const handleToggleLineage = useCallback(() => {
-        setLineageEnabled((v) => !v);
-        setFocusedQueryUuid(null);
-    }, []);
-    const handleLineageSelected = useCallback(
-        (event: { queryUuid: string }) => {
-            setNetworkPanelHidden(false);
-            // Selection persists (row highlight + in-app element outline);
-            // re-clicking the selected element deselects it.
-            setFocusedQueryUuid((prev) =>
-                prev === event.queryUuid ? null : event.queryUuid,
-            );
-        },
-        [],
-    );
-    const handleLineageCancelled = useCallback(() => {
-        setLineageEnabled(false);
-        setFocusedQueryUuid(null);
-    }, []);
+        rolloverLogs();
+    }, [rolloverLogs]);
 
     const previewOrigin = usePreviewOrigin();
 
@@ -273,38 +225,19 @@ export default function AppPreviewTest() {
                     expectedPreviewOrigin={previewOrigin}
                     projectUuid={projectUuid}
                     appUuid={appUuid}
-                    identityKey={`${appUuid}:${version}`}
+                    identityKey={identityKey}
                     onScreenshotAvailabilityChange={setScreenshotAvailable}
                     invalidateCache={invalidateCache}
-                    onQueryEvent={handleQueryEvent}
-                    onExternalRequestEvent={handleExternalRequestEvent}
                     urlStateSync
                     capabilities={{ gsheetExport: true }}
-                    lineageEnabled={lineageEnabled}
-                    onLineageAvailabilityChange={setLineageAvailable}
-                    onLineageSelected={handleLineageSelected}
-                    lineageHighlightQueryUuid={
-                        // Hover overrides; falls back to the persistent
-                        // click-selection.
-                        hoveredQueryUuid ?? focusedQueryUuid
-                    }
-                    onLineageCancelled={handleLineageCancelled}
+                    {...inspector.iframeProps}
                 />
-                {!networkPanelHidden && !isFullscreen && (
+                {!inspector.hidden && !isFullscreen && (
                     <AppInspectorPanel
-                        queries={queries}
                         projectUuid={projectUuid}
-                        onClearQueries={clearQueries}
-                        externalRequests={externalRequests}
-                        onClearExternalRequests={clearExternalRequests}
                         defaultCollapsed={false}
                         hideWhenEmpty={false}
-                        onDismiss={() => setNetworkPanelHidden(true)}
-                        onHoverQuery={setHoveredQueryUuid}
-                        focusedQueryUuid={focusedQueryUuid}
-                        lineageEnabled={lineageEnabled}
-                        lineageAvailable={lineageAvailable}
-                        onToggleLineage={handleToggleLineage}
+                        {...inspector.panelProps}
                     />
                 )}
             </>
@@ -319,6 +252,12 @@ export default function AppPreviewTest() {
                     : classes.previewContainer
             }
         >
+            {firstPage && (
+                <DataAppAiAgentContextBridge
+                    projectUuid={projectUuid}
+                    appUuid={firstPage.appUuid}
+                />
+            )}
             {!isFullscreen && (
                 <AppHeader
                     projectUuid={projectUuid}
@@ -339,12 +278,7 @@ export default function AppPreviewTest() {
                     }}
                     rightSection={
                         <AppHeaderActions
-                            // Boundary 0: no persist mode here, and
-                            // useTrackedAppQueries(version) resets on switch.
-                            capturedQueryCount={countReadyQueriesSinceBoundary(
-                                queries,
-                                0,
-                            )}
+                            capturedQueryCount={inspector.readyQueryCount}
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (
@@ -390,7 +324,7 @@ export default function AppPreviewTest() {
                                     ? capturePreviewScreenshot
                                     : null
                             }
-                            onViewNetwork={() => setNetworkPanelHidden(false)}
+                            onViewNetwork={inspector.show}
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);
                             }}
@@ -404,6 +338,17 @@ export default function AppPreviewTest() {
                             }
                             shareUrl={window.location.href}
                             navItem={null}
+                            askAiItem={
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    dataAppUuid={appUuid}
+                                    clickedFrom={
+                                        explicitVersion === undefined
+                                            ? 'data_app_header'
+                                            : 'data_app_version_header'
+                                    }
+                                />
+                            }
                         />
                     }
                 />

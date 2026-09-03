@@ -5,6 +5,7 @@ import {
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
     type AiPromptExternalSourceSnapshot,
+    type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -237,6 +238,7 @@ export type DbAiPrompt = {
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
     token_usage: AiPromptTokenUsage | null;
+    response_timing: AiPromptResponseTiming | null;
     execution_mode: 'standard' | 'deep_research' | null;
     needs_user_input: boolean | null;
     needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
@@ -265,6 +267,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'saved_query_uuid'
             | 'model_config'
             | 'token_usage'
+            | 'response_timing'
             | 'execution_mode'
             | 'needs_user_input'
             | 'needs_user_input_metadata'
@@ -466,7 +469,32 @@ export type AiPromptContextEntityType =
     | 'pull_request'
     | 'proposed_change'
     | 'review_finding'
-    | 'preview_environment';
+    | 'preview_environment'
+    | 'data_app_element'
+    | 'data_app_restore'
+    | 'data_app';
+
+// Element reference snapshot stored in runtime_overrides; entity_ref holds the
+// natural key so one prompt can reference several elements of the same app.
+export type AiPromptDataAppElementSnapshot = {
+    appUuid: string;
+    version: number;
+    tag: string;
+    text: string;
+    loc: string;
+};
+
+// Restore snapshot stored in runtime_overrides; entity_uuid holds the app uuid.
+export type AiPromptDataAppRestoreSnapshot = {
+    version: number;
+    restoredFromVersion: number;
+};
+
+// Latest ready version number at attach time; app versions are integers, so
+// pinned_version_uuid stays null.
+export type AiPromptDataAppSnapshot = {
+    version: number | null;
+};
 
 export type DbAiPromptContext = {
     ai_prompt_context_uuid: string;
@@ -484,6 +512,9 @@ export type DbAiPromptContext = {
         | AiChartRuntimeOverrides
         | AiDashboardRuntimeOverrides
         | AiPromptExternalSourceSnapshot
+        | AiPromptDataAppElementSnapshot
+        | AiPromptDataAppRestoreSnapshot
+        | AiPromptDataAppSnapshot
         | null;
     created_at: Date;
 };

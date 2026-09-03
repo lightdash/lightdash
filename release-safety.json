@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.88.0",
-  "previousVersion": "2.87.0",
-  "releaseDate": "2026-09-02T10:42:15.829Z",
+  "version": "2.115.0",
+  "previousVersion": "2.114.1",
+  "releaseDate": "2026-09-03T15:25:28.846Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260903120000_add_response_timing_to_ai_prompt.ts",
+        "edition": "core",
+        "tables": [
+          "ai_prompt"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

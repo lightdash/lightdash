@@ -61,6 +61,7 @@ import {
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
+    IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
     ListExploresFn,
@@ -348,6 +349,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     generateDataApp: GenerateDataAppFn;
+    iterateDataApp: IterateDataAppFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;

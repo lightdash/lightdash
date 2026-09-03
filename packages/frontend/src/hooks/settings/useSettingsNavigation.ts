@@ -33,6 +33,7 @@ import {
     IconReportAnalytics,
     IconRoad,
     IconRobotFace,
+    IconSend,
     IconSettings,
     IconShieldCheck,
     IconTableOptions,
@@ -92,6 +93,7 @@ export const useSettingsNavigation = (
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
     } = context;
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
@@ -339,7 +341,7 @@ export const useSettingsNavigation = (
                 label: 'Integrations',
                 to: '/generalSettings/integrations',
                 icon: IconPlug,
-                keywords: ['slack', 'github', 'gitlab', 'linear'],
+                keywords: ['slack', 'github', 'gitlab', 'linear', 'jira'],
                 children: [],
                 exact: true,
             });
@@ -949,6 +951,31 @@ export const useSettingsNavigation = (
             }
 
             if (
+                isContentReviewAvailable &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectItems.push({
+                    label: 'Review requests',
+                    to: `${base}/reviewRequests`,
+                    icon: IconSend,
+                    keywords: [
+                        'review',
+                        'personal space',
+                        'approve',
+                        'reviewers',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (
                 ability?.can(
                     'promote',
                     subject('SavedChart', {
@@ -1052,6 +1079,7 @@ export const useSettingsNavigation = (
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,
+        isContentReviewAvailable,
         track,
     ]);
 };

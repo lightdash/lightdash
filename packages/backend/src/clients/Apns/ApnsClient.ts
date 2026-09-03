@@ -6,6 +6,7 @@ import http2, {
 import { importPKCS8, SignJWT } from 'jose';
 import { type MobilePushNotificationsConfig } from '../../config/parseConfig';
 import { type MobilePushEnvironment } from '../../ee/database/entities/mobilePushNotifications';
+import { type MobilePushDeliveryResult } from '../MobilePush/mobilePushDelivery';
 
 export type LiveActivityPayload = {
     aps: {
@@ -67,11 +68,7 @@ export type AlertPayload = {
     promptUuid: string;
 };
 
-export type ApnsDeliveryResult =
-    | { status: 'sent' }
-    | { status: 'invalid_token'; reason: string | undefined }
-    | { status: 'retryable'; reason: string | undefined }
-    | { status: 'failed'; reason: string | undefined };
+export type ApnsDeliveryResult = MobilePushDeliveryResult;
 
 type ApnsHttpRequest = {
     origin: string;

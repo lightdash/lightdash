@@ -1,17 +1,22 @@
 import {
+    AiReviewJiraDestination,
+    AiReviewJiraRouting,
     AiReviewLinearDestination,
     AiReviewLinearRouting,
     AiReviewNotificationChannel,
     AiReviewNotificationEvent,
     AiReviewNotificationSettings,
     AiReviewNotificationStatus,
+    resolveAiReviewJiraDestination,
     resolveAiReviewLinearDestination,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
+    AiReviewJiraDestinationTableName,
     AiReviewLinearDestinationTableName,
     AiReviewNotificationLogTableName,
     AiReviewNotificationSettingsTableName,
+    type DbAiReviewJiraDestination,
     type DbAiReviewLinearDestination,
     type DbAiReviewNotificationSettings,
 } from '../database/entities/aiReviewNotifications';
@@ -46,6 +51,9 @@ export class AiAgentReviewNotificationModel {
             linearEnabled: row.linear_enabled,
             linearTeamId: row.linear_team_id,
             linearProjectId: row.linear_project_id,
+            jiraEnabled: row.jira_enabled ?? false,
+            jiraProjectId: row.jira_project_id ?? null,
+            jiraIssueTypeId: row.jira_issue_type_id ?? null,
         };
     }
 
@@ -64,6 +72,9 @@ export class AiAgentReviewNotificationModel {
                 linearEnabled: false,
                 linearTeamId: null,
                 linearProjectId: null,
+                jiraEnabled: false,
+                jiraProjectId: null,
+                jiraIssueTypeId: null,
             };
         }
 
@@ -81,6 +92,9 @@ export class AiAgentReviewNotificationModel {
                 linear_enabled: settings.linearEnabled,
                 linear_team_id: settings.linearTeamId,
                 linear_project_id: settings.linearProjectId,
+                jira_enabled: settings.jiraEnabled,
+                jira_project_id: settings.jiraProjectId,
+                jira_issue_type_id: settings.jiraIssueTypeId,
                 updated_at: new Date(),
             })
             .onConflict('organization_uuid')
@@ -90,6 +104,9 @@ export class AiAgentReviewNotificationModel {
                 linear_enabled: settings.linearEnabled,
                 linear_team_id: settings.linearTeamId,
                 linear_project_id: settings.linearProjectId,
+                jira_enabled: settings.jiraEnabled,
+                jira_project_id: settings.jiraProjectId,
+                jira_issue_type_id: settings.jiraIssueTypeId,
                 updated_at: new Date(),
             })
             .returning('*');
@@ -191,6 +208,9 @@ export class AiAgentReviewNotificationModel {
                   linearEnabled: false,
                   linearTeamId: null,
                   linearProjectId: null,
+                  jiraEnabled: false,
+                  jiraProjectId: null,
+                  jiraIssueTypeId: null,
               };
         const destinations = await this.listLinearDestinations(
             organizationUuid,
@@ -362,6 +382,252 @@ export class AiAgentReviewNotificationModel {
                 linear_apply_to_all_projects: false,
                 updated_at: new Date(),
             });
+    }
+
+    private static mapJiraDestination(
+        row: DbAiReviewJiraDestination,
+    ): AiReviewJiraDestination {
+        return {
+            organizationUuid: row.organization_uuid,
+            projectUuid: row.project_uuid,
+            enabled: row.enabled,
+            jiraProjectId: row.jira_project_id,
+            jiraIssueTypeId: row.jira_issue_type_id,
+        };
+    }
+
+    async listJiraDestinations(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<AiReviewJiraDestination[]> {
+        const rows = await database(AiReviewJiraDestinationTableName).where({
+            organization_uuid: organizationUuid,
+        });
+        return rows.map(AiAgentReviewNotificationModel.mapJiraDestination);
+    }
+
+    async getJiraDestination(
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<AiReviewJiraDestination> {
+        const settingsRow = await this.getSettingsRow(organizationUuid);
+        const settings = settingsRow
+            ? AiAgentReviewNotificationModel.mapSettings(settingsRow)
+            : await this.getSettings(organizationUuid);
+        const destinationRow = await this.database(
+            AiReviewJiraDestinationTableName,
+        )
+            .where({
+                organization_uuid: organizationUuid,
+                project_uuid: projectUuid,
+            })
+            .first();
+        let hasProjectDestinations = !!destinationRow;
+        if (
+            !(settingsRow?.jira_apply_to_all_projects ?? false) &&
+            !destinationRow
+        ) {
+            hasProjectDestinations = !!(await this.database(
+                AiReviewJiraDestinationTableName,
+            )
+                .where({ organization_uuid: organizationUuid })
+                .first());
+        }
+        return resolveAiReviewJiraDestination({
+            organizationUuid,
+            projectUuid,
+            applyToAllProjects:
+                settingsRow?.jira_apply_to_all_projects ?? false,
+            settings,
+            destination: destinationRow
+                ? AiAgentReviewNotificationModel.mapJiraDestination(
+                      destinationRow,
+                  )
+                : null,
+            hasProjectDestinations,
+        });
+    }
+
+    async getJiraRouting(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<AiReviewJiraRouting> {
+        const settingsRow = await this.getSettingsRow(
+            organizationUuid,
+            database,
+        );
+        const settings = settingsRow
+            ? AiAgentReviewNotificationModel.mapSettings(settingsRow)
+            : await this.getSettings(organizationUuid);
+        const destinations = await this.listJiraDestinations(
+            organizationUuid,
+            database,
+        );
+        const applyToAllProjects =
+            settingsRow?.jira_apply_to_all_projects ?? false;
+
+        if (applyToAllProjects) {
+            return {
+                organizationUuid,
+                applyToAllProjects: true,
+                projectUuids: [],
+                enabled: settings.jiraEnabled,
+                jiraProjectId: settings.jiraProjectId,
+                jiraIssueTypeId: settings.jiraIssueTypeId,
+            };
+        }
+        if (destinations.length > 0) {
+            const enabled = destinations.filter(
+                (destination) => destination.enabled,
+            );
+            const first = enabled[0] ?? destinations[0];
+            return {
+                organizationUuid,
+                applyToAllProjects: false,
+                projectUuids: (enabled.length > 0 ? enabled : destinations).map(
+                    (destination) => destination.projectUuid,
+                ),
+                enabled: enabled.length > 0,
+                jiraProjectId: first.jiraProjectId,
+                jiraIssueTypeId: first.jiraIssueTypeId,
+            };
+        }
+        if (settings.jiraProjectId) {
+            return {
+                organizationUuid,
+                applyToAllProjects: true,
+                projectUuids: [],
+                enabled: settings.jiraEnabled,
+                jiraProjectId: settings.jiraProjectId,
+                jiraIssueTypeId: settings.jiraIssueTypeId,
+            };
+        }
+        return {
+            organizationUuid,
+            applyToAllProjects: true,
+            projectUuids: [],
+            enabled: false,
+            jiraProjectId: null,
+            jiraIssueTypeId: null,
+        };
+    }
+
+    async upsertJiraDestination(
+        destination: AiReviewJiraDestination,
+    ): Promise<AiReviewJiraDestination> {
+        const [row] = await this.database(AiReviewJiraDestinationTableName)
+            .insert({
+                organization_uuid: destination.organizationUuid,
+                project_uuid: destination.projectUuid,
+                enabled: destination.enabled,
+                jira_project_id: destination.jiraProjectId,
+                jira_issue_type_id: destination.jiraIssueTypeId,
+                updated_at: new Date(),
+            })
+            .onConflict('project_uuid')
+            .merge({
+                enabled: destination.enabled,
+                jira_project_id: destination.jiraProjectId,
+                jira_issue_type_id: destination.jiraIssueTypeId,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        await this.database(AiReviewNotificationSettingsTableName)
+            .where({ organization_uuid: destination.organizationUuid })
+            .update({
+                jira_apply_to_all_projects: false,
+                updated_at: new Date(),
+            });
+        return AiAgentReviewNotificationModel.mapJiraDestination(row);
+    }
+
+    async upsertJiraRouting(
+        routing: AiReviewJiraRouting,
+    ): Promise<AiReviewJiraRouting> {
+        return this.database.transaction(async (trx) => {
+            const current = await this.getSettingsRow(
+                routing.organizationUuid,
+                trx,
+            );
+            await trx(AiReviewNotificationSettingsTableName)
+                .insert({
+                    organization_uuid: routing.organizationUuid,
+                    enabled: current?.enabled ?? false,
+                    slack_channel_id: current?.slack_channel_id ?? null,
+                    linear_enabled: current?.linear_enabled ?? false,
+                    linear_team_id: current?.linear_team_id ?? null,
+                    linear_project_id: current?.linear_project_id ?? null,
+                    linear_apply_to_all_projects:
+                        current?.linear_apply_to_all_projects ?? false,
+                    jira_enabled: routing.enabled,
+                    jira_project_id: routing.jiraProjectId,
+                    jira_issue_type_id: routing.jiraIssueTypeId,
+                    jira_apply_to_all_projects: routing.applyToAllProjects,
+                    updated_at: new Date(),
+                })
+                .onConflict('organization_uuid')
+                .merge({
+                    jira_enabled: routing.enabled,
+                    jira_project_id: routing.jiraProjectId,
+                    jira_issue_type_id: routing.jiraIssueTypeId,
+                    jira_apply_to_all_projects: routing.applyToAllProjects,
+                    updated_at: new Date(),
+                });
+
+            if (
+                routing.applyToAllProjects ||
+                routing.projectUuids.length === 0
+            ) {
+                await trx(AiReviewJiraDestinationTableName)
+                    .where({ organization_uuid: routing.organizationUuid })
+                    .delete();
+            } else {
+                await trx(AiReviewJiraDestinationTableName)
+                    .where({ organization_uuid: routing.organizationUuid })
+                    .whereNotIn('project_uuid', routing.projectUuids)
+                    .delete();
+                const now = new Date();
+                await trx(AiReviewJiraDestinationTableName)
+                    .insert(
+                        routing.projectUuids.map((projectUuid) => ({
+                            organization_uuid: routing.organizationUuid,
+                            project_uuid: projectUuid,
+                            enabled: routing.enabled,
+                            jira_project_id: routing.jiraProjectId,
+                            jira_issue_type_id: routing.jiraIssueTypeId,
+                            updated_at: now,
+                        })),
+                    )
+                    .onConflict('project_uuid')
+                    .merge({
+                        enabled: routing.enabled,
+                        jira_project_id: routing.jiraProjectId,
+                        jira_issue_type_id: routing.jiraIssueTypeId,
+                        updated_at: now,
+                    });
+            }
+            return this.getJiraRouting(routing.organizationUuid, trx);
+        });
+    }
+
+    async clearJiraDestinations(
+        organizationUuid: string,
+        database: Knex = this.database,
+    ): Promise<void> {
+        await database.transaction(async (trx) => {
+            await trx(AiReviewJiraDestinationTableName)
+                .where({ organization_uuid: organizationUuid })
+                .delete();
+            await trx(AiReviewNotificationSettingsTableName)
+                .where({ organization_uuid: organizationUuid })
+                .update({
+                    jira_enabled: false,
+                    jira_project_id: null,
+                    jira_issue_type_id: null,
+                    jira_apply_to_all_projects: false,
+                    updated_at: new Date(),
+                });
+        });
     }
 
     async recordSent(args: LogArgs): Promise<string> {

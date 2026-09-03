@@ -79,7 +79,10 @@ const buildService = (
             }),
         },
         appModel: {
-            findAppByUuid: vi.fn().mockResolvedValue({ name: 'Revenue app' }),
+            findAppByUuid: vi.fn().mockResolvedValue({
+                name: 'Revenue app',
+                slug: 'revenue-app',
+            }),
             getVersion: vi.fn().mockResolvedValue({
                 error: null,
                 status_message: null,
@@ -129,8 +132,33 @@ describe('AiAgentService.recordDataAppBuildOutcome', () => {
                     appUuid: 'app-1',
                     version: 1,
                     name: 'Revenue app',
+                    slug: 'revenue-app',
                     href: 'https://ld.example.com/projects/proj-1/apps/app-1',
                 },
+            }),
+        );
+    });
+
+    it('announces a later version by number in the Slack thread', async () => {
+        const { service, postMessage } = buildService(
+            { status: 'ready' },
+            { isSlack: true },
+        );
+
+        await service.recordDataAppBuildOutcome({ ...PAYLOAD, version: 2 });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                blocks: expect.arrayContaining([
+                    expect.objectContaining({
+                        text: expect.stringContaining(
+                            'Version 2 of **Revenue app** is ready.',
+                        ),
+                    }),
+                ]),
+                text: expect.stringContaining(
+                    'Version 2 of "Revenue app" is ready',
+                ),
             }),
         );
     });

@@ -115,6 +115,7 @@ const makeService = ({
     contentService = {},
     searchService = {},
     appGenerateService = {},
+    appModel = {},
     savedChartModel = {},
     dashboardModel = {},
 }: {
@@ -141,6 +142,7 @@ const makeService = ({
     contentService?: Record<string, unknown>;
     searchService?: Record<string, unknown>;
     appGenerateService?: Record<string, unknown>;
+    appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
@@ -213,6 +215,7 @@ const makeService = ({
         asyncQueryService,
         querySourceService,
         appGenerateService,
+        appModel,
         savedChartModel,
         dashboardModel,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
@@ -2118,6 +2121,9 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             queries: composerQueries,
             context: QueryExecutionContext.AI,
+            parameters: {},
+            userAttributeOverrides: {},
+            invalidateCache: false,
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
@@ -2129,6 +2135,34 @@ describe('AiAgentToolsService runComposerQueries', () => {
             rows: [{ orders_total: 42 }],
             rowCount: 1,
         });
+    });
+
+    it('carries the runtime user attribute overrides into the pipeline', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
+        const service = makeService({
+            querySourceService: { executeSourceQueries },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await service
+            .createRuntime(
+                makeRuntimeContext({
+                    userAttributeOverrides: { tenant: ['acme'] },
+                }),
+            )
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(executeSourceQueries).toHaveBeenCalledWith(
+            expect.objectContaining({
+                userAttributeOverrides: { tenant: ['acme'] },
+            }),
+        );
     });
 
     it('emits per-node status transitions while the pipeline executes', async () => {
@@ -3120,5 +3154,194 @@ describe('AiAgentToolsService generateDataApp', () => {
             ),
         ).rejects.toThrow('Chart "no-such-chart" was not found');
         expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService iterateDataApp', () => {
+    const makeAppGenerateService = () => ({
+        iterateApp: vi
+            .fn()
+            .mockResolvedValue({ appUuid: 'app-uuid', version: 2 }),
+    });
+
+    const makeAppModel = ({
+        spaceUuid = null,
+    }: { spaceUuid?: string | null } = {}) => ({
+        findAppBySlug: vi.fn().mockResolvedValue({
+            app_id: 'app-uuid',
+            slug: 'revenue-app',
+            space_uuid: spaceUuid,
+        }),
+    });
+
+    const savedChartService = {
+        get: vi.fn().mockResolvedValue({
+            uuid: 'chart-uuid',
+            spaceUuid: 'sales-space-uuid',
+        }),
+    };
+
+    const runIterate = (
+        service: AiAgentToolsService,
+        context: AiAgentToolsRuntimeContext & { source: 'ai_agent' },
+        args: Partial<
+            Parameters<
+                ReturnType<typeof service.createRuntime>['iterateDataApp']
+            >[0]
+        > = {},
+    ) =>
+        service.createRuntime(context).iterateDataApp({
+            appSlug: 'revenue-app',
+            prompt: 'Add an order status filter',
+            dashboardSlug: null,
+            chartSlugs: null,
+            toolCallId: 'tool-call-1',
+            ...args,
+        });
+
+    it('starts an ai_agent build on the resolved app linked to the tool call', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const appModel = makeAppModel();
+        const service = makeService({ appGenerateService, appModel });
+
+        const result = await runIterate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+        );
+
+        expect(result).toEqual({ appUuid: 'app-uuid', version: 2 });
+        expect(appModel.findAppBySlug).toHaveBeenCalledWith(
+            projectUuid,
+            'revenue-app',
+        );
+        const [
+            calledUser,
+            calledProject,
+            appUuid,
+            prompt,
+            fileIds,
+            ,
+            ,
+            ,
+            opts,
+        ] = appGenerateService.iterateApp.mock.calls[0];
+        expect(calledUser).toBe(user);
+        expect(calledProject).toBe(projectUuid);
+        expect(appUuid).toBe('app-uuid');
+        expect(prompt).toBe('Add an order status filter');
+        expect(fileIds).toEqual([]);
+        expect(opts).toEqual({
+            creationExperience: 'ai_agent',
+            aiAgentToolCall: {
+                promptUuid: 'prompt-uuid',
+                toolCallId: 'tool-call-1',
+            },
+        });
+    });
+
+    it('reads an unknown slug as not found and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: { findAppBySlug: vi.fn().mockResolvedValue(undefined) },
+        });
+
+        await expect(
+            runIterate(
+                service,
+                makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                { appSlug: 'no-such-app' },
+            ),
+        ).rejects.toThrow('Data app "no-such-app" was not found');
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('hides a personal app from a space-scoped agent', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({ spaceUuid: null }),
+        });
+
+        await expect(
+            runIterate(
+                service,
+                makeRuntimeContext({
+                    promptUuid: 'prompt-uuid',
+                    spaceAccess: ['sales-space-uuid'],
+                }),
+            ),
+        ).rejects.toThrow('Data app "revenue-app" was not found');
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('hides an app outside the scoped agent spaces', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({ spaceUuid: 'finance-space-uuid' }),
+        });
+
+        await expect(
+            runIterate(
+                service,
+                makeRuntimeContext({
+                    promptUuid: 'prompt-uuid',
+                    spaceAccess: ['sales-space-uuid'],
+                }),
+            ),
+        ).rejects.toThrow('Data app "revenue-app" was not found');
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('iterates on an app inside the scoped agent spaces', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({ spaceUuid: 'sales-space-uuid' }),
+        });
+
+        await runIterate(
+            service,
+            makeRuntimeContext({
+                promptUuid: 'prompt-uuid',
+                spaceAccess: ['sales-space-uuid'],
+            }),
+        );
+
+        expect(appGenerateService.iterateApp).toHaveBeenCalledTimes(1);
+    });
+
+    it('resolves chart slugs to references like the create tool', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel(),
+            savedChartService,
+        });
+
+        await runIterate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            { chartSlugs: ['revenue'] },
+        );
+
+        const [, , , , , charts] = appGenerateService.iterateApp.mock.calls[0];
+        expect(charts).toEqual([
+            { uuid: 'chart-uuid', includeSampleData: true, linkLive: true },
+        ]);
+    });
+
+    it('requires a prompt to link the build to', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel(),
+        });
+
+        await expect(runIterate(service, makeRuntimeContext())).rejects.toThrow(
+            'iterateDataApp requires a prompt',
+        );
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
     });
 });

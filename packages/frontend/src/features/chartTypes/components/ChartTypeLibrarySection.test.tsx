@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
+import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import ChartTypeLibrarySection from './ChartTypeLibrarySection';
 
@@ -18,6 +20,14 @@ vi.mock('../hooks/useRegistryChartTypes', () => ({
     useRegistryChartTypes: vi.fn(),
 }));
 
+vi.mock('../../apps/hooks/useCanEditDataApp', () => ({
+    useCanEditDataApp: vi.fn(),
+}));
+
+vi.mock('../../apps/hooks/useDeleteApp', () => ({
+    useDeleteApp: vi.fn(),
+}));
+
 // Matches AppProviderMock's default user fixture (mockUserResponse) —
 // hardcoded rather than imported to avoid pulling in a __mocks__ file.
 const DEFAULT_ORG_UUID = '172a2270-000f-42be-9c68-c4752c23ae51';
@@ -25,6 +35,9 @@ const PROJECT_UUID = 'project-1';
 
 const mockedUseServerFeatureFlag = vi.mocked(useServerFeatureFlag);
 const mockedUseRegistryChartTypes = vi.mocked(useRegistryChartTypes);
+const mockedUseCanEditDataApp = vi.mocked(useCanEditDataApp);
+const mockedUseDeleteApp = vi.mocked(useDeleteApp);
+const mockedDeleteAppMutateAsync = vi.fn();
 
 const setFlag = (enabled: boolean, isLoading = false) => {
     mockedUseServerFeatureFlag.mockReturnValue({
@@ -62,6 +75,7 @@ const makeItem = (
     state: 'not_installed',
     installedAppUuid: null,
     installedRegistryVersion: null,
+    installedCreatedByUserUuid: null,
     ...overrides,
 });
 
@@ -84,6 +98,12 @@ describe('ChartTypeLibrarySection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         defaultAbility.update([]);
+        mockedUseCanEditDataApp.mockReturnValue(false);
+        mockedDeleteAppMutateAsync.mockResolvedValue(undefined);
+        mockedUseDeleteApp.mockReturnValue({
+            mutateAsync: mockedDeleteAppMutateAsync,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useDeleteApp>);
     });
 
     afterEach(() => {
@@ -285,5 +305,135 @@ describe('ChartTypeLibrarySection', () => {
         expect(
             await screen.findByRole('button', { name: 'View in gallery' }),
         ).toBeInTheDocument();
+    });
+
+    it('shows Uninstall for the installed state when the user can manage the app', async () => {
+        mockedUseCanEditDataApp.mockReturnValue(true);
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            await screen.findByRole('button', { name: 'Uninstall' }),
+        ).toBeInTheDocument();
+    });
+
+    it('hides Uninstall for the installed state without manage permission', async () => {
+        mockedUseCanEditDataApp.mockReturnValue(false);
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            await screen.findByRole('button', { name: 'View in gallery' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Uninstall' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows Uninstall alongside Upgrade for the update_available state', async () => {
+        mockedUseCanEditDataApp.mockReturnValue(true);
+        defaultAbility.update([
+            {
+                action: 'create',
+                subject: 'DataApp',
+                conditions: {
+                    organizationUuid: DEFAULT_ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                },
+            },
+        ]);
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'update_available',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '0.9.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            await screen.findByRole('button', { name: /Upgrade to v/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Uninstall' }),
+        ).toBeInTheDocument();
+    });
+
+    it('confirms the uninstall modal and deletes the installed app', async () => {
+        mockedUseCanEditDataApp.mockReturnValue(true);
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Uninstall' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Uninstall chart type' }),
+        );
+
+        expect(mockedDeleteAppMutateAsync).toHaveBeenCalledWith({
+            projectUuid: PROJECT_UUID,
+            appUuid: 'app-1',
+            successTitle: 'Chart type uninstalled',
+        });
+    });
+
+    // useCanEditDataApp is mocked wholesale in this file (see the module mock
+    // above), so the CASL self-rule itself isn't exercised here — this pins
+    // that the real installing user is threaded through instead of a
+    // hardcoded null, which is what the self-rule needs to key off of.
+    it('threads the installed app creator through to the manage-permission check', async () => {
+        setFlag(true);
+        setRegistryData([
+            makeItem({
+                slug: 'radial-gauge',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+                installedCreatedByUserUuid: 'installer-user-uuid',
+            }),
+        ]);
+        renderSection();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        await screen.findByRole('button', { name: 'View in gallery' });
+        expect(mockedUseCanEditDataApp).toHaveBeenCalledWith(PROJECT_UUID, {
+            spaceUuid: null,
+            createdByUserUuid: 'installer-user-uuid',
+        });
     });
 });

@@ -1550,6 +1550,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 <EditChartMenuItem
                                                     tile={props.tile}
                                                     chartSlug={chart.slug}
+                                                    chart={chart}
                                                     disabled={
                                                         isEditMode ||
                                                         !userCanManageChart

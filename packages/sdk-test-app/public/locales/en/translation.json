@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "Metric Type"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Jaffle dashboard",
@@ -79,7 +84,16 @@
                     }
                 }
             ]
+        },
+        "repro-prod-10299": {
+            "tabs": [
+                { "name": "Tab One" },
+                { "name": "Tab Two" },
+                { "name": "Tab Three" }
+            ]
         }
     },
-    "uiOverrides": {}
+    "uiOverrides": {
+        "parameters.is": "is"
+    }
 }

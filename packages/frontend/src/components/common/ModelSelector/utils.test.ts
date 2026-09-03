@@ -1,5 +1,9 @@
 import type { AiModelOption } from '@lightdash/common';
-import { filterDeprecatedModelsForPicker, matchesModelConfig } from './utils';
+import {
+    filterDeprecatedModelsForPicker,
+    getModelGroupLabel,
+    matchesModelConfig,
+} from './utils';
 
 const model = (name: string, deprecated = false): AiModelOption => ({
     name,
@@ -40,5 +44,17 @@ describe('matchesModelConfig', () => {
                 modelProvider: 'openai',
             }),
         ).toBe(true);
+    });
+});
+
+describe('getModelGroupLabel', () => {
+    it('uses a model-specific group label when provided', () => {
+        expect(
+            getModelGroupLabel({ ...current, groupLabel: 'Moonshot AI' }),
+        ).toBe('Moonshot AI');
+    });
+
+    it('falls back to a human-readable provider label', () => {
+        expect(getModelGroupLabel(current)).toBe('OpenAI');
     });
 });

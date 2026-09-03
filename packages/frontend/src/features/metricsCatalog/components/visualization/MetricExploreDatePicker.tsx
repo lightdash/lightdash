@@ -242,21 +242,18 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     {...calendarConfig.props}
                                     mih={180}
                                     w="100%"
-                                    color="dark"
                                     size="xs"
                                 />
                             ) : calendarConfig?.type === TimeFrames.MONTH ? (
                                 <MonthRangePicker
                                     {...calendarConfig.props}
                                     mih={180}
-                                    color="dark"
                                     size="xs"
                                 />
                             ) : calendarConfig ? (
                                 <CalendarRangePicker
                                     {...calendarConfig.props}
                                     mih={225}
-                                    color="dark"
                                     size="xs"
                                     withCellSpacing={false}
                                 />

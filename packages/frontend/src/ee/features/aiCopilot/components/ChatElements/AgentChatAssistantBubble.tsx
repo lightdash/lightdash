@@ -1,10 +1,11 @@
 import {
     type AiAgentMessageAssistant,
+    type AiAgentMessageUser,
     type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
-    isToolGenerateDataAppResult,
+    isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
@@ -67,6 +68,8 @@ import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
+import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
+import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -77,6 +80,7 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
@@ -556,10 +560,11 @@ const AssistantBubbleContent: FC<{
     const generateDataAppMetadata:
         | ToolGenerateDataAppOutput['metadata']
         | null = (() => {
-        const persisted = message.toolResults.find(isToolGenerateDataAppResult);
+        const persisted = message.toolResults.find(isToolDataAppBuildResult);
         if (persisted) return persisted.metadata;
         const liveOutput = findLiveToolPart(streamingState?.parts, [
             'generateDataApp',
+            'iterateDataApp',
         ])?.toolResult as ToolGenerateDataAppOutput | undefined;
         return liveOutput?.metadata ?? null;
     })();
@@ -957,6 +962,8 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
+    /** The hidden user turn this reply answers, if any (same prompt uuid). */
+    hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
@@ -972,6 +979,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        hiddenSibling,
         isLastMessage,
         isActive = false,
         debug = false,
@@ -1060,6 +1068,23 @@ export const AssistantBubble: FC<Props> = memo(
         const isArtifactAvailable = !!(
             message.artifacts && message.artifacts.length > 0
         );
+
+        // A restore turn is deterministic (no LLM): the card is the whole
+        // reply, its message included, so nothing else renders for it.
+        const restoreItem = getDataAppRestoreItem(hiddenSibling);
+        if (restoreItem) {
+            return (
+                <AiDataAppRestoreCard
+                    item={restoreItem}
+                    completionMessage={message.message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
+                />
+            );
+        }
 
         return (
             <Stack
@@ -1294,6 +1319,9 @@ export const AssistantBubble: FC<Props> = memo(
                             agentUuid={agentUuid}
                             modelConfig={message.modelConfig}
                             totalTokens={message.tokenUsage?.totalTokens}
+                        />
+                        <MessageTimingIndicator
+                            responseTiming={message.responseTiming}
                         />
                     </Group>
                 )}

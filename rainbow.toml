@@ -1,160 +1,126 @@
-# rainbow.toml — Lightdash preview environments (Rainbow Machine).
-#
-# This file is the recipe Rainbow Machine adopts to serve per-PR preview
-# environments for this repo: the mothership assigns the repo to a host, the
-# daemon reads this file from the default branch, builds a warm parent, and
-# forks a live URL for every pull request. Absolute paths point at the host's
-# Rainbow Machine install, not at anything in this repo.
-#
-# Facts baked into the base image: S3/MinIO is mandatory for the backend; the
-# seed runs EE migrations once with a dummy LIGHTDASH_LICENSE_KEY; project
-# compile shells out to a versioned dbt binary (per the official image's
-# /usr/local/dbt<ver> venvs).
+# rainbow.toml — how Lightdash runs on Rainbow.
+# This file describes the app only (system-description/repo-config.md §4). The
+# kernel, network, guest access, paint/warm harnesses and per-env origin and
+# secret values are the platform's, not this file's.
 
-repo = "lightdash/lightdash"
+# One process: `pnpm dev` runs the common and warehouses tsc watchers, the
+# backend (tsx watch, :8080) and the Vite frontend (:3000, which proxies /api
+# to :8080). The browser hits 3000.
+[[app.service]]
+name = "dev"
+command = "pnpm dev"
+ports = [8080, 3000]
+serve_port = 3000
 
-[image]
-kernel = "/root/rainbow-test/vmlinux-6.1.155"
-rootfs = "/srv/rainbow/images/lightdash-base.ext4"
+[resources]
+cpu = 8
+memory = "8gb"
+max_memory = "16gb"                # headroom the migrate rung and the pnpm install borrow
 
-[vm]
-vcpus = 8
-mem_mib = 8192
-guest_ip = "172.16.0.2"
-host_ip = "172.16.0.1"
-cidr_bits = 24
-guest_mac = "AA:FC:00:00:00:01"
+# node comes from .nvmrc and pnpm from package.json's packageManager. The first
+# build step bakes formula/common/warehouses dist into the image so the backend
+# and the migrate rung can import them; from then on the `pnpm dev` watchers
+# keep common and warehouses current (no common-build rung below; formula has
+# no watcher, so it is a run rung). The second is the dbt venv the seed's
+# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+[runtime]
+system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
+build = [
+  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+]
 
+[datastores]
+postgres = true
+minio = true                       # the backend requires S3-compatible storage at boot
+mailpit = true                     # catches the mail the backend sends
+
+# The app's own names for the platform's datastores (localhost, fixed dev
+# credentials), plus its non-secret dev settings.
+[env]
+PORT = "8080"
+NODE_ENV = "development"
+LIGHTDASH_MODE = "development"
+LIGHTDASH_LOG_LEVEL = "info"
+SECURE_COOKIES = "false"
+TRUST_PROXY = "false"
+SCHEDULER_ENABLED = "false"
+ALLOW_MULTIPLE_ORGS = "false"
+HEADLESS = "true"
+CI = "true"
+PGHOST = "localhost"
+PGPORT = "5432"
+PGUSER = "postgres"
+PGDATABASE = "postgres"
+DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
+DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
+S3_ENDPOINT = "http://localhost:9000"
+S3_PUBLIC_ENDPOINT = "http://localhost:9000"
+S3_REGION = "us-east-1"
+S3_BUCKET = "default"
+S3_ACCESS_KEY = "minioadmin"
+S3_SECRET_KEY = "minioadmin"
+S3_FORCE_PATH_STYLE = "true"
+APPS_S3_BUCKET = "lightdash-apps"
+EMAIL_SMTP_HOST = "localhost"
+EMAIL_SMTP_PORT = "1025"
+EMAIL_SMTP_SECURE = "false"
+EMAIL_SMTP_USE_AUTH = "false"
+EMAIL_SMTP_ALLOW_INVALID_CERT = "true"
+EMAIL_SMTP_SENDER_NAME = "Lightdash"
+EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
+# Previews exercise unreleased work: enable the curated preview flag set and the
+# flag-management API (docs/preview-feature-flags.md). Okteto got this from
+# LIGHTDASH_MODE=pr; LIGHTDASH_MODE=development here, so set it outright.
+LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
+
+[seed]
+run = "pnpm -F backend seed"       # the migrate rung has already run by now
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
+
+# Readiness, in the app's own frame. http polls during boot; paints drives
+# headless Chrome at the snapshot gate and records first_paint_ms.
 [ready]
-timeout_sec = 900
-
-[[ready.http]]
-url = "http://172.16.0.2:8080/api/v1/health"
-
-[[ready.http]]
-url = "http://172.16.0.2:3000/"
+http = "http://localhost:8080/api/v1/health"
+paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
 
 [warm]
-base = "http://172.16.0.2:3000"
-routes = ["/", "/login", "/api/v1/health", "/api/v1/livez"]
-# Crawl Vite's module graph so no fork pays lazy transforms (~3,900 modules;
-# skipping this hands every fork seconds of compiles). The crawl doubles as a
-# transform oracle: any module answering 5xx fails the parent build (a missing
-# generated file surfaces here, not in a browser).
-exec = ["python3", "/root/rainbowmachines/recipes/warm_vite.py"]
-settle_sec = 3
+routes = ["/", "/login"]
 
-# Post-warm oracle: checks that gate the snapshot. first-paint drives a real
-# headless browser at the login page and records how long a human waits for the
-# app to mount — the budget catches a parent that snapshotted slow (e.g. an
-# unwarmed module graph adds seconds to every fork). Baseline ~1.7s at zero RTT.
-[[oracle.check]]
-name = "first-paint"
-exec = ["python3", "/root/rainbowmachines/oracle/paint.py", "--path", "/login", "--selector", "#root > *", "--budget-ms", "10000"]
-timeout_sec = 120
-
-[serve]
-port = 3000
-path = "/"
-
-[guest]
-ssh_user = "root"
-ssh_key = "/root/rainbow-test/id_ed25519"
-app_dir = "/usr/app"
-
-[services]
-lightdash = "/var/log/lightdash.log"
-
-# Declared secrets — names and kinds only, never values. The base image carries
-# stub values; the control plane injects stored real values over vsock after
-# every fork. With nothing stored, injection is skipped and previews run on
-# stubs (the default posture for Lightdash previews).
-[[secrets]]
-name = "LIGHTDASH_SECRET"
-kind = "app-secret"
-stub = true
-
-[[secrets]]
-name = "PGPASSWORD"
-kind = "postgres-password"
-stub = true
-
-# Parent builder: how to bring the image from one SHA to the next. Tier
-# commands run in a chroot of the image with env_file sourced and Postgres up,
-# from the guest app dir, and only when the git diff touches their globs — a
-# source-only merge runs none of them.
-#
-# [build].src is intentionally omitted: on adoption the daemon fills it with its
-# own clone of this repo, so the recipe is not tied to any one host's checkout
-# path.
-[build]
-agent_binary = "/root/rainbowmachines/bin/rainbow-agent"
-env_file = "/etc/lightdash.env"
-
-# The cache-tier ladder, deepest first: each tier owns a set of files and states
-# how a change to them reaches a running env. A change is claimed by the first
-# tier it matches; the deepest busted tier decides fork catch-up (hot vs
-# rebuild) and parent advance (coast vs invest).
+# The cache-tier ladder (cache-tiers.md), deepest first; first match wins.
+[[tier]]
+preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
 
 [[tier]]
-name = "deps"
-# Lockfile only — deliberately NOT "**/package.json". Measured on main
-# (Jul–Aug 2026): 31% of merges touch a package.json, but nearly all are version
-# bumps riding in each squash merge; only ~1.4/day change pnpm-lock.yaml. Any
-# dependency change that matters to --frozen-lockfile changes the lockfile by
-# definition, so the package.json globs only forced needless ~54s branch-parent
-# rebuilds (killing live envs) whenever an update or rebase crossed a bump.
-files = ["pnpm-lock.yaml", ".npmrc"]
-apply = "rebuild"                       # can't hot-apply a node_modules change
-run   = "pnpm install --frozen-lockfile"
+name = "formula-build"
+files = ["packages/formula/**"]
+run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
 
 [[tier]]
-name = "packages"
-files = ["packages/common/**", "packages/warehouses/**"]
-apply = "run"
-run   = "pnpm common-build && pnpm warehouses-build"
-# Hot-applyable but measured at 12.2s per fork — invest-worthy despite never
-# forcing a rebuild.
-eager = true
-
-[[tier]]
-name = "migrations"
+name = "migrate"
 files = ["packages/backend/src/database/migrations/**"]
-apply = "run"
-# Runs only the new migrations against the already-seeded database — knex tracks
-# applied ones; the fork is never re-seeded. EE migrations need a license key
-# present to apply; a dummy value creates the schema without enabling anything.
-run   = "pnpm -F backend migrate"
-env   = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+run = "pnpm -F backend migrate"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
+memory = "12gb"
 
-# Probed during the gate test: writing a source file triggers the in-process
-# watchers (Vite HMR / tsx watch) — no restart needed, so the catch-all is a
-# watch tier with no command.
 [[tier]]
-name = "source"
-files = ["**"]
-apply = "watch"
+name = "app"
+watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
 
-# Public origin. The parent snapshots warm, before any env exists to be named,
-# so the backend boots believing SITE_URL is http://localhost:3000 — which is
-# what a preview would otherwise tell the browser about itself.
-#
-# The browser learns the origin from one field of one response: parseConfig
-# freezes process.env.SITE_URL into lightdashConfig at startup, HealthService
-# returns it as `siteUrl`, and the frontend reads health.data.siteUrl at runtime
-# (never a build-time constant). So the ingress corrects it in flight and forks
-# stay at ~190ms.
-#
-# vars/restart is the truthful fallback for the rest — scheduler delivery links,
-# Slack unfurls, OAuth callbacks, CSV links — none of which a preview exercises.
+# The browser learns its origin from one field of one response, so the ingress
+# corrects it in flight; nothing is re-execed on fork.
 [origin]
 vars = ["SITE_URL"]
-restart = "systemctl restart lightdash"
+patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
-# The payload is wrapped — {"status": ..., "results": {...}} — so the field the
-# frontend reads is results.siteUrl, not a top-level one. The patch refuses to
-# create fields, so a wrong path here is a visible no-op rather than a response
-# that looks corrected while the real value stays stale.
-[[origin.patch]]
-path = "/api/v1/health"
-json_field = "results.siteUrl"
+# Names, not values: the platform holds what they resolve to, and every
+# environment of this repo has them from the moment it boots. A name with no
+# stored value is simply absent (a kind the platform knows gets a placeholder
+# so the app can boot with nothing set). The licence pair is the offline
+# (ed25519-signed) form, so it verifies locally without reaching
+# api.keygen.sh; until both are stored, previews run Community Edition.
+[secrets]
+LIGHTDASH_SECRET = "app-secret"
+PGPASSWORD = "postgres-password"
+LIGHTDASH_LICENSE_KEY = "licence"
+LIGHTDASH_LICENSE_CERTIFICATE = "licence"

@@ -36,14 +36,14 @@ import {
 import {
     matchesPreset,
     type ModelPreset,
-    type ModelPresetProvider,
+    type SelectableModelProvider,
 } from './ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
 
-type AvailableModelPreset = ModelPreset<ModelPresetProvider>;
+type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
 /**
  * Whether a stored model config still resolves to one of the models left

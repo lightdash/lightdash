@@ -30,6 +30,14 @@ results are fetched with the standard results endpoint and carry the universal
   and reaches results of previous submissions. A referenced result keeps the
   column names of the query that produced it: field ids for `semanticLayer`
   queries, SELECT output names for `sql` queries.
+- **Execution context** (`SourceQueryExecutionContext` on the backend): what a
+  submission carries besides its queries — parameter values, user attribute
+  overrides and cache invalidation, shared by every node — plus each node's
+  own `pivotConfiguration`. All of it is required on the submit contract, so a
+  new source or caller decides each value explicitly. User attribute overrides
+  in particular are never optional: they come from the caller's runtime
+  (embed, MCP, the AI agent) and a dropped override shows a user another
+  tenant's rows. The HTTP API has none and passes an empty map.
 
 ## No orchestrator
 
@@ -62,7 +70,12 @@ than referencing expired results.
 - `types.ts` — `QuerySourceClient`: `scanSchema` (standard tables/columns
   shape), `getQueryReferences` (declares which results a query reads),
   `submitQuery` (returns a `queryUuid`). Each source owns its authorization,
-  applying the same checks as the execution path it wraps.
+  applying the same checks as the execution path it wraps, and honours the
+  execution context it is handed: `semanticLayer` and `sql` nodes apply all
+  of it; `duckdb` and `external` nodes resolve parameters, never serve from a
+  cache (so invalidation is trivially honoured), have no attribute-scoped SQL
+  to apply overrides to, and refuse a pivot until the join node owns the
+  pivot stage.
 - `QuerySourceRegistry.ts` — sources register by `sourceType`; the service
   resolves and lists them. Commercial/self-hosted extensions register
   additional sources at construction time (`ServiceRepository`).
@@ -72,7 +85,7 @@ than referencing expired results.
 - `QuerySourceService.ts` — endpoint logic: validation, dependency-ordered
   submission, batch status.
 
-The reference wait lives in `AsyncQueryService.runComposeSqlQuery` (the
+The reference wait lives in `AsyncQueryService.runDuckdbQuery` (the
 background phase of `executeAsyncComposeSqlQuery`): references are validated
 and authorized at submit time with the exact access checks of fetching results
 by uuid, then resolved to S3-backed CTEs once the referenced queries complete.
@@ -91,7 +104,7 @@ preview environments) and live under
 | --- | --- |
 | `GET /` | List registered sources |
 | `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape |
-| `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query |
+| `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query. Optional `parameters` and `invalidateCache` apply to every query; a query may carry its own `pivotConfiguration` |
 | `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle) |
 
 Individual results are fetched with the existing

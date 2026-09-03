@@ -1246,21 +1246,19 @@ export class UserService extends BaseService {
         }
 
         // Link the new openid identity to an existing user if they already
-        // have the same verified primary email. Allowed instance-wide via env
-        // OR per-org via organization_settings — resolve the candidate user,
-        // then check the effective toggle for their org.
+        // have the same verified primary email (instance env OR per-org
+        // organization_settings). Otherwise, fail closed without an invite.
         if (!authenticatedUser) {
             const userWithSameEmail =
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
 
-            if (
-                userWithSameEmail &&
-                (await this.isOidcToEmailLinkingEnabledForOrg(
-                    userWithSameEmail.organizationUuid,
-                ))
-            ) {
+            if (userWithSameEmail) {
+                const isLinkingEnabled =
+                    await this.isOidcToEmailLinkingEnabledForOrg(
+                        userWithSameEmail.organizationUuid,
+                    );
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
                 );
@@ -1268,7 +1266,7 @@ export class UserService extends BaseService {
                     `Email status for user ${userWithSameEmail.userUuid} - Is verified: ${emailStatus.isVerified}`,
                 );
 
-                if (emailStatus.isVerified) {
+                if (isLinkingEnabled && emailStatus.isVerified) {
                     if (
                         this.lightdashConfig.groups.enabled === true &&
                         this.lightdashConfig.auth.enableGroupSync === true &&
@@ -1293,6 +1291,18 @@ export class UserService extends BaseService {
                         userWithSameEmail,
                         openIdUser,
                         refreshToken,
+                    );
+                }
+
+                // Without an invite the fallthrough would collide with this
+                // account in createUser; fail closed with the next step instead.
+                if (!inviteCode) {
+                    throw new ForbiddenError(
+                        await this.getSsoLoginCollisionMessage(
+                            userWithSameEmail,
+                            openIdUser.openId.email,
+                            emailStatus.isVerified,
+                        ),
                     );
                 }
             }
@@ -2329,24 +2339,50 @@ export class UserService extends BaseService {
         return !hasPassword && !hasOpenIdIdentity;
     }
 
+    private async isEmailOtpLoginAvailable(
+        user: LightdashUser,
+        email: string,
+    ): Promise<boolean> {
+        if (!user.isActive) {
+            return false;
+        }
+        const [isStrictlyPasswordlessUser, isEmailOtpLoginAllowed] =
+            await Promise.all([
+                this.isStrictlyPasswordlessUser(user),
+                this.isLoginMethodAllowed(
+                    email.toLowerCase(),
+                    LocalIssuerTypes.EMAIL_OTP,
+                ),
+            ]);
+        return isStrictlyPasswordlessUser && isEmailOtpLoginAllowed;
+    }
+
+    // Shown to an SSO user who provably owns the mailbox; never reveal org,
+    // role, groups or admin identities here.
+    private async getSsoLoginCollisionMessage(
+        user: LightdashUser,
+        email: string,
+        isEmailVerified: boolean,
+    ): Promise<string> {
+        if (isEmailVerified) {
+            return `An account for ${email} already exists. Sign in with your email, then connect this sign-in method from your account settings, or ask your admin to enable linking SSO logins by email.`;
+        }
+        if (await this.isEmailOtpLoginAvailable(user, email)) {
+            return `An account for ${email} is waiting to be activated. Sign in with your email to get a one-time code, or ask your admin for an invite link. After that, SSO sign-in will be enabled.`;
+        }
+        return `An account for ${email} already exists but hasn't been activated. Ask your admin for an invite link. After that, SSO sign-in will be enabled.`;
+    }
+
     // OTP login is deliberately NOT gated on the NewOnboarding flag: accounts
     // enrolled as strictly passwordless have no other way to sign in, so a
     // flag rollback must not strand them. The flag gates enrollment only.
     async requestEmailOtpLogin(email: string): Promise<void> {
         const normalizedEmail = email.toLowerCase();
         const user = await this.userModel.findUserByEmail(normalizedEmail);
-        if (!user || !user.isActive) {
-            return;
-        }
-        const [isStrictlyPasswordlessUser, isEmailLoginAllowed] =
-            await Promise.all([
-                this.isStrictlyPasswordlessUser(user),
-                this.isLoginMethodAllowed(
-                    normalizedEmail,
-                    LocalIssuerTypes.EMAIL_OTP,
-                ),
-            ]);
-        if (!isStrictlyPasswordlessUser || !isEmailLoginAllowed) {
+        if (
+            !user ||
+            !(await this.isEmailOtpLoginAvailable(user, normalizedEmail))
+        ) {
             return;
         }
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(

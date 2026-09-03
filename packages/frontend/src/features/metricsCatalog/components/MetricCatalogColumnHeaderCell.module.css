@@ -8,11 +8,15 @@
     width: max-content;
     max-width: 250px;
     padding: 4px 8px;
-    color: var(--mantine-color-white);
+    /* Inverted like the themed Tooltip: ink on light, paper on dark. */
+    color: light-dark(var(--mantine-color-white), var(--mantine-color-gray-9));
     font-size: var(--mantine-font-size-xs);
     font-weight: 500;
     line-height: 1.3;
-    background-color: var(--mantine-color-dark-7);
+    background-color: light-dark(
+        var(--mantine-color-gray-9),
+        var(--mantine-color-gray-1)
+    );
     border-radius: var(--mantine-radius-sm);
     box-shadow: var(--mantine-shadow-sm);
     pointer-events: none;

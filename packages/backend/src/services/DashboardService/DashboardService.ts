@@ -16,6 +16,7 @@ import {
     DashboardTab,
     DashboardTileTypes,
     DashboardVersionedFields,
+    DetailedViewStatistics,
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
@@ -849,6 +850,45 @@ export class DashboardService
         });
 
         return dashboard;
+    }
+
+    async getViewStats(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        options?: { projectUuid?: string },
+    ): Promise<DetailedViewStatistics> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid: options?.projectUuid },
+        );
+        const spaceContext = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...spaceContext,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.analyticsModel.getDashboardViewStats(dashboard.uuid);
     }
 
     // The published dashboard with the caller's own unpublished draft applied

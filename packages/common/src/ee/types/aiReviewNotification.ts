@@ -25,6 +25,9 @@ export type AiReviewNotificationSettings = {
     linearEnabled: boolean;
     linearTeamId: string | null;
     linearProjectId: string | null;
+    jiraEnabled: boolean;
+    jiraProjectId: string | null;
+    jiraIssueTypeId: string | null;
 };
 
 export type UpdateAiReviewNotificationSettings = {
@@ -33,6 +36,9 @@ export type UpdateAiReviewNotificationSettings = {
     linearEnabled?: boolean;
     linearTeamId?: string | null;
     linearProjectId?: string | null;
+    jiraEnabled?: boolean;
+    jiraProjectId?: string | null;
+    jiraIssueTypeId?: string | null;
 };
 
 export type ApiAiReviewNotificationSettingsResponse =
@@ -80,6 +86,45 @@ export type AiReviewLinearBackfillResult = {
 
 export type ApiAiReviewLinearBackfillResponse =
     ApiSuccess<AiReviewLinearBackfillResult>;
+
+export type AiReviewJiraDestination = {
+    organizationUuid: string;
+    projectUuid: string;
+    enabled: boolean;
+    jiraProjectId: string | null;
+    jiraIssueTypeId: string | null;
+};
+
+export type UpdateAiReviewJiraDestination = Pick<
+    AiReviewJiraDestination,
+    'enabled' | 'jiraProjectId' | 'jiraIssueTypeId'
+>;
+
+export type ApiAiReviewJiraDestinationResponse =
+    ApiSuccess<AiReviewJiraDestination>;
+
+export type AiReviewJiraRouting = {
+    organizationUuid: string;
+    applyToAllProjects: boolean;
+    projectUuids: string[];
+    enabled: boolean;
+    jiraProjectId: string | null;
+    jiraIssueTypeId: string | null;
+};
+
+export type UpdateAiReviewJiraRouting = Omit<
+    AiReviewJiraRouting,
+    'organizationUuid'
+>;
+
+export type ApiAiReviewJiraRoutingResponse = ApiSuccess<AiReviewJiraRouting>;
+
+export type AiReviewJiraBackfillResult = {
+    queuedCount: number;
+};
+
+export type ApiAiReviewJiraBackfillResponse =
+    ApiSuccess<AiReviewJiraBackfillResult>;
 
 export const resolveAiReviewLinearDestination = ({
     organizationUuid,
@@ -130,6 +175,55 @@ export const resolveAiReviewLinearDestination = ({
         enabled: false,
         linearTeamId: null,
         linearProjectId: null,
+    };
+};
+
+export const resolveAiReviewJiraDestination = ({
+    organizationUuid,
+    projectUuid,
+    applyToAllProjects,
+    settings,
+    destination,
+    hasProjectDestinations,
+}: {
+    organizationUuid: string;
+    projectUuid: string;
+    applyToAllProjects: boolean;
+    settings: Pick<
+        AiReviewNotificationSettings,
+        'jiraEnabled' | 'jiraProjectId' | 'jiraIssueTypeId'
+    >;
+    destination: AiReviewJiraDestination | null;
+    hasProjectDestinations: boolean;
+}): AiReviewJiraDestination => {
+    if (applyToAllProjects) {
+        return {
+            organizationUuid,
+            projectUuid,
+            enabled: settings.jiraEnabled,
+            jiraProjectId: settings.jiraProjectId,
+            jiraIssueTypeId: settings.jiraIssueTypeId,
+        };
+    }
+
+    if (destination) return destination;
+
+    if (!hasProjectDestinations && settings.jiraProjectId) {
+        return {
+            organizationUuid,
+            projectUuid,
+            enabled: settings.jiraEnabled,
+            jiraProjectId: settings.jiraProjectId,
+            jiraIssueTypeId: settings.jiraIssueTypeId,
+        };
+    }
+
+    return {
+        organizationUuid,
+        projectUuid,
+        enabled: false,
+        jiraProjectId: null,
+        jiraIssueTypeId: null,
     };
 };
 

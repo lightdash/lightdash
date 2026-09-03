@@ -4852,6 +4852,13 @@
             },
             "DashboardConfig": {
                 "properties": {
+                    "customMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere."
+                    },
                     "requiredFiltersNote": {
                         "type": "string",
                         "description": "Editor-authored note shown to viewers while filter rules are unmet"
@@ -5579,22 +5586,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -10750,6 +10757,158 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ScimRequestAction": {
+                "enum": [
+                    "create_user",
+                    "update_user",
+                    "deactivate_user",
+                    "delete_user",
+                    "role_change",
+                    "membership_change",
+                    "create_group",
+                    "update_group",
+                    "delete_group",
+                    "lookup",
+                    "list",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "ScimRequestLog": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "scimType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedRoles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "targetUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetIdentity": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/ScimRequestAction"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "tokenDescription": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "serviceAccountUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "scimType",
+                    "errorDetail",
+                    "status",
+                    "affectedRoles",
+                    "targetUuid",
+                    "targetIdentity",
+                    "action",
+                    "url",
+                    "method",
+                    "tokenDescription",
+                    "serviceAccountUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ScimRequestLog-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRequestLog"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiScimRequestLogListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ScimRequestLog-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCreateScimServiceAccountRequest": {
                 "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description_"
             },
@@ -12434,10 +12593,20 @@
                 "type": "string",
                 "enum": ["sandbox", "production"]
             },
-            "ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__": {
+            "MobilePushPlatform": {
+                "type": "string",
+                "enum": ["ios", "android"]
+            },
+            "ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array--platforms-MobilePushPlatform-Array__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "platforms": {
+                                "items": {
+                                    "$ref": "#/components/schemas/MobilePushPlatform"
+                                },
+                                "type": "array"
+                            },
                             "environments": {
                                 "items": {
                                     "$ref": "#/components/schemas/MobilePushEnvironment"
@@ -12448,7 +12617,7 @@
                                 "type": "boolean"
                             }
                         },
-                        "required": ["environments", "enabled"],
+                        "required": ["platforms", "environments", "enabled"],
                         "type": "object"
                     },
                     "status": {
@@ -12461,13 +12630,16 @@
                 "type": "object"
             },
             "ApiMobilePushNotificationStatusResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array__"
+                "$ref": "#/components/schemas/ApiSuccess__enabled-boolean--environments-MobilePushEnvironment-Array--platforms-MobilePushPlatform-Array__"
             },
             "ApiMobilePushInstallationResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
             "ApiMobilePushInstallationRequest": {
                 "properties": {
+                    "platform": {
+                        "$ref": "#/components/schemas/MobilePushPlatform"
+                    },
                     "deviceToken": {
                         "type": "string"
                     },
@@ -18868,6 +19040,10 @@
                     },
                     {
                         "properties": {
+                            "installedCreatedByUserUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "installedRegistryVersion": {
                                 "type": "string",
                                 "nullable": true
@@ -18881,6 +19057,7 @@
                             }
                         },
                         "required": [
+                            "installedCreatedByUserUuid",
                             "installedRegistryVersion",
                             "installedAppUuid",
                             "state"
@@ -19001,20 +19178,6 @@
                     "name",
                     "dataAppVizUuid"
                 ],
-                "type": "object"
-            },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
                 "type": "object"
             },
             "KnexPaginatedData_DataAppViz-Array_": {
@@ -23482,6 +23645,9 @@
                     "default": {
                         "type": "boolean"
                     },
+                    "groupLabel": {
+                        "type": "string"
+                    },
                     "provider": {
                         "type": "string"
                     },
@@ -25138,6 +25304,124 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "appSlug",
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "appSlug",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "isPersonal": {
+                                "type": "boolean"
+                            },
+                            "pinnedVersion": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "isPersonal",
+                            "pinnedVersion",
+                            "displayName",
+                            "appSlug",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -25400,6 +25684,7 @@
                     "getProjectInfo",
                     "getPullRequestDiff",
                     "grepFields",
+                    "iterateDataApp",
                     "listContent",
                     "listKnowledgeDocuments",
                     "listProjects",
@@ -26204,6 +26489,10 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "slug": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
                                                     "href": {
                                                         "type": "string"
                                                     },
@@ -26523,8 +26812,34 @@
                 "type": "object",
                 "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
+            "AiPromptResponseTiming": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string"
+                    },
+                    "firstTokenAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "First chunk the model produced (text, reasoning, or tool input). Null when nothing streamed."
+                    },
+                    "startedAt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["finishedAt", "firstTokenAt", "startedAt"],
+                "type": "object",
+                "description": "Wall-clock timing of one model run, stamped by the agent loop. ISO strings."
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "responseTiming": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptResponseTiming"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "tokenUsage": {
                         "allOf": [
                             {
@@ -26617,6 +26932,7 @@
                     }
                 },
                 "required": [
+                    "responseTiming",
                     "tokenUsage",
                     "modelConfig",
                     "referencedArtifacts",
@@ -27030,6 +27346,85 @@
                         },
                         "required": ["previewProjectUuid", "type"],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "loc": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_element"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "loc",
+                            "text",
+                            "tag",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["appUuid", "type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -27093,6 +27488,58 @@
                     }
                 },
                 "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string"
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "promptUuid",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadDataAppRestoreResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__"
+            },
+            "ApiAiAgentThreadDataAppRestoreRequest": {
+                "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "appUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["version", "appUuid"],
                 "type": "object"
             },
             "ApiSuccess__decision-approved-or-rejected__": {
@@ -32778,6 +33225,513 @@
             "ApiRemoveScopeFromRoleResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
+            "ContentReviewSettings": {
+                "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verifyOnApproveDefault": {
+                        "type": "boolean"
+                    },
+                    "reviewerGroupUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "slackChannelId",
+                    "verifyOnApproveDefault",
+                    "reviewerGroupUuid",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
+            "ApiContentReviewSettingsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentReviewSettings"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_Omit_ContentReviewSettings.projectUuid__": {
+                "properties": {
+                    "reviewerGroupUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verifyOnApproveDefault": {
+                        "type": "boolean"
+                    },
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateContentReviewSettings": {
+                "$ref": "#/components/schemas/Partial_Omit_ContentReviewSettings.projectUuid__"
+            },
+            "ContentReviewContentType": {
+                "enum": ["chart", "dashboard", "sql_chart"],
+                "type": "string"
+            },
+            "ContentReviewSimilarContentItem": {
+                "properties": {
+                    "score": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "isVerified": {
+                        "type": "boolean"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    }
+                },
+                "required": [
+                    "score",
+                    "isVerified",
+                    "spaceName",
+                    "spaceUuid",
+                    "slug",
+                    "name",
+                    "contentUuid",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ApiContentReviewSimilarContentResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewSimilarContentItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentReviewUser": {
+                "properties": {
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
+            "ContentReviewRequestStatus": {
+                "enum": ["pending", "approved", "rejected", "cancelled"],
+                "type": "string"
+            },
+            "ContentReviewMovedItem": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    }
+                },
+                "required": ["name", "contentUuid", "contentType"],
+                "type": "object"
+            },
+            "DirectAccessResourceType": {
+                "description": "Closed registry of resource types that support direct access grants.\nGrowing this union means adding a resource registry entry, an\n`AccessTarget` mapping, and grant tables — never a new handler hierarchy.",
+                "enum": ["dashboard", "chart", "sqlChart", "app"],
+                "type": "string"
+            },
+            "DirectAccessPrincipalType": {
+                "enum": ["user", "group"],
+                "type": "string"
+            },
+            "DirectAccessPrincipalRef": {
+                "properties": {
+                    "uuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipalType"
+                    }
+                },
+                "required": ["uuid", "type"],
+                "type": "object",
+                "description": "Principal reference used by administration requests and imports."
+            },
+            "ContentReviewGrantedPrincipal": {
+                "properties": {
+                    "principal": {
+                        "$ref": "#/components/schemas/DirectAccessPrincipalRef"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "$ref": "#/components/schemas/DirectAccessResourceType"
+                    }
+                },
+                "required": ["principal", "resourceUuid", "resourceType"],
+                "type": "object"
+            },
+            "ContentReviewRequest": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "grantedPrincipals": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewGrantedPrincipal"
+                        },
+                        "type": "array"
+                    },
+                    "movedContent": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewMovedItem"
+                        },
+                        "type": "array"
+                    },
+                    "verifiedOnApprove": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "reviewNote": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reviewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "reviewedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentReviewUser"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ContentReviewRequestStatus"
+                    },
+                    "similarContent": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewSimilarContentItem"
+                        },
+                        "type": "array"
+                    },
+                    "requestNote": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requestedBy": {
+                        "$ref": "#/components/schemas/ContentReviewUser"
+                    },
+                    "targetSpaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceSpaceUuid": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "grantedPrincipals",
+                    "movedContent",
+                    "verifiedOnApprove",
+                    "reviewNote",
+                    "reviewedAt",
+                    "reviewedBy",
+                    "status",
+                    "similarContent",
+                    "requestNote",
+                    "requestedBy",
+                    "targetSpaceUuid",
+                    "sourceSpaceUuid",
+                    "contentUuid",
+                    "contentType",
+                    "projectUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiContentReviewRequestOrNullResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentReviewRequest"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentReviewContentSummary": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "name"],
+                "type": "object"
+            },
+            "ContentReviewRequestListItem": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ContentReviewRequest"
+                    },
+                    {
+                        "properties": {
+                            "targetSpaceName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "sourceSpaceName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "content": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentReviewContentSummary"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "targetSpaceName",
+                            "sourceSpaceName",
+                            "content"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "KnexPaginatedData_ContentReviewRequestListItem-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewRequestListItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiContentReviewRequestListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ContentReviewRequestListItem-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentReviewRequestView": {
+                "enum": ["to-review", "mine"],
+                "type": "string"
+            },
+            "ContentReviewRequestDetail": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ContentReviewRequestListItem"
+                    },
+                    {
+                        "properties": {
+                            "verifyByDefault": {
+                                "type": "boolean"
+                            },
+                            "canVerify": {
+                                "type": "boolean"
+                            },
+                            "canReview": {
+                                "type": "boolean"
+                            },
+                            "moveSet": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ContentReviewMovedItem"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "verifyByDefault",
+                            "canVerify",
+                            "canReview",
+                            "moveSet"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiContentReviewRequestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ContentReviewRequestDetail"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateContentReviewRequestBody": {
+                "properties": {
+                    "similarContent": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentReviewSimilarContentItem"
+                        },
+                        "type": "array"
+                    },
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetSpaceUuid": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentReviewContentType"
+                    }
+                },
+                "required": [
+                    "similarContent",
+                    "note",
+                    "targetSpaceUuid",
+                    "contentUuid",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ApproveContentReviewRequestBody": {
+                "properties": {
+                    "note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "verify": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["note", "verify"],
+                "type": "object"
+            },
+            "RejectContentReviewRequestBody": {
+                "properties": {
+                    "note": {
+                        "type": "string"
+                    }
+                },
+                "required": ["note"],
+                "type": "object"
+            },
             "PullRequestWritebackAction": {
                 "type": "string",
                 "enum": ["opened", "updated"],
@@ -35987,6 +36941,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "linkedJiraIssueUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "linkedIssueUrl": {
                         "type": "string",
                         "nullable": true
@@ -37651,6 +38609,17 @@
             },
             "AiReviewNotificationSettings": {
                 "properties": {
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraEnabled": {
+                        "type": "boolean"
+                    },
                     "linearProjectId": {
                         "type": "string",
                         "nullable": true
@@ -37674,6 +38643,9 @@
                     }
                 },
                 "required": [
+                    "jiraIssueTypeId",
+                    "jiraProjectId",
+                    "jiraEnabled",
                     "linearProjectId",
                     "linearTeamId",
                     "linearEnabled",
@@ -37702,6 +38674,17 @@
             },
             "UpdateAiReviewNotificationSettings": {
                 "properties": {
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraEnabled": {
+                        "type": "boolean"
+                    },
                     "linearProjectId": {
                         "type": "string",
                         "nullable": true
@@ -37902,6 +38885,193 @@
             },
             "UpdateAiReviewLinearDestination": {
                 "$ref": "#/components/schemas/Pick_AiReviewLinearDestination.enabled-or-linearTeamId-or-linearProjectId_"
+            },
+            "AiReviewJiraRouting": {
+                "properties": {
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "applyToAllProjects": {
+                        "type": "boolean"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "jiraIssueTypeId",
+                    "jiraProjectId",
+                    "enabled",
+                    "projectUuids",
+                    "applyToAllProjects",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewJiraRouting_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewJiraRouting"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewJiraRoutingResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewJiraRouting_"
+            },
+            "Pick_AiReviewJiraRouting.Exclude_keyofAiReviewJiraRouting.organizationUuid__": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "applyToAllProjects": {
+                        "type": "boolean"
+                    },
+                    "projectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "enabled",
+                    "applyToAllProjects",
+                    "projectUuids",
+                    "jiraProjectId",
+                    "jiraIssueTypeId"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_AiReviewJiraRouting.organizationUuid_": {
+                "$ref": "#/components/schemas/Pick_AiReviewJiraRouting.Exclude_keyofAiReviewJiraRouting.organizationUuid__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "UpdateAiReviewJiraRouting": {
+                "$ref": "#/components/schemas/Omit_AiReviewJiraRouting.organizationUuid_"
+            },
+            "AiReviewJiraBackfillResult": {
+                "properties": {
+                    "queuedCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["queuedCount"],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewJiraBackfillResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewJiraBackfillResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewJiraBackfillResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewJiraBackfillResult_"
+            },
+            "AiReviewJiraDestination": {
+                "properties": {
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "jiraIssueTypeId",
+                    "jiraProjectId",
+                    "enabled",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiReviewJiraDestination_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiReviewJiraDestination"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiReviewJiraDestinationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiReviewJiraDestination_"
+            },
+            "Pick_AiReviewJiraDestination.enabled-or-jiraProjectId-or-jiraIssueTypeId_": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "jiraProjectId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "jiraIssueTypeId": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["enabled", "jiraProjectId", "jiraIssueTypeId"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateAiReviewJiraDestination": {
+                "$ref": "#/components/schemas/Pick_AiReviewJiraDestination.enabled-or-jiraProjectId-or-jiraIssueTypeId_"
             },
             "AiOrgProviderModelVisibility": {
                 "properties": {
@@ -42757,6 +43927,8 @@
                     "aiAgentReviewRemediationCompile",
                     "aiAgentReviewRemediationRun",
                     "sendReviewNotification",
+                    "sendContentReviewNotification",
+                    "createReviewJiraIssue",
                     "createReviewLinearIssue",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
@@ -42776,6 +43948,7 @@
                     "cleanMcpToolCalls",
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
+                    "cleanScimRequestLogs",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "ingestExternalSource",
@@ -49829,6 +51002,69 @@
                     }
                 ]
             },
+            "ApiNotificationResourceType.ContentReview": {
+                "enum": ["contentReview"],
+                "type": "string"
+            },
+            "ContentReviewNotificationEvent": {
+                "enum": ["submitted", "approved", "rejected"],
+                "type": "string"
+            },
+            "NotificationContentReview": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/NotificationBase"
+                    },
+                    {
+                        "properties": {
+                            "metadata": {
+                                "properties": {
+                                    "event": {
+                                        "$ref": "#/components/schemas/ContentReviewNotificationEvent"
+                                    },
+                                    "requesterName": {
+                                        "type": "string"
+                                    },
+                                    "targetSpaceName": {
+                                        "type": "string"
+                                    },
+                                    "contentName": {
+                                        "type": "string"
+                                    },
+                                    "contentUuid": {
+                                        "type": "string"
+                                    },
+                                    "contentType": {
+                                        "$ref": "#/components/schemas/ContentReviewContentType"
+                                    },
+                                    "projectUuid": {
+                                        "type": "string"
+                                    },
+                                    "requestUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "event",
+                                    "requesterName",
+                                    "targetSpaceName",
+                                    "contentName",
+                                    "contentUuid",
+                                    "contentType",
+                                    "projectUuid",
+                                    "requestUuid"
+                                ],
+                                "type": "object"
+                            },
+                            "resourceType": {
+                                "$ref": "#/components/schemas/ApiNotificationResourceType.ContentReview"
+                            }
+                        },
+                        "required": ["metadata", "resourceType"],
+                        "type": "object"
+                    }
+                ]
+            },
             "Notification": {
                 "anyOf": [
                     {
@@ -49836,6 +51072,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/NotificationAiReview"
+                    },
+                    {
+                        "$ref": "#/components/schemas/NotificationContentReview"
                     }
                 ]
             },
@@ -49860,7 +51099,7 @@
                 "type": "object"
             },
             "ApiNotificationResourceType": {
-                "enum": ["dashboardComments", "aiReview"],
+                "enum": ["dashboardComments", "aiReview", "contentReview"],
                 "type": "string"
             },
             "Pick_Notification.viewed_": {
@@ -50129,6 +51368,123 @@
                     }
                 },
                 "required": ["name", "id"],
+                "type": "object"
+            },
+            "JiraInstallUrl": {
+                "properties": {
+                    "installUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["installUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_JiraInstallUrl_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/JiraInstallUrl"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiJiraInstallUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_JiraInstallUrl_"
+            },
+            "JiraOAuthCredentials": {
+                "properties": {
+                    "clientSecret": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["clientSecret", "clientId"],
+                "type": "object"
+            },
+            "JiraInstallation": {
+                "properties": {
+                    "requiresSiteSelection": {
+                        "type": "boolean"
+                    },
+                    "siteUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "siteName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "siteId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requiresSiteSelection",
+                    "siteUrl",
+                    "siteName",
+                    "siteId",
+                    "clientId",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "JiraSite": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "name", "id"],
+                "type": "object"
+            },
+            "JiraProject": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "key", "id"],
+                "type": "object"
+            },
+            "JiraIssueType": {
+                "properties": {
+                    "subtask": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["subtask", "name", "id"],
                 "type": "object"
             },
             "InviteLinkAuthenticationOptions": {
@@ -56378,15 +57734,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "DirectAccessResourceType": {
-                "description": "Closed registry of resource types that support direct access grants.\nGrowing this union means adding a resource registry entry, an\n`AccessTarget` mapping, and grant tables — never a new handler hierarchy.",
-                "enum": ["dashboard", "chart", "sqlChart", "app"],
-                "type": "string"
-            },
-            "DirectAccessPrincipalType": {
-                "enum": ["user", "group"],
-                "type": "string"
-            },
             "UpsertDirectAccessAssignmentRequest": {
                 "properties": {
                     "role": {
@@ -58218,7 +59565,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.88.0",
+        "version": "2.115.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63969,7 +65316,7 @@
                         "name": "installationUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ],
@@ -64016,7 +65363,7 @@
                         "name": "installationUuid",
                         "required": true,
                         "schema": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -66894,6 +68241,72 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiAiAgentThreadMessageCreateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/data-app-restores": {
+            "post": {
+                "operationId": "restoreAgentThreadDataAppVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Restores a ready data app version as a new latest version on behalf of\nthe thread and records the restore as a hidden thread turn",
+                "summary": "Restore data app version",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreRequest"
                             }
                         }
                     }
@@ -71210,6 +72623,556 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/review-requests/settings": {
+            "get": {
+                "operationId": "getContentReviewSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Review settings for a project: reviewer group, verify-on-approve default and Slack channel",
+                "summary": "Get review settings",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateContentReviewSettings",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSettingsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Update review settings",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateContentReviewSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/similar": {
+            "get": {
+                "operationId": "findSimilarContentForReview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewSimilarContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Charts or dashboards in shared spaces with a similar name, so a requester can check before submitting",
+                "summary": "Find similar content",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "contentType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentReviewContentType"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "name",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "excludeContentUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/content/{contentType}/{contentUuid}": {
+            "get": {
+                "operationId": "getPendingContentReviewRequest",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestOrNullResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The open review request on a chart or dashboard, if any",
+                "summary": "Get the pending review request for content",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "contentType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentReviewContentType"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "contentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests": {
+            "get": {
+                "operationId": "listContentReviewRequests",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Requests to review (routed to the caller) or the caller's own requests",
+                "summary": "List review requests",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "view",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentReviewRequestView"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/ContentReviewRequestStatus"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "default": 1,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "default": 25,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createContentReviewRequest",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Ask for a chart or dashboard in your personal space to be reviewed and moved to a shared space",
+                "summary": "Submit a review request",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateContentReviewRequestBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/{requestUuid}": {
+            "get": {
+                "operationId": "getContentReviewRequest",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Get a review request",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/{requestUuid}/approve": {
+            "post": {
+                "operationId": "approveContentReviewRequest",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Move the content to the target space and optionally verify it",
+                "summary": "Approve a review request",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApproveContentReviewRequestBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/{requestUuid}/reject": {
+            "post": {
+                "operationId": "rejectContentReviewRequest",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Reject a review request",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RejectContentReviewRequestBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/review-requests/{requestUuid}/cancel": {
+            "post": {
+                "operationId": "cancelContentReviewRequest",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiContentReviewRequestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "summary": "Cancel your own review request",
+                "tags": ["Content Review Requests"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "requestUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/settings": {
             "get": {
                 "operationId": "getAiOrganizationRuntimeSettings",
@@ -73619,6 +75582,195 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiReviewLinearDestination"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-jira-routing": {
+            "get": {
+                "operationId": "getAiReviewJiraRouting",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewJiraRoutingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get Jira routing for AI review issues",
+                "summary": "Get AI review Jira routing",
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "updateAiReviewJiraRouting",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewJiraRoutingResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update Jira routing for AI review issues",
+                "summary": "Update AI review Jira routing",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiReviewJiraRouting"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-jira-issues/backfill": {
+            "post": {
+                "operationId": "backfillAiReviewJiraIssues",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewJiraBackfillResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create Jira issues for existing open AI review findings",
+                "summary": "Backfill AI review Jira issues",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/aiAgents/admin/review-jira-destination/{projectUuid}": {
+            "get": {
+                "operationId": "getAiReviewJiraDestination",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewJiraDestinationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a project's Jira destination for AI reviews",
+                "summary": "Get AI review Jira destination",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "updateAiReviewJiraDestination",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiReviewJiraDestinationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a project's Jira destination for AI reviews",
+                "summary": "Update AI review Jira destination",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateAiReviewJiraDestination"
                             }
                         }
                     }
@@ -86006,6 +88158,304 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/jira/install": {
+            "post": {
+                "operationId": "installJiraIntegration",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiJiraInstallUrlResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start Jira OAuth with the organization's own Atlassian OAuth 2.0 app",
+                "summary": "Connect Jira",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/JiraOAuthCredentials"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "operationId": "reconnectJiraIntegration",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to Jira OAuth"
+                    }
+                },
+                "description": "Restart Jira OAuth with the credentials already saved for the organization",
+                "summary": "Reconnect Jira",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/oauth/callback": {
+            "get": {
+                "operationId": "jiraOauthCallback",
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                },
+                "description": "Finish Jira OAuth and return to Ask AI settings",
+                "summary": "Jira OAuth callback",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/jira": {
+            "get": {
+                "operationId": "getJiraInstallation",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/JiraInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the Jira site connected to the organization",
+                "summary": "Get Jira installation",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/sites": {
+            "get": {
+                "operationId": "getJiraSites",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraSite"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira sites available through the connection",
+                "summary": "List Jira sites",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/site": {
+            "put": {
+                "operationId": "selectJiraSite",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/JiraInstallation"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Select the Jira site used by the organization",
+                "summary": "Select Jira site",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "siteId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["siteId"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/jira/projects": {
+            "get": {
+                "operationId": "getJiraProjects",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraProject"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira projects accessible through the connection",
+                "summary": "List Jira projects",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/jira/issue-types": {
+            "get": {
+                "operationId": "getJiraIssueTypes",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/JiraIssueType"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List Jira issue types available in a project",
+                "summary": "List Jira issue types",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/jira/uninstall": {
+            "delete": {
+                "operationId": "uninstallJiraIntegration",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Uninstall Jira integration from the organization",
+                "summary": "Uninstall Jira integration",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/invite-links/{inviteLinkCode}": {

@@ -1,4 +1,5 @@
 import {
+    type CreateSavedChart,
     type CreateSavedChartVersion,
     type Project,
     type SavedChart,
@@ -33,7 +34,7 @@ vi.mock('./useSearchParams', () => ({
 }));
 
 import { lightdashApi } from '../api';
-import { useAddVersionMutation } from './useSavedQuery';
+import { useAddVersionMutation, useCreateMutation } from './useSavedQuery';
 
 const createWrapper = () => {
     const queryClient = new QueryClient({
@@ -84,6 +85,51 @@ describe('useAddVersionMutation', () => {
 
         expect(navigate).toHaveBeenCalledWith(
             '/projects/jaffle-shop/saved/legacy-chart/view',
+        );
+    });
+});
+
+describe('useCreateMutation', () => {
+    const payload = { metricQuery: { filters: {} } } as CreateSavedChart;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(lightdashApi).mockResolvedValue({
+            uuid: 'chart-uuid',
+            slug: 'new-chart',
+            projectUuid: 'project-uuid',
+        } as SavedChart);
+    });
+
+    it('saves to the route project by default', async () => {
+        const { result } = renderHook(
+            () => useCreateMutation({ redirectOnSuccess: false }),
+            { wrapper: createWrapper() },
+        );
+
+        await act(() => result.current.mutateAsync(payload));
+
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({ url: '/projects/project-uuid/saved' }),
+        );
+    });
+
+    it('saves to an explicit projectUuid over the route project', async () => {
+        const { result } = renderHook(
+            () =>
+                useCreateMutation({
+                    redirectOnSuccess: false,
+                    projectUuid: 'other-project-uuid',
+                }),
+            { wrapper: createWrapper() },
+        );
+
+        await act(() => result.current.mutateAsync(payload));
+
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/other-project-uuid/saved',
+            }),
         );
     });
 });

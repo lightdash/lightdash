@@ -122,6 +122,7 @@ export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentSlug';
+export * from './types/contentReviewRequests';
 export * from './types/contentVerification';
 export * from './types/dashboard';
 export * from './types/directAccess';
@@ -151,6 +152,7 @@ export * from './types/funnel';
 export * from './types/gdrive';
 export * from './types/gitIntegration';
 export * from './types/groups';
+export * from './types/jira';
 export * from './types/linear';
 export * from './types/job';
 export * from './types/knex-paginate';
@@ -667,11 +669,14 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
     jobTitle: z.string().min(0),
+    // Only collected from the person creating the organization; invited
+    // members skip it (their onboarding omits this field from the schema).
     howDidYouHearAboutUs: z
         .string()
         .trim()
         .min(1, 'Please let us know how you heard about Lightdash')
-        .max(1000),
+        .max(1000)
+        .optional(),
     enableEmailDomainAccess: z.boolean().default(false),
     isMarketingOptedIn: z.boolean().default(true),
     isTrackingAnonymized: z.boolean().default(false),

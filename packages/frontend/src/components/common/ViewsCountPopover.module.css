@@ -1,0 +1,27 @@
+.trigger {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--mantine-color-default-border);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    cursor: default;
+}
+
+.trigger:hover {
+    text-decoration-color: var(--mantine-color-dimmed);
+}
+
+.note {
+    font-size: 10px;
+    color: var(--mantine-color-dimmed);
+}
+
+.rowLabel {
+    font-size: 12px;
+    color: var(--mantine-color-dimmed);
+}
+
+.rowValue {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--mantine-color-text);
+}

@@ -1,7 +1,7 @@
 import type { Account } from '@lightdash/common';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
-import { request as httpRequest, type Server } from 'http';
+import { request as httpRequest, type Server, type ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
 import { McpService } from '../ee/services/McpService/McpService';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
@@ -66,6 +66,7 @@ const createMcpService = () =>
         isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
+        recordToolList: vi.fn(),
     }) as McpService;
 
 const servers: Server[] = [];
@@ -206,6 +207,51 @@ describe('MCP router OAuth scope authorization', () => {
             expect(mcpService.isEnabled).toHaveBeenCalledOnce();
         },
     );
+});
+
+describe('MCP tool catalogue activity', () => {
+    beforeEach(() => {
+        transport.handleRequest.mockImplementation(
+            async (_request: unknown, response: ServerResponse) => {
+                response.end();
+            },
+        );
+    });
+
+    it('records the catalogue served by tools/list', async () => {
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            requestBody: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        });
+
+        expect(response.status).toBe(200);
+        expect(mcpService.recordToolList).toHaveBeenCalledWith({
+            catalogue: expect.objectContaining({
+                projectPinned: false,
+                runSqlEnabled: false,
+                runMetricQueryEnabled: false,
+                filterExpressionsEnabled: true,
+            }),
+            authInfo: expect.objectContaining({ clientId: 'API key' }),
+            durationMs: expect.any(Number),
+        });
+    });
+
+    it('does not record tool calls as a served catalogue', async () => {
+        const { mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: { name: 'get_context', arguments: {} },
+            },
+        });
+
+        expect(mcpService.recordToolList).not.toHaveBeenCalled();
+    });
 });
 
 describe('project-scoped MCP route', () => {

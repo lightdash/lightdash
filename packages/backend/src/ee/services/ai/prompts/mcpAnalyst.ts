@@ -73,6 +73,9 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. **Get started with context**
 
 ## Critical Rules
 
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
+
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain

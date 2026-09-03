@@ -1,9 +1,13 @@
-import { type NotificationAiReview } from '@lightdash/common';
+import {
+    type NotificationAiReview,
+    type NotificationContentReview,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export enum DbNotificationResourceType {
     DashboardComments = 'dashboard_comments',
     AiReviewItem = 'ai_review_item',
+    ContentReviewRequest = 'content_review_request',
 }
 
 export const NotificationsTableName = 'notifications';
@@ -27,6 +31,7 @@ type DbNotifications = {
     metadata:
         | DbNotificationDashboardTileCommentMetadata
         | NotificationAiReview['metadata']
+        | NotificationContentReview['metadata']
         | null;
 };
 

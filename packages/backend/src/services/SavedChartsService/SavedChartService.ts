@@ -19,6 +19,7 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
+    DetailedViewStatistics,
     ExploreSplitError,
     ExploreType,
     ForbiddenError,
@@ -55,7 +56,6 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
-    ViewStatistics,
     type ChartFieldUpdates,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
@@ -1809,7 +1809,7 @@ export class SavedChartService
     async getViewStats(
         user: SessionUser,
         savedChartUuid: string,
-    ): Promise<ViewStatistics> {
+    ): Promise<DetailedViewStatistics> {
         const savedChart =
             await this.savedChartModel.getSummary(savedChartUuid);
         const { inheritsFromOrgOrProject, access } =

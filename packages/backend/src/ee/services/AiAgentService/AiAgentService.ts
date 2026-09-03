@@ -42,6 +42,8 @@ import {
     AnyType,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
@@ -60,12 +62,17 @@ import {
     CommercialFeatureFlags,
     ConflictError,
     ContentType,
+    DATA_APP_VIZ_TEMPLATE,
+    dataAppContextKey,
+    dataAppElementContextKey,
+    dataAppRestoreContextKey,
     dataAppVizSchema,
     DbtProjectType,
     deriveDataAppVizPivotConfig,
     deriveDataAppVizPivotConfiguration,
     derivePivotConfigurationFromChart,
     DownloadFileType,
+    elementReferenceToWireString,
     EmbedArtifactVersionJobPayload,
     exceedsRetentionCeiling,
     Explore,
@@ -75,6 +82,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
     getGenerateDataAppBuildOutcome,
@@ -417,6 +425,7 @@ import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
+import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
@@ -567,6 +576,10 @@ type AiAgentServiceDependencies = {
     appModel: Pick<
         AppModel,
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
+    >;
+    appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
     >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -847,6 +860,11 @@ export class AiAgentService extends BaseService {
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
 
+    private readonly appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
+    >;
+
     private readonly inFlightStreamPrompts = new Map<
         string,
         AiPromptResponseState
@@ -1057,6 +1075,15 @@ export class AiAgentService extends BaseService {
                 case 'preview_environment':
                     key = `preview_environment:${item.previewProjectUuid}`;
                     break;
+                case 'data_app_element':
+                    key = dataAppElementContextKey(item);
+                    break;
+                case 'data_app_restore':
+                    key = dataAppRestoreContextKey(item);
+                    break;
+                case 'data_app':
+                    key = dataAppContextKey(item.appUuid);
+                    break;
                 default:
                     return assertUnreachable(
                         item,
@@ -1138,6 +1165,41 @@ export class AiAgentService extends BaseService {
                     return;
                 }
 
+                if (
+                    item.type === 'data_app_element' ||
+                    item.type === 'data_app'
+                ) {
+                    const app = await this.appModel.findAppByUuid(item.appUuid);
+                    if (!app || app.project_uuid !== agent.projectUuid) {
+                        throw new NotFoundError('Data app not found');
+                    }
+                    if (
+                        item.type === 'data_app' &&
+                        app.template === DATA_APP_VIZ_TEMPLATE
+                    ) {
+                        throw new ParameterError(
+                            'Project chart types cannot be pinned context',
+                        );
+                    }
+                    if (
+                        !(await this.appGenerateService.canViewApp(user, app))
+                    ) {
+                        throw new ForbiddenError(
+                            'You do not have permission to view this data app',
+                        );
+                    }
+                    if (
+                        allowedSpaces &&
+                        (app.space_uuid === null ||
+                            !allowedSpaces.has(app.space_uuid))
+                    ) {
+                        throw new ForbiddenError(
+                            'Referenced data app is outside the embedded space',
+                        );
+                    }
+                    return;
+                }
+
                 if (item.type === 'external_source') {
                     if (allowedSpaces) {
                         throw new ForbiddenError(
@@ -1189,6 +1251,12 @@ export class AiAgentService extends BaseService {
                 ) {
                     throw new ForbiddenError(
                         'This context item can only be attached by the review remediation flow',
+                    );
+                }
+                // data_app_restore is written by the thread restore endpoint only.
+                if (item.type === 'data_app_restore') {
+                    throw new ForbiddenError(
+                        'This context item can only be attached by restoring a data app version from the thread',
                     );
                 }
 
@@ -1265,6 +1333,7 @@ export class AiAgentService extends BaseService {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.appModel = dependencies.appModel;
+        this.appGenerateService = dependencies.appGenerateService;
         this.aiAgentMemoryModel = dependencies.aiAgentMemoryModel;
         this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.externalSourceModel = dependencies.externalSourceModel;
@@ -3707,6 +3776,94 @@ export class AiAgentService extends BaseService {
             threadUuid,
             messageUuid,
         });
+    }
+
+    // Restores a data app version on behalf of a thread and records it as a
+    // hidden, already-answered turn so the agent's next prompt sees it.
+    async restoreDataAppVersionForThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        body: ApiAiAgentThreadDataAppRestoreRequest,
+    ): Promise<ApiAiAgentThreadDataAppRestoreResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create messages for this thread',
+            );
+        }
+
+        const app = await this.appModel.findAppByUuid(body.appUuid);
+        if (!app || app.project_uuid !== agent.projectUuid) {
+            throw new NotFoundError('Data app not found');
+        }
+
+        const restored = await this.appGenerateService.restoreVersion(
+            user,
+            agent.projectUuid,
+            body.appUuid,
+            body.version,
+        );
+
+        const promptUuid = await this.aiAgentModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            prompt: `Restore version ${body.version} of ${getAppDisplayName(
+                app.name,
+                body.appUuid,
+            )}`,
+            context: [
+                {
+                    type: 'data_app_restore',
+                    appUuid: body.appUuid,
+                    version: restored.version,
+                    restoredFromVersion: body.version,
+                },
+            ],
+            hidden: true,
+        });
+        await this.aiAgentModel.updateModelResponse({
+            promptUuid,
+            response: `Restored version ${body.version} as version ${restored.version}.`,
+        });
+
+        return {
+            appUuid: body.appUuid,
+            version: restored.version,
+            restoredFromVersion: body.version,
+            promptUuid,
+        };
     }
 
     async cleanExpiredThreads(batchSize: number): Promise<{
@@ -8693,6 +8850,21 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const status = item.status ? ` — ${item.status}` : '';
                     return `- Preview environment${name}${status} — test the fix in this preview project.`;
                 }
+                case 'data_app': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Data app "${name}" (dataAppSlug: ${slugText})`;
+                }
+                case 'data_app_element': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
+                }
+                case 'data_app_restore': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Data app restore: version ${item.restoredFromVersion} of "${name}" (appSlug: ${slugText}) was restored as version ${item.version} — the app now matches version ${item.restoredFromVersion}; iterate from version ${item.version}.`;
+                }
                 default:
                     return assertUnreachable(
                         item,
@@ -8707,7 +8879,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 The user attached the following to this message as context:
 ${lines.join('\n')}
 
-Use your existing tools to inspect them when relevant to the user's question. When runtime overrides are listed, apply them on top of the chart's saved state when querying.`,
+Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.`,
         } satisfies UserModelMessage;
     }
 
@@ -9455,6 +9627,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 appUuid,
                 version,
                 name: app.name,
+                slug: app.slug,
                 status: appVersion.status,
                 error: appVersion.error,
                 statusMessage: appVersion.status_message,
@@ -9558,15 +9731,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 prompt,
                 metadata,
             );
+            const isFirstVersion = metadata.version === 1;
+            const readyPhrase = isFirstVersion
+                ? `Your data app **${metadata.name}** is ready.`
+                : `Version ${metadata.version} of **${metadata.name}** is ready.`;
+            const readyText = isFirstVersion
+                ? `Your data app "${metadata.name}" is ready: ${metadata.href}`
+                : `Version ${metadata.version} of "${metadata.name}" is ready: ${metadata.href}`;
             await this.postOutcomeToSlack(
                 prompt,
                 [
                     ...getMarkdownBlocks(
-                        `:white_check_mark: Your data app **${metadata.name}** is ready. [Open it in the builder](${metadata.href})`,
+                        `:white_check_mark: ${readyPhrase} [Open it in the builder](${metadata.href})`,
                     ),
                     ...(screenshotBlock ? [screenshotBlock] : []),
                 ],
-                `Your data app "${metadata.name}" is ready: ${metadata.href}`,
+                readyText,
             );
             return;
         }
@@ -10427,6 +10607,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
             generateDataApp: toolsRuntime.generateDataApp,
+            iterateDataApp: toolsRuntime.iterateDataApp,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -10639,6 +10820,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -11234,6 +11416,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findContent,
             readContent,
             generateDataApp,
+            iterateDataApp,
             resolveUrl,
             editContent,
             createContent,
@@ -12677,6 +12860,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'syncDbtProject':
                     return 'Preparing the semantic-layer changes...';
                 case 'generateDataApp':
+                case 'iterateDataApp':
                     return 'Starting the data app build...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';

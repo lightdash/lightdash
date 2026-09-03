@@ -4025,7 +4025,7 @@ Parameters:
     },
   },
   {
-    "description": "Start building a data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending"). One request, one call: tell the user the build has started and that you will link them to the app afterwards, then end your turn — never wait, poll, or call this tool again for the same request. A later turn sees the outcome on this call's result: "success" carries the app name and the builder link (href) to share; "error" carries the failure message.",
+    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -4050,7 +4050,7 @@ Parameters:
           ],
         },
         "prompt": {
-          "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. Carry this thread's analysis in as a collection of visualizations — for each one, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`. The coding agent sees the semantic layer but not this conversation, so include every detail it needs.",
+          "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\` — as queries, never pasted numbers, which would be hardcoded into the app.",
           "type": "string",
         },
         "template": {
@@ -4113,6 +4113,172 @@ Parameters:
                 },
                 "name": {
                   "type": "string",
+                },
+                "slug": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "version": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "status",
+                "appUuid",
+                "version",
+                "name",
+                "href",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "appUuid": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "message": {
+                  "type": "string",
+                },
+                "reason": {
+                  "enum": [
+                    "failed",
+                    "cancelled",
+                  ],
+                  "type": "string",
+                },
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+                "appUuid",
+                "reason",
+                "message",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Start a build that adds a version to an existing data app from a follow-up brief. Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app. The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request. While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish. When the attached context lists element references for this app (bracketed \`[tag "text" @path:line]\` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "appSlug": {
+          "description": "Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.",
+          "type": "string",
+        },
+        "chartSlugs": {
+          "default": null,
+          "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.",
+          "items": {
+            "type": "string",
+          },
+          "type": [
+            "array",
+            "null",
+          ],
+        },
+        "dashboardSlug": {
+          "default": null,
+          "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "prompt": {
+          "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "appSlug",
+        "prompt",
+      ],
+      "type": "object",
+    },
+    "name": "iterateDataApp",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "appUuid": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "pending",
+                  "type": "string",
+                },
+                "version": {
+                  "type": "number",
+                },
+              },
+              "required": [
+                "status",
+                "appUuid",
+                "version",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "appUuid": {
+                  "type": "string",
+                },
+                "href": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "slug": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
                 },
                 "status": {
                   "const": "success",
@@ -9647,6 +9813,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "loadProjectContext",
   "loadMcpTools",
   "generateDataApp",
+  "iterateDataApp",
   "editDbtProject",
   "editProjectContext",
   "editRepo",

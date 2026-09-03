@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -13,6 +14,9 @@ const encryptionUtil = {
     decrypt: (value: Buffer): string =>
         value.toString('utf8').replace(/^encrypted:/, ''),
 } as unknown as EncryptionUtil;
+
+const fingerprintOf = (token: string): string =>
+    createHash('sha256').update(token).digest('hex');
 
 const database = knex({ client: MockClient, dialect: 'pg' });
 const model = new MobilePushNotificationModel({
@@ -49,6 +53,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
         });
@@ -84,6 +89,7 @@ describe('MobilePushNotificationModel', () => {
                 organization_uuid: 'old-organization-uuid',
                 user_uuid: 'old-user-uuid',
                 environment: 'sandbox',
+                device_token_fingerprint: fingerprintOf('new-device-token'),
             },
         ]);
         tracker.on.delete(AiAgentLiveActivitiesTableName).responseOnce([]);
@@ -105,6 +111,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'new-organization-uuid',
             userUuid: 'new-user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });
@@ -124,6 +131,141 @@ describe('MobilePushNotificationModel', () => {
         expect(insert?.bindings.filter((value) => value === null)).toHaveLength(
             2,
         );
+    });
+
+    it('refuses to reassign an installation to a caller with a different device token', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                organization_uuid: 'owner-organization-uuid',
+                user_uuid: 'owner-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+                device_token_fingerprint: fingerprintOf('owner-device-token'),
+            },
+        ]);
+
+        await expect(
+            model.upsertInstallation({
+                installationUuid: 'installation-uuid',
+                organizationUuid: 'other-organization-uuid',
+                userUuid: 'other-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+                deviceToken: 'guessed-device-token',
+            }),
+        ).resolves.toEqual({ status: 'owner_mismatch' });
+
+        expect(tracker.history.delete).toHaveLength(0);
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    it('reassigns an installation when the caller sends the stored device token', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                organization_uuid: 'owner-organization-uuid',
+                user_uuid: 'owner-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+                device_token_fingerprint: fingerprintOf('owner-device-token'),
+            },
+        ]);
+        tracker.on.delete(AiAgentLiveActivitiesTableName).responseOnce([]);
+        tracker.on
+            .delete(AiAgentLiveActivityStartAttemptsTableName)
+            .responseOnce([]);
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.insert(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                installation_uuid: 'installation-uuid',
+                organization_uuid: 'next-organization-uuid',
+                user_uuid: 'next-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+            },
+        ]);
+
+        await expect(
+            model.upsertInstallation({
+                installationUuid: 'installation-uuid',
+                organizationUuid: 'next-organization-uuid',
+                userUuid: 'next-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+                deviceToken: 'owner-device-token',
+            }),
+        ).resolves.toEqual({
+            status: 'stored',
+            installation: {
+                mobilePushInstallationUuid: 'stored-installation-uuid',
+                installationUuid: 'installation-uuid',
+                organizationUuid: 'next-organization-uuid',
+                userUuid: 'next-user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+            },
+        });
+
+        expect(
+            tracker.history.delete.some((query) =>
+                query.sql.includes(AiAgentLiveActivitiesTableName),
+            ),
+        ).toBe(true);
+        expect(
+            tracker.history.delete.some((query) =>
+                query.sql.includes(AiAgentLiveActivityStartAttemptsTableName),
+            ),
+        ).toBe(true);
+    });
+
+    it('rotates a device token for the same owner', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                organization_uuid: 'organization-uuid',
+                user_uuid: 'user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+                device_token_fingerprint: fingerprintOf('previous-token'),
+            },
+        ]);
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.insert(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                installation_uuid: 'installation-uuid',
+                organization_uuid: 'organization-uuid',
+                user_uuid: 'user-uuid',
+                platform: 'ios',
+                environment: 'sandbox',
+            },
+        ]);
+
+        const result = await model.upsertInstallation({
+            installationUuid: 'installation-uuid',
+            organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
+            platform: 'ios',
+            environment: 'sandbox',
+            deviceToken: 'rotated-token',
+        });
+
+        expect(result.status).toBe('stored');
+        expect(
+            tracker.history.delete.some((query) =>
+                query.sql.includes(AiAgentLiveActivitiesTableName),
+            ),
+        ).toBe(false);
+        const insert = tracker.history.insert.find((query) =>
+            query.sql.includes(MobilePushInstallationsTableName),
+        );
+        expect(insert?.bindings).toContain(fingerprintOf('rotated-token'));
     });
 
     it('clears push-to-start state when the installation environment changes', async () => {
@@ -154,6 +296,7 @@ describe('MobilePushNotificationModel', () => {
             installationUuid: 'installation-uuid',
             organizationUuid: 'organization-uuid',
             userUuid: 'user-uuid',
+            platform: 'ios',
             environment: 'production',
             deviceToken: 'new-device-token',
         });
@@ -175,6 +318,45 @@ describe('MobilePushNotificationModel', () => {
         expect(insert?.sql).toContain('"push_to_start_token_fingerprint" = $');
         expect(insert?.bindings.filter((value) => value === null)).toHaveLength(
             2,
+        );
+    });
+
+    it('releases a device token fingerprint held by the other platform', async () => {
+        tracker.on.any(/pg_advisory_xact_lock/).responseOnce([]);
+        tracker.on.select(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.delete(MobilePushInstallationsTableName).responseOnce([]);
+        tracker.on.insert(MobilePushInstallationsTableName).responseOnce([
+            {
+                mobile_push_installation_uuid: 'stored-installation-uuid',
+                installation_uuid: 'android-installation-uuid',
+                organization_uuid: 'organization-uuid',
+                user_uuid: 'user-uuid',
+                platform: 'android',
+                environment: 'production',
+            },
+        ]);
+
+        await model.upsertInstallation({
+            installationUuid: 'android-installation-uuid',
+            organizationUuid: 'organization-uuid',
+            userUuid: 'user-uuid',
+            platform: 'android',
+            environment: 'production',
+            deviceToken: 'shared-device-token',
+        });
+
+        const cleanup = tracker.history.delete.find((query) =>
+            query.sql.includes(MobilePushInstallationsTableName),
+        );
+        expect(cleanup?.sql).toContain('"environment" = $');
+        expect(cleanup?.sql).toContain('"device_token_fingerprint" = $');
+        expect(cleanup?.sql).not.toContain('"platform"');
+        expect(cleanup?.bindings).toEqual(
+            expect.arrayContaining([
+                'production',
+                'android-installation-uuid',
+                expect.stringMatching(/^[a-f0-9]{64}$/),
+            ]),
         );
     });
 

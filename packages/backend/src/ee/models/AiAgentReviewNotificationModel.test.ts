@@ -35,6 +35,9 @@ describe('AiAgentReviewNotificationModel', () => {
             linearEnabled: false,
             linearTeamId: null,
             linearProjectId: null,
+            jiraEnabled: false,
+            jiraProjectId: null,
+            jiraIssueTypeId: null,
         });
     });
 

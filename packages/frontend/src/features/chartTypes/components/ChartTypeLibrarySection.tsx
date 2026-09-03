@@ -9,6 +9,7 @@ import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
 
 type Props = {
     projectUuid: string;
+    withHeader?: boolean;
 };
 
 /**
@@ -17,7 +18,10 @@ type Props = {
  * flag, a disabled registry, or an org that hasn't configured one all render
  * nothing rather than an empty section nobody asked for.
  */
-const ChartTypeLibrarySection: FC<Props> = ({ projectUuid }) => {
+const ChartTypeLibrarySection: FC<Props> = ({
+    projectUuid,
+    withHeader = true,
+}) => {
     const flagQuery = useServerFeatureFlag(FeatureFlags.ChartTypeRegistry);
     const flagEnabled = flagQuery.data?.enabled ?? false;
     const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
@@ -40,18 +44,20 @@ const ChartTypeLibrarySection: FC<Props> = ({ projectUuid }) => {
 
     return (
         <Stack gap="md">
-            <Group justify="space-between" align="center">
-                <Group gap={6} align="baseline">
-                    <Text size="md" fw={600} c="ldGray.8">
-                        Chart type library
-                    </Text>
-                    {registryQuery.data && (
-                        <Text fz="xs" c="dimmed">
-                            ({charts.length})
+            {withHeader && (
+                <Group justify="space-between" align="center">
+                    <Group gap={6} align="baseline">
+                        <Text size="md" fw={600} c="ldGray.8">
+                            Chart type library
                         </Text>
-                    )}
+                        {registryQuery.data && (
+                            <Text fz="xs" c="dimmed">
+                                ({charts.length})
+                            </Text>
+                        )}
+                    </Group>
                 </Group>
-            </Group>
+            )}
 
             {registryQuery.isInitialLoading ? (
                 <EmptyStateLoader title="Loading chart type library…" />

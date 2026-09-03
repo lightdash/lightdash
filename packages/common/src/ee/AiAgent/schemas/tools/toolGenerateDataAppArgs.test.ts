@@ -7,6 +7,7 @@ const base = {
     appUuid: 'app-1',
     version: 2,
     name: 'Revenue app',
+    slug: 'revenue-app',
     error: null,
     statusMessage: null,
 };
@@ -18,7 +19,7 @@ describe('getGenerateDataAppBuildOutcome', () => {
         ).toBeNull();
     });
 
-    it('maps ready to success with the builder link', () => {
+    it('maps ready to success with the builder link and slug', () => {
         expect(
             getGenerateDataAppBuildOutcome({ ...base, status: 'ready' })
                 ?.metadata,
@@ -27,8 +28,26 @@ describe('getGenerateDataAppBuildOutcome', () => {
             appUuid: 'app-1',
             version: 2,
             name: 'Revenue app',
+            slug: 'revenue-app',
             href: 'https://ld.example.com/projects/proj-1/apps/app-1',
         });
+    });
+
+    it('words a first ready version as the app being ready', () => {
+        expect(
+            getGenerateDataAppBuildOutcome({
+                ...base,
+                version: 1,
+                status: 'ready',
+            })?.result,
+        ).toContain('The data app "Revenue app" is ready.');
+    });
+
+    it('names the version in the ready copy after the first version', () => {
+        expect(
+            getGenerateDataAppBuildOutcome({ ...base, status: 'ready' })
+                ?.result,
+        ).toContain('Version 2 of the data app "Revenue app" is ready.');
     });
 
     it('maps a failure to error with the user-facing message', () => {

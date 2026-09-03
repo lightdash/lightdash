@@ -8,8 +8,18 @@ import {
     type ApnsDeliveryResult,
     type LiveActivityPayload,
 } from '../../../clients/Apns/ApnsClient';
+import {
+    buildAgentRunAlertMessage,
+    buildAgentRunDataMessage,
+    type AgentRunAlertMessage,
+    type AgentRunDataMessage,
+} from '../../../clients/Fcm/FcmClient';
+import { type MobilePushDeliveryResult } from '../../../clients/MobilePush/mobilePushDelivery';
 import Logger from '../../../logging/logger';
-import { type MobilePushEnvironment } from '../../database/entities/mobilePushNotifications';
+import {
+    type MobilePushEnvironment,
+    type MobilePushPlatform,
+} from '../../database/entities/mobilePushNotifications';
 import { deriveAiAgentThreadLiveStatus } from '../AiAgentService/aiAgentThreadLiveStatus';
 import { type AiAgentThreadLiveStateSignals } from '../AiAgentService/aiAgentThreadLiveStatus';
 
@@ -25,6 +35,7 @@ export type ReconciliationActivity = {
     agentUuid: string;
     threadUuid: string;
     promptUuid: string;
+    platform: MobilePushPlatform;
     environment: MobilePushEnvironment;
     deviceToken: string;
     pushToken: string;
@@ -92,10 +103,22 @@ export type MobilePushApnsClient = {
     }): Promise<ApnsDeliveryResult>;
 };
 
+export type MobilePushFcmClient = {
+    sendAgentRunUpdate(args: {
+        pushToken: string;
+        payload: AgentRunDataMessage;
+    }): Promise<MobilePushDeliveryResult>;
+    sendAgentRunAlert(args: {
+        pushToken: string;
+        payload: AgentRunAlertMessage;
+    }): Promise<MobilePushDeliveryResult>;
+};
+
 type ReconcilerDependencies = {
     notificationStore: MobilePushReconciliationStore;
     threadStore: MobilePushReconciliationThreadStore;
     apnsClient: MobilePushApnsClient;
+    fcmClient: MobilePushFcmClient;
     scheduler: {
         mobilePushLiveActivity(
             payload: {
@@ -123,6 +146,8 @@ export class MobilePushNotificationReconciler {
 
     private readonly apnsClient: MobilePushApnsClient;
 
+    private readonly fcmClient: MobilePushFcmClient;
+
     private readonly scheduler: ReconcilerDependencies['scheduler'];
 
     private readonly analytics: ReconcilerDependencies['analytics'];
@@ -135,6 +160,7 @@ export class MobilePushNotificationReconciler {
         this.notificationStore = dependencies.notificationStore;
         this.threadStore = dependencies.threadStore;
         this.apnsClient = dependencies.apnsClient;
+        this.fcmClient = dependencies.fcmClient;
         this.scheduler = dependencies.scheduler;
         this.analytics = dependencies.analytics;
         this.completionAlert = dependencies.completionAlert;
@@ -177,18 +203,32 @@ export class MobilePushNotificationReconciler {
             return 'completed';
         }
 
-        const result = await this.apnsClient.sendAlert({
-            environment: activity.environment,
-            deviceToken: activity.deviceToken,
-            collapseId: activity.liveActivityUuid,
-            payload: {
-                aps: { alert: this.completionAlert },
-                projectUuid: activity.projectUuid,
-                agentUuid: activity.agentUuid,
-                threadUuid: activity.threadUuid,
-                promptUuid: activity.promptUuid,
-            },
-        });
+        const alert = this.completionAlert;
+        const result =
+            activity.platform === 'android'
+                ? await this.fcmClient.sendAgentRunAlert({
+                      pushToken: activity.deviceToken,
+                      payload: buildAgentRunAlertMessage({
+                          collapseId: activity.liveActivityUuid,
+                          alert,
+                          projectUuid: activity.projectUuid,
+                          agentUuid: activity.agentUuid,
+                          threadUuid: activity.threadUuid,
+                          promptUuid: activity.promptUuid,
+                      }),
+                  })
+                : await this.apnsClient.sendAlert({
+                      environment: activity.environment,
+                      deviceToken: activity.deviceToken,
+                      collapseId: activity.liveActivityUuid,
+                      payload: {
+                          aps: { alert },
+                          projectUuid: activity.projectUuid,
+                          agentUuid: activity.agentUuid,
+                          threadUuid: activity.threadUuid,
+                          promptUuid: activity.promptUuid,
+                      },
+                  });
         this.track({
             event: 'mobile_push.completion_alert_delivery',
             userId: activity.userUuid,
@@ -200,6 +240,7 @@ export class MobilePushNotificationReconciler {
                 promptId: activity.promptUuid,
                 installationId: activity.installationUuid,
                 liveActivityId: activity.liveActivityUuid,
+                platform: activity.platform,
                 environment: activity.environment,
                 outcome: result.status,
             },
@@ -215,7 +256,7 @@ export class MobilePushNotificationReconciler {
         }
         if (result.status === 'retryable') {
             throw new Error(
-                `APNs alert delivery is retryable: ${result.reason ?? 'unknown'}`,
+                `Mobile push alert delivery is retryable: ${result.reason ?? 'unknown'}`,
             );
         }
 
@@ -300,22 +341,38 @@ export class MobilePushNotificationReconciler {
             liveStatus.stateChangedAt === null
                 ? deliveryTime
                 : new Date(liveStatus.stateChangedAt);
-        const payload = buildLiveActivityPayload({
-            state: liveStatus.state,
-            timestamp: deliveryTime,
-            staleAt,
-            dismissalAt,
-            event: liveStatus.state === 'idle' ? 'end' : 'update',
-            projectUuid: activity.projectUuid,
-            agentUuid: activity.agentUuid,
-            threadUuid: activity.threadUuid,
-            promptUuid: activity.promptUuid,
-        });
-        const result = await this.apnsClient.sendLiveActivity({
-            environment: activity.environment,
-            pushToken: activity.pushToken,
-            payload,
-        });
+        const activityEvent = liveStatus.state === 'idle' ? 'end' : 'update';
+        const result =
+            activity.platform === 'android'
+                ? await this.fcmClient.sendAgentRunUpdate({
+                      pushToken: activity.deviceToken,
+                      payload: buildAgentRunDataMessage({
+                          state: liveStatus.state,
+                          event: activityEvent,
+                          liveActivityUuid: activity.liveActivityUuid,
+                          projectUuid: activity.projectUuid,
+                          agentUuid: activity.agentUuid,
+                          threadUuid: activity.threadUuid,
+                          promptUuid: activity.promptUuid,
+                          timestamp: deliveryTime,
+                          staleAt,
+                      }),
+                  })
+                : await this.apnsClient.sendLiveActivity({
+                      environment: activity.environment,
+                      pushToken: activity.pushToken,
+                      payload: buildLiveActivityPayload({
+                          state: liveStatus.state,
+                          timestamp: deliveryTime,
+                          staleAt,
+                          dismissalAt,
+                          event: activityEvent,
+                          projectUuid: activity.projectUuid,
+                          agentUuid: activity.agentUuid,
+                          threadUuid: activity.threadUuid,
+                          promptUuid: activity.promptUuid,
+                      }),
+                  });
         this.track({
             event: 'mobile_push.live_activity_delivery',
             userId: activity.userUuid,
@@ -327,9 +384,10 @@ export class MobilePushNotificationReconciler {
                 promptId: activity.promptUuid,
                 installationId: activity.installationUuid,
                 liveActivityId: activity.liveActivityUuid,
+                platform: activity.platform,
                 environment: activity.environment,
                 state: liveStatus.state,
-                activityEvent: payload.aps.event,
+                activityEvent,
                 outcome: result.status,
             },
         });
@@ -346,7 +404,7 @@ export class MobilePushNotificationReconciler {
         }
         if (result.status === 'retryable') {
             throw new Error(
-                `APNs delivery is retryable: ${result.reason ?? 'unknown'}`,
+                `Mobile push delivery is retryable: ${result.reason ?? 'unknown'}`,
             );
         }
         if (result.status === 'failed') {

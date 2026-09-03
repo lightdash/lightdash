@@ -4,6 +4,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
+    type UiStringResolver,
 } from '@lightdash/common';
 import { Group, Skeleton } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
@@ -33,6 +34,7 @@ type Props = {
     triggerClassName?: string;
     dropdownClassName?: string;
     shadowedReservedNames?: string[];
+    getUiString?: UiStringResolver;
 };
 
 export const Parameters: FC<Props> = ({
@@ -48,6 +50,7 @@ export const Parameters: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     shadowedReservedNames = [],
+    getUiString,
 }) => {
     const projectUuid = useProjectUuid();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
@@ -150,6 +153,7 @@ export const Parameters: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 isDraggable={isEditMode}
                                 shadowedReservedNames={shadowedReservedNames}
+                                getUiString={getUiString}
                             />
                         </DraggableItem>
                     </DroppableArea>

@@ -108,6 +108,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
             return (
                 <ResourceViewGridDashboardItem
                     item={item}
+                    projectUuid={projectUuid}
                     allowDelete={allowDelete}
                     onAction={onAction}
                     dragIcon={dragIcon}
@@ -117,6 +118,7 @@ const ResourceCard: FC<ResourceCardProps> = ({
             return (
                 <ResourceViewGridChartItem
                     item={item}
+                    projectUuid={projectUuid}
                     allowDelete={allowDelete}
                     onAction={onAction}
                     dragIcon={dragIcon}

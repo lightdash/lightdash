@@ -1,8 +1,13 @@
 import { type AiReviewNotificationEvent } from '../../ee/types/aiReviewNotification';
+import {
+    type ContentReviewContentType,
+    type ContentReviewNotificationEvent,
+} from '../contentReviewRequests';
 
 export enum ApiNotificationResourceType {
     DashboardComments = 'dashboardComments',
     AiReview = 'aiReview',
+    ContentReview = 'contentReview',
 }
 
 interface NotificationDashboardTileCommentMetadata {
@@ -39,7 +44,24 @@ export type NotificationAiReview = NotificationBase & {
     };
 };
 
-export type Notification = NotificationDashboardComment | NotificationAiReview;
+export type NotificationContentReview = NotificationBase & {
+    resourceType: ApiNotificationResourceType.ContentReview;
+    metadata: {
+        requestUuid: string;
+        projectUuid: string;
+        contentType: ContentReviewContentType;
+        contentUuid: string;
+        contentName: string;
+        targetSpaceName: string;
+        requesterName: string;
+        event: ContentReviewNotificationEvent;
+    };
+};
+
+export type Notification =
+    | NotificationDashboardComment
+    | NotificationAiReview
+    | NotificationContentReview;
 
 export type ApiNotificationUpdateParams = Pick<Notification, 'viewed'>;
 export type ApiNotificationsResults = Notification[];

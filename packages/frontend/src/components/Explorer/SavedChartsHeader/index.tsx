@@ -3,6 +3,7 @@ import {
     DirectAccessResourceType,
     ChartSourceType,
     canMutateVerifiedContent,
+    ContentReviewContentType,
     ContentType,
     DashboardTileTypes,
     FeatureFlags,
@@ -58,6 +59,11 @@ import {
 } from 'react';
 import { Link, useBlocker, useLocation, useNavigate } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import {
+    PendingReviewBadge,
+    RequestReviewModal,
+    useContentReviewEligibility,
+} from '../../../ee/features/contentReview';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
@@ -112,6 +118,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { getVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -139,9 +146,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SaveChartButton, {
-    type VerificationSavePrompt,
-} from '../SaveChartButton';
+import SaveChartButton from '../SaveChartButton';
 import ChartSlugRenameModal from './ChartSlugRenameModal';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
@@ -247,6 +252,14 @@ const SavedChartsHeader: FC = () => {
     const [isDirectAccessModalOpen, directAccessModalHandlers] =
         useDisclosure(false);
     const directAccessAvailability = useDirectAccessAvailability();
+    const [isRequestReviewModalOpen, requestReviewModalHandlers] =
+        useDisclosure(false);
+    const contentReview = useContentReviewEligibility({
+        projectUuid,
+        contentType: ContentReviewContentType.CHART,
+        contentUuid: savedChart?.uuid,
+        spaceUuid: savedChart?.spaceUuid,
+    });
     const canManageChartAccess = useCanManageDirectAccess({
         projectUuid,
         spaceUuid: savedChart?.spaceUuid ?? null,
@@ -485,16 +498,11 @@ const SavedChartsHeader: FC = () => {
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
 
-    const isOwnVerification =
-        savedChart?.verification?.verifiedBy.userUuid === user.data?.userUuid;
-
-    let verificationSavePrompt: VerificationSavePrompt | undefined;
-    if (isChartVerified) {
-        verificationSavePrompt =
-            canManageContentVerification || isOwnVerification
-                ? 'confirm-keep'
-                : 'warn-removal';
-    }
+    const verificationSavePrompt = getVerificationSavePrompt({
+        verification: savedChart?.verification,
+        canManageContentVerification,
+        userUuid: user.data?.userUuid,
+    });
 
     const userCanPinChart = user.data?.ability.can(
         'manage',
@@ -639,6 +647,12 @@ const SavedChartsHeader: FC = () => {
                                     </Badge>
                                 )}
 
+                                {contentReview.pendingRequest && (
+                                    <PendingReviewBadge
+                                        request={contentReview.pendingRequest}
+                                    />
+                                )}
+
                                 {isChartVerified && (
                                     <Tooltip
                                         label={
@@ -702,6 +716,7 @@ const SavedChartsHeader: FC = () => {
                                         spaceName={savedChart.spaceName}
                                         spaceUuid={savedChart.spaceUuid}
                                         viewStats={chartViewStats.data?.views}
+                                        viewStatsResourceType="chart"
                                         firstViewedAt={
                                             chartViewStats.data?.firstViewedAt
                                         }
@@ -887,6 +902,19 @@ const SavedChartsHeader: FC = () => {
                                             }
                                         >
                                             Move to space
+                                        </Menu.Item>
+                                    )}
+                                {contentReview.canRequest &&
+                                    !hasUnsavedChanges && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={
+                                                requestReviewModalHandlers.open
+                                            }
+                                        >
+                                            Request review
                                         </Menu.Item>
                                     )}
 
@@ -1300,6 +1328,16 @@ const SavedChartsHeader: FC = () => {
                         resourceUuid: savedChart.uuid,
                         name: savedChart.name,
                     }}
+                />
+            )}
+            {isRequestReviewModalOpen && projectUuid && savedChart && (
+                <RequestReviewModal
+                    projectUuid={projectUuid}
+                    contentType={ContentReviewContentType.CHART}
+                    contentUuid={savedChart.uuid}
+                    contentName={savedChart.name}
+                    opened={isRequestReviewModalOpen}
+                    onClose={requestReviewModalHandlers.close}
                 />
             )}
             {isTransferToSpaceModalOpen && projectUuid && (

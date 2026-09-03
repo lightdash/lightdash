@@ -1,4 +1,4 @@
-import { type LightdashConfig } from '../../config/parseConfig';
+import { type S3Config } from '../../config/parseConfig';
 
 export type DuckdbRuntimeConfig = {
     endpoint: string;
@@ -36,7 +36,7 @@ const parseDuckdbS3Endpoint = (
 };
 
 export const getDuckdbRuntimeConfig = (
-    s3Config: LightdashConfig['preAggregates']['s3'],
+    s3Config: Omit<S3Config, 'expirationTime'> | undefined,
 ): DuckdbRuntimeConfig | undefined => {
     if (!s3Config) {
         return undefined;

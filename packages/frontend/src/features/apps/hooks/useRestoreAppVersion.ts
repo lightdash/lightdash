@@ -2,7 +2,11 @@ import {
     type ApiError,
     type ApiRestoreAppVersionResponse,
 } from '@lightdash/common';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQueryClient,
+    type QueryClient,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
 type RestoreAppVersionParams = {
@@ -24,6 +28,21 @@ const restoreAppVersion = ({
         body: undefined,
     });
 
+/** The app gained a ready version; its viz contract may have changed too. */
+export const invalidateAppAfterRestore = (
+    queryClient: QueryClient,
+    projectUuid: string,
+    appUuid: string,
+) =>
+    Promise.all([
+        queryClient.invalidateQueries({
+            queryKey: ['app', projectUuid, appUuid],
+        }),
+        queryClient.invalidateQueries({
+            queryKey: ['data-app-viz', projectUuid, appUuid],
+        }),
+    ]);
+
 export const useRestoreAppVersion = () => {
     const queryClient = useQueryClient();
     return useMutation<
@@ -32,22 +51,8 @@ export const useRestoreAppVersion = () => {
         RestoreAppVersionParams
     >({
         mutationFn: restoreAppVersion,
-        onSuccess: (_data, variables) => {
-            // Pull the new ready version into the timeline so AppGenerate
-            // auto-pins onto it.
-            void queryClient.invalidateQueries({
-                queryKey: ['app', variables.projectUuid, variables.appUuid],
-            });
-            // The restored version carries its own field schema, so any panel
-            // open over this visualization is now reconciling against a
-            // contract that is no longer the one being rendered.
-            void queryClient.invalidateQueries({
-                queryKey: [
-                    'data-app-viz',
-                    variables.projectUuid,
-                    variables.appUuid,
-                ],
-            });
+        onSuccess: (_data, { projectUuid, appUuid }) => {
+            void invalidateAppAfterRestore(queryClient, projectUuid, appUuid);
         },
     });
 };

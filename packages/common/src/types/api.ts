@@ -102,6 +102,7 @@ import type {
     ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
+import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
@@ -172,6 +173,13 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
+    type ContentReviewRequest,
+    type ContentReviewRequestDetail,
+    type ContentReviewRequestListItem,
+    type ContentReviewSettings,
+    type ContentReviewSimilarContentItem,
+} from './contentReviewRequests';
+import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiVerifiedContentListResponse,
@@ -224,6 +232,14 @@ import type {
     ApiGroupListResponse,
 } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
+import type {
+    JiraInstallation,
+    JiraInstallUrl,
+    JiraIssueType,
+    JiraProject,
+    JiraSite,
+} from './jira';
+import { type KnexPaginatedData } from './knex-paginate';
 import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
 import {
     type ApiCompiledMergeQueryResults,
@@ -702,6 +718,7 @@ export type HealthState = {
     hasSlack: boolean;
     hasGithub: boolean;
     hasGitlab: boolean;
+    hasJira: boolean;
     hasLinear: boolean;
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
@@ -1227,7 +1244,13 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ContentReviewRequest
+    | ContentReviewRequestDetail
+    | ContentReviewSettings
+    | ContentReviewSimilarContentItem[]
+    | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
+    | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
@@ -1321,6 +1344,11 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | JiraInstallation
+    | JiraInstallUrl
+    | Array<JiraSite>
+    | Array<JiraProject>
+    | Array<JiraIssueType>
     | LinearInstallation
     | Array<LinearTeam>
     | Array<LinearProject>

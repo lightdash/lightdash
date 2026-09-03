@@ -32,7 +32,6 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.CHART_HISTORY]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.SQL_CHART]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.VIEW_UNDERLYING_DATA]: QueryTrigger.INTERACTIVE,
-    [QueryExecutionContext.METRICS_EXPLORER]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CALCULATE_TOTAL]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.CALCULATE_SUBTOTAL]: QueryTrigger.INTERACTIVE,
     // api/cli/ai/mcp are executed by the user, just through another door.
@@ -43,6 +42,9 @@ export const QUERY_TRIGGER_BY_CONTEXT: Record<
     [QueryExecutionContext.MCP_RUN_SQL]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.MCP_SEARCH_FIELD_VALUES]: QueryTrigger.INTERACTIVE,
     [QueryExecutionContext.DASHBOARD]: QueryTrigger.APPS,
+    // Metric cards render themselves on load — homepage KPI blocks and the
+    // metrics catalog, not a person hitting run.
+    [QueryExecutionContext.METRICS_EXPLORER]: QueryTrigger.APPS,
     [QueryExecutionContext.AUTOREFRESHED_DASHBOARD]: QueryTrigger.APPS,
     [QueryExecutionContext.FILTER_AUTOCOMPLETE]: QueryTrigger.APPS,
     [QueryExecutionContext.DATA_APP_SAMPLE]: QueryTrigger.APPS,

@@ -8,6 +8,8 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentReviewContentType,
+    ContentReviewNotificationEvent,
     ContentType,
     DbtProjectType,
     getRequestMethod,
@@ -2942,6 +2944,43 @@ export type ContentVerificationEvent = BaseTrack & {
     };
 };
 
+export type ContentReviewNotificationSentEvent = BaseTrack & {
+    event:
+        | 'content_review_notification.sent'
+        | 'content_review_notification.errored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        channel: 'email' | 'slack_channel' | 'slack_dm';
+        notificationEvent: ContentReviewNotificationEvent;
+        recipientCount: number;
+        error: string | undefined;
+    };
+};
+
+export type ContentReviewRequestEvent = BaseTrack & {
+    event:
+        | 'content_review_request.submitted'
+        | 'content_review_request.approved'
+        | 'content_review_request.rejected'
+        | 'content_review_request.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string;
+        targetSpaceId: string | null;
+        routedTo?: 'space_editors' | 'group';
+        reviewerCount?: number;
+        movedItemCount?: number;
+        similarContentShown?: number;
+        verified?: boolean;
+        turnaroundSeconds?: number;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -3411,6 +3450,7 @@ export type MobilePushNotificationEvent =
           properties: {
               organizationId: string;
               installationId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
           };
       })
@@ -3425,6 +3465,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
           };
       })
@@ -3439,6 +3480,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
               state: 'working' | 'waiting_for_you' | 'idle';
               activityEvent: 'update' | 'end';
@@ -3456,6 +3498,7 @@ export type MobilePushNotificationEvent =
               promptId: string;
               installationId: string;
               liveActivityId: string;
+              platform: 'ios' | 'android';
               environment: 'sandbox' | 'production';
               outcome: 'sent' | 'invalid_token' | 'retryable' | 'failed';
           };
@@ -3628,6 +3671,8 @@ type TypedEvent =
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
+    | ContentReviewRequestEvent
+    | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
     | ImpersonationEvent

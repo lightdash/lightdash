@@ -88,6 +88,9 @@ export async function generateEmbedding(
         ...attribution,
         model: modelName,
         provider,
+        // The embeddings use an instance-only path. This path does not record
+        // the key origin.
+        keyManagement: null,
         extra,
     });
     const result = await embed({

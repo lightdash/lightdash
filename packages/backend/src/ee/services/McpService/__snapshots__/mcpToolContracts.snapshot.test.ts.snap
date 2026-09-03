@@ -36,6 +36,9 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
 
 ## Critical Rules
 
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
+
 ### Explore Selection
 - When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
 - When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
@@ -2336,7 +2339,7 @@ Usage tips:
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Execute a metric query.
+      "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
@@ -6942,7 +6945,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "title": "Run query",
+      "title": "Run metric query",
     },
     {
       "agentName": null,
@@ -11095,7 +11098,7 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
     "openWorldHint": false,
     "readOnlyHint": true,
   },
-  "description": "Execute a metric query.
+  "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore.
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
@@ -11719,7 +11722,7 @@ All branches of an IF must return the same type.",
     ],
     "type": "object",
   },
-  "title": "Run query",
+  "title": "Run metric query",
 }
 `;
 

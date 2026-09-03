@@ -28,6 +28,10 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // gallery replaces; keep previews on the shipped path until it has its
     // own coverage. QA can still turn it on with a feature_flag_overrides row.
     FeatureFlags.ExplorerChartGallery,
+    // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
+    // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
+    // on the shipped path until it has its own coverage.
+    FeatureFlags.DashboardCustomMetrics,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,

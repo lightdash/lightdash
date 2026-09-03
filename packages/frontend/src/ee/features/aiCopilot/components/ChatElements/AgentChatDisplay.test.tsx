@@ -38,8 +38,19 @@ vi.mock('./AgentChatUserBubble', () => ({
 }));
 
 vi.mock('./AgentChatAssistantBubble', () => ({
-    AssistantBubble: ({ message }: { message: { message: string } }) => (
-        <div data-testid="conversation-item">{message.message}</div>
+    AssistantBubble: ({
+        message,
+        hiddenSibling,
+    }: {
+        message: { message: string };
+        hiddenSibling: { message: string } | null;
+    }) => (
+        <div
+            data-testid="conversation-item"
+            data-hidden-sibling={hiddenSibling?.message}
+        >
+            {message.message}
+        </div>
     ),
 }));
 
@@ -78,6 +89,7 @@ const getAssistantMessage = (
     referencedArtifacts: null,
     modelConfig: null,
     tokenUsage: null,
+    responseTiming: null,
 });
 
 const followUpUserMessage: AiAgentMessageUser = {
@@ -179,6 +191,63 @@ describe('AgentChatDisplay', () => {
             'What is inside the report?',
             'The report covers anomalies.',
             'Deep research card',
+        ]);
+    });
+
+    it('hands a hidden restore turn to its assistant reply and shows no user bubble', () => {
+        deepResearchRegistrationsMock.mockReturnValue([]);
+        const restoreUserMessage: AiAgentMessageUser = {
+            ...followUpUserMessage,
+            uuid: 'restore-prompt',
+            message: 'Restore version 1 of Revenue app',
+            createdAt: '2026-07-29T09:02:00.000Z',
+            hidden: true,
+            context: [
+                {
+                    type: 'data_app_restore',
+                    appUuid: 'app-1',
+                    version: 3,
+                    restoredFromVersion: 1,
+                    appSlug: 'revenue-app',
+                    displayName: 'Revenue app',
+                },
+            ],
+        };
+
+        renderWithProviders(
+            <AgentChatDisplay
+                thread={{
+                    ...thread,
+                    messages: [
+                        followUpUserMessage,
+                        getAssistantMessage(
+                            'follow-up-prompt',
+                            'The report covers anomalies.',
+                            '2026-07-29T09:01:01.000Z',
+                        ),
+                        restoreUserMessage,
+                        getAssistantMessage(
+                            'restore-prompt',
+                            'Restored version 1 as version 3.',
+                            '2026-07-29T09:02:01.000Z',
+                        ),
+                    ],
+                }}
+                projectUuid="project-1"
+                agentUuid="agent-1"
+            />,
+        );
+
+        const items = screen.getAllByTestId('conversation-item');
+        expect(items.map((element) => element.textContent)).toEqual([
+            'What is inside the report?',
+            'The report covers anomalies.',
+            'Restored version 1 as version 3.',
+        ]);
+        expect(items.map((element) => element.dataset.hiddenSibling)).toEqual([
+            undefined,
+            undefined,
+            'Restore version 1 of Revenue app',
         ]);
     });
 });

@@ -84,6 +84,28 @@ describe('VisualizationConfigPortal', () => {
         );
     });
 
+    it('finds a host that mounts after the config opens', async () => {
+        renderWithProviders(
+            <Page withNavbar={false} isRightSidebarOpen={false}>
+                <PortalProducer isOpen />
+            </Page>,
+        );
+        expect(document.getElementById(VisualizationConfigPortalId)).toBeNull();
+
+        const lateHost = document.createElement('div');
+        lateHost.id = VisualizationConfigPortalId;
+        document.body.appendChild(lateHost);
+
+        expect(
+            await screen.findByText('Configure content'),
+        ).toBeInTheDocument();
+        expect(lateHost).toContainElement(
+            screen.getByText('Configure content'),
+        );
+
+        lateHost.remove();
+    });
+
     it('keeps the original target when not following the host', async () => {
         renderWithProviders(
             <Page

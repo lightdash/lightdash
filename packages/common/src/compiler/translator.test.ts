@@ -12,12 +12,17 @@ import {
 } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
+import {
+    WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
+    type WarehouseCatalog,
+} from '../types/warehouse';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import { getExploreParameterDefinitions } from './parameters';
 import {
     attachTypesToModels,
     convertExplores,
     convertTable,
+    type AttachTypesDiagnostics,
 } from './translator';
 import {
     expectedModelWithTimestampDomain,
@@ -186,6 +191,95 @@ describe('attachTypesToModels', () => {
                 false,
             )[0],
         ).toEqual(expectedModelWithType);
+    });
+    it('should keep the first catalog entry when two fold to the same name', async () => {
+        // Neither key matches exactly, so both can only be reached case-insensitively.
+        const collidingCatalog: WarehouseCatalog = {
+            myDatabase: {
+                mySchema: {
+                    MYTABLE: { myColumnName: DimensionType.NUMBER },
+                    MyTable: { myColumnName: DimensionType.STRING },
+                },
+            },
+        };
+        expect(
+            attachTypesToModels([model], collidingCatalog, true, false)[0]
+                .columns.myColumnName.data_type,
+        ).toEqual(DimensionType.NUMBER);
+    });
+    it('should prefer an exact match over a case-insensitive one', async () => {
+        const collidingCatalog: WarehouseCatalog = {
+            myDatabase: {
+                mySchema: {
+                    MYTABLE: { myColumnName: DimensionType.NUMBER },
+                    myTable: { myColumnName: DimensionType.STRING },
+                },
+            },
+        };
+        expect(
+            attachTypesToModels([model], collidingCatalog, true, false)[0]
+                .columns.myColumnName.data_type,
+        ).toEqual(DimensionType.STRING);
+    });
+    it('should not treat the timestamp-domain sidecar as a database', async () => {
+        const catalogWithSidecar = {
+            ...warehouseSchema,
+            [WAREHOUSE_TIMESTAMP_DOMAINS_KEY]: {
+                myDatabase: {
+                    mySchema: { myTable: { myColumnName: 'utc' } },
+                },
+            },
+        } as unknown as WarehouseCatalog;
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        expect(() =>
+            attachTypesToModels([model], catalogWithSidecar, true, true, (d) =>
+                diagnostics.push(d),
+            ),
+        ).not.toThrow();
+        expect(diagnostics[0].catalogTableCount).toEqual(1);
+    });
+    it('should count an exact table with a case-insensitive column as case-insensitive', async () => {
+        // The table key matches exactly and only the column needs folding. This is the
+        // combination that a table-level-only classification gets wrong.
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithUpperCaseColumn,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
+    it('should count a case-insensitive table as case-insensitive', async () => {
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithAllUpperCaseKeys,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
+    it('should report diagnostics for the phase', async () => {
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels([model], warehouseSchema, false, true, (d) =>
+            diagnostics.push(d),
+        );
+        expect(diagnostics).toHaveLength(1);
+        expect(diagnostics[0].modelCount).toEqual(1);
+        expect(diagnostics[0].columnCount).toEqual(
+            Object.keys(model.columns).length,
+        );
+        expect(diagnostics[0].catalogTableCount).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(1);
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(0);
+        expect(diagnostics[0].schemaPairs).toEqual([
+            { databaseSchema: 'myDatabase.mySchema', models: 1 },
+        ]);
     });
 });
 

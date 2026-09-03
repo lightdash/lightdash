@@ -187,6 +187,12 @@ export class AiAgentReviewNotificationService {
             fingerprints: args.fingerprints,
             reviewRunUuid: args.reviewRunUuid,
         });
+        await this.createJiraIssues({
+            organizationUuid: args.organizationUuid,
+            projectUuid: args.projectUuid,
+            fingerprints: args.fingerprints,
+            reviewRunUuid: args.reviewRunUuid,
+        });
     }
 
     async createLinearIssues(args: {
@@ -202,6 +208,26 @@ export class AiAgentReviewNotificationService {
 
         await this.schedulerClient.scheduleTask(
             EE_SCHEDULER_TASKS.CREATE_REVIEW_LINEAR_ISSUE,
+            {
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                fingerprints: args.fingerprints,
+                reviewRunUuid: args.reviewRunUuid,
+                userUuid: args.userUuid,
+            },
+        );
+    }
+
+    async createJiraIssues(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        fingerprints: string[];
+        reviewRunUuid: string | null;
+        userUuid?: string;
+    }): Promise<void> {
+        if (args.fingerprints.length === 0) return;
+        await this.schedulerClient.scheduleTask(
+            EE_SCHEDULER_TASKS.CREATE_REVIEW_JIRA_ISSUE,
             {
                 organizationUuid: args.organizationUuid,
                 projectUuid: args.projectUuid,

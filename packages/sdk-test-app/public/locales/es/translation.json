@@ -1,4 +1,9 @@
 {
+    "parameters": {
+        "metric_type": {
+            "label": "Tipo de métrica"
+        }
+    },
     "dashboard": {
         "jaffle-dashboard": {
             "name": "Tablero de Jaffle",
@@ -79,9 +84,17 @@
                     }
                 }
             ]
+        },
+        "repro-prod-10299": {
+            "tabs": [
+                { "name": "Pestaña uno" },
+                { "name": "Pestaña dos" },
+                { "name": "Pestaña tres" }
+            ]
         }
     },
     "uiOverrides": {
+        "parameters.is": "es",
         "tileMenu.exploreFromHere": "Explorar desde aquí",
         "tileMenu.downloadData": "Descargar datos",
         "tileMenu.exportImage": "Exportar imagen",
