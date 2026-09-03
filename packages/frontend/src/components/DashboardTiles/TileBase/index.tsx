@@ -23,10 +23,12 @@ import {
     IconDots,
     IconEdit,
     IconGripVertical,
+    IconLink,
     IconTrash,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useState } from 'react';
+import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
@@ -96,7 +98,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
-    const hasMenuContent = isEditMode || !!extraMenuItems;
+    const copyTileLink = useCopyTileLink(tile);
+    const canCopyTileLink = !minimal && copyTileLink !== null;
+
+    const hasMenuContent = isEditMode || !!extraMenuItems || canCopyTileLink;
     const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent =
         hasMenuContent || isVerified || hasNonMenuHeaderContent;
@@ -163,6 +168,20 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 onClose={() => toggleMenu(false)}
                             >
                                 <Menu.Dropdown>
+                                    {canCopyTileLink && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconLink} />
+                                            }
+                                            onClick={copyTileLink}
+                                        >
+                                            Copy link to tile
+                                        </Menu.Item>
+                                    )}
+                                    {canCopyTileLink &&
+                                        (!!extraMenuItems || isEditMode) && (
+                                            <Menu.Divider />
+                                        )}
                                     {extraMenuItems}
                                     {isEditMode && extraMenuItems && (
                                         <Menu.Divider />
