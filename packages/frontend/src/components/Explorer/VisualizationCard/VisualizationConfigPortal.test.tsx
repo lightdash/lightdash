@@ -90,9 +90,7 @@ describe('VisualizationConfigPortal', () => {
                 <PortalProducer isOpen />
             </Page>,
         );
-        expect(
-            document.getElementById(VisualizationConfigPortalId),
-        ).toBeNull();
+        expect(document.getElementById(VisualizationConfigPortalId)).toBeNull();
 
         const lateHost = document.createElement('div');
         lateHost.id = VisualizationConfigPortalId;
