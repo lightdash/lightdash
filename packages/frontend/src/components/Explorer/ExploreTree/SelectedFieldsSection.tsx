@@ -1,4 +1,5 @@
 import {
+    getItemId,
     isAdditionalMetric,
     isCompiledMetric,
     isCustomDimension,
@@ -33,6 +34,7 @@ import {
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useAddFilter } from '../../../hooks/useFilters';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
@@ -122,6 +124,12 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
+    // Registry metrics stay frozen in the selected section too.
+    const dashboardMetricIds = useModalHostedDashboardMetricIds();
+    const isDashboardMetric =
+        isAdditionalMetric(item) &&
+        (dashboardMetricIds?.has(getItemId(item)) ?? false);
+
     const selectIsFiltered = useMemo(
         () => (state: ExplorerStoreState) =>
             selectIsFieldFiltered(state, fieldId),
@@ -142,7 +150,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         useCustomMetricDelete({
             item,
             fieldId,
-            isHover,
+            isHover: isHover && !isDashboardMetric,
         });
     const showDeleteAction = !hideActions && canShowDeleteAction;
 
@@ -323,7 +331,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             onViewDescription={onOpenDescriptionView}
                             onMenuChange={onToggleMenu}
                             onAddFilter={fieldOnAddFilter}
-                            basicActionsOnly={basicActionsOnly}
+                            basicActionsOnly={
+                                basicActionsOnly || isDashboardMetric
+                            }
                         />
                     )}
             </span>

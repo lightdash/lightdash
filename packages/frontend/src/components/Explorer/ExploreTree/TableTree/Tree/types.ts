@@ -31,6 +31,8 @@ export type TreeProviderProps = {
     searchQuery?: string;
     itemsMap: Record<string, NodeItem>;
     missingCustomMetrics?: AdditionalMetric[];
+    /** Registry metric ids: membership drives the badge and freezes actions */
+    dashboardMetricIds?: Set<string>;
     itemsAlerts?: {
         [id: string]: {
             errors?: { message: string }[];

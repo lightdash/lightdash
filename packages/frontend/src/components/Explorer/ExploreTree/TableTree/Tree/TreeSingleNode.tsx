@@ -19,6 +19,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Group,
     Highlight,
     NavLink,
@@ -170,6 +171,9 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const missingCustomMetrics = useTableTree(
         (context) => context.missingCustomMetrics,
     );
+    const dashboardMetricIds = useTableTree(
+        (context) => context.dashboardMetricIds,
+    );
     const itemsAlerts = useTableTree((context) => context.itemsAlerts);
     const missingCustomDimensions = useTableTree(
         (context) => context.missingCustomDimensions,
@@ -279,6 +283,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         return false;
     }, [description, isMissing, item, metricInfo]);
 
+    // Registry metric: badged with '=' and frozen (no edit/duplicate/delete).
+    const isDashboardMetric =
+        isAdditionalMetric(item) &&
+        (dashboardMetricIds?.has(getItemId(item)) ?? false);
+
     const itemColors = getFieldColors(item);
     const alerts = itemsAlerts?.[getItemId(item)];
     const isFiltered = isField(item) && isFieldFiltered;
@@ -289,7 +298,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
         item,
         fieldId,
-        isHover,
+        isHover: isHover && !isDashboardMetric,
     });
 
     const timeIntervalLabel =
@@ -479,6 +488,18 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             )}
                         </HoverCard.Dropdown>
                     </HoverCard>
+                    {isDashboardMetric && (
+                        <Tooltip label="Only available in this dashboard">
+                            <Badge
+                                size="xs"
+                                radius="sm"
+                                px={4}
+                                className="ld-shrink-0"
+                            >
+                                =
+                            </Badge>
+                        </Tooltip>
+                    )}
                     {renderAlerts}
                     {isTruncated && (
                         <Tooltip
@@ -536,6 +557,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
                     hasDescription={!!description}
+                    basicActionsOnly={isDashboardMetric}
                     onViewDescription={onOpenDescriptionView}
                     onMenuChange={onToggleMenu}
                 />
