@@ -860,6 +860,18 @@ export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>
 >;
 
+export type ApiAiAgentThreadDataAppRestoreRequest = {
+    appUuid: string;
+    version: number;
+};
+
+export type ApiAiAgentThreadDataAppRestoreResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+    restoredFromVersion: number;
+    promptUuid: string;
+}>;
+
 export type ApiAiAgentStartThreadResponse = {
     status: 'ok';
     results: {
