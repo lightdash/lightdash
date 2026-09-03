@@ -238,6 +238,32 @@ describe('attachTypesToModels', () => {
         ).not.toThrow();
         expect(diagnostics[0].catalogTableCount).toEqual(1);
     });
+    it('should count an exact table with a case-insensitive column as case-insensitive', async () => {
+        // The table key matches exactly and only the column needs folding. This is the
+        // combination that a table-level-only classification gets wrong.
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithUpperCaseColumn,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
+    it('should count a case-insensitive table as case-insensitive', async () => {
+        const diagnostics: AttachTypesDiagnostics[] = [];
+        attachTypesToModels(
+            [model],
+            warehouseSchemaWithAllUpperCaseKeys,
+            true,
+            false,
+            (d) => diagnostics.push(d),
+        );
+        expect(diagnostics[0].caseInsensitiveLookups).toEqual(1);
+        expect(diagnostics[0].exactLookups).toEqual(0);
+    });
     it('should report diagnostics for the phase', async () => {
         const diagnostics: AttachTypesDiagnostics[] = [];
         attachTypesToModels([model], warehouseSchema, false, true, (d) =>

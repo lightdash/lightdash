@@ -1686,7 +1686,8 @@ export const attachTypesToModels = (
                     : column.toLowerCase() === columnName.toLowerCase(),
             );
             if (columnMatch !== undefined) {
-                if (hit.caseInsensitive) {
+                // A lookup is only exact when BOTH the table and the column matched exactly.
+                if (hit.caseInsensitive || columnMatch !== columnName) {
                     caseInsensitiveLookups += 1;
                 } else {
                     exactLookups += 1;
