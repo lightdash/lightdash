@@ -102,11 +102,14 @@ export class ValidationModel {
         jobId?: string;
     }): Promise<void> {
         await this.database.transaction(async (trx) => {
-            // Lock the project to avoid concurrent validation updates
+            // Lock the project to avoid concurrent validation updates.
+            // FOR NO KEY UPDATE doesn't block foreign key checks, so inserts
+            // into query_history and other project-referencing tables can
+            // still proceed while validations are stored.
             await trx(ProjectTableName)
                 .select('project_uuid')
                 .where('project_uuid', projectUuid)
-                .forUpdate();
+                .forNoKeyUpdate();
 
             if (validations.length > 0) {
                 await ValidationModel.create(trx, validations, jobId);
@@ -185,11 +188,14 @@ export class ValidationModel {
         validations: CreateValidation[],
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            // Lock the project to avoid concurrent validation updates
+            // Lock the project to avoid concurrent validation updates.
+            // FOR NO KEY UPDATE doesn't block foreign key checks, so inserts
+            // into query_history and other project-referencing tables can
+            // still proceed while validations are stored.
             await trx(ProjectTableName)
                 .select('project_uuid')
                 .where('project_uuid', projectUuid)
-                .forUpdate();
+                .forNoKeyUpdate();
 
             await trx(ValidationTableName)
                 .where({ project_uuid: projectUuid })
