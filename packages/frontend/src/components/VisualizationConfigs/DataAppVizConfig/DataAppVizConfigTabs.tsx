@@ -64,9 +64,8 @@ export const ConfigTabs: FC = memo(() => {
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
 
-    // The results' columns plus fields the current query selects but whose
-    // run hasn't landed. Reconciling against this keeps a just-assigned
-    // binding from being stripped before its results arrive.
+    // Results' columns plus pending (not-yet-run) query fields, so a
+    // just-assigned binding isn't stripped before its results land.
     const effectiveItemsMap = useMemo<ItemsMap>(() => {
         const pendingEntries = addableItems.flatMap((item) => {
             const id = getItemId(item);

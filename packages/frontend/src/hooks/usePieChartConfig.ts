@@ -192,9 +192,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
     const isLoading = !resultsData;
 
-    // Fields the current (not-yet-run) query selects. The pools above only
-    // know the last run, so without this a field just added from the config
-    // picker would be dropped before its results land.
+    // The pools above only know the last run; a field just added from the
+    // config picker must not be dropped before its results land.
     const pendingDimensionIds = useMemo(
         () => new Set(unsavedMetricQuery?.dimensions),
         [unsavedMetricQuery?.dimensions],

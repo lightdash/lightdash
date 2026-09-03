@@ -19,13 +19,9 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 /**
- * The pool behind a config picker's "Add to query" group: every visible field
- * of the current explore (plus the query's custom dimensions, additional
- * metrics and table calculations) that the last run's results don't already
- * offer. Picking one adds it to the query and re-runs, so a chart slot can use
- * it without a round trip through the sidebar.
- *
- * Explorer-only: the config panels always render inside the explorer store.
+ * The pool behind a config picker's "Add to query" group: visible explore
+ * fields the last run's results don't offer. Picking one adds it to the query
+ * and re-runs. Explorer-only — the config panels render inside its store.
  */
 export const useAddFieldsToQuery = () => {
     const { itemsMap } = useVisualizationContext();

@@ -81,7 +81,8 @@ type FieldSelectProps<T extends Item = Item> = Omit<
     /** Fields not in the query yet, offered under an "Add to query" group.
      *  Picking one reaches `onChange` like any other item. */
     addItems?: T[];
-    /** Shows a spinner while the slot waits on a query run. */
+    /** Shows a spinner while the slot waits on a query run, replacing any
+     *  `rightSection` for the duration. */
     loading?: boolean;
     inactiveItemIds?: string[];
     onChange: (value: T | undefined) => void;

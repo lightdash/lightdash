@@ -978,9 +978,8 @@ const useCartesianChartConfig = ({
             ];
         }, [resultsData, sortedDimensions]);
 
-    // Fields the current (not-yet-run) query selects. `availableFields` only
-    // knows the last run, so without this a field just added from a config
-    // picker would be stripped from the layout before its results land.
+    // `availableFields` only knows the last run; a field just added from a
+    // config picker must not be stripped before its results land.
     const pendingFieldIds = useMemo(
         () =>
             unsavedMetricQuery
