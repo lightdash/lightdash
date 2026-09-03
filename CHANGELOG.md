@@ -1,3 +1,22 @@
+# [2.104.0](https://github.com/lightdash/lightdash/compare/2.103.0...2.104.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** render the config panel when deep-linked open without the gallery ([#28527](https://github.com/lightdash/lightdash/issues/28527)) ([c9d555d](https://github.com/lightdash/lightdash/commit/c9d555d4a3bb3544bdf0127661b3dcaf0e58e888))
+
+
+### Features
+
+* bound the dbt source fetch ([#28556](https://github.com/lightdash/lightdash/issues/28556)) ([939f853](https://github.com/lightdash/lightdash/commit/939f85305d582fe8de01ce7dc2c4c3881d5cbb2b))
+* make a stuck refresh say what happened ([#28557](https://github.com/lightdash/lightdash/issues/28557)) ([31d1244](https://github.com/lightdash/lightdash/commit/31d1244aa938c5e9ae9818f354a05d082ea8df1d))
+
+
+### Performance Improvements
+
+* bound explore save chunks by bytes and insert them in order ([#28562](https://github.com/lightdash/lightdash/issues/28562)) ([7cc4f6e](https://github.com/lightdash/lightdash/commit/7cc4f6e3605092b7bff4461b14b5c7e0679fd15d))
+* serve explores from per-explore rows, not the whole-set blob ([#28565](https://github.com/lightdash/lightdash/issues/28565)) ([ce35b03](https://github.com/lightdash/lightdash/commit/ce35b0391237d34a349438f064d3512956f1c5af))
+
 # [2.103.0](https://github.com/lightdash/lightdash/compare/2.102.1...2.103.0) (2026-09-03)
 
 
