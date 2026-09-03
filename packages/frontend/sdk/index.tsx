@@ -355,8 +355,12 @@ const SdkProviders: FC<
         return null;
     }
 
+    // Mantine's Portal reads its target from the theme when it mounts, and
+    // Notifications mounts one straight away, so the provider stack waits for
+    // the container to exist. The fragment keeps the tree shape stable across
+    // both renders; otherwise React would remount the container and reset it.
     return (
-        <ReactQueryProvider>
+        <>
             {createPortal(
                 <div
                     ref={setPortalNode}
@@ -368,47 +372,59 @@ const SdkProviders: FC<
                 />,
                 document.body,
             )}
-            <MantineProvider
-                themeOverride={themeOverride}
-                notificationsLimit={0}
-                forceColorScheme={colorScheme}
-                cssVariablesSelector={SDK_SCOPE_SELECTOR}
-                getRootElement={getRootElement}
-                syncBodyColorMode={false}
-            >
-                <div
-                    ref={rootRef}
-                    className={embedContractClass(
-                        'ld-sdk-root',
-                        SDK_SCOPE_CLASS,
-                    )}
-                >
-                    {portalNode && (
-                    <ModalsProvider>
-                        <AppProvider>
-                            <FullscreenProvider enabled={false}>
-                                <ThirdPartyServicesProvider enabled={false}>
-                                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter initialEntries={[route]}>
-                                            <TrackingProvider enabled={true}>
-                                                <AbilityProvider>
-                                                    <ChartColorMappingContextProvider>
-                                                        <ActiveJobProvider>
-                                                            {routedChildren}
-                                                        </ActiveJobProvider>
-                                                    </ChartColorMappingContextProvider>
-                                                </AbilityProvider>
-                                            </TrackingProvider>
-                                        </MemoryRouter>
-                                    </ErrorBoundary>
-                                </ThirdPartyServicesProvider>
-                            </FullscreenProvider>
-                        </AppProvider>
-                    </ModalsProvider>
-                    )}
-                </div>
-            </MantineProvider>
-        </ReactQueryProvider>
+            {portalNode && (
+                <ReactQueryProvider>
+                    <MantineProvider
+                        themeOverride={themeOverride}
+                        notificationsLimit={0}
+                        forceColorScheme={colorScheme}
+                        cssVariablesSelector={SDK_SCOPE_SELECTOR}
+                        getRootElement={getRootElement}
+                        syncBodyColorMode={false}
+                    >
+                        <div
+                            ref={rootRef}
+                            className={embedContractClass(
+                                'ld-sdk-root',
+                                SDK_SCOPE_CLASS,
+                            )}
+                        >
+                            <ModalsProvider>
+                                <AppProvider>
+                                    <FullscreenProvider enabled={false}>
+                                        <ThirdPartyServicesProvider
+                                            enabled={false}
+                                        >
+                                            <ErrorBoundary
+                                                wrapper={{ mt: '4xl' }}
+                                            >
+                                                <MemoryRouter
+                                                    initialEntries={[route]}
+                                                >
+                                                    <TrackingProvider
+                                                        enabled={true}
+                                                    >
+                                                        <AbilityProvider>
+                                                            <ChartColorMappingContextProvider>
+                                                                <ActiveJobProvider>
+                                                                    {
+                                                                        routedChildren
+                                                                    }
+                                                                </ActiveJobProvider>
+                                                            </ChartColorMappingContextProvider>
+                                                        </AbilityProvider>
+                                                    </TrackingProvider>
+                                                </MemoryRouter>
+                                            </ErrorBoundary>
+                                        </ThirdPartyServicesProvider>
+                                    </FullscreenProvider>
+                                </AppProvider>
+                            </ModalsProvider>
+                        </div>
+                    </MantineProvider>
+                </ReactQueryProvider>
+            )}
+        </>
     );
 };
 
