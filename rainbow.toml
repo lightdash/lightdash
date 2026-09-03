@@ -107,6 +107,15 @@ memory = "12gb"
 name = "app"
 watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
 
+# Outbound access, exactly these flows and nothing else (the platform builds
+# the uplink and a default-deny policy around them). The backend validates its
+# licence key online at startup; with no offline certificate stored, Keygen
+# must be reachable from every environment, the parent's readiness gate
+# included.
+[[egress.allow]]
+host = "api.keygen.sh"
+port = 443
+
 # The browser learns its origin from one field of one response, so the ingress
 # corrects it in flight; nothing is re-execed on fork.
 [origin]
