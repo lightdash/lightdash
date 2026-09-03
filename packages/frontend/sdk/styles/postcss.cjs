@@ -11,13 +11,24 @@ const prefixSelector = require('postcss-prefix-selector');
 
 const SCOPE_SELECTOR = '.lightdash-sdk-scope';
 
+const SCHEME_ATTRIBUTE = /(:root|:host)?\[data-mantine-color-scheme/g;
+
 const scopeDocumentRules = prefixSelector({
     prefix: SCOPE_SELECTOR,
-    exclude: [/[.[#]/],
-    transform: (prefix, selector) =>
-        /^(:root|:host|html|body)$/.test(selector)
+    transform: (prefix, selector) => {
+        if (SCHEME_ATTRIBUTE.test(selector)) {
+            return selector.replace(
+                SCHEME_ATTRIBUTE,
+                `${prefix}[data-mantine-color-scheme`,
+            );
+        }
+        if (/[.[#]/.test(selector)) {
+            return selector;
+        }
+        return /^(:root|:host|html|body)$/.test(selector)
             ? prefix
-            : `:where(${prefix}) ${selector}`,
+            : `:where(${prefix}) ${selector}`;
+    },
 });
 
 module.exports = { scopeDocumentRules, SCOPE_SELECTOR };
