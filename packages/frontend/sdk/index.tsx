@@ -3,6 +3,7 @@ import '@mantine/code-highlight/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
+import './styles/sdk.css';
 import {
     FilterOperator,
     getErrorMessage,
@@ -12,10 +13,12 @@ import {
     type SdkUiOverrides,
     type UiStringKey,
 } from '@lightdash/common';
+import { Portal, type MantineThemeOverride } from '@mantine/core';
 import { ModalsProvider } from '@mantine/modals';
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     type FC,
@@ -24,6 +27,7 @@ import {
 import { MemoryRouter, Route, Routes } from 'react-router';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
@@ -56,6 +60,7 @@ import {
     type ListContentOptions,
 } from './api';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
+import { SDK_SCOPE_CLASS, SDK_SCOPE_SELECTOR } from './styles/scope';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -298,6 +303,36 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
+/**
+ * Body-level container for everything Mantine portals out of the inline root
+ * (dropdowns, modals, notifications). It carries the scope class and colour
+ * scheme so portalled content keeps the SDK's variables without the SDK ever
+ * tagging the host's <html> or <body>.
+ */
+const useSdkPortalNode = (colorScheme: 'light' | 'dark') => {
+    const [node, setNode] = useState<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const element = document.createElement('div');
+        element.className = embedContractClass(
+            'ld-sdk-portal',
+            SDK_SCOPE_CLASS,
+        );
+        document.body.appendChild(element);
+        setNode(element);
+        return () => {
+            element.remove();
+            setNode(null);
+        };
+    }, []);
+
+    useEffect(() => {
+        node?.setAttribute('data-mantine-color-scheme', colorScheme);
+    }, [node, colorScheme]);
+
+    return node;
+};
+
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -305,17 +340,33 @@ const SdkProviders: FC<
         projectUuid?: string;
     }>
 > = ({ children, styles, theme, projectUuid }) => {
+    const colorScheme = theme ?? 'light';
+    const rootRef = useRef<HTMLDivElement>(null);
+    const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
+    const portalNode = useSdkPortalNode(colorScheme);
+    const fontFamily = styles?.fontFamily;
     // Only override the font when the consumer sets one: Mantine 8's CSS-vars
     // generator stringifies an explicit undefined into `font-family: undefined`.
-    const themeOverride = styles?.fontFamily
-        ? {
-              fontFamily: styles.fontFamily,
-              other: {
-                  tableFont: styles.fontFamily,
-                  chartFont: styles.fontFamily,
-              },
-          }
-        : {};
+    const themeOverride = useMemo<MantineThemeOverride>(
+        () => ({
+            ...(fontFamily
+                ? {
+                      fontFamily,
+                      other: { tableFont: fontFamily, chartFont: fontFamily },
+                  }
+                : {}),
+            ...(portalNode
+                ? {
+                      components: {
+                          Portal: Portal.extend({
+                              defaultProps: { target: portalNode },
+                          }),
+                      },
+                  }
+                : {}),
+        }),
+        [fontFamily, portalNode],
+    );
     const route = projectUuid ? `/projects/${projectUuid}` : '/';
     const routedChildren = projectUuid ? (
         <Routes>
@@ -325,34 +376,49 @@ const SdkProviders: FC<
         children
     );
 
+    if (!portalNode) {
+        return null;
+    }
+
     return (
         <ReactQueryProvider>
             <MantineProvider
                 themeOverride={themeOverride}
                 notificationsLimit={0}
-                forceColorScheme={theme}
+                forceColorScheme={colorScheme}
+                cssVariablesSelector={SDK_SCOPE_SELECTOR}
+                getRootElement={getRootElement}
+                syncBodyColorMode={false}
             >
-                <ModalsProvider>
-                    <AppProvider>
-                        <FullscreenProvider enabled={false}>
-                            <ThirdPartyServicesProvider enabled={false}>
-                                <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                    <MemoryRouter initialEntries={[route]}>
-                                        <TrackingProvider enabled={true}>
-                                            <AbilityProvider>
-                                                <ChartColorMappingContextProvider>
-                                                    <ActiveJobProvider>
-                                                        {routedChildren}
-                                                    </ActiveJobProvider>
-                                                </ChartColorMappingContextProvider>
-                                            </AbilityProvider>
-                                        </TrackingProvider>
-                                    </MemoryRouter>
-                                </ErrorBoundary>
-                            </ThirdPartyServicesProvider>
-                        </FullscreenProvider>
-                    </AppProvider>
-                </ModalsProvider>
+                <div
+                    ref={rootRef}
+                    className={embedContractClass(
+                        'ld-sdk-root',
+                        SDK_SCOPE_CLASS,
+                    )}
+                >
+                    <ModalsProvider>
+                        <AppProvider>
+                            <FullscreenProvider enabled={false}>
+                                <ThirdPartyServicesProvider enabled={false}>
+                                    <ErrorBoundary wrapper={{ mt: '4xl' }}>
+                                        <MemoryRouter initialEntries={[route]}>
+                                            <TrackingProvider enabled={true}>
+                                                <AbilityProvider>
+                                                    <ChartColorMappingContextProvider>
+                                                        <ActiveJobProvider>
+                                                            {routedChildren}
+                                                        </ActiveJobProvider>
+                                                    </ChartColorMappingContextProvider>
+                                                </AbilityProvider>
+                                            </TrackingProvider>
+                                        </MemoryRouter>
+                                    </ErrorBoundary>
+                                </ThirdPartyServicesProvider>
+                            </FullscreenProvider>
+                        </AppProvider>
+                    </ModalsProvider>
+                </div>
             </MantineProvider>
         </ReactQueryProvider>
     );

@@ -677,3 +677,45 @@ describe('SDK API client', () => {
         );
     });
 });
+
+describe('SDK host page isolation', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+
+    it('keeps Mantine attributes and variables off the host <html> and <body>', async () => {
+        const { container, unmount } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl="http://localhost:3000"
+                filters={[]}
+                theme="dark"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('.ld-sdk-root')).not.toBeNull();
+        });
+
+        expect(document.documentElement).not.toHaveAttribute(
+            'data-mantine-color-scheme',
+        );
+        expect(document.body).not.toHaveAttribute('data-color-mode');
+
+        const root = container.querySelector('.ld-sdk-root');
+        expect(root?.getAttribute('data-mantine-color-scheme')).toBe('dark');
+
+        const portal = document.body.querySelector(':scope > .ld-sdk-portal');
+        expect(portal?.getAttribute('data-mantine-color-scheme')).toBe('dark');
+
+        const variableSheets = [
+            ...document.querySelectorAll('style[data-mantine-styles]'),
+        ].map((style) => style.textContent ?? '');
+        expect(variableSheets.length).toBeGreaterThan(0);
+        variableSheets.forEach((css) => {
+            expect(css).not.toMatch(/:root|:host/);
+        });
+
+        unmount();
+        expect(document.body.querySelector('.ld-sdk-portal')).toBeNull();
+    });
+});
