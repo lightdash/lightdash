@@ -1,3 +1,49 @@
+## [2.118.1](https://github.com/lightdash/lightdash/compare/2.118.0...2.118.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **data-apps:** keep the chat scroll position when loading earlier messages ([#28612](https://github.com/lightdash/lightdash/issues/28612)) ([b99065c](https://github.com/lightdash/lightdash/commit/b99065c9d3ab424152dff359a53bd703596fd7c7))
+
+# [2.118.0](https://github.com/lightdash/lightdash/compare/2.117.1...2.118.0) (2026-09-03)
+
+
+### Features
+
+* **frontend:** explain chart type library availability ([#28608](https://github.com/lightdash/lightdash/issues/28608)) ([2089099](https://github.com/lightdash/lightdash/commit/20890993cd45551d5dee163ddd3729f456cf9d07))
+
+## [2.117.1](https://github.com/lightdash/lightdash/compare/2.117.0...2.117.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* log a failed compile as failed ([#28609](https://github.com/lightdash/lightdash/issues/28609)) ([45153d1](https://github.com/lightdash/lightdash/commit/45153d1bdb3b12bd4a31eb1b9df0ed94ad9d02cc))
+
+# [2.117.0](https://github.com/lightdash/lightdash/compare/2.116.0...2.117.0) (2026-09-03)
+
+
+### Features
+
+* **dashboard:** badge and freeze registry metrics in the field tree ([#28589](https://github.com/lightdash/lightdash/issues/28589)) ([426c1e9](https://github.com/lightdash/lightdash/commit/426c1e95bc7860e9fbcbbb086d94be139e2b5c3e))
+* **dashboard:** filter registry metrics to the selected explore ([#28586](https://github.com/lightdash/lightdash/issues/28586)) ([24aa772](https://github.com/lightdash/lightdash/commit/24aa772e9d887abd03e81f778aaad1547b6c860a))
+* **dashboard:** seed in-dashboard charts with the registry ([#28587](https://github.com/lightdash/lightdash/issues/28587)) ([b65248c](https://github.com/lightdash/lightdash/commit/b65248c86faff937689878a16255cfebf3c918b9))
+
+# [2.116.0](https://github.com/lightdash/lightdash/compare/2.115.0...2.116.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ai:** default optional secondary axis fields ([#28595](https://github.com/lightdash/lightdash/issues/28595)) ([7e5dfcc](https://github.com/lightdash/lightdash/commit/7e5dfccab7e622811c190a2700cd6c5bc27d761e))
+
+
+### Features
+
+* **dashboard:** merge chart custom metrics into the dashboard registry ([#28585](https://github.com/lightdash/lightdash/issues/28585)) ([986235d](https://github.com/lightdash/lightdash/commit/986235dcf882716ca35988b650298a8c072cb8d8))
+* **dashboard:** preserve customMetrics through dashboard save ([#28583](https://github.com/lightdash/lightdash/issues/28583)) ([0f07d72](https://github.com/lightdash/lightdash/commit/0f07d729f7b63ea01564d795ab6bd9eb8fd98069)), closes [#28518](https://github.com/lightdash/lightdash/issues/28518)
+* **dashboard:** stage the custom metrics registry alongside tiles ([#28584](https://github.com/lightdash/lightdash/issues/28584)) ([5014b9d](https://github.com/lightdash/lightdash/commit/5014b9d36df15e8a16dae464088e263a609bf534))
+* **frontend:** open chart type authoring in a fullscreen modal ([#28604](https://github.com/lightdash/lightdash/issues/28604)) ([2033dfb](https://github.com/lightdash/lightdash/commit/2033dfbcd1f0cbc5425e330219235a19fc3d69d7))
+* **query-sources:** carry parameters, user attributes, cache control and pivot ([#28577](https://github.com/lightdash/lightdash/issues/28577)) ([e66ed05](https://github.com/lightdash/lightdash/commit/e66ed059114a4b108c9fabcd3f42f2e521d443e4))
+
 # [2.115.0](https://github.com/lightdash/lightdash/compare/2.114.1...2.115.0) (2026-09-03)
 
 

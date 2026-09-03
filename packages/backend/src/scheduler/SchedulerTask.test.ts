@@ -15,12 +15,14 @@ import {
     NotEnoughResults,
     PartialFailureType,
     PersistentDownloadFileAccessMode,
+    RequestMethod,
     SchedulerFormat,
     sleep,
     ThresholdOperator,
     VizAggregationOptions,
     VizIndexType,
     type CapturedQuery,
+    type CompileProjectPayload,
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
@@ -989,6 +991,106 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+describe('compileProject', () => {
+    it('enqueues custom-field replacement after a successful preview compile without waiting for it', async () => {
+        const replaceCustomFields = vi.fn(
+            () =>
+                new Promise<never>(() => {
+                    // Intentionally left pending to verify fire-and-forget.
+                }),
+        );
+        const generateValidation = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                generateValidation,
+                replaceCustomFields,
+            }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: true,
+            validateAfterCompile: false,
+        };
+
+        await (
+            task as unknown as {
+                compileProject(
+                    jobId: string,
+                    scheduledTime: Date,
+                    compilePayload: CompileProjectPayload,
+                ): Promise<void>;
+            }
+        ).compileProject('scheduler-job-1', new Date(), payload);
+
+        expect(generateValidation).not.toHaveBeenCalled();
+        expect(replaceCustomFields).toHaveBeenCalledWith({
+            userUuid: 'user-1',
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+        });
+    });
+
+    it('does not enqueue custom-field replacement when compilation fails', async () => {
+        const compileError = new Error('compile failed');
+        const replaceCustomFields = vi.fn();
+        const task = makeTaskWithDeps({
+            userService: asDep<'userService'>({
+                getSessionByUserUuid: vi.fn().mockResolvedValue({
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+            }),
+            projectService: asDep<'projectService'>({
+                compileProject: vi.fn().mockRejectedValue(compileError),
+            }),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({ replaceCustomFields }),
+        });
+        const payload: CompileProjectPayload = {
+            createdByUserUuid: 'user-1',
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            requestMethod: RequestMethod.WEB_APP,
+            jobUuid: 'compile-job-1',
+            isPreview: false,
+        };
+
+        await expect(
+            (
+                task as unknown as {
+                    compileProject(
+                        jobId: string,
+                        scheduledTime: Date,
+                        compilePayload: CompileProjectPayload,
+                    ): Promise<void>;
+                }
+            ).compileProject('scheduler-job-1', new Date(), payload),
+        ).rejects.toThrow(compileError);
+
+        expect(replaceCustomFields).not.toHaveBeenCalled();
+    });
+});
 
 describe('uploadGsheets — pivot routing', () => {
     const validPivotDetails: NonNullable<

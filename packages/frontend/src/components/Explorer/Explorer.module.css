@@ -1,9 +1,3 @@
 .stack {
     flex-grow: 1;
 }
-
-/* While authoring, the builder must be viewport-bounded so its history and
-   canvas scroll internally; the stack yields instead of growing to content. */
-.stackAuthoring {
-    min-height: 0;
-}

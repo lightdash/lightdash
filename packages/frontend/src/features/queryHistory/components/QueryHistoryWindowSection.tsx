@@ -4,54 +4,54 @@ import {
     type QueryHistoryListItem,
     type QueryHistoryWindow,
 } from '@lightdash/common';
-import clsx from 'clsx';
 import { useEffect, useMemo, type FC } from 'react';
 import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
-import styles from '../QueryHistory.module.css';
-import { getWindowLabel, getWindowRangeLabel } from '../utils/format';
-import { QueryHistoryRow } from './QueryHistoryRow';
-
-const WINDOW_PAGE_SIZE = 10;
+import {
+    QUERY_HISTORY_WINDOW_PAGE_SIZE,
+    type QueryHistoryWindowMeta,
+} from '../utils/tableRows';
 
 type Props = {
     projectUuid: string | undefined;
     window: QueryHistoryWindow;
     filters: QueryHistoryListFilters;
     isExpanded: boolean;
-    onToggle: (window: QueryHistoryWindow) => void;
     counts: QueryHistoryCounts | undefined;
     onCounts: (counts: QueryHistoryCounts) => void;
-    compact: boolean;
-    selectedQueryUuid: string | undefined;
-    onSelect: (item: QueryHistoryListItem) => void;
     onItemsChange: (
         window: QueryHistoryWindow,
         items: QueryHistoryListItem[],
     ) => void;
+    onMetaChange: (
+        window: QueryHistoryWindow,
+        meta: QueryHistoryWindowMeta,
+    ) => void;
+    onRegisterFetchNext: (
+        window: QueryHistoryWindow,
+        fetchNext: () => void,
+    ) => void;
 };
 
 /**
- * One disjoint time window: a toggleable header with count and range, and —
- * when expanded — its own paginated slice of rows with "Show more".
+ * Loads one disjoint time window and reports its rows/counts. Rendering lives
+ * in ContentTable so this component is a data loader only.
  */
 export const QueryHistoryWindowSection: FC<Props> = ({
     projectUuid,
     window,
     filters,
     isExpanded,
-    onToggle,
     counts,
     onCounts,
-    compact,
-    selectedQueryUuid,
-    onSelect,
     onItemsChange,
+    onMetaChange,
+    onRegisterFetchNext,
 }) => {
     const { data, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteQueryHistory(
             projectUuid,
             { ...filters, window },
-            WINDOW_PAGE_SIZE,
+            QUERY_HISTORY_WINDOW_PAGE_SIZE,
             { enabled: isExpanded, keepPreviousData: true },
         );
 
@@ -76,64 +76,19 @@ export const QueryHistoryWindowSection: FC<Props> = ({
             ? Math.max(totalInWindow - items.length, 0)
             : 0;
 
-    if (windowCount === 0 && !isFetching && items.length === 0) {
-        // An empty window earns no header — the design only shows windows
-        // that have runs (or ones we can't know about yet).
-        return null;
-    }
+    useEffect(() => {
+        onMetaChange(window, {
+            hasNextPage: Boolean(hasNextPage),
+            isFetching,
+            remaining,
+        });
+    }, [window, hasNextPage, isFetching, remaining, onMetaChange]);
 
-    return (
-        <div>
-            <button
-                type="button"
-                className={clsx(
-                    styles.windowHeader,
-                    !isExpanded && styles.windowHeaderCollapsed,
-                )}
-                onClick={() => onToggle(window)}
-            >
-                <span className={styles.windowTitle}>
-                    {getWindowLabel(window)}
-                    {windowCount !== undefined && (
-                        <span className={styles.windowCount}>
-                            {` · ${windowCount.toLocaleString()} ${
-                                windowCount === 1 ? 'run' : 'runs'
-                            }`}
-                        </span>
-                    )}
-                </span>
-                <span className={styles.windowRange}>
-                    {getWindowRangeLabel(window)}
-                </span>
-            </button>
-            {isExpanded && (
-                <>
-                    {items.map((item) => (
-                        <QueryHistoryRow
-                            key={item.queryUuid}
-                            item={item}
-                            compact={compact}
-                            isSelected={item.queryUuid === selectedQueryUuid}
-                            onSelect={onSelect}
-                        />
-                    ))}
-                    {hasNextPage && (
-                        <button
-                            type="button"
-                            className={styles.showMore}
-                            disabled={isFetching}
-                            onClick={() => fetchNextPage()}
-                        >
-                            {isFetching
-                                ? 'Loading…'
-                                : `Show ${Math.min(
-                                      remaining,
-                                      WINDOW_PAGE_SIZE,
-                                  )} more from this window`}
-                        </button>
-                    )}
-                </>
-            )}
-        </div>
-    );
+    useEffect(() => {
+        onRegisterFetchNext(window, () => {
+            void fetchNextPage();
+        });
+    }, [window, fetchNextPage, onRegisterFetchNext]);
+
+    return null;
 };

@@ -31,6 +31,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
             'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
     };
 
+    readonly supportsPivot = false;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     constructor(args: DuckdbQuerySourceArguments) {
@@ -74,14 +76,27 @@ export class DuckdbQuerySource implements QuerySourceClient {
         );
     }
 
+    /**
+     * User attribute overrides have nothing to apply to here: referenced
+     * results were produced under them and compose SQL carries no attribute
+     * references. A pivot refuses until the join node owns the pivot stage.
+     */
     async submitQuery({
         account,
         projectUuid,
         context,
         query,
         resolvedReferences,
+        parameters,
+        invalidateCache,
+        pivotConfiguration,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
+        if (pivotConfiguration !== null) {
+            throw new ParameterError(
+                `${QuerySourceType.DUCKDB} queries do not support pivotConfiguration yet`,
+            );
+        }
 
         const normalized = DuckdbQuerySource.normalizeReferences(
             sourceQuery.references,
@@ -103,6 +118,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
                 limit: sourceQuery.limit,
                 references,
                 context,
+                parameters,
+                invalidateCache,
             });
 
         return { queryUuid: results.queryUuid };

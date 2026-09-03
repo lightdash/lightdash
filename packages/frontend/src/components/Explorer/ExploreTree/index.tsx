@@ -31,6 +31,7 @@ import {
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import SelectedFieldsSection, {
     type SelectedField,
@@ -108,6 +109,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const missingCustomMetrics = selection
         ? EMPTY_METRICS
         : explorerMissingCustomMetrics;
+    // Registry metrics are badged and frozen only in the dashboard host.
+    const hostDashboardMetricIds = useModalHostedDashboardMetricIds();
+    const dashboardMetricIds = selection ? undefined : hostDashboardMetricIds;
     const missingCustomDimensions = selection
         ? EMPTY_DIMENSIONS
         : explorerMissingCustomDimensions;
@@ -280,6 +284,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             customDimensions: customDimensions ?? [],
             missingCustomMetrics,
             missingCustomDimensions,
+            dashboardMetricIds,
             missingFieldIds,
             selectedDimensions,
             activeFields,
@@ -295,6 +300,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         isSearching,
         missingCustomDimensions,
         missingCustomMetrics,
+        dashboardMetricIds,
         missingFieldIds,
         searchResultsMap,
         sectionNodeMaps,

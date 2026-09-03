@@ -301,6 +301,7 @@ export type DuckdbQueryColumns =
           /** Probe the SQL with a one-row query: raw SQL has no known shape. */
           mode: 'discover';
           limit: number | undefined;
+          parameters: ParametersValuesMap;
       }
     | {
           /** Known at compile time, so nothing is probed and nothing overwritten. */

@@ -9003,6 +9003,43 @@ export class ProjectService extends BaseService {
             cacheExplores: { start: 0, end: 0 },
         };
 
+        let compileFailed = false;
+        // Called from both catches. The inner one marks the job ERROR and does not rethrow, so
+        // a failure inside the compiling step never reaches the outer catch, and that is the
+        // common case: a bad dbt connection, a dbt error, a warehouse error, a merge failure.
+        const recordCompileFailure = (e: unknown) => {
+            compileFailed = true;
+            if (!(e instanceof LightdashError)) {
+                Sentry.captureException(e);
+            }
+            // The default log format renders the message only and drops metadata, so the
+            // decisive numbers ride in the message too. Typed fields stay for json format.
+            this.logger.error(
+                `dbt.compile.failed projectUuid=${projectUuid} jobUuid=${
+                    job.jobUuid
+                } elapsedMs=${Math.round(
+                    performance.now() - totalStartTime,
+                )} error=${getErrorMessage(e)}`,
+                {
+                    event: 'dbt.compile.failed',
+                    projectUuid,
+                    jobUuid: job.jobUuid,
+                    organizationUuid,
+                    error: getErrorMessage(e),
+                    stack: e instanceof Error ? e.stack : undefined,
+                    elapsedMs: performance.now() - totalStartTime,
+                    sections: {
+                        yamlMs: timings.yaml.end - timings.yaml.start,
+                        parametersMs:
+                            timings.parameters.end - timings.parameters.start,
+                        cacheExploresMs:
+                            timings.cacheExplores.end -
+                            timings.cacheExplores.start,
+                    },
+                },
+            );
+        };
+
         const onLockAcquired = async () => {
             try {
                 await this.jobModel.update(job.jobUuid, {
@@ -9103,47 +9140,15 @@ export class ProjectService extends BaseService {
                     jobResults: compileResult,
                 });
             } catch (e) {
+                recordCompileFailure(e);
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.ERROR,
                 });
             }
         };
-        let compileFailed = false;
         await this.projectModel
             .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch((e) => {
-                compileFailed = true;
-                if (!(e instanceof LightdashError)) {
-                    Sentry.captureException(e);
-                }
-                // The default log format renders the message only and drops metadata, so the
-                // decisive numbers ride in the message too. Typed fields stay for json format.
-                this.logger.error(
-                    `dbt.compile.failed projectUuid=${projectUuid} jobUuid=${
-                        job.jobUuid
-                    } elapsedMs=${Math.round(
-                        performance.now() - totalStartTime,
-                    )} error=${getErrorMessage(e)}`,
-                    {
-                        event: 'dbt.compile.failed',
-                        projectUuid,
-                        jobUuid: job.jobUuid,
-                        organizationUuid,
-                        error: getErrorMessage(e),
-                        stack: e instanceof Error ? e.stack : undefined,
-                        elapsedMs: performance.now() - totalStartTime,
-                        sections: {
-                            yamlMs: timings.yaml.end - timings.yaml.start,
-                            parametersMs:
-                                timings.parameters.end -
-                                timings.parameters.start,
-                            cacheExploresMs:
-                                timings.cacheExplores.end -
-                                timings.cacheExplores.start,
-                        },
-                    },
-                );
-            });
+            .catch(recordCompileFailure);
         const totalTime = performance.now() - totalStartTime;
         const durationYaml = timings.yaml.end - timings.yaml.start;
         const durationParameters =

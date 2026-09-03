@@ -11,6 +11,8 @@ import {
     type MetricQueryRequest,
     type SortField,
 } from './metricQuery';
+import { type ParametersValuesMap } from './parameters';
+import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
 
 /**
@@ -100,6 +102,12 @@ export type SemanticLayerSourceQuery = {
     customDimensions?: CustomDimension[];
     /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
     timezone?: string;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /** A raw warehouse SQL query as a source query. */
@@ -109,6 +117,12 @@ export type SqlSourceQuery = {
     nodeId?: QueryNodeId;
     sql: string;
     limit?: number;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -138,6 +152,12 @@ export type DuckdbSourceQuery = {
     references?:
         | QueryNodeId[]
         | Record<QuerySourceTableName, QueryResultReference>;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -156,6 +176,12 @@ export type ExternalSourceQuery = {
     tables:
         | ExternalSourceTableReference[]
         | Record<QuerySourceTableName, ExternalSourceTableReference>;
+    /**
+     * Pivots this node's result the way a pivoted chart does. Honoured by
+     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
+     * the join node owns the pivot stage.
+     */
+    pivotConfiguration?: PivotConfiguration;
 };
 
 /**
@@ -210,6 +236,14 @@ export type ExecuteSourceQueriesRequestParams = {
      */
     queries: SourceQuery[];
     context?: QueryExecutionContext;
+    /**
+     * Parameter values shared by every query in the submission, layered over
+     * project and explore defaults. A query referencing a parameter with no
+     * value refuses rather than running with a placeholder.
+     */
+    parameters?: ParametersValuesMap;
+    /** Bypass cached results for every query in the submission. */
+    invalidateCache?: boolean;
 };
 
 /** One submitted query: its (possibly generated) node id and the queryUuid to poll. */

@@ -4,9 +4,8 @@ import {
     excludeTilesFromTabScopedFilters,
     getDefaultChartTileSize,
     getShadowedReservedNames,
-    isEmptyDateZoomConfig,
+    mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
-    pruneDateZoomConfig,
     removeDateZoomTileTargets,
     ChartType,
     ContentType,
@@ -69,6 +68,7 @@ import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardCh
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import { buildDashboardConfig } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
@@ -111,6 +111,18 @@ const Dashboard: FC = () => {
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
+    );
+    const dashboardCustomMetrics = useDashboardContext(
+        (c) => c.dashboardCustomMetrics,
+    );
+    const setDashboardCustomMetrics = useDashboardContext(
+        (c) => c.setDashboardCustomMetrics,
+    );
+    const haveCustomMetricsChanged = useDashboardContext(
+        (c) => c.haveCustomMetricsChanged,
+    );
+    const setHaveCustomMetricsChanged = useDashboardContext(
+        (c) => c.setHaveCustomMetricsChanged,
     );
 
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
@@ -398,6 +410,7 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isSuccess) {
             setHaveTilesChanged(false);
+            setHaveCustomMetricsChanged(false);
             setHaveFiltersChanged(false);
             setHavePinnedParametersChanged(false);
             setHaveDateZoomGranularitiesChanged(false);
@@ -432,6 +445,7 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
+        setHaveCustomMetricsChanged,
         setHavePinnedParametersChanged,
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
@@ -642,6 +656,8 @@ const Dashboard: FC = () => {
 
         setDashboardTiles(dashboard.tiles);
         setHaveTilesChanged(false);
+        setDashboardCustomMetrics(dashboard.config?.customMetrics ?? []);
+        setHaveCustomMetricsChanged(false);
         setDashboardFilters(dashboard.filters);
         setHaveFiltersChanged(false);
         setHaveTabsChanged(false);
@@ -683,6 +699,8 @@ const Dashboard: FC = () => {
         setHaveFiltersChanged,
         setDashboardFilters,
         setHaveTilesChanged,
+        setDashboardCustomMetrics,
+        setHaveCustomMetricsChanged,
         setHaveTabsChanged,
         setDashboardTabs,
         dashboardTabs,
@@ -720,7 +738,12 @@ const Dashboard: FC = () => {
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
-            if (isEditMode && (haveTilesChanged || haveFiltersChanged)) {
+            if (
+                isEditMode &&
+                (haveTilesChanged ||
+                    haveFiltersChanged ||
+                    haveCustomMetricsChanged)
+            ) {
                 const message =
                     'You have unsaved changes to your dashboard! Are you sure you want to leave without saving?';
                 event.returnValue = message;
@@ -729,13 +752,21 @@ const Dashboard: FC = () => {
         };
         window.addEventListener('beforeunload', checkReload);
         return () => window.removeEventListener('beforeunload', checkReload);
-    }, [haveTilesChanged, haveFiltersChanged, isEditMode]);
+    }, [
+        haveTilesChanged,
+        haveFiltersChanged,
+        haveCustomMetricsChanged,
+        isEditMode,
+    ]);
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {
         if (
             isEditMode &&
-            (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
+            (haveTilesChanged ||
+                haveFiltersChanged ||
+                haveTabsChanged ||
+                haveCustomMetricsChanged) &&
             // A URL may carry either the uuid or the slug for both the project
             // and the dashboard, so accept any combination — but compare whole
             // segments, and require the project to match too: dashboard slugs
@@ -797,6 +828,16 @@ const Dashboard: FC = () => {
 
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
+            // Only the in-dashboard builder contributes to the registry.
+            const mergedCustomMetrics = mergeDashboardCustomMetrics(
+                dashboardCustomMetrics,
+                chart.metricQuery.additionalMetrics ?? [],
+            );
+            if (mergedCustomMetrics !== dashboardCustomMetrics) {
+                setDashboardCustomMetrics(mergedCustomMetrics);
+                setHaveCustomMetricsChanged(true);
+            }
+
             // New uuid means a brand-new chart; an existing tile refreshes
             // itself via the update mutation's query cache reset.
             if (chart.uuid !== chartToEdit?.uuid) {
@@ -822,7 +863,14 @@ const Dashboard: FC = () => {
             setChartToEdit(undefined);
             setIsNewChartOpen(false);
         },
-        [chartToEdit, handleAddTiles, activeTab?.uuid],
+        [
+            chartToEdit,
+            handleAddTiles,
+            activeTab?.uuid,
+            dashboardCustomMetrics,
+            setDashboardCustomMetrics,
+            setHaveCustomMetricsChanged,
+        ],
     );
 
     if (isDashboardLoading) {
@@ -880,15 +928,6 @@ const Dashboard: FC = () => {
             return filter;
         });
 
-        // Prune empty controls + dangling targets on save; omit the field
-        // entirely when no controls remain so untouched dashboards don't churn.
-        const prunedDateZoomConfig = pruneDateZoomConfig(dateZoomConfig);
-        const savedDateZoomConfig = hasDateZoomConfigChanged
-            ? isEmptyDateZoomConfig(prunedDateZoomConfig)
-                ? undefined
-                : prunedDateZoomConfig
-            : dashboard.config?.dateZoomConfig;
-
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -904,22 +943,24 @@ const Dashboard: FC = () => {
             },
             name: dashboard.name,
             tabs: dashboardTabs,
-            config: {
+            config: buildDashboardConfig({
+                existingConfig: dashboard.config,
                 isDateZoomDisabled,
                 isAddFilterDisabled,
                 pinnedParameters,
-                parameterOrder: hasParameterOrderChanged
-                    ? parameterOrder
-                    : dashboard.config?.parameterOrder,
-                dateZoomGranularities: haveDateZoomGranularitiesChanged
-                    ? dateZoomGranularities
-                    : dashboard.config?.dateZoomGranularities,
-                defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
-                    ? defaultDateZoomGranularity
-                    : dashboard.config?.defaultDateZoomGranularity,
-                dateZoomConfig: savedDateZoomConfig,
-                requiredFiltersNote: requiredFiltersNote || undefined,
-            },
+                parameterOrder,
+                hasParameterOrderChanged,
+                dateZoomGranularities,
+                haveDateZoomGranularitiesChanged,
+                defaultDateZoomGranularity,
+                hasDefaultDateZoomGranularityChanged,
+                dateZoomConfig,
+                hasDateZoomConfigChanged,
+                requiredFiltersNote,
+                stagedCustomMetrics: haveCustomMetricsChanged
+                    ? dashboardCustomMetrics
+                    : undefined,
+            }),
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
@@ -945,6 +986,7 @@ const Dashboard: FC = () => {
         onToggleFullscreen: handleToggleFullscreen,
         hasDashboardChanged:
             haveTilesChanged ||
+            haveCustomMetricsChanged ||
             haveFiltersChanged ||
             hasTemporaryFilters ||
             haveTabsChanged ||

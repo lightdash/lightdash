@@ -22,7 +22,6 @@ import {
     expandSelectedTabs,
     ExportContentPayload,
     ExportCsvDashboardPayload,
-    FeatureFlags,
     FieldReferenceError,
     FieldType,
     ForbiddenError,
@@ -192,7 +191,6 @@ import { DeployService } from '../services/DeployService';
 import { EmailWhitelabelService } from '../services/EmailWhitelabelService/EmailWhitelabelService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
-import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
@@ -253,7 +251,6 @@ export type SchedulerTaskArguments = {
     googleChatClient: GoogleChatClient;
     renameService: RenameService;
     asyncQueryService: AsyncQueryService;
-    featureFlagService: FeatureFlagService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -543,8 +540,6 @@ export default class SchedulerTask {
 
     protected readonly asyncQueryService: AsyncQueryService;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     protected readonly persistentDownloadFileService: PersistentDownloadFileService;
 
     protected readonly preAggregateMaterializationService: PreAggregateMaterializationService;
@@ -581,7 +576,6 @@ export default class SchedulerTask {
         this.googleChatClient = args.googleChatClient;
         this.renameService = args.renameService;
         this.asyncQueryService = args.asyncQueryService;
-        this.featureFlagService = args.featureFlagService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
@@ -2824,19 +2818,12 @@ export default class SchedulerTask {
                     organizationUuid: payload.organizationUuid,
                 });
             }
-            const { enabled: canReplaceCustomMetrics } =
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.ReplaceCustomMetricsOnCompile,
-                });
-            if (canReplaceCustomMetrics) {
-                // Don't wait for replaceCustomFields response
-                void this.schedulerClient.replaceCustomFields({
-                    userUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                });
-            }
+            // Don't wait for replaceCustomFields response
+            void this.schedulerClient.replaceCustomFields({
+                userUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+            });
         } catch (e) {
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,

@@ -1,5 +1,6 @@
 import {
     ChartType,
+    mergeDashboardCustomMetrics,
     type AdditionalMetric,
     type SavedChart,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import {
     createExplorerStore,
 } from '../../features/explorer/store';
 import { MergeProvider } from '../../features/mergeQuery/context/MergeContext';
+import { useDashboardCustomMetricSeed } from '../../hooks/dashboard/useDashboardCustomMetricSeed';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { ExplorerSection } from '../../providers/Explorer/types';
@@ -19,6 +21,7 @@ import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
 import Explorer from '../Explorer';
 import ExploreSideBar from '../Explorer/ExploreSideBar';
+import PageSpinner from '../PageSpinner';
 
 type ContentProps = {
     exploreId: string;
@@ -52,17 +55,29 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
                     savedChart: editChart,
                     unsavedChartVersion: {
                         tableName: exploreId,
-                        metricQuery: editChart?.metricQuery ?? {
-                            exploreName: exploreId,
-                            dimensions: [],
-                            metrics: [],
-                            filters: {},
-                            sorts: [],
-                            limit: 500,
-                            tableCalculations: [],
-                            additionalMetrics: seededMetrics,
-                            timezone: undefined,
-                        },
+                        // Editing: seeded metrics fill gaps, the chart's own
+                        // snapshot wins on collision.
+                        metricQuery: editChart
+                            ? {
+                                  ...editChart.metricQuery,
+                                  additionalMetrics:
+                                      mergeDashboardCustomMetrics(
+                                          editChart.metricQuery
+                                              .additionalMetrics ?? [],
+                                          seededMetrics,
+                                      ),
+                              }
+                            : {
+                                  exploreName: exploreId,
+                                  dimensions: [],
+                                  metrics: [],
+                                  filters: {},
+                                  sorts: [],
+                                  limit: 500,
+                                  tableCalculations: [],
+                                  additionalMetrics: seededMetrics,
+                                  timezone: undefined,
+                              },
                         chartConfig: editChart?.chartConfig ?? {
                             type: ChartType.CARTESIAN,
                             config: {
@@ -118,7 +133,6 @@ type Props = {
     dashboardUuid: string;
     dashboardName: string;
     editChart?: SavedChart;
-    seededMetrics?: AdditionalMetric[];
     onChartSaved: (chart: SavedChart) => void;
     onClose: () => void;
 };
@@ -132,20 +146,36 @@ const DashboardChartEditorModal: FC<Props> = ({
     dashboardUuid,
     dashboardName,
     editChart,
-    seededMetrics = [],
     onChartSaved,
     onClose,
 }) => {
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
 
+    const {
+        seededMetrics,
+        dashboardMetricIds,
+        isLoading: isSeedLoading,
+    } = useDashboardCustomMetricSeed(exploreId);
+
+    // Saving closes the modal via the host, bypassing handleClose — reset the
+    // picked explore here too so the next New chart starts at the picker.
+    const handleChartSaved = useCallback(
+        (chart: SavedChart) => {
+            setPickedExploreId(undefined);
+            onChartSaved(chart);
+        },
+        [onChartSaved],
+    );
+
     const modalHostValue = useMemo(
         () => ({
             isModalHosted: true,
-            onChartSaved,
+            onChartSaved: handleChartSaved,
             dashboard: { uuid: dashboardUuid, name: dashboardName },
+            dashboardMetricIds,
         }),
-        [onChartSaved, dashboardUuid, dashboardName],
+        [handleChartSaved, dashboardUuid, dashboardName, dashboardMetricIds],
     );
 
     const handleClose = useCallback(() => {
@@ -164,16 +194,20 @@ const DashboardChartEditorModal: FC<Props> = ({
             modalBodyProps={{ px: 0, py: 0 }}
         >
             <ModalHostedContext.Provider value={modalHostValue}>
-                <DashboardChartEditorContent
-                    key={`${dashboardUuid}-${exploreId ?? 'picker'}-${
-                        editChart?.uuid ?? 'new'
-                    }`}
-                    exploreId={exploreId ?? ''}
-                    editChart={editChart}
-                    seededMetrics={seededMetrics}
-                    onExploreSelect={setPickedExploreId}
-                    onBackToTables={() => setPickedExploreId(undefined)}
-                />
+                {isSeedLoading ? (
+                    <PageSpinner />
+                ) : (
+                    <DashboardChartEditorContent
+                        key={`${dashboardUuid}-${exploreId ?? 'picker'}-${
+                            editChart?.uuid ?? 'new'
+                        }`}
+                        exploreId={exploreId ?? ''}
+                        editChart={editChart}
+                        seededMetrics={seededMetrics}
+                        onExploreSelect={setPickedExploreId}
+                        onBackToTables={() => setPickedExploreId(undefined)}
+                    />
+                )}
             </ModalHostedContext.Provider>
         </MantineModal>
     );

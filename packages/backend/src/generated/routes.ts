@@ -55167,6 +55167,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
                 timezone: { dataType: 'string' },
                 customDimensions: {
                     dataType: 'array',
@@ -55224,6 +55225,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
                 limit: { dataType: 'double' },
                 sql: { dataType: 'string', required: true },
                 nodeId: { ref: 'QueryNodeId' },
@@ -55253,6 +55255,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
                 references: {
                     dataType: 'union',
                     subSchemas: [
@@ -55304,6 +55307,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotConfiguration: { ref: 'PivotConfiguration' },
                 tables: {
                     dataType: 'union',
                     subSchemas: [
@@ -55386,6 +55390,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                invalidateCache: { dataType: 'boolean' },
+                parameters: { ref: 'ParametersValuesMap' },
                 context: { ref: 'QueryExecutionContext' },
                 queries: {
                     dataType: 'array',

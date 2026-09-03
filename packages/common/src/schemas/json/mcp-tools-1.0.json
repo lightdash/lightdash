@@ -2403,12 +2403,28 @@
                                 "type": "string"
                             },
                             "secondaryYAxisLabel": {
-                                "description": "A helpful label for the secondary y-axis",
-                                "type": "string"
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A helpful label for the secondary y-axis"
                             },
                             "secondaryYAxisMetric": {
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                                "type": "string"
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
                             },
                             "stackBars": {
                                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -3018,12 +3034,28 @@
                                 "type": "string"
                             },
                             "secondaryYAxisLabel": {
-                                "description": "A helpful label for the secondary y-axis",
-                                "type": "string"
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "A helpful label for the secondary y-axis"
                             },
                             "secondaryYAxisMetric": {
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                                "type": "string"
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "null"
+                                    }
+                                ],
+                                "default": null,
+                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
                             },
                             "stackBars": {
                                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
