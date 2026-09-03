@@ -28,10 +28,16 @@ from datetime import datetime, timedelta
 
 EXPLORATION_CONTEXTS = {
     "exploreView", "viewUnderlyingData", "sqlRunner", "composeSqlRunner",
-    "metricsExplorer", "multiSourceQuery", "calculateTotal", "calculateSubtotal",
+    "multiSourceQuery", "calculateTotal", "calculateSubtotal",
 }
+# The metrics catalog auto-runs a preview per visible metric; a step there is
+# browsing, not a deliberate query. Counted as neither exploration nor consumption.
+BROWSE_CONTEXTS = {"metricsExplorer"}
 CONSUMPTION_CONTEXTS = {"dashboardView", "chartView", "sqlChartView", "embed", "chartHistory"}
 AGENT_CONTEXTS = {"ai", "mcp.run_metric_query", "mcp.run_sql", "mcp.search_field_values"}
+
+
+MAX_RENDERED_STEPS = 80
 
 
 @dataclass
@@ -141,8 +147,31 @@ def filter_fields(filters: dict | None) -> list[str]:
     return out
 
 
+COUNT_KEYS = (("mets", "metric"), ("dims", "dimension"), ("filters", "filter"), ("sorts", "sort"), ("tc", "table calc"), ("addl", "custom metric"), ("custom_sql", "custom dimension"))
+
+
+def count_shape(p: dict) -> dict:
+    """Telemetry payloads carry field counts, not field ids (see extract_events_bq.sql)."""
+    return {"counts": {k: int(p.get(k) or 0) for k, _ in COUNT_KEYS}}
+
+
+def diff_counts(prev: dict | None, cur: dict) -> str:
+    c = cur["counts"]
+    if prev is None or "counts" not in prev:
+        parts = [f"{c[k]} {label}{'s' if c[k] != 1 else ''}" for k, label in COUNT_KEYS if c[k]]
+        return "starts: " + (", ".join(parts) if parts else "empty query")
+    changes = []
+    for k, label in COUNT_KEYS:
+        d = c[k] - prev["counts"][k]
+        if d:
+            changes.append(f"{'+' if d > 0 else ''}{d} {label}{'s' if abs(d) != 1 else ''}")
+    return "; ".join(changes) if changes else "re-run, same shape"
+
+
 def query_shape(ev: Event) -> dict:
     p = ev.payload
+    if isinstance(p.get("dims"), int) or isinstance(p.get("mets"), int):
+        return count_shape(p)
     return {
         "dimensions": list(p.get("dimensions") or []),
         "metrics": list(p.get("metrics") or []) + list(p.get("additionalMetrics") or []),
@@ -153,6 +182,8 @@ def query_shape(ev: Event) -> dict:
 
 
 def diff_shape(prev: dict | None, cur: dict) -> str:
+    if "counts" in cur:
+        return diff_counts(prev, cur)
     if prev is None:
         parts = []
         if cur["metrics"]:
@@ -164,6 +195,8 @@ def diff_shape(prev: dict | None, cur: dict) -> str:
         if cur["custom"]:
             parts.append("custom " + ", ".join(cur["custom"]))
         return "starts: " + (" | ".join(parts) if parts else "empty query")
+    if "counts" in prev:
+        return diff_shape(None, cur)
     changes = []
     for key, label in (("metrics", "metric"), ("dimensions", "dimension"), ("filters", "filter"), ("custom", "custom field")):
         added = [x for x in cur[key] if x not in prev[key]]
@@ -189,6 +222,8 @@ def describe(ev: Event, prev_shape: dict | None) -> tuple[str, dict | None]:
         else:
             text = diff_shape(prev_shape, shape)
         tail = []
+        if p.get("n") and p.get("n") > 1:
+            tail.append(f"{p['n']} queries")
         if p.get("status") == "error":
             tail.append("ERROR " + (p.get("error") or "")[:80])
         elif p.get("rows") is not None:
@@ -203,7 +238,8 @@ def describe(ev: Event, prev_shape: dict | None) -> tuple[str, dict | None]:
     if ev.kind == "dash_save":
         return f"saves dashboard “{p.get('dashboard_name')}”", prev_shape
     if ev.kind == "chart_view":
-        return f"views chart “{p.get('chart_name')}”", prev_shape
+        extra = f" (+{p['charts'] - 1} more)" if p.get("charts", 1) > 1 else ""
+        return f"views chart “{p.get('chart_name')}”{extra}", prev_shape
     if ev.kind == "dash_view":
         return f"views dashboard “{p.get('dashboard_name')}”", prev_shape
     if ev.kind == "ai_prompt":
@@ -223,7 +259,8 @@ def classify(ep: Episode) -> str:
     contexts = Counter(e.context for e in ep.events)
     kinds = Counter(e.kind for e in ep.events)
     exploring = sum(v for k, v in contexts.items() if k in EXPLORATION_CONTEXTS)
-    agent = kinds.get("ai_prompt", 0)
+    # a prompt, or a query the agent / MCP ran on the person's behalf
+    agent = kinds.get("ai_prompt", 0) + sum(v for k, v in contexts.items() if k in AGENT_CONTEXTS and v)
     saves = kinds.get("chart_save", 0) + kinds.get("dash_save", 0)
     if exploring == 0 and agent == 0:
         return "consumption"
@@ -239,7 +276,10 @@ def classify(ep: Episode) -> str:
 def render(ep: Episode, index: int) -> str:
     lines = [f"## Episode {index} · {ep.email} · {ep.start:%Y-%m-%d %H:%M}Z · {ep.minutes:.0f} min · {len(ep.events)} steps · {classify(ep)}", ""]
     prev_shape: dict | None = None
-    for ev in ep.events:
+    for i, ev in enumerate(ep.events):
+        if i >= MAX_RENDERED_STEPS:
+            lines.append(f"- … {len(ep.events) - i} more steps")
+            break
         text, prev_shape = describe(ev, prev_shape)
         lines.append(f"- `{ev.ts:%H:%M:%S}` {text}")
     lines.append("")

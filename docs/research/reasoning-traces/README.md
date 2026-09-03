@@ -36,6 +36,28 @@ class mix, which is the first thing to look at: if almost everything is
 Read the fifty and score each one on a single question: could a colleague who
 was not there tell what this person was trying to find out? Count the yeses.
 
+## Running it from product telemetry instead
+
+When only the analytics warehouse is reachable (no application-DB replica),
+`extract_events_bq.sql` builds the same event stream from the raw server events
+in BigQuery. It is thinner: query steps carry the explore name and field counts
+rather than field ids, agent prompts carry no text, and view events need chart
+and dashboard names joined back afterwards. Because the MCP `run_sql` tool caps
+results at 1000 rows, the query packs one row per user/project/day with the
+day's events as a JSON array; page on `rn`, then:
+
+```bash
+python3 unpack_events.py page*.json > events.tsv
+python3 apply_names.py names.json < events.tsv > events_named.tsv   # optional
+python3 sessionise.py events_named.tsv --gap-minutes 20 --sample 50 --out-dir out
+python3 redact.py customer_names.json < out/episodes.md > episodes.redacted.md
+```
+
+`sessionise.py` diffs counts when that is all a payload has, treats
+`metricsExplorer` previews as browsing rather than exploration, and counts
+agent and MCP queries as agent activity. `findings-2026-09-03.md` is the first
+read on real data through this route.
+
 ## Proving the pipeline without a database
 
 `fixture.sql` declares only the columns the extraction touches and inserts a
@@ -61,3 +83,6 @@ about whether real episodes read as reasoning; only real data answers that.
   "runs SQL" without a shape diff.
 - Episode boundaries are a heuristic. A 20 minute gap splits a long lunch into
   two episodes and merges two quick unrelated questions into one.
+- Telemetry route only: no field ids, no prompt text, null names on view
+  events, and the raw tables are ingestion-partitioned (filter on
+  `_PARTITIONTIME` or the scan exceeds the billing cap).
