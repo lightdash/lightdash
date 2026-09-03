@@ -275,6 +275,30 @@ const uuidEnrichedChartConfig = {
     optionValues: { showLegend: true },
 };
 
+describe('chartConfig builtin defaults', () => {
+    it('defaults omitted secondary axis fields to null', () => {
+        const parsed = toolRunQueryArgsSchema.parse({
+            ...buildV2Args(),
+            chartConfig: {
+                defaultVizType: 'bar',
+                xAxisDimension: 'orders_order_date_month',
+                yAxisMetrics: ['orders_revenue'],
+                groupBy: null,
+                xAxisType: 'time',
+                stackBars: null,
+                lineType: null,
+                xAxisLabel: 'Month',
+                yAxisLabel: 'Revenue',
+            },
+        });
+
+        expect(parsed.chartConfig).toMatchObject({
+            secondaryYAxisMetric: null,
+            secondaryYAxisLabel: null,
+        });
+    });
+});
+
 describe('chartConfig custom chart type union', () => {
     it('advertised schema accepts a custom chart type config', () => {
         const result = toolRunQueryArgsSchema.safeParse({

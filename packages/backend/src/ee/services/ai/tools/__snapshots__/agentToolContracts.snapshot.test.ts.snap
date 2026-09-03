@@ -1781,6 +1781,7 @@ Recommended Dashboard Structure:
                   ],
                 },
                 "secondaryYAxisLabel": {
+                  "default": null,
                   "description": "A helpful label for the secondary y-axis",
                   "type": [
                     "string",
@@ -1788,6 +1789,7 @@ Recommended Dashboard Structure:
                   ],
                 },
                 "secondaryYAxisMetric": {
+                  "default": null,
                   "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
                   "type": [
                     "string",
@@ -1850,8 +1852,6 @@ Recommended Dashboard Structure:
                 "lineType",
                 "xAxisLabel",
                 "yAxisLabel",
-                "secondaryYAxisMetric",
-                "secondaryYAxisLabel",
               ],
               "type": [
                 "object",
@@ -7056,6 +7056,7 @@ Example B — "Revenue by month with year-over-year comparison"
                   ],
                 },
                 "secondaryYAxisLabel": {
+                  "default": null,
                   "description": "A helpful label for the secondary y-axis",
                   "type": [
                     "string",
@@ -7063,6 +7064,7 @@ Example B — "Revenue by month with year-over-year comparison"
                   ],
                 },
                 "secondaryYAxisMetric": {
+                  "default": null,
                   "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
                   "type": [
                     "string",
@@ -7125,8 +7127,6 @@ Example B — "Revenue by month with year-over-year comparison"
                 "lineType",
                 "xAxisLabel",
                 "yAxisLabel",
-                "secondaryYAxisMetric",
-                "secondaryYAxisLabel",
               ],
               "type": "object",
             },
@@ -9526,6 +9526,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 ],
               },
               "secondaryYAxisLabel": {
+                "default": null,
                 "description": "A helpful label for the secondary y-axis",
                 "type": [
                   "string",
@@ -9533,6 +9534,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 ],
               },
               "secondaryYAxisMetric": {
+                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
                 "type": [
                   "string",
@@ -9595,8 +9597,6 @@ Example B — "Revenue by month with year-over-year comparison"
               "lineType",
               "xAxisLabel",
               "yAxisLabel",
-              "secondaryYAxisMetric",
-              "secondaryYAxisLabel",
             ],
             "type": "object",
           },
