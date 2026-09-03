@@ -4,9 +4,7 @@ import {
     excludeTilesFromTabScopedFilters,
     getDefaultChartTileSize,
     getShadowedReservedNames,
-    isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
-    pruneDateZoomConfig,
     removeDateZoomTileTargets,
     ChartType,
     ContentType,
@@ -69,6 +67,7 @@ import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardCh
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import { buildDashboardConfig } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
@@ -880,15 +879,6 @@ const Dashboard: FC = () => {
             return filter;
         });
 
-        // Prune empty controls + dangling targets on save; omit the field
-        // entirely when no controls remain so untouched dashboards don't churn.
-        const prunedDateZoomConfig = pruneDateZoomConfig(dateZoomConfig);
-        const savedDateZoomConfig = hasDateZoomConfigChanged
-            ? isEmptyDateZoomConfig(prunedDateZoomConfig)
-                ? undefined
-                : prunedDateZoomConfig
-            : dashboard.config?.dateZoomConfig;
-
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
@@ -904,22 +894,21 @@ const Dashboard: FC = () => {
             },
             name: dashboard.name,
             tabs: dashboardTabs,
-            config: {
+            config: buildDashboardConfig({
+                existingConfig: dashboard.config,
                 isDateZoomDisabled,
                 isAddFilterDisabled,
                 pinnedParameters,
-                parameterOrder: hasParameterOrderChanged
-                    ? parameterOrder
-                    : dashboard.config?.parameterOrder,
-                dateZoomGranularities: haveDateZoomGranularitiesChanged
-                    ? dateZoomGranularities
-                    : dashboard.config?.dateZoomGranularities,
-                defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
-                    ? defaultDateZoomGranularity
-                    : dashboard.config?.defaultDateZoomGranularity,
-                dateZoomConfig: savedDateZoomConfig,
-                requiredFiltersNote: requiredFiltersNote || undefined,
-            },
+                parameterOrder,
+                hasParameterOrderChanged,
+                dateZoomGranularities,
+                haveDateZoomGranularitiesChanged,
+                defaultDateZoomGranularity,
+                hasDefaultDateZoomGranularityChanged,
+                dateZoomConfig,
+                hasDateZoomConfigChanged,
+                requiredFiltersNote,
+            }),
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
