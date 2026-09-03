@@ -3491,6 +3491,104 @@ describe('ProjectService', () => {
             expect(projectModel.tryAcquireProjectLock).not.toHaveBeenCalled();
         });
 
+        const failureLogUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Job', action: ['create'] },
+                { subject: 'CompileProject', action: ['manage'] },
+                { subject: 'Project', action: ['update', 'view'] },
+            ]),
+        };
+
+        test('logs a compile that fails inside the compiling step as failed', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { logger } = service as any;
+            const errorSpy = vi
+                .spyOn(logger, 'error')
+                .mockImplementation(() => undefined);
+            const infoSpy = vi
+                .spyOn(logger, 'info')
+                .mockImplementation(() => undefined);
+            (
+                jobModel.tryJobStep as import('vitest').Mock
+            ).mockRejectedValueOnce(
+                new ParameterError(
+                    'Cannot compile explores as this project was created via CLI and has no dbt connection configured',
+                ),
+            );
+
+            await service.compileProject(
+                failureLogUser,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+            );
+
+            // the inner catch still marks the job, and no longer swallows the failure silently
+            expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
+                jobStatus: JobStatusType.ERROR,
+            });
+            expect(errorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('dbt.compile.failed'),
+                expect.objectContaining({ event: 'dbt.compile.failed' }),
+            );
+            const endCall = infoSpy.mock.calls.find(([, meta]) =>
+                String((meta as { event?: string })?.event ?? '').startsWith(
+                    'dbt.compile.end',
+                ),
+            );
+            expect(endCall?.[1]).toEqual(
+                expect.objectContaining({ event: 'dbt.compile.end.failed' }),
+            );
+            expect(endCall?.[0]).toEqual(
+                expect.stringContaining('compileProject failed after'),
+            );
+
+            errorSpy.mockRestore();
+            infoSpy.mockRestore();
+        });
+
+        test('logs a compile blocked by lock contention as failed', async () => {
+            const compileJobUuid = 'compile-job-uuid';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { logger } = service as any;
+            const errorSpy = vi
+                .spyOn(logger, 'error')
+                .mockImplementation(() => undefined);
+            const infoSpy = vi
+                .spyOn(logger, 'info')
+                .mockImplementation(() => undefined);
+            (
+                projectModel.tryAcquireProjectLock as import('vitest').Mock
+            ).mockRejectedValueOnce(
+                new ParameterError('Compilation is already in progress'),
+            );
+
+            await service.compileProject(
+                failureLogUser,
+                projectUuid,
+                RequestMethod.WEB_APP,
+                compileJobUuid,
+            );
+
+            expect(errorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('dbt.compile.failed'),
+                expect.objectContaining({ event: 'dbt.compile.failed' }),
+            );
+            const endCall = infoSpy.mock.calls.find(([, meta]) =>
+                String((meta as { event?: string })?.event ?? '').startsWith(
+                    'dbt.compile.end',
+                ),
+            );
+            expect(endCall?.[1]).toEqual(
+                expect.objectContaining({ event: 'dbt.compile.end.failed' }),
+            );
+
+            errorSpy.mockRestore();
+            infoSpy.mockRestore();
+        });
+
         test('syncs YAML tags during compilation without manage tag permissions', async () => {
             const compileJobUuid = 'compile-job-uuid';
             const previewProjectUuid = 'preview-project-uuid';
