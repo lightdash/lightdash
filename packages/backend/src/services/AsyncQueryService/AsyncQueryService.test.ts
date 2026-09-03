@@ -6362,6 +6362,67 @@ describe('query sources carry the execution context', () => {
         );
     });
 
+    const createComposeEngineService = () =>
+        getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(
+                    async ({ featureFlagId }: { featureFlagId: string }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    }),
+                ),
+            } as unknown as FeatureFlagModel,
+            preAggregateStrategy: makeMockStrategy({
+                resolved: false,
+                reason: 'not routed',
+                isFatal: false,
+            }),
+            externalSourceTableResolver: vi.fn(async () => ({
+                external_source_table_uuid: 'table-uuid',
+                external_source_scope: ExternalSourceScope.CATALOG,
+                external_source_created_by_user_uuid: sessionAccount.user.id,
+                version: 1,
+                locator: {
+                    format: 'parquet',
+                    uri: 's3://bucket/table.parquet',
+                },
+                columns: {
+                    region: { reference: 'region', type: DimensionType.STRING },
+                },
+            })),
+        } as never);
+
+    test('a compose SQL submit with a missing parameter refuses synchronously and creates no query history row', async () => {
+        const service = createComposeEngineService();
+
+        await expect(
+            service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                parameters: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+    });
+
+    test('an external SQL submit with a missing parameter refuses synchronously and creates no query history row', async () => {
+        const service = createComposeEngineService();
+
+        await expect(
+            service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                tables: { t: 'table-uuid' },
+                parameters: {},
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+    });
+
     test('a sql node applies overrides and parameters to the executed SQL, bypasses the cache, and refuses a missing parameter', async () => {
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         service.getUserAttributes = vi.fn(async () => ({

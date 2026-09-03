@@ -31,6 +31,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
             'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
     };
 
+    readonly supportsPivot = false;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     constructor(args: DuckdbQuerySourceArguments) {

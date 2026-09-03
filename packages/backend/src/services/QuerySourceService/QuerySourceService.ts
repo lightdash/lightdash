@@ -187,6 +187,17 @@ export class QuerySourceService extends BaseService {
         const validated = queries.map((query): ValidatedQuery => {
             const nodeId = query.nodeId ?? generateNodeId();
             const source = this.registry.get(query.sourceType);
+            // Refused here, before any node is submitted: a refusal inside
+            // the submit loop would leave upstream nodes running with no
+            // queryUuid handed back to poll or cancel
+            if (
+                query.pivotConfiguration !== undefined &&
+                !source.supportsPivot
+            ) {
+                throw new ParameterError(
+                    `Query "${nodeId}" carries a pivotConfiguration, which ${query.sourceType} queries do not support yet`,
+                );
+            }
             const references = source.getQueryReferences(query);
             const dependsOn = [
                 ...new Set(

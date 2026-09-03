@@ -34,6 +34,8 @@ export class ExternalQuerySource implements QuerySourceClient {
             'DuckDB SQL over external source tables (uploaded CSVs, connected Google Sheets). Tables expose ingested files as named tables: an array of table names, or a {tableName: tableNameOrUuid} map for aliasing. Column names are the ingested columns from scanSchema, not explore field ids. Join the result with warehouse data in a referencing duckdb query.',
     };
 
+    readonly supportsPivot = false;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;

@@ -36,6 +36,8 @@ export class SqlQuerySource implements QuerySourceClient {
             'Raw SQL against the project data warehouse. Tables are referenced as database.schema.table in the SQL dialect of the warehouse. Result columns are named by the SELECT output names.',
     };
 
+    readonly supportsPivot = true;
+
     private readonly asyncQueryService: AsyncQueryService;
 
     private readonly projectService: ProjectService;

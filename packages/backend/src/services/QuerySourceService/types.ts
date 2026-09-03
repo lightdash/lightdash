@@ -59,6 +59,8 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
  */
 export interface QuerySourceClient {
     definition: QuerySourceDefinition;
+    /** Whether a query of this source may carry a pivotConfiguration. */
+    supportsPivot: boolean;
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
     submitQuery(args: SubmitSourceQueryArgs): Promise<{ queryUuid: string }>;

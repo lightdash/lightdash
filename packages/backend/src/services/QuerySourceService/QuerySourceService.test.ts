@@ -44,6 +44,7 @@ const createFakeSource = (
         })),
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
+    supportsPivot: sourceType !== QuerySourceType.DUCKDB,
     scanSchema: vi.fn().mockResolvedValue({ sourceType, tables: [] }),
     getQueryReferences: (query: SourceQuery) => {
         if (query.sourceType !== QuerySourceType.DUCKDB) return [];
@@ -377,6 +378,59 @@ describe('QuerySourceService', () => {
                     pivotConfiguration: null,
                 }),
             );
+        });
+
+        it('refuses a pivot on a node that cannot pivot before submitting any node', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+
+            await expect(
+                service.executeSourceQueries({
+                    ...executionContext,
+                    account,
+                    projectUuid,
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                    queries: [
+                        {
+                            nodeId: 'orders',
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            exploreName: 'orders',
+                            dimensions: ['orders_status'],
+                            metrics: ['orders_total'],
+                        },
+                        {
+                            nodeId: 'payments',
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            exploreName: 'payments',
+                            dimensions: ['payments_status'],
+                            metrics: ['payments_total'],
+                        },
+                        {
+                            nodeId: 'joined',
+                            sourceType: QuerySourceType.DUCKDB,
+                            sql: 'SELECT * FROM orders JOIN payments USING (status)',
+                            references: ['orders', 'payments'],
+                            pivotConfiguration: {
+                                indexColumn: undefined,
+                                valuesColumns: [],
+                                groupByColumns: undefined,
+                                sortBy: undefined,
+                            },
+                        },
+                    ],
+                }),
+            ).rejects.toThrow(
+                expect.objectContaining({
+                    name: ParameterError.name,
+                    message: expect.stringContaining('"joined"'),
+                }),
+            );
+
+            // Nothing ran: the legs never reached the warehouse
+            expect(
+                fakes.semanticLayerSource.submitQuery,
+            ).not.toHaveBeenCalled();
+            expect(fakes.duckdbSource.submitQuery).not.toHaveBeenCalled();
         });
 
         it('requires user attribute overrides on the submit contract', () => {

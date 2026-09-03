@@ -7204,6 +7204,8 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts: undefined,
         });
 
+        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
+
         // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
@@ -7453,6 +7455,8 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts: undefined,
         });
 
+        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
+
         const requestParameters: ExecuteAsyncExternalSqlQueryRequestParams = {
             sql,
             limit,
@@ -7539,6 +7543,19 @@ export class AsyncQueryService extends ProjectService {
                   ',\n',
               )}\nSELECT * FROM (\n${sql}\n) AS lightdash_user_query`
             : sql;
+    }
+
+    /** Refuses at submit time, before a query history row exists. */
+    private static throwIfMissingParameterValues(
+        composer: SqlQueryComposer,
+    ): void {
+        const missing = composer.getMissingParameterReferences();
+        if (missing.length > 0) {
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
+            );
+        }
     }
 
     /**
