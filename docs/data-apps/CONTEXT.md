@@ -163,6 +163,21 @@ Metadata the coding agent emits at build time linking each query to the
 data points rendered from it. Powers Inspect data in the network inspector.
 _Avoid_: provenance, data references (a different, static set)
 
+**Element picker**:
+The mode, toggled from a preview's header, in which clicking an element of
+the running app produces an element reference instead of interacting with
+the app. Stays on across clicks; Esc leaves it. Available in the builder and
+in the AI agent thread's full-page preview panel.
+_Avoid_: inspector, inspect mode, click-to-edit, selection mode
+
+**Element reference**:
+A pointer to one rendered element of a data app, picked with the element
+picker: its tag, visible text, source location, and the app and version it
+was picked from. Attached to a prompt so the user can say "make this
+bigger" without describing "this"; the coding agent resolves it by source
+location, falling back to the visible text.
+_Avoid_: element ref (outside code), selection, pick (as a noun), pill
+
 **Data references**:
 The statically extracted set of data calls a version makes — explores,
 fields, filters, parameters, linked charts, external hosts — plus how much

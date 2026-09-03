@@ -33,7 +33,6 @@ import {
     IconCamera,
     IconChartBar,
     IconCheck,
-    IconClick,
     IconDatabase,
     IconDatabasePlus,
     IconFileDescription,
@@ -133,43 +132,6 @@ export const ScreenshotButton: FC<{
             aria-label="Capture screenshot"
         >
             <MantineIcon icon={IconCamera} size={16} />
-        </ActionIcon>
-    </Tooltip>
-);
-
-/**
- * Toggle button that activates the iframe-side element inspector.
- * While enabled, clicks inside the preview iframe are intercepted and
- * inserted as bracketed references at the textarea cursor (e.g.
- * `[button "Total Revenue"]: `), so the user can compose targeted edits.
- *
- * Rendered only once the iframe SDK has announced inspector support, for the
- * same reason as the screenshot button.
- */
-export const InspectButton: FC<{
-    enabled: boolean;
-    onToggle: () => void;
-    disabled?: boolean;
-}> = ({ enabled, onToggle, disabled }) => (
-    <Tooltip
-        label={
-            enabled
-                ? 'Inspect mode on - click any element in the preview'
-                : 'Point at an element in the preview to reference it'
-        }
-        position="top"
-    >
-        <ActionIcon
-            variant={enabled ? 'light' : 'subtle'}
-            color={enabled ? 'indigo' : 'gray'}
-            size="md"
-            radius="xl"
-            onClick={onToggle}
-            disabled={disabled}
-            aria-label="Toggle element inspector"
-            aria-pressed={enabled}
-        >
-            <MantineIcon icon={IconClick} size={16} />
         </ActionIcon>
     </Tooltip>
 );
