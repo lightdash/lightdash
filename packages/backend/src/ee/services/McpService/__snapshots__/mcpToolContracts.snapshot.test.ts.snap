@@ -2412,12 +2412,28 @@ Notes:
                 "type": "string",
               },
               "secondaryYAxisLabel": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "A helpful label for the secondary y-axis",
-                "type": "string",
               },
               "secondaryYAxisMetric": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -7012,12 +7028,28 @@ Response shape (MCP CallToolResult):
                 "type": "string",
               },
               "secondaryYAxisLabel": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "A helpful label for the secondary y-axis",
-                "type": "string",
               },
               "secondaryYAxisMetric": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+                "default": null,
                 "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-                "type": "string",
               },
               "stackBars": {
                 "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
@@ -11224,12 +11256,28 @@ Grammar: <field> <operator form>
             "type": "string",
           },
           "secondaryYAxisLabel": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
             "description": "A helpful label for the secondary y-axis",
-            "type": "string",
           },
           "secondaryYAxisMetric": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
             "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count).",
-            "type": "string",
           },
           "stackBars": {
             "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
