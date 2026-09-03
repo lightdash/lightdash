@@ -1054,7 +1054,13 @@ const scopes: Scope[] = [
         description: 'Impersonate other users in the organization',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
-        dependencies: [],
+        dependencies: [
+            {
+                name: 'manage:OrganizationMemberProfile',
+                description:
+                    'Open Users & groups to pick a user to impersonate',
+            },
+        ],
         level: 'organization',
         getConditions: (context) => [
             { ...addUuidCondition(context), isActive: true },
