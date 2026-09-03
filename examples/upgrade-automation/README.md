@@ -13,8 +13,8 @@ The loop is:
 2. Read the current image tag and the public release-safety index.
 3. Run `lightdash upgrade-check` against candidate public versions and select the newest green-reachable target. A required stop becomes the next target. Any next hop that is not green opens a held pull request: a genuinely red hop, and equally one whose safety data is unknown or incomplete. Both hold; neither merges. The held pull request states which of the two it is.
 4. Optionally require the mapped image tag to exist in an OCI registry.
-5. Open or reuse one pin pull request for the configured branch prefix, containing the complete nine-key verdict JSON. Pull requests for versions already pinned on the default branch close automatically. When a replacement target opens or is reused, older pull requests with the same prefix close automatically. A newer open target remains authoritative if an older planning run finishes later. Pull requests with another prefix are untouched.
-6. Enable auto-merge when configured and green, or send an `[upgrade-hold]` Slack message for a hop that is red or unknown. The escalation is sent once, when the held pull request is opened, not on every subsequent planning run.
+5. Open or reuse one pin pull request for the configured branch prefix, containing the complete nine-key verdict JSON. A held pull request is titled `HOLD: chore: upgrade Lightdash to VERSION`, carries the configured hold label, and explains itself under a `Why this is held` heading. Pull requests for versions already pinned on the default branch close automatically. When a replacement target opens or is reused, older pull requests with the same prefix close automatically. A newer open target remains authoritative if an older planning run finishes later. Pull requests with another prefix are untouched.
+6. Enable auto-merge when configured and green, or send an `[upgrade-hold]` Slack message for a hop that is red or unknown. The escalation repeats while the pull request stays held, at most once per `hold_reminder_interval`.
 7. After the consumer's deployment workflow finishes, poll `/api/v1/readyz` every 20 seconds and compare the `Lightdash-Version` response header from `/` with the pinned public version. Three consecutive ready and version-matched polls are required.
 8. On failure, open a freeze issue and send an `[upgrade-verify-failed]` Slack message. The automation never rolls back.
 9. Comment the verdict, verification result, timings, readiness reason, and deployment-run link on the pin pull request.
@@ -41,6 +41,9 @@ The plan action creates the pin commit through the GitHub API, so GitHub verifie
 | `auto_merge` | `LIGHTDASH_AUTO_MERGE` | Set to `'true'` for zero-touch squash auto-merge after a green gate. The repository must allow auto-merge. |
 | `escalation` | `LIGHTDASH_UPGRADE_SLACK_WEBHOOK` secret | Optional Slack incoming-webhook URL. The webhook configuration selects the destination channel. Empty disables Slack while retaining issues and pull-request comments. |
 | `freeze_label` | `LIGHTDASH_FREEZE_LABEL` | Label on any open issue that disarms planning. Verification failures create this label and an issue automatically. |
+| `hold_label` | `LIGHTDASH_HOLD_LABEL` | Label applied to a held upgrade pull request and removed once that pull request goes green. Defaults to `upgrade-hold`. Empty disables label management. |
+| `hold_reminder_interval` | `LIGHTDASH_HOLD_REMINDER_INTERVAL` | Minimum time between repeated `[upgrade-hold]` Slack messages for one held pull request. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `24h`. `0` disables reminders. |
+| `anthropic_api_key` | `ANTHROPIC_API_KEY` secret | Optional Anthropic API key. When set, a held pull request gains one Claude-written paragraph above the release facts. Empty, and the section is facts only. |
 
 The composite actions also take `github_token`. The verify action receives `deploy_run_url`, `deploy_conclusion`, and `deployed_sha` from `workflow_run`; customers normally leave those template expressions unchanged. The freeze announcer receives issue-event metadata from the workflow and sends its optional Slack notification through the same `escalation` webhook.
 
@@ -53,6 +56,16 @@ The composite actions also take `github_token`. The verify action receives `depl
 | `pr_url` | URL of the upgrade pull request created or updated by the plan action. |
 
 All three outputs are empty when planning exits early because upgrades are frozen, no newer version is available, or the mapped image is unavailable in the configured registry.
+
+## A held pull request
+
+A hop that is red or unknown opens a pull request that must not merge, so it is made to look different from a green one:
+
+- the title is prefixed with `HOLD: `, and the prefix disappears by itself on the first planning run that finds a green target for the same branch;
+- the configured hold label is added, and removed again when the pull request goes green. Every label call is best effort: a token without label write access logs the underlying error and planning continues;
+- the body carries a `Why this is held` section, built from the per-release `release-safety.json` of each release between the current pin and the target whose `rollingUpdateSafe` is `false` or `unknown`. It names the recommended deploy strategy, the migrations and the tables they touch, the reason text of each declared break, and the count of breaking API changes. A release with unknown safety data is reported as incomplete data, not as a known break. The section covers the first five affected releases and says how many more there are. A release whose detail file cannot be read is reported as such and never blocks the pull request from opening;
+- with `anthropic_api_key` set, one Claude-written paragraph sits above those facts, under an attribution line that says which part a model wrote and which part comes from the release. The key is used at that one moment and nowhere else: never on a green pull request, and never on a planning run that does not rewrite the body, so a hold costs about one call rather than one every five minutes. No key, a failed or refused call, or an empty answer all drop the paragraph and keep the facts, without failing the run. The example is complete without a key;
+- the `[upgrade-hold]` Slack message repeats. The planner keeps no state of its own, so each escalation leaves a marked comment on the pull request and the next one waits until that comment is older than `hold_reminder_interval`. The message says how long the hold has been open.
 
 ## Event choreography
 

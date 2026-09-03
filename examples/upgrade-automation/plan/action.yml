@@ -32,6 +32,18 @@ inputs:
     description: Open-issue label that disarms upgrade planning
     required: false
     default: upgrade-freeze
+  hold_label:
+    description: Label applied to a held upgrade pull request and removed once it is green; empty disables label management, and label failures never fail planning
+    required: false
+    default: upgrade-hold
+  hold_reminder_interval:
+    description: Minimum time between repeated Slack escalations for a pull request that stays held. Accepts seconds or an s, m, or h suffix; 0 disables reminders
+    required: false
+    default: 24h
+  anthropic_api_key:
+    description: Optional Anthropic API key from a repository secret. When set, the body of a held pull request gains one Claude-written paragraph above the release facts; the facts are the same with or without it
+    required: false
+    default: ''
   github_token:
     description: GitHub token used to inspect issues, create the pin commit, and manage its pull request
     required: true
@@ -60,5 +72,8 @@ runs:
         AUTO_MERGE: ${{ inputs.auto_merge }}
         ESCALATION: ${{ inputs.escalation }}
         FREEZE_LABEL: ${{ inputs.freeze_label }}
+        HOLD_LABEL: ${{ inputs.hold_label }}
+        HOLD_REMINDER_INTERVAL: ${{ inputs.hold_reminder_interval }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
         GH_TOKEN: ${{ inputs.github_token }}
       run: "$GITHUB_ACTION_PATH/../scripts/plan.sh"
