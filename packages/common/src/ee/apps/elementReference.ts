@@ -40,3 +40,6 @@ export const dataAppRestoreContextKey = ({
     appUuid: string;
     version: number;
 }): string => `data_app_restore:${appUuid}:${version}`;
+/** Identity of a pinned data app as prompt context. */
+export const dataAppContextKey = (appUuid: string): string =>
+    `data_app:${appUuid}`;

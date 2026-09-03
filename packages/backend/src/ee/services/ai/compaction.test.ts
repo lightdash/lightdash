@@ -303,6 +303,34 @@ describe('AI context compaction helpers', () => {
             'element reference [button "Send"] in data app F1 standings (app-1, version 3',
         );
     });
+
+    it('serializes a pinned data app by name and slug', () => {
+        const serialized = Compaction.serializeConversation([
+            {
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'What data does this app use?',
+                createdAt: new Date().toISOString(),
+                user: { uuid: 'user-1', name: 'Test User' },
+                context: [
+                    {
+                        type: 'data_app',
+                        appUuid: 'app-1',
+                        appSlug: 'f1-standings',
+                        displayName: 'F1 standings',
+                        pinnedVersion: 3,
+                        isPersonal: false,
+                    },
+                ],
+                steers: [],
+                hidden: false,
+            },
+        ]);
+
+        expect(serialized).toContain('data app F1 standings (f1-standings)');
+    });
+
     it('filters raw prompt rows after the latest compaction boundary', () => {
         const filtered = Compaction.filterThreadMessagesAfterCompaction(
             [

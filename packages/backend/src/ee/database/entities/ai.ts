@@ -468,7 +468,8 @@ export type AiPromptContextEntityType =
     | 'review_finding'
     | 'preview_environment'
     | 'data_app_element'
-    | 'data_app_restore';
+    | 'data_app_restore'
+    | 'data_app';
 
 // Element reference snapshot stored in runtime_overrides; entity_ref holds the
 // natural key so one prompt can reference several elements of the same app.
@@ -484,6 +485,12 @@ export type AiPromptDataAppElementSnapshot = {
 export type AiPromptDataAppRestoreSnapshot = {
     version: number;
     restoredFromVersion: number;
+};
+
+// Latest ready version number at attach time; app versions are integers, so
+// pinned_version_uuid stays null.
+export type AiPromptDataAppSnapshot = {
+    version: number | null;
 };
 
 export type DbAiPromptContext = {
@@ -504,6 +511,7 @@ export type DbAiPromptContext = {
         | AiPromptExternalSourceSnapshot
         | AiPromptDataAppElementSnapshot
         | AiPromptDataAppRestoreSnapshot
+        | AiPromptDataAppSnapshot
         | null;
     created_at: Date;
 };

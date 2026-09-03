@@ -101,8 +101,9 @@ _Avoid_: follow-ups, Q&A, refinements
 **Context**:
 Everything a user attaches to a prompt for the coding agent: saved charts,
 dashboards, images, screenshots of the running app, files, sample data, and
-external connections. Kept with the version.
-_Avoid_: attachments, resources (unqualified)
+external connections. Kept with the version. Not the AI agent's **pinned
+context**, which is what a user attaches to an Ask AI prompt.
+_Avoid_: attachments, resources (unqualified), pinned context
 
 **Generate from**:
 To create a new data app with existing charts or dashboards attached as

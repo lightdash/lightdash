@@ -377,6 +377,7 @@ const NewThreadPanel: FC<{
                                     key={getPromptContextItemKey(item)}
                                     item={item}
                                     projectUuid={projectUuid}
+                                    previewScope={null}
                                 />
                             ))}
                         </Group>

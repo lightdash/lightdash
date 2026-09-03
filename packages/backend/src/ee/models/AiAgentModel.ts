@@ -147,6 +147,7 @@ import {
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
     AiPromptDataAppRestoreSnapshot,
+    AiPromptDataAppSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -6507,7 +6508,9 @@ export class AiAgentModel {
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
         const appUuids = context.flatMap((c) =>
-            c.type === 'data_app_element' || c.type === 'data_app_restore'
+            c.type === 'data_app_element' ||
+            c.type === 'data_app_restore' ||
+            c.type === 'data_app'
                 ? [c.appUuid]
                 : [],
         );
@@ -6522,6 +6525,22 @@ export class AiAgentModel {
                         'name',
                     )
             ).map((r) => [r.app_id, r.name] as const),
+        );
+
+        const pinnedAppUuids = context.flatMap((c) =>
+            c.type === 'data_app' ? [c.appUuid] : [],
+        );
+        const latestReadyVersionByAppUuid = new Map(
+            (
+                await trx(AppVersionsTableName)
+                    .whereIn('app_id', pinnedAppUuids)
+                    .where('status', 'ready')
+                    .groupBy('app_id')
+                    .select<{ app_id: string; version: number }[]>(
+                        'app_id',
+                        trx.raw('max(version) as version'),
+                    )
+            ).map((r) => [r.app_id, r.version] as const),
         );
 
         const chartLookup = new Map(
@@ -6824,6 +6843,23 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppRestoreSnapshot,
                     };
                 }
+                case 'data_app': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'data_app' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version:
+                                latestReadyVersionByAppUuid.get(ctx.appUuid) ??
+                                null,
+                        } satisfies AiPromptDataAppSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6967,7 +7003,11 @@ export class AiAgentModel {
                         .appUuid,
                 ];
             }
-            if (r.entity_type === 'data_app_restore' && r.entity_uuid) {
+            if (
+                (r.entity_type === 'data_app_restore' ||
+                    r.entity_type === 'data_app') &&
+                r.entity_uuid !== null
+            ) {
                 return [r.entity_uuid];
             }
             return [];
@@ -6977,12 +7017,25 @@ export class AiAgentModel {
                 await this.database(AppsTableName)
                     .whereIn('app_id', appUuids)
                     .whereNull('deleted_at')
-                    .select<{ app_id: string; slug: string; name: string }[]>(
-                        'app_id',
-                        'slug',
-                        'name',
-                    )
-            ).map((r) => [r.app_id, { slug: r.slug, name: r.name }] as const),
+                    .select<
+                        {
+                            app_id: string;
+                            slug: string;
+                            name: string;
+                            space_uuid: string | null;
+                        }[]
+                    >('app_id', 'slug', 'name', 'space_uuid')
+            ).map(
+                (r) =>
+                    [
+                        r.app_id,
+                        {
+                            slug: r.slug,
+                            name: r.name,
+                            spaceUuid: r.space_uuid,
+                        },
+                    ] as const,
+            ),
         );
 
         const previewProjectUuids = rows
@@ -7062,7 +7115,10 @@ export class AiAgentModel {
         dashboardSlugByUuid: Map<string, string>,
         reviewItem: AiAgentReviewItemSummary | null,
         projectNameByUuid: Map<string, string>,
-        appDataByUuid: Map<string, { slug: string; name: string }>,
+        appDataByUuid: Map<
+            string,
+            { slug: string; name: string; spaceUuid: string | null }
+        >,
     ): AiPromptContextItem {
         // chart/dashboard/thread are uuid-keyed: entity_uuid is a non-null
         // invariant (only file/repository leave it null, using entity_ref).
@@ -7205,6 +7261,22 @@ export class AiAgentModel {
                     displayName: app
                         ? getAppDisplayName(app.name, appUuid)
                         : row.display_name,
+                };
+            }
+            case 'data_app': {
+                const appUuid = requireEntityUuid();
+                const app = appDataByUuid.get(appUuid);
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppSnapshot | null;
+                return {
+                    type: 'data_app',
+                    appUuid,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
+                        : row.display_name,
+                    pinnedVersion: snapshot?.version ?? null,
+                    isPersonal: app !== undefined && app.spaceUuid === null,
                 };
             }
             default:
