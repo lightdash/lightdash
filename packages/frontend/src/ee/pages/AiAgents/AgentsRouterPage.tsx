@@ -408,6 +408,7 @@ const AgentsRouterPage = () => {
                                             key={getPromptContextItemKey(item)}
                                             item={item}
                                             projectUuid={projectUuid!}
+                                            previewScope={null}
                                         />
                                     ))}
                                 </Group>

@@ -35,13 +35,13 @@ import {
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppThumbnailUrl } from '../../../../features/apps/hooks/useAppThumbnail';
+import { dataAppHref } from '../../../../features/apps/utils/appUrls';
 import { BlockHeader, IconSquare, MiniPill } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { ContentLayoutControl } from './ContentLayoutControl';
 import { DataAppPickerModal } from './DataAppPickerModal';
 import { PageGrid, PageGridItem } from './PageGrid';
 import {
-    dataAppHref,
     faviconUrl,
     hostnameOf,
     looksLikeUrl,

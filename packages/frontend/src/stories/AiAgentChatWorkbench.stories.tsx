@@ -1000,6 +1000,7 @@ const ComponentInventory = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>
@@ -1120,6 +1121,7 @@ const PinnedContextScenario = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>

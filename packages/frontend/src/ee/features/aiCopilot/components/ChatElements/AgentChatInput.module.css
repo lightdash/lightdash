@@ -288,6 +288,13 @@
         linear-gradient(currentColor 0 0) 7px 6px / 4px 5px no-repeat;
 }
 
+.contentMentionIcon[data-icon-type='data_app']::before {
+    background:
+        linear-gradient(currentColor 0 0) 1px 1px / 10px 10px no-repeat,
+        linear-gradient(var(--mantine-color-body) 0 0) 2px 4px / 8px 6px
+            no-repeat;
+}
+
 .contentMentionIcon[data-rendered-icon='true']::before {
     content: none;
 }

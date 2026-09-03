@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getExternalSourceDisplayName,
+    isSpaceRestrictedAgent,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -65,6 +66,7 @@ import { useDeepResearchComposer } from '../../hooks/useDeepResearchComposer';
 import {
     useCreateAiAgentThreadMessageSteerMutation,
     useInterruptAiAgentThreadMessageMutation,
+    useProjectAiAgent,
 } from '../../hooks/useProjectAiAgents';
 import {
     clearThreadElementReferences,
@@ -352,6 +354,11 @@ export const AgentChatInput = ({
     projectUuidRef.current = projectUuid;
     const contentMentionPriorityItemsRef = useRef(contentMentionPriorityItems);
     contentMentionPriorityItemsRef.current = contentMentionPriorityItems;
+    // A space-restricted agent cannot read personal data apps, so @ hides them.
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
+    const hidePersonalDataAppsRef = useRef(false);
+    hidePersonalDataAppsRef.current =
+        agent !== undefined && isSpaceRestrictedAgent(agent);
     // What the @-mention dropdown is doing, sourced from the suggestion render
     // lifecycle — the plugin's own `active` flag alone can't tell an open
     // menu from a dismissed or empty one.
@@ -463,6 +470,7 @@ export const AgentChatInput = ({
             createContentMentionExtension({
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
+                getHidePersonalDataApps: () => hidePersonalDataAppsRef.current,
                 onMenuStateChange: (state) => {
                     contentMentionMenuRef.current = state;
                 },

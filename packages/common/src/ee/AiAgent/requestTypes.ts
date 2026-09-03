@@ -253,6 +253,13 @@ export type AiPromptContextItemInput =
           appUuid: string;
           version: number;
           restoredFromVersion: number;
+      }
+    | {
+          // A data app the user pinned; the server snapshots its name and
+          // latest ready version number at attach time.
+          type: 'data_app';
+          appUuid: string;
+          appSlug?: string | null;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -360,6 +367,15 @@ export type AiPromptContextItem =
           restoredFromVersion: number;
           appSlug: string | null;
           displayName: string | null;
+      }
+    | {
+          type: 'data_app';
+          appUuid: string;
+          appSlug: string | null;
+          displayName: string | null;
+          pinnedVersion: number | null;
+          // Personal apps have no space; space-restricted agents cannot read them.
+          isPersonal: boolean;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

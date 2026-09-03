@@ -346,3 +346,63 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
     });
 });
+
+describe('AiAgentService.createPinnedContextMessage data app pins', () => {
+    it('renders a data app by name and slug only', () => {
+        const content = buildMessage([
+            {
+                type: 'data_app',
+                appUuid: 'app-1',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+                pinnedVersion: 3,
+                isPersonal: false,
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Data app "F1 standings" (dataAppSlug: f1-standings)',
+        );
+        expect(content).not.toContain('version 3');
+        expect(content).toContain('readContent');
+    });
+
+    it('keeps mixed items in their pinned order', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+            },
+            {
+                type: 'data_app',
+                appUuid: 'app-1',
+                appSlug: 'f1-standings',
+                displayName: 'F1 standings',
+                pinnedVersion: null,
+                isPersonal: false,
+            },
+            {
+                type: 'chart',
+                chartUuid: 'chart-1',
+                chartSlug: 'revenue',
+                displayName: 'Revenue',
+                pinnedVersionUuid: null,
+                runtimeOverrides: null,
+                chartKind: null,
+            },
+        ]);
+
+        const dashboardAt = content.indexOf(
+            '- Dashboard "Executive dashboard"',
+        );
+        const appAt = content.indexOf('- Data app "F1 standings"');
+        const chartAt = content.indexOf('- Chart "Revenue"');
+        expect(dashboardAt).toBeGreaterThan(-1);
+        expect(appAt).toBeGreaterThan(dashboardAt);
+        expect(chartAt).toBeGreaterThan(appAt);
+    });
+});

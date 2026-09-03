@@ -132,6 +132,7 @@ export const usePinnedContext = ({
                     uuid: tile.properties.savedChartUuid!,
                     slug: tile.properties.chartSlug ?? null,
                     chartKind: tile.properties.lastVersionChartKind ?? null,
+                    isPersonalDataApp: false,
                     group: 'dashboardTile',
                     dashboardUuid: dashboard.uuid,
                     dashboardSlug: dashboard.slug,

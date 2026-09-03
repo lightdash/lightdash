@@ -230,11 +230,15 @@ export type AiAgentSummary = Pick<
 >;
 
 // An empty spaceAccess list means the agent is unrestricted (all spaces).
+export const isSpaceRestrictedAgent = (
+    agent: Pick<AiAgent, 'spaceAccess'>,
+): boolean => agent.spaceAccess.length > 0;
+
 export const hasAiAgentAccessToSpace = (
     agent: Pick<AiAgent, 'spaceAccess'>,
     spaceUuid: string,
 ): boolean =>
-    agent.spaceAccess.length === 0 || agent.spaceAccess.includes(spaceUuid);
+    !isSpaceRestrictedAgent(agent) || agent.spaceAccess.includes(spaceUuid);
 
 export type AiAgentUser = {
     uuid: string;
