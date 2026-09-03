@@ -49,8 +49,13 @@ export const useAskAiAgentAction = ({
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
 
+    // Navigate mode needs the resolved agent for the URL before it can act.
+    const canNavigate = !!projectUuid && !!selectedAgent;
     const canAsk =
-        isVisible && agents.length > 0 && (!dataAppUuid || dataAppsEnabled);
+        isVisible &&
+        agents.length > 0 &&
+        (!dataAppUuid || dataAppsEnabled) &&
+        (mode !== 'navigate' || canNavigate);
 
     const handleClick = () => {
         if (!canAsk) return;
