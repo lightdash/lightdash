@@ -63,6 +63,7 @@ import {
     ConflictError,
     ContentType,
     dataAppElementContextKey,
+    dataAppRestoreContextKey,
     dataAppVizSchema,
     DbtProjectType,
     deriveDataAppVizPivotConfig,
@@ -79,6 +80,7 @@ import {
     ForbiddenError,
     formatMergeQueryRefusal,
     GenerateArtifactQuestionJobPayload,
+    getAppDisplayName,
     getDataAppVizChartFromArtifact,
     getErrorMessage,
     getGenerateDataAppBuildOutcome,
@@ -1075,7 +1077,7 @@ export class AiAgentService extends BaseService {
                     key = dataAppElementContextKey(item);
                     break;
                 case 'data_app_restore':
-                    key = `data_app_restore:${item.appUuid}:${item.version}`;
+                    key = dataAppRestoreContextKey(item);
                     break;
                 default:
                     return assertUnreachable(
@@ -3821,7 +3823,10 @@ export class AiAgentService extends BaseService {
         const promptUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
-            prompt: `Restore version ${body.version} of ${app.name}`,
+            prompt: `Restore version ${body.version} of ${getAppDisplayName(
+                app.name,
+                body.appUuid,
+            )}`,
             context: [
                 {
                     type: 'data_app_restore',

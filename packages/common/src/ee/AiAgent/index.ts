@@ -13,6 +13,7 @@ import type {
     ToolName,
     ToolRunQueryArgs,
 } from '../..';
+import { type UUID } from '../../types/api/uuid';
 import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
@@ -861,7 +862,7 @@ export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
 >;
 
 export type ApiAiAgentThreadDataAppRestoreRequest = {
-    appUuid: string;
+    appUuid: UUID;
     version: number;
 };
 

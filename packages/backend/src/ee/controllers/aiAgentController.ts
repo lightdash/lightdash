@@ -1204,9 +1204,9 @@ export class AiAgentController extends BaseController {
     @OperationId('restoreAgentThreadDataAppVersion')
     async restoreAgentThreadDataAppVersion(
         @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
         @Body() body: ApiAiAgentThreadDataAppRestoreRequest,
     ): Promise<ApiAiAgentThreadDataAppRestoreResponse> {
         assertRegisteredAccount(req.account);

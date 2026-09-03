@@ -247,9 +247,8 @@ export type AiPromptContextItemInput =
           loc: string;
       }
     | {
-          // A data app version restored from the thread: the new version and
-          // the ready version it copies. System-only: written by the thread
-          // restore endpoint, never user-attached.
+          // A thread restore: the new version and the ready one it copies.
+          // System-only, never user-attached.
           type: 'data_app_restore';
           appUuid: string;
           version: number;
