@@ -52,6 +52,7 @@ interface UsersActionMenuProps {
     user: OrganizationMemberProfile | OrganizationMemberProfileWithGroups;
     disabled: boolean;
     canInvite: boolean;
+    canDelete: boolean;
     inviteLink: ReturnType<typeof useCreateInviteLinkMutation>;
     onInviteSent: (userUuid: string) => void;
 }
@@ -89,6 +90,7 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     user,
     disabled,
     canInvite,
+    canDelete,
     inviteLink,
     onInviteSent,
 }) => {
@@ -252,6 +254,10 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
         setDashboardOwnerAction(value);
     }, []);
 
+    if (!showResendInvite && !canImpersonate && !canDelete) {
+        return null;
+    }
+
     return (
         <>
             <Menu
@@ -300,16 +306,18 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                             <Menu.Divider />
                         </>
                     )}
-                    <Menu.Item
-                        component="button"
-                        role="menuitem"
-                        color="red"
-                        leftSection={<MantineIcon icon={IconTrash} />}
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                        disabled={disabled}
-                    >
-                        Delete user
-                    </Menu.Item>
+                    {canDelete && (
+                        <Menu.Item
+                            component="button"
+                            role="menuitem"
+                            color="red"
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            onClick={() => setIsDeleteDialogOpen(true)}
+                            disabled={disabled}
+                        >
+                            Delete user
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
 

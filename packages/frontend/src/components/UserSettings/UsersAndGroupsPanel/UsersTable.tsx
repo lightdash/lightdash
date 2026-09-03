@@ -224,6 +224,9 @@ const UsersTable: FC = () => {
         false;
     const canInvite =
         activeUser.data?.ability?.can('create', 'InviteLink') ?? false;
+    const canImpersonate =
+        activeUser.data?.ability?.can('impersonate', 'User') ?? false;
+    const showActions = canManageUsers || canInvite || canImpersonate;
 
     const columns: ContentTableColumnDef<
         OrganizationMemberProfile | OrganizationMemberProfileWithGroups
@@ -385,7 +388,9 @@ const UsersTable: FC = () => {
                     },
                 });
             }
+        }
 
+        if (showActions) {
             cols.push({
                 id: 'actions',
                 header: '',
@@ -409,6 +414,7 @@ const UsersTable: FC = () => {
                                 user={user}
                                 disabled={disabled}
                                 canInvite={canInvite}
+                                canDelete={canManageUsers}
                                 inviteLink={inviteLink}
                                 onInviteSent={handleInviteSent}
                             />
@@ -421,6 +427,7 @@ const UsersTable: FC = () => {
         return cols;
     }, [
         canManageUsers,
+        showActions,
         inviteLink,
         inviteSuccessFor,
         isGroupManagementEnabled,
