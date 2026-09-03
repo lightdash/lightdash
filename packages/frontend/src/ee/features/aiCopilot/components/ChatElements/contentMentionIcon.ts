@@ -1,4 +1,8 @@
-import { ContentType, type ChartKind } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ContentType,
+    type ChartKind,
+} from '@lightdash/common';
 import {
     IconAppWindow,
     IconLayoutDashboard,
@@ -23,5 +27,10 @@ export const getContentMentionIcon = (
                 icon: getChartIcon(chartKind ?? undefined),
                 color: 'blue.7',
             };
+        default:
+            return assertUnreachable(
+                contentType,
+                'Unknown content mention type',
+            );
     }
 };

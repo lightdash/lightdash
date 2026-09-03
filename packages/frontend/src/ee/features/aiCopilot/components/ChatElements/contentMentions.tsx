@@ -3,8 +3,6 @@ import {
     ChartSourceType,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
-    dataAppContextKey,
-    dataAppElementContextKey,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type ApiContentResponse,
@@ -41,9 +39,17 @@ import {
 import suggestionStyles from '../../../../../components/common/SuggestionList/SuggestionList.module.css';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
+import {
+    FILE_MENTION_CONTENT_TYPE,
+    getContentMentionContentType,
+    REPOSITORY_MENTION_CONTENT_TYPE,
+} from './contentMentionContentType';
 import { getContentMentionIcon } from './contentMentionIcon';
 import { ContentMentionNodeView } from './ContentMentionNodeView';
-import { getPromptContextItemKey } from './contentReferenceUtils';
+import {
+    getDataAppContextItemName,
+    getPromptContextItemKey,
+} from './contentReferenceUtils';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
@@ -85,9 +91,6 @@ export type ContentMentionSuggestionItem = SuggestionItem & {
 };
 
 const FILE_MENTION_GROUP = 'file';
-// `contentType` value marking a content-mention node as a file (vs chart /
-// dashboard). The node carries the path in `label`; no context payload.
-const FILE_MENTION_CONTENT_TYPE = 'file';
 const MAX_FILE_SUGGESTIONS = 8;
 
 // A dbt source file the user can `@`-mention. Unlike content mentions it carries
@@ -100,10 +103,6 @@ export type FileMentionSuggestionItem = SuggestionItem & {
 };
 
 const REPOSITORY_MENTION_GROUP = 'repository';
-// `contentType` value marking a content-mention node as a repository (vs chart /
-// dashboard / file). The node carries `owner/repo` in `label`; no context
-// payload — the agent reads the repo via its exploreRepo tool.
-const REPOSITORY_MENTION_CONTENT_TYPE = 'repository';
 const MAX_REPOSITORY_SUGGESTIONS = 8;
 
 // A GitHub or GitLab repository the org's installation can access. Like file
@@ -286,15 +285,6 @@ export const contentMentionMenuOwnsEnter = (
     }
 };
 
-const getContentMentionContentType = (value: unknown) => {
-    if (value === FILE_MENTION_CONTENT_TYPE) return FILE_MENTION_CONTENT_TYPE;
-    if (value === REPOSITORY_MENTION_CONTENT_TYPE)
-        return REPOSITORY_MENTION_CONTENT_TYPE;
-    if (value === ContentType.DASHBOARD) return ContentType.DASHBOARD;
-    if (value === ContentType.DATA_APP) return ContentType.DATA_APP;
-    return ContentType.CHART;
-};
-
 const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
     'span',
     {
@@ -303,40 +293,6 @@ const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
         'data-icon-type': contentType,
     },
 ];
-
-const getContextKey = (item: AiPromptContextInput[number]) => {
-    switch (item.type) {
-        case 'chart':
-            return `chart:${item.chartUuid}`;
-        case 'dashboard':
-            return `dashboard:${item.dashboardUuid}`;
-        case 'thread':
-            return `thread:${item.threadUuid}`;
-        case 'file':
-            return `file:${item.path}`;
-        case 'repository':
-            return `repository:${item.fullName}`;
-        case 'external_source':
-            return `external_source:${item.sourceUuid}`;
-        case 'pull_request':
-            return `pull_request:${item.prUrl}`;
-        case 'proposed_change':
-            return `proposed_change:${item.fingerprint}`;
-        case 'review_finding':
-            return `review_finding:${item.fingerprint}`;
-        case 'preview_environment':
-            return `preview_environment:${item.previewProjectUuid}`;
-        case 'data_app_element':
-            return dataAppElementContextKey(item);
-        case 'data_app':
-            return dataAppContextKey(item.appUuid);
-        default:
-            return assertUnreachable(
-                item,
-                'Unknown AiPromptContextItemInput type',
-            );
-    }
-};
 
 const normalizeSearchText = (value: string) =>
     value
@@ -376,7 +332,7 @@ export const mergeAiPromptContextInput = (
     contextGroups
         .flatMap((context) => context ?? [])
         .forEach((item) => {
-            const key = getContextKey(item);
+            const key = getPromptContextItemKey(item);
             if (seen.has(key)) {
                 return;
             }
@@ -447,7 +403,7 @@ export const contextItemsToContentMentionSuggestions = (
         if (item.type === 'data_app') {
             return {
                 id: `${group}:data_app:${item.appUuid}`,
-                label: item.displayName ?? item.appSlug ?? 'Data app',
+                label: getDataAppContextItemName(item),
                 contentType: ContentType.DATA_APP,
                 uuid: item.appUuid,
                 slug: item.appSlug,

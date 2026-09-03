@@ -1,5 +1,6 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
 import { type FC, type MouseEvent } from 'react';
+import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import { selectDataAppPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
@@ -7,10 +8,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
-import {
-    getDataAppContextItemLabel,
-    getDataAppHref,
-} from '../ChatElements/contentReferenceUtils';
+import { getDataAppContextItemLabel } from '../ChatElements/contentReferenceUtils';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
 // The sent thread message the chip belongs to; lets a data app chip open the
@@ -138,7 +136,7 @@ const PinnedDataAppCard: FC<{
         <ContentReferenceLink
             kind="data_app"
             rel="noreferrer"
-            to={getDataAppHref(projectUuid, item.appUuid)}
+            to={dataAppHref(projectUuid, item.appUuid)}
             target="_blank"
             onClick={handleClick}
             data-app-active={isActive || undefined}

@@ -2,8 +2,10 @@ import {
     assertUnreachable,
     dataAppContextKey,
     dataAppElementContextKey,
+    type AiPromptContextInput,
     type AiPromptContextItem,
 } from '@lightdash/common';
+import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 
 // Element references never render inline; they always show as pills.
 type InlineReferenceItem = Exclude<
@@ -27,7 +29,9 @@ export type ContentReferenceSegment =
           label: string;
       };
 
-export const getPromptContextItemKey = (item: AiPromptContextItem) => {
+export const getPromptContextItemKey = (
+    item: AiPromptContextItem | AiPromptContextInput[number],
+) => {
     switch (item.type) {
         case 'chart':
             return `chart:${item.chartUuid}`;
@@ -58,11 +62,17 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
     }
 };
 
-// Chip label: the app's name plus the version it was pinned at.
+export const getDataAppContextItemName = (
+    item: Pick<
+        Extract<AiPromptContextItem, { type: 'data_app' }>,
+        'displayName' | 'appSlug'
+    >,
+): string => item.displayName ?? item.appSlug ?? 'Data app';
+
 export const getDataAppContextItemLabel = (
     item: Extract<AiPromptContextItem, { type: 'data_app' }>,
 ): string => {
-    const name = item.displayName ?? item.appSlug ?? 'Data app';
+    const name = getDataAppContextItemName(item);
     return item.pinnedVersion === null
         ? name
         : `${name} v${item.pinnedVersion}`;
@@ -98,14 +108,11 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
         case 'data_app':
-            return item.displayName ?? item.appSlug ?? 'Data app';
+            return getDataAppContextItemName(item);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
-
-export const getDataAppHref = (projectUuid: string, appUuid: string) =>
-    `/projects/${projectUuid}/apps/${appUuid}/view`;
 
 export const getPromptContextItemHref = (
     item: AiPromptContextItem,
@@ -140,7 +147,7 @@ export const getPromptContextItemHref = (
         case 'data_app_element':
             return null;
         case 'data_app':
-            return getDataAppHref(projectUuid, item.appUuid);
+            return dataAppHref(projectUuid, item.appUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
