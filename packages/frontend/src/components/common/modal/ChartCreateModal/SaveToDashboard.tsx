@@ -21,6 +21,10 @@ import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import {
+    useIsModalHosted,
+    useModalHostedChartSaved,
+} from '../../../../providers/Explorer/useIsModalHosted';
 import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
 
@@ -89,6 +93,8 @@ export const SaveToDashboard: FC<Props> = ({
 
     const { showToastSuccess } = useToaster();
     const navigate = useNavigate();
+    const isModalHosted = useIsModalHosted();
+    const onModalHostChartSaved = useModalHostedChartSaved();
 
     const { mutateAsync: createChart } = useCreateMutation({
         redirectOnSuccess: false,
@@ -131,6 +137,16 @@ export const SaveToDashboard: FC<Props> = ({
                 },
                 ...getDefaultChartTileSize(savedData.chartConfig?.type),
             };
+            // Modal-hosted: delegate to host, skip dashboard storage and navigation.
+            if (isModalHosted) {
+                onModalHostChartSaved?.(chart);
+                showToastSuccess({
+                    title: `Success! ${values.name} was added to ${dashboardName}`,
+                });
+                onClose();
+                return;
+            }
+
             const unsavedDashboardTiles =
                 getUnsavedDashboardTiles(dashboardUuid);
             const existingTiles =
@@ -168,6 +184,9 @@ export const SaveToDashboard: FC<Props> = ({
             dashboardName,
             selectedDashboard?.tiles,
             selectedDashboard?.slug,
+            isModalHosted,
+            onModalHostChartSaved,
+            onClose,
         ],
     );
     return (
