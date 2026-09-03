@@ -84,6 +84,13 @@
                     }
                 }
             ]
+        },
+        "repro-prod-10299": {
+            "tabs": [
+                { "name": "Tab One" },
+                { "name": "Tab Two" },
+                { "name": "Tab Three" }
+            ]
         }
     },
     "uiOverrides": {

@@ -427,13 +427,12 @@ const EmbedDashboard: FC<{
         setDraftDashboardName(dashboard.name);
     }, [dashboard, isEditMode]);
 
-    const filterLabelOverrides = useMemo(
+    const dashboardContentOverrides = useMemo(
         () =>
-            dashboard
-                ? languageMap?.dashboard?.[dashboard.slug]?.filters
-                : undefined,
+            dashboard ? languageMap?.dashboard?.[dashboard.slug] : undefined,
         [dashboard, languageMap],
     );
+    const filterLabelOverrides = dashboardContentOverrides?.filters;
 
     // Translated filter labels are applied before the dashboard seeds the
     // provider so every viewer surface (pills, guided setup, popovers) sees
@@ -481,6 +480,23 @@ const EmbedDashboard: FC<{
             setDashboardTabs(dashboard.tabs);
         }
     }, [dashboardTabs, setDashboardTabs, dashboard]);
+
+    const translatedTabNames = useMemo(
+        () =>
+            new Map(
+                dashboardTabs.map((tab, index) => {
+                    const translatedName =
+                        dashboardContentOverrides?.tabs?.[index]?.name;
+                    return [
+                        tab.uuid,
+                        typeof translatedName === 'string' && translatedName
+                            ? translatedName
+                            : tab.name,
+                    ];
+                }),
+            ),
+        [dashboardContentOverrides?.tabs, dashboardTabs],
+    );
 
     // Embed is always view-only — hidden tabs (and their tiles) must not
     // surface, neither in the tab bar nor in the grid.
@@ -954,7 +970,7 @@ const EmbedDashboard: FC<{
                                             100 / (visibleTabs.length || 1)
                                         }vw`}
                                     >
-                                        {tab.name}
+                                        {translatedTabNames.get(tab.uuid)}
                                     </Tabs.Tab>
                                 ))}
                             </Tabs.List>
