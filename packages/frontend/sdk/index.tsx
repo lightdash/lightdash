@@ -18,6 +18,7 @@ import { ModalsProvider } from '@mantine/modals';
 import {
     useCallback,
     useEffect,
+    useId,
     useMemo,
     useRef,
     useState,
@@ -45,6 +46,7 @@ import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
 import FullscreenProvider from '../src/providers/Fullscreen/FullscreenProvider';
 import MantineProvider from '../src/providers/MantineProvider';
+import { PortalTargetContext } from '../src/providers/PortalTarget/PortalTargetContext';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
@@ -61,7 +63,7 @@ import {
     type ListContentOptions,
 } from './api';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
-import { SDK_SCOPE_CLASS, SDK_SCOPE_SELECTOR } from './styles/scope';
+import { SDK_SCOPE_CLASS } from './styles/scope.json';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -304,7 +306,9 @@ const isAiAgentThreadChangedMessage = (
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
 
-let sdkInstanceCount = 0;
+// Distinguishes this copy of the bundle from another one on the same page, so
+// instance ids never collide.
+const SDK_BUNDLE_ID = Math.random().toString(36).slice(2, 8);
 
 const SdkProviders: FC<
     PropsWithChildren<{
@@ -316,14 +320,18 @@ const SdkProviders: FC<
     const colorScheme = theme ?? 'light';
     const rootRef = useRef<HTMLDivElement>(null);
     const getRootElement = useCallback(() => rootRef.current ?? undefined, []);
-    // Body-level container for everything Mantine portals out of the inline
-    // root (dropdowns, modals, notifications), so they escape the host's
-    // overflow and stacking contexts while keeping the SDK's variables and
-    // colour scheme. Mantine resolves a selector target in its layout effect,
-    // by which time the container below is in the DOM, so no render round-trip.
-    const [portalId] = useState(
-        () => `lightdash-sdk-portal-${++sdkInstanceCount}`,
-    );
+    // Each mounted component gets its own class for Mantine's CSS variables,
+    // so two embeds with different fonts or themes on one page don't fight
+    // over shared variables. The scope class stays shared: the build-time
+    // scoped stylesheets key on it.
+    const instanceId = `${SDK_BUNDLE_ID}-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const instanceClass = `lightdash-sdk-instance-${instanceId}`;
+    // Body-level container for everything that portals out of the inline root
+    // (dropdowns, modals, drag overlays), so it escapes the host's overflow and
+    // stacking contexts while keeping the SDK's variables and colour scheme.
+    // Mantine resolves a selector target in its layout effect, by which time
+    // the container below is in the DOM, so no render round-trip.
+    const portalId = `lightdash-sdk-portal-${instanceId}`;
     const fontFamily = styles?.fontFamily;
     // Only override the font when the consumer sets one: Mantine 8's CSS-vars
     // generator stringifies an explicit undefined into `font-family: undefined`.
@@ -360,6 +368,7 @@ const SdkProviders: FC<
                     className={embedContractClass(
                         'ld-sdk-portal',
                         SDK_SCOPE_CLASS,
+                        instanceClass,
                     )}
                     data-mantine-color-scheme={colorScheme}
                 />,
@@ -370,7 +379,7 @@ const SdkProviders: FC<
                     themeOverride={themeOverride}
                     notificationsLimit={0}
                     forceColorScheme={colorScheme}
-                    cssVariablesSelector={SDK_SCOPE_SELECTOR}
+                    cssVariablesSelector={`.${instanceClass}`}
                     getRootElement={getRootElement}
                     syncBodyColorMode={false}
                 >
@@ -379,33 +388,42 @@ const SdkProviders: FC<
                         className={embedContractClass(
                             'ld-sdk-root',
                             SDK_SCOPE_CLASS,
+                            instanceClass,
                         )}
                     >
-                        <ModalsProvider>
-                            <AppProvider>
-                                <FullscreenProvider enabled={false}>
-                                    <ThirdPartyServicesProvider enabled={false}>
-                                        <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                            <MemoryRouter
-                                                initialEntries={[route]}
+                        <PortalTargetContext.Provider value={`#${portalId}`}>
+                            <ModalsProvider>
+                                <AppProvider>
+                                    <FullscreenProvider enabled={false}>
+                                        <ThirdPartyServicesProvider
+                                            enabled={false}
+                                        >
+                                            <ErrorBoundary
+                                                wrapper={{ mt: '4xl' }}
                                             >
-                                                <TrackingProvider
-                                                    enabled={true}
+                                                <MemoryRouter
+                                                    initialEntries={[route]}
                                                 >
-                                                    <AbilityProvider>
-                                                        <ChartColorMappingContextProvider>
-                                                            <ActiveJobProvider>
-                                                                {routedChildren}
-                                                            </ActiveJobProvider>
-                                                        </ChartColorMappingContextProvider>
-                                                    </AbilityProvider>
-                                                </TrackingProvider>
-                                            </MemoryRouter>
-                                        </ErrorBoundary>
-                                    </ThirdPartyServicesProvider>
-                                </FullscreenProvider>
-                            </AppProvider>
-                        </ModalsProvider>
+                                                    <TrackingProvider
+                                                        enabled={true}
+                                                    >
+                                                        <AbilityProvider>
+                                                            <ChartColorMappingContextProvider>
+                                                                <ActiveJobProvider>
+                                                                    {
+                                                                        routedChildren
+                                                                    }
+                                                                </ActiveJobProvider>
+                                                            </ChartColorMappingContextProvider>
+                                                        </AbilityProvider>
+                                                    </TrackingProvider>
+                                                </MemoryRouter>
+                                            </ErrorBoundary>
+                                        </ThirdPartyServicesProvider>
+                                    </FullscreenProvider>
+                                </AppProvider>
+                            </ModalsProvider>
+                        </PortalTargetContext.Provider>
                     </div>
                 </MantineProvider>
             </ReactQueryProvider>

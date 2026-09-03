@@ -718,6 +718,13 @@ describe('SDK host page isolation', () => {
         variableSheets.forEach((css) => {
             expect(css).not.toMatch(/:root|:host/);
         });
+        // Variables are keyed on this instance's own class, present on both containers.
+        const instanceClass = [...(root?.classList ?? [])].find((name) =>
+            name.startsWith('lightdash-sdk-instance-'),
+        );
+        expect(instanceClass).toBeDefined();
+        expect(portal?.classList.contains(instanceClass!)).toBe(true);
+        expect(variableSheets[0]).toMatch(new RegExp(`^\\.${instanceClass}`));
 
         unmount();
         expect(document.body.querySelector('.ld-sdk-portal')).toBeNull();

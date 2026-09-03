@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { usePortalTarget } from '../../../../../providers/PortalTarget/usePortalTarget';
 import {
     createMentionMarkdownExtension,
     hydrateContentMentions,
@@ -42,6 +43,7 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
 }) => {
     const closeRef = useRef<HTMLButtonElement>(null);
 
+    const portalTarget = usePortalTarget();
     useEffect(() => {
         const onKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') onClose();
@@ -72,7 +74,7 @@ const ImageLightbox: FC<{ src: string; alt: string; onClose: () => void }> = ({
             <img className={classes.lightboxImage} src={src} alt={alt} />
             {alt ? <div className={classes.lightboxCaption}>{alt}</div> : null}
         </div>,
-        document.body,
+        portalTarget,
     );
 };
 
