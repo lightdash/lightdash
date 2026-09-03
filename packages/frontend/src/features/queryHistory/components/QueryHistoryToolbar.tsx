@@ -5,9 +5,16 @@ import {
     type QueryHistoryCounts,
 } from '@lightdash/common';
 import { Button, Group, SegmentedControl, Text } from '@mantine/core';
+import {
+    IconClock,
+    IconLayoutDashboard,
+    IconPointer,
+    type Icon as TablerIcon,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import FilterFacet from '../../../components/common/FilterFacet';
+import MantineIcon from '../../../components/common/MantineIcon';
 import styles from '../QueryHistory.module.css';
 import { getTriggerLabel } from '../utils/format';
 
@@ -19,6 +26,12 @@ const TRIGGER_OPTIONS: (QueryTrigger | undefined)[] = [
     QueryTrigger.SCHEDULED,
     undefined,
 ];
+
+const TRIGGER_ICONS: Record<QueryTrigger, TablerIcon> = {
+    [QueryTrigger.INTERACTIVE]: IconPointer,
+    [QueryTrigger.APPS]: IconLayoutDashboard,
+    [QueryTrigger.SCHEDULED]: IconClock,
+};
 
 const LANGUAGE_OPTIONS = [
     { value: QueryLanguage.SEMANTIC, label: 'Semantic' },
@@ -43,11 +56,13 @@ const isQueryLanguage = (value: string): value is QueryLanguage =>
 const isQueryHistoryStatus = (value: string): value is QueryHistoryStatus =>
     Object.values<string>(QueryHistoryStatus).includes(value);
 
-const TriggerLabel: FC<{ label: string; count: number | undefined }> = ({
-    label,
-    count,
-}) => (
+const TriggerLabel: FC<{
+    icon: TablerIcon | undefined;
+    label: string;
+    count: number | undefined;
+}> = ({ icon, label, count }) => (
     <Group gap={6} wrap="nowrap">
+        {icon ? <MantineIcon icon={icon} size="sm" color="dimmed" /> : null}
         <span>{label}</span>
         {count !== undefined ? (
             <Text component="span" fz="xs" c="dimmed">
@@ -105,6 +120,9 @@ export const QueryHistoryToolbar: FC<Props> = ({
                         value: option ?? ALL_TRIGGERS,
                         label: (
                             <TriggerLabel
+                                icon={
+                                    option ? TRIGGER_ICONS[option] : undefined
+                                }
                                 label={option ? getTriggerLabel(option) : 'All'}
                                 count={
                                     option
