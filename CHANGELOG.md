@@ -1,3 +1,10 @@
+## [2.110.1](https://github.com/lightdash/lightdash/compare/2.110.0...2.110.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** dashboard filter autocomplete uses active parameter values ([#28593](https://github.com/lightdash/lightdash/issues/28593)) ([9f50d5d](https://github.com/lightdash/lightdash/commit/9f50d5d54bbc712ab3635060480a4b8b67b9e125))
+
 # [2.110.0](https://github.com/lightdash/lightdash/compare/2.109.0...2.110.0) (2026-09-03)
 
 
