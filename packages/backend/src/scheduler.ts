@@ -3,8 +3,34 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { buildRuntimeMemoryReport } from './logging/runtimeMemory';
 import SchedulerApp from './SchedulerApp';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
+
+const logRuntimeMemory = (service: 'api' | 'scheduler') => {
+    const report = buildRuntimeMemoryReport();
+    // The default log format renders the message and drops metadata, so the numbers ride in
+    // both. This is the first thing worth knowing from any log about a failed compile.
+    Logger.info(
+        `lightdash.boot.memory service=${service} heapLimitMb=${Math.round(
+            report.heapLimitBytes / 1024 / 1024,
+        )} containerLimitMb=${
+            report.containerMemoryLimitBytes === null
+                ? 'unknown'
+                : Math.round(report.containerMemoryLimitBytes / 1024 / 1024)
+        } heapFlagSet=${report.heapFlagSet} availableParallelism=${
+            report.availableParallelism
+        }`,
+        { event: 'lightdash.boot.memory', service, ...report },
+    );
+    if (report.warning) {
+        Logger.warn(`lightdash.boot.memory ${report.warning}`, {
+            event: 'lightdash.boot.memory.warning',
+            service,
+            ...report,
+        });
+    }
+};
 
 // Winston (handleExceptions/handleRejections in winston.ts) owns structured logging
 // for both events. Logger uses exitOnError: false so rejections are tolerated.
@@ -24,6 +50,7 @@ process.on('uncaughtException', () => {
             Logger.warn(timezoneWarning);
         }
 
+        logRuntimeMemory('scheduler');
         const schedulerApp = new SchedulerApp({
             lightdashConfig,
             port: process.env.PORT || 8081,
