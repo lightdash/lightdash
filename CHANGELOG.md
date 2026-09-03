@@ -1,3 +1,10 @@
+# [2.112.0](https://github.com/lightdash/lightdash/compare/2.111.0...2.112.0) (2026-09-03)
+
+
+### Features
+
+* **compose:** run the DuckDB execution engine in OSS ([#28576](https://github.com/lightdash/lightdash/issues/28576)) ([9dbc7cf](https://github.com/lightdash/lightdash/commit/9dbc7cfdcf221510361abe36d865e68070cb3cd8))
+
 # [2.111.0](https://github.com/lightdash/lightdash/compare/2.110.3...2.111.0) (2026-09-03)
 
 
