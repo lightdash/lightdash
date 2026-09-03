@@ -1,3 +1,10 @@
+## [2.102.1](https://github.com/lightdash/lightdash/compare/2.102.0...2.102.1) (2026-09-03)
+
+
+### Performance Improvements
+
+* index the warehouse catalog for type attachment ([#28553](https://github.com/lightdash/lightdash/issues/28553)) ([04af9f8](https://github.com/lightdash/lightdash/commit/04af9f8bbb774e85d9ee59a97793835c228f8445))
+
 # [2.102.0](https://github.com/lightdash/lightdash/compare/2.101.2...2.102.0) (2026-09-03)
 
 
