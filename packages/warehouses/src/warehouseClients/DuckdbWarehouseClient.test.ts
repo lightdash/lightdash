@@ -1197,6 +1197,54 @@ describe('DuckdbWarehouseClient', () => {
         ]);
     });
 
+    it('points httpfs at the CA bundle the session config names', async () => {
+        const bootstrapRunMock = vi.fn();
+        const queryRunMock = vi.fn();
+        const streamMock = vi.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const connectMock = vi
+            .fn()
+            .mockResolvedValueOnce({
+                run: bootstrapRunMock,
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            })
+            .mockResolvedValueOnce({
+                run: queryRunMock,
+                stream: streamMock,
+                extractStatements: createMockExtractStatements(),
+                closeSync: vi.fn(),
+                disconnectSync: vi.fn(),
+            });
+        createInstanceMock.mockResolvedValue({
+            connect: connectMock,
+            closeSync: vi.fn(),
+        });
+
+        const client = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'results.example.com',
+                    region: 'eu-west-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: false,
+                    useSsl: true,
+                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
+                },
+            },
+            { instanceCacheKey: 'ca-bundle-session' },
+        );
+
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(bootstrapRunMock).toHaveBeenCalledWith(
+            "SET ca_cert_file = '/etc/ssl/certs/ca-certificates.crt';",
+        );
+    });
+
     it('confines embedded user queries without writing profiles to local files', async () => {
         const runMock = vi.fn();
         const streamMock = vi.fn(async () =>

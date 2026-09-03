@@ -59,8 +59,10 @@ _Avoid_: path, URL, link
 ## Notes
 
 - Storage lives in the pre-aggregates S3 bucket under
-  `external-sources/{projectUuid}/{sourceUuid}/…` because the shared DuckDB
-  engine's S3 session is configured exclusively from that bucket's config.
+  `external-sources/{projectUuid}/{sourceUuid}/…`. The compose engine reads
+  it with a session built from that bucket's config (its endpoint, region and
+  credentials, falling back to the base S3 values), because a DuckDB S3
+  secret pins one endpoint and region; result files use the results session.
 - Every raw/parquet object is registered before upload. Replaced, deleted,
   failed, and abandoned-stage objects become `pending_delete`; a five-minute
   maintenance task retries exact-key deletion. Manifests intentionally survive
