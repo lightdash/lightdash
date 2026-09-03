@@ -1,12 +1,30 @@
 import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
-import { type FC } from 'react';
+import { type FC, type MouseEvent } from 'react';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
+import { selectDataAppPreview, setPreview } from '../../store/aiArtifactSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
+import {
+    getDataAppContextItemLabel,
+    getDataAppHref,
+} from '../ChatElements/contentReferenceUtils';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
+
+// The thread message the chip belongs to; lets a data app chip open the
+// in-thread preview panel. Absent on pre-send surfaces (no message yet).
+export type PinnedContextPreviewScope = {
+    messageUuid: string;
+    threadUuid: string;
+    agentUuid: string;
+};
 
 type Props = {
     item: AiPromptContextItem;
     projectUuid: string;
+    previewScope?: PinnedContextPreviewScope;
 };
 
 type ItemMeta = {
@@ -81,7 +99,61 @@ const getItemMeta = (
     }
 };
 
-export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
+const isPlainLeftClick = (e: MouseEvent<HTMLAnchorElement>) =>
+    !e.defaultPrevented &&
+    e.button === 0 &&
+    !e.metaKey &&
+    !e.altKey &&
+    !e.ctrlKey &&
+    !e.shiftKey;
+
+const PinnedDataAppCard: FC<{
+    item: Extract<AiPromptContextItem, { type: 'data_app' }>;
+    projectUuid: string;
+    previewScope: PinnedContextPreviewScope | undefined;
+}> = ({ item, projectUuid, previewScope }) => {
+    const dispatch = useAiAgentStoreDispatch();
+    const currentPreview = useAiAgentStoreSelector(selectDataAppPreview);
+    const isActive =
+        currentPreview !== null && currentPreview.appUuid === item.appUuid;
+
+    // Plain click opens the in-thread preview; modified clicks fall through
+    // to the anchor and open the full page in a new tab.
+    const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+        if (!previewScope || !isPlainLeftClick(e)) return;
+        e.preventDefault();
+        dispatch(
+            setPreview({
+                type: 'dataApp',
+                appUuid: item.appUuid,
+                messageUuid: previewScope.messageUuid,
+                threadUuid: previewScope.threadUuid,
+                projectUuid,
+                agentUuid: previewScope.agentUuid,
+            }),
+        );
+    };
+
+    return (
+        <ContentReferenceLink
+            kind="data_app"
+            rel="noreferrer"
+            to={getDataAppHref(projectUuid, item.appUuid)}
+            target="_blank"
+            onClick={handleClick}
+            data-app-active={isActive || undefined}
+            showArrow
+        >
+            {getDataAppContextItemLabel(item)}
+        </ContentReferenceLink>
+    );
+};
+
+export const PinnedContextCard: FC<Props> = ({
+    item,
+    projectUuid,
+    previewScope,
+}) => {
     switch (item.type) {
         case 'chart':
         case 'dashboard':
@@ -103,6 +175,14 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
                 </ContentReferenceLink>
             );
         }
+        case 'data_app':
+            return (
+                <PinnedDataAppCard
+                    item={item}
+                    projectUuid={projectUuid}
+                    previewScope={previewScope}
+                />
+            );
         case 'pull_request':
         case 'proposed_change':
         case 'review_finding':

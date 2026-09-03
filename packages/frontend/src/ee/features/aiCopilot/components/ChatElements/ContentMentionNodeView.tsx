@@ -1,14 +1,10 @@
 import { ContentType, type ChartKind } from '@lightdash/common';
-import {
-    IconBrandGithub,
-    IconFile,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { IconBrandGithub, IconFile } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
+import { getContentMentionIcon } from './contentMentionIcon';
 
 // File and repository mentions reuse this node so they get the same pill chrome;
 // they're distinguished by their contentType and carry the path / `owner/repo`
@@ -19,30 +15,22 @@ const REPOSITORY_CONTENT_TYPE = 'repository';
 const getContentMentionContentType = (value: unknown) => {
     if (value === FILE_CONTENT_TYPE) return FILE_CONTENT_TYPE;
     if (value === REPOSITORY_CONTENT_TYPE) return REPOSITORY_CONTENT_TYPE;
-    return value === ContentType.DASHBOARD
-        ? ContentType.DASHBOARD
-        : ContentType.CHART;
+    if (value === ContentType.DASHBOARD) return ContentType.DASHBOARD;
+    if (value === ContentType.DATA_APP) return ContentType.DATA_APP;
+    return ContentType.CHART;
 };
 
 export const ContentMentionNodeView = ({ node }: NodeViewProps) => {
     const contentType = getContentMentionContentType(node.attrs.contentType);
     const isFile = contentType === FILE_CONTENT_TYPE;
     const isRepository = contentType === REPOSITORY_CONTENT_TYPE;
-    const Icon = isFile
-        ? IconFile
-        : isRepository
-          ? IconBrandGithub
-          : contentType === ContentType.DASHBOARD
-            ? IconLayoutDashboard
-            : getChartIcon(
-                  (node.attrs.chartKind as ChartKind | null) ?? undefined,
-              );
-    const iconColor =
+    const { icon: Icon, color: iconColor } =
         isFile || isRepository
-            ? 'ldGray.6'
-            : contentType === ContentType.DASHBOARD
-              ? 'green.7'
-              : 'blue.7';
+            ? { icon: isFile ? IconFile : IconBrandGithub, color: 'ldGray.6' }
+            : getContentMentionIcon(
+                  contentType,
+                  (node.attrs.chartKind as ChartKind | null) ?? null,
+              );
     const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
 
     return (

@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    dataAppContextKey,
     dataAppElementContextKey,
     type AiPromptContextItem,
 } from '@lightdash/common';
@@ -50,9 +51,21 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `preview_environment:${item.previewProjectUuid}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
+        case 'data_app':
+            return dataAppContextKey(item.appUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
+};
+
+// Chip label: the app's name plus the version it was pinned at.
+export const getDataAppContextItemLabel = (
+    item: Extract<AiPromptContextItem, { type: 'data_app' }>,
+): string => {
+    const name = item.displayName ?? item.appSlug ?? 'Data app';
+    return item.pinnedVersion === null
+        ? name
+        : `${name} v${item.pinnedVersion}`;
 };
 
 const getProposedChangeLabel = (
@@ -84,10 +97,15 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.title;
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
+        case 'data_app':
+            return item.displayName ?? item.appSlug ?? 'Data app';
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
+
+export const getDataAppHref = (projectUuid: string, appUuid: string) =>
+    `/projects/${projectUuid}/apps/${appUuid}/view`;
 
 export const getPromptContextItemHref = (
     item: AiPromptContextItem,
@@ -121,6 +139,8 @@ export const getPromptContextItemHref = (
         // An element reference points inside a running app, not at a route.
         case 'data_app_element':
             return null;
+        case 'data_app':
+            return getDataAppHref(projectUuid, item.appUuid);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

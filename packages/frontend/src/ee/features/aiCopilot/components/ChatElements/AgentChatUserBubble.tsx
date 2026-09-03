@@ -103,6 +103,16 @@ export const UserBubble: FC<Props> = ({
                                     key={`${getPromptContextItemKey(item)}-${idx}`}
                                     item={item}
                                     projectUuid={projectUuid}
+                                    previewScope={
+                                        agentUuid
+                                            ? {
+                                                  messageUuid: message.uuid,
+                                                  threadUuid:
+                                                      message.threadUuid,
+                                                  agentUuid,
+                                              }
+                                            : undefined
+                                    }
                                 />
                             ))}
                         </Group>
