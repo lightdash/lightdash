@@ -66,16 +66,21 @@ any of it.
 | --- | --- | --- | --- |
 | `runAsyncPreAggregateQuery` | Managed pre-aggregates | its own | materialized table |
 | `runExternalSourceQuery` | External-source explores | its own, scoped client | `read_parquet` |
-| `executeAsyncComposeSqlQuery` | Compose SQL runner | `runDuckdbSqlQuery` | `read_json` |
-| `executeAsyncExternalSqlQuery` | External SQL as a DAG node | `runDuckdbSqlQuery` | `read_parquet` |
-| `tryExecuteComposeMergeQuery` | Merge | its own, private | `read_json` |
+| `executeAsyncComposeSqlQuery` | Compose SQL runner | `runDuckdbQuery`, discover | `read_json` |
+| `executeAsyncExternalSqlQuery` | External SQL as a DAG node | `runDuckdbQuery`, discover | `read_parquet` |
+| `tryExecuteComposeMergeQuery` | Merge | `runDuckdbQuery`, supplied | `read_json` |
 
 Two things follow from that table.
 
-**Merge is the only caller with a private tail** and the only one absent from
-`QuerySourceRegistry`. Unifying the tail is prefactoring for the DAG work: one
-function with two modes, discovering columns by probe for raw SQL, or accepting
-a supplied fields map for a merge whose columns are known at compile time.
+**Compose SQL, external SQL and merges share one tail**, `runDuckdbQuery`,
+with two column modes: *discover* probes raw SQL with a one-row query because
+nobody knows its shape ahead of time; *supplied* takes the fields map, columns
+and pivot a merge already produced at compile time, so no probe runs and the
+labels, formats and provenance survive. References are either *bound* (CTEs
+built at submit time, as external SQL does) or *queries* waited on until they
+complete, with a guard between "references complete" and "query builds" that
+carries the merge row-cap refusal. Merge is still the only caller absent from
+`QuerySourceRegistry`; the shared tail is what the DAG work plugs into.
 
 **Parquet versus JSONL is the entire fidelity story.** Ingested data is written
 as parquet and carries its own schema. Referenced query results are written as

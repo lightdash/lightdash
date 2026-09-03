@@ -9,6 +9,7 @@ import {
     type ParametersValuesMap,
     type ResultColumns,
 } from '@lightdash/common';
+import type { DuckdbQueryReferenceGuard } from './types';
 
 /**
  * Builds the pre-pivot original columns of a compose-mode merge: display
@@ -151,3 +152,26 @@ export const getMergeRowCapError = ({
         ? `${capped[0]} ${consequence} Add a filter to ${capped[0]}, then merge again.`
         : `${capped.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
 };
+
+/**
+ * The guard a merge hands the execution tail: once the legs complete, refuse
+ * before the join when one of them reached the row cap.
+ */
+export const buildMergeRowCapGuard =
+    ({
+        legLabelByReferenceTable,
+        sourceRowCap,
+    }: {
+        legLabelByReferenceTable: Record<string, string>;
+        sourceRowCap: number;
+    }): DuckdbQueryReferenceGuard =>
+    (completed) =>
+        getMergeRowCapError({
+            legs: Object.entries(legLabelByReferenceTable).map(
+                ([tableName, label]) => ({
+                    label,
+                    rowCount: completed[tableName]?.totalRowCount ?? null,
+                }),
+            ),
+            sourceRowCap,
+        });
