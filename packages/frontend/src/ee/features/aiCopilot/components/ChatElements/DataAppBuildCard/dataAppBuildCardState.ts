@@ -3,6 +3,8 @@ import {
     assertUnreachable,
     getAppDisplayName,
     isAppVersionInProgress,
+    type AiAgentMessageUser,
+    type AiPromptContextItem,
     type ApiAppVersionSummary,
     type ApiGetAppResponse,
     type ToolGenerateDataAppOutput,
@@ -43,6 +45,7 @@ const getReadyState = ({
     name: getAppDisplayName(name, appUuid),
     version,
     durationMs: row ? getBuildDurationMs(row) : null,
+    restoredFromVersion: null,
     completionMessage:
         row?.statusMessage ??
         (version === 1 ? 'Your app is ready!' : `Version ${version} is ready!`),
@@ -126,6 +129,46 @@ export const getDataAppBuildCardState = (
         default:
             return assertUnreachable(metadata, 'Unknown build result');
     }
+};
+
+export type DataAppRestoreContextItem = Extract<
+    AiPromptContextItem,
+    { type: 'data_app_restore' }
+>;
+
+/** The restore a hidden user turn records, if that is what the turn is. */
+export const getDataAppRestoreItem = (
+    hiddenSibling: AiAgentMessageUser | null,
+): DataAppRestoreContextItem | null =>
+    hiddenSibling?.context.find(
+        (item): item is DataAppRestoreContextItem =>
+            item.type === 'data_app_restore',
+    ) ?? null;
+
+/**
+ * Card state for a restore made from the thread. The restore already
+ * succeeded when the turn was written, so the card is ready unless the app
+ * has gone since; the assistant's response is the completion message.
+ */
+export const getDataAppRestoreCardState = (
+    item: DataAppRestoreContextItem,
+    completionMessage: string,
+    source: DataAppBuildCardAppSource,
+): DataAppBuildCardState => {
+    if (source.kind === 'unavailable') return { kind: 'unavailable' };
+    const name =
+        item.displayName ??
+        (source.kind === 'loaded'
+            ? getAppDisplayName(source.app.name, item.appUuid)
+            : 'Data app');
+    return {
+        kind: 'ready',
+        name,
+        version: item.version,
+        durationMs: null,
+        restoredFromVersion: item.restoredFromVersion,
+        completionMessage,
+    };
 };
 
 export const isDataAppBuildInProgress = (

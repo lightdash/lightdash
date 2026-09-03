@@ -81,6 +81,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}
                 compact={false}
@@ -116,6 +117,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 3,
                     durationMs: null,
+                    restoredFromVersion: null,
                     completionMessage: 'Done.',
                 }}
                 compact={false}
@@ -127,6 +129,30 @@ describe('DataAppBuildCard', () => {
         expect(screen.getByText('v3')).toBeVisible();
     });
 
+    it('ready: a restored version says where it came from instead of a duration', () => {
+        renderWithProviders(
+            <DataAppBuildCard
+                state={{
+                    kind: 'ready',
+                    name: 'Weekly revenue by region',
+                    version: 3,
+                    durationMs: null,
+                    restoredFromVersion: 1,
+                    completionMessage: 'Restored version 1 as version 3.',
+                }}
+                compact={false}
+                isActive={false}
+                onOpenBuilder={noop}
+                onView={noop}
+            />,
+        );
+        expect(screen.getByText('v3 · restored from v1')).toBeVisible();
+        expect(
+            screen.getByText('Restored version 1 as version 3.'),
+        ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'View' })).toBeVisible();
+    });
+
     it('ready: renders the summary as markdown', () => {
         renderWithProviders(
             <DataAppBuildCard
@@ -135,6 +161,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    restoredFromVersion: null,
                     completionMessage:
                         'Built **five pages** from `src/App.jsx`.',
                 }}
@@ -163,6 +190,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    restoredFromVersion: null,
                     completionMessage: 'A very long summary. '.repeat(50),
                 }}
                 compact={false}
@@ -185,6 +213,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}
                 compact={false}
@@ -262,6 +291,7 @@ describe('DataAppBuildCard', () => {
                     name: 'Weekly revenue by region',
                     version: 1,
                     durationMs: 372_000,
+                    restoredFromVersion: null,
                     completionMessage: 'Your app is ready.',
                 }}
                 compact
