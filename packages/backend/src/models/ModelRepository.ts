@@ -200,6 +200,7 @@ export type ModelManifest = {
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     serviceAccountModel: unknown;
+    scimRequestLogModel: unknown;
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
 };
@@ -1057,6 +1058,10 @@ export class ModelRepository
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {
         return this.getModel('serviceAccountModel');
+    }
+
+    public getScimRequestLogModel<ModelImplT>(): ModelImplT {
+        return this.getModel('scimRequestLogModel');
     }
 
     public getExternalConnectionModel<ModelImplT>(): ModelImplT {

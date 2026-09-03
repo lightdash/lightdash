@@ -11,7 +11,12 @@ declare global {
     namespace Express {
         interface Request {
             services: ServiceRepository;
-            serviceAccount?: Pick<ServiceAccount, 'organizationUuid'>;
+            serviceAccount?: Pick<ServiceAccount, 'organizationUuid' | 'uuid'>;
+            // SCIM request-log attribution when auth resolved a token but rejected it
+            scimLogAttribution?: {
+                organizationUuid: string;
+                serviceAccountUuid: string;
+            };
             project?: Pick<Project, 'projectUuid'>;
             /**
              * @deprecated Clients should be used inside services. This will be removed soon.

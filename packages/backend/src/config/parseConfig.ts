@@ -1594,6 +1594,15 @@ export type LightdashConfig = {
                 schedule: string;
             };
         };
+        scimRequestLogs: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
+            };
+        };
     };
     groups: {
         enabled: boolean | undefined;
@@ -3400,6 +3409,29 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+            },
+            scimRequestLogs: {
+                cleanup: {
+                    enabled:
+                        process.env.SCIM_REQUEST_LOG_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_RETENTION_DAYS',
+                        ) ?? 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
                 },
             },
         },

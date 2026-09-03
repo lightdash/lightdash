@@ -58,12 +58,30 @@ export const mockRequest = {
     },
     services: {
         getServiceAccountService: vi.fn().mockReturnValue({
-            authenticateScim: vi.fn().mockResolvedValue(mockServiceAccount),
+            authenticateScim: vi.fn().mockResolvedValue({
+                result: 'authenticated',
+                serviceAccount: mockServiceAccount,
+            }),
         }),
         getUserService: vi.fn().mockReturnValue({
             getSessionUserForServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockSaSessionUser),
+        }),
+    },
+} as unknown as express.Request;
+
+export const mockRequestWithExpiredToken = {
+    ...mockRequest,
+    headers: {
+        authorization: 'Bearer scim_expired_token',
+    },
+    services: {
+        getServiceAccountService: vi.fn().mockReturnValue({
+            authenticateScim: vi.fn().mockResolvedValue({
+                result: 'expired',
+                serviceAccount: mockServiceAccount,
+            }),
         }),
     },
 } as unknown as express.Request;
@@ -107,6 +125,7 @@ export const mockResponse = {
 type MockNextError = {
     status?: string;
     message?: string;
+    detail?: string;
 };
 
 export const mockNext = vi.fn<
