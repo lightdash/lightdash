@@ -5,6 +5,7 @@ import {
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
     type AiPromptExternalSourceSnapshot,
+    type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
@@ -237,6 +238,7 @@ export type DbAiPrompt = {
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
     token_usage: AiPromptTokenUsage | null;
+    response_timing: AiPromptResponseTiming | null;
     execution_mode: 'standard' | 'deep_research' | null;
     needs_user_input: boolean | null;
     needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
@@ -265,6 +267,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'saved_query_uuid'
             | 'model_config'
             | 'token_usage'
+            | 'response_timing'
             | 'execution_mode'
             | 'needs_user_input'
             | 'needs_user_input_metadata'

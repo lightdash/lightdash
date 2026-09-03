@@ -4321,6 +4321,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -4345,6 +4346,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -4450,6 +4452,7 @@ export class AiAgentModel {
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
+                responseTiming: row.response_timing,
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5039,6 +5042,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'response_timing'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -5063,6 +5067,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -5208,6 +5213,7 @@ export class AiAgentModel {
                     referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
+                    responseTiming: row.response_timing,
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -5571,6 +5577,9 @@ export class AiAgentModel {
                     : {}),
                 ...(data.tokenUsage !== undefined
                     ? { token_usage: data.tokenUsage }
+                    : {}),
+                ...(data.responseTiming !== undefined
+                    ? { response_timing: data.responseTiming }
                     : {}),
             })
             .where({

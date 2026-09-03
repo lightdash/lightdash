@@ -11,12 +11,26 @@ import {
     Title,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { useOutletContext, useParams, useSearchParams } from 'react-router';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import {
+    useNavigate,
+    useOutletContext,
+    useParams,
+    useSearchParams,
+} from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
+import { BattleModeSetup } from '../../features/aiCopilot/components/Battle/BattleModeSetup';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
     mergeAiPromptContextInput,
@@ -30,9 +44,17 @@ import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedCon
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
-import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import {
+    getAiAgentPageBase,
+    isEmbedAiAgentRoute,
+} from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
-import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
+import { useAiAgentBattleModeEnabled } from '../../features/aiCopilot/hooks/useAiAgentBattleModeEnabled';
+import {
+    getAiAgentModelConfig,
+    getModelOptionByKey,
+    useAiAgentModelSelection,
+} from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useStartDeepResearchForThreadMutation } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
@@ -69,6 +91,10 @@ const AiAgentNewThreadPage: FC = () => {
 
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();
+    const navigate = useNavigate();
+    const battleModeAvailable = useAiAgentBattleModeEnabled() && !isEmbed;
+    const [battleMode, setBattleMode] = useState(false);
+    const [battleModelBKey, setBattleModelBKey] = useState<string | null>(null);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const canStartDeepResearch = useDeepResearchAccess(projectUuid);
     const [sqlModeOverride, setSqlModeOverride] = useState<boolean>();
@@ -126,6 +152,13 @@ const AiAgentNewThreadPage: FC = () => {
             },
             onToolResult: handleToolResult,
         });
+    const {
+        mutateAsync: createBattleThread,
+        isLoading: isCreatingBattleThreads,
+    } = useCreateAgentThreadMutation(projectUuid!, {
+        skipNavigation: true,
+        onToolResult: handleToolResult,
+    });
     const { data: verifiedQuestions } = useVerifiedQuestions(
         projectUuid,
         agentUuid,
@@ -140,6 +173,7 @@ const AiAgentNewThreadPage: FC = () => {
         handleSelectedModelKeyChange,
         modelConfig,
         modelOptions,
+        selectedModel,
         selectedModelKey,
         showExtendedThinking,
     } = useAiAgentModelSelection({
@@ -148,6 +182,18 @@ const AiAgentNewThreadPage: FC = () => {
         defaultModelConfig: agent.modelConfig,
         organizationSettingsEnabled: !isEmbed,
     });
+    const battleModels = useMemo(
+        () => modelOptions?.filter((model) => !model.deprecated) ?? [],
+        [modelOptions],
+    );
+    const showBattleSetup = battleModeAvailable && battleModels.length > 1;
+    // Model B defaults to the first option that isn't model A, and falls
+    // back to that whenever A is changed to match the current B.
+    const effectiveBattleModelBKey =
+        (battleModelBKey !== selectedModelKey ? battleModelBKey : null) ??
+        battleModels.map(getModelKey).find((key) => key !== selectedModelKey) ??
+        null;
+    const isBattle = showBattleSetup && battleMode;
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
     const [composerSeedKey, setComposerSeedKey] = useState(0);
@@ -182,6 +228,42 @@ const AiAgentNewThreadPage: FC = () => {
                 previewItems,
                 optimisticContext,
             );
+            if (isBattle && projectUuid) {
+                const shared = {
+                    agentUuid,
+                    prompt: message,
+                    context: mergedContext,
+                    optimisticContext: mergedOptimisticContext,
+                    enableSqlMode: sqlModeAvailable && sqlMode,
+                    toolHints,
+                };
+                void Promise.all([
+                    createBattleThread({
+                        ...shared,
+                        modelConfig: getAiAgentModelConfig(
+                            selectedModel,
+                            false,
+                        ),
+                    }),
+                    createBattleThread({
+                        ...shared,
+                        modelConfig: getAiAgentModelConfig(
+                            getModelOptionByKey(
+                                battleModels,
+                                effectiveBattleModelBKey,
+                            ),
+                            false,
+                        ),
+                    }),
+                ]).then(([threadA, threadB]) =>
+                    navigate(
+                        `${getAiAgentPageBase(
+                            projectUuid,
+                        )}/${agentUuid}/threads/battle/${threadA.uuid}/${threadB.uuid}`,
+                    ),
+                );
+                return;
+            }
             void createAgentThread({
                 agentUuid,
                 prompt: message,
@@ -196,12 +278,19 @@ const AiAgentNewThreadPage: FC = () => {
             agentUuid,
             setPendingPrompt,
             createAgentThread,
+            createBattleThread,
             contextInput,
             previewItems,
             sqlModeAvailable,
             sqlMode,
             modelConfig,
             isPinnedContextReady,
+            isBattle,
+            projectUuid,
+            selectedModel,
+            battleModels,
+            effectiveBattleModelBKey,
+            navigate,
         ],
     );
 
@@ -356,29 +445,47 @@ const AiAgentNewThreadPage: FC = () => {
                         </Stack>
                     )}
 
+                    {showBattleSetup && (
+                        <BattleModeSetup
+                            enabled={battleMode}
+                            onEnabledChange={setBattleMode}
+                            models={battleModels}
+                            modelAKey={selectedModelKey}
+                            modelBKey={effectiveBattleModelBKey}
+                            onModelAChange={handleSelectedModelKeyChange}
+                            onModelBChange={setBattleModelBKey}
+                        />
+                    )}
+
                     <AgentChatInput
                         key={composerSeedKey}
                         onSubmit={onSubmit}
                         onStartDeepResearch={
-                            canStartDeepResearch
+                            canStartDeepResearch && !isBattle
                                 ? onStartDeepResearch
                                 : undefined
                         }
-                        loading={isCreatingThread}
+                        loading={isCreatingThread || isCreatingBattleThreads}
                         disabled={!isPinnedContextReady}
-                        placeholder={`Ask ${agent.name} anything about your data...`}
+                        placeholder={
+                            isBattle
+                                ? `Ask both models anything about your data...`
+                                : `Ask ${agent.name} anything about your data...`
+                        }
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
                         agents={agents}
                         selectedAgent={agent}
-                        models={modelOptions}
+                        models={isBattle ? undefined : modelOptions}
                         selectedModelId={selectedModelKey}
                         onModelChange={handleSelectedModelKeyChange}
                         extendedThinking={
-                            showExtendedThinking ? extendedThinking : undefined
+                            showExtendedThinking && !isBattle
+                                ? extendedThinking
+                                : undefined
                         }
                         onExtendedThinkingChange={
-                            showExtendedThinking
+                            showExtendedThinking && !isBattle
                                 ? handleExtendedThinkingChange
                                 : undefined
                         }

@@ -341,6 +341,13 @@ export enum FeatureFlags {
      * Off by default.
      */
     DashboardCustomMetrics = 'dashboard-custom-metrics',
+
+    /**
+     * AI agent battle mode: send one prompt to two models in paired threads
+     * and compare the answers side by side with response timings. Internal
+     * experiment, off by default.
+     */
+    AiAgentBattleMode = 'ai-agent-battle-mode',
 }
 
 export type FeatureFlag = {

@@ -1,6 +1,10 @@
 import type {
     AiAgent,
+    AiAgentModelConfig,
     AiAgentThreadFilters,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
@@ -20,14 +24,11 @@ import type {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
-    AiPromptContext,
-    AiPromptContextItem,
-    AiPromptContextItemInput,
+    ApiAiMcpServerListResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
-    ApiCloneAiAgentThreadShareResponse,
     ApiError,
-    ApiAiMcpServerListResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
@@ -820,6 +821,7 @@ const createOptimisticMessages = (
     context: AiPromptContext = [],
     hidden = false,
     includeAssistantResponse = true,
+    modelConfig: AiAgentModelConfig | null = null,
 ) => {
     const userMessage = {
         role: 'user' as const,
@@ -866,8 +868,9 @@ const createOptimisticMessages = (
             savedQueryUuid: null,
             artifacts: null,
             referencedArtifacts: null,
-            modelConfig: null,
+            modelConfig,
             tokenUsage: null,
+            responseTiming: null,
         },
     ];
 };
@@ -1046,6 +1049,7 @@ export const useCreateAgentThreadMutation = (
                                 variables.context?.map(toOptimisticContextItem),
                             false,
                             !variables.skipAgentResponse,
+                            variables.modelConfig ?? null,
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -1233,6 +1237,7 @@ export const useCreateAgentThreadMessageMutation = (
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
                                 !data.skipAgentResponse,
+                                data.modelConfig ?? null,
                             ),
                         ],
                     };

@@ -27,6 +27,7 @@ import {
     type AiAgentModelConfig,
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadCreatedFrom,
 } from './requestTypes';
@@ -313,6 +314,7 @@ export type AiAgentMessageAssistant = {
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
+    responseTiming: AiPromptResponseTiming | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

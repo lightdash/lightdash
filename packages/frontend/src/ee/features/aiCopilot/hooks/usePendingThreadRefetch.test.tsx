@@ -73,6 +73,7 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
                 referencedArtifacts: null,
                 modelConfig: null,
                 tokenUsage: null,
+                responseTiming: null,
             },
         ],
     }) satisfies NonNullable<Parameters<typeof usePendingThreadRefetch>[0]>;
