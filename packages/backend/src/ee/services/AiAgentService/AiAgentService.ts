@@ -1165,7 +1165,7 @@ export class AiAgentService extends BaseService {
                         app.template === DATA_APP_VIZ_TEMPLATE
                     ) {
                         throw new ParameterError(
-                            'Chart types cannot be pinned as context',
+                            'Project chart types cannot be pinned context',
                         );
                     }
                     if (

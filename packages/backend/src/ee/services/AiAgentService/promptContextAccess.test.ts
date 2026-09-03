@@ -116,9 +116,11 @@ describe('validatePromptContextAccess for data apps', () => {
     it('rejects a project chart type', async () => {
         const { validate, appGenerateService } = buildService([chartTypeApp]);
 
-        await expect(
-            validate([{ type: 'data_app', appUuid: 'app-viz' }]),
-        ).rejects.toThrow(ParameterError);
+        const result = validate([{ type: 'data_app', appUuid: 'app-viz' }]);
+        await expect(result).rejects.toThrow(ParameterError);
+        await expect(result).rejects.toThrow(
+            'Project chart types cannot be pinned context',
+        );
         expect(appGenerateService.canViewApp).not.toHaveBeenCalled();
     });
 
