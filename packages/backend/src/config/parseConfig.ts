@@ -2288,6 +2288,8 @@ export type AuthConfig = {
     oauthServer?: {
         accessTokenLifetime: number; // in seconds (default = 1 hour)
         refreshTokenLifetime: number; // in seconds (default = 2 weeks)
+        mobileRefreshTokenLifetime: number; // in seconds (default = 90 days)
+        refreshTokenRotationGrace: number; // in seconds (default = 1 minute)
     };
 };
 
@@ -3164,6 +3166,14 @@ export const parseConfig = (): LightdashConfig => {
                     getIntegerFromEnvironmentVariable(
                         'AUTH_OAUTH_SERVER_REFRESH_TOKEN_LIFETIME',
                     ) || 60 * 60 * 24 * 14, // 2 weeks
+                mobileRefreshTokenLifetime:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_MOBILE_REFRESH_TOKEN_LIFETIME',
+                    ) || 60 * 60 * 24 * 90, // 90 days
+                refreshTokenRotationGrace:
+                    getIntegerFromEnvironmentVariable(
+                        'AUTH_OAUTH_SERVER_REFRESH_TOKEN_ROTATION_GRACE',
+                    ) || 60, // 1 minute
             },
         },
         intercom: {
