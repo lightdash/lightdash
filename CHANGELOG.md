@@ -1,3 +1,10 @@
+## [2.108.2](https://github.com/lightdash/lightdash/compare/2.108.1...2.108.2) (2026-09-03)
+
+
+### Bug Fixes
+
+* **merge:** refuse a compose merge whose leg reached the row cap ([#28572](https://github.com/lightdash/lightdash/issues/28572)) ([57b27f6](https://github.com/lightdash/lightdash/commit/57b27f6db4863b363a222521dfad8296ec3eeabd))
+
 ## [2.108.1](https://github.com/lightdash/lightdash/compare/2.108.0...2.108.1) (2026-09-03)
 
 
