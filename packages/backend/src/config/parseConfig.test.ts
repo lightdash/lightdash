@@ -1111,6 +1111,18 @@ test('Should parse AI provider custom headers from env', () => {
     });
 });
 
+test('Should parse selectable OpenRouter models from env', () => {
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.OPENROUTER_MODEL_NAME = 'qwen/qwen3.5-9b';
+    process.env.OPENROUTER_AVAILABLE_MODELS =
+        'qwen/qwen3.5-9b,moonshotai/kimi-k3';
+
+    expect(parseConfig().ai.copilot.providers.openrouter).toMatchObject({
+        modelName: 'qwen/qwen3.5-9b',
+        availableModels: ['qwen/qwen3.5-9b', 'moonshotai/kimi-k3'],
+    });
+});
+
 describe('AI provider supportsStreaming', () => {
     beforeEach(() => {
         process.env.OPENAI_API_KEY = 'test-openai-key';

@@ -101,6 +101,7 @@ export const aiCopilotConfigSchema = z
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    availableModels: z.array(z.string()).optional(),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })

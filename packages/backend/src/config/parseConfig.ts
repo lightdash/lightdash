@@ -1348,6 +1348,9 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.OPENROUTER_MODEL_NAME ||
                       DEFAULT_OPENROUTER_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_AVAILABLE_MODELS',
+                  ),
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',

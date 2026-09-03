@@ -1338,6 +1338,7 @@ export type AiModelOption = {
     displayName: string;
     description: string;
     provider: string;
+    groupLabel?: string;
     default: boolean;
     supportsReasoning: boolean;
     deprecated: boolean;

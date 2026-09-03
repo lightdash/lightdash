@@ -253,6 +253,35 @@ describe('getModel', () => {
         expect(model.modelId).toBe('run-selected/model');
     });
 
+    it('honors an allowlisted OpenRouter model selection', () => {
+        const { model } = getModel(
+            {
+                ...baseCopilotConfig,
+                defaultProvider: 'openrouter',
+                providers: {
+                    openrouter: {
+                        apiKey: 'test',
+                        modelName: 'qwen/qwen3.8-flash',
+                        availableModels: [
+                            'qwen/qwen3.8-flash',
+                            'moonshotai/kimi-k3',
+                        ],
+                        allowedProviders: [],
+                        sortOrder: 'latency',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            },
+            {
+                provider: 'openrouter',
+                modelName: 'moonshotai/kimi-k3',
+            },
+        );
+
+        expect(model.modelId).toBe('moonshotai/kimi-k3');
+    });
+
     it('ignores untrusted Azure and OpenRouter model-name overrides', () => {
         const azure = getModel(
             {
@@ -346,6 +375,57 @@ describe('getModel', () => {
 
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
         expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+    });
+});
+
+describe('OpenRouter model options', () => {
+    it('surfaces the default and allowlisted models for the picker', () => {
+        const models = getAvailableModels({
+            ...baseCopilotConfig,
+            defaultProvider: 'openrouter',
+            providers: {
+                openrouter: {
+                    apiKey: 'test',
+                    modelName: 'qwen/qwen3.5-9b',
+                    availableModels: [
+                        'qwen/qwen3.5-9b',
+                        'moonshotai/kimi-k3',
+                        'z-ai/glm-5.3-flash',
+                    ],
+                    allowedProviders: [],
+                    sortOrder: 'latency',
+                    customHeaders: {},
+                    supportsStreaming: true,
+                },
+            },
+        });
+
+        expect(models).toMatchObject([
+            {
+                provider: 'openrouter',
+                name: 'qwen/qwen3.5-9b',
+                displayName: 'Qwen3.5 9B',
+                groupLabel: 'Qwen',
+                description:
+                    'Compact multimodal model for affordable reasoning, coding, and visual analysis',
+            },
+            {
+                provider: 'openrouter',
+                name: 'moonshotai/kimi-k3',
+                displayName: 'Kimi K3',
+                groupLabel: 'Moonshot AI',
+                description:
+                    'Open-weight multimodal model for complex coding and long-running agents',
+            },
+            {
+                provider: 'openrouter',
+                name: 'z-ai/glm-5.3-flash',
+                displayName: 'GLM 5.3 Flash',
+                groupLabel: 'Z.ai',
+                description:
+                    'Efficient multimodal model for coding and long-context agent tasks',
+            },
+        ]);
     });
 });
 
