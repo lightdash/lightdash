@@ -1,4 +1,4 @@
-import { getAppDisplayName } from '@lightdash/common';
+import { getAppDisplayName, isAppVersionInProgress } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -22,13 +22,16 @@ import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
+import { RestoreAppVersionModal } from '../../../../../features/apps/components/RestoreAppVersionModal';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
+import { useCanEditDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import { type ElementRef } from '../../../../../features/apps/utils/elementRefs';
+import { useRestoreAiAgentThreadDataAppVersionMutation } from '../../hooks/useProjectAiAgents';
 import { addThreadElementReference } from '../../store/aiAgentThreadElementRefsSlice';
 import {
     clearPreview,
@@ -55,6 +58,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     const {
         appUuid,
         projectUuid,
+        agentUuid,
         threadUuid,
         version,
         latestReadyVersionAtOpen,
@@ -72,7 +76,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         latestReadyVersionAtOpen,
         latestReadyVersion,
     });
-    const isViewingLatest = effectiveVersion === latestReadyVersion;
+    // An explicit version newer than the cached latest (just restored) is
+    // latest by definition, so compare rather than test equality.
+    const isViewingOlderVersion =
+        effectiveVersion !== null &&
+        latestReadyVersion !== null &&
+        effectiveVersion < latestReadyVersion;
     const identityKey = `${appUuid}:${effectiveVersion}`;
     // Lives here, not next to the iframe, so logs and dismissal survive the
     // token reload between versions. Only wired in when `showInspector`.
@@ -162,10 +171,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
-    const isViewingOlderVersion =
-        effectiveVersion !== null &&
-        latestReadyVersion !== null &&
-        effectiveVersion < latestReadyVersion;
     const returnToLatest = () =>
         dispatch(
             setDataAppPreviewVersion({
@@ -173,6 +178,53 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                 latestReadyVersionAtOpen: latestReadyVersion,
             }),
         );
+
+    // Same gate as Edit on the standalone view page.
+    const canManageApp = useCanEditDataApp(projectUuid, {
+        spaceUuid: app?.spaceUuid ?? null,
+        createdByUserUuid: app?.createdByUserUuid ?? null,
+    });
+    // Versions come newest first; the backend refuses restores mid-build.
+    const latestVersionStatus = app?.versions[0]?.status;
+    const isBuildInProgress =
+        latestVersionStatus !== undefined &&
+        isAppVersionInProgress(latestVersionStatus);
+    const [restoreTargetVersion, setRestoreTargetVersion] = useState<
+        number | null
+    >(null);
+    const restoreMutation = useRestoreAiAgentThreadDataAppVersionMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
+    const closeRestoreModal = () => {
+        setRestoreTargetVersion(null);
+        restoreMutation.reset();
+    };
+    const confirmRestore = (targetVersion: number) =>
+        restoreMutation.mutate(
+            { appUuid, version: targetVersion },
+            {
+                onSuccess: (result) => {
+                    dispatch(
+                        setDataAppPreviewVersion({
+                            version: result.version,
+                            latestReadyVersionAtOpen: result.version,
+                        }),
+                    );
+                    closeRestoreModal();
+                },
+            },
+        );
+    const restore =
+        canManageApp && effectiveVersion !== null
+            ? {
+                  onClick: () => setRestoreTargetVersion(effectiveVersion),
+                  disabledReason: isBuildInProgress
+                      ? 'A version is building; restore once it finishes.'
+                      : null,
+              }
+            : null;
 
     const closeButton = (
         <ActionIcon
@@ -267,9 +319,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         );
     }
 
-    const appUrl = isViewingLatest
-        ? `/projects/${projectUuid}/apps/${appUuid}/view`
-        : `/projects/${projectUuid}/apps/${appUuid}/versions/${effectiveVersion}/view`;
+    const appUrl = isViewingOlderVersion
+        ? `/projects/${projectUuid}/apps/${appUuid}/versions/${effectiveVersion}/view`
+        : `/projects/${projectUuid}/apps/${appUuid}/view`;
 
     return (
         <Box className={artifactStyles.floatingPanel}>
@@ -332,7 +384,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                         </Menu>
                         {showInspector &&
                             picker.available &&
-                            isViewingLatest && (
+                            !isViewingOlderVersion && (
                                 <ElementPickerButton
                                     enabled={picker.enabled}
                                     onToggle={picker.toggle}
@@ -348,11 +400,20 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                         <DataAppVersionPill
                             version={effectiveVersion}
                             onReturnToLatest={returnToLatest}
-                            restore={null}
+                            restore={restore}
                         />
                     )}
                 </Box>
             </Box>
+            {restoreTargetVersion !== null && (
+                <RestoreAppVersionModal
+                    version={restoreTargetVersion}
+                    isLoading={restoreMutation.isLoading}
+                    error={restoreMutation.error}
+                    onClose={closeRestoreModal}
+                    onConfirm={() => confirmRestore(restoreTargetVersion)}
+                />
+            )}
         </Box>
     );
 };

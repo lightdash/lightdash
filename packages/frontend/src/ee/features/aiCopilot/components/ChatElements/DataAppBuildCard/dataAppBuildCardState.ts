@@ -145,11 +145,8 @@ export const getDataAppRestoreItem = (
             item.type === 'data_app_restore',
     ) ?? null;
 
-/**
- * Card state for a restore made from the thread. The restore already
- * succeeded when the turn was written, so the card is ready unless the app
- * has gone since; the assistant's response is the completion message.
- */
+/** A thread restore already succeeded when its turn was written, so the card
+ *  is ready unless the app has gone since. */
 export const getDataAppRestoreCardState = (
     item: DataAppRestoreContextItem,
     response: string | null,

@@ -3,6 +3,7 @@ import {
     ChartSourceType,
     ContentType,
     dataAppElementContextKey,
+    dataAppRestoreContextKey,
     type AiPromptContextInput,
     type AiPromptContextItem,
     type ApiContentResponse,
@@ -323,7 +324,7 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
         case 'data_app_element':
             return dataAppElementContextKey(item);
         case 'data_app_restore':
-            return `data_app_restore:${item.appUuid}:${item.version}`;
+            return dataAppRestoreContextKey(item);
         default:
             return assertUnreachable(
                 item,

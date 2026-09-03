@@ -25,8 +25,7 @@ export interface DataAppPreviewData {
     agentUuid: string;
     /** null means the app's latest ready version. */
     version: number | null;
-    /** Latest ready version when the preview was opened; a newer one landing
-     *  moves the panel to latest. See `getEffectiveDataAppVersion`. */
+    /** Latest ready version at open; a newer one landing moves to latest. */
     latestReadyVersionAtOpen: number | null;
 }
 

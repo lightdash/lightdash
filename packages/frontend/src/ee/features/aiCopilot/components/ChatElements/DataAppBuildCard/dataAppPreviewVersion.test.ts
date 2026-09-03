@@ -69,7 +69,7 @@ describe('getEffectiveDataAppVersion', () => {
         ).toBe(2);
     });
 
-    it('never jumps when no latest version was recorded at open', () => {
+    it('keeps an explicit version when nothing was recorded at open', () => {
         expect(
             getEffectiveDataAppVersion({
                 version: 1,

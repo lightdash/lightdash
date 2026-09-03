@@ -8,6 +8,8 @@ import type {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -42,6 +44,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { invalidateAppAfterRestore } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -1467,6 +1470,42 @@ export const useCreateAiAgentThreadMessageSteerMutation = () => {
                 },
             );
         },
+    });
+};
+
+export const useRestoreAiAgentThreadDataAppVersionMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadDataAppRestoreResponse['results'],
+        ApiError,
+        ApiAiAgentThreadDataAppRestoreRequest
+    >({
+        mutationFn: (body) =>
+            lightdashApi<ApiAiAgentThreadDataAppRestoreResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/data-app-restores`,
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+        // The thread gained a hidden restore turn; the app gained a version.
+        // Awaited so per-call onSuccess runs once the app refetch has landed.
+        onSuccess: (_result, { appUuid }) =>
+            Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+                invalidateAppAfterRestore(queryClient, projectUuid, appUuid),
+            ]),
     });
 };
 
