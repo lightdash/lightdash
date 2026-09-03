@@ -6,6 +6,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
@@ -330,6 +331,17 @@ export default function AppPreviewTest() {
                             }
                             shareUrl={window.location.href}
                             navItem={null}
+                            askAiItem={
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    dataAppUuid={appUuid}
+                                    clickedFrom={
+                                        explicitVersion === undefined
+                                            ? 'data_app_header'
+                                            : 'data_app_version_header'
+                                    }
+                                />
+                            }
                         />
                     }
                 />

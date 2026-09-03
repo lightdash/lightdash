@@ -2963,6 +2963,7 @@ const AppGenerate: FC = () => {
                                                     </Menu.Item>
                                                 ) : null
                                             }
+                                            askAiItem={null}
                                         />
                                     }
                                 />

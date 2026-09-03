@@ -88,6 +88,9 @@ type Props = {
      *  latest" in the builder). Rendered at the top of the menu; pass null
      *  to omit it. */
     navItem: ReactNode;
+    /** "Ask AI Agent" menu item, rendered right after `navItem`. Pass null
+     *  on surfaces that don't offer it. */
+    askAiItem: ReactNode;
     /** Fullscreen/presentation toggle, rendered between the refresh button
      *  and the overflow menu to match the dashboard header's ordering. Pass
      *  null on surfaces without it (the builder). */
@@ -140,6 +143,7 @@ const AppHeaderActions: FC<Props> = ({
     onEdit,
     shareUrl,
     navItem,
+    askAiItem,
     fullscreenToggle,
     captureThumbnail,
     capturePreviewScreenshot,
@@ -334,6 +338,7 @@ const AppHeaderActions: FC<Props> = ({
                 </Menu.Target>
                 <Menu.Dropdown>
                     {navItem}
+                    {askAiItem}
                     <Menu.Item
                         leftSection={
                             <MantineIcon icon={IconArrowsUpDown} size={14} />
