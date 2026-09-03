@@ -1448,8 +1448,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 asyncQueryService:
                     context.serviceRepository.getAsyncQueryService(),
                 embedService: context.serviceRepository.getEmbedService(),
-                featureFlagService:
-                    context.serviceRepository.getFeatureFlagService(),
                 persistentDownloadFileService:
                     context.serviceRepository.getPersistentDownloadFileService(),
                 preAggregateModel: context.models.getPreAggregateModel(),

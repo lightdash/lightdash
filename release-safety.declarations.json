@@ -9,6 +9,10 @@
             "reason": "The MCP run_metric_query tool no longer accepts template table calculations (running_total, percent_of_previous_value, etc.) in queryConfig.tableCalculations; only formula table calculations are accepted. MCP clients that send template-shaped payloads (scripted callers or agents replaying stored arguments) get an input validation error after upgrading and must switch to equivalent formulas. Agent-generated payloads self-correct because clients re-read the advertised schema.",
             "requiredStop": false
         },
+        "replace-custom-metrics-on-compile-flag-removed": {
+            "reason": "The retired ReplaceCustomMetricsOnCompile member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; runtime custom-metric replacement after eligible compiles is now unconditional.",
+            "requiredStop": false
+        },
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false
