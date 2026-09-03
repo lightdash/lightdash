@@ -1,3 +1,10 @@
+## [2.104.1](https://github.com/lightdash/lightdash/compare/2.104.0...2.104.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **query:** stop rebasing Snowflake MIN/MAX metrics that inherit wrapped dimension SQL ([#28564](https://github.com/lightdash/lightdash/issues/28564)) ([f466805](https://github.com/lightdash/lightdash/commit/f466805a543434ec4c6ca04d3ed2b9891bba8d28))
+
 # [2.104.0](https://github.com/lightdash/lightdash/compare/2.103.0...2.104.0) (2026-09-03)
 
 
