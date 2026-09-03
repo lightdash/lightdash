@@ -5,6 +5,7 @@ import {
     FeatureFlags,
     getAppDisplayName,
     getEffectiveOptionValues,
+    getItemId,
     pruneDataAppVizOptionValues,
     type ItemsMap,
 } from '@lightdash/common';
@@ -35,6 +36,7 @@ import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryC
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
+import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 import { type CustomChartTypeOption } from '../CustomChartType/customChartTypeOption';
 import CustomChartTypeSection from '../CustomChartType/CustomChartTypeSection';
 import { useSelectProjectChartType } from '../CustomChartType/useSelectProjectChartType';
@@ -58,8 +60,20 @@ export const ConfigTabs: FC = memo(() => {
     const navigate = useNavigate();
     const { visualizationConfig, itemsMap, setChartType, setPivotDimensions } =
         useVisualizationContext();
+    const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();
+
+    // Results' columns plus pending (not-yet-run) query fields, so a
+    // just-assigned binding isn't stripped before its results land.
+    const effectiveItemsMap = useMemo<ItemsMap>(() => {
+        const pendingEntries = addableItems.flatMap((item) => {
+            const id = getItemId(item);
+            return isFieldPending(id) ? [[id, item] as const] : [];
+        });
+        if (pendingEntries.length === 0) return itemsMap ?? NO_COLUMNS;
+        return { ...itemsMap, ...Object.fromEntries(pendingEntries) };
+    }, [itemsMap, addableItems, isFieldPending]);
     const authoring = useExplorerSelector(selectChartTypeAuthoring);
     const isAuthoring = authoring !== null;
 
@@ -138,8 +152,8 @@ export const ConfigTabs: FC = memo(() => {
     // Auto-binding cannot run without columns, and it only runs once, at pick
     // time — so picking now would leave the slots empty for good.
     const { dimensions, metrics } = useMemo(
-        () => getDataAppVizFieldItems(itemsMap ?? NO_COLUMNS),
-        [itemsMap],
+        () => getDataAppVizFieldItems(effectiveItemsMap),
+        [effectiveItemsMap],
     );
     const hasColumns = dimensions.length > 0 || metrics.length > 0;
 
@@ -168,7 +182,7 @@ export const ConfigTabs: FC = memo(() => {
         // show the saved mapping reconciled the way the renderer does.
         const effectiveMapping = reconcileDataAppVizFieldMapping(
             fields,
-            itemsMap ?? NO_COLUMNS,
+            effectiveItemsMap,
             selectedViz.fieldMapping,
         );
 
@@ -195,7 +209,7 @@ export const ConfigTabs: FC = memo(() => {
             if (!upgradeTarget) return;
             const nextMapping = reconcileDataAppVizFieldMapping(
                 upgradeTarget.schema.fields,
-                itemsMap ?? NO_COLUMNS,
+                effectiveItemsMap,
                 selectedViz.fieldMapping,
             );
             upgradeDataAppVizVersion(
@@ -228,7 +242,7 @@ export const ConfigTabs: FC = memo(() => {
                     </Callout>
                 )}
                 <DataAppVizSettings
-                    itemsMap={itemsMap ?? NO_COLUMNS}
+                    itemsMap={effectiveItemsMap}
                     fields={fields}
                     fieldMapping={effectiveMapping}
                     onFieldChange={handleFieldChange}
@@ -307,10 +321,7 @@ export const ConfigTabs: FC = memo(() => {
                         hasColumns={hasColumns}
                         onSelectVega={() => setChartType(ChartType.CUSTOM)}
                         onSelectProjectType={(picked) =>
-                            selectProjectChartType(
-                                picked,
-                                itemsMap ?? NO_COLUMNS,
-                            )
+                            selectProjectChartType(picked, effectiveItemsMap)
                         }
                         onClear={() => {
                             clearDataAppViz();

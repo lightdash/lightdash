@@ -385,6 +385,7 @@ const VisualizationProvider: FC<
                     colorPalette={colorPalette}
                     tableCalculationsMetadata={tableCalculationsMetadata}
                     parameters={parameters}
+                    unsavedMetricQuery={unsavedMetricQuery}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -405,6 +406,7 @@ const VisualizationProvider: FC<
                     colorPalette={colorPalette}
                     tableCalculationsMetadata={tableCalculationsMetadata}
                     parameters={parameters}
+                    unsavedMetricQuery={unsavedMetricQuery}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

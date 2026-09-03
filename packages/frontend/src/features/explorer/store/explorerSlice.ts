@@ -79,6 +79,65 @@ const removePivotValuesFromSorts = (sorts: SortField[]): SortField[] => {
     }, []);
 };
 
+const applyToggleDimension = (state: ExplorerSliceState, fieldId: FieldId) => {
+    const currentDimensions = state.unsavedChartVersion.metricQuery.dimensions;
+
+    state.unsavedChartVersion.metricQuery.dimensions = toggleArrayValue(
+        currentDimensions,
+        fieldId,
+    );
+
+    state.unsavedChartVersion.metricQuery.sorts =
+        state.unsavedChartVersion.metricQuery.sorts.filter(
+            (s) => s.fieldId !== fieldId,
+        );
+
+    const dimensionIds = state.unsavedChartVersion.metricQuery.dimensions;
+    const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+    const calcIds = state.unsavedChartVersion.metricQuery.tableCalculations.map(
+        ({ name }) => name,
+    );
+
+    state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+        state.unsavedChartVersion.tableConfig.columnOrder,
+        [...dimensionIds, ...metricIds, ...calcIds],
+        dimensionIds,
+    );
+};
+
+const applyToggleMetric = (state: ExplorerSliceState, fieldId: FieldId) => {
+    const currentMetrics = state.unsavedChartVersion.metricQuery.metrics;
+
+    state.unsavedChartVersion.metricQuery.metrics = toggleArrayValue(
+        currentMetrics,
+        fieldId,
+    );
+
+    state.unsavedChartVersion.metricQuery.sorts =
+        state.unsavedChartVersion.metricQuery.sorts.filter(
+            (s) => s.fieldId !== fieldId,
+        );
+
+    state.unsavedChartVersion.metricQuery.metricOverrides = Object.fromEntries(
+        Object.entries(
+            state.unsavedChartVersion.metricQuery.metricOverrides || {},
+        ).filter(([key]) =>
+            state.unsavedChartVersion.metricQuery.metrics.includes(key),
+        ),
+    );
+
+    const dimensionIds = state.unsavedChartVersion.metricQuery.dimensions;
+    const metricIds = state.unsavedChartVersion.metricQuery.metrics;
+    const calcIds = state.unsavedChartVersion.metricQuery.tableCalculations.map(
+        ({ name }) => name,
+    );
+
+    state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
+        state.unsavedChartVersion.tableConfig.columnOrder,
+        [...dimensionIds, ...metricIds, ...calcIds],
+    );
+};
+
 const explorerSlice = createSlice({
     name: 'explorer',
     initialState,
@@ -148,74 +207,36 @@ const explorerSlice = createSlice({
         },
 
         toggleDimension: (state, action: PayloadAction<FieldId>) => {
-            const fieldId = action.payload;
-            const currentDimensions =
-                state.unsavedChartVersion.metricQuery.dimensions;
-
-            state.unsavedChartVersion.metricQuery.dimensions = toggleArrayValue(
-                currentDimensions,
-                fieldId,
-            );
-
-            state.unsavedChartVersion.metricQuery.sorts =
-                state.unsavedChartVersion.metricQuery.sorts.filter(
-                    (s) => s.fieldId !== fieldId,
-                );
-
-            const dimensionIds =
-                state.unsavedChartVersion.metricQuery.dimensions;
-            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
-            const calcIds =
-                state.unsavedChartVersion.metricQuery.tableCalculations.map(
-                    ({ name }) => name,
-                );
-
-            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
-                state.unsavedChartVersion.tableConfig.columnOrder,
-                [...dimensionIds, ...metricIds, ...calcIds],
-                dimensionIds,
-            );
+            applyToggleDimension(state, action.payload);
         },
 
         toggleMetric: (state, action: PayloadAction<FieldId>) => {
-            const fieldId = action.payload;
-            const currentMetrics =
-                state.unsavedChartVersion.metricQuery.metrics;
+            applyToggleMetric(state, action.payload);
+        },
 
-            state.unsavedChartVersion.metricQuery.metrics = toggleArrayValue(
-                currentMetrics,
-                fieldId,
-            );
+        // Config-panel "Add to query" pickers: never deselect, and always run
+        // the query — itemsMap only refreshes from results, even when
+        // auto-fetch is off.
+        addDimensionToQuery: (state, action: PayloadAction<FieldId>) => {
+            if (
+                !state.unsavedChartVersion.metricQuery.dimensions.includes(
+                    action.payload,
+                )
+            ) {
+                applyToggleDimension(state, action.payload);
+            }
+            state.queryExecution.pendingFetch = true;
+        },
 
-            state.unsavedChartVersion.metricQuery.sorts =
-                state.unsavedChartVersion.metricQuery.sorts.filter(
-                    (s) => s.fieldId !== fieldId,
-                );
-
-            state.unsavedChartVersion.metricQuery.metricOverrides =
-                Object.fromEntries(
-                    Object.entries(
-                        state.unsavedChartVersion.metricQuery.metricOverrides ||
-                            {},
-                    ).filter(([key]) =>
-                        state.unsavedChartVersion.metricQuery.metrics.includes(
-                            key,
-                        ),
-                    ),
-                );
-
-            const dimensionIds =
-                state.unsavedChartVersion.metricQuery.dimensions;
-            const metricIds = state.unsavedChartVersion.metricQuery.metrics;
-            const calcIds =
-                state.unsavedChartVersion.metricQuery.tableCalculations.map(
-                    ({ name }) => name,
-                );
-
-            state.unsavedChartVersion.tableConfig.columnOrder = calcColumnOrder(
-                state.unsavedChartVersion.tableConfig.columnOrder,
-                [...dimensionIds, ...metricIds, ...calcIds],
-            );
+        addMetricToQuery: (state, action: PayloadAction<FieldId>) => {
+            if (
+                !state.unsavedChartVersion.metricQuery.metrics.includes(
+                    action.payload,
+                )
+            ) {
+                applyToggleMetric(state, action.payload);
+            }
+            state.queryExecution.pendingFetch = true;
         },
 
         removeField: (state, action: PayloadAction<FieldId>) => {

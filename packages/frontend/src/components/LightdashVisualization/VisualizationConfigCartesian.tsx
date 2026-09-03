@@ -15,6 +15,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     colorPalette,
     children,
     tableCalculationsMetadata,
+    unsavedMetricQuery,
 }) => {
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
@@ -26,6 +27,7 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         cartesianType,
         colorPalette,
         tableCalculationsMetadata,
+        unsavedMetricQuery,
     });
 
     useEffect(() => {
