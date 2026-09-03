@@ -13,8 +13,8 @@ import {
 } from '../ChatElements/contentReferenceUtils';
 import { PinnedReviewEntityCard } from './PinnedReviewEntityCard';
 
-// The thread message the chip belongs to; lets a data app chip open the
-// in-thread preview panel. Absent on pre-send surfaces (no message yet).
+// The sent thread message the chip belongs to; lets a data app chip open the
+// in-thread preview panel. Null on pre-send surfaces (no message yet).
 export type PinnedContextPreviewScope = {
     messageUuid: string;
     threadUuid: string;
@@ -24,7 +24,7 @@ export type PinnedContextPreviewScope = {
 type Props = {
     item: AiPromptContextItem;
     projectUuid: string;
-    previewScope?: PinnedContextPreviewScope;
+    previewScope: PinnedContextPreviewScope | null;
 };
 
 type ItemMeta = {
@@ -110,7 +110,7 @@ const isPlainLeftClick = (e: MouseEvent<HTMLAnchorElement>) =>
 const PinnedDataAppCard: FC<{
     item: Extract<AiPromptContextItem, { type: 'data_app' }>;
     projectUuid: string;
-    previewScope: PinnedContextPreviewScope | undefined;
+    previewScope: PinnedContextPreviewScope | null;
 }> = ({ item, projectUuid, previewScope }) => {
     const dispatch = useAiAgentStoreDispatch();
     const currentPreview = useAiAgentStoreSelector(selectDataAppPreview);

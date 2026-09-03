@@ -218,6 +218,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     <UserBubble
                                         message={message}
                                         projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
                                     />
                                 ) : (
                                     <ErrorBoundary>

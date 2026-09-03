@@ -24,6 +24,8 @@ type Props = {
     // Explicit for routes where projectUuid isn't a URL param (the review
     // remediation workspace); falls back to params for the normal agent chat.
     projectUuid?: string;
+    // Explicit for the docked launcher, where the route is the host page.
+    agentUuid?: string;
 };
 
 const getVisibleUserName = (name: string) => {
@@ -39,10 +41,12 @@ export const UserBubble: FC<Props> = ({
     message,
     isActive = false,
     projectUuid: projectUuidProp,
+    agentUuid: agentUuidProp,
 }) => {
-    const { agentUuid } = useParams();
+    const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
+    const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -111,7 +115,7 @@ export const UserBubble: FC<Props> = ({
                                                       message.threadUuid,
                                                   agentUuid,
                                               }
-                                            : undefined
+                                            : null
                                     }
                                 />
                             ))}
