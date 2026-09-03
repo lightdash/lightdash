@@ -9,20 +9,26 @@ import {
     type QueryLanguage,
     QueryTrigger,
 } from '@lightdash/common';
-import { TextInput } from '@mantine/core';
+import { Box, Text, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconChevronDown, IconSearch } from '@tabler/icons-react';
-import clsx from 'clsx';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    ContentTableSearchInput,
+    type ContentTableSortingState,
+} from '../../../components/common/ContentTable';
 import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
 import styles from '../QueryHistory.module.css';
 import { formatWarehouseTime } from '../utils/format';
+import {
+    buildQueryHistoryTableRows,
+    isQueryHistoryQueryRow,
+    type QueryHistoryWindowMeta,
+} from '../utils/tableRows';
 import { QueryHistoryDetailPanel } from './QueryHistoryDetailPanel';
-import { QueryHistoryRow } from './QueryHistoryRow';
+import { QueryHistoryTable } from './QueryHistoryTable';
 import { QueryHistoryToolbar } from './QueryHistoryToolbar';
 import { QueryHistoryWindowSection } from './QueryHistoryWindowSection';
 
@@ -35,6 +41,10 @@ const DEFAULT_EXPANDED_WINDOWS = new Set([
     QueryHistoryWindow.LAST_HOUR,
     QueryHistoryWindow.LAST_24_HOURS,
 ]);
+
+const DEFAULT_SORTING: ContentTableSortingState = [
+    { id: QueryHistorySortBy.CREATED_AT, desc: true },
+];
 
 export const QueryHistoryPage: FC = () => {
     const projectUuid = useProjectUuid();
@@ -49,9 +59,8 @@ export const QueryHistoryPage: FC = () => {
     const [statuses, setStatuses] = useState<QueryHistoryStatus[]>([]);
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
-    const [sortBy, setSortBy] = useState<QueryHistorySortBy>(
-        QueryHistorySortBy.CREATED_AT,
-    );
+    const [sorting, setSorting] =
+        useState<ContentTableSortingState>(DEFAULT_SORTING);
     const [expandedWindows, setExpandedWindows] = useState(
         DEFAULT_EXPANDED_WINDOWS,
     );
@@ -63,6 +72,17 @@ export const QueryHistoryPage: FC = () => {
     const [windowItems, setWindowItems] = useState<
         Partial<Record<QueryHistoryWindow, QueryHistoryListItem[]>>
     >({});
+    const [windowMeta, setWindowMeta] = useState<
+        Partial<Record<QueryHistoryWindow, QueryHistoryWindowMeta>>
+    >({});
+    const fetchNextByWindowRef = useRef<
+        Partial<Record<QueryHistoryWindow, () => void>>
+    >({});
+
+    const isFlatSort = sorting[0]?.id === QueryHistorySortBy.RUNTIME;
+    const sortBy = isFlatSort
+        ? QueryHistorySortBy.RUNTIME
+        : QueryHistorySortBy.CREATED_AT;
 
     const filters: QueryHistoryListFilters = useMemo(
         () => ({
@@ -75,10 +95,6 @@ export const QueryHistoryPage: FC = () => {
         [trigger, language, statuses, debouncedSearch, sortBy],
     );
 
-    const isFlatSort = sortBy === QueryHistorySortBy.RUNTIME;
-
-    // Sorting by run time flattens the windows into one list — the
-    // "what's slowest" view.
     const flatQuery = useInfiniteQueryHistory(
         projectUuid,
         filters,
@@ -108,14 +124,56 @@ export const QueryHistoryPage: FC = () => {
         [],
     );
 
-    // The flat, in-order list of everything currently rendered — drives the
-    // panel's ↑/↓ navigation.
-    const visibleItems = useMemo(() => {
-        if (isFlatSort) return flatItems;
-        return QUERY_HISTORY_WINDOWS_ORDERED.flatMap((window) =>
-            expandedWindows.has(window) ? (windowItems[window] ?? []) : [],
-        );
-    }, [isFlatSort, flatItems, windowItems, expandedWindows]);
+    const handleWindowMeta = useCallback(
+        (window: QueryHistoryWindow, meta: QueryHistoryWindowMeta) => {
+            setWindowMeta((current) => {
+                const previous = current[window];
+                if (
+                    previous &&
+                    previous.hasNextPage === meta.hasNextPage &&
+                    previous.isFetching === meta.isFetching &&
+                    previous.remaining === meta.remaining
+                ) {
+                    return current;
+                }
+                return { ...current, [window]: meta };
+            });
+        },
+        [],
+    );
+
+    const handleRegisterFetchNext = useCallback(
+        (window: QueryHistoryWindow, fetchNext: () => void) => {
+            fetchNextByWindowRef.current[window] = fetchNext;
+        },
+        [],
+    );
+
+    const tableData = useMemo(
+        () =>
+            buildQueryHistoryTableRows({
+                isFlatSort,
+                flatItems,
+                expandedWindows,
+                windowItems,
+                windowMeta,
+                counts: isFlatSort ? flatCounts : counts,
+            }),
+        [
+            isFlatSort,
+            flatItems,
+            expandedWindows,
+            windowItems,
+            windowMeta,
+            flatCounts,
+            counts,
+        ],
+    );
+
+    const visibleItems = useMemo(
+        () => tableData.filter(isQueryHistoryQueryRow).map((row) => row.item),
+        [tableData],
+    );
 
     const selectedIndex = selectedItem
         ? visibleItems.findIndex(
@@ -140,8 +198,24 @@ export const QueryHistoryPage: FC = () => {
         });
     }, []);
 
+    const handleShowMore = useCallback((window: QueryHistoryWindow) => {
+        fetchNextByWindowRef.current[window]?.();
+    }, []);
+
+    const handleClearFilters = useCallback(() => {
+        setTrigger(QueryTrigger.INTERACTIVE);
+        setLanguage(undefined);
+        setStatuses([]);
+        setSearch('');
+    }, []);
+
     const activeCounts = isFlatSort ? flatCounts : counts;
     const isPanelOpen = selectedItem !== null;
+    const hasActiveFilters =
+        trigger !== QueryTrigger.INTERACTIVE ||
+        language !== undefined ||
+        statuses.length > 0 ||
+        Boolean(debouncedSearch);
 
     const subtitleParts = [
         project?.name,
@@ -152,10 +226,19 @@ export const QueryHistoryPage: FC = () => {
             : null,
     ].filter(Boolean);
 
+    const isInitialLoading = isFlatSort
+        ? flatQuery.isLoading && flatItems.length === 0
+        : !counts &&
+          QUERY_HISTORY_WINDOWS_ORDERED.some((window) =>
+              expandedWindows.has(window),
+          ) &&
+          tableData.every((row) => row.kind !== 'query');
+
     return (
         <Page
             title="My query history"
             withFullHeight
+            noContentPadding
             rightSidebar={
                 selectedItem ? (
                     <QueryHistoryDetailPanel
@@ -178,32 +261,40 @@ export const QueryHistoryPage: FC = () => {
                 maxWidth: 900,
             }}
         >
-            <div className={styles.page}>
-                <div className={styles.header}>
-                    <div>
-                        <h1 className={styles.title}>My query history</h1>
+            <Box className={styles.page}>
+                {!isFlatSort &&
+                    QUERY_HISTORY_WINDOWS_ORDERED.map((window) => (
+                        <QueryHistoryWindowSection
+                            key={window}
+                            projectUuid={projectUuid}
+                            window={window}
+                            filters={filters}
+                            isExpanded={expandedWindows.has(window)}
+                            counts={counts}
+                            onCounts={handleCounts}
+                            onItemsChange={handleWindowItems}
+                            onMetaChange={handleWindowMeta}
+                            onRegisterFetchNext={handleRegisterFetchNext}
+                        />
+                    ))}
+                <Box className={styles.header}>
+                    <Box>
+                        <Title order={2} className={styles.title}>
+                            My query history
+                        </Title>
                         {subtitleParts.length > 0 && (
-                            <p className={styles.subtitle}>
+                            <Text className={styles.subtitle}>
                                 {subtitleParts.join(' · ')}
-                            </p>
+                            </Text>
                         )}
-                    </div>
-                    <TextInput
+                    </Box>
+                    <ContentTableSearchInput
                         className={styles.search}
                         value={search}
-                        onChange={(event) =>
-                            setSearch(event.currentTarget.value)
-                        }
+                        onChange={setSearch}
                         placeholder="Search fields, tables or SQL…"
-                        leftSection={
-                            <MantineIcon
-                                icon={IconSearch}
-                                size={14}
-                                color="ldBrandGray.5"
-                            />
-                        }
                     />
-                </div>
+                </Box>
 
                 <QueryHistoryToolbar
                     trigger={trigger}
@@ -215,106 +306,29 @@ export const QueryHistoryPage: FC = () => {
                     counts={activeCounts}
                 />
 
-                <div className={styles.list}>
-                    <div
-                        className={clsx(
-                            styles.columnHeader,
-                            isPanelOpen && styles.columnHeaderCompact,
-                        )}
-                    >
-                        <span>Query</span>
-                        <span>Language</span>
-                        {!isPanelOpen && <span>Trigger</span>}
-                        <span className={styles.columnRight}>
-                            <button
-                                type="button"
-                                className={clsx(
-                                    styles.sortButton,
-                                    isFlatSort && styles.sortButtonActive,
-                                )}
-                                onClick={() =>
-                                    setSortBy(
-                                        isFlatSort
-                                            ? QueryHistorySortBy.CREATED_AT
-                                            : QueryHistorySortBy.RUNTIME,
-                                    )
-                                }
-                            >
-                                Run time
-                                {isFlatSort && (
-                                    <MantineIcon
-                                        icon={IconChevronDown}
-                                        size={9}
-                                    />
-                                )}
-                            </button>
-                        </span>
-                        {!isPanelOpen && (
-                            <span className={styles.columnRight}>Rows</span>
-                        )}
-                        <span className={styles.columnRight}>When</span>
-                    </div>
-
-                    {isFlatSort ? (
-                        <>
-                            {flatItems.map((item) => (
-                                <QueryHistoryRow
-                                    key={item.queryUuid}
-                                    item={item}
-                                    compact={isPanelOpen}
-                                    isSelected={
-                                        item.queryUuid ===
-                                        selectedItem?.queryUuid
-                                    }
-                                    onSelect={setSelectedItem}
-                                />
-                            ))}
-                            {flatQuery.hasNextPage && (
-                                <button
-                                    type="button"
-                                    className={styles.showMore}
-                                    disabled={flatQuery.isFetching}
-                                    onClick={() => flatQuery.fetchNextPage()}
-                                >
-                                    {flatQuery.isFetching
-                                        ? 'Loading…'
-                                        : 'Show more'}
-                                </button>
-                            )}
-                            {!flatQuery.isFetching &&
-                                flatItems.length === 0 && (
-                                    <div className={styles.emptyState}>
-                                        No queries match these filters.
-                                    </div>
-                                )}
-                        </>
-                    ) : (
-                        <>
-                            {QUERY_HISTORY_WINDOWS_ORDERED.map((window) => (
-                                <QueryHistoryWindowSection
-                                    key={window}
-                                    projectUuid={projectUuid}
-                                    window={window}
-                                    filters={filters}
-                                    isExpanded={expandedWindows.has(window)}
-                                    onToggle={toggleWindow}
-                                    counts={counts}
-                                    onCounts={handleCounts}
-                                    compact={isPanelOpen}
-                                    selectedQueryUuid={selectedItem?.queryUuid}
-                                    onSelect={setSelectedItem}
-                                    onItemsChange={handleWindowItems}
-                                />
-                            ))}
-                            {counts && counts.total === 0 && (
-                                <div className={styles.emptyState}>
-                                    No queries match these filters.
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
-            </div>
+                <Box className={styles.tableWrap}>
+                    <QueryHistoryTable
+                        data={tableData}
+                        compact={isPanelOpen}
+                        selectedQueryUuid={selectedItem?.queryUuid}
+                        counts={activeCounts}
+                        sorting={sorting}
+                        onSortingChange={setSorting}
+                        isLoading={isInitialLoading}
+                        isFetching={isFlatSort && flatQuery.isFetching}
+                        hasNextPage={Boolean(flatQuery.hasNextPage)}
+                        fetchNextPage={() => {
+                            void flatQuery.fetchNextPage();
+                        }}
+                        search={debouncedSearch}
+                        onSelect={setSelectedItem}
+                        onToggleWindow={toggleWindow}
+                        onShowMore={handleShowMore}
+                        onClearFilters={handleClearFilters}
+                        hasActiveFilters={hasActiveFilters}
+                    />
+                </Box>
+            </Box>
         </Page>
     );
 };
