@@ -142,7 +142,7 @@ const RedshiftIamFields: FC<{
             <TextInput
                 name="warehouse.assumeRoleArn"
                 label="Assume role ARN"
-                description="Recommended: an IAM role Lightdash assumes to mint Redshift credentials. Leave blank to use the host's IAM role (self-hosted), or provide AWS access keys under Advanced."
+                description="An IAM role Lightdash assumes to mint Redshift credentials for queries. Not yet supported for dbt compilation. Leave blank to use the host's IAM role (self-hosted), or provide AWS access keys under Advanced."
                 placeholder="arn:aws:iam::123456789012:role/my-redshift-role"
                 {...form.getInputProps('warehouse.assumeRoleArn')}
                 disabled={disabled}
