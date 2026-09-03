@@ -14,10 +14,12 @@ import {
 import bigquery from '@google-cloud/bigquery/build/src/types';
 import {
     AnyType,
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryDataset,
     BigqueryProject,
     BigqueryProjectRecommendation,
+    BigqueryTokenError,
     CreateBigqueryCredentials,
     DimensionType,
     getErrorMessage,
@@ -278,6 +280,41 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
     }
 }
 
+type UnknownRecord = { [key: string]: unknown };
+
+type GoogleOauthTokenError = {
+    error: string;
+    errorDescription: string | undefined;
+    errorSubtype: string | undefined;
+};
+
+const isRecord = (value: unknown): value is UnknownRecord =>
+    typeof value === 'object' && value !== null;
+
+const readString = (record: UnknownRecord, key: string): string | undefined => {
+    const value = record[key];
+    return typeof value === 'string' ? value : undefined;
+};
+
+const getGoogleOauthTokenError = (
+    error: unknown,
+): GoogleOauthTokenError | undefined => {
+    if (!isRecord(error)) return undefined;
+    const response = isRecord(error.response) ? error.response : undefined;
+    const status = response?.status ?? error.status;
+    if (status !== 400) return undefined;
+    const data =
+        response && isRecord(response.data) ? response.data : undefined;
+    if (!data) return undefined;
+    const code = readString(data, 'error');
+    if (code === undefined) return undefined;
+    return {
+        error: code,
+        errorDescription: readString(data, 'error_description'),
+        errorSubtype: readString(data, 'error_subtype'),
+    };
+};
+
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     private static readonly MAX_LABELS = 64;
 
@@ -312,6 +349,43 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     static isBigqueryError(error: unknown): error is BigqueryError {
         return error !== null && typeof error === 'object' && 'errors' in error;
+    }
+
+    private usesUserRefreshToken(): boolean {
+        return (
+            this.credentials.authenticationType !==
+                BigqueryAuthenticationType.ADC &&
+            this.credentials.keyfileContents?.type === 'authorized_user'
+        );
+    }
+
+    private translateGoogleOauthTokenError(error: unknown): Error | undefined {
+        const tokenError = getGoogleOauthTokenError(error);
+        if (tokenError?.error !== 'invalid_grant') {
+            return undefined;
+        }
+        const details = [
+            tokenError.errorDescription
+                ? `invalid_grant: ${tokenError.errorDescription}`
+                : 'invalid_grant',
+            ...(tokenError.errorSubtype ? [tokenError.errorSubtype] : []),
+        ].join('; ');
+
+        if (this.usesUserRefreshToken()) {
+            return new BigqueryTokenError(
+                `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (${details}). Reconnect your BigQuery account in personal settings.`,
+            );
+        }
+        return new WarehouseConnectionError(
+            `Google rejected the BigQuery credentials (${details}).`,
+        );
+    }
+
+    private throwIfGoogleOauthTokenError(error: unknown): void {
+        const translated = this.translateGoogleOauthTokenError(error);
+        if (translated) {
+            throw translated;
+        }
     }
 
     /**
@@ -472,6 +546,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 streamCallback({ fields, rows: [chunk] }),
             );
         } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
@@ -516,6 +591,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     dataset,
                     table,
                 ).catch((e) => {
+                    this.throwIfGoogleOauthTokenError(e);
                     if (e?.code === 404) {
                         return undefined;
                     }
@@ -553,6 +629,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async getAllTables() {
+        try {
+            return await this.getAllTablesFromClient();
+        } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
+            throw e;
+        }
+    }
+
+    private async getAllTablesFromClient() {
         const [datasets] = await this.client.getDatasets();
         const datasetTablesResponses = await Promise.all(
             datasets.map((d) => d.getTables()),
@@ -626,7 +711,10 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const schemas = await BigqueryWarehouseClient.getTableMetadata(
             dataset,
             tableName,
-        );
+        ).catch((e: unknown) => {
+            this.throwIfGoogleOauthTokenError(e);
+            throw e;
+        });
         return this.parseWarehouseCatalog(
             schemas[3].fields.map((column) => ({
                 table_catalog: schemas[0],
@@ -796,6 +884,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 phaseTimings: { query: queryMs, fetch: fetchMs },
             };
         } catch (e: unknown) {
+            this.throwIfGoogleOauthTokenError(e);
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
                 const responseError: bigquery.IErrorProto | undefined =
                     e?.errors[0];
