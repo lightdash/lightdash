@@ -14,11 +14,42 @@ import type {
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
+import { LightdashConfig } from '../config/parseConfig';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
+export const MOBILE_OAUTH_REDIRECT_SCHEME = 'com.lightdash.mobile';
+
+export const isMobileOAuthClient = (
+    redirectUris: string[] | string | null | undefined,
+): boolean => {
+    if (redirectUris === null || redirectUris === undefined) return false;
+    const uris = Array.isArray(redirectUris) ? redirectUris : [redirectUris];
+    return uris.some((uri) =>
+        uri.toLowerCase().startsWith(`${MOBILE_OAUTH_REDIRECT_SCHEME}:`),
+    );
+};
+
 export class OAuth2Model implements AuthorizationCodeModel {
-    constructor(private database: Knex) {}
+    constructor(
+        private database: Knex,
+        private lightdashConfig: LightdashConfig,
+    ) {}
+
+    private getRefreshTokenLifetime(
+        redirectUris: string[] | string | null | undefined,
+    ): number | undefined {
+        if (!isMobileOAuthClient(redirectUris)) return undefined;
+        return this.lightdashConfig.auth.oauthServer
+            ?.mobileRefreshTokenLifetime;
+    }
+
+    private getRotationGraceMs(): number {
+        return (
+            (this.lightdashConfig.auth.oauthServer?.refreshTokenRotationGrace ??
+                0) * 1000
+        );
+    }
 
     async getClient(
         clientId: string,
@@ -43,6 +74,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
             id: client.client_id,
             redirectUris: client.redirect_uris,
             grants: client.grants,
+            refreshTokenLifetime: this.getRefreshTokenLifetime(
+                client.redirect_uris,
+            ),
         };
     }
 
@@ -177,6 +211,19 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 user_id: user.userId,
                 organization_uuid: user.organizationUuid,
             });
+
+            await this.database('oauth2_refresh_tokens')
+                .where('user_id', user.userId)
+                .where((query) =>
+                    query
+                        .where('expires_at', '<', this.database.fn.now())
+                        .orWhere(
+                            'revoked_at',
+                            '<',
+                            this.database.raw("now() - interval '1 day'"),
+                        ),
+                )
+                .del();
         }
 
         return { ...token, client, user };
@@ -231,6 +278,24 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         const result = await this.database('oauth2_refresh_tokens')
             .where('refresh_token', token.refreshToken)
+            .update({
+                revoked_at: this.database.raw('coalesce(revoked_at, now())'),
+            });
+
+        return result > 0;
+    }
+
+    async deleteRefreshToken(refreshToken: string): Promise<boolean> {
+        const result = await this.database('oauth2_refresh_tokens')
+            .where('refresh_token', refreshToken)
+            .del();
+
+        return result > 0;
+    }
+
+    async deleteAccessToken(accessToken: string): Promise<boolean> {
+        const result = await this.database('oauth2_access_tokens')
+            .where('access_token', accessToken)
             .del();
 
         return result > 0;
@@ -259,6 +324,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return false;
         }
 
+        if (
+            result.revoked_at !== null &&
+            result.revoked_at !== undefined &&
+            Date.now() - new Date(result.revoked_at).getTime() >
+                this.getRotationGraceMs()
+        ) {
+            return false;
+        }
+
         return {
             accessToken: '',
             refreshToken: result.refresh_token,
@@ -268,6 +342,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 id: result.client_id,
                 redirectUris: result.redirect_uris,
                 grants: result.grants,
+                refreshTokenLifetime: this.getRefreshTokenLifetime(
+                    result.redirect_uris,
+                ),
             },
             user: {
                 userId: result.user_id,
