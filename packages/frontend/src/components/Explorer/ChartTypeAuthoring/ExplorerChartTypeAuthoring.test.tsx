@@ -307,6 +307,14 @@ describe('ExplorerChartTypeAuthoring', () => {
         } as unknown as ReturnType<typeof useExplorerResultsData>);
     });
 
+    it('opens the builder in a modal with the chart configuration beside it', () => {
+        renderAuthoring();
+
+        expect(screen.getByText('Chart type builder')).toBeInTheDocument();
+        expect(screen.getByTestId('workspace')).toBeInTheDocument();
+        expect(screen.getByTestId('config-tabs')).toBeInTheDocument();
+    });
+
     it('binds the chart to the type once its schema is known', () => {
         const store = renderAuthoring();
 
