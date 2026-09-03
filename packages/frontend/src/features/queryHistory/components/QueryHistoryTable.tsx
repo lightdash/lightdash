@@ -112,11 +112,15 @@ export const QueryHistoryTable: FC<Props> = ({
                                     size="sm"
                                     color="dimmed"
                                 />
-                                <Text fw={500} truncate>
+                                <Text fz="xs" fw={500} truncate>
                                     {getWindowLabel(original.window)}
                                 </Text>
                                 {windowCount !== undefined ? (
-                                    <Text c="dimmed" className="ld-nowrap">
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        className="ld-nowrap"
+                                    >
                                         {`${windowCount.toLocaleString()} ${
                                             windowCount === 1 ? 'run' : 'runs'
                                         }`}
