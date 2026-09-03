@@ -80,6 +80,7 @@ const assistantMessage = (
     referencedArtifacts: null,
     modelConfig: null,
     tokenUsage: null,
+    responseTiming: null,
     ...overrides,
 });
 

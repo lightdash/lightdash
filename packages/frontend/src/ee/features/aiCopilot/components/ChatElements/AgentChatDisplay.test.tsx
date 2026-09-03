@@ -89,6 +89,7 @@ const getAssistantMessage = (
     referencedArtifacts: null,
     modelConfig: null,
     tokenUsage: null,
+    responseTiming: null,
 });
 
 const followUpUserMessage: AiAgentMessageUser = {

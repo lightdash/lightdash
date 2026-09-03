@@ -417,6 +417,11 @@ describe('generateAgentResponse token usage persistence', () => {
                 totalTokens: 31000,
                 finalStepTotalTokens: 31000,
             },
+            responseTiming: {
+                startedAt: expect.any(String),
+                firstTokenAt: null,
+                finishedAt: expect.any(String),
+            },
         });
     });
 });

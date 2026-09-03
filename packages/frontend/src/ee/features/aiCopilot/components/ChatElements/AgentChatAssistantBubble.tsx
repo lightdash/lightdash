@@ -80,6 +80,7 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
@@ -1318,6 +1319,9 @@ export const AssistantBubble: FC<Props> = memo(
                             agentUuid={agentUuid}
                             modelConfig={message.modelConfig}
                             totalTokens={message.tokenUsage?.totalTokens}
+                        />
+                        <MessageTimingIndicator
+                            responseTiming={message.responseTiming}
                         />
                     </Group>
                 )}

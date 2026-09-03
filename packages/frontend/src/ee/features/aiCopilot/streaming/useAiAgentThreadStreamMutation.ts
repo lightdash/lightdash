@@ -14,6 +14,7 @@ import {
     addReasoning,
     addToolCall,
     appendStepProgress,
+    markFirstToken,
     markStreamRecovering,
     markToolCallDecided,
     setError,
@@ -278,6 +279,15 @@ export const getStepProgressFromChunk = (
     return null;
 };
 
+const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
+    'text-start',
+    'text-delta',
+    'reasoning-start',
+    'reasoning-delta',
+    'tool-input-start',
+    'tool-input-available',
+]);
+
 export function useAiAgentThreadStreamMutation() {
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
@@ -347,6 +357,7 @@ export function useAiAgentThreadStreamMutation() {
                 const notifiedToolCallIds = new Set<string>();
                 const notifiedToolOutputIds = new Set<string>();
                 let receivedTerminalChunk = false;
+                let receivedFirstToken = false;
                 const handleStreamReadError = () => {
                     if (
                         !receivedTerminalChunk &&
@@ -374,6 +385,13 @@ export function useAiAgentThreadStreamMutation() {
                         inactivityMonitor.reset();
                         if (value.type === 'finish') {
                             receivedTerminalChunk = true;
+                        }
+                        if (
+                            !receivedFirstToken &&
+                            FIRST_TOKEN_CHUNK_TYPES.has(value.type)
+                        ) {
+                            receivedFirstToken = true;
+                            dispatch(markFirstToken({ threadUuid }));
                         }
 
                         const stepProgress = getStepProgressFromChunk(value);

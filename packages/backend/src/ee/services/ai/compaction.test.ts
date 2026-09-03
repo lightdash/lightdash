@@ -161,6 +161,7 @@ describe('AI context compaction helpers', () => {
                 referencedArtifacts: null,
                 modelConfig: null,
                 tokenUsage: null,
+                responseTiming: null,
             },
         ]);
 
@@ -193,6 +194,7 @@ describe('AI context compaction helpers', () => {
                     referencedArtifacts: null,
                     modelConfig: null,
                     tokenUsage: null,
+                    responseTiming: null,
                 },
             ];
         const serializeWithLegacyReportOption =
