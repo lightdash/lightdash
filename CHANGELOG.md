@@ -1,3 +1,10 @@
+## [2.110.3](https://github.com/lightdash/lightdash/compare/2.110.2...2.110.3) (2026-09-03)
+
+
+### Bug Fixes
+
+* let impersonate:User custom roles read the impersonation setting ([#28594](https://github.com/lightdash/lightdash/issues/28594)) ([694933c](https://github.com/lightdash/lightdash/commit/694933c5ccdde0fa5db18b8984e340a5542c1d82))
+
 ## [2.110.2](https://github.com/lightdash/lightdash/compare/2.110.1...2.110.2) (2026-09-03)
 
 
