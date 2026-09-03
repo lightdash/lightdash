@@ -126,6 +126,9 @@ const PromptComposer = forwardRef<PromptComposerHandle, Props>(
                     blockquote: false,
                     codeBlock: false,
                     horizontalRule: false,
+                    link: false,
+                    underline: false,
+                    trailingNode: false,
                 }),
                 // Inline mode paints its own ellipsised placeholder overlay,
                 // so the editor must not also emit one — a CSS-only override
