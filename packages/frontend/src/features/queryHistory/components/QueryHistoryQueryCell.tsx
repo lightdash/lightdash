@@ -2,52 +2,83 @@ import {
     QueryHistoryStatus,
     QueryLanguage,
     type QueryHistoryListItem,
-} from '@lightdash/common'; // pragma: allowlist secret
-import { Badge, Group, Stack } from '@mantine/core';
+} from '@lightdash/common';
+import { Badge, Box, Group, Loader, Stack, Tooltip } from '@mantine/core';
+import { IconBolt } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
-import styles from '../QueryHistory.module.css';
+import { isRunningStatus } from '../utils/format';
 
-const isRunning = (status: QueryHistoryStatus) =>
-    status === QueryHistoryStatus.PENDING ||
-    status === QueryHistoryStatus.QUEUED ||
-    status === QueryHistoryStatus.EXECUTING;
+export const QueryStatusBadge: FC<{ status: QueryHistoryStatus }> = ({
+    status,
+}) => {
+    if (isRunningStatus(status)) {
+        return (
+            <Badge
+                size="xs"
+                className="ld-shrink-0"
+                leftSection={<Loader size={8} color="gray" />}
+            >
+                Running
+            </Badge>
+        );
+    }
+    switch (status) {
+        case QueryHistoryStatus.ERROR:
+            return (
+                <Badge size="xs" color="red" className="ld-shrink-0">
+                    Failed
+                </Badge>
+            );
+        case QueryHistoryStatus.CANCELLED:
+            return (
+                <Badge size="xs" className="ld-shrink-0">
+                    Cancelled
+                </Badge>
+            );
+        case QueryHistoryStatus.EXPIRED:
+            return (
+                <Badge size="xs" className="ld-shrink-0">
+                    Expired
+                </Badge>
+            );
+        default:
+            return null;
+    }
+};
 
 type Props = {
     item: QueryHistoryListItem;
 };
 
 export const QueryHistoryQueryCell: FC<Props> = ({ item }) => {
-    const running = isRunning(item.status);
     const failed = item.status === QueryHistoryStatus.ERROR;
     const sublineIsMono = item.language === QueryLanguage.SQL || failed;
+    const servedFromCache =
+        item.cacheHit && item.status === QueryHistoryStatus.READY;
 
     return (
-        <Stack gap={2}>
-            <Group gap="xs" wrap="nowrap">
-                <TruncatedText maxWidth="100%" fw={600} fz="sm">
+        <Stack gap={2} miw={0}>
+            <Group gap="xs" wrap="nowrap" miw={0}>
+                <TruncatedText maxWidth="100%" fw={500}>
                     {item.title}
                 </TruncatedText>
-                {running ? (
-                    <Badge size="xs" tt="uppercase" className="ld-shrink-0">
-                        <span className={styles.pulseDot} />
-                        running
-                    </Badge>
-                ) : null}
-                {failed ? (
-                    <Badge
-                        size="xs"
-                        tt="uppercase"
-                        color="red"
-                        className="ld-shrink-0"
-                    >
-                        failed
-                    </Badge>
-                ) : null}
-                {!running && !failed && item.cacheHit ? (
-                    <Badge size="xs" tt="uppercase" className="ld-shrink-0">
-                        cached
-                    </Badge>
+                <QueryStatusBadge status={item.status} />
+                {servedFromCache ? (
+                    <Tooltip label="Served from cache">
+                        <Box
+                            component="span"
+                            display="inline-flex"
+                            className="ld-shrink-0"
+                        >
+                            <MantineIcon
+                                icon={IconBolt}
+                                size="sm"
+                                color="dimmed"
+                            />
+                        </Box>
+                    </Tooltip>
                 ) : null}
             </Group>
             {item.subline ? (

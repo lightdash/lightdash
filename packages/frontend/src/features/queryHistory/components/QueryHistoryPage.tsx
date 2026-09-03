@@ -9,13 +9,10 @@ import {
     type QueryLanguage,
     QueryTrigger,
 } from '@lightdash/common';
-import { Box, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
-import {
-    ContentTableSearchInput,
-    type ContentTableSortingState,
-} from '../../../components/common/ContentTable';
+import { type ContentTableSortingState } from '../../../components/common/ContentTable';
 import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -217,14 +214,16 @@ export const QueryHistoryPage: FC = () => {
         statuses.length > 0 ||
         Boolean(debouncedSearch);
 
-    const subtitleParts = [
+    const subtitle = [
         project?.name,
         activeCounts
             ? `${formatWarehouseTime(
                   activeCounts.warehouseTimeMsLast7Days,
               )} of warehouse time in the last 7 days`
             : null,
-    ].filter(Boolean);
+    ]
+        .filter(Boolean)
+        .join(' · ');
 
     const isInitialLoading = isFlatSort
         ? flatQuery.isLoading && flatItems.length === 0
@@ -278,57 +277,50 @@ export const QueryHistoryPage: FC = () => {
                             onRegisterFetchNext={handleRegisterFetchNext}
                         />
                     ))}
-                <Box className={styles.header}>
-                    <Box>
-                        <Title order={2} className={styles.title}>
-                            My query history
-                        </Title>
-                        {subtitleParts.length > 0 && (
-                            <Text className={styles.subtitle}>
-                                {subtitleParts.join(' · ')}
-                            </Text>
-                        )}
-                    </Box>
-                    <ContentTableSearchInput
-                        className={styles.search}
-                        value={search}
-                        onChange={setSearch}
-                        placeholder="Search fields, tables or SQL…"
-                    />
-                </Box>
 
-                <QueryHistoryToolbar
-                    trigger={trigger}
-                    onTriggerChange={setTrigger}
-                    language={language}
-                    onLanguageChange={setLanguage}
-                    statuses={statuses}
-                    onStatusesChange={setStatuses}
+                <Stack gap={2}>
+                    <Title order={4}>My query history</Title>
+                    {subtitle ? (
+                        <Text fz="sm" c="dimmed">
+                            {subtitle}
+                        </Text>
+                    ) : null}
+                </Stack>
+
+                <QueryHistoryTable
+                    data={tableData}
+                    compact={isPanelOpen}
+                    selectedQueryUuid={selectedItem?.queryUuid}
                     counts={activeCounts}
+                    expandedWindows={expandedWindows}
+                    sorting={sorting}
+                    onSortingChange={setSorting}
+                    isLoading={isInitialLoading}
+                    isFetching={isFlatSort && flatQuery.isFetching}
+                    hasNextPage={Boolean(flatQuery.hasNextPage)}
+                    fetchNextPage={() => {
+                        void flatQuery.fetchNextPage();
+                    }}
+                    search={debouncedSearch}
+                    onSelect={setSelectedItem}
+                    onToggleWindow={toggleWindow}
+                    onShowMore={handleShowMore}
+                    onClearFilters={handleClearFilters}
+                    hasActiveFilters={hasActiveFilters}
+                    topToolbar={
+                        <QueryHistoryToolbar
+                            trigger={trigger}
+                            onTriggerChange={setTrigger}
+                            language={language}
+                            onLanguageChange={setLanguage}
+                            statuses={statuses}
+                            onStatusesChange={setStatuses}
+                            counts={activeCounts}
+                            search={search}
+                            onSearchChange={setSearch}
+                        />
+                    }
                 />
-
-                <Box className={styles.tableWrap}>
-                    <QueryHistoryTable
-                        data={tableData}
-                        compact={isPanelOpen}
-                        selectedQueryUuid={selectedItem?.queryUuid}
-                        counts={activeCounts}
-                        sorting={sorting}
-                        onSortingChange={setSorting}
-                        isLoading={isInitialLoading}
-                        isFetching={isFlatSort && flatQuery.isFetching}
-                        hasNextPage={Boolean(flatQuery.hasNextPage)}
-                        fetchNextPage={() => {
-                            void flatQuery.fetchNextPage();
-                        }}
-                        search={debouncedSearch}
-                        onSelect={setSelectedItem}
-                        onToggleWindow={toggleWindow}
-                        onShowMore={handleShowMore}
-                        onClearFilters={handleClearFilters}
-                        hasActiveFilters={hasActiveFilters}
-                    />
-                </Box>
             </Box>
         </Page>
     );

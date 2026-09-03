@@ -4,13 +4,14 @@ import {
     QueryTrigger,
     type QueryHistoryCounts,
 } from '@lightdash/common';
-import { Checkbox, Menu } from '@mantine/core';
-import { IconChevronDown } from '@tabler/icons-react';
-import clsx from 'clsx';
+import { Button, Group, SegmentedControl, Text } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { ContentTableSearchInput } from '../../../components/common/ContentTable';
+import FilterFacet from '../../../components/common/FilterFacet';
 import styles from '../QueryHistory.module.css';
 import { getTriggerLabel } from '../utils/format';
+
+const ALL_TRIGGERS = 'all';
 
 const TRIGGER_OPTIONS: (QueryTrigger | undefined)[] = [
     QueryTrigger.INTERACTIVE,
@@ -19,14 +20,12 @@ const TRIGGER_OPTIONS: (QueryTrigger | undefined)[] = [
     undefined,
 ];
 
-const LANGUAGE_OPTIONS: { value: QueryLanguage | undefined; label: string }[] =
-    [
-        { value: undefined, label: 'All' },
-        { value: QueryLanguage.SEMANTIC, label: 'Semantic' },
-        { value: QueryLanguage.SQL, label: 'SQL' },
-    ];
+const LANGUAGE_OPTIONS = [
+    { value: QueryLanguage.SEMANTIC, label: 'Semantic' },
+    { value: QueryLanguage.SQL, label: 'SQL' },
+];
 
-const STATUS_OPTIONS: { value: QueryHistoryStatus; label: string }[] = [
+const STATUS_OPTIONS = [
     { value: QueryHistoryStatus.READY, label: 'Ready' },
     { value: QueryHistoryStatus.EXECUTING, label: 'Running' },
     { value: QueryHistoryStatus.QUEUED, label: 'Queued' },
@@ -34,6 +33,29 @@ const STATUS_OPTIONS: { value: QueryHistoryStatus; label: string }[] = [
     { value: QueryHistoryStatus.CANCELLED, label: 'Cancelled' },
     { value: QueryHistoryStatus.EXPIRED, label: 'Expired' },
 ];
+
+const isQueryTrigger = (value: string): value is QueryTrigger =>
+    Object.values<string>(QueryTrigger).includes(value);
+
+const isQueryLanguage = (value: string): value is QueryLanguage =>
+    Object.values<string>(QueryLanguage).includes(value);
+
+const isQueryHistoryStatus = (value: string): value is QueryHistoryStatus =>
+    Object.values<string>(QueryHistoryStatus).includes(value);
+
+const TriggerLabel: FC<{ label: string; count: number | undefined }> = ({
+    label,
+    count,
+}) => (
+    <Group gap={6} wrap="nowrap">
+        <span>{label}</span>
+        {count !== undefined ? (
+            <Text component="span" fz="xs" c="dimmed">
+                {count.toLocaleString()}
+            </Text>
+        ) : null}
+    </Group>
+);
 
 type Props = {
     trigger: QueryTrigger | undefined;
@@ -43,6 +65,8 @@ type Props = {
     statuses: QueryHistoryStatus[];
     onStatusesChange: (statuses: QueryHistoryStatus[]) => void;
     counts: QueryHistoryCounts | undefined;
+    search: string;
+    onSearchChange: (search: string) => void;
 };
 
 export const QueryHistoryToolbar: FC<Props> = ({
@@ -53,94 +77,87 @@ export const QueryHistoryToolbar: FC<Props> = ({
     statuses,
     onStatusesChange,
     counts,
+    search,
+    onSearchChange,
 }) => {
+    const hasRefinements =
+        language !== undefined || statuses.length > 0 || search.length > 0;
+
     return (
-        <div className={styles.toolbar}>
-            <div className={styles.segmented}>
-                {TRIGGER_OPTIONS.map((option) => {
-                    const count = option
-                        ? counts?.triggers[option]
-                        : counts?.total;
-                    return (
-                        <button
-                            key={option ?? 'all'}
-                            type="button"
-                            className={clsx(
-                                styles.segmentedOption,
-                                trigger === option &&
-                                    styles.segmentedOptionActive,
-                            )}
-                            onClick={() => onTriggerChange(option)}
-                        >
-                            {option ? getTriggerLabel(option) : 'All'}
-                            {count !== undefined && (
-                                <span className={styles.segmentedCount}>
-                                    {count.toLocaleString()}
-                                </span>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
-            <div className={styles.toolbarRight}>
-                <div className={clsx(styles.segmented, styles.segmentedSmall)}>
-                    {LANGUAGE_OPTIONS.map((option) => (
-                        <button
-                            key={option.label}
-                            type="button"
-                            className={clsx(
-                                styles.segmentedOption,
-                                language === option.value &&
-                                    styles.segmentedOptionActive,
-                            )}
-                            onClick={() => onLanguageChange(option.value)}
-                        >
-                            {option.label}
-                        </button>
-                    ))}
-                </div>
-                <Menu position="bottom-end" closeOnItemClick={false}>
-                    <Menu.Target>
-                        <button type="button" className={styles.statusButton}>
-                            Status
-                            {statuses.length > 0 && ` · ${statuses.length}`}
-                            <MantineIcon
-                                icon={IconChevronDown}
-                                size={12}
-                                color="dimmed"
+        <Group
+            justify="space-between"
+            wrap="nowrap"
+            gap="md"
+            px="md"
+            py="sm"
+            className={styles.toolbar}
+        >
+            <Group gap="xs" wrap="nowrap">
+                <SegmentedControl
+                    size="xs"
+                    value={trigger ?? ALL_TRIGGERS}
+                    onChange={(value) =>
+                        onTriggerChange(
+                            isQueryTrigger(value) ? value : undefined,
+                        )
+                    }
+                    data={TRIGGER_OPTIONS.map((option) => ({
+                        value: option ?? ALL_TRIGGERS,
+                        label: (
+                            <TriggerLabel
+                                label={option ? getTriggerLabel(option) : 'All'}
+                                count={
+                                    option
+                                        ? counts?.triggers[option]
+                                        : counts?.total
+                                }
                             />
-                        </button>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        {STATUS_OPTIONS.map((option) => (
-                            <Menu.Item
-                                key={option.value}
-                                onClick={() =>
-                                    onStatusesChange(
-                                        statuses.includes(option.value)
-                                            ? statuses.filter(
-                                                  (status) =>
-                                                      status !== option.value,
-                                              )
-                                            : [...statuses, option.value],
-                                    )
-                                }
-                                leftSection={
-                                    <Checkbox
-                                        size="xs"
-                                        readOnly
-                                        checked={statuses.includes(
-                                            option.value,
-                                        )}
-                                    />
-                                }
-                            >
-                                {option.label}
-                            </Menu.Item>
-                        ))}
-                    </Menu.Dropdown>
-                </Menu>
-            </div>
-        </div>
+                        ),
+                    }))}
+                />
+                <FilterFacet
+                    label="Language"
+                    mode="single"
+                    clearable
+                    selected={language ? [language] : []}
+                    onChange={(values) => {
+                        const next = values[0];
+                        onLanguageChange(
+                            next !== undefined && isQueryLanguage(next)
+                                ? next
+                                : undefined,
+                        );
+                    }}
+                    options={LANGUAGE_OPTIONS}
+                />
+                <FilterFacet
+                    label="Status"
+                    clearable
+                    selected={statuses}
+                    onChange={(values) =>
+                        onStatusesChange(values.filter(isQueryHistoryStatus))
+                    }
+                    options={STATUS_OPTIONS}
+                />
+                {hasRefinements ? (
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={() => {
+                            onLanguageChange(undefined);
+                            onStatusesChange([]);
+                            onSearchChange('');
+                        }}
+                    >
+                        Clear
+                    </Button>
+                ) : null}
+            </Group>
+            <ContentTableSearchInput
+                value={search}
+                onChange={onSearchChange}
+                placeholder="Search fields, tables or SQL"
+            />
+        </Group>
     );
 };

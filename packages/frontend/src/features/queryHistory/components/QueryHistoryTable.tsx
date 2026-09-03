@@ -1,13 +1,13 @@
 import {
     QueryHistorySortBy,
     QueryHistoryStatus,
-    QueryLanguage,
     type QueryHistoryCounts,
     type QueryHistoryListItem,
     type QueryHistoryWindow,
-} from '@lightdash/common'; // pragma: allowlist secret
-import { Badge, Group, Text, UnstyledButton } from '@mantine/core';
-import { type FC, useMemo } from 'react';
+} from '@lightdash/common';
+import { Badge, Button, Group, Text } from '@mantine/core';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { type FC, type ReactNode, useMemo } from 'react';
 import {
     ContentTable,
     useContentTable,
@@ -15,15 +15,18 @@ import {
     type ContentTableSortingState,
 } from '../../../components/common/ContentTable';
 import contentTableClasses from '../../../components/common/ContentTable/ContentTable.module.css';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import styles from '../QueryHistory.module.css';
 import {
     formatRowCount,
     formatRunTime,
     formatWhen,
+    getLanguageLabel,
     getTriggerLabel,
     getWindowLabel,
     getWindowRangeLabel,
+    isRunningStatus,
 } from '../utils/format';
 import {
     QUERY_HISTORY_WINDOW_PAGE_SIZE,
@@ -36,6 +39,7 @@ type Props = {
     compact: boolean;
     selectedQueryUuid: string | undefined;
     counts: QueryHistoryCounts | undefined;
+    expandedWindows: ReadonlySet<QueryHistoryWindow>;
     sorting: ContentTableSortingState;
     onSortingChange: (sorting: ContentTableSortingState) => void;
     isLoading: boolean;
@@ -48,16 +52,20 @@ type Props = {
     onShowMore: (window: QueryHistoryWindow) => void;
     onClearFilters: () => void;
     hasActiveFilters: boolean;
+    topToolbar: ReactNode;
 };
 
 const isRuntimeSort = (sorting: ContentTableSortingState) =>
     sorting[0]?.id === QueryHistorySortBy.RUNTIME;
+
+const ROW_HEIGHT_ESTIMATE = 52;
 
 export const QueryHistoryTable: FC<Props> = ({
     data,
     compact,
     selectedQueryUuid,
     counts,
+    expandedWindows,
     sorting,
     onSortingChange,
     isLoading,
@@ -70,6 +78,7 @@ export const QueryHistoryTable: FC<Props> = ({
     onShowMore,
     onClearFilters,
     hasActiveFilters,
+    topToolbar,
 }) => {
     const isFlatSort = isRuntimeSort(sorting);
     const { containerRef, onScroll } = useInfiniteScroll({
@@ -86,23 +95,29 @@ export const QueryHistoryTable: FC<Props> = ({
                     row.kind === 'query' ? row.item.title : '',
                 header: 'Query',
                 enableSorting: false,
-                size: 420,
+                size: 380,
                 Cell: ({ row }) => {
                     const original = row.original;
                     if (original.kind === 'window') {
                         const windowCount = counts?.windows[original.window];
+                        const isExpanded = expandedWindows.has(original.window);
                         return (
                             <Group gap="xs" wrap="nowrap">
-                                <Text fw={600} fz="sm" truncate>
+                                <MantineIcon
+                                    icon={
+                                        isExpanded
+                                            ? IconChevronDown
+                                            : IconChevronRight
+                                    }
+                                    size="sm"
+                                    color="dimmed"
+                                />
+                                <Text fw={500} truncate>
                                     {getWindowLabel(original.window)}
                                 </Text>
                                 {windowCount !== undefined ? (
-                                    <Text
-                                        c="dimmed"
-                                        fz="sm"
-                                        className="ld-nowrap"
-                                    >
-                                        {`· ${windowCount.toLocaleString()} ${
+                                    <Text c="dimmed" className="ld-nowrap">
+                                        {`${windowCount.toLocaleString()} ${
                                             windowCount === 1 ? 'run' : 'runs'
                                         }`}
                                     </Text>
@@ -116,19 +131,17 @@ export const QueryHistoryTable: FC<Props> = ({
                             QUERY_HISTORY_WINDOW_PAGE_SIZE,
                         );
                         return (
-                            <UnstyledButton
+                            <Button
+                                variant="subtle"
+                                size="compact-xs"
+                                loading={original.isFetching}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     onShowMore(original.window);
                                 }}
-                                disabled={original.isFetching}
                             >
-                                <Text fz="sm" c="dimmed" fw={500}>
-                                    {original.isFetching
-                                        ? 'Loading…'
-                                        : `Show ${nextCount} more from this window`}
-                                </Text>
-                            </UnstyledButton>
+                                {`Show ${nextCount} more`}
+                            </Button>
                         );
                     }
                     return <QueryHistoryQueryCell item={original.item} />;
@@ -140,15 +153,12 @@ export const QueryHistoryTable: FC<Props> = ({
                     row.kind === 'query' ? row.item.language : '',
                 header: 'Language',
                 enableSorting: false,
-                size: 110,
+                size: 100,
                 Cell: ({ row }) => {
                     if (row.original.kind !== 'query') return null;
-                    const { language } = row.original.item;
                     return (
-                        <Badge size="xs" tt="uppercase">
-                            {language === QueryLanguage.SQL
-                                ? 'SQL'
-                                : 'Semantic'}
+                        <Badge size="xs">
+                            {getLanguageLabel(row.original.item.language)}
                         </Badge>
                     );
                 },
@@ -159,11 +169,11 @@ export const QueryHistoryTable: FC<Props> = ({
                     row.kind === 'query' ? row.item.trigger : '',
                 header: 'Trigger',
                 enableSorting: false,
-                size: 120,
+                size: 110,
                 Cell: ({ row }) => {
                     if (row.original.kind !== 'query') return null;
                     return (
-                        <Text fz="sm" c="dimmed">
+                        <Text c="dimmed">
                             {getTriggerLabel(row.original.item.trigger)}
                         </Text>
                     );
@@ -186,12 +196,10 @@ export const QueryHistoryTable: FC<Props> = ({
                         row.original.item;
                     const muted =
                         status === QueryHistoryStatus.ERROR ||
-                        status === QueryHistoryStatus.PENDING ||
-                        status === QueryHistoryStatus.QUEUED ||
-                        status === QueryHistoryStatus.EXECUTING;
+                        isRunningStatus(status);
                     return (
                         <Text
-                            fz="sm"
+                            fz="xs"
                             ff="monospace"
                             c={muted ? 'dimmed' : undefined}
                         >
@@ -211,17 +219,14 @@ export const QueryHistoryTable: FC<Props> = ({
                 mantineTableBodyCellProps: { ta: 'right' },
                 Cell: ({ row }) => {
                     if (row.original.kind !== 'query') return null;
+                    const { totalRowCount } = row.original.item;
                     return (
                         <Text
-                            fz="sm"
+                            fz="xs"
                             ff="monospace"
-                            c={
-                                row.original.item.totalRowCount === null
-                                    ? 'dimmed'
-                                    : undefined
-                            }
+                            c={totalRowCount === null ? 'dimmed' : undefined}
                         >
-                            {formatRowCount(row.original.item.totalRowCount)}
+                            {formatRowCount(totalRowCount)}
                         </Text>
                     );
                 },
@@ -236,27 +241,27 @@ export const QueryHistoryTable: FC<Props> = ({
                           : '',
                 header: 'When',
                 enableSorting: true,
-                size: 120,
+                size: 140,
                 mantineTableHeadCellProps: { ta: 'right' },
                 mantineTableBodyCellProps: { ta: 'right' },
                 Cell: ({ row }) => {
                     if (row.original.kind === 'window') {
                         return (
-                            <Text fz="xs" c="dimmed">
+                            <Text fz="xs" c="dimmed" className="ld-nowrap">
                                 {getWindowRangeLabel(row.original.window)}
                             </Text>
                         );
                     }
                     if (row.original.kind !== 'query') return null;
                     return (
-                        <Text fz="sm" c="dimmed" className="ld-nowrap">
+                        <Text c="dimmed" className="ld-nowrap">
                             {formatWhen(row.original.item.createdAt)}
                         </Text>
                     );
                 },
             },
         ],
-        [counts, onShowMore],
+        [counts, expandedWindows, onShowMore],
     );
 
     const table = useContentTable({
@@ -267,12 +272,15 @@ export const QueryHistoryTable: FC<Props> = ({
         enableMultiSort: false,
         manualSorting: true,
         enablePagination: false,
-        enableTopToolbar: false,
+        enableTopToolbar: true,
         enableBottomToolbar: isFlatSort,
         enableColumnResizing: false,
         enableStickyHeader: true,
         enableRowVirtualization: isFlatSort,
-        rowVirtualizerProps: { estimateSize: () => 64, overscan: 20 },
+        rowVirtualizerProps: {
+            estimateSize: () => ROW_HEIGHT_ESTIMATE,
+            overscan: 20,
+        },
         onSortingChange: (updater) => {
             const next =
                 typeof updater === 'function' ? updater(sorting) : updater;
@@ -295,8 +303,8 @@ export const QueryHistoryTable: FC<Props> = ({
         },
         emptyState: {
             entityName: 'queries',
-            emptyMessage: 'No queries match these filters.',
-            filteredMessage: 'No queries match these filters.',
+            emptyMessage: 'No queries in the last 30 days',
+            filteredMessage: 'No queries match these filters',
             search,
             hasActiveFilters,
             onClearFilters,
@@ -331,14 +339,15 @@ export const QueryHistoryTable: FC<Props> = ({
                 onClick: () => onSelect(original.item),
             };
         },
+        renderTopToolbar: () => topToolbar,
         renderBottomToolbar: () =>
             isFlatSort ? (
-                <Group px="md" py="sm">
+                <Group px="md" py="xs">
                     <Text fz="xs" c="dimmed">
                         {isFetching
-                            ? 'Loading more…'
+                            ? 'Loading more'
                             : hasNextPage
-                              ? 'Scroll for more results'
+                              ? 'Scroll for more'
                               : 'All results loaded'}
                     </Text>
                 </Group>

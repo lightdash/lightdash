@@ -3,12 +3,35 @@ import {
     QueryLanguage,
     type QueryHistoryListItem,
 } from '@lightdash/common';
-import { IconArrowRight, IconSparkles } from '@tabler/icons-react';
-import clsx from 'clsx';
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Button,
+    Group,
+    Loader,
+    Paper,
+    Skeleton,
+    Stack,
+    Table,
+    Text,
+    TextInput,
+    Tooltip,
+} from '@mantine/core';
+import {
+    IconArrowRight,
+    IconChevronDown,
+    IconChevronUp,
+    IconSparkles,
+    IconX,
+} from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, useState, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
+import Callout from '../../../components/common/Callout';
+import CodeBlock from '../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../components/common/MantineIcon';
+import TruncatedText from '../../../components/common/TruncatedText';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
@@ -22,17 +45,19 @@ import { useCancelQuery } from '../../../hooks/useQueryResults';
 import { useQueryResultsPreview } from '../hooks/useQueryResultsPreview';
 import { useRerunQuery, canRerunQuery } from '../hooks/useRerunQuery';
 import styles from '../QueryHistory.module.css';
-import { formatRunTime, formatWhen, getTriggerLabel } from '../utils/format';
+import {
+    formatRunTime,
+    formatWhen,
+    getLanguageLabel,
+    getTriggerLabel,
+    isRunningStatus,
+} from '../utils/format';
 import { getQueryTimings } from '../utils/timings';
+import { QueryStatusBadge } from './QueryHistoryQueryCell';
 
-const SQL_PREVIEW_LINES = 12;
 const RESULTS_PREVIEW_COLUMNS = 6;
 const RESULTS_PREVIEW_ROWS = 8;
-
-const isRunning = (status: QueryHistoryStatus) =>
-    status === QueryHistoryStatus.PENDING ||
-    status === QueryHistoryStatus.QUEUED ||
-    status === QueryHistoryStatus.EXECUTING;
+const SQL_COLLAPSED_HEIGHT = 260;
 
 type Props = {
     projectUuid: string | undefined;
@@ -42,6 +67,31 @@ type Props = {
     canNavigateUp: boolean;
     canNavigateDown: boolean;
 };
+
+const TimingCell: FC<{
+    label: string;
+    value: number | null;
+    muted?: boolean;
+}> = ({ label, value, muted = false }) => (
+    <Box p="sm" className={styles.timingCell}>
+        <Text fz="xs" c="dimmed">
+            {label}
+        </Text>
+        <Text ff="monospace" fw={600} c={muted ? 'dimmed' : undefined}>
+            {formatRunTime(value)}
+        </Text>
+    </Box>
+);
+
+const ResultsPlaceholder: FC<{ children: React.ReactNode }> = ({
+    children,
+}) => (
+    <Paper variant="dotted" p="lg">
+        <Group justify="center" gap="xs">
+            {children}
+        </Group>
+    </Paper>
+);
 
 export const QueryHistoryDetailPanel: FC<Props> = ({
     projectUuid,
@@ -55,7 +105,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
     const [aiPrompt, setAiPrompt] = useState('');
     const showAskAi = useAiAgentButtonVisibility();
 
-    const running = isRunning(item.status);
+    const running = isRunningStatus(item.status);
     const failed = item.status === QueryHistoryStatus.ERROR;
     const ready = item.status === QueryHistoryStatus.READY;
 
@@ -88,9 +138,7 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
         return pathname ? { pathname, search } : null;
     }, [item.metricQuery, item.exploreName, projectUuid]);
 
-    const sqlLines = item.compiledSql.split('\n');
-    const sqlPreview = sqlLines.slice(0, SQL_PREVIEW_LINES).join('\n');
-    const sqlIsTruncated = sqlLines.length > SQL_PREVIEW_LINES;
+    const sqlLineCount = item.compiledSql.trim().split('\n').length;
 
     const columnIds = readyResults
         ? Object.keys(readyResults.columns).slice(0, RESULTS_PREVIEW_COLUMNS)
@@ -116,266 +164,276 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
         );
     };
 
+    const meta = [
+        getTriggerLabel(item.trigger),
+        formatWhen(item.createdAt),
+        item.totalRowCount !== null
+            ? `${item.totalRowCount.toLocaleString()} rows`
+            : null,
+        item.dashboardName,
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
+    const resultsMeta = [
+        item.totalRowCount !== null
+            ? `${item.totalRowCount.toLocaleString()} rows`
+            : null,
+        item.resultsExpiresAt && dayjs(item.resultsExpiresAt).isAfter(dayjs())
+            ? `cached until ${dayjs(item.resultsExpiresAt).format('HH:mm')}`
+            : null,
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
     const primaryCta = (() => {
         if (running) {
             return (
-                <button
-                    type="button"
-                    className={styles.primaryButton}
+                <Button
+                    size="xs"
+                    color="red"
+                    variant="light"
                     onClick={() => cancelQuery()}
                 >
                     Cancel query
-                </button>
+                </Button>
             );
         }
         if (item.language === QueryLanguage.SQL) {
             return (
-                <Link
-                    className={styles.primaryButton}
+                <Button
+                    size="xs"
+                    component={Link}
                     to={`/projects/${projectUuid}/sql-runner`}
                     state={{ sql: item.compiledSql }}
+                    rightSection={
+                        <MantineIcon icon={IconArrowRight} size="sm" />
+                    }
                 >
                     Open in SQL runner
-                    <MantineIcon icon={IconArrowRight} size={13} />
-                </Link>
+                </Button>
             );
         }
         if (exploreUrl) {
             return (
-                <Link className={styles.primaryButton} to={exploreUrl}>
+                <Button
+                    size="xs"
+                    component={Link}
+                    to={exploreUrl}
+                    rightSection={
+                        <MantineIcon icon={IconArrowRight} size="sm" />
+                    }
+                >
                     {failed ? 'Fix in Explore' : 'Open in Explore'}
-                    <MantineIcon icon={IconArrowRight} size={13} />
-                </Link>
+                </Button>
             );
         }
         return null;
     })();
 
-    return (
-        <div className={styles.panel}>
-            <div className={styles.panelHeader}>
-                <div className={styles.panelTitleWrap}>
-                    <div className={styles.panelTitleLine}>
-                        <span className={styles.panelTitle}>{item.title}</span>
-                        <span
-                            className={clsx(
-                                styles.languageTag,
-                                item.language === QueryLanguage.SQL
-                                    ? styles.languageTagSql
-                                    : styles.languageTagSemantic,
-                            )}
-                        >
-                            {item.language === QueryLanguage.SQL
-                                ? 'SQL'
-                                : 'SEMANTIC'}
-                        </span>
-                    </div>
-                    <div className={styles.panelMeta}>
-                        {[
-                            getTriggerLabel(item.trigger),
-                            formatWhen(item.createdAt),
-                            item.totalRowCount !== null
-                                ? `${item.totalRowCount.toLocaleString()} rows`
-                                : null,
-                            item.dashboardName,
-                        ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                    </div>
-                </div>
-                <div className={styles.panelNav}>
-                    <button
-                        type="button"
-                        className={styles.panelNavButton}
-                        onClick={() => onNavigate(-1)}
-                        disabled={!canNavigateUp}
-                        aria-label="Previous query"
-                    >
-                        ↑
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.panelNavButton}
-                        onClick={() => onNavigate(1)}
-                        disabled={!canNavigateDown}
-                        aria-label="Next query"
-                    >
-                        ↓
-                    </button>
-                    <button
-                        type="button"
-                        className={styles.panelNavButton}
-                        onClick={onClose}
-                        aria-label="Close panel"
-                    >
-                        ✕
-                    </button>
-                </div>
-            </div>
-
-            <div className={styles.panelBody}>
-                <div className={styles.timingStrip}>
-                    <div className={styles.timingCell}>
-                        <div className={styles.timingLabel}>Total</div>
-                        <div className={styles.timingValue}>
-                            {formatRunTime(timings.totalMs)}
-                        </div>
-                    </div>
-                    <div className={styles.timingCell}>
-                        <div className={styles.timingLabel}>Queued</div>
-                        <div
-                            className={clsx(
-                                styles.timingValue,
-                                styles.timingValueMuted,
-                            )}
-                        >
-                            {formatRunTime(timings.queuedMs)}
-                        </div>
-                    </div>
-                    <div className={styles.timingCell}>
-                        <div className={styles.timingLabel}>Warehouse</div>
-                        <div className={styles.timingValue}>
-                            {formatRunTime(timings.warehouseMs)}
-                        </div>
-                    </div>
-                    <div className={styles.timingCell}>
-                        <div className={styles.timingLabel}>Fetch</div>
-                        <div
-                            className={clsx(
-                                styles.timingValue,
-                                styles.timingValueMuted,
-                            )}
-                        >
-                            {formatRunTime(timings.fetchMs)}
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div className={styles.sectionHeader}>
-                        <span className={styles.sectionLabel}>Results</span>
-                        <span className={styles.sectionMeta}>
-                            {[
-                                item.totalRowCount !== null
-                                    ? `${item.totalRowCount.toLocaleString()} rows`
-                                    : null,
-                                item.resultsExpiresAt &&
-                                dayjs(item.resultsExpiresAt).isAfter(dayjs())
-                                    ? `cached until ${dayjs(
-                                          item.resultsExpiresAt,
-                                      ).format('HH:mm')}`
-                                    : null,
-                            ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                        </span>
-                    </div>
-                    {failed ? (
-                        <div className={styles.errorBlock}>
-                            {item.error ?? 'Query failed'}
-                        </div>
-                    ) : running ? (
-                        <div className={styles.resultsPlaceholder}>
-                            Query is still running…
-                        </div>
-                    ) : readyResults && columnIds.length > 0 ? (
-                        <div className={styles.resultsTable}>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        {columnIds.map((columnId) => (
-                                            <th key={columnId}>
-                                                {readyResults.columns[columnId]
-                                                    ?.reference ?? columnId}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {previewRows.map((row, rowIndex) => (
-                                        // eslint-disable-next-line react/no-array-index-key
-                                        <tr key={rowIndex}>
-                                            {columnIds.map((columnId) => (
-                                                <td key={columnId}>
-                                                    {row[columnId]?.value
-                                                        ?.formatted ?? ''}
-                                                </td>
-                                            ))}
-                                        </tr>
+    const results = (() => {
+        if (failed) {
+            return (
+                <Callout variant="danger">
+                    <Text fz="xs" ff="monospace" className="ld-pre-wrap">
+                        {item.error ?? 'Query failed'}
+                    </Text>
+                </Callout>
+            );
+        }
+        if (running) {
+            return (
+                <ResultsPlaceholder>
+                    <Loader size="xs" color="gray" />
+                    <Text fz="sm" c="dimmed">
+                        Query is still running
+                    </Text>
+                </ResultsPlaceholder>
+            );
+        }
+        if (readyResults && columnIds.length > 0) {
+            return (
+                <Paper className={styles.resultsTable}>
+                    <Table fz="xs" verticalSpacing="xs" horizontalSpacing="sm">
+                        <Table.Thead>
+                            <Table.Tr>
+                                {columnIds.map((columnId) => (
+                                    <Table.Th key={columnId}>
+                                        {readyResults.columns[columnId]
+                                            ?.reference ?? columnId}
+                                    </Table.Th>
+                                ))}
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {previewRows.map((row, rowIndex) => (
+                                // eslint-disable-next-line react/no-array-index-key
+                                <Table.Tr key={rowIndex}>
+                                    {columnIds.map((columnId) => (
+                                        <Table.Td key={columnId} ff="monospace">
+                                            {row[columnId]?.value?.formatted ??
+                                                ''}
+                                        </Table.Td>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : resultsPreviewQuery.isInitialLoading ? (
-                        <div className={styles.resultsPlaceholder}>
-                            Loading results…
-                        </div>
-                    ) : (
-                        <div className={styles.resultsPlaceholder}>
-                            Results are no longer available — re-run the query
-                            to see them.
-                        </div>
-                    )}
-                </div>
+                                </Table.Tr>
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+                </Paper>
+            );
+        }
+        if (resultsPreviewQuery.isInitialLoading) {
+            return (
+                <Stack gap="xs">
+                    <Skeleton h={28} />
+                    <Skeleton h={28} />
+                    <Skeleton h={28} />
+                </Stack>
+            );
+        }
+        return (
+            <ResultsPlaceholder>
+                <Text fz="sm" c="dimmed" ta="center">
+                    Results are no longer available. Re-run the query to see
+                    them.
+                </Text>
+            </ResultsPlaceholder>
+        );
+    })();
 
-                <div>
-                    <div className={styles.sectionHeader}>
-                        <span className={styles.sectionLabel}>SQL</span>
-                        <button
-                            type="button"
-                            className={styles.sectionAction}
-                            onClick={() =>
-                                void navigator.clipboard.writeText(
-                                    item.compiledSql,
-                                )
-                            }
+    return (
+        <Box className={styles.panel}>
+            <Group
+                justify="space-between"
+                align="flex-start"
+                wrap="nowrap"
+                gap="md"
+                p="md"
+                className={styles.panelHeader}
+            >
+                <Stack gap={4} miw={0}>
+                    <Group gap="xs" wrap="nowrap" miw={0}>
+                        <TruncatedText maxWidth="100%" fz="md" fw={600}>
+                            {item.title}
+                        </TruncatedText>
+                        <Badge size="xs" className="ld-shrink-0">
+                            {getLanguageLabel(item.language)}
+                        </Badge>
+                        <QueryStatusBadge status={item.status} />
+                    </Group>
+                    <Text fz="xs" c="dimmed">
+                        {meta}
+                    </Text>
+                </Stack>
+                <Group gap={4} wrap="nowrap">
+                    <Tooltip label="Previous query">
+                        <ActionIcon
+                            aria-label="Previous query"
+                            disabled={!canNavigateUp}
+                            onClick={() => onNavigate(-1)}
                         >
-                            Copy
-                        </button>
-                    </div>
-                    <pre className={styles.sqlBlock}>{sqlPreview}</pre>
-                    {sqlIsTruncated && (
-                        <div className={styles.sqlTruncated}>
-                            {`Truncated · ${sqlLines.length} lines`}
-                        </div>
-                    )}
-                </div>
-            </div>
+                            <MantineIcon icon={IconChevronUp} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Next query">
+                        <ActionIcon
+                            aria-label="Next query"
+                            disabled={!canNavigateDown}
+                            onClick={() => onNavigate(1)}
+                        >
+                            <MantineIcon icon={IconChevronDown} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Close">
+                        <ActionIcon aria-label="Close panel" onClick={onClose}>
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
+            </Group>
 
-            <div className={styles.panelFooter}>
-                {showAskAi && (
-                    <div className={styles.askAi}>
-                        <MantineIcon
-                            icon={IconSparkles}
-                            size={14}
-                            color="dimmed"
+            <Box className={styles.panelBody}>
+                <Stack p="md" gap="lg">
+                    <Paper className={styles.timings}>
+                        <TimingCell label="Total" value={timings.totalMs} />
+                        <TimingCell
+                            label="Queued"
+                            value={timings.queuedMs}
+                            muted
                         />
-                        <input
-                            value={aiPrompt}
-                            onChange={(event) =>
-                                setAiPrompt(event.currentTarget.value)
-                            }
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') submitAiPrompt();
-                            }}
-                            placeholder="Ask AI about these results…"
+                        <TimingCell
+                            label="Warehouse"
+                            value={timings.warehouseMs}
                         />
-                    </div>
-                )}
-                <div className={styles.panelActions}>
-                    <button
-                        type="button"
-                        className={styles.secondaryButton}
-                        disabled={
-                            rerunMutation.isLoading || !canRerunQuery(item)
+                        <TimingCell
+                            label="Fetch"
+                            value={timings.fetchMs}
+                            muted
+                        />
+                    </Paper>
+
+                    <Stack gap="xs">
+                        <Group justify="space-between" wrap="nowrap">
+                            <Text fw={500}>Results</Text>
+                            {resultsMeta ? (
+                                <Text fz="xs" c="dimmed">
+                                    {resultsMeta}
+                                </Text>
+                            ) : null}
+                        </Group>
+                        {results}
+                    </Stack>
+
+                    <Stack gap="xs">
+                        <Group justify="space-between" wrap="nowrap">
+                            <Text fw={500}>SQL</Text>
+                            <Text fz="xs" c="dimmed">
+                                {`${sqlLineCount} ${
+                                    sqlLineCount === 1 ? 'line' : 'lines'
+                                }`}
+                            </Text>
+                        </Group>
+                        <CodeBlock
+                            code={item.compiledSql}
+                            language="sql"
+                            radius="md"
+                            withExpandButton
+                            defaultExpanded={false}
+                            maxCollapsedHeight={SQL_COLLAPSED_HEIGHT}
+                        />
+                    </Stack>
+                </Stack>
+            </Box>
+
+            <Stack p="md" gap="sm" className={styles.panelFooter}>
+                {showAskAi ? (
+                    <TextInput
+                        value={aiPrompt}
+                        onChange={(event) =>
+                            setAiPrompt(event.currentTarget.value)
                         }
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') submitAiPrompt();
+                        }}
+                        placeholder="Ask AI about these results"
+                        leftSection={
+                            <MantineIcon icon={IconSparkles} color="dimmed" />
+                        }
+                    />
+                ) : null}
+                <Group justify="space-between">
+                    <Button
+                        variant="default"
+                        size="xs"
+                        loading={rerunMutation.isLoading}
+                        disabled={!canRerunQuery(item)}
                         onClick={() => rerunMutation.mutate(item)}
                     >
-                        {rerunMutation.isLoading ? 'Re-running…' : 'Re-run'}
-                    </button>
+                        Re-run
+                    </Button>
                     {primaryCta}
-                </div>
-            </div>
-        </div>
+                </Group>
+            </Stack>
+        </Box>
     );
 };
