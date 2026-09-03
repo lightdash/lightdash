@@ -4,6 +4,7 @@ import {
     excludeTilesFromTabScopedFilters,
     getDefaultChartTileSize,
     getShadowedReservedNames,
+    mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
     removeDateZoomTileTargets,
     ChartType,
@@ -827,6 +828,16 @@ const Dashboard: FC = () => {
 
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
+            // Only the in-dashboard builder contributes to the registry.
+            const mergedCustomMetrics = mergeDashboardCustomMetrics(
+                dashboardCustomMetrics,
+                chart.metricQuery.additionalMetrics ?? [],
+            );
+            if (mergedCustomMetrics !== dashboardCustomMetrics) {
+                setDashboardCustomMetrics(mergedCustomMetrics);
+                setHaveCustomMetricsChanged(true);
+            }
+
             // New uuid means a brand-new chart; an existing tile refreshes
             // itself via the update mutation's query cache reset.
             if (chart.uuid !== chartToEdit?.uuid) {
@@ -852,7 +863,14 @@ const Dashboard: FC = () => {
             setChartToEdit(undefined);
             setIsNewChartOpen(false);
         },
-        [chartToEdit, handleAddTiles, activeTab?.uuid],
+        [
+            chartToEdit,
+            handleAddTiles,
+            activeTab?.uuid,
+            dashboardCustomMetrics,
+            setDashboardCustomMetrics,
+            setHaveCustomMetricsChanged,
+        ],
     );
 
     if (isDashboardLoading) {
