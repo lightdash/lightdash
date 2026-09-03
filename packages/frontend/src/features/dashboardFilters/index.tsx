@@ -43,6 +43,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
         (c) => c.allFilterableMetrics,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const parameterValues = useDashboardContext((c) => c.parameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -100,6 +101,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTabUuid}
+            parameterValues={parameterValues}
         >
             <AddFilterButton
                 isEditMode={isEditMode}
