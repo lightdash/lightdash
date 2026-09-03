@@ -155,13 +155,6 @@ extraEnv:
       secretKeyRef:
         name: lightdash-app
         key: ANTHROPIC_API_KEY
-  # AI writeback reads a SEPARATE Anthropic key env var from the data-app/AI
-  # service; point it at the same secret so writeback can run Claude.
-  - name: AI_WRITEBACK_ANTHROPIC_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: lightdash-app
-        key: ANTHROPIC_API_KEY
   # --- Sandbox backend: AWS Lambda MicroVMs (native suspend/resume) ---
   # The backend drives the MicroVMs control plane cross-region: this cluster is
   # in eu-west-2, MicroVMs in eu-west-1 (the EU launch region). The control plane

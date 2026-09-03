@@ -69,6 +69,10 @@ import type {
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
+    anthropicClaudeCodeAllowedHosts,
+    buildAnthropicClaudeCodeEnv,
+} from '../AppGenerateService/claudeCodeEnv';
+import {
     createSandboxManager,
     S3SnapshotStore,
     SandboxCommandError,
@@ -150,6 +154,7 @@ import {
     progressTextForStage,
     quoteShellArgument,
     resolvePrMetadataValue,
+    resolveSandboxAnthropicConfig,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
@@ -1431,7 +1436,14 @@ export class AiWritebackService extends BaseService {
             templateRef: templateRef ?? this.getSandboxTemplateRef(),
             timeoutMs: SANDBOX_TIMEOUT_MS,
             egress: {
-                allow: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+                allow: [
+                    ...anthropicClaudeCodeAllowedHosts(
+                        this.lightdashConfig.ai.copilot.providers.anthropic
+                            ?.baseUrl,
+                    ),
+                    'github.com',
+                    'gitlab.com',
+                ],
             },
         };
     }
@@ -1504,14 +1516,11 @@ export class AiWritebackService extends BaseService {
         };
     }
 
-    private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.aiWriteback.anthropicApiKey;
-        if (!key) {
-            throw new MissingConfigError(
-                'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
-            );
-        }
-        return key;
+    private getClaudeCodeEnv(): Record<string, string> {
+        const { apiKey, baseUrl } = resolveSandboxAnthropicConfig(
+            this.lightdashConfig,
+        );
+        return buildAnthropicClaudeCodeEnv(apiKey, baseUrl);
     }
 
     private static elapsed(start: number): number {
@@ -3872,7 +3881,7 @@ export class AiWritebackService extends BaseService {
                 {
                     cwd: CWD,
                     timeoutMs: RUN_TIMEOUT_MS,
-                    envs: { ANTHROPIC_API_KEY: this.getAnthropicApiKey() },
+                    envs: this.getClaudeCodeEnv(),
                     onStdout: (chunk) => {
                         buffer += chunk;
                         flushBuffer();
