@@ -117,6 +117,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     dbt: {
         environmentVariableAllowlist: [],
+        sourceFetchConcurrency: undefined,
     },
     dashboard: {
         maxTilesPerTab: 50,

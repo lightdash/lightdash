@@ -271,6 +271,7 @@ import { Readable } from 'stream';
 import { URL } from 'url';
 import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
+import v8 from 'v8';
 import { Worker } from 'worker_threads';
 import { gzip } from 'zlib';
 import {
@@ -283,6 +284,7 @@ import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
+import { resolveDbtSourceFetchConcurrency } from '../../config/dbtSourceFetchConcurrency';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
@@ -344,6 +346,7 @@ import {
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
@@ -4784,9 +4787,11 @@ export class ProjectService extends BaseService {
         primary,
         sources,
         manifestFetchAdapters,
+        jobUuid,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
+        jobUuid?: string;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -4866,8 +4871,39 @@ export class ProjectService extends BaseService {
                 );
             });
 
-        const built = await Promise.all(
-            compilableSources.map(async (source) => {
+        const concurrencyDecision = resolveDbtSourceFetchConcurrency(
+            this.lightdashConfig.dbt.sourceFetchConcurrency,
+        );
+        // The default log format renders the message and drops metadata, so the decisive
+        // values ride in both. Typed fields stay for instances on the json format.
+        this.logger.info(
+            `dbt.compile.sourceFetchStart projectUuid=${projectUuid} sources=${
+                compilableSources.length
+            } concurrency=${concurrencyDecision.chosen} cores=${
+                concurrencyDecision.availableParallelism
+            } memoryDerivedLimit=${
+                concurrencyDecision.memoryDerivedLimit ?? 'none'
+            } envOverride=${concurrencyDecision.override ?? 'none'}`,
+            {
+                event: 'dbt.compile.sourceFetchStart',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceCount: compilableSources.length,
+                concurrency: concurrencyDecision.chosen,
+                envOverride: concurrencyDecision.override ?? null,
+                availableParallelism: concurrencyDecision.availableParallelism,
+                constrainedMemoryBytes:
+                    concurrencyDecision.constrainedMemoryBytes ?? null,
+                memoryDerivedLimit: concurrencyDecision.memoryDerivedLimit,
+                nodeHeapLimitBytes: v8.getHeapStatistics().heap_size_limit,
+            },
+        );
+
+        const sourceFetchStartedAt = Date.now();
+        const built = await runWithConcurrency(
+            compilableSources,
+            concurrencyDecision.chosen,
+            async (source) => {
                 // Name the source (and repo) in any failure so the user can tell
                 // which one to fix — the raw git error only mentions a temp dir.
                 const repoSuffix =
@@ -4875,6 +4911,7 @@ export class ProjectService extends BaseService {
                     source.dbtConnection.repository
                         ? ` (${source.dbtConnection.repository})`
                         : '';
+                const sourceStartedAt = Date.now();
                 let sourceAdapter: ProjectAdapter;
                 try {
                     sourceAdapter = await this.buildSourceAdapter(
@@ -4920,6 +4957,23 @@ export class ProjectService extends BaseService {
                             ),
                         ),
                     };
+                    const sourceDurationMs = Date.now() - sourceStartedAt;
+                    const sourceModelCount = Object.values(
+                        manifest.nodes,
+                    ).filter((node) => node.resource_type === 'model').length;
+                    this.logger.info(
+                        `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${source.name} durationMs=${sourceDurationMs} models=${sourceModelCount}`,
+                        {
+                            event: 'dbt.compile.sourceFetched',
+                            projectUuid,
+                            jobUuid: jobUuid ?? null,
+                            sourceName: source.name,
+                            durationMs: sourceDurationMs,
+                            modelCount: sourceModelCount,
+                            selectedModelCount:
+                                sourceSelectedModelIds?.length ?? null,
+                        },
+                    );
                     return {
                         name: source.name,
                         precedence: source.precedence,
@@ -4933,7 +4987,28 @@ export class ProjectService extends BaseService {
                         )}`,
                     );
                 }
-            }),
+            },
+        );
+        const sourceFetchDurationMs = Date.now() - sourceFetchStartedAt;
+        const memoryAfterFetch = process.memoryUsage();
+        this.logger.info(
+            `dbt.compile.sourceFetchComplete projectUuid=${projectUuid} sources=${
+                compilableSources.length
+            } concurrency=${
+                concurrencyDecision.chosen
+            } durationMs=${sourceFetchDurationMs} nodeRssMb=${Math.round(
+                memoryAfterFetch.rss / 1024 / 1024,
+            )}`,
+            {
+                event: 'dbt.compile.sourceFetchComplete',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceCount: compilableSources.length,
+                concurrency: concurrencyDecision.chosen,
+                durationMs: sourceFetchDurationMs,
+                nodeRssBytes: memoryAfterFetch.rss,
+                nodeHeapUsedBytes: memoryAfterFetch.heapUsed,
+            },
         );
 
         const manifestSources: ManifestSource[] = [
@@ -5039,10 +5114,12 @@ export class ProjectService extends BaseService {
         primary,
         manifestFetchAdapters,
         onDbtSourceCount,
+        jobUuid,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         userUuid: string;
+        jobUuid?: string;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -5076,6 +5153,7 @@ export class ProjectService extends BaseService {
             primary,
             sources,
             manifestFetchAdapters,
+            jobUuid,
         });
     }
 

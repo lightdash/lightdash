@@ -1513,6 +1513,7 @@ export type LightdashConfig = {
     };
     dbt: {
         environmentVariableAllowlist: string[];
+        sourceFetchConcurrency: number | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -3218,6 +3219,9 @@ export const parseConfig = (): LightdashConfig => {
         dbt: {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
+            ),
+            sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_CONCURRENCY',
             ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
