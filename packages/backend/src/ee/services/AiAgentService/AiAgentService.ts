@@ -42,6 +42,8 @@ import {
     AnyType,
     ApiAiAgentArtifactVizQuery,
     ApiAiAgentThreadCreateRequest,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
@@ -571,7 +573,10 @@ type AiAgentServiceDependencies = {
         AppModel,
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
-    appGenerateService: Pick<AppGenerateService, 'canViewApp'>;
+    appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
+    >;
     aiAgentMemoryModel: AiAgentMemoryModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     externalSourceModel: Pick<ExternalSourceModel, 'getSource'>;
@@ -851,7 +856,10 @@ export class AiAgentService extends BaseService {
         'findVisualizationApp' | 'findAppByUuid' | 'getVersion'
     >;
 
-    private readonly appGenerateService: Pick<AppGenerateService, 'canViewApp'>;
+    private readonly appGenerateService: Pick<
+        AppGenerateService,
+        'canViewApp' | 'restoreVersion'
+    >;
 
     private readonly inFlightStreamPrompts = new Map<
         string,
@@ -1066,6 +1074,9 @@ export class AiAgentService extends BaseService {
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
                     break;
+                case 'data_app_restore':
+                    key = `data_app_restore:${item.appUuid}:${item.version}`;
+                    break;
                 default:
                     return assertUnreachable(
                         item,
@@ -1222,6 +1233,12 @@ export class AiAgentService extends BaseService {
                 ) {
                     throw new ForbiddenError(
                         'This context item can only be attached by the review remediation flow',
+                    );
+                }
+                // data_app_restore is written by the thread restore endpoint only.
+                if (item.type === 'data_app_restore') {
+                    throw new ForbiddenError(
+                        'This context item can only be attached by restoring a data app version from the thread',
                     );
                 }
 
@@ -3741,6 +3758,91 @@ export class AiAgentService extends BaseService {
             threadUuid,
             messageUuid,
         });
+    }
+
+    // Restores a data app version on behalf of a thread and records it as a
+    // hidden, already-answered turn so the agent's next prompt sees it.
+    async restoreDataAppVersionForThread(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+        body: ApiAiAgentThreadDataAppRestoreRequest,
+    ): Promise<ApiAiAgentThreadDataAppRestoreResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create messages for this thread',
+            );
+        }
+
+        const app = await this.appModel.findAppByUuid(body.appUuid);
+        if (!app || app.project_uuid !== agent.projectUuid) {
+            throw new NotFoundError('Data app not found');
+        }
+
+        const restored = await this.appGenerateService.restoreVersion(
+            user,
+            agent.projectUuid,
+            body.appUuid,
+            body.version,
+        );
+
+        const promptUuid = await this.aiAgentModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: user.userUuid,
+            prompt: `Restore version ${body.version} of ${app.name}`,
+            context: [
+                {
+                    type: 'data_app_restore',
+                    appUuid: body.appUuid,
+                    version: restored.version,
+                    restoredFromVersion: body.version,
+                },
+            ],
+            hidden: true,
+        });
+        await this.aiAgentModel.updateModelResponse({
+            promptUuid,
+            response: `Restored version ${body.version} as version ${restored.version}.`,
+        });
+
+        return {
+            appUuid: body.appUuid,
+            version: restored.version,
+            restoredFromVersion: body.version,
+            promptUuid,
+        };
     }
 
     async cleanExpiredThreads(batchSize: number): Promise<{
@@ -8731,6 +8833,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
+                }
+                case 'data_app_restore': {
+                    const name = item.displayName ?? '(name unavailable)';
+                    const slugText = item.appSlug ?? '(slug unavailable)';
+                    return `- Data app restore: version ${item.restoredFromVersion} of "${name}" (appSlug: ${slugText}) was restored as version ${item.version} — the app now matches version ${item.restoredFromVersion}; iterate from version ${item.version}.`;
                 }
                 default:
                     return assertUnreachable(

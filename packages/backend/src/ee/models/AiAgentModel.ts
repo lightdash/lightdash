@@ -146,6 +146,7 @@ import {
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptDataAppElementSnapshot,
+    AiPromptDataAppRestoreSnapshot,
     AiPromptInterruptTableName,
     AiPromptSteerTableName,
     AiPromptTableName,
@@ -6506,7 +6507,9 @@ export class AiAgentModel {
             c.type === 'dashboard' ? [c.dashboardUuid] : [],
         );
         const appUuids = context.flatMap((c) =>
-            c.type === 'data_app_element' ? [c.appUuid] : [],
+            c.type === 'data_app_element' || c.type === 'data_app_restore'
+                ? [c.appUuid]
+                : [],
         );
 
         const appNameByUuid = new Map(
@@ -6803,6 +6806,24 @@ export class AiAgentModel {
                         } satisfies AiPromptDataAppElementSnapshot,
                     };
                 }
+                case 'data_app_restore': {
+                    const appName = appNameByUuid.get(ctx.appUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'data_app_restore' as AiPromptContextEntityType,
+                        entity_uuid: ctx.appUuid,
+                        entity_ref: null,
+                        display_name:
+                            appName === undefined
+                                ? null
+                                : getAppDisplayName(appName, ctx.appUuid),
+                        runtime_overrides: {
+                            version: ctx.version,
+                            restoredFromVersion: ctx.restoredFromVersion,
+                        } satisfies AiPromptDataAppRestoreSnapshot,
+                    };
+                }
                 default:
                     return assertUnreachable(
                         ctx,
@@ -6939,14 +6960,18 @@ export class AiAgentModel {
             }),
         );
 
-        const appUuids = rows.flatMap((r) =>
-            r.entity_type === 'data_app_element'
-                ? [
-                      (r.runtime_overrides as AiPromptDataAppElementSnapshot)
-                          .appUuid,
-                  ]
-                : [],
-        );
+        const appUuids = rows.flatMap((r) => {
+            if (r.entity_type === 'data_app_element') {
+                return [
+                    (r.runtime_overrides as AiPromptDataAppElementSnapshot)
+                        .appUuid,
+                ];
+            }
+            if (r.entity_type === 'data_app_restore' && r.entity_uuid) {
+                return [r.entity_uuid];
+            }
+            return [];
+        });
         const appDataByUuid = new Map(
             (
                 await this.database(AppsTableName)
@@ -7158,6 +7183,27 @@ export class AiAgentModel {
                     appSlug: app?.slug ?? null,
                     displayName: app
                         ? getAppDisplayName(app.name, snapshot.appUuid)
+                        : row.display_name,
+                };
+            }
+            case 'data_app_restore': {
+                const appUuid = requireEntityUuid();
+                if (row.runtime_overrides === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'data_app_restore' is missing runtime_overrides`,
+                    );
+                }
+                const snapshot =
+                    row.runtime_overrides as AiPromptDataAppRestoreSnapshot;
+                const app = appDataByUuid.get(appUuid);
+                return {
+                    type: 'data_app_restore',
+                    appUuid,
+                    version: snapshot.version,
+                    restoredFromVersion: snapshot.restoredFromVersion,
+                    appSlug: app?.slug ?? null,
+                    displayName: app
+                        ? getAppDisplayName(app.name, appUuid)
                         : row.display_name,
                 };
             }
