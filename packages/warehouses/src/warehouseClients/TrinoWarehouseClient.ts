@@ -21,7 +21,7 @@ import {
     QueryError,
     QueryResult,
     Trino,
-} from 'trino-client';
+} from '@trinodb/trino-js-client';
 import { WarehouseCatalog } from '../types';
 import { coerceTagToString, DriftedTagValue } from '../utils/coerceTagToString';
 import {
@@ -403,7 +403,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             while (!queryResult.done) {
                 // Per Trino protocol, absence of nextUri means the query is complete.
                 // Some setups (like Honeydew semantic layer) return done=false with no nextUri,
-                // which causes the trino-client library to return duplicate data on subsequent next() calls.
+                // which causes the client library to return duplicate data on subsequent next() calls.
                 // See: https://trino.io/docs/current/develop/client-protocol.html
                 if (!queryResult.value.nextUri) {
                     // eslint-disable-next-line no-await-in-loop

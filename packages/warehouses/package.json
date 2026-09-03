@@ -36,13 +36,13 @@
     "@duckdb/node-api": "1.5.2-r.2",
     "@google-cloud/bigquery": "8.3.1",
     "@lightdash/common": "workspace:*",
+    "@trinodb/trino-js-client": "0.3.2",
     "node-fetch": "2.7.0",
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
     "pg-protocol": "1.10.3",
     "snowflake-sdk": "2.3.4",
-    "ssh2": "1.14.0",
-    "trino-client": "0.2.9"
+    "ssh2": "1.14.0"
   },
   "devDependencies": {
     "oxlint": "1.75.0",

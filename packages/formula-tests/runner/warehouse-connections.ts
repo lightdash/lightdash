@@ -440,13 +440,13 @@ export async function createTrinoConnection(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { BasicAuth, Trino } = require('trino-client');
+    const { BasicAuth, Trino } = require('@trinodb/trino-js-client');
 
     const client = Trino.create({
         server: `${config.protocol}://${config.host}:${config.port}`,
         catalog: config.catalog,
         schema: config.schema,
-        // trino-client treats `undefined` auth as no auth (anonymous).
+        // the client treats `undefined` auth as no auth (anonymous).
         // Wire BasicAuth only when a password is set so a single-user dev
         // cluster (no auth) still works.
         ...(config.password
@@ -498,7 +498,7 @@ export async function createTrinoConnection(
             }
         },
         async close() {
-            // trino-client has no explicit close — connections are per-query.
+            // the client has no explicit close — connections are per-query.
         },
     };
 }

@@ -4,7 +4,7 @@ import {
     DimensionType,
     QueryExecutionContext,
 } from '@lightdash/common';
-import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
+import { Columns, Iterator, QueryData, QueryResult, Trino } from '@trinodb/trino-js-client';
 import {
     TrinoSqlBuilder,
     TrinoTypes,
@@ -19,7 +19,7 @@ import * as warehouseClient from './WarehouseClient.mock';
 
 const queryResultMock = vi.fn();
 
-vi.mock('trino-client', () => ({
+vi.mock('@trinodb/trino-js-client', () => ({
     BasicAuth: vi.fn(),
     Trino: {
         create: vi.fn(() =>
