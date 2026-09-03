@@ -2416,6 +2416,7 @@ describe('AiDeepResearchService', () => {
                 projectUuid: 'project-1',
                 metricQuery: refreshQueryHistory.metricQuery,
                 context: QueryExecutionContext.AI,
+                pivotConfiguration: undefined,
             });
             expect(result).toEqual({
                 source: 'semantic',
@@ -2436,6 +2437,87 @@ describe('AiDeepResearchService', () => {
                     description: null,
                 },
             });
+        });
+
+        it('pivots the refreshed query by the chart group-by dimension', async () => {
+            const groupedChartConfig = {
+                ...chart.chartConfig,
+                yAxisMetrics: ['orders_unique_order_count'],
+                groupBy: ['orders_status'],
+            };
+            const groupedMetricQuery = {
+                ...refreshQueryHistory.metricQuery,
+                dimensions: ['orders_order_month', 'orders_status'],
+                metrics: ['orders_unique_order_count'],
+            };
+            const { service, asyncQueryService } = buildService({
+                model: {
+                    findByUuidScoped: vi
+                        .fn()
+                        .mockResolvedValue(
+                            runRow({ result_markdown: chartReportMarkdown }),
+                        ),
+                },
+                aiAgentModel: {
+                    getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([
+                        {
+                            ...chartProvenance()[0],
+                            toolCall: {
+                                ...chartProvenance()[0].toolCall,
+                                toolArgs: {
+                                    ...chartToolArgs,
+                                    queryConfig: {
+                                        ...chartToolArgs.queryConfig,
+                                        dimensions:
+                                            groupedMetricQuery.dimensions,
+                                        metrics: groupedMetricQuery.metrics,
+                                    },
+                                    chartConfig: groupedChartConfig,
+                                },
+                            },
+                        },
+                    ]),
+                },
+                queryHistoryModel: {
+                    getByQueryUuid: vi.fn().mockResolvedValue({
+                        ...refreshQueryHistory,
+                        metricQuery: groupedMetricQuery,
+                    }),
+                },
+                asyncQueryService: {
+                    executeAsyncMetricQuery: vi.fn().mockResolvedValue({
+                        queryUuid: 'query-2',
+                        cacheMetadata: { cacheHit: true },
+                        metricQuery: groupedMetricQuery,
+                        fields: {},
+                        warnings: [],
+                    }),
+                },
+            });
+
+            await service.refreshChart({
+                account: {} as AnyType,
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                aiDeepResearchRunUuid: 'run-1',
+                chartKey: chart.queryUuid,
+            });
+
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    metricQuery: groupedMetricQuery,
+                    pivotConfiguration: expect.objectContaining({
+                        groupByColumns: [{ reference: 'orders_status' }],
+                        valuesColumns: [
+                            expect.objectContaining({
+                                reference: 'orders_unique_order_count',
+                            }),
+                        ],
+                    }),
+                }),
+            );
         });
 
         it('rejects a chart key that is not part of the persisted report', async () => {

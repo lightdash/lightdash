@@ -3,6 +3,7 @@ export * from './agentOnboarding/types';
 export * from './aiDeepResearch/evidence';
 export * from './aiDeepResearch/markdown';
 export * from './aiDeepResearch/types';
+export * from './aiDeepResearch/vizConfig';
 export * from './aiDeepResearch/workers';
 export * from './aiWriteback/mcpTask';
 export * from './aiWriteback/types';
