@@ -60,6 +60,7 @@ import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -726,13 +727,17 @@ const Dashboard: FC = () => {
         if (
             isEditMode &&
             (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
-            ) &&
-            (!dashboardUuid ||
-                !nextLocation.pathname.includes(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
-                )) &&
+            // A URL may carry either the uuid or the slug for both the project
+            // and the dashboard, so accept any combination — but compare whole
+            // segments, and require the project to match too: dashboard slugs
+            // are only unique within a project.
+            !isSameDashboardRoute({
+                location: nextLocation,
+                projectUuid,
+                projectSlug: projectUrlIdentifier,
+                dashboardUuid,
+                dashboardSlug: dashboardIdentifier,
+            }) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
