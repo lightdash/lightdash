@@ -4,8 +4,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { SDK_SCOPE_SELECTOR } from './scope';
 import { SCOPE_SELECTOR, scopeDocumentRules } from './postcss.cjs';
+import { SDK_SCOPE_SELECTOR } from './scope';
 
 // Every stylesheet the SDK entry imports is injected into the customer's page.
 // After scoping, no rule may be able to match markup Lightdash did not render:
@@ -40,6 +40,19 @@ const listSelectors = (css: string) => {
 
 const canMatchHostMarkup = (selector: string) => !/[.[#]/.test(selector);
 
+// A host that runs Mantine puts its own scheme attribute on <html>; only the
+// SDK container's attribute may drive scheme-specific rules.
+const followsHostColorScheme = (selector: string) =>
+    /(^|[^\w-])\[data-mantine-color-scheme/.test(
+        selector.replace(
+            new RegExp(
+                `${SDK_SCOPE_SELECTOR.replace('.', '\\.')}\\[data-mantine-color-scheme`,
+                'g',
+            ),
+            '',
+        ),
+    );
+
 describe('SDK stylesheets', () => {
     it('scopes to the class the SDK puts on its containers', () => {
         expect(SCOPE_SELECTOR).toBe(SDK_SCOPE_SELECTOR);
@@ -52,9 +65,9 @@ describe('SDK stylesheets', () => {
                 readFileSync(file, 'utf-8'),
                 { from: file },
             ).css;
-            expect(listSelectors(scoped).filter(canMatchHostMarkup)).toEqual(
-                [],
-            );
+            const selectors = listSelectors(scoped);
+            expect(selectors.filter(canMatchHostMarkup)).toEqual([]);
+            expect(selectors.filter(followsHostColorScheme)).toEqual([]);
         },
     );
 });
