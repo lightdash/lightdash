@@ -3,6 +3,12 @@ import os from 'os';
 export const DBT_SOURCE_FETCH_MEMORY_RESERVE_BYTES = 3 * 1024 * 1024 * 1024;
 export const DBT_SOURCE_FETCH_MEMORY_PER_SOURCE_BYTES = 1024 * 1024 * 1024;
 export const DBT_SOURCE_FETCH_MAX_CONCURRENCY = 8;
+/**
+ * The memory bound never drops below this. Measured: at every concurrency at or below 4 the peak
+ * already sits after the fetch phase, so 1 has the same peak as 2 and only costs wall clock.
+ * Without this floor any pod at or below 4 GiB would serialise every source parse for no gain.
+ */
+export const DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY = 2;
 
 export type DbtSourceFetchConcurrencyInputs = {
     override: number | undefined;
@@ -22,6 +28,10 @@ export type DbtSourceFetchConcurrencyInputs = {
  * The memory reserve is the measured Node save-path floor plus margin. The per-source figure is
  * an estimate for real repositories, measured at 251 MB against a fixture; it is the constant to
  * tighten with evidence from a real instance.
+ *
+ * The memory-derived bound floors at DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY; the core bound does
+ * not, because a single-core pod genuinely cannot parallelise. `memoryDerivedLimit` is reported
+ * raw, before the floor, so a support log still shows what the memory arithmetic produced.
  */
 export const resolveDbtSourceFetchConcurrency = (
     override: number | undefined,
@@ -61,7 +71,12 @@ export const resolveDbtSourceFetchConcurrency = (
 
     const bounded = Math.min(
         availableParallelism,
-        memoryDerivedLimit ?? Number.POSITIVE_INFINITY,
+        memoryDerivedLimit === null
+            ? Number.POSITIVE_INFINITY
+            : Math.max(
+                  DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY,
+                  memoryDerivedLimit,
+              ),
     );
     const chosen = Math.min(
         DBT_SOURCE_FETCH_MAX_CONCURRENCY,

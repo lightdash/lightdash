@@ -43,10 +43,30 @@ describe('resolveDbtSourceFetchConcurrency', () => {
         expect(result.chosen).toEqual(2);
     });
 
-    it('never drops below one, however small the limit', () => {
+    it('floors the memory bound at two, however small the limit', () => {
+        // Below 1 buys no memory: at every concurrency at or below 4 the peak already sits
+        // after the fetch phase, so 1 costs wall clock and saves nothing.
         const result = resolveDbtSourceFetchConcurrency(
             undefined,
             runtime(8, 2 * GIB),
+        );
+        // reported raw, before the floor, so the sizing arithmetic stays legible
+        expect(result.memoryDerivedLimit).toBeLessThanOrEqual(0);
+        expect(result.chosen).toEqual(2);
+    });
+
+    it('lets a single core still serialise', () => {
+        const result = resolveDbtSourceFetchConcurrency(
+            undefined,
+            runtime(1, 32 * GIB),
+        );
+        expect(result.chosen).toEqual(1);
+    });
+
+    it('does not let the memory floor override the core bound', () => {
+        const result = resolveDbtSourceFetchConcurrency(
+            undefined,
+            runtime(1, 2 * GIB),
         );
         expect(result.memoryDerivedLimit).toBeLessThanOrEqual(0);
         expect(result.chosen).toEqual(1);

@@ -4874,19 +4874,30 @@ export class ProjectService extends BaseService {
         const concurrencyDecision = resolveDbtSourceFetchConcurrency(
             this.lightdashConfig.dbt.sourceFetchConcurrency,
         );
-        this.logger.info('dbt.compile.sourceFetchStart', {
-            event: 'dbt.compile.sourceFetchStart',
-            projectUuid,
-            jobUuid: jobUuid ?? null,
-            sourceCount: compilableSources.length,
-            concurrency: concurrencyDecision.chosen,
-            envOverride: concurrencyDecision.override ?? null,
-            availableParallelism: concurrencyDecision.availableParallelism,
-            constrainedMemoryBytes:
-                concurrencyDecision.constrainedMemoryBytes ?? null,
-            memoryDerivedLimit: concurrencyDecision.memoryDerivedLimit,
-            nodeHeapLimitBytes: v8.getHeapStatistics().heap_size_limit,
-        });
+        // The default log format renders the message and drops metadata, so the decisive
+        // values ride in both. Typed fields stay for instances on the json format.
+        this.logger.info(
+            `dbt.compile.sourceFetchStart projectUuid=${projectUuid} sources=${
+                compilableSources.length
+            } concurrency=${concurrencyDecision.chosen} cores=${
+                concurrencyDecision.availableParallelism
+            } memoryDerivedLimit=${
+                concurrencyDecision.memoryDerivedLimit ?? 'none'
+            } envOverride=${concurrencyDecision.override ?? 'none'}`,
+            {
+                event: 'dbt.compile.sourceFetchStart',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceCount: compilableSources.length,
+                concurrency: concurrencyDecision.chosen,
+                envOverride: concurrencyDecision.override ?? null,
+                availableParallelism: concurrencyDecision.availableParallelism,
+                constrainedMemoryBytes:
+                    concurrencyDecision.constrainedMemoryBytes ?? null,
+                memoryDerivedLimit: concurrencyDecision.memoryDerivedLimit,
+                nodeHeapLimitBytes: v8.getHeapStatistics().heap_size_limit,
+            },
+        );
 
         const sourceFetchStartedAt = Date.now();
         const built = await runWithConcurrency(
@@ -4946,18 +4957,23 @@ export class ProjectService extends BaseService {
                             ),
                         ),
                     };
-                    this.logger.info('dbt.compile.sourceFetched', {
-                        event: 'dbt.compile.sourceFetched',
-                        projectUuid,
-                        jobUuid: jobUuid ?? null,
-                        sourceName: source.name,
-                        durationMs: Date.now() - sourceStartedAt,
-                        modelCount: Object.values(manifest.nodes).filter(
-                            (node) => node.resource_type === 'model',
-                        ).length,
-                        selectedModelCount:
-                            sourceSelectedModelIds?.length ?? null,
-                    });
+                    const sourceDurationMs = Date.now() - sourceStartedAt;
+                    const sourceModelCount = Object.values(
+                        manifest.nodes,
+                    ).filter((node) => node.resource_type === 'model').length;
+                    this.logger.info(
+                        `dbt.compile.sourceFetched projectUuid=${projectUuid} sourceName=${source.name} durationMs=${sourceDurationMs} models=${sourceModelCount}`,
+                        {
+                            event: 'dbt.compile.sourceFetched',
+                            projectUuid,
+                            jobUuid: jobUuid ?? null,
+                            sourceName: source.name,
+                            durationMs: sourceDurationMs,
+                            modelCount: sourceModelCount,
+                            selectedModelCount:
+                                sourceSelectedModelIds?.length ?? null,
+                        },
+                    );
                     return {
                         name: source.name,
                         precedence: source.precedence,
@@ -4973,16 +4989,27 @@ export class ProjectService extends BaseService {
                 }
             },
         );
-        this.logger.info('dbt.compile.sourceFetchComplete', {
-            event: 'dbt.compile.sourceFetchComplete',
-            projectUuid,
-            jobUuid: jobUuid ?? null,
-            sourceCount: compilableSources.length,
-            concurrency: concurrencyDecision.chosen,
-            durationMs: Date.now() - sourceFetchStartedAt,
-            nodeRssBytes: process.memoryUsage().rss,
-            nodeHeapUsedBytes: process.memoryUsage().heapUsed,
-        });
+        const sourceFetchDurationMs = Date.now() - sourceFetchStartedAt;
+        const memoryAfterFetch = process.memoryUsage();
+        this.logger.info(
+            `dbt.compile.sourceFetchComplete projectUuid=${projectUuid} sources=${
+                compilableSources.length
+            } concurrency=${
+                concurrencyDecision.chosen
+            } durationMs=${sourceFetchDurationMs} nodeRssMb=${Math.round(
+                memoryAfterFetch.rss / 1024 / 1024,
+            )}`,
+            {
+                event: 'dbt.compile.sourceFetchComplete',
+                projectUuid,
+                jobUuid: jobUuid ?? null,
+                sourceCount: compilableSources.length,
+                concurrency: concurrencyDecision.chosen,
+                durationMs: sourceFetchDurationMs,
+                nodeRssBytes: memoryAfterFetch.rss,
+                nodeHeapUsedBytes: memoryAfterFetch.heapUsed,
+            },
+        );
 
         const manifestSources: ManifestSource[] = [
             {
