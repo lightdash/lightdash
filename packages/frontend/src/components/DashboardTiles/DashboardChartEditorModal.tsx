@@ -99,7 +99,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
                 withFullHeight
                 withPaddedContent
             >
-                <MergeProvider>
+                <MergeProvider savedMerge={editChart?.merge ?? null}>
                     <Explorer />
                 </MergeProvider>
             </Page>
