@@ -6,12 +6,14 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppIframePreview, {
     type AppIframePreviewHandle,
 } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
+import DataAppAiAgentContextBridge from '../features/apps/components/DataAppAiAgentContextBridge';
 import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewTokenQueryOptions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
@@ -250,6 +252,12 @@ export default function AppPreviewTest() {
                     : classes.previewContainer
             }
         >
+            {firstPage && (
+                <DataAppAiAgentContextBridge
+                    projectUuid={projectUuid}
+                    appUuid={firstPage.appUuid}
+                />
+            )}
             {!isFullscreen && (
                 <AppHeader
                     projectUuid={projectUuid}
@@ -330,6 +338,17 @@ export default function AppPreviewTest() {
                             }
                             shareUrl={window.location.href}
                             navItem={null}
+                            askAiItem={
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    dataAppUuid={appUuid}
+                                    clickedFrom={
+                                        explicitVersion === undefined
+                                            ? 'data_app_header'
+                                            : 'data_app_version_header'
+                                    }
+                                />
+                            }
                         />
                     }
                 />

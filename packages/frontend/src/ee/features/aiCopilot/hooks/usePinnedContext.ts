@@ -1,11 +1,13 @@
 import {
     ContentType,
+    getAppDisplayName,
     getChartKind,
     isDashboardChartTileType,
     type AiPromptContextInput,
     type AiPromptContextItem,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useGetApp } from '../../../../features/apps/hooks/useGetApp';
 import { useDashboardQuery } from '../../../../hooks/dashboard/useDashboard';
 import { useSavedQuery } from '../../../../hooks/useSavedQuery';
 import {
@@ -17,6 +19,7 @@ type Args = {
     projectUuid: string | undefined;
     chartUuidOrSlug?: string | null;
     dashboardUuidOrSlug?: string | null;
+    dataAppUuidOrSlug?: string | null;
 };
 
 const sortPinnedContext = <
@@ -30,8 +33,8 @@ const sortPinnedContext = <
     });
 
 /**
- * Resolves a chart and/or dashboard into the two shapes the AI agent
- * thread-creation flow needs:
+ * Resolves a chart, dashboard and/or data app into the two shapes the AI
+ * agent thread-creation flow needs:
  *  - `contextInput`: the minimal payload sent to the API.
  *  - `previewItems`: the optimistic, hydrated items rendered in the UI
  *    while the chart/dashboard queries are still resolving.
@@ -40,6 +43,7 @@ export const usePinnedContext = ({
     projectUuid,
     chartUuidOrSlug,
     dashboardUuidOrSlug,
+    dataAppUuidOrSlug,
 }: Args) => {
     const { data: chart } = useSavedQuery({
         uuidOrSlug: chartUuidOrSlug ?? undefined,
@@ -49,9 +53,15 @@ export const usePinnedContext = ({
         uuidOrSlug: dashboardUuidOrSlug ?? undefined,
         projectUuid,
     });
+    const { data: appData } = useGetApp(
+        projectUuid,
+        dataAppUuidOrSlug ?? undefined,
+    );
+    const dataApp = appData?.pages[0];
     const isReady =
         (!chartUuidOrSlug || !!chart?.uuid) &&
-        (!dashboardUuidOrSlug || !!dashboard?.uuid);
+        (!dashboardUuidOrSlug || !!dashboard?.uuid) &&
+        (!dataAppUuidOrSlug || !!dataApp?.appUuid);
 
     const contextInput: AiPromptContextInput = useMemo(() => {
         const items: AiPromptContextInput = [];
@@ -69,8 +79,22 @@ export const usePinnedContext = ({
                 dashboardSlug: dashboard?.slug ?? null,
             });
         }
+        if (dataApp?.appUuid) {
+            items.push({
+                type: 'data_app',
+                appUuid: dataApp.appUuid,
+                appSlug: dataApp.slug,
+            });
+        }
         return sortPinnedContext(items);
-    }, [chart?.uuid, dashboard?.uuid, chart?.slug, dashboard?.slug]);
+    }, [
+        chart?.uuid,
+        dashboard?.uuid,
+        chart?.slug,
+        dashboard?.slug,
+        dataApp?.appUuid,
+        dataApp?.slug,
+    ]);
 
     const chartKind = useMemo(
         () =>
@@ -106,6 +130,16 @@ export const usePinnedContext = ({
                 runtimeOverrides: null,
             });
         }
+        if (dataApp?.appUuid) {
+            items.push({
+                type: 'data_app',
+                appUuid: dataApp.appUuid,
+                appSlug: dataApp.slug,
+                displayName: getAppDisplayName(dataApp.name, dataApp.appUuid),
+                pinnedVersion: dataApp.latestReadyVersion,
+                isPersonal: dataApp.spaceUuid === null,
+            });
+        }
         return sortPinnedContext(items);
     }, [
         chart?.uuid,
@@ -115,6 +149,11 @@ export const usePinnedContext = ({
         dashboard?.uuid,
         dashboard?.name,
         dashboard?.slug,
+        dataApp?.appUuid,
+        dataApp?.slug,
+        dataApp?.name,
+        dataApp?.latestReadyVersion,
+        dataApp?.spaceUuid,
     ]);
 
     const contentMentionItems = useMemo<ContentMentionSuggestionItem[]>(() => {
