@@ -3,6 +3,7 @@ import {
     copyDateZoomTileTargets,
     excludeTilesFromTabScopedFilters,
     getDefaultChartTileSize,
+    getItemId,
     getShadowedReservedNames,
     mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
@@ -12,6 +13,7 @@ import {
     DashboardTileTypes,
     DateGranularity,
     FeatureFlags,
+    type AdditionalMetric,
     type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
@@ -25,6 +27,7 @@ import {
     captureException,
 } from '@sentry/react';
 import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
@@ -826,6 +829,26 @@ const Dashboard: FC = () => {
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
 
+    const queryClient = useQueryClient();
+    const handleRegistryMetricEdited = useCallback(
+        (metric: AdditionalMetric) => {
+            // Server already persisted the swap; mirror it into the staged
+            // registry without clobbering other staged additions.
+            setDashboardCustomMetrics((current) =>
+                current.map((entry) =>
+                    getItemId(entry) === getItemId(metric) ? metric : entry,
+                ),
+            );
+            // Affected charts got new versions; refetch so tiles pick them up.
+            void queryClient.invalidateQueries(['saved_query']);
+            void queryClient.invalidateQueries(['dashboard_chart_ready_query']);
+            // And refresh the dashboard itself: a later save builds its config
+            // from the cached dashboard, which now holds a stale registry.
+            void queryClient.invalidateQueries(['saved_dashboard_query']);
+        },
+        [setDashboardCustomMetrics, queryClient],
+    );
+
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
             // Only the in-dashboard builder contributes to the registry.
@@ -1134,6 +1157,7 @@ const Dashboard: FC = () => {
                             dashboardName={dashboard.name}
                             editChart={chartToEdit}
                             onChartSaved={handleChartEditorSaved}
+                            onRegistryMetricEdited={handleRegistryMetricEdited}
                             onClose={() => {
                                 setIsNewChartOpen(false);
                                 setChartToEdit(undefined);

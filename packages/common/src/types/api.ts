@@ -190,6 +190,7 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
+    type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
@@ -1333,6 +1334,7 @@ type ApiResults =
     | ChartHistory
     | ChartVersion
     | DashboardHistory
+    | DashboardCustomMetricUpdateResult
     | DashboardVersion
     | EmbedUrl
     | DecodedEmbed

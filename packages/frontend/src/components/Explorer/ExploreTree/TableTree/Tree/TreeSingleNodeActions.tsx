@@ -55,6 +55,8 @@ type Props = {
     onViewDescription: () => void;
     onAddFilter?: (field: FilterableField) => void;
     basicActionsOnly?: boolean;
+    /** Registry metrics stay basicActionsOnly but keep the edit entry point */
+    allowRegistryEdit?: boolean;
 };
 
 const TreeSingleNodeActions: FC<Props> = ({
@@ -67,6 +69,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     onViewDescription,
     onAddFilter,
     basicActionsOnly = false,
+    allowRegistryEdit = false,
 }) => {
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
@@ -186,28 +189,28 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 ) : null}
 
+                {(!basicActionsOnly || allowRegistryEdit) &&
+                isAdditionalMetric(item) ? (
+                    <Menu.Item
+                        component="button"
+                        leftSection={<MantineIcon icon={IconEdit} />}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            dispatch(
+                                explorerActions.toggleAdditionalMetricModal({
+                                    type: item.type,
+                                    item,
+                                    isEditing: true,
+                                }),
+                            );
+                        }}
+                    >
+                        Edit custom metric
+                    </Menu.Item>
+                ) : null}
+
                 {!basicActionsOnly && isAdditionalMetric(item) ? (
                     <>
-                        <Menu.Item
-                            component="button"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                dispatch(
-                                    explorerActions.toggleAdditionalMetricModal(
-                                        {
-                                            type: item.type,
-                                            item,
-                                            isEditing: true,
-                                        },
-                                    ),
-                                );
-                            }}
-                        >
-                            Edit custom metric
-                        </Menu.Item>
                         <Menu.Item
                             component="button"
                             leftSection={<MantineIcon icon={IconCopy} />}

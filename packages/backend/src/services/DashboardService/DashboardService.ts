@@ -22,6 +22,7 @@ import {
     ExportContentRequest,
     ForbiddenError,
     generateSlug,
+    getItemId,
     getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
     isDashboardChartTileType,
@@ -57,12 +58,14 @@ import {
     type ContentVerificationInfo,
     type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type UpdateDashboardCustomMetric,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -2354,6 +2357,138 @@ export class DashboardService
         }
 
         return null;
+    }
+
+    /**
+     * Write-through edit of a dashboard registry custom metric: swaps the
+     * registry entry and re-versions every dashboard-owned chart whose
+     * snapshot references it, atomically. `dryRun` reports the affected
+     * charts without writing (the impact preview).
+     */
+    async updateCustomMetric(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        payload: UpdateDashboardCustomMetric,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardCustomMetricUpdateResult> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { projectUuid: options?.projectUuid },
+        );
+
+        const currentSpace = await this.spacePermissionService.resolveAccess(
+            user.userUuid,
+            {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            },
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            !auditedAbility.can(
+                'update',
+                subject('Dashboard', {
+                    ...currentSpace,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+        await this.assertCanMutateVerifiedDashboard({
+            user,
+            dashboardUuid: dashboard.uuid,
+            projectUuid: dashboard.projectUuid,
+            organizationUuid: dashboard.organizationUuid,
+        });
+
+        // The write-through mutates published content and chart versions
+        // directly, which the content-as-code draft lifecycle can't represent.
+        if ((await this.resolveDraftBase(dashboard)) !== null) {
+            throw new ParameterError(
+                'Shared metrics cannot be edited on a dashboard managed as code. Publish or discard its draft workflow first.',
+            );
+        }
+
+        const { metric, dryRun = false } = payload;
+        const registry = dashboard.config?.customMetrics ?? [];
+        const metricId = getItemId(metric);
+        const existingIndex = registry.findIndex(
+            (entry) => getItemId(entry) === metricId,
+        );
+        // Identity is the lookup key, so a rename or table change can never
+        // match an entry — chart sorts/filters/config reference the field id.
+        if (existingIndex < 0) {
+            throw new NotFoundError(
+                `Custom metric "${metric.name}" is not in this dashboard's registry. A metric's name and table identify it and cannot be changed`,
+            );
+        }
+
+        // One query finds the affected charts; full chart data is fetched
+        // only for those, since each needs a rewritten version anyway.
+        const affectedChartUuids =
+            await this.dashboardModel.getDashboardOwnedChartUuidsUsingMetric(
+                dashboard.uuid,
+                metric.table,
+                metric.name,
+            );
+        const affected = await Promise.all(
+            affectedChartUuids.map((chartUuid) =>
+                this.savedChartModel.get(chartUuid),
+            ),
+        );
+
+        const updatedRegistry = [
+            ...registry.slice(0, existingIndex),
+            metric,
+            ...registry.slice(existingIndex + 1),
+        ];
+        const affectedCharts = affected.map((chart) => ({
+            uuid: chart.uuid,
+            name: chart.name,
+        }));
+
+        if (!dryRun) {
+            await this.savedChartModel.transaction(async (tx) => {
+                await this.dashboardModel.updateLatestVersionConfig(
+                    dashboard.uuid,
+                    {
+                        isDateZoomDisabled: false,
+                        ...dashboard.config,
+                        customMetrics: updatedRegistry,
+                    },
+                    tx,
+                );
+                await Promise.all(
+                    affected.map((chart) =>
+                        this.savedChartModel.createVersion(
+                            chart.uuid,
+                            {
+                                ...chart,
+                                metricQuery: {
+                                    ...chart.metricQuery,
+                                    additionalMetrics: (
+                                        chart.metricQuery.additionalMetrics ??
+                                        []
+                                    ).map((chartMetric) =>
+                                        getItemId(chartMetric) === metricId
+                                            ? metric
+                                            : chartMetric,
+                                    ),
+                                },
+                            },
+                            user,
+                            tx,
+                        ),
+                    ),
+                );
+            });
+        }
+
+        return { customMetrics: updatedRegistry, affectedCharts, dryRun };
     }
 
     private async assertCanMutateVerifiedDashboard({

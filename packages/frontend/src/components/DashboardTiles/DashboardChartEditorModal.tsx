@@ -134,6 +134,7 @@ type Props = {
     dashboardName: string;
     editChart?: SavedChart;
     onChartSaved: (chart: SavedChart) => void;
+    onRegistryMetricEdited: (metric: AdditionalMetric) => void;
     onClose: () => void;
 };
 
@@ -147,6 +148,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     dashboardName,
     editChart,
     onChartSaved,
+    onRegistryMetricEdited,
     onClose,
 }) => {
     const [pickedExploreId, setPickedExploreId] = useState<string>();
@@ -174,8 +176,15 @@ const DashboardChartEditorModal: FC<Props> = ({
             onChartSaved: handleChartSaved,
             dashboard: { uuid: dashboardUuid, name: dashboardName },
             dashboardMetricIds,
+            onRegistryMetricEdited,
         }),
-        [handleChartSaved, dashboardUuid, dashboardName, dashboardMetricIds],
+        [
+            handleChartSaved,
+            dashboardUuid,
+            dashboardName,
+            dashboardMetricIds,
+            onRegistryMetricEdited,
+        ],
     );
 
     const handleClose = useCallback(() => {

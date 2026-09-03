@@ -340,7 +340,7 @@
         "DashboardConfig": {
             "properties": {
                 "customMetrics": {
-                    "description": "Custom metrics offered to charts built inside this dashboard",
+                    "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere.",
                     "items": {
                         "$ref": "#/$defs/AdditionalMetric"
                     },

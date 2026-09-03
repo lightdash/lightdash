@@ -11,7 +11,13 @@ import {
     type Dimension,
     type FilterableField,
 } from '@lightdash/common';
-import { ActionIcon, HoverCard, Tooltip, UnstyledButton } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    HoverCard,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
 import { IconFilter, IconTrash } from '@tabler/icons-react';
 import {
     Fragment,
@@ -289,6 +295,13 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                     />
                 </HoverCard.Dropdown>
             </HoverCard>
+            {isDashboardMetric && (
+                <Tooltip label="Only available in this dashboard">
+                    <Badge size="xs" radius="sm" px={4} className="ld-shrink-0">
+                        =
+                    </Badge>
+                </Tooltip>
+            )}
             <span className={classes.actions}>
                 {showFilterAction && (
                     <Tooltip
@@ -318,6 +331,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 {/* Mounted on hover only so the labels get the space at rest */}
                 {!hideActions &&
                     (!basicActionsOnly ||
+                        isDashboardMetric ||
                         !!description ||
                         (!isAdditionalMetric(item) &&
                             isFilterableField(item))) &&
@@ -334,6 +348,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             basicActionsOnly={
                                 basicActionsOnly || isDashboardMetric
                             }
+                            allowRegistryEdit={isDashboardMetric}
                         />
                     )}
             </span>

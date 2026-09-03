@@ -17,6 +17,7 @@ import {
     NumberSeparator,
     type AdditionalMetric,
     type CustomFormat,
+    type DashboardCustomMetricUpdateResult,
     type Dimension,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -41,8 +42,14 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useUpdateDashboardCustomMetric } from '../../../hooks/dashboard/useUpdateDashboardCustomMetric';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
+import {
+    useModalHostedDashboard,
+    useModalHostedDashboardMetricIds,
+    useModalHostedRegistryMetricEdited,
+} from '../../../providers/Explorer/useIsModalHosted';
 import Callout from '../../common/Callout';
 import FieldIcon from '../../common/Filters/FieldIcon';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
@@ -51,6 +58,7 @@ import { NumberInput } from '../../common/NumberInput';
 import { FormatForm } from '../FormatForm';
 import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
+import RegistryImpactPreviewModal from './RegistryImpactPreviewModal';
 import {
     addFieldIdToMetricFilterRule,
     getCustomMetricName,
@@ -73,7 +81,24 @@ export const CustomMetricModal = memo(() => {
 
     const { data: exploreData } = useExplore(tableName);
 
-    const { showToastSuccess } = useToaster();
+    const { showToastSuccess, showToastError } = useToaster();
+
+    // Dashboard registry metrics write through the host dashboard instead of
+    // only editing the chart-local copy.
+    const hostDashboard = useModalHostedDashboard();
+    const dashboardMetricIds = useModalHostedDashboardMetricIds();
+    const onRegistryMetricEdited = useModalHostedRegistryMetricEdited();
+    const updateRegistryMetric = useUpdateDashboardCustomMetric(
+        hostDashboard?.uuid,
+    );
+    const [registryEditPreview, setRegistryEditPreview] = useState<{
+        metric: AdditionalMetric;
+        affectedCharts: DashboardCustomMetricUpdateResult['affectedCharts'];
+    } | null>(null);
+    const isRegistryMetric =
+        !!isEditing &&
+        isAdditionalMetric(item) &&
+        (dashboardMetricIds?.has(getItemId(item)) ?? false);
 
     let dimensionToCheck: Dimension | undefined;
 
@@ -364,8 +389,47 @@ export const CustomMetricModal = memo(() => {
 
     const handleClose = useCallback(() => {
         form.reset();
+        setRegistryEditPreview(null);
         dispatch(explorerActions.toggleAdditionalMetricModal());
     }, [form, dispatch]);
+
+    const handleConfirmRegistryEdit = useCallback(() => {
+        if (!registryEditPreview) return;
+        const { metric } = registryEditPreview;
+        updateRegistryMetric.mutate(
+            { metric },
+            {
+                onSuccess: () => {
+                    // Keep the open chart's local copy in sync with the registry.
+                    dispatch(
+                        explorerActions.editAdditionalMetric({
+                            additionalMetric: metric,
+                            previousAdditionalMetricName: getItemId(metric),
+                        }),
+                    );
+                    onRegistryMetricEdited?.(metric);
+                    showToastSuccess({
+                        title: 'Custom metric updated across this dashboard',
+                    });
+                    handleClose();
+                },
+                onError: (error) => {
+                    showToastError({
+                        title: 'Failed to update custom metric',
+                        subtitle: error.error?.message,
+                    });
+                },
+            },
+        );
+    }, [
+        registryEditPreview,
+        updateRegistryMetric,
+        dispatch,
+        onRegistryMetricEdited,
+        showToastSuccess,
+        showToastError,
+        handleClose,
+    ]);
 
     const handleOnSubmit = form.onSubmit(
         ({ customMetricLabel, percentile, format }) => {
@@ -404,6 +468,48 @@ export const CustomMetricModal = memo(() => {
                     baseDimensionChanged && selectedBaseDimension
                         ? { baseDimensionName: selectedBaseDimension.name }
                         : {};
+
+                if (isRegistryMetric && hostDashboard) {
+                    // A shared metric can't move to another table: its
+                    // (table, name) identity is how every chart references it.
+                    if (data.table !== item.table) {
+                        showToastError({
+                            title: 'Shared metrics cannot move to another table',
+                            subtitle:
+                                'Pick a source field from the same table, or create a new metric instead.',
+                        });
+                        return;
+                    }
+                    // Dry-run first: the impact preview names the charts the
+                    // write-through will rewrite before anything commits.
+                    // Identity is pinned — a label change must not rename it.
+                    const updatedMetric: AdditionalMetric = {
+                        ...item,
+                        ...data,
+                        ...updatedBaseDimensionName,
+                        name: item.name,
+                        table: item.table,
+                    };
+                    updateRegistryMetric.mutate(
+                        { metric: updatedMetric, dryRun: true },
+                        {
+                            onSuccess: (result) => {
+                                setRegistryEditPreview({
+                                    metric: updatedMetric,
+                                    affectedCharts: result.affectedCharts,
+                                });
+                            },
+                            onError: (error) => {
+                                showToastError({
+                                    title: 'Failed to prepare metric update',
+                                    subtitle: error.error?.message,
+                                });
+                            },
+                        },
+                    );
+                    return;
+                }
+
                 dispatch(
                     explorerActions.editAdditionalMetric({
                         additionalMetric: {
@@ -496,199 +602,229 @@ export const CustomMetricModal = memo(() => {
     }
 
     return item ? (
-        <MantineModal
-            size="xl"
-            opened={isOpen}
-            onClose={handleClose}
-            title={`${isEditing ? 'Edit' : 'Create'} Custom Metric`}
-            icon={IconSparkles}
-            actions={
-                <Button
-                    type="submit"
-                    form={CUSTOM_METRIC_FORM_ID}
-                    disabled={!form.isValid()}
-                >
-                    {isEditing ? 'Save changes' : 'Create'}
-                </Button>
-            }
-        >
-            <form
-                id={CUSTOM_METRIC_FORM_ID}
-                onSubmit={handleOnSubmit}
-                onClick={(e) => e.stopPropagation()}
+        <>
+            <MantineModal
+                size="xl"
+                opened={isOpen}
+                onClose={handleClose}
+                title={`${isEditing ? 'Edit' : 'Create'} Custom Metric`}
+                icon={IconSparkles}
+                actions={
+                    <Button
+                        type="submit"
+                        form={CUSTOM_METRIC_FORM_ID}
+                        disabled={!form.isValid()}
+                    >
+                        {isEditing ? 'Save changes' : 'Create'}
+                    </Button>
+                }
             >
-                <Stack gap="md">
-                    <TextInput
-                        label="Label"
-                        required
-                        placeholder="Enter custom metric label"
-                        {...form.getInputProps('customMetricLabel')}
-                    />
-                    {showBaseDimensionPicker && customMetricType && (
-                        <Stack gap="xs">
-                            <Select
-                                label="Source field"
-                                description={
-                                    isEditing
-                                        ? `The field this metric aggregates over. Pick a different one to rebuild it without recreating it.`
-                                        : 'The field this metric aggregates over.'
-                                }
-                                data={baseDimensionOptions.map(
-                                    ({ value, label }) => ({ value, label }),
-                                )}
-                                value={selectedBaseDimensionName}
-                                onChange={setSelectedBaseDimensionName}
-                                readOnly={!isEditing}
-                                searchable={isEditing}
-                                allowDeselect={false}
-                                renderOption={renderBaseDimensionOption}
+                <form
+                    id={CUSTOM_METRIC_FORM_ID}
+                    onSubmit={handleOnSubmit}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Stack gap="md">
+                        <TextInput
+                            label="Label"
+                            required
+                            placeholder="Enter custom metric label"
+                            {...form.getInputProps('customMetricLabel')}
+                        />
+                        {showBaseDimensionPicker && customMetricType && (
+                            <Stack gap="xs">
+                                <Select
+                                    label="Source field"
+                                    description={
+                                        isEditing
+                                            ? `The field this metric aggregates over. Pick a different one to rebuild it without recreating it.`
+                                            : 'The field this metric aggregates over.'
+                                    }
+                                    data={baseDimensionOptions.map(
+                                        ({ value, label }) => ({
+                                            value,
+                                            label,
+                                        }),
+                                    )}
+                                    value={selectedBaseDimensionName}
+                                    onChange={setSelectedBaseDimensionName}
+                                    readOnly={!isEditing}
+                                    searchable={isEditing}
+                                    allowDeselect={false}
+                                    renderOption={renderBaseDimensionOption}
+                                    leftSection={
+                                        selectedBaseDimension ? (
+                                            <FieldIcon
+                                                item={selectedBaseDimension}
+                                                size="sm"
+                                            />
+                                        ) : null
+                                    }
+                                    nothingFoundMessage="No compatible fields on this table"
+                                    comboboxProps={{ withinPortal: true }}
+                                />
+                                {baseDimensionChanged &&
+                                selectedBaseDimension ? (
+                                    <Callout
+                                        variant="info"
+                                        title="Source field will change"
+                                    >
+                                        This metric will be rebuilt to aggregate{' '}
+                                        <Text span fw={600}>
+                                            {selectedBaseDimension.label ||
+                                                selectedBaseDimension.name}
+                                        </Text>
+                                        . Filters and format options are
+                                        preserved, and the metric ID stays the
+                                        same so saved charts and dashboards keep
+                                        working.
+                                    </Callout>
+                                ) : null}
+                            </Stack>
+                        )}
+                        {isMetricDerived && sourceMetricLabel && (
+                            <TextInput
+                                label="Source metric"
+                                value={sourceMetricLabel}
+                                readOnly
+                                description="The metric this custom metric is based on."
                                 leftSection={
-                                    selectedBaseDimension ? (
+                                    sourceMetric ? (
                                         <FieldIcon
-                                            item={selectedBaseDimension}
+                                            item={sourceMetric}
                                             size="sm"
                                         />
                                     ) : null
                                 }
-                                nothingFoundMessage="No compatible fields on this table"
-                                comboboxProps={{ withinPortal: true }}
-                            />
-                            {baseDimensionChanged && selectedBaseDimension ? (
-                                <Callout
-                                    variant="info"
-                                    title="Source field will change"
-                                >
-                                    This metric will be rebuilt to aggregate{' '}
-                                    <Text span fw={600}>
-                                        {selectedBaseDimension.label ||
-                                            selectedBaseDimension.name}
-                                    </Text>
-                                    . Filters and format options are preserved,
-                                    and the metric ID stays the same so saved
-                                    charts and dashboards keep working.
-                                </Callout>
-                            ) : null}
-                        </Stack>
-                    )}
-                    {isMetricDerived && sourceMetricLabel && (
-                        <TextInput
-                            label="Source metric"
-                            value={sourceMetricLabel}
-                            readOnly
-                            description="The metric this custom metric is based on."
-                            leftSection={
-                                sourceMetric ? (
-                                    <FieldIcon item={sourceMetric} size="sm" />
-                                ) : null
-                            }
-                        />
-                    )}
-                    {customMetricType && (
-                        <TextInput
-                            label="Type"
-                            value={friendlyName(customMetricType)}
-                            readOnly
-                            description="Metric type"
-                        />
-                    )}
-                    {isMetricDerived &&
-                        (isMetric(item) || isAdditionalMetric(item)) &&
-                        item.sql && (
-                            <TextInput
-                                label="SQL"
-                                value={item.sql}
-                                readOnly
-                                description="SQL this metric aggregates"
                             />
                         )}
-                    {isEditing &&
-                        isAdditionalMetric(item) &&
-                        item.sql &&
-                        isNonAggregateMetricType(item.type) && (
+                        {customMetricType && (
                             <TextInput
-                                label="SQL"
-                                value={item.sql}
+                                label="Type"
+                                value={friendlyName(customMetricType)}
                                 readOnly
-                                description="SQL"
+                                description="Metric type"
                             />
                         )}
-                    {customMetricType === MetricType.PERCENTILE && (
-                        <NumberInput
-                            w={100}
-                            max={100}
-                            min={0}
-                            decimalScale={2}
-                            required
-                            label="Percentile"
-                            {...form.getInputProps('percentile')}
-                        />
-                    )}
-                    <Accordion
-                        chevronPosition="left"
-                        chevronSize="xs"
-                        variant="separated"
-                        radius="md"
-                    >
-                        {canApplyFormatting && (
-                            <Accordion.Item value="format">
+                        {isMetricDerived &&
+                            (isMetric(item) || isAdditionalMetric(item)) &&
+                            item.sql && (
+                                <TextInput
+                                    label="SQL"
+                                    value={item.sql}
+                                    readOnly
+                                    description="SQL this metric aggregates"
+                                />
+                            )}
+                        {isEditing &&
+                            isAdditionalMetric(item) &&
+                            item.sql &&
+                            isNonAggregateMetricType(item.type) && (
+                                <TextInput
+                                    label="SQL"
+                                    value={item.sql}
+                                    readOnly
+                                    description="SQL"
+                                />
+                            )}
+                        {customMetricType === MetricType.PERCENTILE && (
+                            <NumberInput
+                                w={100}
+                                max={100}
+                                min={0}
+                                decimalScale={2}
+                                required
+                                label="Percentile"
+                                {...form.getInputProps('percentile')}
+                            />
+                        )}
+                        <Accordion
+                            chevronPosition="left"
+                            chevronSize="xs"
+                            variant="separated"
+                            radius="md"
+                        >
+                            {canApplyFormatting && (
+                                <Accordion.Item value="format">
+                                    <Accordion.Control>
+                                        <Text fw={500} fz="sm">
+                                            Format
+                                        </Text>
+                                    </Accordion.Control>
+                                    <Accordion.Panel>
+                                        <FormatForm
+                                            formatInputProps={
+                                                getFormatInputProps
+                                            }
+                                            format={form.values.format}
+                                            setFormatFieldValue={
+                                                setFormatFieldValue
+                                            }
+                                        />
+                                    </Accordion.Panel>
+                                </Accordion.Item>
+                            )}
+                            <Accordion.Item value="filters">
                                 <Accordion.Control>
                                     <Text fw={500} fz="sm">
-                                        Format
+                                        Filters
+                                        <Text span fw={400} fz="xs">
+                                            {customMetricFiltersWithIds.length >
+                                            0
+                                                ? `(${customMetricFiltersWithIds.length}) `
+                                                : ' '}
+                                        </Text>
+                                        <Text
+                                            span
+                                            fz="xs"
+                                            c="ldGray.5"
+                                            fw={400}
+                                        >
+                                            (optional)
+                                        </Text>
                                     </Text>
                                 </Accordion.Control>
                                 <Accordion.Panel>
-                                    <FormatForm
-                                        formatInputProps={getFormatInputProps}
-                                        format={form.values.format}
-                                        setFormatFieldValue={
-                                            setFormatFieldValue
-                                        }
-                                    />
+                                    <FiltersProvider<
+                                        Record<string, FilterableDimension>
+                                    >
+                                        projectUuid={projectUuid}
+                                        itemsMap={dimensionsMap}
+                                        startOfWeek={startOfWeek ?? undefined}
+                                        popoverProps={{
+                                            withinPortal: true,
+                                        }}
+                                    >
+                                        <FilterForm
+                                            defaultFilterRuleFieldId={
+                                                defaultFilterRuleFieldId
+                                            }
+                                            customMetricFiltersWithIds={
+                                                customMetricFiltersWithIds
+                                            }
+                                            setCustomMetricFiltersWithIds={
+                                                setCustomMetricFiltersWithIds
+                                            }
+                                        />
+                                    </FiltersProvider>
                                 </Accordion.Panel>
                             </Accordion.Item>
-                        )}
-                        <Accordion.Item value="filters">
-                            <Accordion.Control>
-                                <Text fw={500} fz="sm">
-                                    Filters
-                                    <Text span fw={400} fz="xs">
-                                        {customMetricFiltersWithIds.length > 0
-                                            ? `(${customMetricFiltersWithIds.length}) `
-                                            : ' '}
-                                    </Text>
-                                    <Text span fz="xs" c="ldGray.5" fw={400}>
-                                        (optional)
-                                    </Text>
-                                </Text>
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <FiltersProvider<
-                                    Record<string, FilterableDimension>
-                                >
-                                    projectUuid={projectUuid}
-                                    itemsMap={dimensionsMap}
-                                    startOfWeek={startOfWeek ?? undefined}
-                                    popoverProps={{
-                                        withinPortal: true,
-                                    }}
-                                >
-                                    <FilterForm
-                                        defaultFilterRuleFieldId={
-                                            defaultFilterRuleFieldId
-                                        }
-                                        customMetricFiltersWithIds={
-                                            customMetricFiltersWithIds
-                                        }
-                                        setCustomMetricFiltersWithIds={
-                                            setCustomMetricFiltersWithIds
-                                        }
-                                    />
-                                </FiltersProvider>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                    </Accordion>
-                </Stack>
-            </form>
-        </MantineModal>
+                        </Accordion>
+                    </Stack>
+                </form>
+            </MantineModal>
+            <RegistryImpactPreviewModal
+                opened={registryEditPreview !== null}
+                metricLabel={
+                    registryEditPreview?.metric.label ??
+                    registryEditPreview?.metric.name ??
+                    ''
+                }
+                affectedCharts={registryEditPreview?.affectedCharts ?? []}
+                isSaving={updateRegistryMetric.isLoading}
+                onBack={() => setRegistryEditPreview(null)}
+                onConfirm={handleConfirmRegistryEdit}
+            />
+        </>
     ) : null;
 });
