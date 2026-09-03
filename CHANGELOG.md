@@ -1,3 +1,10 @@
+# [2.119.0](https://github.com/lightdash/lightdash/compare/2.118.1...2.119.0) (2026-09-03)
+
+
+### Features
+
+* **dashboards:** copy link to a dashboard tile ([#26369](https://github.com/lightdash/lightdash/issues/26369)) ([a1d80cd](https://github.com/lightdash/lightdash/commit/a1d80cd07b2b6ef26d3cbc302edea1ffad969ad3))
+
 ## [2.118.1](https://github.com/lightdash/lightdash/compare/2.118.0...2.118.1) (2026-09-03)
 
 
