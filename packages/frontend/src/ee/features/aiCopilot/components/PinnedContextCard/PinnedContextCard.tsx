@@ -17,7 +17,8 @@ type ItemMeta = {
         | 'file'
         | 'repository'
         | 'external_source'
-        | 'data_app_element';
+        | 'data_app_element'
+        | 'data_app';
     label: string;
     href: string | null;
 };
@@ -33,7 +34,8 @@ const getItemMeta = (
                 | 'file'
                 | 'repository'
                 | 'external_source'
-                | 'data_app_element';
+                | 'data_app_element'
+                | 'data_app_restore';
         }
     >,
     projectUuid: string,
@@ -76,6 +78,12 @@ const getItemMeta = (
                 label: elementRefChipLabel(item),
                 href: null,
             };
+        case 'data_app_restore':
+            return {
+                kind: 'data_app',
+                label: `Restored v${item.version} of ${item.displayName ?? 'data app'}`,
+                href: null,
+            };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -89,7 +97,8 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
         case 'file':
         case 'repository':
         case 'external_source':
-        case 'data_app_element': {
+        case 'data_app_element':
+        case 'data_app_restore': {
             const meta = getItemMeta(item, projectUuid);
             return (
                 <ContentReferenceLink

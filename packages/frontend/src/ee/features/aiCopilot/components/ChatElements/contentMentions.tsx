@@ -322,6 +322,8 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `preview_environment:${item.previewProjectUuid}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
+        case 'data_app_restore':
+            return `data_app_restore:${item.appUuid}:${item.version}`;
         default:
             return assertUnreachable(
                 item,
