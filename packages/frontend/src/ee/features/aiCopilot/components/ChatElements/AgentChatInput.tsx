@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     getExternalSourceDisplayName,
+    isSpaceRestrictedAgent,
     type AgentSuggestion,
     type AiPromptContextInput,
     type AiPromptContextItem,
@@ -356,7 +357,8 @@ export const AgentChatInput = ({
     // A space-restricted agent cannot read personal data apps, so @ hides them.
     const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
     const hidePersonalDataAppsRef = useRef(false);
-    hidePersonalDataAppsRef.current = (agent?.spaceAccess.length ?? 0) > 0;
+    hidePersonalDataAppsRef.current =
+        agent !== undefined && isSpaceRestrictedAgent(agent);
     // What the @-mention dropdown is doing, sourced from the suggestion render
     // lifecycle — the plugin's own `active` flag alone can't tell an open
     // menu from a dismissed or empty one.
