@@ -1,3 +1,19 @@
+# [2.116.0](https://github.com/lightdash/lightdash/compare/2.115.0...2.116.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ai:** default optional secondary axis fields ([#28595](https://github.com/lightdash/lightdash/issues/28595)) ([7e5dfcc](https://github.com/lightdash/lightdash/commit/7e5dfccab7e622811c190a2700cd6c5bc27d761e))
+
+
+### Features
+
+* **dashboard:** merge chart custom metrics into the dashboard registry ([#28585](https://github.com/lightdash/lightdash/issues/28585)) ([986235d](https://github.com/lightdash/lightdash/commit/986235dcf882716ca35988b650298a8c072cb8d8))
+* **dashboard:** preserve customMetrics through dashboard save ([#28583](https://github.com/lightdash/lightdash/issues/28583)) ([0f07d72](https://github.com/lightdash/lightdash/commit/0f07d729f7b63ea01564d795ab6bd9eb8fd98069)), closes [#28518](https://github.com/lightdash/lightdash/issues/28518)
+* **dashboard:** stage the custom metrics registry alongside tiles ([#28584](https://github.com/lightdash/lightdash/issues/28584)) ([5014b9d](https://github.com/lightdash/lightdash/commit/5014b9d36df15e8a16dae464088e263a609bf534))
+* **frontend:** open chart type authoring in a fullscreen modal ([#28604](https://github.com/lightdash/lightdash/issues/28604)) ([2033dfb](https://github.com/lightdash/lightdash/commit/2033dfbcd1f0cbc5425e330219235a19fc3d69d7))
+* **query-sources:** carry parameters, user attributes, cache control and pivot ([#28577](https://github.com/lightdash/lightdash/issues/28577)) ([e66ed05](https://github.com/lightdash/lightdash/commit/e66ed059114a4b108c9fabcd3f42f2e521d443e4))
+
 # [2.115.0](https://github.com/lightdash/lightdash/compare/2.114.1...2.115.0) (2026-09-03)
 
 

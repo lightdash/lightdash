@@ -55364,6 +55364,10 @@
             },
             "SemanticLayerSourceQuery": {
                 "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                    },
                     "timezone": {
                         "type": "string",
                         "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
@@ -55456,6 +55460,10 @@
             },
             "SqlSourceQuery": {
                 "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                    },
                     "limit": {
                         "type": "number",
                         "format": "double"
@@ -55489,6 +55497,10 @@
             },
             "DuckdbSourceQuery": {
                 "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                    },
                     "references": {
                         "anyOf": [
                             {
@@ -55541,6 +55553,10 @@
             },
             "ExternalSourceQuery": {
                 "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                    },
                     "tables": {
                         "anyOf": [
                             {
@@ -55629,6 +55645,14 @@
             },
             "ExecuteSourceQueriesRequestParams": {
                 "properties": {
+                    "invalidateCache": {
+                        "type": "boolean",
+                        "description": "Bypass cached results for every query in the submission."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values shared by every query in the submission, layered over\nproject and explore defaults. A query referencing a parameter with no\nvalue refuses rather than running with a placeholder."
+                    },
                     "context": {
                         "$ref": "#/components/schemas/QueryExecutionContext"
                     },
@@ -59565,7 +59589,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.115.0",
+        "version": "2.116.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
