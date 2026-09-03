@@ -16,7 +16,8 @@ const prefixSelector = require('postcss-prefix-selector');
 const { SDK_SCOPE_CLASS } = require('./scope.json');
 const SDK_SCOPE_SELECTOR = `.${SDK_SCOPE_CLASS}`;
 
-const SCHEME_ATTRIBUTE = /(:root|:host)?\[data-mantine-color-scheme/g;
+const SCHEME_ATTRIBUTE = '[data-mantine-color-scheme';
+const SCHEME_ATTRIBUTE_WITH_ROOT = /(:root|:host)?\[data-mantine-color-scheme/g;
 const DOCUMENT_ROOT = /^(:root|:host|html|body)$/;
 
 const scopeDocumentRules = prefixSelector({
@@ -25,10 +26,10 @@ const scopeDocumentRules = prefixSelector({
     // `composes` requires their selectors to stay a single class.
     ignoreFiles: [/\.module\.css$/],
     transform: (prefix, selector) => {
-        if (SCHEME_ATTRIBUTE.test(selector)) {
+        if (selector.includes(SCHEME_ATTRIBUTE)) {
             return selector.replace(
-                SCHEME_ATTRIBUTE,
-                `${prefix}[data-mantine-color-scheme`,
+                SCHEME_ATTRIBUTE_WITH_ROOT,
+                `${prefix}${SCHEME_ATTRIBUTE}`,
             );
         }
         if (selector.includes(prefix)) {
