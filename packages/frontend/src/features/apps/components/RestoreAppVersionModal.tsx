@@ -1,3 +1,4 @@
+import { type ApiError } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { IconRestore } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -6,25 +7,23 @@ import MantineModal from '../../../components/common/MantineModal';
 
 type Props = {
     version: number;
-    opened: boolean;
     onClose: () => void;
     onConfirm: () => void;
     isLoading: boolean;
-    errorMessage: string | null;
+    error: ApiError | null;
 };
 
 /** Confirms a restore; the caller owns the mutation so the builder and the
  *  thread preview can restore through different endpoints. */
 export const RestoreAppVersionModal: FC<Props> = ({
     version,
-    opened,
     onClose,
     onConfirm,
     isLoading,
-    errorMessage,
+    error,
 }) => (
     <MantineModal
-        opened={opened}
+        opened
         onClose={() => {
             if (isLoading) return;
             onClose();
@@ -42,8 +41,10 @@ export const RestoreAppVersionModal: FC<Props> = ({
                 duplicates the contents of version {version}. Your next prompt
                 will iterate from there.
             </Text>
-            {errorMessage !== null && (
-                <Callout variant="danger">{errorMessage}</Callout>
+            {error !== null && (
+                <Callout variant="danger">
+                    {error.error?.message ?? 'Failed to restore version.'}
+                </Callout>
             )}
         </Stack>
     </MantineModal>

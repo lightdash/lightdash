@@ -2969,16 +2969,9 @@ const AppGenerate: FC = () => {
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
                                 <RestoreAppVersionModal
-                                    opened
                                     version={restoreTargetVersion}
                                     isLoading={isRestoringVersion}
-                                    errorMessage={
-                                        restoreVersionError
-                                            ? (restoreVersionError.error
-                                                  ?.message ??
-                                              'Failed to restore version.')
-                                            : null
-                                    }
+                                    error={restoreVersionError}
                                     onClose={() => {
                                         setRestoreTargetVersion(null);
                                         resetRestoreVersion();

@@ -44,6 +44,7 @@ import {
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
+import { invalidateAppAfterRestore } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -1492,22 +1493,19 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
                 method: 'POST',
                 body: JSON.stringify(body),
             }),
-        onSuccess: (_result, { appUuid }) => {
-            // The thread gained a hidden restore turn; the app gained a version.
-            void queryClient.invalidateQueries({
-                queryKey: getAiAgentThreadQueryKey(
-                    projectUuid,
-                    agentUuid,
-                    threadUuid,
-                ),
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ['app', projectUuid, appUuid],
-            });
-            void queryClient.invalidateQueries({
-                queryKey: ['data-app-viz', projectUuid, appUuid],
-            });
-        },
+        // The thread gained a hidden restore turn; the app gained a version.
+        // Awaited so per-call onSuccess runs once the app refetch has landed.
+        onSuccess: (_result, { appUuid }) =>
+            Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+                invalidateAppAfterRestore(queryClient, projectUuid, appUuid),
+            ]),
     });
 };
 

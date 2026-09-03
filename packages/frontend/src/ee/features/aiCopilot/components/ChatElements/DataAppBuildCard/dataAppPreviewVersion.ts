@@ -6,13 +6,8 @@ type EffectiveVersionArgs = {
     latestReadyVersion: number | null;
 };
 
-/**
- * The version the thread preview shows. A null version means latest ready.
- * An explicit version is kept until a ready version newer than the one
- * recorded at open time lands, which moves the panel to latest. With no
- * version recorded at open there is nothing to compare against, so the
- * explicit version stays.
- */
+/** The version the preview shows: null means latest ready; an explicit one
+ *  holds until a ready version newer than the one recorded at open lands. */
 export const getEffectiveDataAppVersion = ({
     version,
     latestReadyVersionAtOpen,

@@ -76,7 +76,12 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         latestReadyVersionAtOpen,
         latestReadyVersion,
     });
-    const isViewingLatest = effectiveVersion === latestReadyVersion;
+    // An explicit version newer than the cached latest (just restored) is
+    // latest by definition, so compare rather than test equality.
+    const isViewingOlderVersion =
+        effectiveVersion !== null &&
+        latestReadyVersion !== null &&
+        effectiveVersion < latestReadyVersion;
     const identityKey = `${appUuid}:${effectiveVersion}`;
     // Lives here, not next to the iframe, so logs and dismissal survive the
     // token reload between versions. Only wired in when `showInspector`.
@@ -166,10 +171,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
-    const isViewingOlderVersion =
-        effectiveVersion !== null &&
-        latestReadyVersion !== null &&
-        effectiveVersion < latestReadyVersion;
     const returnToLatest = () =>
         dispatch(
             setDataAppPreviewVersion({
@@ -219,7 +220,6 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         canManageApp && effectiveVersion !== null
             ? {
                   onClick: () => setRestoreTargetVersion(effectiveVersion),
-                  disabled: isBuildInProgress,
                   disabledReason: isBuildInProgress
                       ? 'A version is building; restore once it finishes.'
                       : null,
@@ -319,9 +319,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         );
     }
 
-    const appUrl = isViewingLatest
-        ? `/projects/${projectUuid}/apps/${appUuid}/view`
-        : `/projects/${projectUuid}/apps/${appUuid}/versions/${effectiveVersion}/view`;
+    const appUrl = isViewingOlderVersion
+        ? `/projects/${projectUuid}/apps/${appUuid}/versions/${effectiveVersion}/view`
+        : `/projects/${projectUuid}/apps/${appUuid}/view`;
 
     return (
         <Box className={artifactStyles.floatingPanel}>
@@ -384,7 +384,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                         </Menu>
                         {showInspector &&
                             picker.available &&
-                            isViewingLatest && (
+                            !isViewingOlderVersion && (
                                 <ElementPickerButton
                                     enabled={picker.enabled}
                                     onToggle={picker.toggle}
@@ -407,15 +407,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             </Box>
             {restoreTargetVersion !== null && (
                 <RestoreAppVersionModal
-                    opened
                     version={restoreTargetVersion}
                     isLoading={restoreMutation.isLoading}
-                    errorMessage={
-                        restoreMutation.error
-                            ? (restoreMutation.error.error?.message ??
-                              'Failed to restore version.')
-                            : null
-                    }
+                    error={restoreMutation.error}
                     onClose={closeRestoreModal}
                     onConfirm={() => confirmRestore(restoreTargetVersion)}
                 />

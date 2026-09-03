@@ -71,7 +71,8 @@ export const useDataAppCardPreview = ({
                 projectUuid,
                 agentUuid,
                 version,
-                latestReadyVersionAtOpen: latestReadyVersion,
+                // The card's own version is the floor until the app resolves.
+                latestReadyVersionAtOpen: latestReadyVersion ?? version,
             }),
         );
     }, [

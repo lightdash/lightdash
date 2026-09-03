@@ -112,6 +112,18 @@ describe('AiDataAppRestoreCard', () => {
         expect(cardPaper()?.className).toMatch(/cardActive/);
     });
 
+    it('records its own version as the floor when View beats the app fetch', () => {
+        mockedLightdashApi.mockReturnValue(new Promise(() => {}));
+        renderCard();
+
+        fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+        expect(store.getState().aiArtifact.preview).toMatchObject({
+            version: 3,
+            latestReadyVersionAtOpen: 3,
+        });
+    });
+
     it('is only active when the preview shows its version', async () => {
         store.dispatch(
             setPreview({

@@ -7,10 +7,9 @@ import classes from './DataAppVersionPill.module.css';
 type Props = {
     version: number;
     onReturnToLatest: () => void;
-    /** Restore is offered only where the user can manage the app. */
+    /** Offered only where the user can manage the app; disabled iff a reason. */
     restore: null | {
         onClick: () => void;
-        disabled: boolean;
         disabledReason: string | null;
     };
 };
@@ -44,7 +43,7 @@ export const DataAppVersionPill: FC<Props> = ({
                         leftSection={
                             <MantineIcon icon={IconRestore} size="sm" />
                         }
-                        disabled={restore.disabled}
+                        disabled={restore.disabledReason !== null}
                         onClick={restore.onClick}
                     >
                         Restore

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     dataAppElementContextKey,
+    dataAppRestoreContextKey,
     type AiPromptContextItem,
 } from '@lightdash/common';
 
@@ -53,7 +54,7 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
         case 'data_app_element':
             return dataAppElementContextKey(item);
         case 'data_app_restore':
-            return `data_app_restore:${item.appUuid}:${item.version}`;
+            return dataAppRestoreContextKey(item);
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

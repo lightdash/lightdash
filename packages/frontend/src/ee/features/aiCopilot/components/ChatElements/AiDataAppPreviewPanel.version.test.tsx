@@ -10,11 +10,19 @@ import {
 
 type IframePreviewProps = {
     src: string;
+    identityKey: string;
     onInspectorAvailabilityChange?: (available: boolean) => void;
 };
 
 const mocks = vi.hoisted(() => ({
     iframePreview: vi.fn((_props: IframePreviewProps) => null),
+    previewToken: vi.fn(
+        (_projectUuid: string, _appUuid: string, _version?: number) => ({
+            data: mocks.tokenLoading ? undefined : 'preview-token',
+            isLoading: mocks.tokenLoading,
+            error: undefined,
+        }),
+    ),
     latestReadyVersion: 3,
     latestVersionStatus: 'ready' as AppVersionStatus,
     tokenLoading: false,
@@ -35,11 +43,7 @@ vi.mock('../../../../../features/apps/AppIframePreview', () => ({
 }));
 
 vi.mock('../../../../../features/apps/hooks/useAppPreviewToken', () => ({
-    useAppPreviewToken: () => ({
-        data: mocks.tokenLoading ? undefined : 'preview-token',
-        isLoading: mocks.tokenLoading,
-        error: undefined,
-    }),
+    useAppPreviewToken: mocks.previewToken,
 }));
 
 vi.mock('../../../../../features/apps/hooks/useGetApp', () => ({
@@ -139,6 +143,7 @@ describe('AiDataAppPreviewPanel versions', () => {
         mocks.canManageApp = true;
         mocks.dispatch.mockReset();
         mocks.lightdashApi.mockReset();
+        mocks.previewToken.mockClear();
         window.localStorage.clear();
     });
 
@@ -161,6 +166,12 @@ describe('AiDataAppPreviewPanel versions', () => {
         announcePicker();
 
         expect(iframeVersion()).toBe('1');
+        expect(mocks.previewToken).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'app-uuid',
+            1,
+        );
+        expect(latestIframeProps().identityKey).toBe('app-uuid:1');
         expect(screen.getByText('Viewing v1')).toBeInTheDocument();
         expect(pickerToggle()).not.toBeInTheDocument();
         expect(await openInNewTabHref(user)).toBe(
@@ -201,6 +212,22 @@ describe('AiDataAppPreviewPanel versions', () => {
 
         expect(iframeVersion()).toBe('3');
         expect(pill()).not.toBeInTheDocument();
+    });
+
+    it('treats a just-restored version as latest before the app refetch lands', async () => {
+        const user = userEvent.setup();
+        // The cached app still says v3 is latest; the restore produced v4.
+        renderWithProviders(
+            panel(preview({ version: 4, latestReadyVersionAtOpen: 4 })),
+        );
+        announcePicker();
+
+        expect(iframeVersion()).toBe('4');
+        expect(pill()).not.toBeInTheDocument();
+        expect(pickerToggle()).toBeInTheDocument();
+        expect(await openInNewTabHref(user)).toBe(
+            '/projects/project-uuid/apps/app-uuid/view',
+        );
     });
 
     describe('restore', () => {
