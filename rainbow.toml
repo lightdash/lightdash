@@ -113,13 +113,14 @@ watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers no
 vars = ["SITE_URL"]
 patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
-# Names, not values: the platform holds what they resolve to. The licence pair
-# is the offline (ed25519-signed) form Okteto previews use, so it verifies
-# locally without reaching api.keygen.sh. Until both are provisioned in the
-# platform's store these two resolve to nothing and previews stay OSS-only —
-# an unprovisioned name injects no variable rather than failing the fork.
+# Names, not values: the platform holds what they resolve to, and every
+# environment of this repo has them from the moment it boots. A name with no
+# stored value is simply absent (a kind the platform knows gets a placeholder
+# so the app can boot with nothing set). The licence pair is the offline
+# (ed25519-signed) form, so it verifies locally without reaching
+# api.keygen.sh; until both are stored, previews run Community Edition.
 [secrets]
 LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
-LIGHTDASH_LICENSE_KEY = "lightdash-license-key"
-LIGHTDASH_LICENSE_CERTIFICATE = "lightdash-license-certificate"
+LIGHTDASH_LICENSE_KEY = "licence"
+LIGHTDASH_LICENSE_CERTIFICATE = "licence"
