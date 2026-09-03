@@ -1,4 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
+import { assertUnreachable, FeatureFlags } from '@lightdash/common';
+import { useNavigate } from 'react-router';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
@@ -7,7 +8,14 @@ import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { store as aiAgentStore } from '../../store';
 import { openDefaultAgentPanel } from '../../store/aiAgentLauncherSlice';
+import { buildNewThreadUrl } from '../Launcher/newThreadUrl';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
+
+/**
+ * `panel` opens the docked launcher; `navigate` goes to the full-page
+ * new-thread route for surfaces where the launcher is hidden (app builder).
+ */
+export type AskAiAgentMode = 'panel' | 'navigate';
 
 type Args = {
     projectUuid: string | undefined;
@@ -15,11 +23,12 @@ type Args = {
     dashboardUuid?: string;
     dataAppUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
+    mode?: AskAiAgentMode;
 };
 
 /**
  * Shared logic for the "Ask AI Agent" entry points: resolves whether the action
- * should be shown and opens the launcher panel for a new conversation on click.
+ * should be shown and starts a new conversation on click.
  * `canAsk` is false when AI agents are disabled, the user lacks permission, or
  * no default agent can be resolved. Data app context additionally requires
  * data apps to be enabled.
@@ -30,11 +39,13 @@ export const useAskAiAgentAction = ({
     dashboardUuid,
     dataAppUuid,
     clickedFrom,
+    mode = 'panel',
 }: Args) => {
     const isVisible = useAiAgentButtonVisibility();
-    const { agents } = useDefaultAiAgent(projectUuid);
+    const { agents, selectedAgent } = useDefaultAiAgent(projectUuid);
     const { user } = useApp();
     const { track } = useTracking();
+    const navigate = useNavigate();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
 
@@ -56,7 +67,25 @@ export const useAskAiAgentAction = ({
             chartUuid || dashboardUuid || dataAppUuid
                 ? { chartUuid, dashboardUuid, dataAppUuid }
                 : null;
-        aiAgentStore.dispatch(openDefaultAgentPanel({ pendingContext }));
+        switch (mode) {
+            case 'panel':
+                aiAgentStore.dispatch(
+                    openDefaultAgentPanel({ pendingContext }),
+                );
+                return;
+            case 'navigate':
+                if (!projectUuid || !selectedAgent) return;
+                void navigate(
+                    buildNewThreadUrl({
+                        projectUuid,
+                        agent: selectedAgent,
+                        pendingContext,
+                    }),
+                );
+                return;
+            default:
+                return assertUnreachable(mode, 'Unknown ask AI mode');
+        }
     };
 
     return { canAsk, handleClick };
