@@ -1684,7 +1684,12 @@ export type LightdashConfig = {
         sessionTimeoutMs: number;
     };
     aiWriteback: {
-        anthropicApiKey: string | null;
+        /**
+         * @deprecated Writeback runs on the shared data-apps Anthropic
+         * credentials (`ANTHROPIC_API_KEY`). Only read when those are unset, so
+         * instances still setting the writeback-specific key keep working.
+         */
+        legacyAnthropicApiKey: string | null;
         /**
          * Pre-clone size ceiling (MB) for the general coding agent. A repo whose
          * GitHub-reported size exceeds this is rejected with an actionable error
@@ -3606,7 +3611,8 @@ export const parseConfig = (): LightdashConfig => {
             ), // 10 minutes default
         },
         aiWriteback: {
-            anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+            legacyAnthropicApiKey:
+                process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
             codingAgentMaxRepoSizeMb: parseInt(
                 process.env.AI_CODING_AGENT_MAX_REPO_SIZE_MB || '500',
                 10,

@@ -1287,25 +1287,30 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         deleteSnapshot: vi.fn().mockResolvedValue(undefined),
     };
 
+    // Writeback runs on the data-apps Anthropic credentials (`ai.copilot`),
+    // not a writeback-specific key.
+    const configWithAnthropic = (anthropic: AnyType) =>
+        ({
+            siteUrl: 'https://app.example',
+            gitlab: {},
+            appRuntime: {
+                e2bApiKey: 'e2b-key',
+                e2bAiWritebackTemplateName: 'tpl',
+                e2bAiWritebackTemplateTag: '',
+                sandboxProvider: 'e2b',
+                sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
+            },
+            ai: { copilot: { providers: { anthropic } } },
+            aiWriteback: { legacyAnthropicApiKey: null },
+        } as AnyType);
+
     const runService = (
         sandbox: AnyType,
         extraRunArgs: Record<string, AnyType> = {},
         serviceOverrides: Record<string, AnyType> = {},
     ) => {
         const service = buildService({
-            lightdashConfig: {
-                siteUrl: 'https://app.example',
-                gitlab: {},
-                appRuntime: {
-                    e2bApiKey: 'e2b-key',
-                    e2bAiWritebackTemplateName: 'tpl',
-                    e2bAiWritebackTemplateTag: '',
-                    sandboxProvider: 'e2b',
-                    sandboxAiWritebackDockerImage:
-                        'lightdash-ai-writeback:local',
-                },
-                aiWriteback: { anthropicApiKey: 'anthropic-key' },
-            } as AnyType,
+            lightdashConfig: configWithAnthropic({ apiKey: 'anthropic-key' }),
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
@@ -1444,6 +1449,49 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
         });
         expect(allow).toContain('api.anthropic.com');
+    });
+
+    it('runs claude with the data-apps Anthropic key', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox);
+
+        const claudeRun = (
+            sandbox.commands.run as import('vitest').Mock
+        ).mock.calls.find((call: AnyType[]) =>
+            String(call[0]).includes('claude'),
+        );
+        expect(claudeRun?.[1].envs).toEqual({
+            ANTHROPIC_API_KEY: 'anthropic-key',
+        });
+    });
+
+    // A gateway key is not a valid api.anthropic.com key, so the base URL has
+    // to travel with it — same as data apps.
+    it('routes claude through the Anthropic gateway when one is configured', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox, {}, {
+            lightdashConfig: configWithAnthropic({
+                apiKey: 'gateway-token',
+                baseUrl: 'https://gateway.example/anthropic',
+            }),
+        } as AnyType);
+
+        const claudeRun = (
+            sandbox.commands.run as import('vitest').Mock
+        ).mock.calls.find((call: AnyType[]) =>
+            String(call[0]).includes('claude'),
+        );
+        expect(claudeRun?.[1].envs).toEqual({
+            ANTHROPIC_AUTH_TOKEN: 'gateway-token',
+            ANTHROPIC_BASE_URL: 'https://gateway.example/anthropic',
+        });
+        const [spec] = fakeSandboxProvider.create.mock.calls[0];
+        expect(spec.egress.allow).toContain('gateway.example');
+        expect(spec.egress.allow).not.toContain('api.anthropic.com');
     });
 
     it('skips the PR and rejects when the agent exits non-zero', async () => {

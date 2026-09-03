@@ -1661,7 +1661,8 @@ export class AiAgentAdminService extends BaseService {
     private hasSemanticWritebackConfig(): boolean {
         return Boolean(
             this.lightdashConfig.appRuntime.e2bApiKey &&
-            this.lightdashConfig.aiWriteback.anthropicApiKey,
+                (this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey ||
+                    this.lightdashConfig.aiWriteback.legacyAnthropicApiKey),
         );
     }
 
@@ -1746,7 +1747,7 @@ export class AiAgentAdminService extends BaseService {
                 );
             case 'missing_writeback_config':
                 throw new MissingConfigError(
-                    'AI writeback requires E2B_API_KEY and AI_WRITEBACK_ANTHROPIC_API_KEY',
+                    'AI writeback requires E2B_API_KEY and ANTHROPIC_API_KEY',
                 );
             case 'git_app_not_installed':
                 throw new ParameterError(

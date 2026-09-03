@@ -112,6 +112,8 @@ export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
 // also drop common token vars defensively in case that changes.
 export const COMPILE_STRIPPED_ENV_VARS = [
     'ANTHROPIC_API_KEY',
+    // Gateway mode carries the key here instead.
+    'ANTHROPIC_AUTH_TOKEN',
     'GITHUB_TOKEN',
     'GH_TOKEN',
 ];

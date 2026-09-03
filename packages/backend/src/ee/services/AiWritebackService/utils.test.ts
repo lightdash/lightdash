@@ -38,6 +38,7 @@ import {
     progressTextForStage,
     redactTokens,
     resolvePrMetadataValue,
+    resolveSandboxAnthropicConfig,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
@@ -756,6 +757,46 @@ describe('resolveSandboxDbtVersion', () => {
     it('resolves `latest` to the newest supported version', () => {
         expect(resolveSandboxDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
             getLatestSupportDbtVersion(),
+        );
+    });
+});
+
+describe('resolveSandboxAnthropicConfig', () => {
+    const config = (
+        anthropicApiKey: string | null,
+        legacyAnthropicApiKey: string | null,
+    ) =>
+        ({
+            ai: {
+                copilot: {
+                    providers: anthropicApiKey
+                        ? {
+                              anthropic: {
+                                  apiKey: anthropicApiKey,
+                                  baseUrl: 'https://gateway.example',
+                              },
+                          }
+                        : {},
+                },
+            },
+            aiWriteback: { legacyAnthropicApiKey },
+        } as Parameters<typeof resolveSandboxAnthropicConfig>[0]);
+
+    it('prefers the shared data-apps credentials, base URL included', () => {
+        expect(resolveSandboxAnthropicConfig(config('shared', 'legacy'))).toEqual(
+            { apiKey: 'shared', baseUrl: 'https://gateway.example' },
+        );
+    });
+
+    it('falls back to the deprecated writeback key when the shared one is unset', () => {
+        expect(resolveSandboxAnthropicConfig(config(null, 'legacy'))).toEqual({
+            apiKey: 'legacy',
+        });
+    });
+
+    it('throws when neither is configured', () => {
+        expect(() => resolveSandboxAnthropicConfig(config(null, null))).toThrow(
+            'ANTHROPIC_API_KEY',
         );
     });
 });
