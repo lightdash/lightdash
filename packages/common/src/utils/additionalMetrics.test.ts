@@ -1,10 +1,11 @@
-import { type CompiledTable } from '../types/explore';
+import { type CompiledTable, type Explore } from '../types/explore';
 import { CustomFormatType, DimensionType, MetricType } from '../types/field';
 import { type AdditionalMetric } from '../types/metricQuery';
 import { buildPopAdditionalMetric } from '../types/periodOverPeriodComparison';
 import { TimeFrames } from '../types/timeFrames';
 import {
     convertAdditionalMetric,
+    getCompatibleDashboardMetrics,
     mergeDashboardCustomMetrics,
 } from './additionalMetrics';
 
@@ -243,5 +244,160 @@ describe('mergeDashboardCustomMetrics', () => {
 
         expect(result).toHaveLength(1);
         expect(result[0].sql).toEqual('${TABLE}.amount');
+    });
+});
+
+describe('getCompatibleDashboardMetrics', () => {
+    const explore = {
+        tables: {
+            orders: {
+                dimensions: {
+                    amount: {},
+                    status: {},
+                    order_id: {},
+                },
+                metrics: {
+                    total_amount: {},
+                },
+            },
+            customers: {
+                dimensions: {
+                    customer_id: {},
+                },
+                metrics: {},
+            },
+        },
+    } as unknown as Explore;
+
+    const metric = (
+        overrides: Partial<AdditionalMetric> = {},
+    ): AdditionalMetric => ({
+        table: 'orders',
+        name: 'custom_metric',
+        label: 'Custom metric',
+        sql: '${TABLE}.amount',
+        type: MetricType.SUM,
+        ...overrides,
+    });
+
+    it('returns nothing without an explore', () => {
+        expect(getCompatibleDashboardMetrics([metric()], undefined)).toEqual(
+            [],
+        );
+    });
+
+    it('omits metrics whose owning table is missing', () => {
+        const result = getCompatibleDashboardMetrics(
+            [metric(), metric({ table: 'payments', name: 'other' })],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual(['custom_metric']);
+    });
+
+    it('requires the base dimension to exist on the owning table', () => {
+        const result = getCompatibleDashboardMetrics(
+            [
+                metric({ baseDimensionName: 'amount' }),
+                metric({ name: 'bad', baseDimensionName: 'deleted_column' }),
+            ],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual(['custom_metric']);
+    });
+
+    it('requires the base metric to exist on the owning table', () => {
+        const result = getCompatibleDashboardMetrics(
+            [
+                metric({ baseMetricName: 'total_amount' }),
+                metric({ name: 'bad', baseMetricName: 'deleted_metric' }),
+            ],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual(['custom_metric']);
+    });
+
+    it('requires every filter target field to exist', () => {
+        const filterOn = (fieldRef: string) =>
+            [
+                {
+                    id: 'f1',
+                    target: { fieldRef },
+                    operator: 'equals',
+                    values: ['x'],
+                },
+            ] as AdditionalMetric['filters'];
+
+        const result = getCompatibleDashboardMetrics(
+            [
+                metric({ filters: filterOn('orders.status') }),
+                // Bare ref resolves against the owning table
+                metric({ name: 'bare', filters: filterOn('status') }),
+                metric({
+                    name: 'joined',
+                    filters: filterOn('customers.customer_id'),
+                }),
+                metric({
+                    name: 'bad',
+                    filters: filterOn('orders.deleted_column'),
+                }),
+                metric({
+                    name: 'bad_table',
+                    filters: filterOn('payments.status'),
+                }),
+            ],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual([
+            'custom_metric',
+            'bare',
+            'joined',
+        ]);
+    });
+
+    it('resolves references case-insensitively like the compiler (uppercased timeframe keys)', () => {
+        const exploreWithTimeframes = {
+            tables: {
+                orders: {
+                    dimensions: { order_date_DAY: {} },
+                    metrics: {},
+                },
+            },
+        } as unknown as Explore;
+
+        const result = getCompatibleDashboardMetrics(
+            [
+                metric({
+                    filters: [
+                        {
+                            id: 'f1',
+                            target: { fieldRef: 'orders.order_date_day' },
+                            operator: 'equals',
+                            values: ['2026-01-01'],
+                        },
+                    ] as AdditionalMetric['filters'],
+                }),
+            ],
+            exploreWithTimeframes,
+        );
+
+        expect(result.map((m) => m.name)).toEqual(['custom_metric']);
+    });
+
+    it('requires every distinctKeys field to exist', () => {
+        const result = getCompatibleDashboardMetrics(
+            [
+                metric({ distinctKeys: ['orders.order_id'] }),
+                metric({
+                    name: 'wrapped',
+                    distinctKeys: ['${orders.order_id}'],
+                }),
+                metric({
+                    name: 'bad',
+                    distinctKeys: ['orders.deleted_column'],
+                }),
+            ],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual(['custom_metric', 'wrapped']);
     });
 });
