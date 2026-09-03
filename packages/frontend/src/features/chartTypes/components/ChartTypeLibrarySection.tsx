@@ -59,6 +59,12 @@ const ChartTypeLibrarySection: FC<Props> = ({
                 </Group>
             )}
 
+            <Text fz="sm" c="dimmed">
+                These chart types are available to add to your instance. Once
+                installed, they can be used by anyone building charts in your
+                organization.
+            </Text>
+
             {registryQuery.isInitialLoading ? (
                 <EmptyStateLoader title="Loading chart type library…" />
             ) : isOffline ? (
