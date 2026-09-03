@@ -23,7 +23,7 @@ describe('getReasoningFromPart', () => {
         });
     });
 
-    it('ignores Gemini reasoning blocks without a stable signature', () => {
+    it('leaves unsigned Gemini reasoning for downstream filtering', () => {
         const part: ReasoningUIPart = {
             type: 'reasoning',
             text: 'Reasoning summary',
@@ -32,7 +32,10 @@ describe('getReasoningFromPart', () => {
             },
         };
 
-        expect(getReasoningFromPart(part)).toBeNull();
+        expect(getReasoningFromPart(part)).toEqual({
+            reasoningId: undefined,
+            text: 'Reasoning summary',
+        });
     });
 });
 

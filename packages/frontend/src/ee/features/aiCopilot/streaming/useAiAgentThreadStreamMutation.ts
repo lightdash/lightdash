@@ -122,7 +122,7 @@ export const getReasoningFromPart = (part: ReasoningUIPart) => {
                 reasoningId: part.providerMetadata.bedrock.signature,
                 text: part.text,
             };
-        case typeof part.providerMetadata?.google?.signature === 'string':
+        case part.providerMetadata?.google !== undefined:
             return {
                 reasoningId: part.providerMetadata.google.signature,
                 text: part.text,
