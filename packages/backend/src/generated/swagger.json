@@ -5586,22 +5586,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tabs_63__58__name-string_-Array-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--filters_58__labels-DashboardFilterLabelTranslations_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -10756,6 +10756,158 @@
                 ],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "ScimRequestAction": {
+                "enum": [
+                    "create_user",
+                    "update_user",
+                    "deactivate_user",
+                    "delete_user",
+                    "role_change",
+                    "membership_change",
+                    "create_group",
+                    "update_group",
+                    "delete_group",
+                    "lookup",
+                    "list",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "ScimRequestLog": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "scimType": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorDetail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "affectedRoles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "targetUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetIdentity": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "action": {
+                        "$ref": "#/components/schemas/ScimRequestAction"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "tokenDescription": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "serviceAccountUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "scimType",
+                    "errorDetail",
+                    "status",
+                    "affectedRoles",
+                    "targetUuid",
+                    "targetIdentity",
+                    "action",
+                    "url",
+                    "method",
+                    "tokenDescription",
+                    "serviceAccountUuid",
+                    "organizationUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ScimRequestLog-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/ScimRequestLog"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiScimRequestLogListResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ScimRequestLog-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ApiCreateScimServiceAccountRequest": {
                 "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description_"
@@ -19028,20 +19180,6 @@
                 ],
                 "type": "object"
             },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
-            },
             "KnexPaginatedData_DataAppViz-Array_": {
                 "properties": {
                     "pagination": {
@@ -23507,6 +23645,9 @@
                     "default": {
                         "type": "boolean"
                     },
+                    "groupLabel": {
+                        "type": "string"
+                    },
                     "provider": {
                         "type": "string"
                     },
@@ -25207,6 +25348,80 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "appSlug",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "isPersonal": {
+                                "type": "boolean"
+                            },
+                            "pinnedVersion": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "isPersonal",
+                            "pinnedVersion",
+                            "displayName",
+                            "appSlug",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -26597,8 +26812,34 @@
                 "type": "object",
                 "description": "Persisted shape. `finalStepTotalTokens` is absent on rows written before it existed."
             },
+            "AiPromptResponseTiming": {
+                "properties": {
+                    "finishedAt": {
+                        "type": "string"
+                    },
+                    "firstTokenAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "First chunk the model produced (text, reasoning, or tool input). Null when nothing streamed."
+                    },
+                    "startedAt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["finishedAt", "firstTokenAt", "startedAt"],
+                "type": "object",
+                "description": "Wall-clock timing of one model run, stamped by the agent loop. ISO strings."
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "responseTiming": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiPromptResponseTiming"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "tokenUsage": {
                         "allOf": [
                             {
@@ -26691,6 +26932,7 @@
                     }
                 },
                 "required": [
+                    "responseTiming",
                     "tokenUsage",
                     "modelConfig",
                     "referencedArtifacts",
@@ -27138,6 +27380,51 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["appUuid", "type"],
+                        "type": "object"
                     }
                 ]
             },
@@ -27201,6 +27488,58 @@
                     }
                 },
                 "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string"
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "promptUuid",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadDataAppRestoreResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__"
+            },
+            "ApiAiAgentThreadDataAppRestoreRequest": {
+                "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "appUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["version", "appUuid"],
                 "type": "object"
             },
             "ApiSuccess__decision-approved-or-rejected__": {
@@ -43609,6 +43948,7 @@
                     "cleanMcpToolCalls",
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
+                    "cleanScimRequestLogs",
                     "publishAnnouncement",
                     "sweepDueAnnouncements",
                     "ingestExternalSource",
@@ -59225,7 +59565,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.103.0",
+        "version": "2.115.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -67901,6 +68241,72 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiAiAgentThreadMessageCreateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/data-app-restores": {
+            "post": {
+                "operationId": "restoreAgentThreadDataAppVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Restores a ready data app version as a new latest version on behalf of\nthe thread and records the restore as a hidden thread turn",
+                "summary": "Restore data app version",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreRequest"
                             }
                         }
                     }

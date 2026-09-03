@@ -612,6 +612,10 @@ import {
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
 import {
+    ScimRequestLogsTableName,
+    ScimRequestLogTable,
+} from '../ee/database/entities/scimRequestLogs';
+import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -789,6 +793,7 @@ declare module 'knex/types/tables' {
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;
+        [ScimRequestLogsTableName]: ScimRequestLogTable;
         [MetricsTreeEdgesTableName]: MetricsTreeEdgesTable;
         [MetricsTreeLocksTableName]: MetricsTreeLocksTable;
         [MetricsTreesTableName]: MetricsTreesTable;

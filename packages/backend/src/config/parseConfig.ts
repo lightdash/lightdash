@@ -1348,6 +1348,9 @@ export const getAiConfig = () => ({
                   modelName:
                       process.env.OPENROUTER_MODEL_NAME ||
                       DEFAULT_OPENROUTER_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_AVAILABLE_MODELS',
+                  ),
                   sortOrder: process.env.OPENROUTER_SORT_ORDER,
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
@@ -1513,6 +1516,7 @@ export type LightdashConfig = {
     };
     dbt: {
         environmentVariableAllowlist: string[];
+        sourceFetchConcurrency: number | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -1591,6 +1595,15 @@ export type LightdashConfig = {
                 delayMs: number;
                 maxBatches?: number;
                 schedule: string;
+            };
+        };
+        scimRequestLogs: {
+            cleanup: {
+                enabled: boolean;
+                retentionDays: number;
+                batchSize: number;
+                delayMs: number;
+                maxBatches: number;
             };
         };
     };
@@ -3219,6 +3232,9 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_CONCURRENCY',
+            ),
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -3396,6 +3412,29 @@ export const parseConfig = (): LightdashConfig => {
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
+                },
+            },
+            scimRequestLogs: {
+                cleanup: {
+                    enabled:
+                        process.env.SCIM_REQUEST_LOG_CLEANUP_ENABLED !==
+                        'false', // true by default
+                    retentionDays:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_RETENTION_DAYS',
+                        ) ?? 30,
+                    batchSize:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_BATCH_SIZE',
+                        ) ?? 1000,
+                    delayMs:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_DELAY_MS',
+                        ) ?? 100,
+                    maxBatches:
+                        getIntegerFromEnvironmentVariable(
+                            'SCIM_REQUEST_LOG_CLEANUP_MAX_BATCHES',
+                        ) ?? 100,
                 },
             },
         },

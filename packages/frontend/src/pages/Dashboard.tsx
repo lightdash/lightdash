@@ -2,17 +2,22 @@ import { subject } from '@casl/ability';
 import {
     copyDateZoomTileTargets,
     excludeTilesFromTabScopedFilters,
+    getDefaultChartTileSize,
     getShadowedReservedNames,
     isEmptyDateZoomConfig,
     normalizeDateZoomConfig,
     pruneDateZoomConfig,
     removeDateZoomTileTargets,
+    ChartType,
     ContentType,
+    DashboardTileTypes,
     DateGranularity,
+    FeatureFlags,
     type DashboardFilterRule,
     type UpdateDashboard,
     type DashboardTile,
     type Dashboard as IDashboard,
+    type SavedChart,
 } from '@lightdash/common';
 import { Button, Group, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -24,6 +29,7 @@ import { IconAlertCircle, IconCircleCheckFilled } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
+import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -32,6 +38,7 @@ import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModa
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
+import DashboardChartEditorModal from '../components/DashboardTiles/DashboardChartEditorModal';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DismissedDraftAlert from '../features/contentAsCode/components/DismissedDraftAlert';
@@ -54,12 +61,15 @@ import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardChartEdit';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
@@ -726,13 +736,17 @@ const Dashboard: FC = () => {
         if (
             isEditMode &&
             (haveTilesChanged || haveFiltersChanged || haveTabsChanged) &&
-            !nextLocation.pathname.includes(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}`,
-            ) &&
-            (!dashboardUuid ||
-                !nextLocation.pathname.includes(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardUuid}`,
-                )) &&
+            // A URL may carry either the uuid or the slug for both the project
+            // and the dashboard, so accept any combination — but compare whole
+            // segments, and require the project to match too: dashboard slugs
+            // are only unique within a project.
+            !isSameDashboardRoute({
+                location: nextLocation,
+                projectUuid,
+                projectSlug: projectUrlIdentifier,
+                dashboardUuid,
+                dashboardSlug: dashboardIdentifier,
+            }) &&
             // Allow user to add a new table
             !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
@@ -771,6 +785,44 @@ const Dashboard: FC = () => {
 
     const hasTilesThatSupportFilters = useDashboardContext(
         (c) => c.hasTilesThatSupportFilters,
+    );
+
+    const dashboardCustomMetricsFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardCustomMetrics,
+    );
+    const isDashboardCustomMetricsEnabled =
+        dashboardCustomMetricsFlag.data?.enabled === true;
+    const [isNewChartOpen, setIsNewChartOpen] = useState(false);
+    const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
+
+    const handleChartEditorSaved = useCallback(
+        (chart: SavedChart) => {
+            // New uuid means a brand-new chart; an existing tile refreshes
+            // itself via the update mutation's query cache reset.
+            if (chart.uuid !== chartToEdit?.uuid) {
+                void handleAddTiles([
+                    {
+                        uuid: uuid4(),
+                        type: DashboardTileTypes.SAVED_CHART,
+                        properties: {
+                            // Created against this dashboard, so the tile owns it.
+                            belongsToDashboard: true,
+                            savedChartUuid: chart.uuid,
+                            chartName: chart.name,
+                            hideTitle:
+                                chart.chartConfig.type === ChartType.BIG_NUMBER
+                                    ? true
+                                    : undefined,
+                        },
+                        tabUuid: activeTab?.uuid,
+                        ...getDefaultChartTileSize(chart.chartConfig.type),
+                    },
+                ]);
+            }
+            setChartToEdit(undefined);
+            setIsNewChartOpen(false);
+        },
+        [chartToEdit, handleAddTiles, activeTab?.uuid],
     );
 
     if (isDashboardLoading) {
@@ -906,6 +958,10 @@ const Dashboard: FC = () => {
             hasDefaultDateZoomGranularityChanged ||
             hasDateZoomConfigChanged,
         onAddTiles: handleAddTiles,
+        onNewChart:
+            isDashboardCustomMetricsEnabled && isEditMode
+                ? () => setIsNewChartOpen(true)
+                : undefined,
         onSaveDashboard: () => {
             if (shouldShowVerificationSaveOptions) {
                 saveVerificationModalHandlers.open();
@@ -1029,6 +1085,20 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
+                    {isDashboardCustomMetricsEnabled && dashboard.uuid ? (
+                        <DashboardChartEditorModal
+                            opened={isNewChartOpen || chartToEdit !== undefined}
+                            dashboardUuid={dashboard.uuid}
+                            dashboardName={dashboard.name}
+                            editChart={chartToEdit}
+                            onChartSaved={handleChartEditorSaved}
+                            onClose={() => {
+                                setIsNewChartOpen(false);
+                                setChartToEdit(undefined);
+                            }}
+                        />
+                    ) : null}
+
                     {dashboard.draftOverlayError ? (
                         <DraftOverlayFailureAlert
                             error={dashboard.draftOverlayError}
@@ -1061,38 +1131,46 @@ const Dashboard: FC = () => {
                     ) : null}
 
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
-                    <FilterBarPopoversProvider>
-                        <DashboardTabs
-                            isEditMode={isEditMode}
-                            hasTilesThatSupportFilters={
-                                hasTilesThatSupportFilters
-                            }
-                            // parameters
-                            shadowedReservedNames={shadowedReservedNames}
-                            parameterValues={parameterValues}
-                            onParameterChange={handleParameterChange}
-                            onParameterClearAll={clearAllParameters}
-                            isParameterLoading={!areAllChartsLoaded}
-                            missingRequiredParameters={
-                                missingRequiredParameters
-                            }
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={toggleParameterPin}
-                            parameterOrder={parameterOrder}
-                            onParameterReorder={setParameterOrder}
-                            // tabs
-                            activeTab={activeTab}
-                            addingTab={addingTab}
-                            dashboardTiles={dashboardTiles}
-                            handleAddTiles={handleAddTiles}
-                            handleUpdateTiles={handleUpdateTiles}
-                            handleDeleteTile={handleDeleteTile}
-                            handleBatchDeleteTiles={handleBatchDeleteTiles}
-                            handleEditTile={handleEditTiles}
-                            setGridWidth={setGridWidth}
-                            setAddingTab={setAddingTab}
-                        />
-                    </FilterBarPopoversProvider>
+                    <DashboardChartEditContext.Provider
+                        value={
+                            isDashboardCustomMetricsEnabled
+                                ? setChartToEdit
+                                : undefined
+                        }
+                    >
+                        <FilterBarPopoversProvider>
+                            <DashboardTabs
+                                isEditMode={isEditMode}
+                                hasTilesThatSupportFilters={
+                                    hasTilesThatSupportFilters
+                                }
+                                // parameters
+                                shadowedReservedNames={shadowedReservedNames}
+                                parameterValues={parameterValues}
+                                onParameterChange={handleParameterChange}
+                                onParameterClearAll={clearAllParameters}
+                                isParameterLoading={!areAllChartsLoaded}
+                                missingRequiredParameters={
+                                    missingRequiredParameters
+                                }
+                                pinnedParameters={pinnedParameters}
+                                onParameterPin={toggleParameterPin}
+                                parameterOrder={parameterOrder}
+                                onParameterReorder={setParameterOrder}
+                                // tabs
+                                activeTab={activeTab}
+                                addingTab={addingTab}
+                                dashboardTiles={dashboardTiles}
+                                handleAddTiles={handleAddTiles}
+                                handleUpdateTiles={handleUpdateTiles}
+                                handleDeleteTile={handleDeleteTile}
+                                handleBatchDeleteTiles={handleBatchDeleteTiles}
+                                handleEditTile={handleEditTiles}
+                                setGridWidth={setGridWidth}
+                                setAddingTab={setAddingTab}
+                            />
+                        </FilterBarPopoversProvider>
+                    </DashboardChartEditContext.Provider>
                 </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal

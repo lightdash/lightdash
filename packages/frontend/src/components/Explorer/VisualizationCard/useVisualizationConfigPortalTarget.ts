@@ -31,13 +31,16 @@ const useVisualizationConfigPortalTarget = (
 
         updateTarget();
 
-        if (!followHost) return;
+        // On a fresh page load with the config already open, the host mounts
+        // after this lookup — keep watching until one is found. Only the
+        // gallery host keeps being followed across replacements after that.
+        if (!followHost && target !== null) return;
 
         const observer = new MutationObserver(updateTarget);
         observer.observe(document.body, { childList: true, subtree: true });
 
         return () => observer.disconnect();
-    }, [isOpen, followHost]);
+    }, [isOpen, followHost, target]);
 
     return target;
 };

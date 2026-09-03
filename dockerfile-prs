@@ -212,6 +212,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
     fontconfig \
     # Required so headless chart screenshots can render CJK glyphs
+    # Required so DuckDB httpfs can verify HTTPS object storage (Node carries its own trust store)
+    ca-certificates \
     fonts-noto-cjk \
     dumb-init \
     && apt-get clean \

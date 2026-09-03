@@ -65,7 +65,6 @@ import { validate as isUuidString, v4 as uuid4 } from 'uuid';
 import { AiMarkdown } from '../components/common/AiMarkdown';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
-import MantineModal from '../components/common/MantineModal';
 import {
     ComposerSubmitButton,
     PromptComposer,
@@ -100,6 +99,7 @@ import { ElementPickerButton } from '../features/apps/components/ElementPickerBu
 import { ElementRefPill } from '../features/apps/components/ElementRefPill';
 import LoadingDots from '../features/apps/components/LoadingDots';
 import RecentAppSuggestions from '../features/apps/components/RecentAppSuggestions';
+import { RestoreAppVersionModal } from '../features/apps/components/RestoreAppVersionModal';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -2963,23 +2963,20 @@ const AppGenerate: FC = () => {
                                                     </Menu.Item>
                                                 ) : null
                                             }
+                                            askAiItem={null}
                                         />
                                     }
                                 />
                             )}
                             {restoreTargetVersion !== null && activeAppUuid && (
-                                <MantineModal
-                                    opened
+                                <RestoreAppVersionModal
+                                    version={restoreTargetVersion}
+                                    isLoading={isRestoringVersion}
+                                    error={restoreVersionError}
                                     onClose={() => {
-                                        if (isRestoringVersion) return;
                                         setRestoreTargetVersion(null);
                                         resetRestoreVersion();
                                     }}
-                                    title={`Restore version ${restoreTargetVersion}?`}
-                                    icon={IconRestore}
-                                    confirmLabel="Restore version"
-                                    cancelDisabled={isRestoringVersion}
-                                    confirmLoading={isRestoringVersion}
                                     onConfirm={() =>
                                         restoreVersionMutate(
                                             {
@@ -2996,24 +2993,7 @@ const AppGenerate: FC = () => {
                                             },
                                         )
                                     }
-                                >
-                                    <Stack gap="sm">
-                                        <Text fz="sm">
-                                            This will create a new version on
-                                            top of the timeline that duplicates
-                                            the contents of version{' '}
-                                            {restoreTargetVersion}. Your next
-                                            prompt will iterate from there.
-                                        </Text>
-                                        {restoreVersionError && (
-                                            <Callout variant="danger">
-                                                {restoreVersionError.error
-                                                    ?.message ??
-                                                    'Failed to restore version.'}
-                                            </Callout>
-                                        )}
-                                    </Stack>
-                                </MantineModal>
+                                />
                             )}
 
                             <Box className={classes.previewContent}>

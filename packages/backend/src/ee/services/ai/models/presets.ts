@@ -2,15 +2,17 @@ import { CallSettings } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'bedrock';
+export type SelectableModelProvider = ModelPresetProvider | 'openrouter';
 
 export type ReasoningStyle = 'budget' | 'adaptive';
 
-export type ModelPreset<P extends ModelPresetProvider> = {
+export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
     provider: P;
     modelId: string;
     displayName: string;
     description: string;
+    groupLabel?: string;
     supportsReasoning: boolean;
     // How the provider exposes extended reasoning. 'budget' uses the original
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
@@ -355,8 +357,89 @@ export function customGatewayPreset(modelName: string): ModelPreset<'openai'> {
     };
 }
 
+const OPENROUTER_MODEL_METADATA: Record<
+    string,
+    {
+        displayName: string;
+        description: string;
+        groupLabel: string;
+        contextWindowTokens: number;
+        supportsReasoning: boolean;
+    }
+> = {
+    'qwen/qwen3.5-9b': {
+        displayName: 'Qwen3.5 9B',
+        description:
+            'Compact multimodal model for affordable reasoning, coding, and visual analysis',
+        groupLabel: 'Qwen',
+        contextWindowTokens: 262_144,
+        supportsReasoning: false,
+    },
+    'moonshotai/kimi-k3': {
+        displayName: 'Kimi K3',
+        description:
+            'Open-weight multimodal model for complex coding and long-running agents',
+        groupLabel: 'Moonshot AI',
+        contextWindowTokens: 1_048_576,
+        supportsReasoning: false,
+    },
+    'minimax/minimax-m3': {
+        displayName: 'MiniMax M3',
+        description:
+            'Multimodal 1M-context model for coding and long-horizon agent work',
+        groupLabel: 'MiniMax',
+        contextWindowTokens: 1_048_576,
+        supportsReasoning: false,
+    },
+    'deepseek/deepseek-v4-flash-0731': {
+        displayName: 'DeepSeek V4 Flash',
+        description:
+            'Fast mixture-of-experts reasoning for coding and tool-driven workflows',
+        groupLabel: 'DeepSeek',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+    'z-ai/glm-5.3-flash': {
+        displayName: 'GLM 5.3 Flash',
+        description:
+            'Efficient multimodal model for coding and long-context agent tasks',
+        groupLabel: 'Z.ai',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+};
+
+export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
+    const metadata = OPENROUTER_MODEL_METADATA[modelName];
+
+    if (metadata) {
+        return {
+            name: modelName,
+            provider: 'openrouter',
+            modelId: modelName,
+            ...metadata,
+            custom: false,
+            callOptions: {},
+            providerOptions: undefined,
+        };
+    }
+
+    return {
+        name: modelName,
+        provider: 'openrouter',
+        modelId: modelName,
+        displayName: modelName,
+        description: 'Model served through OpenRouter',
+        custom: true,
+        contextWindowTokens: null,
+        supportsReasoning: false,
+        callOptions: {},
+        providerOptions: undefined,
+    };
+}
+
 export function matchesPreset(
-    preset: ModelPreset<ModelPresetProvider>,
+    preset: ModelPreset<SelectableModelProvider>,
     name: string,
 ): boolean {
     return preset.name === name || preset.modelId === name;

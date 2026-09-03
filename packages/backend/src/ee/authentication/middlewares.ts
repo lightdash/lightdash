@@ -65,16 +65,26 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
             throw new Error('No SCIM token provided');
         }
         // Attach SCIM serviceAccount to request
-        const serviceAccount = await req.services
+        const authentication = await req.services
             .getServiceAccountService<ServiceAccountService>()
             .authenticateScim(token, {
                 method: req.method,
                 path: req.path,
                 routePath: req.route.path,
             });
-        if (!serviceAccount) {
+        if (!authentication) {
             throw new Error('Invalid SCIM token. Authentication failed.');
         }
+        if (authentication.result === 'expired') {
+            // Attribute the failure in the SCIM request log before rejecting
+            req.scimLogAttribution = {
+                organizationUuid:
+                    authentication.serviceAccount.organizationUuid,
+                serviceAccountUuid: authentication.serviceAccount.uuid,
+            };
+            throw new Error('SCIM token has expired. Authentication failed.');
+        }
+        const { serviceAccount } = authentication;
         req.serviceAccount = serviceAccount;
 
         // Load the SA's dedicated `users` row. Abilities are derived from the

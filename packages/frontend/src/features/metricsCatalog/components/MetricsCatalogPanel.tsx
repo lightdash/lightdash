@@ -99,8 +99,8 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 </Button>
             </Popover.Target>
             <Popover.Dropdown
-                bg="ldDark.6"
-                c="white"
+                bg="ldDark.9"
+                c="ldGray.0"
                 p={16}
                 className={classes.spotlightDropdown}
             >
@@ -146,6 +146,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </Button>
                         <Button
                             component="a"
+                            variant="default"
                             href="https://docs.lightdash.com/guides/metrics-catalog/"
                             target="_blank"
                             style={{ border: 'none', flexGrow: 1 }}

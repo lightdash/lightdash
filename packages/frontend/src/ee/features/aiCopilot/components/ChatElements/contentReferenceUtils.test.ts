@@ -2,6 +2,8 @@ import { ChartKind } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildContentReferenceSegments,
+    getDataAppContextItemLabel,
+    getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
 
@@ -206,6 +208,26 @@ describe('contentReferenceUtils', () => {
         expect(result.matchedKeys.size).toBe(0);
         expect(getPromptContextItemKey(item)).toBe(
             'data_app_element:app-1:3:[h1 "FORMULA 1" @src/App.jsx:14]',
+        );
+    });
+
+    it('resolves key, chip label with pinned version, and href for a data app', () => {
+        const item = {
+            type: 'data_app' as const,
+            appUuid: 'app-1',
+            appSlug: 'f1-standings',
+            displayName: 'F1 standings',
+            pinnedVersion: 3,
+            isPersonal: false,
+        };
+
+        expect(getPromptContextItemKey(item)).toBe('data_app:app-1');
+        expect(getDataAppContextItemLabel(item)).toBe('F1 standings v3');
+        expect(
+            getDataAppContextItemLabel({ ...item, pinnedVersion: null }),
+        ).toBe('F1 standings');
+        expect(getPromptContextItemHref(item, 'project-1')).toBe(
+            '/projects/project-1/apps/app-1/view',
         );
     });
 });

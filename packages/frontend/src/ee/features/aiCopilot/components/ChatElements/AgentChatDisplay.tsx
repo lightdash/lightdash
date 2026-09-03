@@ -151,6 +151,15 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     );
     // Hidden turns are answered by the agent but are not part of the visible
     // conversation. Deep research assistant rows are replaced by run cards.
+    // A hidden user turn shares its uuid with the assistant reply, which may
+    // render it (e.g. a data app restore card).
+    const hiddenUserMessagesByUuid = new Map(
+        thread.messages.flatMap((message) =>
+            message.role === 'user' && message.hidden
+                ? [[message.uuid, message] as const]
+                : [],
+        ),
+    );
     const visibleMessages = thread.messages.filter(
         (message) =>
             !(
@@ -218,12 +227,18 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     <UserBubble
                                         message={message}
                                         projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
                                     />
                                 ) : (
                                     <ErrorBoundary>
                                         {projectUuid && agentUuid && (
                                             <AssistantBubble
                                                 message={message}
+                                                hiddenSibling={
+                                                    hiddenUserMessagesByUuid.get(
+                                                        message.uuid,
+                                                    ) ?? null
+                                                }
                                                 isLastMessage={
                                                     i === xs.length - 1
                                                 }

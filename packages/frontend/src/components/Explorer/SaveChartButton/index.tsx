@@ -32,6 +32,10 @@ import {
     useUpdateMutation,
 } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
+import {
+    useIsModalHosted,
+    useModalHostedChartSaved,
+} from '../../../providers/Explorer/useIsModalHosted';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
@@ -46,6 +50,10 @@ const SaveChartButton: FC<{
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
+    const isModalHosted = useIsModalHosted();
+    const onModalHostChartSaved = useModalHostedChartSaved();
+    // Both mean the Explorer is not the page, so saving must not navigate away.
+    const suppressNavigation = isEmbedded || isModalHosted;
     const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     // For saving: enriched with map extent (only subscribes here to avoid re-renders elsewhere)
@@ -98,7 +106,9 @@ const SaveChartButton: FC<{
         setIsQueryModalOpen(true);
     };
 
-    const update = useAddVersionMutation({ redirectOnSuccess: !isEmbedded });
+    const update = useAddVersionMutation({
+        redirectOnSuccess: !suppressNavigation,
+    });
     const updateMetadata = useUpdateMutation(
         savedChart?.dashboardUuid ?? undefined,
         savedChart?.uuid,
@@ -123,6 +133,7 @@ const SaveChartButton: FC<{
                     onSuccess: (data) => {
                         if (!hasVersionChanges && !hasMergeChanges) {
                             embed.onChartSaved?.(data, 'updated');
+                            onModalHostChartSaved?.(data);
                         }
                     },
                 },
@@ -139,9 +150,12 @@ const SaveChartButton: FC<{
                     },
                 },
                 {
-                    // Lets the embed dashboard builder react to the update
+                    // Lets a dashboard builder react to the update
                     // (e.g. close its chart editor modal)
-                    onSuccess: (data) => embed.onChartSaved?.(data, 'updated'),
+                    onSuccess: (data) => {
+                        embed.onChartSaved?.(data, 'updated');
+                        onModalHostChartSaved?.(data);
+                    },
                 },
             );
         }
@@ -240,7 +254,7 @@ const SaveChartButton: FC<{
                         // Trigger metadata generation on mouse enter if available
                         onMouseEnter={() => {
                             if (savedChart) return;
-                            if (isEmbedded) return;
+                            if (suppressNavigation) return;
                             if (!isAmbientAiEnabled) return;
                             triggerMetadataGeneration();
                         }}
@@ -301,13 +315,14 @@ const SaveChartButton: FC<{
                         setIsQueryModalOpen(false);
                         setIsSaveAsModal(false);
                         embed.onChartSaved?.(saved, 'created');
+                        onModalHostChartSaved?.(saved);
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? undefined}
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
-                    redirectOnSuccess={!isEmbedded}
-                    showViewChartAction={!isEmbedded}
+                    redirectOnSuccess={!suppressNavigation}
+                    showViewChartAction={!suppressNavigation}
                     forcedSpaceUuid={
                         isEmbedded ? embed.writeActions?.spaceUuid : undefined
                     }

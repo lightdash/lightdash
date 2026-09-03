@@ -1200,13 +1200,18 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
+        // Impersonators need to read the setting to know the action is available
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
+        const canReadSetting =
+            auditedAbility.can(
                 'update',
                 subject('Organization', { organizationUuid }),
-            )
-        ) {
+            ) ||
+            auditedAbility.can(
+                'impersonate',
+                subject('User', { organizationUuid, isActive: true }),
+            );
+        if (!canReadSetting) {
             throw new ForbiddenError();
         }
         const flag = await this.featureFlagModel.get({

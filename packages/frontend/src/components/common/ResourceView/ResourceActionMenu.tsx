@@ -4,6 +4,7 @@ import {
     ChartSourceType,
     ContentReviewContentType,
     DirectAccessResourceType,
+    isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -457,6 +458,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             />
                             {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                         </>
+                    )}
+
+                    {isResourceViewDataAppItem(item) && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            dataAppUuid={item.data.uuid}
+                            clickedFrom="data_app_resource_action_menu"
+                        />
                     )}
 
                     {(userCanManage || canDuplicateDataApp) &&

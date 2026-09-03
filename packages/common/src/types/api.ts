@@ -102,6 +102,7 @@ import type {
     ExternalFetchResponse,
 } from '../ee';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
+import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUserActivityDownloadCsv,
@@ -1249,6 +1250,7 @@ type ApiResults =
     | ContentReviewSimilarContentItem[]
     | KnexPaginatedData<ContentReviewRequestListItem[]>
     | BigqueryProjectRecommendation
+    | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']

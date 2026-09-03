@@ -299,6 +299,9 @@ export const FormulaEditor: FC<Props> = ({
                 blockquote: false,
                 codeBlock: false,
                 horizontalRule: false,
+                link: false,
+                underline: false,
+                trailingNode: false,
             }),
             MentionWithLabel.configure({
                 suggestion: {

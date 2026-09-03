@@ -125,6 +125,9 @@ type DashboardHeaderProps = {
         // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
         tileUuidMapping?: Record<string, string>,
     ) => void;
+    // Overrides the default "New chart" navigation so the chart is built in
+    // a modal over the dashboard instead of on the Explorer page.
+    onNewChart?: () => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
     onDelete: () => void;
@@ -155,6 +158,7 @@ const DashboardHeader = memo(
         dashboardTabs,
         dashboardTiles,
         onAddTiles,
+        onNewChart,
         onCancel,
         onSaveDashboard,
         onDelete,
@@ -610,6 +614,7 @@ const DashboardHeader = memo(
                             setAddingTab={setAddingTab}
                             activeTabUuid={activeTabUuid}
                             dashboardTabs={dashboardTabs}
+                            onNewChart={onNewChart}
                             radius="md"
                         />
 

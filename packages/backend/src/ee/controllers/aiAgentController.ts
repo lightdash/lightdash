@@ -27,6 +27,8 @@ import {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadLiveStatusesResponse,
@@ -1188,6 +1190,36 @@ export class AiAgentController extends BaseController {
                 threadUuid,
                 body,
             ),
+        };
+    }
+
+    /**
+     * Restores a ready data app version as a new latest version on behalf of
+     * the thread and records the restore as a hidden thread turn
+     * @summary Restore data app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/data-app-restores')
+    @OperationId('restoreAgentThreadDataAppVersion')
+    async restoreAgentThreadDataAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Body() body: ApiAiAgentThreadDataAppRestoreRequest,
+    ): Promise<ApiAiAgentThreadDataAppRestoreResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().restoreDataAppVersionForThread(
+                    toSessionUser(req.account),
+                    agentUuid,
+                    threadUuid,
+                    body,
+                ),
         };
     }
 

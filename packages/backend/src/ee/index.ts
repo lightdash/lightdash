@@ -58,6 +58,7 @@ import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
+import { ScimRequestLogModel } from './models/ScimRequestLogModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
@@ -65,6 +66,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { scimRequestLoggingMiddleware } from './scim/scimRequestLoggingMiddleware';
 import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
@@ -874,6 +876,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     projectModel: models.getProjectModel(),
                     openIdIdentityModel: models.getOpenIdIdentityModel(),
+                    scimRequestLogModel:
+                        models.getScimRequestLogModel<ScimRequestLogModel>(),
                 }),
             serviceAccountService: ({ models, context }) =>
                 new ServiceAccountService({
@@ -1166,6 +1170,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     resultsStorageClient: clients.getResultsFileStorageClient(),
+                    composeEngineClient: repository.getComposeEngineClient(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
@@ -1369,6 +1374,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     database,
                     lightdashConfig,
                 }),
+            scimRequestLogModel: ({ database }) =>
+                new ScimRequestLogModel({ database }),
             externalConnectionModel: ({ database, utils }) =>
                 new ExternalConnectionModel({
                     database,
@@ -1395,6 +1402,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         type: ['application/scim+json'],
                     }),
                 );
+            },
+            (expressApp: Express) => {
+                expressApp.use('/api/v1/scim/v2', scimRequestLoggingMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>
@@ -1477,6 +1487,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 openIdIdentityModel: context.models.getOpenIdIdentityModel(),
                 mcpToolCallModel:
                     context.models.getMcpToolCallModel<McpToolCallModel>(),
+                scimRequestLogModel:
+                    context.models.getScimRequestLogModel<ScimRequestLogModel>(),
                 projectHomepageService:
                     context.serviceRepository.getProjectHomepageService<ProjectHomepageService>(),
                 externalSourceService:

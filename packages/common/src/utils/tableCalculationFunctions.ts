@@ -670,26 +670,6 @@ export function hasRowFunctions(
 }
 
 /**
- * Checks if the given function type is an aggregate function (total/row_total).
- */
-export function isAggregateFunction(
-    type: TableCalculationFunctionType,
-): boolean {
-    return (
-        AGGREGATE_FUNCTIONS as readonly TableCalculationFunctionType[]
-    ).includes(type);
-}
-
-/**
- * Checks if any of the parsed functions are aggregate functions (total/row_total).
- */
-export function hasAggregateFunctions(
-    functions: TableCalculationFunctionCall[],
-): boolean {
-    return functions.some((f) => isAggregateFunction(f.type));
-}
-
-/**
  * Builds regexes for matching total("field") and row_total("field") in compiled SQL.
  * Used by both extractTotalReferences (detection) and MetricQueryBuilder.replaceTotalReferences (rewriting)
  * to ensure consistent matching logic.

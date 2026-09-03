@@ -60,6 +60,8 @@ const dataAppPreview = {
     threadUuid: 'thread-uuid',
     projectUuid: 'project-uuid',
     agentUuid: 'agent-uuid',
+    version: null,
+    latestReadyVersionAtOpen: null,
 };
 
 const latestIframeProps = (): IframePreviewProps => {

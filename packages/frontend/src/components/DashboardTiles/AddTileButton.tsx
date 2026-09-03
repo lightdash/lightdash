@@ -163,6 +163,9 @@ const AddTileButton: FC<Props> = ({
                             <Menu.Item
                                 onClick={() => {
                                     if (onNewChart) {
+                                        // Modal supplies the dashboard via
+                                        // context; sessionStorage would also
+                                        // show the navbar's edit banner.
                                         onNewChart();
                                         return;
                                     }

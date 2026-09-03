@@ -1,6 +1,8 @@
 import {
     defineUserAbility,
     OrganizationMemberRole,
+    ParameterError,
+    SEED_ORG_1,
     SEED_ORG_1_EDITOR,
     SEED_ORG_1_EDITOR_EMAIL,
     SEED_ORG_1_VIEWER,
@@ -15,12 +17,15 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { AppsTableName } from '../../../database/entities/apps';
 import {
     getModels,
     getServices,
     getTestContext,
     type IntegrationTestContext,
 } from '../../../vitest.setup.integration';
+import { AiThreadTableName } from '../../database/entities/ai';
+import { AiAgentTableName } from '../../database/entities/aiAgent';
 
 type RuntimeClientSpies = {
     startOAuthConnection: (...args: unknown[]) => Promise<string>;
@@ -1070,5 +1075,171 @@ describe('AiAgentService MCP support', () => {
         completeOAuthConnectionSpy.mockRestore();
         discoverMcpServerToolsSpy.mockRestore();
         getOauthCredentialByStateSpy.mockRestore();
+    });
+});
+
+describe('AiAgentService thread data app restore', () => {
+    let context: IntegrationTestContext;
+    let agentUuid: string;
+    const threadUuids = new Set<string>();
+    const appUuids = new Set<string>();
+
+    beforeAll(async () => {
+        context = getTestContext();
+        const agent = await getServices(context.app).aiAgentService.createAgent(
+            context.testUser,
+            {
+                name: `Restore Agent ${crypto.randomUUID().slice(0, 8)}`,
+                description: null,
+                projectUuid: SEED_PROJECT.project_uuid,
+                tags: null,
+                integrations: [],
+                instruction: '',
+                groupAccess: [],
+                userAccess: [],
+                spaceAccess: [],
+                mcpServerUuids: [],
+                imageUrl: null,
+                enableDataAccess: true,
+                enableSelfImprovement: false,
+                version: 2,
+            },
+        );
+        agentUuid = agent.uuid;
+    });
+
+    afterAll(async () => {
+        await context
+            .db(AiThreadTableName)
+            .whereIn('ai_thread_uuid', [...threadUuids])
+            .delete();
+        await context
+            .db(AppsTableName)
+            .whereIn('app_id', [...appUuids])
+            .delete();
+        await context
+            .db(AiAgentTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .delete();
+    });
+
+    const createAppWithVersions = async (latestStatus: 'ready' | 'pending') => {
+        const appModel = context.app.getModels().getAppModel();
+        const { app } = await appModel.createWithVersion(
+            {
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_by_user_uuid: context.testUser.userUuid,
+                name: 'Revenue app',
+            },
+            { version: 1, prompt: 'Build a revenue app' },
+            'ready',
+        );
+        appUuids.add(app.app_id);
+        await appModel.createVersion(
+            app.app_id,
+            { version: 2, prompt: 'Add a chart' },
+            latestStatus,
+            context.testUser.userUuid,
+        );
+        // Threads are only listed once they hold a first prompt.
+        const { aiAgentModel } = getModels(context.app);
+        const threadUuid = await aiAgentModel.createWebAppThread({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            projectUuid: SEED_PROJECT.project_uuid,
+            userUuid: context.testUser.userUuid,
+            createdFrom: 'web_app',
+            agentUuid,
+        });
+        threadUuids.add(threadUuid);
+        const firstPromptUuid = await aiAgentModel.createWebAppPrompt({
+            threadUuid,
+            createdByUserUuid: context.testUser.userUuid,
+            prompt: 'Build me a revenue app',
+        });
+        await aiAgentModel.updateModelResponse({
+            promptUuid: firstPromptUuid,
+            response: 'Started the data app build.',
+        });
+        return { app, threadUuid };
+    };
+
+    it('restores the version and records a hidden, answered turn in the thread', async () => {
+        const { app, threadUuid } = await createAppWithVersions('ready');
+        const { aiAgentService } = getServices(context.app);
+        const { aiAgentModel } = getModels(context.app);
+
+        const result = await aiAgentService.restoreDataAppVersionForThread(
+            context.testUser,
+            agentUuid,
+            threadUuid,
+            { appUuid: app.app_id, version: 1 },
+        );
+
+        expect(result).toEqual({
+            appUuid: app.app_id,
+            version: 3,
+            restoredFromVersion: 1,
+            promptUuid: expect.any(String),
+        });
+        const latest = await context.app
+            .getModels()
+            .getAppModel()
+            .getLatestVersion(app.app_id);
+        expect(latest).toMatchObject({ version: 3, status: 'ready' });
+
+        const messages = await aiAgentModel.findThreadMessages({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            threadUuid,
+        });
+        expect(messages).toHaveLength(4);
+        expect(messages[2]).toMatchObject({
+            role: 'user',
+            uuid: result.promptUuid,
+            hidden: true,
+            message: 'Restore version 1 of Revenue app',
+            context: [
+                {
+                    type: 'data_app_restore',
+                    appUuid: app.app_id,
+                    version: 3,
+                    restoredFromVersion: 1,
+                    appSlug: app.slug,
+                    displayName: 'Revenue app',
+                },
+            ],
+        });
+        expect(messages[3]).toMatchObject({
+            role: 'assistant',
+            uuid: result.promptUuid,
+            status: 'idle',
+            message: 'Restored version 1 as version 3.',
+        });
+    });
+
+    it('writes nothing to the thread when the restore is refused', async () => {
+        const { app, threadUuid } = await createAppWithVersions('pending');
+        const { aiAgentService } = getServices(context.app);
+        const { aiAgentModel } = getModels(context.app);
+
+        await expect(
+            aiAgentService.restoreDataAppVersionForThread(
+                context.testUser,
+                agentUuid,
+                threadUuid,
+                { appUuid: app.app_id, version: 1 },
+            ),
+        ).rejects.toThrow(ParameterError);
+
+        const latest = await context.app
+            .getModels()
+            .getAppModel()
+            .getLatestVersion(app.app_id);
+        expect(latest).toMatchObject({ version: 2, status: 'pending' });
+        const messages = await aiAgentModel.findThreadMessages({
+            organizationUuid: SEED_ORG_1.organization_uuid,
+            threadUuid,
+        });
+        expect(messages).toHaveLength(2);
+        expect(messages.some((m) => m.role === 'user' && m.hidden)).toBe(false);
     });
 });

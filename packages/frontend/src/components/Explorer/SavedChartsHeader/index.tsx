@@ -118,6 +118,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { getVerificationSavePrompt } from '../../../hooks/useVerificationSavePrompt';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -145,9 +146,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SaveChartButton, {
-    type VerificationSavePrompt,
-} from '../SaveChartButton';
+import SaveChartButton from '../SaveChartButton';
 import ChartSlugRenameModal from './ChartSlugRenameModal';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
@@ -499,16 +498,11 @@ const SavedChartsHeader: FC = () => {
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
 
-    const isOwnVerification =
-        savedChart?.verification?.verifiedBy.userUuid === user.data?.userUuid;
-
-    let verificationSavePrompt: VerificationSavePrompt | undefined;
-    if (isChartVerified) {
-        verificationSavePrompt =
-            canManageContentVerification || isOwnVerification
-                ? 'confirm-keep'
-                : 'warn-removal';
-    }
+    const verificationSavePrompt = getVerificationSavePrompt({
+        verification: savedChart?.verification,
+        canManageContentVerification,
+        userUuid: user.data?.userUuid,
+    });
 
     const userCanPinChart = user.data?.ability.can(
         'manage',

@@ -47,6 +47,10 @@ function isSameMinute(a: Date | null, b: Date): boolean {
     return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 }
 
+export type ScimAuthentication =
+    | { result: 'authenticated'; serviceAccount: ServiceAccount }
+    | { result: 'expired'; serviceAccount: ServiceAccount };
+
 export class ServiceAccountService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -684,16 +688,17 @@ export class ServiceAccountService extends BaseService {
             path: string;
             routePath: string;
         },
-    ): Promise<ServiceAccount | null> {
+    ): Promise<ScimAuthentication | null> {
         // return null if token is empty
         if (token === '') return null;
 
         try {
             const dbToken = await this.serviceAccountModel.findByToken(token);
             if (dbToken) {
-                // return null if expired
+                // expired tokens still resolve so the failure can be
+                // attributed in the SCIM request log
                 if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
-                    return null;
+                    return { result: 'expired', serviceAccount: dbToken };
                 }
 
                 this.logger.info('SCIM: access token authenticated', {
@@ -717,7 +722,7 @@ export class ServiceAccountService extends BaseService {
                 if (!isSameMinute(dbToken.lastUsedAt, new Date())) {
                     await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
                 }
-                return dbToken;
+                return { result: 'authenticated', serviceAccount: dbToken };
             }
         } catch (error) {
             return null;

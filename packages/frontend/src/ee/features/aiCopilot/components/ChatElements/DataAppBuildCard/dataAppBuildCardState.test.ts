@@ -5,7 +5,12 @@ import {
     type ToolGenerateDataAppOutput,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getDataAppBuildCardState } from './dataAppBuildCardState';
+import {
+    getDataAppBuildCardState,
+    getDataAppRestoreCardState,
+    getDataAppRestoreItem,
+    type DataAppRestoreContextItem,
+} from './dataAppBuildCardState';
 
 type Metadata = ToolGenerateDataAppOutput['metadata'];
 
@@ -144,6 +149,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: 372_000,
+                restoredFromVersion: null,
                 completionMessage: 'Your revenue app is ready.',
             });
         });
@@ -159,6 +165,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Untitled app app-1',
                 completionMessage: 'Your app is ready!',
                 durationMs: null,
+                restoredFromVersion: null,
             });
         });
 
@@ -231,6 +238,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: null,
+                restoredFromVersion: null,
                 completionMessage: 'Your app is ready!',
             });
         });
@@ -254,6 +262,7 @@ describe('getDataAppBuildCardState', () => {
                 name: 'Revenue app',
                 version: 1,
                 durationMs: 30_000,
+                restoredFromVersion: null,
                 completionMessage: 'Done.',
             });
         });
@@ -321,5 +330,79 @@ describe('getDataAppBuildCardState', () => {
                 ),
             ).toBeNull();
         });
+    });
+});
+
+const restoreItem: DataAppRestoreContextItem = {
+    type: 'data_app_restore',
+    appUuid: 'app-1',
+    version: 3,
+    restoredFromVersion: 1,
+    appSlug: 'revenue-app',
+    displayName: 'Revenue app',
+};
+
+describe('getDataAppRestoreItem', () => {
+    it('finds the restore item on a hidden turn', () => {
+        expect(
+            getDataAppRestoreItem({
+                role: 'user',
+                uuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                message: 'Restore version 1 of Revenue app',
+                createdAt: '2026-08-28T10:00:00.000Z',
+                user: { uuid: 'user-1', name: 'Demo' },
+                context: [restoreItem],
+                steers: [],
+                hidden: true,
+            }),
+        ).toBe(restoreItem);
+    });
+
+    it('is null without a sibling or a restore item', () => {
+        expect(getDataAppRestoreItem(null)).toBeNull();
+    });
+});
+
+describe('getDataAppRestoreCardState', () => {
+    const message = 'Restored version 1 as version 3.';
+
+    it('is ready with the restored-from version and the assistant response', () => {
+        expect(
+            getDataAppRestoreCardState(restoreItem, message, {
+                kind: 'loading',
+            }),
+        ).toEqual({
+            kind: 'ready',
+            name: 'Revenue app',
+            version: 3,
+            durationMs: null,
+            restoredFromVersion: 1,
+            completionMessage: message,
+        });
+    });
+
+    it('falls back to the fetched app name, then a generic one', () => {
+        const unnamed = { ...restoreItem, displayName: null };
+        expect(
+            getDataAppRestoreCardState(unnamed, message, loaded([], 'Renamed')),
+        ).toMatchObject({ name: 'Renamed' });
+        expect(
+            getDataAppRestoreCardState(unnamed, message, { kind: 'loading' }),
+        ).toMatchObject({ name: 'Data app' });
+    });
+
+    it('writes its own completion message when the turn has none', () => {
+        expect(
+            getDataAppRestoreCardState(restoreItem, null, { kind: 'loading' }),
+        ).toMatchObject({ completionMessage: message });
+    });
+
+    it('is unavailable when the app was deleted since', () => {
+        expect(
+            getDataAppRestoreCardState(restoreItem, message, {
+                kind: 'unavailable',
+            }),
+        ).toEqual({ kind: 'unavailable' });
     });
 });

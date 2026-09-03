@@ -13,7 +13,9 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    MergeJoinType,
     MetricType,
+    MissingConfigError,
     NotFoundError,
     OrganizationAccessStatus,
     PersistentDownloadFileAccessMode,
@@ -30,8 +32,12 @@ import {
     WarehouseTypes,
     type Explore,
     type ItemsMap,
+    type MergeFieldTypes,
+    type MergeQuery,
+    type MergeTypedColumn,
     type MetricQuery,
     type ParameterDefinitions,
+    type PivotConfiguration,
     type ProjectDefaults,
     type UserAccessControls,
 } from '@lightdash/common';
@@ -112,6 +118,11 @@ import {
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
 import {
+    COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+    ComposeEngineClient,
+} from './ComposeEngineClient';
+import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
+import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
@@ -120,6 +131,7 @@ import type {
     DownloadAsyncQueryResultsArgs,
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
+    RunDuckdbQueryArgs,
 } from './types';
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
@@ -129,7 +141,7 @@ const makeMockStrategy = (
 ): PreAggregateStrategy => ({
     getRoutingDecision: noOpStrategy.getRoutingDecision.bind(noOpStrategy),
     resolveExecution: vi.fn(async () => resolveResult),
-    createExecutionWarehouseClient: vi.fn(
+    createPreAggregateWarehouseClient: vi.fn(
         () => warehouseClientMock as unknown as WarehouseClient,
     ),
     recordStats: vi.fn(),
@@ -383,6 +395,11 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as OrganizationAccessService,
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
+        composeEngineClient: new ComposeEngineClient({
+            resolveCaCertFile: () => '/etc/ssl/certs/ca-certificates.crt',
+            lightdashConfig,
+            createDuckdbWarehouseClient: () => warehouseClientMock,
+        }),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {
@@ -577,6 +594,205 @@ describe('AsyncQueryService', () => {
                     tables: { attachment: 'table-uuid' },
                 }),
             ).rejects.toThrow('This attachment belongs to another user');
+        });
+    });
+
+    describe('compose engine in every edition', () => {
+        const composeFlags = {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.ComposeSqlRunner ||
+                        featureFlagId === FeatureFlags.MergeOnCompose,
+                }),
+            ),
+        } as unknown as FeatureFlagModel;
+
+        const withoutResultsStorage: LightdashConfig = {
+            ...lightdashConfigMock,
+            results: { ...lightdashConfigMock.results, s3: undefined },
+        };
+
+        const referencedQueryHistory = {
+            queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            metricQuery: { exploreName: 'orders' },
+        } as unknown as QueryHistory;
+
+        test('runs a compose SQL query over referenced results without a license', async () => {
+            const createDuckdbWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+                composeEngineClient: new ComposeEngineClient({
+                    resolveCaCertFile: () =>
+                        '/etc/ssl/certs/ca-certificates.crt',
+                    lightdashConfig: lightdashConfigMock,
+                    createDuckdbWarehouseClient,
+                }),
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
+                    get: vi.fn(async () => referencedQueryHistory),
+                    pollForQueryCompletion: vi.fn(
+                        async () => referencedQueryHistory,
+                    ),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+                resultsStorageClient: {
+                    isEnabled: true,
+                    configuration: { bucket: 'mock_bucket' },
+                } as unknown as S3ResultsFileStorageClient,
+            } as never);
+            expect((service as AnyType).preAggregateStrategy).toBeInstanceOf(
+                NoOpPreAggregateStrategy,
+            );
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            const result = await service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+                references: { orders: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11' },
+            });
+
+            expect(result.queryUuid).toBe('queryUuid');
+            await vi.waitFor(() =>
+                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
+            );
+            expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
+                s3Config: {
+                    endpoint: 'mock_endpoint',
+                    region: 'mock_region',
+                    caCertFile: '/etc/ssl/certs/ca-certificates.crt',
+                    accessKey: undefined,
+                    secretKey: undefined,
+                    forcePathStyle: false,
+                    useSsl: true,
+                },
+                sharedResourceLimits: undefined,
+                instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
+            });
+            expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
+                warehouseClientOverride: warehouseClientMock,
+                query: expect.stringContaining(
+                    "read_json('s3://mock_bucket/referenced-results.jsonl'",
+                ),
+            });
+        });
+
+        test('refuses a compose SQL query naming the missing results storage', async () => {
+            const service = getMockedAsyncQueryService(withoutResultsStorage, {
+                featureFlagModel: composeFlags,
+            } as never);
+
+            await expect(
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT 1 AS one',
+                }),
+            ).rejects.toThrow(
+                new MissingConfigError(
+                    'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.',
+                ),
+            );
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+
+        test('reads external-source files on the pre-aggregate bucket session', async () => {
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                externalSourceTableResolver: vi.fn(async () => ({
+                    external_source_table_uuid: 'table-uuid',
+                    external_source_scope: null,
+                    external_source_created_by_user_uuid: null,
+                    version: 3,
+                    locator: {
+                        storage: 's3',
+                        format: 'parquet',
+                        uri: 's3://mock_preagg_bucket/external-sources/file.parquet',
+                    },
+                    columns: {
+                        one: { reference: 'one', type: DimensionType.NUMBER },
+                    },
+                })),
+            } as never);
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            await service.executeAsyncExternalSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                sql: 'SELECT one FROM attachment',
+                tables: { attachment: 'table-uuid' },
+            });
+
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'externalSources',
+                scope: null,
+            });
+        });
+
+        test('refuses a merge naming the missing results storage instead of downgrading it', async () => {
+            const service = getMockedAsyncQueryService(withoutResultsStorage, {
+                featureFlagModel: composeFlags,
+            } as never);
+            vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+                coreSql: 'SELECT 1',
+                typedColumns: [],
+                terminalWrapper: null,
+                errors: [],
+                parameterReferences: [],
+                fieldOrigins: {},
+                columns: { valueColumnBySourceColumn: {} },
+                fieldIdByColumn: {},
+                itemsMap: {},
+                usedParametersValues: {},
+                requiresCompose: false,
+            } as never);
+
+            await expect(
+                service.executeAsyncMergeQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    mergeQuery: {
+                        sources: [],
+                        joinKey: [],
+                        joinType: 'full',
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                }),
+            ).rejects.toThrow(MissingConfigError);
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
     });
 
@@ -5413,5 +5629,580 @@ describe('getQueryHistoryList', () => {
         });
 
         expect(counts.total).toBe(347);
+    });
+});
+
+describe('runDuckdbQuery', () => {
+    const legHistory = (totalRowCount: number | null) =>
+        ({
+            queryUuid: 'leg-uuid',
+            projectUuid,
+            status: QueryHistoryStatus.READY,
+            totalRowCount,
+            resultsFileName: 'leg-results.jsonl',
+            resultsExpiresAt: null,
+            columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+            context: QueryExecutionContext.EXPLORE,
+        }) as unknown as QueryHistory;
+
+    type DuckdbQueryRunner = {
+        runDuckdbQuery: (args: RunDuckdbQueryArgs) => Promise<void>;
+    };
+
+    const buildService = () => {
+        const pollForQueryCompletion = vi.fn(async () => legHistory(1));
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+            queryHistoryModel: {
+                update: vi.fn(),
+                pollForQueryCompletion,
+            } as unknown as QueryHistoryModel,
+        } as never);
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+        return {
+            run: (args: RunDuckdbQueryArgs) =>
+                (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
+            runWarehouseQuery,
+            pollForQueryCompletion,
+            update: service.queryHistoryModel.update as import('vitest').Mock,
+        };
+    };
+
+    const probingClient = (fields: Record<string, { type: DimensionType }>) => {
+        const streamQuery = vi.fn(
+            async (
+                _sql: string,
+                callback: (chunk: {
+                    fields: Record<string, { type: DimensionType }>;
+                    rows: Record<string, unknown>[];
+                }) => void,
+            ) => {
+                callback({ fields, rows: [] });
+            },
+        );
+        return {
+            streamQuery,
+            warehouseClient: {
+                ...warehouseClientMock,
+                streamQuery,
+            } as unknown as WarehouseClient,
+        };
+    };
+
+    const baseArgs = (
+        overrides: Partial<RunDuckdbQueryArgs>,
+    ): RunDuckdbQueryArgs => ({
+        account: buildAccount(),
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        isPreviewProject: false,
+        onboardingFlow: 'default' as AnyType,
+        queryUuid: 'duckdb-query-uuid',
+        sql: 'SELECT 1 AS one',
+        references: { kind: 'bound', referenceCtes: [] },
+        columns: { mode: 'discover', limit: undefined },
+        storedCompiledSql: null,
+        warehouseClient: warehouseClientMock,
+        queryTags: {} as AnyType,
+        queryCreatedAt: new Date(),
+        cacheKey: 'cache-key',
+        context: QueryExecutionContext.EXPLORE,
+        ...overrides,
+    });
+
+    it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, update } = buildService();
+
+        await run(baseArgs({ warehouseClient }));
+
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(streamQuery.mock.invocationCallOrder[0]).toBeLessThan(
+            runWarehouseQuery.mock.invocationCallOrder[0],
+        );
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.originalColumns).toEqual({
+            one: { reference: 'one', type: DimensionType.NUMBER, label: 'One' },
+        });
+        expect(Object.keys(executed.fieldsMap)).toEqual([
+            'sql_query_explorer_one',
+        ]);
+        expect(executed.pivotConfiguration).toBeUndefined();
+        expect(executed.warehouseClientOverride).toBe(warehouseClient);
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                compiled_sql: executed.query,
+                fields: executed.fieldsMap,
+                original_columns: executed.originalColumns,
+            },
+            expect.anything(),
+        );
+    });
+
+    it('supplied mode executes with the caller fields, columns and pivot and never probes', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const { run, runWarehouseQuery, update } = buildService();
+        const fieldsMap = {
+            a_orders_count: {
+                fieldType: FieldType.METRIC,
+                type: MetricType.COUNT,
+                name: 'orders_count',
+                label: 'Orders',
+                table: 'a',
+                tableLabel: 'Query A',
+                sql: '',
+                hidden: false,
+            },
+        } as ItemsMap;
+        const originalColumns: ResultColumns = {
+            a_orders_count: {
+                reference: 'a_orders_count',
+                type: DimensionType.NUMBER,
+                label: 'Orders',
+                provenance: {
+                    fieldId: 'orders_count',
+                    sourceQueryUuid: 'leg-uuid',
+                },
+            },
+        };
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: [
+                { reference: 'a_orders_count', type: VizIndexType.CATEGORY },
+            ],
+            valuesColumns: [
+                {
+                    reference: 'a_orders_count',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+
+        await run(
+            baseArgs({
+                warehouseClient,
+                sql: 'SELECT * FROM merge_source_0',
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                },
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap,
+                    usedParameters: { region: 'EU' },
+                    originalColumns,
+                    pivotConfiguration,
+                },
+            }),
+        );
+
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.fieldsMap).toBe(fieldsMap);
+        expect(executed.originalColumns).toBe(originalColumns);
+        expect(executed.pivotConfiguration).toBe(pivotConfiguration);
+        expect(executed.usedParameters).toEqual({ region: 'EU' });
+        expect(executed.query).toContain(
+            "read_json('s3://results-bucket/leg-results.jsonl'",
+        );
+        expect(executed.query).toContain('SELECT * FROM merge_source_0');
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            {
+                compiled_sql: executed.query,
+                fields: fieldsMap,
+                original_columns: originalColumns,
+            },
+            expect.anything(),
+        );
+    });
+
+    it('bound references attach without waiting on any query and persist the stored SQL', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
+            buildService();
+
+        await run(
+            baseArgs({
+                sql: 'SELECT * FROM attachment',
+                references: {
+                    kind: 'bound',
+                    referenceCtes: [
+                        `"attachment" AS (SELECT * FROM read_parquet('s3://private/file.parquet'))`,
+                    ],
+                },
+                storedCompiledSql: 'SELECT * FROM attachment',
+            }),
+        );
+
+        expect(pollForQueryCompletion).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery.mock.calls[0][0].query).toContain(
+            "read_parquet('s3://private/file.parquet')",
+        );
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                compiled_sql: 'SELECT * FROM attachment',
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('a guard refusal lands as the query error before anything runs', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const { run, runWarehouseQuery, update } = buildService();
+        const guard = vi.fn(() => 'Orders returned too many rows');
+
+        await run(
+            baseArgs({
+                warehouseClient,
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard,
+                },
+            }),
+        );
+
+        expect(guard).toHaveBeenCalledWith({ orders: legHistory(1) });
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Orders returned too many rows',
+            }),
+            expect.anything(),
+        );
+    });
+});
+
+describe('executeAsyncMergeQuery on the compose engine', () => {
+    const SOURCE_ROW_CAP = 3;
+    // Lowered through config rather than by seeding cap-many rows: the run
+    // path reads the cap from the same config the legs were submitted with.
+    const cappedConfig: LightdashConfig = {
+        ...lightdashConfigMock,
+        query: { ...lightdashConfigMock.query, maxLimit: SOURCE_ROW_CAP },
+    };
+    const legQueryUuidBySourceId = {
+        a: '1a6f0f8c-2d3e-4f5a-8b9c-0d1e2f3a4b5c',
+        b: '2b7a1a9d-3e4f-4a6b-9c0d-1e2f3a4b5c6d',
+    };
+    const composeFlags = {
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.MergeOnCompose,
+        })),
+    } as unknown as FeatureFlagModel;
+
+    const itemsMap = {
+        merge_month: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'month',
+            label: 'Month',
+            table: 'merge',
+            tableLabel: 'Merged',
+            sql: '',
+            hidden: false,
+        },
+        a_orders_count: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.COUNT_DISTINCT,
+            name: 'orders_count',
+            label: 'Orders',
+            table: 'a',
+            tableLabel: 'Query A',
+            sql: '',
+            hidden: false,
+            format: '#,##0',
+        },
+        b_payments_sum: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'payments_sum',
+            label: 'Payments',
+            table: 'b',
+            tableLabel: 'Query B',
+            sql: '',
+            hidden: false,
+        },
+    } as ItemsMap;
+    const typedColumns: MergeTypedColumn[] = [
+        {
+            reference: 'merge_month',
+            type: DimensionType.DATE,
+            origin: {
+                kind: 'joinKey',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        },
+        {
+            reference: 'a_orders_count',
+            type: DimensionType.NUMBER,
+            origin: {
+                kind: 'source',
+                sourceId: 'a',
+                sourceFieldId: 'orders_count',
+            },
+        },
+        {
+            reference: 'b_payments_sum',
+            type: DimensionType.NUMBER,
+            origin: {
+                kind: 'source',
+                sourceId: 'b',
+                sourceFieldId: 'payments_sum',
+            },
+        },
+    ];
+    const fieldTypes: MergeFieldTypes = {
+        a: { orders_month: { type: DimensionType.DATE, timeInterval: null } },
+        b: { payments_month: { type: DimensionType.DATE, timeInterval: null } },
+    };
+    const compiledMerge = {
+        sql: null,
+        coreSql: null,
+        typedColumns,
+        terminalWrapper: null,
+        columns: {
+            joinKeyColumns: ['month'],
+            valueColumnBySourceColumn: {
+                a: { orders_count: 'c0_0' },
+                b: { payments_sum: 'c1_0' },
+            },
+        },
+        fields: [],
+        itemsMap,
+        fieldOrigins: {},
+        parameterReferences: [],
+        usedParametersValues: {},
+        fieldIdByColumn: {
+            month: 'merge_month',
+            c0_0: 'a_orders_count',
+            c1_0: 'b_payments_sum',
+        },
+        requiresCompose: false,
+        errors: [],
+    };
+    const mergeQuery: MergeQuery = {
+        sources: [
+            {
+                id: 'a',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'orders',
+                    dimensions: ['orders_month'],
+                    metrics: ['orders_count'],
+                    tableCalculations: [],
+                },
+            },
+            {
+                id: 'b',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'payments',
+                    dimensions: ['payments_month'],
+                    metrics: ['payments_sum'],
+                    tableCalculations: [],
+                },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        limit: 500,
+    };
+
+    const legHistory = (queryUuid: string, totalRowCount: number) =>
+        ({
+            queryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            totalRowCount,
+            resultsFileName: `${queryUuid}.jsonl`,
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: metricQueryMock,
+        }) as unknown as QueryHistory;
+
+    const buildService = ({
+        config,
+        legRowCount,
+    }: {
+        config: LightdashConfig;
+        legRowCount: number;
+    }) => {
+        const streamQuery = vi.fn();
+        const warehouseClient = {
+            ...warehouseClientMock,
+            streamQuery,
+        } as unknown as WarehouseClient;
+        const legByUuid = (queryUuid: string) =>
+            legHistory(queryUuid, legRowCount);
+        const service = getMockedAsyncQueryService(config, {
+            featureFlagModel: composeFlags,
+            composeEngineClient: new ComposeEngineClient({
+                lightdashConfig: config,
+                createDuckdbWarehouseClient: () => warehouseClient,
+            }),
+            queryHistoryModel: {
+                create: vi.fn(async () => ({ queryUuid: 'merge-query-uuid' })),
+                get: vi.fn(async (queryUuid: string) => legByUuid(queryUuid)),
+                pollForQueryCompletion: vi.fn(
+                    async ({ queryUuid }: { queryUuid: string }) =>
+                        legByUuid(queryUuid),
+                ),
+                update: vi.fn(),
+            } as unknown as QueryHistoryModel,
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+        } as never);
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue(
+            compiledMerge as never,
+        );
+        vi.spyOn(
+            service as AnyType,
+            'getMergeFieldTypesForQuery',
+        ).mockResolvedValue(fieldTypes);
+        vi.spyOn(service, 'executeAsyncMetricQuery').mockImplementation(
+            async ({ metricQuery }) =>
+                ({
+                    queryUuid:
+                        metricQuery.exploreName === 'orders'
+                            ? legQueryUuidBySourceId.a
+                            : legQueryUuidBySourceId.b,
+                }) as never,
+        );
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+        return {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            create: service.queryHistoryModel.create as import('vitest').Mock,
+            update: service.queryHistoryModel.update as import('vitest').Mock,
+        };
+    };
+
+    const execute = (service: AsyncQueryService) =>
+        service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.EXPLORE,
+            mode: { type: 'interactive' },
+        });
+
+    it('runs the join in supplied mode: no column probe, and the compile-time columns reach execution unchanged', async () => {
+        const { service, streamQuery, runWarehouseQuery, create } =
+            buildService({ config: lightdashConfigMock, legRowCount: 2 });
+
+        const outcome = await execute(service);
+        if (outcome.outcome !== 'started') {
+            throw new Error(`Expected the merge to start: ${outcome.outcome}`);
+        }
+        await vi.waitFor(() =>
+            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
+        );
+
+        expect(streamQuery).not.toHaveBeenCalled();
+        const executed = runWarehouseQuery.mock.calls[0][0];
+        expect(executed.originalColumns).toEqual(
+            buildComposeMergeOriginalColumns({
+                typedColumns,
+                itemsMap,
+                usedParametersValues: {},
+                legQueryUuidBySourceId,
+            }),
+        );
+        expect(executed.originalColumns?.a_orders_count).toMatchObject({
+            label: 'Query A Orders',
+            format: '#,##0',
+            provenance: {
+                fieldId: 'orders_count',
+                sourceQueryUuid: legQueryUuidBySourceId.a,
+            },
+        });
+        expect(executed.originalColumns).toBe(
+            create.mock.calls[0][1].originalColumns,
+        );
+        expect(executed.fieldsMap).toBe(outcome.query.fields);
+        expect(executed.query).toContain(
+            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.a}.jsonl')`,
+        );
+        expect(executed.query).toContain(
+            `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.b}.jsonl')`,
+        );
+    });
+
+    it('refuses before the join when a leg reached the row cap, naming the source', async () => {
+        const { service, streamQuery, runWarehouseQuery, update } =
+            buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(update).toHaveBeenCalledWith(
+                'merge-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    status: QueryHistoryStatus.ERROR,
+                    error: `Query A and Query B each returned the maximum of ${SOURCE_ROW_CAP} rows, so the merged results would be missing data. Add a filter to each, then merge again.`,
+                }),
+                expect.anything(),
+            ),
+        );
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+    });
+
+    it('runs the join when every leg is under the row cap', async () => {
+        const { service, runWarehouseQuery, update } = buildService({
+            config: cappedConfig,
+            legRowCount: SOURCE_ROW_CAP - 1,
+        });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(runWarehouseQuery).toHaveBeenCalledTimes(1),
+        );
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
     });
 });

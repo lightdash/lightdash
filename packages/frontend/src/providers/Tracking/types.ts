@@ -546,7 +546,12 @@ export type AiAgentAskClickedSource =
     | 'dashboard_header'
     | 'dashboard_chart_tile'
     | 'saved_chart_header'
-    | 'resource_action_menu';
+    | 'resource_action_menu'
+    | 'data_app_header'
+    | 'data_app_version_header'
+    | 'data_app_resource_action_menu'
+    | 'data_app_my_apps_menu'
+    | 'dashboard_data_app_tile';
 
 type AiAgentAskClickedEvent = {
     name: EventName.AI_AGENT_ASK_CLICKED;

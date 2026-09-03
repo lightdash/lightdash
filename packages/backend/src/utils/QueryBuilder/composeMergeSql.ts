@@ -15,7 +15,7 @@ import {
 export type ComposeMergeSql = {
     /** The composable DuckDB join core — no ORDER BY, LIMIT or guard column. */
     coreSql: string;
-    /** Terminal stage (sort, limit, truncation guard) for the run path to attach. */
+    /** Terminal stage (sort, limit) for the run path to attach. */
     terminalWrapper: MergeTerminalWrapper;
     /** Reference table name per source id, for binding to result queryUuids. */
     referenceTableBySourceId: Record<string, string>;
@@ -32,9 +32,13 @@ export const composeMergeReferenceTable = (sourceIndex: number): string =>
  * that source's already-materialized results (a freshly-run leg or an
  * existing result referenced by queryUuid; the builder cannot tell and does
  * not care). The join semantics (coalesced keys, typed null placeholders,
- * string casts, per-source row caps with truncation detection) are identical
- * by construction because the builder and the key-option derivation are
- * shared; only the dialect and where the source rows come from differ.
+ * string casts) are identical by construction because the builder and the
+ * key-option derivation are shared; only the dialect and where the source
+ * rows come from differ.
+ *
+ * No source row cap here: the sources are legs that already ran at the cap,
+ * so a cap in this statement could never see past it. The run path reads
+ * the legs' own row counts instead (getMergeRowCapError).
  */
 export const buildComposeMergeSql = (args: {
     /** Sources in merge order; value columns in the compile's column order. */
@@ -47,8 +51,6 @@ export const buildComposeMergeSql = (args: {
     outputAliasByColumn: Record<string, string>;
     /** Row cap for the merged result, already clamped to the instance limit. */
     limit: number;
-    /** Most rows one source may contribute; reaching it is reported, not trimmed. */
-    sourceRowCap: number;
 }): ComposeMergeSql => {
     const {
         sources,
@@ -58,7 +60,6 @@ export const buildComposeMergeSql = (args: {
         fieldTypes,
         outputAliasByColumn,
         limit,
-        sourceRowCap,
     } = args;
     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
@@ -98,7 +99,6 @@ export const buildComposeMergeSql = (args: {
         tableCalculations,
         nullPlaceholderByKeyName,
         stringJoinKeyNames,
-        sourceRowCap,
     });
 
     return {

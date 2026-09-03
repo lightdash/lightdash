@@ -410,6 +410,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     # Required so headless chart screenshots can render CJK glyphs
     fonts-noto-cjk \
+    # Required so DuckDB httpfs can verify HTTPS object storage (Node carries its own trust store)
+    ca-certificates \
     dumb-init \
     # Optional: jemalloc allocator reduces native memory fragmentation vs glibc malloc.
     # Dormant unless activated via LD_PRELOAD env var per customer.

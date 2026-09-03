@@ -1,3 +1,163 @@
+# [2.115.0](https://github.com/lightdash/lightdash/compare/2.114.1...2.115.0) (2026-09-03)
+
+
+### Features
+
+* **ai-agents:** battle mode behind a feature flag with response timings ([#28605](https://github.com/lightdash/lightdash/issues/28605)) ([c90db03](https://github.com/lightdash/lightdash/commit/c90db03438c9887e507e5797dbaa14c737657fcc))
+
+## [2.114.1](https://github.com/lightdash/lightdash/compare/2.114.0...2.114.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* use FOR NO KEY UPDATE when locking project for validation writes ([#28601](https://github.com/lightdash/lightdash/issues/28601)) ([ac4ca93](https://github.com/lightdash/lightdash/commit/ac4ca9345fcd4fdd04daf99fb118a7a0452e73f5))
+
+# [2.114.0](https://github.com/lightdash/lightdash/compare/2.113.0...2.114.0) (2026-09-03)
+
+
+### Features
+
+* **frontend:** add tabs to chart type gallery ([#28602](https://github.com/lightdash/lightdash/issues/28602)) ([3a614f9](https://github.com/lightdash/lightdash/commit/3a614f9d20a8021844dc89fb397b96850d749a50))
+
+# [2.113.0](https://github.com/lightdash/lightdash/compare/2.112.0...2.113.0) (2026-09-03)
+
+
+### Features
+
+* **ai:** add selectable OpenRouter models ([#28600](https://github.com/lightdash/lightdash/issues/28600)) ([460810e](https://github.com/lightdash/lightdash/commit/460810ea44a42570a726b9ef5cb1930d0c82981a))
+
+# [2.112.0](https://github.com/lightdash/lightdash/compare/2.111.0...2.112.0) (2026-09-03)
+
+
+### Features
+
+* **compose:** run the DuckDB execution engine in OSS ([#28576](https://github.com/lightdash/lightdash/issues/28576)) ([9dbc7cf](https://github.com/lightdash/lightdash/commit/9dbc7cfdcf221510361abe36d865e68070cb3cd8))
+
+# [2.111.0](https://github.com/lightdash/lightdash/compare/2.110.3...2.111.0) (2026-09-03)
+
+
+### Features
+
+* **ai:** ask AI from data app pages and listing rows ([#28580](https://github.com/lightdash/lightdash/issues/28580)) ([d7e0a03](https://github.com/lightdash/lightdash/commit/d7e0a03f72c2d3017c81c0d8f869993965637410))
+* **ai:** data app as pinned context via @ mention ([#28579](https://github.com/lightdash/lightdash/issues/28579)) ([f26e0ef](https://github.com/lightdash/lightdash/commit/f26e0efe4642cc3d286ecccfc8958e417ed1c49b))
+* **dashboard:** ask AI on data app tile pins dashboard and app ([#28581](https://github.com/lightdash/lightdash/issues/28581)) ([ef78027](https://github.com/lightdash/lightdash/commit/ef78027d714c7e6e789ee5498400108086c16388))
+
+## [2.110.3](https://github.com/lightdash/lightdash/compare/2.110.2...2.110.3) (2026-09-03)
+
+
+### Bug Fixes
+
+* let impersonate:User custom roles read the impersonation setting ([#28594](https://github.com/lightdash/lightdash/issues/28594)) ([694933c](https://github.com/lightdash/lightdash/commit/694933c5ccdde0fa5db18b8984e340a5542c1d82))
+
+## [2.110.2](https://github.com/lightdash/lightdash/compare/2.110.1...2.110.2) (2026-09-03)
+
+
+### Bug Fixes
+
+* **users:** show impersonate action for roles granted only the impersonation scope ([#28568](https://github.com/lightdash/lightdash/issues/28568)) ([1064202](https://github.com/lightdash/lightdash/commit/106420251f766e3eb416210b904dc13338823729))
+
+## [2.110.1](https://github.com/lightdash/lightdash/compare/2.110.0...2.110.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** dashboard filter autocomplete uses active parameter values ([#28593](https://github.com/lightdash/lightdash/issues/28593)) ([9f50d5d](https://github.com/lightdash/lightdash/commit/9f50d5d54bbc712ab3635060480a4b8b67b9e125))
+
+# [2.110.0](https://github.com/lightdash/lightdash/compare/2.109.0...2.110.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** wrap explorer card headers on narrow screens ([#28588](https://github.com/lightdash/lightdash/issues/28588)) ([fc64d6d](https://github.com/lightdash/lightdash/commit/fc64d6d8fef17a9b2a9aa7ac8b07c0e180590c1d))
+
+
+### Features
+
+* **frontend:** add any explore field to the query from chart config pickers ([#28499](https://github.com/lightdash/lightdash/issues/28499)) ([71c5a4f](https://github.com/lightdash/lightdash/commit/71c5a4feba6d065693561529f353948f04d08f9b))
+
+# [2.109.0](https://github.com/lightdash/lightdash/compare/2.108.2...2.109.0) (2026-09-03)
+
+
+### Features
+
+* **scim:** request log screen in org admin settings ([#28415](https://github.com/lightdash/lightdash/issues/28415)) ([105d073](https://github.com/lightdash/lightdash/commit/105d0731ae5a07db5c12fbb3b870e39c3ece30ba))
+
+## [2.108.2](https://github.com/lightdash/lightdash/compare/2.108.1...2.108.2) (2026-09-03)
+
+
+### Bug Fixes
+
+* **merge:** refuse a compose merge whose leg reached the row cap ([#28572](https://github.com/lightdash/lightdash/issues/28572)) ([57b27f6](https://github.com/lightdash/lightdash/commit/57b27f6db4863b363a222521dfad8296ec3eeabd))
+
+## [2.108.1](https://github.com/lightdash/lightdash/compare/2.108.0...2.108.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** drop the deleted dark Button variant and fix dark-mode contrast in the metrics catalog ([#28582](https://github.com/lightdash/lightdash/issues/28582)) ([406ade4](https://github.com/lightdash/lightdash/commit/406ade4214bdb914df5b55a85e207cf1fe600fae))
+
+# [2.108.0](https://github.com/lightdash/lightdash/compare/2.107.0...2.108.0) (2026-09-03)
+
+
+### Features
+
+* **dashboard:** build charts in a modal without leaving the dashboard ([#28533](https://github.com/lightdash/lightdash/issues/28533)) ([12de027](https://github.com/lightdash/lightdash/commit/12de0274cc67ed4f57f7e981c2a41d49d10e2b23))
+* **dashboard:** edit a tile's chart in the dashboard modal ([#28561](https://github.com/lightdash/lightdash/issues/28561)) ([e1fa776](https://github.com/lightdash/lightdash/commit/e1fa776565fbfd8c60e108aadfda36109c105a26))
+
+# [2.107.0](https://github.com/lightdash/lightdash/compare/2.106.0...2.107.0) (2026-09-03)
+
+
+### Features
+
+* **ai:** restore an older data app version from the thread preview pill ([#28563](https://github.com/lightdash/lightdash/issues/28563)) ([c3d7398](https://github.com/lightdash/lightdash/commit/c3d739830610d0c5da7ae72a5f17678d43e4e590))
+* **ai:** thread renders a data app restore as a build card ([#28575](https://github.com/lightdash/lightdash/issues/28575)) ([9e31a0c](https://github.com/lightdash/lightdash/commit/9e31a0cf6381e190789a02955df5fd6fd39664ef))
+* **ai:** thread-scoped data app restore endpoint records a hidden turn ([#28574](https://github.com/lightdash/lightdash/issues/28574)) ([72b63dd](https://github.com/lightdash/lightdash/commit/72b63dd8060266c15258300e887a6a0a59cae102))
+
+# [2.106.0](https://github.com/lightdash/lightdash/compare/2.105.0...2.106.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **dashboards:** stop unsaved-changes dialog firing on uuid dashboard URLs ([#28532](https://github.com/lightdash/lightdash/issues/28532)) ([b781adf](https://github.com/lightdash/lightdash/commit/b781adf6019be5a874186fe63d0a4570ac0d0e13))
+
+
+### Features
+
+* **ai:** build cards open their own data app version in the thread preview ([#28573](https://github.com/lightdash/lightdash/issues/28573)) ([b92f522](https://github.com/lightdash/lightdash/commit/b92f522d220229f03b866da20b74868f330a0a0d))
+
+# [2.105.0](https://github.com/lightdash/lightdash/compare/2.104.1...2.105.0) (2026-09-03)
+
+
+### Features
+
+* translate embedded dashboard tab names ([#28524](https://github.com/lightdash/lightdash/issues/28524)) ([0f38b37](https://github.com/lightdash/lightdash/commit/0f38b372f29c9d223771d47063fefb6625b8d34b))
+
+## [2.104.1](https://github.com/lightdash/lightdash/compare/2.104.0...2.104.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* **query:** stop rebasing Snowflake MIN/MAX metrics that inherit wrapped dimension SQL ([#28564](https://github.com/lightdash/lightdash/issues/28564)) ([f466805](https://github.com/lightdash/lightdash/commit/f466805a543434ec4c6ca04d3ed2b9891bba8d28))
+
+# [2.104.0](https://github.com/lightdash/lightdash/compare/2.103.0...2.104.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **frontend:** render the config panel when deep-linked open without the gallery ([#28527](https://github.com/lightdash/lightdash/issues/28527)) ([c9d555d](https://github.com/lightdash/lightdash/commit/c9d555d4a3bb3544bdf0127661b3dcaf0e58e888))
+
+
+### Features
+
+* bound the dbt source fetch ([#28556](https://github.com/lightdash/lightdash/issues/28556)) ([939f853](https://github.com/lightdash/lightdash/commit/939f85305d582fe8de01ce7dc2c4c3881d5cbb2b))
+* make a stuck refresh say what happened ([#28557](https://github.com/lightdash/lightdash/issues/28557)) ([31d1244](https://github.com/lightdash/lightdash/commit/31d1244aa938c5e9ae9818f354a05d082ea8df1d))
+
+
+### Performance Improvements
+
+* bound explore save chunks by bytes and insert them in order ([#28562](https://github.com/lightdash/lightdash/issues/28562)) ([7cc4f6e](https://github.com/lightdash/lightdash/commit/7cc4f6e3605092b7bff4461b14b5c7e0679fd15d))
+* serve explores from per-explore rows, not the whole-set blob ([#28565](https://github.com/lightdash/lightdash/issues/28565)) ([ce35b03](https://github.com/lightdash/lightdash/commit/ce35b0391237d34a349438f064d3512956f1c5af))
+
 # [2.103.0](https://github.com/lightdash/lightdash/compare/2.102.1...2.103.0) (2026-09-03)
 
 

@@ -23,6 +23,7 @@ import {
     MODEL_PRESETS,
     ModelPreset,
     ModelPresetProvider,
+    openRouterPreset,
 } from './presets';
 import { AiModel, AiProvider } from './types';
 
@@ -136,18 +137,33 @@ export const getDefaultModel = (
 
 export const getAvailableModels = (
     config: LightdashConfig['ai']['copilot'],
-): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] => {
+): ModelPreset<'openai' | 'anthropic' | 'openrouter' | 'bedrock'>[] => {
     const { defaultProvider, providers } = config;
 
-    if (['azure', 'openrouter'].includes(defaultProvider)) {
+    if (defaultProvider === 'azure') {
         return [];
     }
 
-    const configuredProviders = ['openai', 'anthropic', 'bedrock'] as const;
-
-    return configuredProviders.flatMap((provider) => {
+    const configuredProviders = [
+        'openai',
+        'anthropic',
+        'openrouter',
+        'bedrock',
+    ] as const;
+    return configuredProviders.flatMap<
+        ModelPreset<'openai' | 'anthropic' | 'openrouter' | 'bedrock'>
+    >((provider) => {
         const providerConfig = providers[provider];
         if (!providerConfig) return [];
+
+        if (provider === 'openrouter') {
+            return [
+                ...new Set([
+                    providerConfig.modelName,
+                    ...(providerConfig.availableModels ?? []),
+                ]),
+            ].map(openRouterPreset);
+        }
 
         const { availableModels, modelName } = providerConfig;
 
@@ -189,7 +205,7 @@ export const getAvailableModels = (
 };
 
 export const presetToModelOption = (
-    preset: ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+    preset: ModelPreset<'openai' | 'anthropic' | 'openrouter' | 'bedrock'>,
     defaultModel: { name: string; provider: string } | null,
 ): AiModelOption => ({
     name: preset.name,
@@ -197,6 +213,7 @@ export const presetToModelOption = (
     displayName: preset.displayName,
     description: preset.description,
     provider: preset.provider,
+    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
     default:
         defaultModel !== null &&
         preset.provider === defaultModel.provider &&
@@ -219,9 +236,9 @@ export type OrgModelOverrides = {
  * keep working (grandfathered); they just can't be selected again.
  */
 export const filterModelsForOrg = (
-    presets: ModelPreset<'openai' | 'anthropic' | 'bedrock'>[],
+    presets: ModelPreset<'openai' | 'anthropic' | 'openrouter' | 'bedrock'>[],
     overrides: OrgModelOverrides,
-): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] =>
+): ModelPreset<'openai' | 'anthropic' | 'openrouter' | 'bedrock'>[] =>
     presets.filter((preset) => {
         // Only BYO-able providers can unlock hidden models or be restricted
         const byoProvider = isByoAiProvider(preset.provider)
@@ -409,13 +426,22 @@ export const getModel = (
                     'OpenRouter configuration is required',
                 );
             }
-            // OpenRouter doesn't use presets - uses model name directly
+            const requestedModelName = options?.modelName;
+            const configuredModelNames = new Set([
+                openrouterConfig.modelName,
+                ...(openrouterConfig.availableModels ?? []),
+            ]);
+            const canUseRequestedModel =
+                requestedModelName !== undefined &&
+                (options?.trustPinnedModelName === true ||
+                    configuredModelNames.has(requestedModelName));
+
             return withKeyManagement(
                 applyStreamingCapability(
                     getOpenRouterModel({
                         ...openrouterConfig,
-                        modelName: options?.trustPinnedModelName
-                            ? (options.modelName ?? openrouterConfig.modelName)
+                        modelName: canUseRequestedModel
+                            ? requestedModelName
                             : openrouterConfig.modelName,
                     }),
                     openrouterConfig.supportsStreaming,

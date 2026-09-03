@@ -101,8 +101,9 @@ _Avoid_: follow-ups, Q&A, refinements
 **Context**:
 Everything a user attaches to a prompt for the coding agent: saved charts,
 dashboards, images, screenshots of the running app, files, sample data, and
-external connections. Kept with the version.
-_Avoid_: attachments, resources (unqualified)
+external connections. Kept with the version. Not the AI agent's **pinned
+context**, which is what a user attaches to an Ask AI prompt.
+_Avoid_: attachments, resources (unqualified), pinned context
 
 **Generate from**:
 To create a new data app with existing charts or dashboards attached as
@@ -207,11 +208,14 @@ _Avoid_: AI analyst, copilot (in code and docs), assistant, the agent
 (where more than one agent is in scope)
 
 **Build card**:
-The card under an AI agent reply that follows a build the agent started:
-queued, building (status message and narration), ready, failed, cancelled,
-or unavailable. It reads the version while the tool result is pending and
-the tool result once it is terminal; when a build watched in the thread
-lands, the app opens in the thread's preview panel.
+The card under an AI agent reply that follows a build the agent started,
+or a restore made from the thread: queued, building (status message and
+narration), ready, failed, cancelled, or unavailable. Each card names one
+version; View opens that version in the thread's preview panel, and only
+the card for the version on show is active. It reads the version while the
+tool result is pending and the tool result once it is terminal; when a
+build watched in the thread lands, the app opens in the thread's preview
+panel.
 _Avoid_: job card, progress card, status widget
 
 **External agent**:

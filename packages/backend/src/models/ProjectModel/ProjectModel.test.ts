@@ -702,15 +702,19 @@ describe('ProjectModel', () => {
                     }),
                     expect.objectContaining({
                         bindings: expect.arrayContaining([
-                            JSON.stringify([
-                                cachedExplore,
-                                virtualView,
-                                incomingExplore,
-                            ]),
+                            JSON.stringify(incomingExplore),
                         ]),
                     }),
                 ]),
             );
+            // The cached explores are preserved by upserting the incoming row and deleting
+            // nothing, rather than by rewriting a whole-set value. The only write to
+            // cached_explores is the lock row, which carries an empty array.
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
         });
 
         test('accepts an empty additive payload when cached explores exist', async () => {
@@ -800,11 +804,16 @@ describe('ProjectModel', () => {
                 expect.arrayContaining([
                     expect.objectContaining({
                         bindings: expect.arrayContaining([
-                            JSON.stringify([virtualView]),
+                            JSON.stringify(virtualView),
                         ]),
                     }),
                 ]),
             );
+            tracker.history.insert
+                .filter(({ sql }) => sql.includes('"cached_explores"'))
+                .forEach(({ bindings }) => {
+                    expect(bindings).toEqual([[], projectUuid]);
+                });
         });
 
         // TODO: this test is skipped because there is an issue in our version of knex-mock-client

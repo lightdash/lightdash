@@ -528,7 +528,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             <Button
                                                 size="xs"
                                                 h={28}
-                                                variant="dark"
                                                 onClick={handleSave}
                                                 loading={
                                                     isCreatingSpotlightConfig

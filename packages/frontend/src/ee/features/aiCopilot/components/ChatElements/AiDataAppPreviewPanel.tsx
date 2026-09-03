@@ -1,4 +1,4 @@
-import { getAppDisplayName } from '@lightdash/common';
+import { getAppDisplayName, isAppVersionInProgress } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -22,20 +22,26 @@ import TruncatedText from '../../../../../components/common/TruncatedText';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import AppInspectorPanel from '../../../../../features/apps/AppInspectorPanel';
 import { ElementPickerButton } from '../../../../../features/apps/components/ElementPickerButton';
+import { RestoreAppVersionModal } from '../../../../../features/apps/components/RestoreAppVersionModal';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppInspector } from '../../../../../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../../../../../features/apps/hooks/useAppPreviewToken';
+import { useCanEditDataApp } from '../../../../../features/apps/hooks/useCanEditDataApp';
 import { useElementPicker } from '../../../../../features/apps/hooks/useElementPicker';
 import { useGetApp } from '../../../../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
 import { type ElementRef } from '../../../../../features/apps/utils/elementRefs';
+import { useRestoreAiAgentThreadDataAppVersionMutation } from '../../hooks/useProjectAiAgents';
 import { addThreadElementReference } from '../../store/aiAgentThreadElementRefsSlice';
 import {
     clearPreview,
+    setDataAppPreviewVersion,
     type DataAppPreviewData,
 } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
+import { getEffectiveDataAppVersion } from './DataAppBuildCard/dataAppPreviewVersion';
+import { DataAppVersionPill } from './DataAppVersionPill';
 
 type Props = {
     dataAppPreview: DataAppPreviewData;
@@ -49,7 +55,14 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     showInspector,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { appUuid, projectUuid, threadUuid } = dataAppPreview;
+    const {
+        appUuid,
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        version,
+        latestReadyVersionAtOpen,
+    } = dataAppPreview;
 
     const previewOrigin = usePreviewOrigin();
     const appQuery = useGetApp(projectUuid, appUuid);
@@ -57,8 +70,19 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
 
     // Authoritative across ALL versions — the ready version may be older than
     // the fetched page of versions, so never scan `versions` for it.
-    const latestReadyVersion = app?.latestReadyVersion ?? undefined;
-    const identityKey = `${appUuid}:${latestReadyVersion}`;
+    const latestReadyVersion = app?.latestReadyVersion ?? null;
+    const effectiveVersion = getEffectiveDataAppVersion({
+        version,
+        latestReadyVersionAtOpen,
+        latestReadyVersion,
+    });
+    // An explicit version newer than the cached latest (just restored) is
+    // latest by definition, so compare rather than test equality.
+    const isViewingOlderVersion =
+        effectiveVersion !== null &&
+        latestReadyVersion !== null &&
+        effectiveVersion < latestReadyVersion;
+    const identityKey = `${appUuid}:${effectiveVersion}`;
     // Lives here, not next to the iframe, so logs and dismissal survive the
     // token reload between versions. Only wired in when `showInspector`.
     const inspector = useAppInspector({ identityKey, defaultHidden: false });
@@ -83,7 +107,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
     const { onLineageCancelled } = inspector.iframeProps;
 
     // Picked references go to the thread's composer state, not the hook's own
-    // list, so they outlive closing the panel and the next version.
+    // list, so they outlive closing the panel and the next version. They
+    // always name the latest ready version, which is what the coding agent
+    // iterates from.
     const appSlug = app?.slug;
     const appName = app?.name;
     const handlePick = useCallback(
@@ -91,7 +117,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
             if (
                 appSlug === undefined ||
                 appName === undefined ||
-                latestReadyVersion === undefined
+                latestReadyVersion === null
             ) {
                 return;
             }
@@ -126,7 +152,7 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(projectUuid, appUuid, effectiveVersion ?? undefined);
     const visibleTokenError = getVisiblePreviewTokenError(tokenError, !!token);
 
     const isForbidden =
@@ -136,14 +162,69 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         appQuery.error?.error?.statusCode === 404 ||
         visibleTokenError?.error?.statusCode === 404;
     const hasNoReadyVersion =
-        !appQuery.isLoading && !appQuery.error && !latestReadyVersion;
+        !appQuery.isLoading && !appQuery.error && effectiveVersion === null;
     const otherError =
         !isForbidden && !isNotFound && (appQuery.error || visibleTokenError);
 
     const previewUrl =
-        token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+        token && effectiveVersion !== null
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${effectiveVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
+
+    const returnToLatest = () =>
+        dispatch(
+            setDataAppPreviewVersion({
+                version: null,
+                latestReadyVersionAtOpen: latestReadyVersion,
+            }),
+        );
+
+    // Same gate as Edit on the standalone view page.
+    const canManageApp = useCanEditDataApp(projectUuid, {
+        spaceUuid: app?.spaceUuid ?? null,
+        createdByUserUuid: app?.createdByUserUuid ?? null,
+    });
+    // Versions come newest first; the backend refuses restores mid-build.
+    const latestVersionStatus = app?.versions[0]?.status;
+    const isBuildInProgress =
+        latestVersionStatus !== undefined &&
+        isAppVersionInProgress(latestVersionStatus);
+    const [restoreTargetVersion, setRestoreTargetVersion] = useState<
+        number | null
+    >(null);
+    const restoreMutation = useRestoreAiAgentThreadDataAppVersionMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
+    const closeRestoreModal = () => {
+        setRestoreTargetVersion(null);
+        restoreMutation.reset();
+    };
+    const confirmRestore = (targetVersion: number) =>
+        restoreMutation.mutate(
+            { appUuid, version: targetVersion },
+            {
+                onSuccess: (result) => {
+                    dispatch(
+                        setDataAppPreviewVersion({
+                            version: result.version,
+                            latestReadyVersionAtOpen: result.version,
+                        }),
+                    );
+                    closeRestoreModal();
+                },
+            },
+        );
+    const restore =
+        canManageApp && effectiveVersion !== null
+            ? {
+                  onClick: () => setRestoreTargetVersion(effectiveVersion),
+                  disabledReason: isBuildInProgress
+                      ? 'A version is building; restore once it finishes.'
+                      : null,
+              }
+            : null;
 
     const closeButton = (
         <ActionIcon
@@ -238,7 +319,9 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
         );
     }
 
-    const appUrl = `/projects/${projectUuid}/apps/${appUuid}/view`;
+    const appUrl = isViewingOlderVersion
+        ? `/projects/${projectUuid}/apps/${appUuid}/versions/${effectiveVersion}/view`
+        : `/projects/${projectUuid}/apps/${appUuid}/view`;
 
     return (
         <Box className={artifactStyles.floatingPanel}>
@@ -299,18 +382,38 @@ export const AiDataAppPreviewPanel: FC<Props> = ({
                                 )}
                             </Menu.Dropdown>
                         </Menu>
-                        {showInspector && picker.available && (
-                            <ElementPickerButton
-                                enabled={picker.enabled}
-                                onToggle={picker.toggle}
-                            />
-                        )}
+                        {showInspector &&
+                            picker.available &&
+                            !isViewingOlderVersion && (
+                                <ElementPickerButton
+                                    enabled={picker.enabled}
+                                    onToggle={picker.toggle}
+                                />
+                            )}
                         {closeButton}
                     </Group>
                 </Box>
 
-                <Box className={artifactStyles.previewBody}>{body}</Box>
+                <Box className={artifactStyles.previewBody}>
+                    {body}
+                    {isViewingOlderVersion && (
+                        <DataAppVersionPill
+                            version={effectiveVersion}
+                            onReturnToLatest={returnToLatest}
+                            restore={restore}
+                        />
+                    )}
+                </Box>
             </Box>
+            {restoreTargetVersion !== null && (
+                <RestoreAppVersionModal
+                    version={restoreTargetVersion}
+                    isLoading={restoreMutation.isLoading}
+                    error={restoreMutation.error}
+                    onClose={closeRestoreModal}
+                    onConfirm={() => confirmRestore(restoreTargetVersion)}
+                />
+            )}
         </Box>
     );
 };

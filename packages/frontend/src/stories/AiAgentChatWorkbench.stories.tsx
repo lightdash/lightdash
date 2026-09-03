@@ -801,6 +801,7 @@ const buildCardStates: DataAppBuildCardState[] = [
         name: 'Weekly revenue by region',
         version: 1,
         durationMs: 372_000,
+        restoredFromVersion: null,
         completionMessage:
             'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
     },
@@ -932,6 +933,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 reasoning: true,
             },
             tokenUsage: null,
+            responseTiming: null,
         };
     });
 
@@ -999,6 +1001,7 @@ const ComponentInventory = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>
@@ -1119,6 +1122,7 @@ const PinnedContextScenario = () => (
                         key={`${item.type}-${JSON.stringify(item)}`}
                         item={item}
                         projectUuid={projectUuid}
+                        previewScope={null}
                     />
                 ))}
             </Group>

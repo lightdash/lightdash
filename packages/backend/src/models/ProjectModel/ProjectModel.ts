@@ -70,7 +70,6 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import chunk from 'lodash/chunk';
 import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
@@ -145,6 +144,7 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
+import { chunkRowsByBytes } from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -1985,36 +1985,64 @@ export class ProjectModel {
                             .delete();
                     }
 
-                    const rowsToSave = exploresToSave.map((explore) => ({
-                        project_uuid: projectUuid,
-                        name: explore.name,
-                        table_names: Object.keys(explore.tables || {}),
-                        explore: JSON.stringify(explore),
-                    }));
-                    const savedExploreBatches = await Promise.all(
-                        chunk(rowsToSave, 1000).map((rows) => {
-                            const insertQuery = trx<DbCachedExplore>(
-                                CachedExploreTableName,
-                            ).insert(rows);
-                            return complete
-                                ? insertQuery.returning('cached_explore_uuid')
-                                : insertQuery
-                                      .onConflict(['name', 'project_uuid'])
-                                      .merge(['table_names', 'explore'])
-                                      .returning('cached_explore_uuid');
-                        }),
-                    );
-                    const individualCachedExplores = savedExploreBatches.flat();
+                    // Serialise one explore at a time so a chunk can be built, inserted and
+                    // released. Building every row up front held the whole set as strings.
+                    let savedBytes = 0;
+                    function* sizedRows() {
+                        // eslint-disable-next-line no-restricted-syntax
+                        for (const explore of exploresToSave) {
+                            const serialised = JSON.stringify(explore);
+                            savedBytes += Buffer.byteLength(serialised);
+                            yield {
+                                row: {
+                                    project_uuid: projectUuid,
+                                    name: explore.name,
+                                    table_names: Object.keys(
+                                        explore.tables || {},
+                                    ),
+                                    explore: serialised,
+                                },
+                                bytes: Buffer.byteLength(serialised),
+                            };
+                        }
+                    }
 
-                    // Cache explores together
-                    await trx(CachedExploresTableName)
-                        .insert({
-                            project_uuid: projectUuid,
-                            explores: JSON.stringify(uniqueExplores),
-                        })
-                        .onConflict('project_uuid')
-                        .merge()
-                        .returning('*');
+                    const individualCachedExplores: {
+                        cached_explore_uuid: string;
+                    }[] = [];
+                    let chunkCount = 0;
+                    let largestChunkBytes = 0;
+                    // Sequential, not Promise.all: every chunk statement was alive at once.
+                    // eslint-disable-next-line no-restricted-syntax
+                    for (const { rows, bytes } of chunkRowsByBytes(
+                        sizedRows(),
+                    )) {
+                        chunkCount += 1;
+                        largestChunkBytes = Math.max(largestChunkBytes, bytes);
+                        const insertQuery = trx<DbCachedExplore>(
+                            CachedExploreTableName,
+                        ).insert(rows);
+                        // eslint-disable-next-line no-await-in-loop
+                        const saved = await (complete
+                            ? insertQuery.returning('cached_explore_uuid')
+                            : insertQuery
+                                  .onConflict(['name', 'project_uuid'])
+                                  .merge(['table_names', 'explore'])
+                                  .returning('cached_explore_uuid'));
+                        individualCachedExplores.push(...saved);
+                    }
+
+                    Logger.info(
+                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${uniqueExplores.length} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes}`,
+                        {
+                            event: 'dbt.compile.saveExplores',
+                            projectUuid,
+                            explores: uniqueExplores.length,
+                            chunks: chunkCount,
+                            largestChunkBytes,
+                            savedBytes,
+                        },
+                    );
 
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
@@ -2047,6 +2075,42 @@ export class ProjectModel {
                 await onLockFailed();
             }
         });
+    }
+
+    /**
+     * Who holds the compile lock for a project, and for how long.
+     *
+     * A retry blocked by a zombie compile otherwise reads "Compilation is already in progress"
+     * about a job the server has already declared failed, with nothing to identify the holder.
+     */
+    async getProjectLockHolder(projectUuid: string): Promise<{
+        heldForSeconds: number;
+        backendPid: number;
+        applicationName: string | null;
+    } | null> {
+        const result = await this.database.raw(
+            `
+            SELECT a.pid,
+                   a.application_name,
+                   EXTRACT(EPOCH FROM (now() - a.xact_start)) AS held_for_seconds
+            FROM pg_locks l
+            JOIN pg_stat_activity a ON a.pid = l.pid
+            JOIN projects p ON p.project_uuid = ?
+            WHERE l.locktype = 'advisory'
+              AND l.classid = ?
+              AND l.objid = p.project_id
+              AND l.granted
+            ORDER BY a.xact_start ASC
+            LIMIT 1`,
+            [projectUuid, CACHED_EXPLORES_PG_LOCK_NAMESPACE],
+        );
+        const row = result.rows[0];
+        if (!row) return null;
+        return {
+            heldForSeconds: Math.round(Number(row.held_for_seconds ?? 0)),
+            backendPid: Number(row.pid),
+            applicationName: row.application_name ?? null,
+        };
     }
 
     async getWarehouseFromCache(
@@ -4526,7 +4590,6 @@ export class ProjectModel {
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
             });
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
 
         return virtualView;
@@ -4575,7 +4638,6 @@ export class ProjectModel {
                 })
                 .where('project_uuid', projectUuid)
                 .andWhere('name', exploreName);
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
 
         return translatedToExplore;
@@ -4589,7 +4651,6 @@ export class ProjectModel {
                 .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
                 .andWhere('name', name)
                 .delete();
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4635,7 +4696,6 @@ export class ProjectModel {
                     explore,
                 });
             }
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4651,7 +4711,6 @@ export class ProjectModel {
                 .whereRaw("explore->>'type' = ?", [ExploreType.EXTERNAL_SOURCE])
                 .whereIn('name', names)
                 .delete();
-            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
         });
     }
 
@@ -4667,23 +4726,6 @@ export class ProjectModel {
             .where('project_uuid', projectUuid)
             .forUpdate()
             .first();
-    }
-
-    private static async rebuildCachedExplores(
-        trx: Transaction,
-        projectUuid: string,
-    ): Promise<void> {
-        const cachedExplores = await trx(CachedExploreTableName)
-            .select<{ explore: Explore | ExploreError }[]>('explore')
-            .where('project_uuid', projectUuid)
-            .orderBy('name');
-        await trx(CachedExploresTableName)
-            .where('project_uuid', projectUuid)
-            .update({
-                explores: JSON.stringify(
-                    cachedExplores.map(({ explore }) => explore),
-                ),
-            });
     }
 
     async updateSchedulerSettings(

@@ -238,8 +238,8 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         };
     }
 
-    createExecutionWarehouseClient(scope?: string): WarehouseClient {
-        return this.duckDbClient.createExecutionWarehouseClient(scope);
+    createPreAggregateWarehouseClient(): WarehouseClient {
+        return this.duckDbClient.createPreAggregateWarehouseClient();
     }
 
     recordStats(params: {

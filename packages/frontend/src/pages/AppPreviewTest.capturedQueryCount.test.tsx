@@ -36,6 +36,10 @@ vi.mock('../features/apps/components/AppHeaderActions', () => ({
     default: mocks.headerActions,
 }));
 
+vi.mock('../features/apps/components/DataAppAiAgentContextBridge', () => ({
+    default: () => null,
+}));
+
 vi.mock('../features/apps/hooks/useAppPreviewToken', () => ({
     useAppPreviewToken: () => ({
         data: 'preview-token',

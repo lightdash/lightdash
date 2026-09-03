@@ -59,7 +59,13 @@ const IDS = {
     messageUuid: 'message-1',
 };
 
-const expectedPreview = { type: 'dataApp', appUuid: APP_UUID, ...IDS };
+const expectedPreview = {
+    type: 'dataApp',
+    appUuid: APP_UUID,
+    ...IDS,
+    version: 1,
+    latestReadyVersionAtOpen: 1,
+};
 
 const version = (
     overrides: Partial<ApiAppVersionSummary>,
@@ -94,7 +100,8 @@ const app = (
     views: 0,
     versions,
     hasMore: false,
-    latestReadyVersion: null,
+    latestReadyVersion:
+        versions.find((v) => v.status === 'ready')?.version ?? null,
 });
 
 const pending: ToolGenerateDataAppOutput['metadata'] = {
@@ -174,6 +181,62 @@ describe('AiDataAppBuildCard', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'View' }));
         expect(store.getState().aiArtifact.preview).toEqual(expectedPreview);
+    });
+
+    it('opens its own version and is the only active card for it', async () => {
+        const builtAt = new Date('2026-08-28T10:00:30.000Z');
+        const readyApp = app([
+            version({ version: 2, status: 'ready', statusUpdatedAt: builtAt }),
+            version({ version: 1, status: 'ready', statusUpdatedAt: builtAt }),
+        ]);
+        mockedLightdashApi.mockResolvedValue(readyApp);
+        const success = (v: number): ToolGenerateDataAppOutput['metadata'] => ({
+            status: 'success',
+            appUuid: APP_UUID,
+            version: v,
+            name: 'Revenue app',
+            href: '/projects/project-1/apps/app-1',
+        });
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <div data-testid="card-1">
+                        <AiDataAppBuildCard
+                            metadata={success(1)}
+                            compact={false}
+                            {...IDS}
+                        />
+                    </div>
+                    <div data-testid="card-2">
+                        <AiDataAppBuildCard
+                            metadata={success(2)}
+                            compact={false}
+                            {...IDS}
+                        />
+                    </div>
+                </MemoryRouter>
+            </Provider>,
+        );
+        // Both cards read the same app; wait for it to fill in the subtitles.
+        expect(await screen.findByText('v1 · built in 30s')).toBeVisible();
+        expect(await screen.findByText('v2 · built in 30s')).toBeVisible();
+        const cardPaper = (id: string) =>
+            screen.getByTestId(id).firstElementChild;
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'View' })[0]);
+
+        expect(store.getState().aiArtifact.preview).toEqual({
+            ...expectedPreview,
+            version: 1,
+            latestReadyVersionAtOpen: 2,
+        });
+        expect(cardPaper('card-1')?.className).toMatch(/cardActive/);
+        expect(cardPaper('card-2')?.className).not.toMatch(/cardActive/);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'View' })[1]);
+
+        expect(cardPaper('card-1')?.className).not.toMatch(/cardActive/);
+        expect(cardPaper('card-2')?.className).toMatch(/cardActive/);
     });
 
     it('does not open the preview for a build that finished before this session', async () => {

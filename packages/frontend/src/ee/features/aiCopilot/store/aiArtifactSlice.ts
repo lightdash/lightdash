@@ -23,7 +23,16 @@ export interface DataAppPreviewData {
     threadUuid: string;
     projectUuid: string;
     agentUuid: string;
+    /** null means the app's latest ready version. */
+    version: number | null;
+    /** Latest ready version at open; a newer one landing moves to latest. */
+    latestReadyVersionAtOpen: number | null;
 }
+
+export type DataAppPreviewVersion = Pick<
+    DataAppPreviewData,
+    'version' | 'latestReadyVersionAtOpen'
+>;
 
 export type AiPreview =
     | ({ type: 'artifact' } & ArtifactData)
@@ -48,10 +57,20 @@ export const aiArtifactSlice = createSlice({
         clearPreview: (state) => {
             state.preview = null;
         },
+        setDataAppPreviewVersion: (
+            state,
+            action: PayloadAction<DataAppPreviewVersion>,
+        ) => {
+            if (state.preview?.type !== 'dataApp') return;
+            state.preview.version = action.payload.version;
+            state.preview.latestReadyVersionAtOpen =
+                action.payload.latestReadyVersionAtOpen;
+        },
     },
 });
 
-export const { setPreview, clearPreview } = aiArtifactSlice.actions;
+export const { setPreview, clearPreview, setDataAppPreviewVersion } =
+    aiArtifactSlice.actions;
 
 type StateWithAiArtifact = { aiArtifact: AiArtifactState };
 

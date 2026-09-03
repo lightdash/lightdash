@@ -1862,6 +1862,11 @@ export const generateAgentResponse = async ({
                 promptUuid: args.promptUuid,
                 response: result.text,
                 tokenUsage: finalStepPromptTokenUsage(result.usage.totalTokens),
+                responseTiming: {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt: null,
+                    finishedAt: new Date().toISOString(),
+                },
             });
         }
 
@@ -2266,6 +2271,14 @@ export const streamAgentResponse = async ({
                 const interrupted = isEmptyResponse
                     ? await dependencies.isPromptInterrupted(args.promptUuid)
                     : false;
+                const responseTiming = {
+                    startedAt: new Date(startTime).toISOString(),
+                    firstTokenAt:
+                        firstChunkTime === null
+                            ? null
+                            : new Date(firstChunkTime).toISOString(),
+                    finishedAt: new Date().toISOString(),
+                };
                 if (isEmptyResponse && !interrupted) {
                     const emptyResponseError = stepCapReached
                         ? new AiAgentStepCapReachedError(steps.length)
@@ -2294,6 +2307,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 } else {
                     await persistPrompt({
@@ -2302,6 +2316,7 @@ export const streamAgentResponse = async ({
                         tokenUsage: finalStepPromptTokenUsage(
                             usage.totalTokens,
                         ),
+                        responseTiming,
                     });
                 }
 
