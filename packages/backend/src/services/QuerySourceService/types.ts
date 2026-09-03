@@ -1,9 +1,12 @@
 import type {
     Account,
+    ParametersValuesMap,
+    PivotConfiguration,
     QueryExecutionContext,
     QuerySourceDefinition,
     QuerySourceSchema,
     SourceQuery,
+    UserAttributeValueMap,
 } from '@lightdash/common';
 
 export type ScanSchemaArgs = {
@@ -11,7 +14,23 @@ export type ScanSchemaArgs = {
     projectUuid: string;
 };
 
-export type SubmitSourceQueryArgs = {
+/**
+ * Execution context shared by every query of one submission. Each field is
+ * required so a caller decides it explicitly; none of them defaults.
+ */
+export type SourceQueryExecutionContext = {
+    /** Parameter values every node resolves its references against. */
+    parameters: ParametersValuesMap;
+    /**
+     * Never optional: overrides come from the caller's runtime (embed, MCP,
+     * AI agent) and a dropped override shows a user another tenant's rows.
+     * Callers without overrides pass an empty map.
+     */
+    userAttributeOverrides: UserAttributeValueMap;
+    invalidateCache: boolean;
+};
+
+export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     account: Account;
     projectUuid: string;
     context: QueryExecutionContext;
@@ -22,6 +41,8 @@ export type SubmitSourceQueryArgs = {
      * existing results and pass through unchanged.
      */
     resolvedReferences: Record<string, string>;
+    /** The node's own pivot, lifted off the query so every source reads one place. */
+    pivotConfiguration: PivotConfiguration | null;
 };
 
 /**

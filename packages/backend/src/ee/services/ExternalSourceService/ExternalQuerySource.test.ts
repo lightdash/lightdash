@@ -18,6 +18,10 @@ const submitArgs = {
     projectUuid: 'project-1',
     context: QueryExecutionContext.API,
     resolvedReferences: {},
+    parameters: {},
+    userAttributeOverrides: {},
+    invalidateCache: false,
+    pivotConfiguration: null,
 };
 
 describe('ExternalQuerySource', () => {
@@ -86,7 +90,49 @@ describe('ExternalQuerySource', () => {
                 monthly_targets: 'monthly_targets',
                 other_table: 'other_table',
             },
+            parameters: {},
+            invalidateCache: false,
         });
+    });
+
+    it('hands parameters and cache control to the external SQL execution', async () => {
+        await source.submitQuery({
+            ...submitArgs,
+            parameters: { region: 'EU' },
+            invalidateCache: true,
+            query: {
+                sourceType: QuerySourceType.EXTERNAL,
+                sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                tables: ['t'],
+            },
+        });
+
+        expect(executeAsyncExternalSqlQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                parameters: { region: 'EU' },
+                invalidateCache: true,
+            }),
+        );
+    });
+
+    it('refuses a pivot until the join node owns the pivot stage', async () => {
+        await expect(
+            source.submitQuery({
+                ...submitArgs,
+                pivotConfiguration: {
+                    indexColumn: undefined,
+                    valuesColumns: [],
+                    groupByColumns: undefined,
+                    sortBy: undefined,
+                },
+                query: {
+                    sourceType: QuerySourceType.EXTERNAL,
+                    sql: 'SELECT * FROM t',
+                    tables: ['t'],
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(executeAsyncExternalSqlQuery).not.toHaveBeenCalled();
     });
 
     it('passes the map form through unchanged', async () => {

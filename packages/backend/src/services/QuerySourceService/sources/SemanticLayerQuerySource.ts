@@ -132,6 +132,10 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         query,
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        pivotConfiguration,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
 
@@ -155,6 +159,10 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             projectUuid,
             metricQuery,
             context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
         return { queryUuid: results.queryUuid };

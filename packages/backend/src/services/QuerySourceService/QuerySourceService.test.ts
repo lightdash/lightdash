@@ -4,6 +4,9 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
+    VizAggregationOptions,
+    VizIndexType,
+    type PivotConfiguration,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
@@ -17,11 +20,20 @@ import { QuerySourceRegistry } from './QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService';
 import { DuckdbQuerySource } from './sources/DuckdbQuerySource';
 import { SemanticLayerQuerySource } from './sources/SemanticLayerQuerySource';
-import type { QuerySourceClient } from './types';
+import type {
+    QuerySourceClient,
+    SourceQueryExecutionContext,
+    SubmitSourceQueryArgs,
+} from './types';
 
 const account = buildAccount();
 const projectUuid = 'test-project-uuid';
 const organizationUuid = 'test-org-uuid';
+const executionContext: SourceQueryExecutionContext = {
+    parameters: {},
+    userAttributeOverrides: {},
+    invalidateCache: false,
+};
 
 const createFakeSource = (
     sourceType: QuerySourceType,
@@ -117,6 +129,7 @@ describe('QuerySourceService', () => {
             const fakes = createRegistryWithFakes();
             const { service } = createService(fakes.registry);
             return service.executeSourceQueries({
+                ...executionContext,
                 account,
                 projectUuid,
                 queries,
@@ -214,6 +227,7 @@ describe('QuerySourceService', () => {
 
             await expect(
                 service.executeSourceQueries({
+                    ...executionContext,
                     account,
                     projectUuid,
                     queries: [
@@ -231,6 +245,7 @@ describe('QuerySourceService', () => {
             const { service } = createService(fakes.registry);
 
             const results = await service.executeSourceQueries({
+                ...executionContext,
                 account,
                 projectUuid,
                 queries: [{ sourceType: QuerySourceType.SQL, sql: 'SELECT 1' }],
@@ -255,6 +270,7 @@ describe('QuerySourceService', () => {
             // The merge query comes first in the payload; submission order
             // must still be dependencies-first
             const results = await service.executeSourceQueries({
+                ...executionContext,
                 account,
                 projectUuid,
                 queries: [
@@ -299,6 +315,89 @@ describe('QuerySourceService', () => {
             expect(mergeSubmission?.queryUuid).toEqual('merged-query-uuid');
         });
 
+        it('hands every source the submission execution context and its own pivot', async () => {
+            const fakes = createRegistryWithFakes();
+            const { service } = createService(fakes.registry);
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: {
+                    reference: 'orders_status',
+                    type: VizIndexType.CATEGORY,
+                },
+                valuesColumns: [
+                    {
+                        reference: 'orders_total',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+
+            await service.executeSourceQueries({
+                account,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                parameters: { region: 'EU' },
+                userAttributeOverrides: { tenant: ['acme'] },
+                invalidateCache: true,
+                queries: [
+                    {
+                        nodeId: 'orders',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_total'],
+                        pivotConfiguration,
+                    },
+                    {
+                        nodeId: 'summary',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'SELECT * FROM orders',
+                        references: ['orders'],
+                    },
+                ],
+            });
+
+            const sharedContext = {
+                parameters: { region: 'EU' },
+                userAttributeOverrides: { tenant: ['acme'] },
+                invalidateCache: true,
+            };
+            expect(fakes.semanticLayerSource.submitQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...sharedContext,
+                    pivotConfiguration,
+                }),
+            );
+            // The pivot belongs to the node that declared it; nodes without
+            // one get an explicit null, never the neighbour's pivot
+            expect(fakes.duckdbSource.submitQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...sharedContext,
+                    pivotConfiguration: null,
+                }),
+            );
+        });
+
+        it('requires user attribute overrides on the submit contract', () => {
+            const args: SubmitSourceQueryArgs = {
+                account,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                query: { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
+                resolvedReferences: {},
+                parameters: {},
+                userAttributeOverrides: {},
+                invalidateCache: false,
+                pivotConfiguration: null,
+            };
+            const { userAttributeOverrides, ...withoutOverrides } = args;
+            // @ts-expect-error omitting the overrides is a compile error, not a silent default
+            const rejected: SubmitSourceQueryArgs = withoutOverrides;
+            expect(rejected).not.toHaveProperty('userAttributeOverrides');
+            expect(userAttributeOverrides).toEqual({});
+        });
+
         it('propagates submit failures as-is', async () => {
             const fakes = createRegistryWithFakes();
             fakes.sqlSource.submitQuery.mockRejectedValue(
@@ -308,6 +407,7 @@ describe('QuerySourceService', () => {
 
             await expect(
                 service.executeSourceQueries({
+                    ...executionContext,
                     account,
                     projectUuid,
                     queries: [
@@ -404,6 +504,7 @@ describe('composer pipelines return the standard results interface', () => {
         const { service } = createService(registry);
 
         const result = await service.executeSourceQueries({
+            ...executionContext,
             account,
             projectUuid,
             context: QueryExecutionContext.MULTI_SOURCE_QUERY,
@@ -446,6 +547,7 @@ describe('composer pipelines return the standard results interface', () => {
         const { service } = createService(registry);
 
         const result = await service.executeSourceQueries({
+            ...executionContext,
             account,
             projectUuid,
             context: QueryExecutionContext.MULTI_SOURCE_QUERY,
@@ -488,5 +590,54 @@ describe('composer pipelines return the standard results interface', () => {
                 references: { orders: 'metric-query-uuid' },
             }),
         );
+    });
+
+    it('hands a DuckDB node its parameters and cache control, and refuses a pivot on it', async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+        const duckdbNode: SourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'summary',
+            sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+            references: { t: '123e4567-e89b-12d3-a456-426614174000' },
+        };
+
+        await service.executeSourceQueries({
+            account,
+            projectUuid,
+            context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+            parameters: { region: 'EU' },
+            userAttributeOverrides: {},
+            invalidateCache: true,
+            queries: [duckdbNode],
+        });
+        expect(
+            asyncQueryService.executeAsyncComposeSqlQuery,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                parameters: { region: 'EU' },
+                invalidateCache: true,
+            }),
+        );
+
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                queries: [
+                    {
+                        ...duckdbNode,
+                        pivotConfiguration: {
+                            indexColumn: undefined,
+                            valuesColumns: [],
+                            groupByColumns: undefined,
+                            sortBy: undefined,
+                        },
+                    },
+                ],
+            }),
+        ).rejects.toThrow(ParameterError);
     });
 });

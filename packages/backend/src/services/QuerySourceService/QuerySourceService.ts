@@ -19,7 +19,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { BaseService } from '../BaseService';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
-import type { QuerySourceClient } from './types';
+import type { QuerySourceClient, SourceQueryExecutionContext } from './types';
 
 type QuerySourceServiceArguments = {
     projectModel: ProjectModel;
@@ -263,7 +263,10 @@ export class QuerySourceService extends BaseService {
         projectUuid,
         queries,
         context,
-    }: {
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+    }: SourceQueryExecutionContext & {
         account: Account;
         projectUuid: string;
         queries: SourceQuery[];
@@ -286,6 +289,10 @@ export class QuerySourceService extends BaseService {
                 context,
                 query: entry.query,
                 resolvedReferences: { ...resolvedReferences },
+                parameters,
+                userAttributeOverrides,
+                invalidateCache,
+                pivotConfiguration: entry.query.pivotConfiguration ?? null,
             });
             resolvedReferences[entry.nodeId] = queryUuid;
             submissions.push({

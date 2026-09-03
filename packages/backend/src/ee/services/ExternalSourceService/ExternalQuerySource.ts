@@ -120,13 +120,26 @@ export class ExternalQuerySource implements QuerySourceClient {
         return [];
     }
 
+    /**
+     * User attribute overrides have nothing to apply to: external tables are
+     * ingested files, not attribute-scoped SQL. A pivot refuses until the
+     * join node owns the pivot stage.
+     */
     async submitQuery({
         account,
         projectUuid,
         context,
         query,
+        parameters,
+        invalidateCache,
+        pivotConfiguration,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = ExternalQuerySource.assertSourceQuery(query);
+        if (pivotConfiguration !== null) {
+            throw new ParameterError(
+                `${QuerySourceType.EXTERNAL} queries do not support pivotConfiguration yet`,
+            );
+        }
 
         const results =
             await this.asyncQueryService.executeAsyncExternalSqlQuery({
@@ -136,6 +149,8 @@ export class ExternalQuerySource implements QuerySourceClient {
                 limit: sourceQuery.limit,
                 tables: ExternalQuerySource.normalizeTables(sourceQuery.tables),
                 context,
+                parameters,
+                invalidateCache,
             });
 
         return { queryUuid: results.queryUuid };

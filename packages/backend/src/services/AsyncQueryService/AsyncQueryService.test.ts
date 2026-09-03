@@ -18,12 +18,14 @@ import {
     MissingConfigError,
     NotFoundError,
     OrganizationAccessStatus,
+    ParameterError,
     PersistentDownloadFileAccessMode,
     PossibleAbilities,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
     QueryHistoryWindow,
+    QuerySourceType,
     QueryTrigger,
     ResultColumns,
     VizAggregationOptions,
@@ -95,6 +97,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -112,6 +115,9 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
+import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
+import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     AsyncQueryService,
@@ -5705,7 +5711,7 @@ describe('runDuckdbQuery', () => {
         queryUuid: 'duckdb-query-uuid',
         sql: 'SELECT 1 AS one',
         references: { kind: 'bound', referenceCtes: [] },
-        columns: { mode: 'discover', limit: undefined },
+        columns: { mode: 'discover', limit: undefined, parameters: {} },
         storedCompiledSql: null,
         warehouseClient: warehouseClientMock,
         queryTags: {} as AnyType,
@@ -6204,5 +6210,219 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
+    });
+});
+
+/**
+ * Query sources hand the submission's execution context to the execution
+ * path they wrap. Proven on the compiled query rather than on call shapes:
+ * a different attribute value is a different WHERE clause, a parameter
+ * value lands in the SQL, and a missing one refuses.
+ */
+describe('query sources carry the execution context', () => {
+    const attributeScopedExplore: Explore = {
+        ...validExplore,
+        tables: {
+            ...validExplore.tables,
+            a: {
+                ...validExplore.tables.a,
+                sqlWhere: 'region = ${lightdash.attribute.region}',
+                dimensions: {
+                    ...validExplore.tables.a.dimensions,
+                    region_param: {
+                        ...validExplore.tables.a.dimensions.dim1,
+                        name: 'region_param',
+                        label: 'region_param',
+                        sql: '${ld.parameters.region}',
+                        compiledSql: '${ld.parameters.region}',
+                    },
+                },
+            },
+        },
+    };
+
+    const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
+        account: sessionAccount,
+        projectUuid,
+        context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+        resolvedReferences: {},
+        parameters: {},
+        userAttributeOverrides: {},
+        invalidateCache: false,
+        pivotConfiguration: null,
+    };
+
+    const createSemanticLayerHarness = () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        // The account's own attributes; overrides layer on top of these
+        service.getExploreWithUserAccessControls = vi.fn().mockResolvedValue({
+            explore: attributeScopedExplore,
+            userAccessControls: {
+                userAttributes: { region: ['base'] },
+                intrinsicUserAttributes: {},
+            },
+        });
+        (service as AnyType).getWarehouseCredentials = vi
+            .fn()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        const executeAsyncQuery = vi.fn().mockResolvedValue({
+            queryUuid: 'queryUuid',
+            cacheMetadata: { cacheHit: false },
+        });
+        service['executeAsyncQuery'] = executeAsyncQuery;
+
+        const source = new SemanticLayerQuerySource({
+            asyncQueryService: service,
+            projectService: {} as ProjectService,
+        });
+        const submit = (
+            overrides: Partial<SubmitSourceQueryArgs> & {
+                dimensions?: string[];
+            },
+        ) =>
+            source.submitQuery({
+                ...submissionDefaults,
+                ...overrides,
+                query: {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: attributeScopedExplore.name,
+                    dimensions: overrides.dimensions ?? ['a_dim1'],
+                    metrics: [],
+                },
+            });
+        const composerOf = (call: number): QueryComposer =>
+            executeAsyncQuery.mock.calls[call][0].queryComposer;
+        const sqlOf = (call: number) =>
+            composerOf(call).getSql({ columnLimit: 100 });
+        return { submit, composerOf, sqlOf, executeAsyncQuery };
+    };
+
+    test('a semantic-layer node compiles a different query per user attribute override', async () => {
+        const { submit, sqlOf } = createSemanticLayerHarness();
+
+        await submit({ userAttributeOverrides: { region: ['EU'] } });
+        await submit({ userAttributeOverrides: { region: ['US'] } });
+
+        const [euSql, usSql] = [sqlOf(0), sqlOf(1)];
+        expect(euSql).toContain("region = 'EU'");
+        expect(usSql).toContain("region = 'US'");
+        expect(euSql).not.toEqual(usSql);
+        // The override replaces the account's own value rather than adding to it
+        expect(euSql).not.toContain('base');
+        expect(usSql).not.toContain('base');
+    });
+
+    test('a semantic-layer node resolves parameter values and reports a missing one for refusal', async () => {
+        const { submit, sqlOf, composerOf } = createSemanticLayerHarness();
+        const dimensions = ['a_region_param'];
+
+        await submit({ dimensions, parameters: { region: 'EU' } });
+        expect(sqlOf(0)).toContain("'EU'");
+        expect(sqlOf(0)).not.toContain('ld.parameters');
+
+        // executeAsyncQuery turns a missing reference into an error row
+        // before anything runs; the composer is where it is detected
+        await submit({ dimensions, parameters: {} });
+        expect(composerOf(1).getMissingParameterReferences()).toEqual([
+            'region',
+        ]);
+    });
+
+    test('cache invalidation and pivot configuration reach the metric execution unchanged', async () => {
+        const { submit, composerOf, executeAsyncQuery } =
+            createSemanticLayerHarness();
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: { reference: 'a_dim1', type: VizIndexType.CATEGORY },
+            valuesColumns: [
+                {
+                    reference: 'a_dim1',
+                    aggregation: VizAggregationOptions.COUNT,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+
+        await submit({
+            userAttributeOverrides: { region: ['EU'] },
+            invalidateCache: true,
+            pivotConfiguration,
+        });
+
+        expect(executeAsyncQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ invalidateCache: true }),
+            expect.any(Object),
+        );
+        expect(composerOf(0).getPivotConfiguration()).toEqual(
+            pivotConfiguration,
+        );
+    });
+
+    test('a sql node applies overrides and parameters to the executed SQL, bypasses the cache, and refuses a missing parameter', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.getUserAttributes = vi.fn(async () => ({
+            userAttributes: { region: ['base'] },
+            intrinsicUserAttributes: { email: 'test@example.com' },
+        }));
+        let capturedSql = '';
+        service._getWarehouseClient = vi.fn(async () => ({
+            warehouseClient: {
+                ...warehouseClientMock,
+                streamQuery: vi.fn(async (sql, callback) => {
+                    capturedSql = sql;
+                    await callback({
+                        fields: { test_col: { type: DimensionType.STRING } },
+                        rows: [],
+                    });
+                }),
+            },
+            sshTunnel: mockSshTunnel,
+            tunnelConnectMs: null,
+        }));
+        service.findResultsCache = vi.fn().mockResolvedValue({
+            cacheHit: false,
+            updatedAt: undefined,
+            expiresAt: undefined,
+        } satisfies MissCacheResult);
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        const source = new SqlQuerySource({
+            asyncQueryService: service,
+            projectService: {} as ProjectService,
+        });
+        const query = {
+            sourceType: QuerySourceType.SQL,
+            sql: 'SELECT * FROM t WHERE region = ${lightdash.attribute.region} AND plan = ${ld.parameters.plan}',
+        } as const;
+
+        await source.submitQuery({
+            ...submissionDefaults,
+            query,
+            parameters: { plan: 'pro' },
+            userAttributeOverrides: { region: ['EU'] },
+            invalidateCache: true,
+        });
+
+        expect(capturedSql).toContain("region = 'EU'");
+        expect(capturedSql).toContain("plan = 'pro'");
+        expect(service.findResultsCache).toHaveBeenCalledWith(
+            projectUuid,
+            expect.any(String),
+            sessionAccount,
+            true,
+        );
+
+        await expect(
+            source.submitQuery({
+                ...submissionDefaults,
+                query,
+                userAttributeOverrides: { region: ['EU'] },
+            }),
+        ).rejects.toThrow(ParameterError);
     });
 });

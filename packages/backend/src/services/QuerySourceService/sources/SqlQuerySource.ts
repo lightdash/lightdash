@@ -97,6 +97,10 @@ export class SqlQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         query,
+        parameters,
+        userAttributeOverrides,
+        invalidateCache,
+        pivotConfiguration,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
@@ -105,8 +109,11 @@ export class SqlQuerySource implements QuerySourceClient {
             projectUuid,
             sql: sourceQuery.sql,
             limit: sourceQuery.limit,
-            invalidateCache: false,
             context,
+            parameters,
+            userAttributeOverrides,
+            invalidateCache,
+            pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
         return { queryUuid: results.queryUuid };
