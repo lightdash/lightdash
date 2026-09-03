@@ -1201,12 +1201,16 @@ export class OrganizationService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
+        const canReadSetting =
+            auditedAbility.can(
                 'update',
                 subject('Organization', { organizationUuid }),
-            )
-        ) {
+            ) ||
+            auditedAbility.can(
+                'impersonate',
+                subject('User', { organizationUuid, isActive: true }),
+            );
+        if (!canReadSetting) {
             throw new ForbiddenError();
         }
         const flag = await this.featureFlagModel.get({
