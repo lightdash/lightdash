@@ -1,8 +1,12 @@
 import { type CompiledTable } from '../types/explore';
 import { CustomFormatType, DimensionType, MetricType } from '../types/field';
+import { type AdditionalMetric } from '../types/metricQuery';
 import { buildPopAdditionalMetric } from '../types/periodOverPeriodComparison';
 import { TimeFrames } from '../types/timeFrames';
-import { convertAdditionalMetric } from './additionalMetrics';
+import {
+    convertAdditionalMetric,
+    mergeDashboardCustomMetrics,
+} from './additionalMetrics';
 
 const baseTable: CompiledTable = {
     name: 'orders',
@@ -148,5 +152,96 @@ describe('convertAdditionalMetric — baseDimensionType plumbing', () => {
         });
         expect(result.baseDimensionType).toEqual(DimensionType.TIMESTAMP);
         expect(result.baseDimensionTimeInterval).toBeUndefined();
+    });
+});
+
+describe('mergeDashboardCustomMetrics', () => {
+    const metric = (
+        table: string,
+        name: string,
+        overrides: Partial<AdditionalMetric> = {},
+    ): AdditionalMetric => ({
+        table,
+        name,
+        label: name,
+        sql: '${TABLE}.amount',
+        type: MetricType.SUM,
+        ...overrides,
+    });
+
+    it('adds new chart metrics to the registry', () => {
+        const registry = [metric('orders', 'total_revenue')];
+        const result = mergeDashboardCustomMetrics(registry, [
+            metric('orders', 'avg_basket'),
+        ]);
+
+        expect(result.map((m) => m.name)).toEqual([
+            'total_revenue',
+            'avg_basket',
+        ]);
+    });
+
+    it('is idempotent for an identical definition', () => {
+        const registry = [metric('orders', 'total_revenue')];
+        const result = mergeDashboardCustomMetrics(registry, [
+            metric('orders', 'total_revenue'),
+        ]);
+
+        expect(result).toBe(registry);
+    });
+
+    it('keeps the existing registry definition when the same (table, name) reappears', () => {
+        const registry = [metric('orders', 'total_revenue')];
+        const result = mergeDashboardCustomMetrics(registry, [
+            metric('orders', 'total_revenue', { sql: '${TABLE}.other_column' }),
+        ]);
+
+        expect(result).toBe(registry);
+        expect(result[0].sql).toEqual('${TABLE}.amount');
+    });
+
+    it('lets the same name coexist on different tables', () => {
+        const registry = [metric('orders', 'total')];
+        const result = mergeDashboardCustomMetrics(registry, [
+            metric('payments', 'total'),
+        ]);
+
+        expect(result).toHaveLength(2);
+        expect(result.map((m) => m.table)).toEqual(['orders', 'payments']);
+    });
+
+    it('never admits system-generated metrics', () => {
+        const result = mergeDashboardCustomMetrics(
+            [],
+            [
+                metric('orders', 'total_revenue_previous_week', {
+                    generationType: 'periodOverPeriod',
+                }),
+            ],
+        );
+
+        expect(result).toEqual([]);
+    });
+
+    it('returns the original array identity when nothing was added', () => {
+        const registry = [metric('orders', 'total_revenue')];
+        const result = mergeDashboardCustomMetrics(registry, []);
+
+        expect(result).toBe(registry);
+    });
+
+    it('deduplicates within the incoming chart metrics', () => {
+        const result = mergeDashboardCustomMetrics(
+            [],
+            [
+                metric('orders', 'total_revenue'),
+                metric('orders', 'total_revenue', {
+                    sql: '${TABLE}.other_column',
+                }),
+            ],
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0].sql).toEqual('${TABLE}.amount');
     });
 });
