@@ -388,7 +388,7 @@ export const lightdashConfigMock: LightdashConfig = {
         sessionTimeoutMs: 300000,
     },
     aiWriteback: {
-        anthropicApiKey: null,
+        legacyAnthropicApiKey: null,
         codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {
