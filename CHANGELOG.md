@@ -1,3 +1,16 @@
+# [2.102.0](https://github.com/lightdash/lightdash/compare/2.101.2...2.102.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **ai:** pivot grouped deep research report charts on refresh ([#28525](https://github.com/lightdash/lightdash/issues/28525)) ([d682068](https://github.com/lightdash/lightdash/commit/d682068f9c2edbd8e03bb96f75d530bf4ecf897f)), closes [#23827](https://github.com/lightdash/lightdash/issues/23827) [#25754](https://github.com/lightdash/lightdash/issues/25754) [#28298](https://github.com/lightdash/lightdash/issues/28298)
+* **auth:** designed error when SSO login collides with an existing pending account ([#28523](https://github.com/lightdash/lightdash/issues/28523)) ([b9f9fef](https://github.com/lightdash/lightdash/commit/b9f9fefd7660ddbf4ae342fa447122594dd7a11c)), closes [#28368](https://github.com/lightdash/lightdash/issues/28368)
+
+
+### Features
+
+* **ai:** show/hide network inspector from data app preview menu ([#28530](https://github.com/lightdash/lightdash/issues/28530)) ([d108fce](https://github.com/lightdash/lightdash/commit/d108fce96565a40fdf1abcfb85955c68e2a3530e))
+
 ## [2.101.2](https://github.com/lightdash/lightdash/compare/2.101.1...2.101.2) (2026-09-02)
 
 
