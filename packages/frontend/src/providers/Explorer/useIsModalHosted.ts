@@ -8,6 +8,8 @@ type ModalHostedValue = {
     onChartSaved?: (chart: SavedChart) => void;
     /** Dashboard context for the save dialog, bypassing sessionStorage. */
     dashboard?: { uuid: string; name: string };
+    /** Registry metric ids: badged and frozen in the field tree. */
+    dashboardMetricIds?: Set<string>;
 };
 
 export const ModalHostedContext = createContext<ModalHostedValue>({
@@ -24,3 +26,6 @@ export const useModalHostedChartSaved = ():
 export const useModalHostedDashboard = ():
     | { uuid: string; name: string }
     | undefined => useContext(ModalHostedContext).dashboard;
+
+export const useModalHostedDashboardMetricIds = (): Set<string> | undefined =>
+    useContext(ModalHostedContext).dashboardMetricIds;

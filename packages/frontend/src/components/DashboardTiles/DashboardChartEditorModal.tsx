@@ -152,8 +152,11 @@ const DashboardChartEditorModal: FC<Props> = ({
     const [pickedExploreId, setPickedExploreId] = useState<string>();
     const exploreId = editChart ? editChart.tableName : pickedExploreId;
 
-    const { seededMetrics, isLoading: isSeedLoading } =
-        useDashboardCustomMetricSeed(exploreId);
+    const {
+        seededMetrics,
+        dashboardMetricIds,
+        isLoading: isSeedLoading,
+    } = useDashboardCustomMetricSeed(exploreId);
 
     // Saving closes the modal via the host, bypassing handleClose — reset the
     // picked explore here too so the next New chart starts at the picker.
@@ -170,8 +173,9 @@ const DashboardChartEditorModal: FC<Props> = ({
             isModalHosted: true,
             onChartSaved: handleChartSaved,
             dashboard: { uuid: dashboardUuid, name: dashboardName },
+            dashboardMetricIds,
         }),
-        [handleChartSaved, dashboardUuid, dashboardName],
+        [handleChartSaved, dashboardUuid, dashboardName, dashboardMetricIds],
     );
 
     const handleClose = useCallback(() => {
