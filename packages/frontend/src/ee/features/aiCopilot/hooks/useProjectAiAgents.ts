@@ -8,6 +8,8 @@ import type {
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
+    ApiAiAgentThreadDataAppRestoreRequest,
+    ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -1466,6 +1468,45 @@ export const useCreateAiAgentThreadMessageSteerMutation = () => {
                     };
                 },
             );
+        },
+    });
+};
+
+export const useRestoreAiAgentThreadDataAppVersionMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) => {
+    const queryClient = useQueryClient();
+
+    return useMutation<
+        ApiAiAgentThreadDataAppRestoreResponse['results'],
+        ApiError,
+        ApiAiAgentThreadDataAppRestoreRequest
+    >({
+        mutationFn: (body) =>
+            lightdashApi<ApiAiAgentThreadDataAppRestoreResponse['results']>({
+                url: `${getAiAgentApiBase(
+                    projectUuid,
+                )}/${agentUuid}/threads/${threadUuid}/data-app-restores`,
+                method: 'POST',
+                body: JSON.stringify(body),
+            }),
+        onSuccess: (_result, { appUuid }) => {
+            // The thread gained a hidden restore turn; the app gained a version.
+            void queryClient.invalidateQueries({
+                queryKey: getAiAgentThreadQueryKey(
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                ),
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['app', projectUuid, appUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['data-app-viz', projectUuid, appUuid],
+            });
         },
     });
 };
