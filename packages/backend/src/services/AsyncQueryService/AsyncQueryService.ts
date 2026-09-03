@@ -67,6 +67,7 @@ import {
     isExploreError,
     isField,
     isJwtUser,
+    isMergeMetricSource,
     isMergeResultSource,
     isMetric,
     isMetricSourcedMergeQuery,
@@ -252,6 +253,8 @@ import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
+    getMergeRowCapError,
+    getMergeSourceLabels,
 } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -6920,7 +6923,7 @@ export class AsyncQueryService extends ProjectService {
      * uuid (the creator-scoped QueryHistoryModel.get lookup plus
      * throwIfCannotReadQueryHistory). The referenced query does NOT need to
      * be finished — waiting for results happens in the background execution
-     * phase (buildQueryReferenceCtes).
+     * phase (waitForQueryReferences).
      */
     private async authorizeQueryReferences({
         account,
@@ -6975,15 +6978,14 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Builds one CTE per referenced query so the user SQL can select from
-     * semantically-named tables: {"orders": "<queryUuid>"} exposes that
-     * query's results as `orders`. References to queries that are still
-     * running are waited on — this is the whole of pipeline orchestration:
-     * a query that reads another query's results starts once those results
-     * exist, and fails if the referenced query fails. References must
-     * already be authorized (authorizeQueryReferences).
+     * Waits for every referenced query to complete and returns what each one
+     * produced, keyed by the table name it is exposed under. This is the
+     * whole of pipeline orchestration: a query that reads another query's
+     * results starts once those results exist, and fails if the referenced
+     * query fails. References must already be authorized
+     * (authorizeQueryReferences).
      */
-    private async buildQueryReferenceCtes({
+    private async waitForQueryReferences({
         account,
         projectUuid,
         references,
@@ -6991,12 +6993,11 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
-    }): Promise<string[]> {
-        return Promise.all(
+    }): Promise<Record<string, QueryHistory>> {
+        const completed = await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
-                let queryHistory: QueryHistory;
                 try {
-                    queryHistory =
+                    const queryHistory =
                         await this.queryHistoryModel.pollForQueryCompletion({
                             queryUuid,
                             account,
@@ -7004,6 +7005,7 @@ export class AsyncQueryService extends ProjectService {
                             timeoutMs:
                                 AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
                         });
+                    return [tableName, queryHistory] as const;
                 } catch (e) {
                     throw new ParameterError(
                         `Referenced query "${tableName}" (${queryUuid}) did not complete: ${getErrorMessage(
@@ -7011,7 +7013,21 @@ export class AsyncQueryService extends ProjectService {
                         )}`,
                     );
                 }
+            }),
+        );
+        return Object.fromEntries(completed);
+    }
 
+    /**
+     * Builds one CTE per completed reference so the user SQL can select from
+     * semantically-named tables: {"orders": "<queryUuid>"} exposes that
+     * query's results as `orders`.
+     */
+    private buildQueryReferenceCtes(
+        queryHistoryByTableName: Record<string, QueryHistory>,
+    ): string[] {
+        return Object.entries(queryHistoryByTableName).map(
+            ([tableName, queryHistory]) => {
                 if (
                     queryHistory.resultsExpiresAt &&
                     queryHistory.resultsExpiresAt < new Date()
@@ -7021,7 +7037,7 @@ export class AsyncQueryService extends ProjectService {
 
                 if (!queryHistory.resultsFileName) {
                     throw new NotFoundError(
-                        `Result file not found for query ${queryUuid}`,
+                        `Result file not found for query ${queryHistory.queryUuid}`,
                     );
                 }
 
@@ -7044,7 +7060,7 @@ export class AsyncQueryService extends ProjectService {
                 return `${quoteDuckdbIdentifier(
                     tableName,
                 )} AS (SELECT * FROM ${table})`;
-            }),
+            },
         );
     }
 
@@ -7510,11 +7526,13 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<void> {
         try {
             const referenceCtes = references
-                ? await this.buildQueryReferenceCtes({
-                      account,
-                      projectUuid,
-                      references,
-                  })
+                ? this.buildQueryReferenceCtes(
+                      await this.waitForQueryReferences({
+                          account,
+                          projectUuid,
+                          references,
+                      }),
+                  )
                 : [];
 
             await this.runDuckdbSqlQuery({
@@ -8138,7 +8156,6 @@ export class AsyncQueryService extends ProjectService {
                 fieldTypes,
                 outputAliasByColumn: compiledMerge.fieldIdByColumn,
                 limit: Math.min(mergeQuery.limit, sourceRowCap),
-                sourceRowCap,
             });
 
         // The same composer as the warehouse merge, with the compose engine
@@ -8176,6 +8193,21 @@ export class AsyncQueryService extends ProjectService {
                     legQueryUuidBySourceId[sourceId],
                 ],
             ),
+        );
+        const labelBySourceId = getMergeSourceLabels({
+            sources: mergeQuery.sources,
+            typedColumns: compiledMerge.typedColumns,
+            itemsMap: compiledMerge.itemsMap,
+        });
+        // Only the legs this merge ran are checked against the cap; a
+        // referenced result's row count is its own query's concern
+        const legLabelByReferenceTable = Object.fromEntries(
+            mergeQuery.sources
+                .filter(isMergeMetricSource)
+                .map((source) => [
+                    referenceTableBySourceId[source.id],
+                    labelBySourceId[source.id],
+                ]),
         );
         await this.authorizeQueryReferences({
             account,
@@ -8252,6 +8284,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             sql,
             references,
+            legLabelByReferenceTable,
             warehouseClient,
             queryTags,
             queryCreatedAt,
@@ -8337,6 +8370,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         sql,
         references,
+        legLabelByReferenceTable,
         warehouseClient,
         queryTags,
         queryCreatedAt,
@@ -8355,6 +8389,8 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string;
         sql: string;
         references: Record<string, string>;
+        /** The user-facing label of the source each reference table holds. */
+        legLabelByReferenceTable: Record<string, string>;
         warehouseClient: WarehouseClient;
         queryTags: RunQueryTags;
         queryCreatedAt: Date;
@@ -8366,14 +8402,28 @@ export class AsyncQueryService extends ProjectService {
         originalColumns: ResultColumns;
     }): Promise<void> {
         try {
-            const referenceCtes = await this.buildQueryReferenceCtes({
+            const queryHistoryByTableName = await this.waitForQueryReferences({
                 account,
                 projectUuid,
                 references,
             });
+
+            const rowCapError = getMergeRowCapError({
+                legs: Object.entries(legLabelByReferenceTable).map(
+                    ([tableName, label]) => ({
+                        label,
+                        rowCount:
+                            queryHistoryByTableName[tableName]?.totalRowCount ??
+                            null,
+                    }),
+                ),
+                sourceRowCap: this.lightdashConfig.query.maxLimit,
+            });
+            if (rowCapError !== null) throw new ParameterError(rowCapError);
+
             const query = AsyncQueryService.wrapSqlWithReferenceCtes(
                 sql,
-                referenceCtes,
+                this.buildQueryReferenceCtes(queryHistoryByTableName),
             );
             await this.queryHistoryModel.update(
                 queryUuid,

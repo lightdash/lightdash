@@ -13,6 +13,8 @@ import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
     getMergeOutputColumnCount,
+    getMergeRowCapError,
+    getMergeSourceLabels,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -98,64 +100,64 @@ describe('merge query execution', () => {
     });
 });
 
-describe('buildComposeMergeOriginalColumns', () => {
-    const itemsMap: ItemsMap = {
-        orders_month: {
-            fieldType: FieldType.DIMENSION,
-            type: DimensionType.DATE,
-            name: 'month',
-            label: 'Month',
-            table: 'orders',
-            tableLabel: 'Orders',
-            sql: '${TABLE}.month',
-            hidden: false,
-            groups: [],
-        },
-        orders_count: {
-            fieldType: FieldType.METRIC,
-            type: MetricType.COUNT,
-            name: 'count',
-            label: 'Count',
-            table: 'orders',
-            tableLabel: 'Orders',
-            sql: '${TABLE}.count',
-            hidden: false,
-            groups: [],
-        },
-        merged_calc: {
-            name: 'merged_calc',
-            displayName: 'Merged calc',
-            sql: '1',
-        },
-    };
-    const typedColumns: MergeTypedColumn[] = [
-        {
-            reference: 'orders_month',
-            type: DimensionType.DATE,
-            origin: {
-                kind: 'joinKey',
-                fieldIdBySourceId: {
-                    orders: 'orders_month',
-                    payments: 'payments_month',
-                },
+const itemsMap: ItemsMap = {
+    orders_month: {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.DATE,
+        name: 'month',
+        label: 'Month',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.month',
+        hidden: false,
+        groups: [],
+    },
+    orders_count: {
+        fieldType: FieldType.METRIC,
+        type: MetricType.COUNT,
+        name: 'count',
+        label: 'Count',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.count',
+        hidden: false,
+        groups: [],
+    },
+    merged_calc: {
+        name: 'merged_calc',
+        displayName: 'Merged calc',
+        sql: '1',
+    },
+};
+const typedColumns: MergeTypedColumn[] = [
+    {
+        reference: 'orders_month',
+        type: DimensionType.DATE,
+        origin: {
+            kind: 'joinKey',
+            fieldIdBySourceId: {
+                orders: 'orders_month',
+                payments: 'payments_month',
             },
         },
-        {
-            reference: 'orders_count',
-            type: DimensionType.NUMBER,
-            origin: {
-                kind: 'source',
-                sourceId: 'orders',
-                sourceFieldId: 'orders_count',
-            },
+    },
+    {
+        reference: 'orders_count',
+        type: DimensionType.NUMBER,
+        origin: {
+            kind: 'source',
+            sourceId: 'orders',
+            sourceFieldId: 'orders_count',
         },
-        {
-            reference: 'merged_calc',
-            type: DimensionType.NUMBER,
-            origin: { kind: 'tableCalculation' },
-        },
-    ];
+    },
+    {
+        reference: 'merged_calc',
+        type: DimensionType.NUMBER,
+        origin: { kind: 'tableCalculation' },
+    },
+];
 
+describe('buildComposeMergeOriginalColumns', () => {
     const columns = buildComposeMergeOriginalColumns({
         typedColumns,
         itemsMap,
@@ -203,5 +205,78 @@ describe('buildComposeMergeOriginalColumns', () => {
         expect(withoutLeg.orders_count.provenance).toEqual({
             fieldId: 'orders_count',
         });
+    });
+});
+
+describe('getMergeSourceLabels', () => {
+    test('labels a source by the explore label its columns carry', () => {
+        expect(
+            getMergeSourceLabels({
+                sources: [{ id: 'orders' }],
+                typedColumns,
+                itemsMap,
+            }),
+        ).toEqual({ orders: 'Orders' });
+    });
+
+    test('falls back to the slot label for a source with no value column', () => {
+        expect(
+            getMergeSourceLabels({
+                sources: [{ id: 'orders' }, { id: 'empty' }],
+                typedColumns,
+                itemsMap,
+            }),
+        ).toEqual({ orders: 'Orders', empty: 'Query B' });
+    });
+});
+
+describe('getMergeRowCapError', () => {
+    test('refuses and names the source that reached the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500 },
+                    { label: 'Payments', rowCount: 12 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBe(
+            'Orders returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to Orders, then merge again.',
+        );
+    });
+
+    test('names every source that reached the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500 },
+                    { label: 'Payments', rowCount: 501 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBe(
+            'Orders and Payments each returned the maximum of 500 rows, so the merged results would be missing data. Add a filter to each, then merge again.',
+        );
+    });
+
+    test('allows a merge whose sources are all under the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 499 },
+                    { label: 'Payments', rowCount: 0 },
+                ],
+                sourceRowCap: 500,
+            }),
+        ).toBeNull();
+    });
+
+    test('allows a source whose row count is unknown', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [{ label: 'Orders', rowCount: null }],
+                sourceRowCap: 500,
+            }),
+        ).toBeNull();
     });
 });
