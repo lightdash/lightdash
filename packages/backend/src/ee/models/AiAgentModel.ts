@@ -4390,6 +4390,7 @@ export class AiAgentModel {
         );
         const contextMap = await this.getContextForPromptUuids(promptUuids);
         const steersMap = await this.findPromptSteers(promptUuids);
+        const latestPromptUuid = promptUuids.at(-1);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -4430,6 +4431,17 @@ export class AiAgentModel {
             const referencedArtifacts = referencedArtifactsMap.get(
                 row.ai_prompt_uuid,
             );
+
+            if (
+                !AiAgentModel.hasAssistantMessage({
+                    row,
+                    isLatestPrompt: row.ai_prompt_uuid === latestPromptUuid,
+                    toolCallCount: toolCalls.length,
+                    reasoningCount: reasoning.length,
+                })
+            ) {
+                return messages;
+            }
 
             messages.push({
                 role: 'assistant',
@@ -4963,6 +4975,35 @@ export class AiAgentModel {
             chartConfig: row.chart_config!,
             artifactType: row.artifact_type,
         }));
+    }
+
+    /**
+     * Slack backfills messages posted before the agent was mentioned as prompts
+     * that never get answered. Once a later prompt exists the agent can no
+     * longer answer them, so they must not render an assistant message.
+     */
+    static hasAssistantMessage({
+        row,
+        isLatestPrompt,
+        toolCallCount,
+        reasoningCount,
+    }: {
+        row: Pick<DbAiPrompt, 'responded_at' | 'response' | 'error_message'> & {
+            interrupted: boolean;
+        };
+        isLatestPrompt: boolean;
+        toolCallCount: number;
+        reasoningCount: number;
+    }): boolean {
+        return (
+            isLatestPrompt ||
+            row.response != null ||
+            row.responded_at != null ||
+            row.error_message != null ||
+            row.interrupted ||
+            toolCallCount > 0 ||
+            reasoningCount > 0
+        );
     }
 
     static getThreadMessageStatus(
