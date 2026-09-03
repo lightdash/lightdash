@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.116.0",
-  "previousVersion": "2.115.0",
-  "releaseDate": "2026-09-03T15:47:05.853Z",
+  "version": "2.117.0",
+  "previousVersion": "2.116.0",
+  "releaseDate": "2026-09-03T16:03:18.969Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,5 +41,11 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [
+    {
+      "id": "replace-custom-metrics-on-compile-flag-removed",
+      "reason": "The retired ReplaceCustomMetricsOnCompile member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; runtime custom-metric replacement after eligible compiles is now unconditional.",
+      "requiredStop": false
+    }
+  ]
 }

@@ -1,3 +1,12 @@
+# [2.117.0](https://github.com/lightdash/lightdash/compare/2.116.0...2.117.0) (2026-09-03)
+
+
+### Features
+
+* **dashboard:** badge and freeze registry metrics in the field tree ([#28589](https://github.com/lightdash/lightdash/issues/28589)) ([426c1e9](https://github.com/lightdash/lightdash/commit/426c1e95bc7860e9fbcbbb086d94be139e2b5c3e))
+* **dashboard:** filter registry metrics to the selected explore ([#28586](https://github.com/lightdash/lightdash/issues/28586)) ([24aa772](https://github.com/lightdash/lightdash/commit/24aa772e9d887abd03e81f778aaad1547b6c860a))
+* **dashboard:** seed in-dashboard charts with the registry ([#28587](https://github.com/lightdash/lightdash/issues/28587)) ([b65248c](https://github.com/lightdash/lightdash/commit/b65248c86faff937689878a16255cfebf3c918b9))
+
 # [2.116.0](https://github.com/lightdash/lightdash/compare/2.115.0...2.116.0) (2026-09-03)
 
 
