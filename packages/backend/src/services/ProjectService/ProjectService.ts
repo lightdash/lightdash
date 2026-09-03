@@ -3925,6 +3925,7 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
+                                jobUuid: job.jobUuid,
                             };
                             timings.compileExplores.start = performance.now();
                             const explores =
@@ -8279,6 +8280,7 @@ export class ProjectService extends BaseService {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
+        jobUuid?: string,
     ): Promise<{
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
@@ -8354,6 +8356,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
+                jobUuid,
             };
             const explores = await adapter.compileAllExplores(
                 trackingParams,
@@ -8868,6 +8871,7 @@ export class ProjectService extends BaseService {
                             user,
                             projectUuid,
                             requestMethod,
+                            job.jobUuid,
                         );
 
                         timings.yaml.start = performance.now();
