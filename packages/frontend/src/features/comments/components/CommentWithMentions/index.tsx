@@ -38,7 +38,11 @@ export const CommentWithMentions: FC<Props> = ({
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({
+                link: false,
+                underline: false,
+                trailingNode: false,
+            }),
             Mention.configure({
                 HTMLAttributes: {
                     style: `color: ${theme.colors.blue['6']}; font-weight: 500;`,
