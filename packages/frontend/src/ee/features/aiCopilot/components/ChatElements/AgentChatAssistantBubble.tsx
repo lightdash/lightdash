@@ -1,5 +1,6 @@
 import {
     type AiAgentMessageAssistant,
+    type AiAgentMessageUser,
     type AiAgentToolCall,
     type AiMcpServer,
     isToolEditDbtProjectResult,
@@ -67,6 +68,8 @@ import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { AiDataAppBuildCard } from './DataAppBuildCard/AiDataAppBuildCard';
+import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
+import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -958,6 +961,8 @@ const AssistantBubbleContent: FC<{
 
 type Props = {
     message: AiAgentMessageAssistant;
+    /** The hidden user turn this reply answers, if any (same prompt uuid). */
+    hiddenSibling: AiAgentMessageUser | null;
     isLastMessage: boolean;
     isActive?: boolean;
     debug?: boolean;
@@ -973,6 +978,7 @@ type Props = {
 export const AssistantBubble: FC<Props> = memo(
     ({
         message,
+        hiddenSibling,
         isLastMessage,
         isActive = false,
         debug = false,
@@ -1061,6 +1067,23 @@ export const AssistantBubble: FC<Props> = memo(
         const isArtifactAvailable = !!(
             message.artifacts && message.artifacts.length > 0
         );
+
+        // A restore turn is deterministic (no LLM): the card is the whole
+        // reply, its message included, so nothing else renders for it.
+        const restoreItem = getDataAppRestoreItem(hiddenSibling);
+        if (restoreItem) {
+            return (
+                <AiDataAppRestoreCard
+                    item={restoreItem}
+                    completionMessage={message.message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
+                    messageUuid={message.uuid}
+                    compact={!isLastMessage}
+                />
+            );
+        }
 
         return (
             <Stack

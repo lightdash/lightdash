@@ -801,6 +801,7 @@ const buildCardStates: DataAppBuildCardState[] = [
         name: 'Weekly revenue by region',
         version: 1,
         durationMs: 372_000,
+        restoredFromVersion: null,
         completionMessage:
             'Your app is ready. Five regional pages, weekly revenue over the last 26 weeks.',
     },
