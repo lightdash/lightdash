@@ -102,7 +102,9 @@ const userModel = {
     createPendingUser: vi.fn<UserModel['createPendingUser']>(
         async () => newUser,
     ),
-    findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
+    findSessionUserByPrimaryEmail: vi.fn<
+        UserModel['findSessionUserByPrimaryEmail']
+    >(async () => sessionUser),
     findSessionUserByPersonalAccessToken: vi.fn<
         UserModel['findSessionUserByPersonalAccessToken']
     >(async () => undefined),
@@ -3531,6 +3533,9 @@ describe('UserService', () => {
             );
         });
         test('should create user', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                undefined,
+            );
             await userService.loginWithOpenId(openIdUser, undefined, undefined);
             expect(
                 openIdIdentityModel.updateIdentityByOpenId as import('vitest').Mock,
@@ -3697,6 +3702,85 @@ describe('UserService', () => {
             expect(
                 userModel.createUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
+        });
+        describe('when an account with the same email already exists and is not linked', () => {
+            const unverifiedEmail = {
+                email: openIdUser.openId.email,
+                isVerified: false,
+            };
+
+            test('tells a pending user to activate with a one-time code or an invite', async () => {
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    unverifiedEmail,
+                );
+
+                await expect(
+                    userService.loginWithOpenId(
+                        openIdUser,
+                        undefined,
+                        undefined,
+                    ),
+                ).rejects.toThrowError(
+                    new ForbiddenError(
+                        'An account for test@test.com is waiting to be activated. Sign in with your email to get a one-time code, or ask your admin for an invite link. After that, SSO sign-in will be enabled.',
+                    ),
+                );
+
+                expect(userModel.createUser).not.toHaveBeenCalled();
+                expect(
+                    openIdIdentityModel.createIdentity,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('tells a pending user to get an invite when one-time-code login is unavailable', async () => {
+                const service = createUserService({
+                    ...lightdashConfigMock,
+                    auth: {
+                        ...lightdashConfigMock.auth,
+                        disablePasswordAuthentication: true,
+                    },
+                });
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    unverifiedEmail,
+                );
+
+                await expect(
+                    service.loginWithOpenId(openIdUser, undefined, undefined),
+                ).rejects.toThrowError(
+                    new ForbiddenError(
+                        "An account for test@test.com already exists but hasn't been activated. Ask your admin for an invite link. After that, SSO sign-in will be enabled.",
+                    ),
+                );
+
+                expect(userModel.createUser).not.toHaveBeenCalled();
+                expect(
+                    openIdIdentityModel.createIdentity,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('tells a verified user to sign in with email when linking by email is disabled', async () => {
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce({
+                    email: openIdUser.openId.email,
+                    isVerified: true,
+                });
+
+                await expect(
+                    userService.loginWithOpenId(
+                        openIdUser,
+                        undefined,
+                        undefined,
+                    ),
+                ).rejects.toThrowError(
+                    new ForbiddenError(
+                        'An account for test@test.com already exists. Sign in with your email, then connect this sign-in method from your account settings, or ask your admin to enable linking SSO logins by email.',
+                    ),
+                );
+
+                expect(userModel.createUser).not.toHaveBeenCalled();
+                expect(
+                    openIdIdentityModel.createIdentity,
+                ).not.toHaveBeenCalled();
+            });
         });
         test('rejects a link flow when the identity belongs to another user', async () => {
             const currentUser: SessionUser = {
