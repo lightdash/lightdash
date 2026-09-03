@@ -5,33 +5,8 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
-import { buildRuntimeMemoryReport } from './logging/runtimeMemory';
+import { logRuntimeMemory } from './logging/runtimeMemory';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
-
-const logRuntimeMemory = (service: 'api' | 'scheduler') => {
-    const report = buildRuntimeMemoryReport();
-    // The default log format renders the message and drops metadata, so the numbers ride in
-    // both. This is the first thing worth knowing from any log about a failed compile.
-    Logger.info(
-        `lightdash.boot.memory service=${service} heapLimitMb=${Math.round(
-            report.heapLimitBytes / 1024 / 1024,
-        )} containerLimitMb=${
-            report.containerMemoryLimitBytes === null
-                ? 'unknown'
-                : Math.round(report.containerMemoryLimitBytes / 1024 / 1024)
-        } heapFlagSet=${report.heapFlagSet} availableParallelism=${
-            report.availableParallelism
-        }`,
-        { event: 'lightdash.boot.memory', service, ...report },
-    );
-    if (report.warning) {
-        Logger.warn(`lightdash.boot.memory ${report.warning}`, {
-            event: 'lightdash.boot.memory.warning',
-            service,
-            ...report,
-        });
-    }
-};
 
 // trigger BE tests
 
@@ -80,7 +55,7 @@ process.on('uncaughtException', () => {
         process.on('SIGHUP', onExit);
         process.on('SIGABRT', onExit);
 
-        logRuntimeMemory('api');
+        logRuntimeMemory(Logger, 'api');
         Logger.info('Starting Lightdash server...');
         await app.start();
     } catch (error) {

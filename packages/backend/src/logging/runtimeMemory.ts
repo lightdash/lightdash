@@ -2,6 +2,8 @@ import fs from 'fs';
 import os from 'os';
 import v8 from 'v8';
 
+type LogFn = (message: string, meta?: Record<string, unknown>) => void;
+
 export type RuntimeMemoryReport = {
     heapLimitBytes: number;
     containerMemoryLimitBytes: number | null;
@@ -85,4 +87,30 @@ export const buildRuntimeMemoryReport = ({
                   )}MB. Raising the container limit alone may not raise the heap. Set NODE_OPTIONS=--max-old-space-size=${suggestedMb} to use it.`
                 : null,
     };
+};
+
+export const logRuntimeMemory = (
+    logger: { info: LogFn; warn: LogFn },
+    service: 'api' | 'scheduler',
+) => {
+    const report = buildRuntimeMemoryReport();
+    logger.info(
+        `lightdash.boot.memory service=${service} heapLimitMb=${Math.round(
+            report.heapLimitBytes / 1024 / 1024,
+        )} containerLimitMb=${
+            report.containerMemoryLimitBytes === null
+                ? 'unknown'
+                : Math.round(report.containerMemoryLimitBytes / 1024 / 1024)
+        } heapFlagSet=${report.heapFlagSet} availableParallelism=${
+            report.availableParallelism
+        }`,
+        { event: 'lightdash.boot.memory', service, ...report },
+    );
+    if (report.warning) {
+        logger.warn(`lightdash.boot.memory ${report.warning}`, {
+            event: 'lightdash.boot.memory.warning',
+            service,
+            ...report,
+        });
+    }
 };
