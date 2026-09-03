@@ -68,8 +68,8 @@ minimumReleaseAgeExclude:
   - uuid@11.1.1
   # Renovate security update: pm2@7.0.0
   - pm2@7.0.0
-  # Renovate security update: sanitize-html@2.17.4 || 2.17.5
-  - sanitize-html@2.17.4 || 2.17.5
+  # Renovate security update: sanitize-html@2.17.4 || 2.17.5 || 2.17.7
+  - sanitize-html@2.17.4 || 2.17.5 || 2.17.7
   # Renovate security update: nodemailer@8.0.5 || 9.0.1
   - nodemailer@8.0.5 || 9.0.1
   # Renovate security update: @tiptap/extension-link@2.10.4
