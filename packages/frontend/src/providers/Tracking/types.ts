@@ -550,7 +550,6 @@ export type AiAgentAskClickedSource =
     | 'data_app_header'
     | 'data_app_version_header'
     | 'data_app_resource_action_menu'
-    | 'data_app_builder_menu'
     | 'data_app_my_apps_menu'
     | 'dashboard_data_app_tile';
 

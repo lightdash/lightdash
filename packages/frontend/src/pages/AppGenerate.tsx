@@ -73,7 +73,6 @@ import {
 } from '../components/common/PromptComposer';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -2964,20 +2963,7 @@ const AppGenerate: FC = () => {
                                                     </Menu.Item>
                                                 ) : null
                                             }
-                                            askAiItem={
-                                                activeAppUuid ? (
-                                                    <AskAiAgentMenuItem
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                        dataAppUuid={
-                                                            activeAppUuid
-                                                        }
-                                                        clickedFrom="data_app_builder_menu"
-                                                        mode="navigate"
-                                                    />
-                                                ) : null
-                                            }
+                                            askAiItem={null}
                                         />
                                     }
                                 />

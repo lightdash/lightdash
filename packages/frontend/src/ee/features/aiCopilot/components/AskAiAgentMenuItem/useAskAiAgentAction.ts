@@ -13,7 +13,7 @@ import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 /**
  * `panel` opens the docked launcher; `navigate` goes to the full-page
- * new-thread route for surfaces where the launcher is hidden (app builder).
+ * new-thread route for surfaces where the launcher is hidden (My apps).
  */
 export type AskAiAgentMode = 'panel' | 'navigate';
 
