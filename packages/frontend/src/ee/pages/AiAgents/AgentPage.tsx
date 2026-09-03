@@ -134,11 +134,13 @@ const AgentPage = () => {
             } else {
                 const chartUuid = searchParams.get('chartUuid');
                 const dashboardUuid = searchParams.get('dashboardUuid');
+                const dataAppUuid = searchParams.get('dataAppUuid');
                 const pendingContext =
-                    chartUuid || dashboardUuid
+                    chartUuid || dashboardUuid || dataAppUuid
                         ? {
                               chartUuid: chartUuid ?? undefined,
                               dashboardUuid: dashboardUuid ?? undefined,
+                              dataAppUuid: dataAppUuid ?? undefined,
                           }
                         : null;
                 aiAgentStore.dispatch(

@@ -95,6 +95,9 @@ export const PanelHeader: FC<Props> = ({
             if (pendingContext?.dashboardUuid) {
                 params.set('dashboardUuid', pendingContext.dashboardUuid);
             }
+            if (pendingContext?.dataAppUuid) {
+                params.set('dataAppUuid', pendingContext.dataAppUuid);
+            }
             if (isAuto) {
                 params.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);
             }

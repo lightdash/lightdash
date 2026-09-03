@@ -140,6 +140,7 @@ const NewThreadPanel: FC<{
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
+    const dataAppUuid = pendingContext?.dataAppUuid;
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
@@ -155,6 +156,7 @@ const NewThreadPanel: FC<{
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dataAppUuidOrSlug: dataAppUuid,
     });
     const { curateContext } = useDashboardPageContextCuration({
         previousContext: contextInput,
