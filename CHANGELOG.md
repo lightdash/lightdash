@@ -1,3 +1,10 @@
+## [2.110.2](https://github.com/lightdash/lightdash/compare/2.110.1...2.110.2) (2026-09-03)
+
+
+### Bug Fixes
+
+* **users:** show impersonate action for roles granted only the impersonation scope ([#28568](https://github.com/lightdash/lightdash/issues/28568)) ([1064202](https://github.com/lightdash/lightdash/commit/106420251f766e3eb416210b904dc13338823729))
+
 ## [2.110.1](https://github.com/lightdash/lightdash/compare/2.110.0...2.110.1) (2026-09-03)
 
 
