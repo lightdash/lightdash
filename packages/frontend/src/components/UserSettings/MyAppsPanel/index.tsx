@@ -22,6 +22,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AppThumbnailHoverCard from '../../../features/apps/components/AppThumbnailHoverCard';
 import { MoveAppToSpaceModal as SharedMoveAppToSpaceModal } from '../../../features/apps/components/MoveAppToSpaceModal';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
@@ -276,6 +277,13 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
+                                <AskAiAgentMenuItem
+                                    projectUuid={app.projectUuid}
+                                    dataAppUuid={app.appUuid}
+                                    clickedFrom="data_app_my_apps_menu"
+                                    mode="navigate"
+                                    withDivider
+                                />
                                 {hasReadyVersion(app) && (
                                     <Menu.Item
                                         component={Link}
