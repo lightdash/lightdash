@@ -767,7 +767,9 @@ const AppGenerate: FC = () => {
     const serverVersionCount = allVersions.length;
     useEffect(() => {
         if (serverVersionCount > 0) {
-            setLocalMessages([]);
+            // Keep the same reference when already empty: a fresh array
+            // rebuilds `messages` and re-triggers the auto-scroll below.
+            setLocalMessages((prev) => (prev.length === 0 ? prev : []));
         }
     }, [serverVersionCount]);
 
@@ -1211,9 +1213,55 @@ const AppGenerate: FC = () => {
         el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }, []);
 
-    useEffect(() => {
+    // Where the user was when they asked for earlier history. Older versions
+    // are prepended, so without re-anchoring the chat would jump around and
+    // the auto-scroll below would drag them back to the latest message.
+    const earlierHistoryAnchorRef = useRef<{
+        pageCount: number;
+        scrollTop: number;
+        scrollHeight: number;
+    } | null>(null);
+    const loadedPageCount = appData?.pages.length ?? 0;
+
+    const loadEarlierMessages = useCallback(() => {
+        if (isFetchingNextPage) return;
+        const el = chatMessagesRef.current;
+        if (el) {
+            earlierHistoryAnchorRef.current = {
+                pageCount: loadedPageCount,
+                scrollTop: el.scrollTop,
+                scrollHeight: el.scrollHeight,
+            };
+        }
+        void fetchNextPage();
+    }, [isFetchingNextPage, loadedPageCount, fetchNextPage]);
+
+    useLayoutEffect(() => {
+        const anchor = earlierHistoryAnchorRef.current;
+        if (anchor) {
+            if (loadedPageCount > anchor.pageCount) {
+                earlierHistoryAnchorRef.current = null;
+                const el = chatMessagesRef.current;
+                if (el) {
+                    el.scrollTop =
+                        anchor.scrollTop +
+                        (el.scrollHeight - anchor.scrollHeight);
+                }
+                return;
+            }
+            if (isFetchingNextPage) return;
+            // The fetch failed; drop the anchor but leave the user where they are.
+            earlierHistoryAnchorRef.current = null;
+            return;
+        }
         scrollToBottom();
-    }, [messages, isLoading, scrollToBottom]);
+    }, [
+        messages,
+        isLoading,
+        loadedPageCount,
+        isFetchingNextPage,
+        scrollToBottom,
+    ]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
     // We don't revoke on fileAttachments change because the URLs may have
@@ -1726,11 +1774,7 @@ const AppGenerate: FC = () => {
                                     gap="xs"
                                     justify="center"
                                     p="xs"
-                                    onClick={() => {
-                                        if (!isFetchingNextPage) {
-                                            void fetchNextPage();
-                                        }
-                                    }}
+                                    onClick={loadEarlierMessages}
                                     className="ld-pointer"
                                 >
                                     {isFetchingNextPage ? (
