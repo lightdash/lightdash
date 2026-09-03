@@ -25,6 +25,7 @@ import {
     moveSeriesGroup,
     type SeriesGroup,
 } from '../../../../hooks/cartesianChartConfig/utils';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
@@ -42,7 +43,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 

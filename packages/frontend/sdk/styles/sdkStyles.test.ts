@@ -4,12 +4,12 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { SCOPE_SELECTOR, scopeDocumentRules } from './postcss.cjs';
-import { SDK_SCOPE_SELECTOR } from './scope';
+import { scopeDocumentRules } from './postcss.cjs';
+import { SDK_SCOPE_CLASS } from './scope.json';
 
 // Every stylesheet the SDK entry imports is injected into the customer's page.
-// After scoping, no rule may be able to match markup Lightdash did not render:
-// every selector needs a class, attribute or id.
+// After scoping, every rule must be confined to the SDK's containers: it either
+// targets the container itself or requires it as an ancestor.
 const sdkDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const nodeRequire = createRequire(import.meta.url);
 
@@ -38,26 +38,12 @@ const listSelectors = (css: string) => {
     return selectors;
 };
 
-const canMatchHostMarkup = (selector: string) => !/[.[#]/.test(selector);
-
-// A host that runs Mantine puts its own scheme attribute on <html>; only the
-// SDK container's attribute may drive scheme-specific rules.
-const followsHostColorScheme = (selector: string) =>
-    /(^|[^\w-])\[data-mantine-color-scheme/.test(
-        selector.replace(
-            new RegExp(
-                `${SDK_SCOPE_SELECTOR.replace('.', '\\.')}\\[data-mantine-color-scheme`,
-                'g',
-            ),
-            '',
-        ),
-    );
+const scope = `\\.${SDK_SCOPE_CLASS}`;
+const confinedToSdk = new RegExp(
+    `^(${scope}(\\b|\\[)|:where\\(${scope}|:host\\(${scope})`,
+);
 
 describe('SDK stylesheets', () => {
-    it('scopes to the class the SDK puts on its containers', () => {
-        expect(SCOPE_SELECTOR).toBe(SDK_SCOPE_SELECTOR);
-    });
-
     it.each(sdkStylesheets.map(({ specifier, file }) => [specifier, file]))(
         '%s cannot style the host page once scoped',
         (_specifier, file) => {
@@ -65,9 +51,10 @@ describe('SDK stylesheets', () => {
                 readFileSync(file, 'utf-8'),
                 { from: file },
             ).css;
-            const selectors = listSelectors(scoped);
-            expect(selectors.filter(canMatchHostMarkup)).toEqual([]);
-            expect(selectors.filter(followsHostColorScheme)).toEqual([]);
+            const escaping = listSelectors(scoped).filter(
+                (selector) => !confinedToSdk.test(selector),
+            );
+            expect(escaping).toEqual([]);
         },
     );
 });
