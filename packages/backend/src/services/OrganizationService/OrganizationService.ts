@@ -1200,6 +1200,7 @@ export class OrganizationService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
+        // Impersonators need to read the setting to know the action is available
         const auditedAbility = this.createAuditedAbility(user);
         const canReadSetting =
             auditedAbility.can(

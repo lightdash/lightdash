@@ -42,6 +42,9 @@ const organizationModel = {
     get: vi.fn(async () => organization),
     create: vi.fn<OrganizationModel['create']>(async () => organization),
     hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
+    getImpersonationEnabled: vi.fn<
+        OrganizationModel['getImpersonationEnabled']
+    >(async () => true),
 };
 const userModel = {
     hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
@@ -331,5 +334,43 @@ describe('organization service', () => {
         // the member keeps their own org role (no system-role conversion).
         expect(result.data).toHaveLength(1);
         expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+    });
+
+    describe('getImpersonationEnabled', () => {
+        const orgCondition = { organizationUuid: user.organizationUuid };
+
+        it('lets a user with only impersonate:User read the setting', async () => {
+            const impersonatorAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'impersonate',
+                    subject: 'User',
+                    conditions: { ...orgCondition, isActive: true },
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: impersonatorAbility,
+                }),
+            ).resolves.toBe(true);
+        });
+
+        it('rejects a user who can neither update the org nor impersonate', async () => {
+            const memberAbility = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'OrganizationMemberProfile',
+                    conditions: orgCondition,
+                },
+            ]);
+
+            await expect(
+                organizationService.getImpersonationEnabled({
+                    ...user,
+                    ability: memberAbility,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        });
     });
 });
