@@ -221,6 +221,16 @@
     min-width: 0;
 }
 
+.headCell[data-align='right'] .headCellContent,
+.headCell[data-align='right'] .sortButton {
+    justify-content: flex-end;
+}
+
+.headCell[data-align='center'] .headCellContent,
+.headCell[data-align='center'] .sortButton {
+    justify-content: center;
+}
+
 .headerLabel {
     min-width: 0;
     overflow: hidden;

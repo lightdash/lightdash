@@ -27,8 +27,9 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* One step darker than the header and hover grey so groups read as bands. */
 .windowRow :global(td) {
-    background: var(--mantine-color-ldGray-0);
+    background: var(--mantine-color-ldGray-1);
 }
 
 .showMoreRow :global(td) {
