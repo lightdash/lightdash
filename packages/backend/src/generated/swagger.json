@@ -25207,6 +25207,43 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "appSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "appSlug",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -27138,6 +27175,33 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["data_app_restore"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -27201,6 +27265,58 @@
                     }
                 },
                 "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string"
+                            },
+                            "restoredFromVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "promptUuid",
+                            "restoredFromVersion",
+                            "version",
+                            "appUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadDataAppRestoreResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number--restoredFromVersion-number--promptUuid-string__"
+            },
+            "ApiAiAgentThreadDataAppRestoreRequest": {
+                "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "appUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["version", "appUuid"],
                 "type": "object"
             },
             "ApiSuccess__decision-approved-or-rejected__": {
@@ -59225,7 +59341,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.106.0",
+        "version": "2.107.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -67901,6 +68017,72 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiAiAgentThreadMessageCreateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/data-app-restores": {
+            "post": {
+                "operationId": "restoreAgentThreadDataAppVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Restores a ready data app version as a new latest version on behalf of\nthe thread and records the restore as a hidden thread turn",
+                "summary": "Restore data app version",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadDataAppRestoreRequest"
                             }
                         }
                     }
