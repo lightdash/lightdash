@@ -229,7 +229,9 @@ describe('ChartTypeGallery', () => {
             '/projects/project-1/chart-types/data-app-viz-1',
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
+        // Typed field breakdown, matching the library modal.
         expect(screen.getByText('Value')).toBeInTheDocument();
+        expect(screen.getByText('metric')).toBeInTheDocument();
     });
 
     it('separates installed charts and the chart library into top-level tabs', () => {

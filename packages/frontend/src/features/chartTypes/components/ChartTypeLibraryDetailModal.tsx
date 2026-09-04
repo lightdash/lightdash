@@ -24,7 +24,7 @@ import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartTyp
 import { registryAssetUrl } from '../utils/registryAssetUrl';
 import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
-import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
+import DataAppVizFieldsList from './DataAppVizFieldsList';
 
 type Props = {
     projectUuid: string;
@@ -181,19 +181,7 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                     </Callout>
                 )}
 
-                <Box>
-                    <Text fz={12} fw={600} c="ldGray.6" mb={4}>
-                        Fields
-                    </Text>
-                    <Group gap="sm">
-                        {item.vizSchema.fields.map((field) => (
-                            <Group key={field.name} gap={4} wrap="nowrap">
-                                <DataAppVizFieldTypeBadge type={field.type} />
-                                <Text fz="sm">{field.label}</Text>
-                            </Group>
-                        ))}
-                    </Group>
-                </Box>
+                <DataAppVizFieldsList fields={item.vizSchema.fields} />
 
                 <SimpleGrid cols={2} className={classes.metaPanel}>
                     <Box>
