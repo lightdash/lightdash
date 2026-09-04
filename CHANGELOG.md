@@ -1,3 +1,12 @@
+## [2.128.1](https://github.com/lightdash/lightdash/compare/2.128.0...2.128.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **chart-registry:** honest uninstall copy — saved charts are kept, not deleted ([#28667](https://github.com/lightdash/lightdash/issues/28667)) ([6367788](https://github.com/lightdash/lightdash/commit/636778859d2b55324423ba3f5935786f3874ac98))
+* **data-apps:** preserve method chip contrast in dark mode ([#28676](https://github.com/lightdash/lightdash/issues/28676)) ([b13d497](https://github.com/lightdash/lightdash/commit/b13d49716df62cb1a4f9362b56c61a20b0d653ab))
+* **navbar:** re-anchor navbar modals to the app color scheme ([#28678](https://github.com/lightdash/lightdash/issues/28678)) ([9478fb7](https://github.com/lightdash/lightdash/commit/9478fb740265375d5bcf13ea219bb277a75bdfc5))
+
 # [2.128.0](https://github.com/lightdash/lightdash/compare/2.127.0...2.128.0) (2026-09-04)
 
 
