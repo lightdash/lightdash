@@ -1,3 +1,13 @@
+## [2.133.2](https://github.com/lightdash/lightdash/compare/2.133.1...2.133.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* **dashboards:** show per-source filters and restore the merge from a merged tile ([#28688](https://github.com/lightdash/lightdash/issues/28688)) ([0f3bc13](https://github.com/lightdash/lightdash/commit/0f3bc137e463acf9960ea4a21b33c8b597588305))
+* **data-apps:** paginate dashboard selector ([#28693](https://github.com/lightdash/lightdash/issues/28693)) ([c85d87c](https://github.com/lightdash/lightdash/commit/c85d87c3598f3d61740d4c67ca97afb1226fdb13))
+* **merge:** authorize merge table calculation SQL, register the v1 routes and scope the engine session ([#28689](https://github.com/lightdash/lightdash/issues/28689)) ([abb3182](https://github.com/lightdash/lightdash/commit/abb3182f7a2f4a26d62bc32a20e374574f879cdf))
+* recently viewed no longer times out for users with large view history ([#28684](https://github.com/lightdash/lightdash/issues/28684)) ([b1f26af](https://github.com/lightdash/lightdash/commit/b1f26afcbeb2f2f4f3c94eb0a22246dc6b8b90df))
+
 ## [2.133.1](https://github.com/lightdash/lightdash/compare/2.133.0...2.133.1) (2026-09-04)
 
 
