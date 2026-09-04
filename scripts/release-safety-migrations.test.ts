@@ -13,6 +13,7 @@ import {
     analyzeMigrationSource,
     isMigrationPath,
     readMigrationMetadata,
+    tokenize,
 } from './release-safety-migrations';
 
 let passed = 0;
@@ -30,6 +31,12 @@ function test(name: string, fn: () => void): void {
 }
 
 const core = 'packages/backend/src/database/migrations';
+
+const analyzeRawSql = (sql: string) =>
+    analyzeMigrationSource(
+        `${core}/20260821000000_raw_sql.ts`,
+        `export async function up(knex) { await knex.raw(${JSON.stringify(sql)}); }`,
+    );
 
 test('isMigrationPath accepts a timestamped migration', () => {
     assert.strictEqual(isMigrationPath(`${core}/20260810000000_add_column.ts`), true);
@@ -112,6 +119,102 @@ test('analyzer extracts static raw SQL from an EE migration', () => {
         },
     });
     assert.strictEqual(result.complete, true);
+});
+
+test('comments between raw SQL keywords preserve table heaviness', () => {
+    const deletion = analyzeRawSql('DELETE/**/FROM big_table');
+    assert.strictEqual(deletion.complete, true);
+    assert.strictEqual(deletion.migration.heaviness.rewritesTable, true);
+    assert.strictEqual(deletion.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(deletion.migration.tables, ['big_table']);
+
+    const alteration = analyzeRawSql('ALTER/**/TABLE users DROP COLUMN x');
+    assert.strictEqual(alteration.complete, true);
+    assert.strictEqual(alteration.migration.heaviness.locksTable, true);
+    assert.deepStrictEqual(alteration.migration.tables, ['users']);
+
+    const update = analyzeRawSql('UPDATE/**/big_table SET x = 1');
+    assert.strictEqual(update.complete, true);
+    assert.strictEqual(update.migration.heaviness.rewritesTable, true);
+    assert.strictEqual(update.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(update.migration.tables, ['big_table']);
+
+    const lineComment = analyzeRawSql('DELETE -- note\nFROM events');
+    assert.strictEqual(lineComment.complete, true);
+    assert.strictEqual(lineComment.migration.heaviness.rewritesTable, true);
+    assert.strictEqual(lineComment.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(lineComment.migration.tables, ['events']);
+});
+
+test('SQL comment markers inside quoted values keep following work visible', () => {
+    const lineCommentLiteral = analyzeRawSql(
+        "UPDATE notes SET note = 'a -- b' WHERE id = 1; DELETE FROM audit_log",
+    );
+    assert.strictEqual(lineCommentLiteral.complete, true);
+    assert.strictEqual(
+        lineCommentLiteral.migration.heaviness.rewritesTable,
+        true,
+    );
+    assert.deepStrictEqual(lineCommentLiteral.migration.tables, [
+        'audit_log',
+        'notes',
+    ]);
+
+    const blockCommentLiteral = analyzeRawSql(
+        "SELECT 'a /* b */ c' FROM literal_notes",
+    );
+    assert.strictEqual(blockCommentLiteral.complete, true);
+    assert.strictEqual(
+        blockCommentLiteral.migration.heaviness.scansTable,
+        true,
+    );
+    assert.deepStrictEqual(blockCommentLiteral.migration.tables, [
+        'literal_notes',
+    ]);
+
+    const quotedIdentifier = analyzeRawSql('SELECT "a -- b" FROM quoted_notes');
+    assert.strictEqual(quotedIdentifier.complete, true);
+    assert.strictEqual(quotedIdentifier.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(quotedIdentifier.migration.tables, ['quoted_notes']);
+
+    const escapedQuote = analyzeRawSql(
+        "SELECT 'a ''--'' b' FROM escaped_notes",
+    );
+    assert.strictEqual(escapedQuote.complete, true);
+    assert.strictEqual(escapedQuote.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(escapedQuote.migration.tables, ['escaped_notes']);
+
+    const dollarQuote = analyzeRawSql(
+        'SELECT $tag$a -- b$tag$ FROM dollar_notes',
+    );
+    assert.strictEqual(dollarQuote.complete, true);
+    assert.strictEqual(dollarQuote.migration.heaviness.scansTable, true);
+    assert.deepStrictEqual(dollarQuote.migration.tables, ['dollar_notes']);
+});
+
+test('unterminated SQL block comments fail closed', () => {
+    const result = analyzeRawSql('DELETE /* unfinished comment');
+    assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['parse-failure']);
+    assert.deepStrictEqual(result.migration.heaviness, {
+        locksTable: 'unknown',
+        rewritesTable: 'unknown',
+        scansTable: 'unknown',
+    });
+});
+
+test('SQL operation classification survives comment normalization', () => {
+    const concurrentIndex = analyzeRawSql(
+        'CREATE/**/INDEX CONCURRENTLY users_name_idx ON users (name)',
+    );
+    assert.deepStrictEqual(concurrentIndex.operations, [
+        'create-index-concurrently',
+    ]);
+
+    const invalidIndex = analyzeRawSql(
+        "SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'users_name_idx' AND NOT i.indisvalid",
+    );
+    assert.deepStrictEqual(invalidIndex.operations, ['select-invalid-index']);
 });
 
 test('dynamic raw SQL degrades unknown dimensions and completeness', () => {
@@ -316,6 +419,8 @@ test('a nested template refuses rather than reading a fragment', () => {
         scansTable: 'unknown',
     });
     assert.strictEqual(result.complete, false);
+    assert.deepStrictEqual(result.incompleteReasons, ['parse-failure']);
+    assert.strictEqual(tokenize('const value = `${`nested`}`;').valid, false);
 });
 
 test('a literal that is only part of the initializer is not a constant', () => {
@@ -367,6 +472,22 @@ test('adding a constraint scans the table unless it says NOT VALID', () => {
     );
     assert.strictEqual(deferred.complete, true);
     assert.strictEqual(deferred.migration.heaviness.scansTable, false);
+});
+
+test('a comment between ADD and CONSTRAINT still reports a scan', () => {
+    const result = analyzeRawSql(
+        'ALTER TABLE users ADD/**/CONSTRAINT users_check CHECK (id > 0)',
+    );
+    assert.strictEqual(result.complete, true);
+    assert.strictEqual(result.migration.heaviness.scansTable, true);
+});
+
+test('commented NOT VALID stays deferred instead of claiming a scan', () => {
+    const result = analyzeRawSql(
+        'ALTER TABLE users ADD CONSTRAINT users_check CHECK (id > 0) NOT/**/VALID',
+    );
+    assert.strictEqual(result.complete, true);
+    assert.strictEqual(result.migration.heaviness.scansTable, false);
 });
 
 test('an unresolvable interpolation still degrades', () => {

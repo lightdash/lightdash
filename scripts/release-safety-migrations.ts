@@ -183,7 +183,7 @@ const canStartRegex = (previous: Token | undefined): boolean => {
     );
 };
 
-const tokenize = (source: string): TokenizedSource => {
+export const tokenize = (source: string): TokenizedSource => {
     const tokens: Token[] = [];
     const stack: OpeningDelimiter[] = [];
     let index = 0;
@@ -222,6 +222,7 @@ const tokenize = (source: string): TokenizedSource => {
             const start = index;
             const quote = character;
             let dynamic = false;
+            let interpolationDepth = 0;
             index += 1;
             while (index < source.length) {
                 if (source[index] === '\\') {
@@ -230,11 +231,24 @@ const tokenize = (source: string): TokenizedSource => {
                 }
                 if (quote === '`' && source.startsWith('${', index)) {
                     dynamic = true;
+                    interpolationDepth += 1;
+                    index += 2;
+                    continue;
+                }
+                if (quote === '`' && interpolationDepth > 0) {
+                    if (source[index] === '`') {
+                        valid = false;
+                        break;
+                    }
+                    if (source[index] === '{') interpolationDepth += 1;
+                    if (source[index] === '}') interpolationDepth -= 1;
+                    index += 1;
+                    continue;
                 }
                 if (source[index] === quote) break;
                 index += 1;
             }
-            if (index >= source.length) {
+            if (!valid || index >= source.length) {
                 valid = false;
                 break;
             }
@@ -608,11 +622,87 @@ const rawSqlTables = (sql: string): string[] => {
     return [...tables];
 };
 
-const SQL_COMMENTS = /--[^\n]*|\/\*[\s\S]*?\*\//g;
+const normalizeSql = (sql: string): string | null => {
+    let normalized = '';
+    let index = 0;
+    let pendingWhitespace = false;
+
+    const appendPendingWhitespace = (): void => {
+        if (pendingWhitespace && normalized.length > 0) normalized += ' ';
+        pendingWhitespace = false;
+    };
+
+    while (index < sql.length) {
+        if (/\s/.test(sql[index])) {
+            pendingWhitespace = true;
+            index += 1;
+            continue;
+        }
+        if (sql.startsWith('--', index)) {
+            pendingWhitespace = true;
+            index += 2;
+            while (index < sql.length && !/[\r\n]/.test(sql[index])) {
+                index += 1;
+            }
+            continue;
+        }
+        if (sql.startsWith('/*', index)) {
+            const commentEnd = sql.indexOf('*/', index + 2);
+            if (commentEnd < 0) return null;
+            pendingWhitespace = true;
+            index = commentEnd + 2;
+            continue;
+        }
+        if (sql[index] === "'" || sql[index] === '"') {
+            appendPendingWhitespace();
+            const quote = sql[index];
+            normalized += quote;
+            index += 1;
+            while (index < sql.length) {
+                normalized += sql[index];
+                if (sql[index] === quote) {
+                    if (sql[index + 1] === quote) {
+                        normalized += sql[index + 1];
+                        index += 2;
+                        continue;
+                    }
+                    index += 1;
+                    break;
+                }
+                index += 1;
+            }
+            continue;
+        }
+        if (sql[index] === '$') {
+            const delimiter = sql
+                .slice(index)
+                .match(/^\$(?:[A-Za-z_][\w]*)?\$/)?.[0];
+            if (delimiter !== undefined) {
+                appendPendingWhitespace();
+                const literalEnd = sql.indexOf(
+                    delimiter,
+                    index + delimiter.length,
+                );
+                if (literalEnd < 0) {
+                    normalized += sql.slice(index);
+                    break;
+                }
+                const end = literalEnd + delimiter.length;
+                normalized += sql.slice(index, end);
+                index = end;
+                continue;
+            }
+        }
+        appendPendingWhitespace();
+        normalized += sql[index];
+        index += 1;
+    }
+
+    return normalized;
+};
 
 const sqlStatements = (sql: string): string[] =>
     sql
-        .replace(SQL_COMMENTS, ' ')
         .split(';')
         .map((statement) => statement.trim())
         .filter(Boolean);
@@ -864,9 +954,10 @@ export function analyzeMigrationSource(
                 const argumentEnds = [')', ','].includes(
                     body[argumentIndex + 1]?.value ?? '',
                 );
-                const sql = argumentEnds
+                const rawSql = argumentEnds
                     ? resolveSqlArgument(argument, sqlConstants)
                     : null;
+                const sql = rawSql === null ? null : normalizeSql(rawSql);
                 if (sql === null) {
                     operations.add('unknown');
                     markUnknown(
