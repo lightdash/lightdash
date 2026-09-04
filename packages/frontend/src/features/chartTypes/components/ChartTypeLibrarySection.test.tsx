@@ -223,12 +223,12 @@ describe('ChartTypeLibrarySection', () => {
         renderSection();
 
         expect(screen.getByText('Chart type library')).toBeInTheDocument();
-        expect(screen.getByText('(4)')).toBeInTheDocument();
-        expect(screen.getAllByText('Official')).toHaveLength(4);
+        // The installed chart is hidden from the library — installed tab only.
+        expect(screen.getByText('(3)')).toBeInTheDocument();
+        expect(screen.getAllByText('Official')).toHaveLength(3);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
-        expect(screen.getByText('Installed chart')).toBeInTheDocument();
-        expect(screen.getByText('Installed v1.0.0')).toBeInTheDocument();
+        expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
         expect(screen.getByText('Update chart')).toBeInTheDocument();
         expect(screen.getByText('Update available')).toBeInTheDocument();
         expect(screen.getByText('Incompatible chart')).toBeInTheDocument();
@@ -322,7 +322,26 @@ describe('ChartTypeLibrarySection', () => {
         expect(screen.getByRole('button', { name: 'Install' })).toBeDisabled();
     });
 
-    it('shows View in gallery for the installed state without gating on permission', async () => {
+    it('hides installed chart types from the library list', () => {
+        setFlag(true);
+        setRegistryData([
+            makeItem({ slug: 'a', name: 'Available chart' }),
+            makeItem({
+                slug: 'b',
+                name: 'Installed chart',
+                state: 'installed',
+                installedAppUuid: 'app-1',
+                installedRegistryVersion: '1.0.0',
+            }),
+        ]);
+        renderSection();
+
+        expect(screen.getByText('Available chart')).toBeInTheDocument();
+        expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
+        expect(screen.getByText('(1)')).toBeInTheDocument();
+    });
+
+    it('shows the all-installed empty state when every registry chart is installed', () => {
         setFlag(true);
         setRegistryData([
             makeItem({
@@ -334,51 +353,32 @@ describe('ChartTypeLibrarySection', () => {
         ]);
         renderSection();
 
-        fireEvent.click(screen.getByText('Radial gauge'));
-
         expect(
-            await screen.findByRole('button', { name: 'View in gallery' }),
+            screen.getByText(
+                'Every chart type from the library is installed — find them in your installed charts.',
+            ),
         ).toBeInTheDocument();
+        expect(screen.getByText('(0)')).toBeInTheDocument();
     });
 
-    it('shows Uninstall for the installed state when the user can manage the app', async () => {
-        mockedUseCanEditDataApp.mockReturnValue(true);
-        setFlag(true);
-        setRegistryData([
-            makeItem({
-                slug: 'radial-gauge',
-                state: 'installed',
-                installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
-            }),
-        ]);
-        renderSection();
-
-        fireEvent.click(screen.getByText('Radial gauge'));
-
-        expect(
-            await screen.findByRole('button', { name: 'Uninstall' }),
-        ).toBeInTheDocument();
-    });
-
-    it('hides Uninstall for the installed state without manage permission', async () => {
+    it('hides Uninstall for the update_available state without manage permission', async () => {
         mockedUseCanEditDataApp.mockReturnValue(false);
         setFlag(true);
         setRegistryData([
             makeItem({
                 slug: 'radial-gauge',
-                state: 'installed',
+                state: 'update_available',
                 installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
+                installedRegistryVersion: '0.9.0',
             }),
         ]);
         renderSection();
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
-        expect(
-            await screen.findByRole('button', { name: 'View in gallery' }),
-        ).toBeInTheDocument();
+        // The modal meta panel proves the detail modal opened before
+        // asserting on the absent button.
+        expect(await screen.findByText('Published')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Uninstall' }),
         ).not.toBeInTheDocument();
@@ -423,9 +423,9 @@ describe('ChartTypeLibrarySection', () => {
         setRegistryData([
             makeItem({
                 slug: 'radial-gauge',
-                state: 'installed',
+                state: 'update_available',
                 installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
+                installedRegistryVersion: '0.9.0',
             }),
         ]);
         renderSection();
@@ -450,13 +450,14 @@ describe('ChartTypeLibrarySection', () => {
     // that the real installing user is threaded through instead of a
     // hardcoded null, which is what the self-rule needs to key off of.
     it('threads the installed app creator through to the manage-permission check', async () => {
+        mockedUseCanEditDataApp.mockReturnValue(true);
         setFlag(true);
         setRegistryData([
             makeItem({
                 slug: 'radial-gauge',
-                state: 'installed',
+                state: 'update_available',
                 installedAppUuid: 'app-1',
-                installedRegistryVersion: '1.0.0',
+                installedRegistryVersion: '0.9.0',
                 installedCreatedByUserUuid: 'installer-user-uuid',
             }),
         ]);
@@ -464,7 +465,7 @@ describe('ChartTypeLibrarySection', () => {
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
-        await screen.findByRole('button', { name: 'View in gallery' });
+        await screen.findByRole('button', { name: 'Uninstall' });
         expect(mockedUseCanEditDataApp).toHaveBeenCalledWith(PROJECT_UUID, {
             spaceUuid: null,
             createdByUserUuid: 'installer-user-uuid',
