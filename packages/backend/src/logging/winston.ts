@@ -94,18 +94,6 @@ export const getSchedulerContext = ():
     return ExecutionContext.get<ExecutionContextInfo>().scheduler;
 };
 
-export const getOrganizationContext = (): Pick<
-    ExecutionContextInfo,
-    'organization_uuid' | 'organization_name'
-> => {
-    if (!ExecutionContext.exists()) return {};
-    const ctx = ExecutionContext.get<ExecutionContextInfo>();
-    return {
-        organization_uuid: ctx.organization_uuid,
-        organization_name: ctx.organization_name,
-    };
-};
-
 // Reads the originating data app from the request-scoped ExecutionContext
 // (populated by requestExecutionContextMiddleware from the app attribution
 // header) so warehouse queries can be tagged back to the app. Returns an empty

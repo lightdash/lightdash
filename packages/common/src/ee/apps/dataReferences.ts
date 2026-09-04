@@ -145,10 +145,6 @@ export type PersistedDataAppDataReferences = Pick<
     extractorVersion?: number;
 };
 
-export function isReferenceFullyResolved(ref: ExtractedDataReference): boolean {
-    return ref.unresolved.length === 0;
-}
-
 export function computeDataReferenceStats(
     references: ExtractedDataReference[],
 ): DataReferenceStats {

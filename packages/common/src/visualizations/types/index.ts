@@ -31,15 +31,6 @@ export enum SortByDirection {
     DESC = 'DESC',
 }
 
-export const vizAggregationOptions = [
-    VizAggregationOptions.SUM,
-    VizAggregationOptions.COUNT,
-    VizAggregationOptions.AVERAGE,
-    VizAggregationOptions.MIN,
-    VizAggregationOptions.MAX,
-    VizAggregationOptions.ANY,
-];
-
 export const VIZ_DEFAULT_AGGREGATION = VizAggregationOptions.COUNT;
 
 /**
