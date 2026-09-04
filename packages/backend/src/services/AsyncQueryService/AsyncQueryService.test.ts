@@ -4380,6 +4380,68 @@ describe('AsyncQueryService', () => {
             expect(disconnect).toHaveBeenCalledOnce();
         });
 
+        it('persists an empty fields map, not the virtual-view items', async () => {
+            // The SqlQueryComposer virtual view serves SQL generation only.
+            // Its synthetic items map must not reach query_history.fields,
+            // where consumers would read it as semantic field metadata.
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            service.warehouseClients = {};
+            service.findResultsCache = vi.fn().mockResolvedValue({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            } satisfies MissCacheResult);
+
+            (
+                service.queryHistoryModel.create as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                undefined,
+            );
+
+            service.getUserAttributes = vi.fn(async () => ({
+                userAttributes: {},
+                intrinsicUserAttributes: { email: 'test@example.com' },
+            }));
+
+            const mockWarehouseClient = {
+                ...warehouseClientMock,
+                streamQuery: vi.fn(async (_sql, callback) => {
+                    await callback({
+                        fields: {
+                            test_col: { type: DimensionType.STRING },
+                        },
+                        rows: [],
+                    });
+                }),
+            };
+
+            service._getWarehouseClient = vi.fn(async () => ({
+                warehouseClient: mockWarehouseClient,
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: null,
+            }));
+
+            await service.executeAsyncSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                sql: 'SELECT 1',
+                context: QueryExecutionContext.SQL_RUNNER,
+            });
+
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({ fields: {} }),
+            );
+            expect(service.runAsyncWarehouseQuery).toHaveBeenCalledWith(
+                expect.objectContaining({ fieldsMap: {} }),
+            );
+        });
+
         describe('cache invalidation', () => {
             it('skips cache when invalidateCache is true', async () => {
                 const service = getMockedAsyncQueryService({
@@ -5987,9 +6049,8 @@ describe('runDuckdbQuery', () => {
         expect(executed.originalColumns).toEqual({
             one: { reference: 'one', type: DimensionType.NUMBER, label: 'One' },
         });
-        expect(Object.keys(executed.fieldsMap)).toEqual([
-            'sql_query_explorer_one',
-        ]);
+        // The composer's virtual-view items never reach the results seam
+        expect(executed.fieldsMap).toEqual({});
         expect(executed.pivotConfiguration).toBeUndefined();
         expect(executed.warehouseClientOverride).toBe(warehouseClient);
         expect(update).toHaveBeenCalledWith(
@@ -5997,7 +6058,6 @@ describe('runDuckdbQuery', () => {
             projectUuid,
             {
                 compiled_sql: executed.query,
-                fields: executed.fieldsMap,
                 original_columns: executed.originalColumns,
             },
             expect.anything(),
@@ -6079,7 +6139,6 @@ describe('runDuckdbQuery', () => {
             projectUuid,
             {
                 compiled_sql: executed.query,
-                fields: fieldsMap,
                 original_columns: originalColumns,
             },
             expect.anything(),

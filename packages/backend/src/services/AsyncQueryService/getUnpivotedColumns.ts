@@ -1,5 +1,6 @@
 import {
     getResultColumnMetadataFromItem,
+    getResultColumnSourceItem,
     ItemsMap,
     ParametersValuesMap,
     ResultColumns,
@@ -17,9 +18,9 @@ export function getUnpivotedColumns(
             (acc, [key, value]) => {
                 // For metric queries the warehouse column name is the field id,
                 // so the item lookup enriches the column with display metadata.
-                // Raw SQL columns never match an item (SqlQueryComposer keys
-                // its virtual-view items `${table}_${column}`) and get only a
-                // label derived from the column reference.
+                // Raw SQL columns have no item (SqlQueryComposer exposes no
+                // items at the results seam) and get only a label derived
+                // from the column reference.
                 acc[key] = {
                     reference: key,
                     type: value.type,
@@ -27,7 +28,7 @@ export function getUnpivotedColumns(
                         ? { numericKind: value.numericKind }
                         : {}),
                     ...getResultColumnMetadataFromItem(
-                        itemsMap?.[key],
+                        getResultColumnSourceItem(itemsMap, key),
                         key,
                         usedParameters,
                     ),

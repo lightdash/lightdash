@@ -70,18 +70,11 @@ describe('getUnpivotedColumns', () => {
         });
     });
 
-    test('raw SQL columns get no metadata from virtual-view items', () => {
-        // SqlQueryComposer keys its items map `${table}_${column}` while raw
-        // SQL warehouse columns use unprefixed names. Even a map keyed by
-        // unprefixed names must not contribute provenance, because the item's
-        // field id is not the column reference.
-        const virtualViewItemsMap: ItemsMap = {
+    test('items stored under other field ids never contribute metadata', () => {
+        // An items map keyed `${table}_${column}` cannot match a bare column
+        // reference, so the column falls back to a reference-derived label.
+        const prefixedItemsMap: ItemsMap = {
             sql_query_explorer_payment_method: {
-                ...statusDimension,
-                name: 'payment_method',
-                table: 'sql_query_explorer',
-            },
-            payment_method: {
                 ...statusDimension,
                 name: 'payment_method',
                 table: 'sql_query_explorer',
@@ -90,13 +83,33 @@ describe('getUnpivotedColumns', () => {
         const columns = getUnpivotedColumns(
             {},
             { payment_method: { type: DimensionType.STRING } },
-            virtualViewItemsMap,
+            prefixedItemsMap,
         );
         expect(columns.payment_method).toEqual({
             reference: 'payment_method',
             type: DimensionType.STRING,
             label: 'Payment method',
         });
+    });
+
+    test('an items map keyed by anything but getItemId throws', () => {
+        // A matching key whose item belongs to a different field id means the
+        // producer keyed its map wrong; failing loudly beats silently losing
+        // the field's metadata.
+        const misKeyedItemsMap: ItemsMap = {
+            payment_method: {
+                ...statusDimension,
+                name: 'payment_method',
+                table: 'sql_query_explorer',
+            },
+        };
+        expect(() =>
+            getUnpivotedColumns(
+                {},
+                { payment_method: { type: DimensionType.STRING } },
+                misKeyedItemsMap,
+            ),
+        ).toThrow('must be keyed by getItemId');
     });
 
     test('parameter placeholders interpolate against used parameter values', () => {

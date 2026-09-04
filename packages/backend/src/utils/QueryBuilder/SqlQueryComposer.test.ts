@@ -69,6 +69,22 @@ describe('SqlQueryComposer', () => {
         expect(composer.getExplore().name).toBe(SQL_QUERY_MOCK_EXPLORER_NAME);
     });
 
+    it('exposes no items at the results seam', () => {
+        // The virtual view's dimensions serve SQL generation only. Exposing
+        // them through getFields() would persist fake semantic fields to
+        // query_history.fields on every SQL and compose execution.
+        const composer = new SqlQueryComposer({
+            ...baseArgs,
+            pivotConfiguration: undefined,
+        });
+
+        expect(composer.getFields()).toEqual({});
+        // SQL generation still reads the virtual-view items internally.
+        expect(Object.keys(composer.compile().fields)).toContain(
+            `${SQL_QUERY_MOCK_EXPLORER_NAME}_category`,
+        );
+    });
+
     it('wraps the base query with the pivot query when a pivot is set', () => {
         const composer = new SqlQueryComposer({
             ...baseArgs,
