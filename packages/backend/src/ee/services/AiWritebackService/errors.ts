@@ -77,3 +77,19 @@ export class WritebackRunAbortedError extends Error {
         this.runStatus = runStatus;
     }
 }
+
+/**
+ * Thrown when the host's `dbt parse` gate finds that the agent's changes stop
+ * the dbt project parsing, and the agent could not repair them. No pull request
+ * is opened: an obviously broken dbt project is worse than no change at all.
+ * The message carries dbt's own error output so the agent can relay it and offer
+ * the user the patch by hand.
+ */
+export class WritebackDbtParseError extends ParameterError {
+    constructor(parseOutput: string) {
+        super(
+            `The changes were made but they stop the dbt project parsing, so no pull request was opened. Tell the user what broke, using dbt's own error below, and offer to try a different approach:\n\n${parseOutput}`,
+        );
+        this.name = 'WritebackDbtParseError';
+    }
+}

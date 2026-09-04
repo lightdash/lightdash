@@ -41,6 +41,8 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
+    sumAgentUsage,
+    summarizeDbtParseFailure,
     summarizeToolInput,
 } from './utils';
 
@@ -757,5 +759,71 @@ describe('resolveSandboxDbtVersion', () => {
         expect(resolveSandboxDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
             getLatestSupportDbtVersion(),
         );
+    });
+});
+
+describe('summarizeDbtParseFailure', () => {
+    it("keeps dbt's error block and drops its banner lines", () => {
+        const summary = summarizeDbtParseFailure({
+            stdout: [
+                '15:01:02  Running with dbt=1.9.0',
+                '15:01:02  Registered adapter: postgres=1.9.0',
+                '',
+                'Compilation Error in model orders (models/orders.sql)',
+                '  depends on a node named "missing_model" which was not found',
+            ].join('\n'),
+            stderr: '',
+        });
+
+        expect(summary).toContain('Compilation Error in model orders');
+        expect(summary).toContain('missing_model');
+        expect(summary).not.toContain('Registered adapter');
+    });
+
+    it('keeps the tail of a long output, where dbt prints the error', () => {
+        const summary = summarizeDbtParseFailure({
+            stdout: `${'noise\n'.repeat(2000)}Parsing Error: invalid yaml`,
+            stderr: '',
+        });
+
+        expect(summary.length).toBeLessThanOrEqual(2000);
+        expect(summary).toContain('Parsing Error: invalid yaml');
+    });
+
+    it('never returns an empty summary', () => {
+        expect(summarizeDbtParseFailure({ stdout: '', stderr: '' })).toBe(
+            'dbt parse failed with no output',
+        );
+    });
+});
+
+describe('sumAgentUsage', () => {
+    const usage = (costUsd: number | null, numTurns: number | null) => ({
+        costUsd,
+        inputTokens: 10,
+        outputTokens: 20,
+        cacheReadInputTokens: null,
+        cacheCreationInputTokens: null,
+        numTurns,
+        durationApiMs: 100,
+    });
+
+    it('adds both turns of a repaired run', () => {
+        expect(sumAgentUsage(usage(0.5, 3), usage(0.25, 2))).toMatchObject({
+            costUsd: 0.75,
+            inputTokens: 20,
+            numTurns: 5,
+            durationApiMs: 200,
+        });
+    });
+
+    it('keeps an unknown field unknown rather than zeroing it', () => {
+        expect(
+            sumAgentUsage(usage(null, 1), usage(null, 1))?.costUsd,
+        ).toBeNull();
+        expect(sumAgentUsage(usage(0.5, 1), null)).toMatchObject({
+            costUsd: 0.5,
+        });
+        expect(sumAgentUsage(null, null)).toBeNull();
     });
 });

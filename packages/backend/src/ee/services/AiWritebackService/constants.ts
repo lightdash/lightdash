@@ -116,6 +116,16 @@ export const COMPILE_STRIPPED_ENV_VARS = [
     'GH_TOKEN',
 ];
 
+// Ceiling on a single host-run `dbt parse`. Parsing a large project (deps
+// already installed) is tens of seconds; this bounds a pathological project
+// well under RUN_TIMEOUT_MS so the gate can never eat the whole run budget.
+export const DBT_PARSE_TIMEOUT_MS = 5 * 60 * 1000;
+
+// How much of a failed `dbt parse` output we keep. It reaches the agent's repair
+// prompt and the user-facing error, so it must carry dbt's error block (path +
+// message) without dumping the whole log.
+export const DBT_PARSE_OUTPUT_TAIL_CHARS = 2000;
+
 // Fine-grained tool permissions for the Claude Code CLI — used in place of
 // `--dangerously-skip-permissions`. Follows Claude Code's `--allowedTools`
 // syntax: `Tool(specifier)`, where `//path` denotes an absolute filesystem

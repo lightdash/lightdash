@@ -12,6 +12,7 @@ import {
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import {
     COMPILE_WRAPPER_PATH,
+    DBT_PARSE_OUTPUT_TAIL_CHARS,
     DBT_VENV_BIN_PREFIX,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
@@ -23,6 +24,7 @@ import {
 import type {
     AgentStreamEvent,
     AgentToolCall,
+    AiWritebackUsage,
     CloneTarget,
     GitCommitAuthor,
     GitConnection,
@@ -643,3 +645,64 @@ export const resolveSandboxDbtVersion = (
  */
 export const dbtSandboxVenvBin = (version: SupportedDbtVersions): string =>
     `${DBT_VENV_BIN_PREFIX}${version.slice(1)}/bin`;
+
+/**
+ * Condense a failed `dbt parse` into the part worth showing: dbt writes its
+ * error block to stdout (with a copy of the summary on stderr), padded with
+ * banner/timing lines that carry no signal. Keeps the last
+ * `DBT_PARSE_OUTPUT_TAIL_CHARS` characters of the useful lines — the tail is
+ * where dbt prints the offending file and message.
+ */
+export const summarizeDbtParseFailure = ({
+    stdout,
+    stderr,
+}: {
+    stdout: string;
+    stderr: string;
+}): string => {
+    const lines = `${stdout}\n${stderr}`
+        .split('\n')
+        .map((line) => line.trimEnd())
+        .filter((line) => {
+            // dbt prefixes most lines with a timestamp; drop it before matching
+            // its log banners and progress chatter, which are never the error.
+            const body = line.trim().replace(/^\d{2}:\d{2}:\d{2}\s+/, '');
+            return (
+                body.length > 0 &&
+                !/^(Running with dbt=|Registered adapter:|Found \d)/.test(body)
+            );
+        });
+    const summary = lines.join('\n').slice(-DBT_PARSE_OUTPUT_TAIL_CHARS);
+    return summary.length > 0 ? summary : 'dbt parse failed with no output';
+};
+
+/**
+ * Add up the usage of the turns that made up one run (the agent's turn plus, if
+ * the verification gate needed one, its repair turn) so analytics report the
+ * whole run's spend. Null-preserving: two unknown values stay unknown rather
+ * than collapsing to zero.
+ */
+export const sumAgentUsage = (
+    first: AiWritebackUsage | null,
+    second: AiWritebackUsage | null,
+): AiWritebackUsage | null => {
+    if (first === null) return second;
+    if (second === null) return first;
+    const add = (a: number | null, b: number | null): number | null =>
+        a === null && b === null ? null : (a ?? 0) + (b ?? 0);
+    return {
+        costUsd: add(first.costUsd, second.costUsd),
+        inputTokens: add(first.inputTokens, second.inputTokens),
+        outputTokens: add(first.outputTokens, second.outputTokens),
+        cacheReadInputTokens: add(
+            first.cacheReadInputTokens,
+            second.cacheReadInputTokens,
+        ),
+        cacheCreationInputTokens: add(
+            first.cacheCreationInputTokens,
+            second.cacheCreationInputTokens,
+        ),
+        numTurns: add(first.numTurns, second.numTurns),
+        durationApiMs: add(first.durationApiMs, second.durationApiMs),
+    };
+};
