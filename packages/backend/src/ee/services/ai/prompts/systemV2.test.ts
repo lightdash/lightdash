@@ -4,13 +4,13 @@ import {
 } from '@lightdash/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { getSystemPromptV2 } from './systemV2';
 import {
     EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-} from './systemV2FilterGuidance';
+} from './filterGuidance';
+import { getSystemPromptV2 } from './systemV2';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,

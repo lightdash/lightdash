@@ -16,6 +16,7 @@ import {
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
+    modelGuidanceSourceByRuntime,
     type AgentToolView,
     type McpToolAnnotations,
     type ToolDefinitionInstance,
@@ -24,7 +25,6 @@ import {
     type ToolDescriptionContext,
 } from '../defineTool';
 import {
-    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
     toolRunQueryExpressionArgsSchema,
     toolRunQueryExpressionArgsSchemaV2Mcp,
     toolRunQueryExpressionArgsSchemaV2RejectingMerge,
@@ -566,7 +566,7 @@ const TOOL_RUN_QUERY_FILTER_EXPRESSION_DESCRIPTION = (
 ): string =>
     `${TOOL_RUN_QUERY_DESCRIPTION(
         context,
-    )}\nFilter expression syntax:\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+    )}\nFilter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow ${modelGuidanceSourceByRuntime[context.runtime]}.`;
 
 export const generateVisualizationFilterExpressionToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateVisualization',

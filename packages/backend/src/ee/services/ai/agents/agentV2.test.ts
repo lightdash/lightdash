@@ -1118,11 +1118,11 @@ describe('getAgentTools workstream tool gate', () => {
                 ),
                 visualizationUsesExpressions:
                     tools.generateVisualization.description?.includes(
-                        'Filter expression syntax:',
+                        'follow the Agent system prompt',
                     ) ?? false,
                 fieldValueSearchUsesExpressions:
                     tools.searchFieldValues.description?.includes(
-                        'Join flat rules with AND only. OR is not supported by this tool.',
+                        'follow the Agent system prompt',
                     ) ?? false,
             }).toEqual({
                 promptUsesExpressions: enableFilterExpressions,

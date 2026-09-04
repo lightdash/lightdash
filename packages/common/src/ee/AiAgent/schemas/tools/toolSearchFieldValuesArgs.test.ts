@@ -17,21 +17,37 @@ const descriptionContexts = [
     { runtime: 'mcp', toolName: 'search_field_values' },
 ] satisfies ToolDescriptionContext[];
 
+const guidanceReferenceByRuntime = {
+    agent: 'the Agent system prompt',
+    mcp: '`InitializeResult.instructions`',
+} satisfies Record<ToolDescriptionContext['runtime'], string>;
+
 describe('searchFieldValues filter schemas', () => {
     it.each(descriptionContexts)(
-        'advertises AND-only expressions to the $runtime runtime',
+        'keeps the $runtime contract local and points to its runtime guidance',
         (context) => {
             const description =
                 TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION(context);
 
             expect(description).toContain(
-                'Join flat rules with AND only. OR is not supported by this tool.',
+                'The input schema defines filter scope, nullability, and the dimension-only AND constraint',
             );
-            expect(description).not.toContain('Join flat rules with AND or OR');
-            expect(description).toContain('### string');
-            expect(description).toContain('### date');
+            expect(description).toContain(
+                guidanceReferenceByRuntime[context.runtime],
+            );
+            expect(description).not.toContain('Filter expression syntax:');
+            expect(description).not.toContain('### string');
+            expect(description).not.toContain('### date');
         },
     );
+
+    it('keeps the dimension-only AND constraint on the schema field', () => {
+        expect(
+            toolSearchFieldValuesExpressionArgsSchema.shape.filters.description,
+        ).toContain(
+            'one flat AND filter expression containing dimension fields only',
+        );
+    });
 
     it('tells the expression Agent to omit unscoped filters', () => {
         const description =
@@ -44,7 +60,7 @@ describe('searchFieldValues filter schemas', () => {
             'Omit filters when the search does not need additional filters',
         );
         expect(description).toContain(
-            'When filters is present, it scopes the candidate-value search',
+            'The input schema defines filter scope, nullability',
         );
         expect(description).not.toContain('Set filters to null');
     });
