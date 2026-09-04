@@ -1,3 +1,4 @@
+import { SupportedDbtAdapter } from '@lightdash/common';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
@@ -11,6 +12,7 @@ const catalog: PgWireTable[] = [
     {
         name: 'orders',
         description: 'Orders placed',
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
         fields: [
             {
                 fieldId: 'orders_status',
@@ -19,6 +21,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'string',
                 description: 'Status',
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_amount',
@@ -27,6 +30,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'number',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_order_date',
@@ -35,6 +39,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'date',
                 description: 'Date',
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_is_completed',
@@ -43,6 +48,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'boolean',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_total',
@@ -51,6 +57,7 @@ const catalog: PgWireTable[] = [
                 kind: 'metric',
                 type: 'sum',
                 description: 'Total',
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_count',
@@ -59,12 +66,14 @@ const catalog: PgWireTable[] = [
                 kind: 'metric',
                 type: 'count',
                 description: null,
+                timeInterval: null,
             },
         ],
     },
     {
         name: 'customers',
         description: null,
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
         fields: [
             {
                 fieldId: 'customers_id',
@@ -73,6 +82,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'number',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'customers_created',
@@ -81,6 +91,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'timestamp',
                 description: null,
+                timeInterval: null,
             },
         ],
     },
@@ -436,6 +447,7 @@ describe('large projects', () => {
             (_, t) => ({
                 name: `explore_${t}`,
                 description: null,
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
                 fields: Array.from({ length: 150 }, (__, f) => ({
                     fieldId: `explore_${t}_field_${f}`,
                     table: `explore_${t}`,
@@ -443,6 +455,7 @@ describe('large projects', () => {
                     kind: 'dimension' as const,
                     type: 'string',
                     description: null,
+                    timeInterval: null,
                 })),
             }),
         );

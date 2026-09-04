@@ -1,8 +1,12 @@
 import {
+    CustomDimensionType,
     FilterOperator,
     getCustomMetricType,
     MetricType,
+    timeFrameConfigs,
+    TimeFrames,
     type AdditionalMetric,
+    type CustomSqlDimension,
     type DimensionType,
     type FilterGroup,
     type FilterGroupItem,
@@ -17,6 +21,7 @@ import {
     parse,
     toSql,
     type Expr,
+    type ExprCast,
     type ExprRef,
     type SelectedColumn,
     type SelectFromStatement,
@@ -107,6 +112,129 @@ const isLiteralExpr = (expr: Expr): boolean => {
 };
 
 type LiteralValue = string | number | boolean | null;
+
+const castTargetName = (cast: ExprCast): string =>
+    'name' in cast.to && typeof cast.to.name === 'string'
+        ? cast.to.name.toLowerCase()
+        : '';
+
+const isDateTypeName = (name: string): boolean =>
+    name === 'date' || name.startsWith('timestamp');
+
+const NUMERIC_TYPE_NAMES = new Set([
+    'int',
+    'int2',
+    'int4',
+    'int8',
+    'integer',
+    'smallint',
+    'bigint',
+    'numeric',
+    'decimal',
+    'real',
+    'float',
+    'float4',
+    'float8',
+    'double precision',
+]);
+
+/** EXTRACT / DATE_PART fields that read as a Lightdash time frame of the same dimension */
+const EXTRACT_PART_FRAMES: Record<string, TimeFrames> = {
+    year: TimeFrames.YEAR_NUM,
+    quarter: TimeFrames.QUARTER_NUM,
+    month: TimeFrames.MONTH_NUM,
+    week: TimeFrames.WEEK_NUM,
+    day: TimeFrames.DAY_OF_MONTH_NUM,
+    doy: TimeFrames.DAY_OF_YEAR_NUM,
+    hour: TimeFrames.HOUR_OF_DAY_NUM,
+    minute: TimeFrames.MINUTE_OF_HOUR_NUM,
+};
+
+const DATE_TRUNC_PART_FRAMES: Record<string, TimeFrames> = {
+    year: TimeFrames.YEAR,
+    quarter: TimeFrames.QUARTER,
+    month: TimeFrames.MONTH,
+    week: TimeFrames.WEEK,
+    day: TimeFrames.DAY,
+    hour: TimeFrames.HOUR,
+    minute: TimeFrames.MINUTE,
+    second: TimeFrames.SECOND,
+    milliseconds: TimeFrames.MILLISECOND,
+};
+
+/** frames that need a time of day, so a DATE dimension cannot provide them */
+const TIME_OF_DAY_FRAMES = new Set<TimeFrames>([
+    TimeFrames.HOUR,
+    TimeFrames.MINUTE,
+    TimeFrames.SECOND,
+    TimeFrames.MILLISECOND,
+    TimeFrames.HOUR_OF_DAY_NUM,
+    TimeFrames.MINUTE_OF_HOUR_NUM,
+]);
+
+type DatePartExpr = {
+    frame: TimeFrames;
+    ref: ExprRef;
+};
+
+type DatePartFunction = 'extract' | 'date_trunc';
+
+const DATE_PART_FRAMES: Record<DatePartFunction, Record<string, TimeFrames>> = {
+    extract: EXTRACT_PART_FRAMES,
+    date_trunc: DATE_TRUNC_PART_FRAMES,
+};
+
+/**
+ * `[CAST(]EXTRACT(part FROM col[::TIMESTAMP])[ AS INT)]`, `DATE_PART('part', col)`
+ * and `DATE_TRUNC('part', col)[::DATE]`: BI tools derive date parts from a date
+ * column this way. They read as the column's Lightdash time frame, so the
+ * warehouse computes them at the query grain instead of a table calculation.
+ */
+const datePartExpr = (expr: Expr): DatePartExpr | null => {
+    const inner = expr.type === 'cast' ? expr.operand : expr;
+    let part: string;
+    let source: Expr;
+    let fn: DatePartFunction;
+    if (inner.type === 'extract') {
+        part = inner.field.name.toLowerCase();
+        source = inner.from;
+        fn = 'extract';
+    } else if (
+        inner.type === 'call' &&
+        !inner.over &&
+        inner.args.length === 2 &&
+        inner.args[0].type === 'string'
+    ) {
+        const name = inner.function.name.toLowerCase();
+        if (name !== 'date_part' && name !== 'date_trunc') return null;
+        part = inner.args[0].value.toLowerCase();
+        [, source] = inner.args;
+        fn = name === 'date_trunc' ? 'date_trunc' : 'extract';
+    } else {
+        return null;
+    }
+    // an outer cast is only dropped when it keeps the value domain
+    if (expr.type === 'cast') {
+        const to = castTargetName(expr);
+        const keepsDomain =
+            fn === 'date_trunc'
+                ? isDateTypeName(to)
+                : NUMERIC_TYPE_NAMES.has(to);
+        if (!keepsDomain) return null;
+    }
+    if (source.type === 'cast' && isDateTypeName(castTargetName(source))) {
+        source = source.operand;
+    }
+    if (source.type !== 'ref' || source.name === '*') return null;
+    if (fn === 'extract' && (part === 'dow' || part === 'isodow')) {
+        throw new SqlCompileError(
+            `EXTRACT(${part.toUpperCase()}) is not supported`,
+            "Postgres numbers weekdays 0-6 from Sunday while Lightdash uses 1-7 from the project start of week; select the dimension's day-of-week interval column instead",
+        );
+    }
+    const frame = DATE_PART_FRAMES[fn][part];
+    return frame ? { frame, ref: source } : null;
+};
 
 /** Extract a literal filter value, unwrapping casts (e.g. '2024-01-01'::date) */
 const literalValue = (expr: Expr): LiteralValue => {
@@ -842,10 +970,7 @@ function compileSelect(
             return { ref: arg.args[0], castTo: 'date' };
         }
         if (arg.type === 'cast' && arg.operand.type === 'ref') {
-            const to =
-                'name' in arg.to && typeof arg.to.name === 'string'
-                    ? arg.to.name.toLowerCase()
-                    : '';
+            const to = castTargetName(arg);
             if (to === 'date') return { ref: arg.operand, castTo: 'date' };
             if (to.startsWith('timestamp')) {
                 return { ref: arg.operand, castTo: 'timestamp' };
@@ -855,11 +980,24 @@ function compileSelect(
     };
 
     /** Postgres-style default output name for an unaliased expression, unique within the statement */
+    const autoNameBase = (expr: Expr): string => {
+        switch (expr.type) {
+            case 'call':
+                return expr.function.name.toLowerCase();
+            case 'extract':
+                return 'extract';
+            case 'cast':
+                return expr.operand.type === 'call' ||
+                    expr.operand.type === 'extract'
+                    ? autoNameBase(expr.operand)
+                    : '?column?';
+            default:
+                return '?column?';
+        }
+    };
+
     const autoName = (ctx: CompilerContext, expr: Expr): string => {
-        const base =
-            expr.type === 'call'
-                ? expr.function.name.toLowerCase()
-                : '?column?';
+        const base = autoNameBase(expr);
         let name = base;
         for (
             let n = 2;
@@ -941,8 +1079,11 @@ function compileSelect(
     const additionalMetrics: AdditionalMetric[] = [];
     const rowCountFieldId = `${table.name}_${ROW_COUNT_METRIC_NAME}`;
     const tableCalculations: TableCalculation[] = [];
+    const customDimensions: CustomSqlDimension[] = [];
     const columns: PgWireColumn[] = [];
     const selectedSources = new Set<string>();
+    /** SELECT expressions by SQL text, so ORDER BY / GROUP BY can repeat them */
+    const selectExprColumns = new Map<string, PgWireColumn>();
 
     const addField = (resolved: ResolvedColumn, outputName: string) => {
         if (resolved.kind === 'dimension') {
@@ -1035,6 +1176,86 @@ function compileSelect(
         return true;
     };
 
+    /**
+     * Compile a date part of a date/timestamp dimension to its time frame: the
+     * explore's own interval dimension when it has one, else a custom SQL
+     * dimension from the same time-frame SQL the model compiler uses. The
+     * project's start of week is not applied, so a synthesised WEEK follows
+     * the warehouse default like the SQL the client wrote.
+     */
+    const tryDatePart = (col: SelectedColumn): boolean => {
+        const part = datePartExpr(col.expr);
+        if (!part) return false;
+        const resolved = resolveRefOrThrow(ctx, part.ref);
+        const { field } = resolved;
+        if (
+            !field ||
+            field.kind !== 'dimension' ||
+            (field.type !== 'date' && field.type !== 'timestamp')
+        ) {
+            throw new SqlCompileError(
+                `"${resolved.source}" is not a date or timestamp dimension`,
+                'Date parts can only be taken from date or timestamp columns',
+            );
+        }
+        if (field.type === 'date' && TIME_OF_DAY_FRAMES.has(part.frame)) {
+            throw new SqlCompileError(
+                `Date dimension "${field.fieldId}" has no time component`,
+                'Hours and minutes can only be taken from timestamp columns',
+            );
+        }
+        const baseDimensionName =
+            field.timeInterval?.baseDimensionName ?? field.name;
+        const existing = table.fields.find(
+            (f) =>
+                f.kind === 'dimension' &&
+                f.table === field.table &&
+                f.timeInterval?.baseDimensionName === baseDimensionName &&
+                f.timeInterval.frame === part.frame,
+        );
+        let column: ResolvedColumn;
+        if (existing) {
+            column = {
+                source: existing.fieldId,
+                kind: 'dimension',
+                type: existing.type,
+                field: existing,
+            };
+        } else {
+            const config = timeFrameConfigs[part.frame];
+            const fieldType = field.type as DimensionType;
+            const name = `${field.name}_pgwire_${part.frame.toLowerCase()}`;
+            const id = `${field.table}_${name}`;
+            const dimensionType = config.getDimensionType(fieldType);
+            if (!customDimensions.some((d) => d.id === id)) {
+                customDimensions.push({
+                    id,
+                    name,
+                    table: field.table,
+                    type: CustomDimensionType.SQL,
+                    sql: config.getSql(
+                        table.targetDatabase,
+                        part.frame,
+                        `\${${field.table}.${field.name}}`,
+                        fieldType,
+                    ),
+                    dimensionType,
+                });
+            }
+            column = {
+                source: id,
+                kind: 'dimension',
+                type: dimensionType,
+                field: null,
+            };
+        }
+        addField(column, col.alias?.name ?? autoName(ctx, col.expr));
+        if (col.alias) {
+            ctx.aliasMap.set(col.alias.name, column);
+        }
+        return true;
+    };
+
     const handleSelectedColumn = (col: SelectedColumn): void => {
         const { expr } = col;
         // count(*): a system COUNT(*) metric on the explore's base table
@@ -1090,7 +1311,7 @@ function compileSelect(
             }
             // aggregates over dimension columns become additional metrics below
         }
-        if (tryDimensionAggregate(col)) {
+        if (tryDimensionAggregate(col) || tryDatePart(col)) {
             return;
         }
         if (expr.type === 'ref') {
@@ -1154,7 +1375,35 @@ function compileSelect(
             type: null,
         });
     };
-    selectColumns.forEach(handleSelectedColumn);
+    selectColumns.forEach((col) => {
+        const before = columns.length;
+        handleSelectedColumn(col);
+        // SELECT * adds many columns and has no single expression to repeat
+        if (columns.length === before + 1) {
+            selectExprColumns.set(toSql.expr(col.expr), columns[before]);
+        }
+    });
+
+    const resolvedFromColumn = (column: PgWireColumn): ResolvedColumn => ({
+        source: column.source,
+        kind: column.kind,
+        type: column.type,
+        field: null,
+    });
+
+    const requireSelectExpr = (
+        expr: Expr,
+        clause: 'GROUP BY' | 'ORDER BY',
+    ): PgWireColumn => {
+        const column = selectExprColumns.get(toSql.expr(expr));
+        if (!column) {
+            throw new SqlCompileError(
+                `${clause} expression must appear in the SELECT list`,
+                `Only column names, positions and expressions repeated from the SELECT list can be used in ${clause}`,
+            );
+        }
+        return column;
+    };
 
     // constants-only probes (SELECT 1 FROM t) still need a field to query by;
     // carry the first dimension without exposing it as an output column
@@ -1233,18 +1482,12 @@ function compileSelect(
                         `GROUP BY position ${ordinal} is not in the select list`,
                     );
                 }
-                const column = columns[ordinal - 1];
-                resolved = {
-                    source: column.source,
-                    kind: column.kind,
-                    type: column.type,
-                    field: null,
-                };
+                resolved = resolvedFromColumn(columns[ordinal - 1]);
             } else if (groupExpr.type === 'ref') {
                 resolved = resolveRefOrThrow(ctx, groupExpr);
             } else {
-                throw new SqlCompileError(
-                    'GROUP BY only supports column names or positions',
+                resolved = resolvedFromColumn(
+                    requireSelectExpr(groupExpr, 'GROUP BY'),
                 );
             }
             if (resolved.kind !== 'dimension') {
@@ -1284,9 +1527,7 @@ function compileSelect(
             const resolved = resolveRefOrThrow(ctx, orderBy.by);
             source = resolved.source;
         } else {
-            throw new SqlCompileError(
-                'ORDER BY only supports column names or positions',
-            );
+            source = requireSelectExpr(orderBy.by, 'ORDER BY').source;
         }
         if (!selectedSources.has(source) && !ctx.tableCalcNames.has(source)) {
             throw new SqlCompileError(
@@ -1329,6 +1570,7 @@ function compileSelect(
         limit,
         tableCalculations,
         ...(additionalMetrics.length > 0 ? { additionalMetrics } : {}),
+        ...(customDimensions.length > 0 ? { customDimensions } : {}),
     };
 
     return {
