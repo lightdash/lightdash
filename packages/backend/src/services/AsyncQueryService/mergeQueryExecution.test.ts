@@ -15,6 +15,7 @@ import {
     buildComposeMergeOriginalColumns,
     buildMergeRowCapGuard,
     getMergeOutputColumnCount,
+    getMergeResultSourceCutShortError,
     getMergeRowCapError,
     getMergeSourceLabels,
 } from './mergeQueryExecution';
@@ -278,6 +279,49 @@ describe('getMergeRowCapError', () => {
             getMergeRowCapError({
                 legs: [{ label: 'Orders', rowCount: null }],
                 sourceRowCap: 500,
+            }),
+        ).toBeNull();
+    });
+});
+
+describe('getMergeResultSourceCutShortError', () => {
+    test('refuses a result that returned as many rows as its own limit', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: 500,
+            }),
+        ).toBe(
+            'its results were cut short at their own limit of 500 rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.',
+        );
+    });
+
+    test('allows a result under its own limit, whatever the instance cap', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: 499,
+            }),
+        ).toBeNull();
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 5000,
+                totalRowCount: 0,
+            }),
+        ).toBeNull();
+    });
+
+    test('leaves a result with no recorded limit or row count alone', () => {
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: null,
+                totalRowCount: 500,
+            }),
+        ).toBeNull();
+        expect(
+            getMergeResultSourceCutShortError({
+                limit: 500,
+                totalRowCount: null,
             }),
         ).toBeNull();
     });

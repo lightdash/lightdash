@@ -154,6 +154,28 @@ export const getMergeRowCapError = ({
 };
 
 /**
+ * A referenced result that returned as many rows as the limit it ran with may
+ * have had more rows behind it, and the join would report totals that look
+ * complete and are not. The row cap never bounded it (it was never re-run at
+ * the cap), so its own limit is the only bound that matters. Known from its
+ * query_history row before anything runs, so it refuses at compile time,
+ * phrased as a fragment the compiler prefixes with the source at fault.
+ * A missing limit or row count is not evidence, so it never refuses.
+ */
+export const getMergeResultSourceCutShortError = ({
+    limit,
+    totalRowCount,
+}: {
+    limit: number | null;
+    totalRowCount: number | null;
+}): string | null => {
+    if (limit === null || totalRowCount === null || totalRowCount < limit) {
+        return null;
+    }
+    return `its results were cut short at their own limit of ${limit} rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.`;
+};
+
+/**
  * The guard a merge hands the execution tail: once the legs complete, refuse
  * before the join when one of them reached the row cap.
  */
