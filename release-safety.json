@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.133.0",
-  "previousVersion": "2.132.0",
-  "releaseDate": "2026-09-04T15:26:32.758Z",
+  "version": "2.133.1",
+  "previousVersion": "2.133.0",
+  "releaseDate": "2026-09-04T15:42:33.342Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260904140000_add_pinned_at_to_ai_thread.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_thread"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

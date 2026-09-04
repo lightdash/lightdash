@@ -1,3 +1,10 @@
+## [2.133.1](https://github.com/lightdash/lightdash/compare/2.133.0...2.133.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **table-calculation:** guard tiptap editor effects against a destroyed instance ([#28690](https://github.com/lightdash/lightdash/issues/28690)) ([e9fc239](https://github.com/lightdash/lightdash/commit/e9fc239d8d3ca742c87a54c7e1ee2613ec25bbde)), closes [#28651](https://github.com/lightdash/lightdash/issues/28651)
+
 # [2.133.0](https://github.com/lightdash/lightdash/compare/2.132.0...2.133.0) (2026-09-04)
 
 
