@@ -126,7 +126,7 @@
         "dockerode": "5.0.0",
         "dompurify": "3.4.0",
         "e2b": "2.16.0",
-        "echarts": "5.6.0",
+        "echarts": "6.1.0",
         "exceljs": "4.4.0",
         "execa": "5.1.1",
         "express": "4.21.2",
