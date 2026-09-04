@@ -17,6 +17,7 @@ import {
     queryConfigBaseSchema,
     toolRunQueryArgsSchemaV4,
 } from '../tools/toolRunQueryArgs';
+import { FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE } from './examples';
 import {
     aggregationCustomMetricExpressionSchema,
     customMetricsExpressionSchema,
@@ -277,13 +278,23 @@ describe('filter expression input schemas', () => {
         );
     });
 
-    it('documents quoting syntax characters without punctuation escapes', () => {
-        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            'Quote delimiters/reserved values',
-        );
-        expect(FILTER_EXPRESSION_GRAMMAR_DESCRIPTION).toContain(
-            'commas/braces are literal in quotes',
-        );
+    it('documents string quoting with one canonical punctuated example', () => {
+        for (const description of [
+            FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+            FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+        ]) {
+            expect(description).toContain('Bare scalars work.');
+            expect(description).toContain(
+                'Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses)',
+            );
+            expect(description).toContain('when unsure');
+            expect(description).toContain(
+                'Quoted commas/braces literal; backslash escapes.',
+            );
+            expect(
+                description.split(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+            ).toHaveLength(2);
+        }
     });
 
     it('keeps live runtime inputs separate from persisted V2 compatibility', () => {

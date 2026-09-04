@@ -1,5 +1,6 @@
 import {
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+    FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
     parseFilterExpression,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -25,5 +26,16 @@ describe('filter expression prompt guidance', () => {
                 success: true,
             });
         }
+    });
+
+    it('includes the canonical punctuated-string example exactly once', () => {
+        expect(
+            FILTER_EXPRESSION_GUIDANCE_SECTION.split(
+                FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
+            ),
+        ).toHaveLength(2);
+        expect(
+            parseFilterExpression(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+        ).toMatchObject({ success: true });
     });
 });
