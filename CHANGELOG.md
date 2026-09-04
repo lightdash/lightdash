@@ -1,3 +1,10 @@
+# [2.123.0](https://github.com/lightdash/lightdash/compare/2.122.1...2.123.0) (2026-09-04)
+
+
+### Features
+
+* **backend:** keep the mobile session alive and stop notifications after sign-out ([#28616](https://github.com/lightdash/lightdash/issues/28616)) ([4af7d06](https://github.com/lightdash/lightdash/commit/4af7d06afb984db7df16c38277627beee9746752))
+
 ## [2.122.1](https://github.com/lightdash/lightdash/compare/2.122.0...2.122.1) (2026-09-04)
 
 
