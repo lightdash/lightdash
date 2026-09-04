@@ -21,11 +21,6 @@ export enum FeatureFlags {
     CalculateSeriesColor = 'calculate-series-color',
 
     /**
-     * Enable the ability to write back custom bin dimensions to dbt.
-     */
-    WriteBackCustomBinDimensions = 'write-back-custom-bin-dimensions',
-
-    /**
      * Enable the ability to show the warehouse execution time and total time in the chart tile.
      */
     ShowExecutionTime = 'show-execution-time',

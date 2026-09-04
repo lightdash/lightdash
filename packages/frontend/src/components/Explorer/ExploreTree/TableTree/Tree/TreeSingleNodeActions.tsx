@@ -2,6 +2,7 @@ import {
     DimensionType,
     FeatureFlags,
     friendlyName,
+    getCustomDimensionWriteBackError,
     getCustomMetricType,
     getItemId,
     isAdditionalMetric,
@@ -80,18 +81,15 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { track } = useTracking();
 
     const dispatch = useExplorerDispatch();
+    const customDimensionWriteBackError = isCustomDimension(item)
+        ? getCustomDimensionWriteBackError(item)
+        : null;
     const customMetrics = useMemo(() => {
         if (isCustomSqlDimension(item)) {
             return getCustomMetricType(item.dimensionType);
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
-
-    const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
-        FeatureFlags.WriteBackCustomBinDimensions,
-    );
-    const isWriteBackCustomBinDimensionsEnabled =
-        writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
     const { data: customGroupBinsFlag } = useServerFeatureFlag(
         FeatureFlags.CustomGroupBins,
@@ -350,47 +348,59 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 >
                                     Duplicate custom dimension
                                 </Menu.Item>
-                                {(isCustomSqlDimension(item) ||
-                                    isWriteBackCustomBinDimensionsEnabled) && (
-                                    <Menu.Item
-                                        component="button"
-                                        leftSection={
-                                            <MantineIcon icon={IconCode} />
-                                        }
-                                        onClick={(
-                                            e: React.MouseEvent<HTMLButtonElement>,
-                                        ) => {
-                                            e.stopPropagation();
-                                            if (
-                                                projectUuid &&
-                                                user.data?.organizationUuid
-                                            ) {
-                                                track({
-                                                    name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
-                                                    properties: {
-                                                        userId: user.data
-                                                            .userUuid,
-                                                        projectId: projectUuid,
-                                                        organizationId:
-                                                            user.data
-                                                                .organizationUuid,
-                                                        customDimensionsCount: 1,
-                                                    },
-                                                });
+                                <Tooltip
+                                    label={customDimensionWriteBackError}
+                                    disabled={!customDimensionWriteBackError}
+                                >
+                                    <Box component="span">
+                                        <Menu.Item
+                                            component="button"
+                                            disabled={
+                                                !!customDimensionWriteBackError
                                             }
+                                            leftSection={
+                                                <MantineIcon icon={IconCode} />
+                                            }
+                                            onClick={(
+                                                e: React.MouseEvent<HTMLButtonElement>,
+                                            ) => {
+                                                e.stopPropagation();
+                                                if (
+                                                    customDimensionWriteBackError
+                                                )
+                                                    return;
+                                                if (
+                                                    projectUuid &&
+                                                    user.data?.organizationUuid
+                                                ) {
+                                                    track({
+                                                        name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
+                                                        properties: {
+                                                            userId: user.data
+                                                                .userUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                            organizationId:
+                                                                user.data
+                                                                    .organizationUuid,
+                                                            customDimensionsCount: 1,
+                                                        },
+                                                    });
+                                                }
 
-                                            dispatch(
-                                                explorerActions.toggleWriteBackModal(
-                                                    {
-                                                        items: [item],
-                                                    },
-                                                ),
-                                            );
-                                        }}
-                                    >
-                                        Write back to dbt
-                                    </Menu.Item>
-                                )}
+                                                dispatch(
+                                                    explorerActions.toggleWriteBackModal(
+                                                        {
+                                                            items: [item],
+                                                        },
+                                                    ),
+                                                );
+                                            }}
+                                        >
+                                            Write back to dbt
+                                        </Menu.Item>
+                                    </Box>
+                                </Tooltip>
                             </>
                         )}
 

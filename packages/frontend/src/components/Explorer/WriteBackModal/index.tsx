@@ -1,6 +1,9 @@
 import {
     capitalize,
+    getCustomDimensionWriteBackError,
     getErrorMessage,
+    isCustomBinDimension,
+    isCustomDimension,
     NotImplementedError,
     type AdditionalMetric,
     type CustomDimension,
@@ -24,17 +27,20 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import Callout from '../../common/Callout';
 import CodeBlock from '../../common/CodeBlock/CodeBlock';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineModal from '../../common/MantineModal';
 import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
 import {
+    useCustomDimensionsWriteBackPreview,
     useIsGitProject,
     useWriteBackCustomDimensions,
     useWriteBackCustomMetrics,
 } from './hooks';
 import { convertToDbt, getItemId, getItemLabel, match } from './utils';
+import { BIN_ORDERING_WRITE_BACK_WARNING } from './writeBackSupport';
 
 const prDisabledMessage =
     'Pull requests can only be opened for Git connected projects (GitHub/GitLab)';
@@ -102,25 +108,38 @@ export const SingleItemModalContent = ({
     );
 
     const [showDiff, setShowDiff] = useState(true);
-    const [error, setError] = useState<string | undefined>();
-
     const isGitProject = useIsGitProject(projectUuid);
-
-    const previewCode = useMemo(() => {
+    const writeBackError = isCustomDimension(item)
+        ? getCustomDimensionWriteBackError(item)
+        : null;
+    const customDimensionsForPreview = useMemo(
+        () =>
+            isCustomDimension(item) && !writeBackError
+                ? [item]
+                : ([] as CustomDimension[]),
+        [item, writeBackError],
+    );
+    const previewQuery = useCustomDimensionsWriteBackPreview(
+        projectUuid,
+        customDimensionsForPreview,
+    );
+    const metricPreview = useMemo(() => {
+        if (isCustomDimension(item)) return { code: '', error: null };
         try {
             const { key, value } = convertToDbt(item);
-
-            const code = yaml.dump({
-                [key]: value,
-            });
-
-            setError(undefined);
-            return code;
+            return { code: yaml.dump({ [key]: value }), error: null };
         } catch (e) {
-            setError(parseError(e, type));
-            return '';
+            return { code: '', error: parseError(e, type) };
         }
     }, [item, type]);
+    const previewError =
+        writeBackError ??
+        (previewQuery.error
+            ? getErrorMessage(previewQuery.error.error)
+            : metricPreview.error);
+    const previewCode = isCustomDimension(item)
+        ? (previewQuery.data?.yaml ?? '')
+        : metricPreview.code;
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -129,13 +148,12 @@ export const SingleItemModalContent = ({
         );
     }
 
-    const disableErrorTooltip = isGitProject && !error;
+    const disableErrorTooltip = isGitProject && !previewError;
 
-    const errorTooltipLabel = error
-        ? `Unsupported ${texts[type].baseName} definition`
-        : prDisabledMessage;
+    const errorTooltipLabel = previewError || prDisabledMessage;
 
-    const buttonDisabled = isLoading || !disableErrorTooltip;
+    const buttonDisabled =
+        isLoading || previewQuery.isLoading || !disableErrorTooltip;
 
     const itemLabel = getItemLabel(item);
 
@@ -187,6 +205,11 @@ export const SingleItemModalContent = ({
                         {itemLabel}
                     </List.Item>
                 </List>
+                {isCustomBinDimension(item) && !previewError ? (
+                    <Callout variant="info">
+                        {BIN_ORDERING_WRITE_BACK_WARNING}
+                    </Callout>
+                ) : null}
                 <CollapsableCard
                     isOpen={showDiff}
                     title={`Show ${texts[type].baseName} code`}
@@ -194,7 +217,12 @@ export const SingleItemModalContent = ({
                 >
                     <Stack ml={36}>
                         <CodeBlock
-                            code={error || previewCode}
+                            code={
+                                previewError ||
+                                (previewQuery.isLoading
+                                    ? 'Generating warehouse-aware preview...'
+                                    : previewCode)
+                            }
                             language="yaml"
                             withLineNumbers
                         />
@@ -252,28 +280,38 @@ const MultipleItemsModalContent = ({
         [items, selectedItemIds],
     );
 
-    const [error, setError] = useState<string | undefined>();
-
-    const previewCode = useMemo(() => {
-        if (selectedItems.length === 0) return '';
+    const selectedCustomDimensions = useMemo(
+        () => selectedItems.filter(isCustomDimension) as CustomDimension[],
+        [selectedItems],
+    );
+    const previewQuery = useCustomDimensionsWriteBackPreview(
+        projectUuid,
+        selectedCustomDimensions,
+    );
+    const metricPreview = useMemo(() => {
+        if (selectedItems.length === 0 || selectedCustomDimensions.length > 0)
+            return { code: '', error: null };
         try {
             const code = yaml.dump(
-                selectedItems
+                (selectedItems as AdditionalMetric[])
                     .map((item) => {
                         const { key, value } = convertToDbt(item);
-                        return {
-                            [key]: value,
-                        };
+                        return { [key]: value };
                     })
                     .reduce((acc, curr) => ({ ...acc, ...curr }), {}),
             );
-            setError(undefined);
-            return code;
+            return { code, error: null };
         } catch (e) {
-            setError(parseError(e, type));
-            return '';
+            return { code: '', error: parseError(e, type) };
         }
-    }, [selectedItems, type]);
+    }, [selectedCustomDimensions.length, selectedItems, type]);
+    const previewError = previewQuery.error
+        ? getErrorMessage(previewQuery.error.error)
+        : metricPreview.error;
+    const previewCode =
+        selectedCustomDimensions.length > 0
+            ? (previewQuery.data?.yaml ?? '')
+            : metricPreview.code;
 
     if (data) {
         // Return a simple confirmation modal with the PR URL
@@ -283,16 +321,19 @@ const MultipleItemsModalContent = ({
     }
 
     const disableErrorTooltip =
-        isGitProject && selectedItemIds.length > 0 && !error;
+        isGitProject && selectedItemIds.length > 0 && !previewError;
 
-    const errorTooltipLabel = error
-        ? `Unsupported ${texts[type].baseName} definition`
+    const errorTooltipLabel = previewError
+        ? previewError
         : !isGitProject
           ? prDisabledMessage
           : `Select ${texts[type].baseName}s to open a pull request`;
 
     const buttonDisabled =
-        isLoading || !disableErrorTooltip || selectedItemIds.length === 0;
+        isLoading ||
+        previewQuery.isLoading ||
+        !disableErrorTooltip ||
+        selectedItemIds.length === 0;
     return (
         <MantineModal
             size="auto"
@@ -354,16 +395,21 @@ const MultipleItemsModalContent = ({
                         {items.map((item) => {
                             const itemId = getItemId(item);
                             const itemLabel = getItemLabel(item);
+                            const itemWriteBackError = isCustomDimension(item)
+                                ? getCustomDimensionWriteBackError(item)
+                                : null;
                             return (
                                 <Tooltip
-                                    label={itemLabel}
+                                    label={itemWriteBackError || itemLabel}
                                     key={itemId}
                                     position="right"
                                 >
                                     <PolymorphicGroupButton
                                         wrap="nowrap"
                                         key={itemId}
-                                        onClick={() =>
+                                        disabled={!!itemWriteBackError}
+                                        onClick={() => {
+                                            if (itemWriteBackError) return;
                                             setSelectedItemIds(
                                                 !selectedItemIds.includes(
                                                     itemId,
@@ -376,11 +422,12 @@ const MultipleItemsModalContent = ({
                                                           (name) =>
                                                               name !== itemId,
                                                       ),
-                                            )
-                                        }
+                                            );
+                                        }}
                                     >
                                         <Checkbox
                                             size="xs"
+                                            disabled={!!itemWriteBackError}
                                             checked={selectedItemIds.includes(
                                                 itemId,
                                             )}
@@ -396,10 +443,19 @@ const MultipleItemsModalContent = ({
                     <Text>
                         {capitalize(texts[type].baseName)} YAML to be created:
                     </Text>
-
+                    {selectedCustomDimensions.some(isCustomBinDimension) ? (
+                        <Callout variant="info">
+                            {BIN_ORDERING_WRITE_BACK_WARNING}
+                        </Callout>
+                    ) : null}
                     <Paper h="100%" className="ld-scroll-y">
                         <CodeBlock
-                            code={error || previewCode}
+                            code={
+                                previewError ||
+                                (previewQuery.isLoading
+                                    ? 'Generating warehouse-aware preview...'
+                                    : previewCode)
+                            }
                             language="yaml"
                             withCopyButton={previewCode !== ''}
                         />

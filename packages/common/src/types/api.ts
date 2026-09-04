@@ -378,6 +378,7 @@ import {
 import {
     type ApiCreateSqlChart,
     type ApiCreateVirtualView,
+    type ApiCustomDimensionWriteBackPreview,
     type ApiGithubDbtWritePreview,
     type ApiSqlChart,
     type ApiSqlRunnerJobStatusResponse,
@@ -1398,6 +1399,7 @@ type ApiResults =
     | ApiChartContentResponse['results']
     | ApiSqlRunnerJobStatusResponse['results']
     | ApiCreateVirtualView['results']
+    | ApiCustomDimensionWriteBackPreview['results']
     | ApiGithubDbtWritePreview['results']
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']

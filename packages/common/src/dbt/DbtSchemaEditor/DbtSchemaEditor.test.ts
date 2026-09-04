@@ -56,6 +56,25 @@ describe('DbtSchemaEditor', () => {
         );
     });
 
+    it('returns a warehouse-aware custom bin definition for previews', () => {
+        const editor = new DbtSchemaEditor(`version: 2
+models:
+  - name: table_a
+    columns:
+      - name: dim_a
+        meta:
+          dimension:
+            sql: \${TABLE}.dim_a * 2`);
+
+        const definition = editor.getCustomDimensionDefinition(
+            FIXED_WIDTH_BIN_DIMENSION,
+            warehouseClientMock,
+        );
+
+        expect(definition.sql).toContain('${TABLE}.dim_a * 2');
+        expect(definition.sql).not.toContain('${reference_column}');
+    });
+
     it('should create a new file', () => {
         const editor = new DbtSchemaEditor('');
         // confirm it has no models
