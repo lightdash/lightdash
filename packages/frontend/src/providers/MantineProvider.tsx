@@ -12,6 +12,10 @@ type Props = {
     forceColorScheme?: ColorScheme;
     /** 'test' disables transitions so timers cannot outlive jsdom teardown. */
     env?: 'default' | 'test';
+    cssVariablesSelector?: string;
+    getRootElement?: () => HTMLElement | undefined;
+    /** Off for the SDK, which renders inside a host page it must not tag. */
+    syncBodyColorMode?: boolean;
 };
 
 const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -20,6 +24,9 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     notificationsLimit,
     forceColorScheme,
     env,
+    cssVariablesSelector,
+    getRootElement,
+    syncBodyColorMode = true,
 }) => {
     const [storedColorScheme, setColorScheme] = useLocalStorage<ColorScheme>({
         key: 'color-scheme',
@@ -43,8 +50,9 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
     );
 
     useEffect(() => {
+        if (!syncBodyColorMode) return;
         document.body.dataset.colorMode = colorScheme;
-    }, [colorScheme]);
+    }, [colorScheme, syncBodyColorMode]);
 
     return (
         <ColorSchemeContext.Provider value={colorSchemeContextValue}>
@@ -52,6 +60,8 @@ const MantineProvider: FC<React.PropsWithChildren<Props>> = ({
                 forceColorScheme={colorScheme}
                 themeOverride={themeOverride}
                 env={env}
+                cssVariablesSelector={cssVariablesSelector}
+                getRootElement={getRootElement}
             >
                 {children}
                 <Notifications

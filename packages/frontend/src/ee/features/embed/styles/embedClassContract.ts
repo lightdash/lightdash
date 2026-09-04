@@ -2,7 +2,7 @@
  * Embedded surfaces that expose a public class contract. Every contract class
  * is scoped to one of these. Add a surface here before using it in a classname.
  */
-type EmbedSurface = 'dashboard';
+type EmbedSurface = 'dashboard' | 'sdk';
 
 /**
  * Public CSS class contract for embedded dashboards.
@@ -32,6 +32,8 @@ export const EMBED_CLASS_CONTRACT = [
     'ld-dashboard-parameter-dropdown', // portalled
     'ld-dashboard-guided-setup', // modal shown while filter rules are unmet (portalled)
     'ld-dashboard-export-all', // dashboard-level "Export all" (CSV/XLSX ZIP) button
+    'ld-sdk-root', // inline container the React SDK renders into
+    'ld-sdk-portal', // body-level container for the SDK's dropdowns, modals and notifications
 ] as const satisfies readonly `ld-${EmbedSurface}-${string}`[];
 
 export type EmbedContractClassName = (typeof EMBED_CLASS_CONTRACT)[number];

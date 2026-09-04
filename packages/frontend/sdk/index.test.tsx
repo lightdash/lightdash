@@ -678,3 +678,90 @@ describe('SDK API client', () => {
         );
     });
 });
+
+describe('SDK host page isolation', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+
+    it('keeps Mantine attributes and variables off the host <html> and <body>', async () => {
+        const { container, unmount } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl="http://localhost:3000"
+                filters={[]}
+                theme="dark"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('.ld-sdk-root')).not.toBeNull();
+        });
+
+        expect(document.documentElement).not.toHaveAttribute(
+            'data-mantine-color-scheme',
+        );
+        expect(document.body).not.toHaveAttribute('data-color-mode');
+
+        const root = container.querySelector('.ld-sdk-root');
+        expect(root?.getAttribute('data-mantine-color-scheme')).toBe('dark');
+
+        const portal = document.body.querySelector(':scope > .ld-sdk-portal');
+        expect(portal?.getAttribute('data-mantine-color-scheme')).toBe('dark');
+        // Nothing portalled before the SDK container existed.
+        expect(
+            document.querySelector('[data-mantine-shared-portal-node]'),
+        ).toBeNull();
+
+        const variableSheets = [
+            ...document.querySelectorAll('style[data-mantine-styles]'),
+        ].map((style) => style.textContent ?? '');
+        expect(variableSheets.length).toBeGreaterThan(0);
+        variableSheets.forEach((css) => {
+            expect(css).not.toMatch(/:root|:host/);
+        });
+        // Variables are keyed on this instance's own class, present on both containers.
+        const instanceClass = [...(root?.classList ?? [])].find((name) =>
+            name.startsWith('lightdash-sdk-instance-'),
+        );
+        expect(instanceClass).toBeDefined();
+        expect(portal?.classList.contains(instanceClass!)).toBe(true);
+        expect(variableSheets[0]).toMatch(new RegExp(`^\\.${instanceClass}`));
+
+        unmount();
+        expect(document.body.querySelector('.ld-sdk-portal')).toBeNull();
+    });
+
+    it('gives each mounted component its own portal container', async () => {
+        const { container } = render(
+            <>
+                <Dashboard
+                    token={mockToken}
+                    instanceUrl="http://localhost:3000"
+                    filters={[]}
+                    theme="light"
+                />
+                <Dashboard
+                    token={mockToken}
+                    instanceUrl="http://localhost:3000"
+                    filters={[]}
+                    theme="dark"
+                />
+            </>,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelectorAll('.ld-sdk-root')).toHaveLength(2);
+        });
+
+        const portals = [
+            ...document.body.querySelectorAll(':scope > .ld-sdk-portal'),
+        ];
+        expect(portals).toHaveLength(2);
+        expect(new Set(portals.map((node) => node.id)).size).toBe(2);
+        expect(
+            portals.map((node) =>
+                node.getAttribute('data-mantine-color-scheme'),
+            ),
+        ).toEqual(['light', 'dark']);
+    });
+});

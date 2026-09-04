@@ -4,14 +4,18 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { EMBED_CLASS_CONTRACT, embedContractClass } from './embedClassContract';
 
-// Every `embedContractClass(...)` call site lives in the embed wrappers.
-const componentsDir = join(
-    dirname(fileURLToPath(import.meta.url)),
-    '../EmbedDashboard/components',
-);
-const componentSource = readdirSync(componentsDir)
-    .filter((file) => file.endsWith('.tsx'))
-    .map((file) => readFileSync(join(componentsDir, file), 'utf-8'))
+// Every `embedContractClass(...)` call site lives in the embed wrappers or
+// the SDK entry (which owns the `ld-sdk-*` containers).
+const testDir = dirname(fileURLToPath(import.meta.url));
+const componentsDir = join(testDir, '../EmbedDashboard/components');
+const sdkEntry = join(testDir, '../../../../../sdk/index.tsx');
+const componentSource = [
+    ...readdirSync(componentsDir)
+        .filter((file) => file.endsWith('.tsx'))
+        .map((file) => join(componentsDir, file)),
+    sdkEntry,
+]
+    .map((file) => readFileSync(file, 'utf-8'))
     .join('\n');
 
 describe('embed class contract', () => {
@@ -31,6 +35,8 @@ describe('embed class contract', () => {
             'ld-dashboard-parameter-dropdown',
             'ld-dashboard-guided-setup',
             'ld-dashboard-export-all',
+            'ld-sdk-root',
+            'ld-sdk-portal',
         ]);
     });
 

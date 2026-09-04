@@ -1,6 +1,7 @@
 import { type DraggableStateSnapshot } from '@hello-pangea/dnd';
 import { type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { usePortalTarget } from '../../../providers/PortalTarget/usePortalTarget';
 
 type DraggablePortalHandlerProps = {
     snapshot: DraggableStateSnapshot;
@@ -13,6 +14,7 @@ type DraggablePortalHandlerProps = {
 export const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };

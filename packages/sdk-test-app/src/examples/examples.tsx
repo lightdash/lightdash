@@ -4,6 +4,7 @@ import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
+import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
@@ -94,6 +95,16 @@ export const examples: ExampleDefinition[] = [
             'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
+    },
+    {
+        slug: 'host-styles',
+        path: '/examples/host-styles',
+        title: 'Host styles isolation demo',
+        description:
+            'A host page with its own element styles next to an embedded dashboard, plus a live readout of what the SDK adds to <html> and <body>.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/HostStylesExamplePage.tsx',
+        component: HostStylesExamplePage,
     },
     // Future examples:
     // {
