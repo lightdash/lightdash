@@ -1865,7 +1865,7 @@ Recommended Dashboard Structure:
             "mergeConfig": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema129",
+                  "$ref": "#/definitions/__schema130",
                 },
                 {
                   "type": "null",
@@ -1878,7 +1878,7 @@ Recommended Dashboard Structure:
               "additionalProperties": false,
               "properties": {
                 "customMetrics": {
-                  "$ref": "#/definitions/__schema10",
+                  "$ref": "#/definitions/__schema11",
                 },
                 "dimensions": {
                   "$ref": "#/definitions/__schema2",
@@ -1888,7 +1888,7 @@ Recommended Dashboard Structure:
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema117",
+                  "$ref": "#/definitions/__schema118",
                 },
                 "limit": {
                   "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -1903,7 +1903,7 @@ Recommended Dashboard Structure:
                 "parameters": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema9",
+                      "$ref": "#/definitions/__schema10",
                     },
                   ],
                   "default": null,
@@ -1915,7 +1915,7 @@ Recommended Dashboard Structure:
                 "tableCalculations": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/__schema114",
+                      "$ref": "#/definitions/__schema115",
                     },
                     {
                       "type": "null",
@@ -1960,9 +1960,58 @@ Use them whenever the question needs math the metric query alone can't express: 
           "type": "object",
         },
         "__schema10": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+              {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              {
+                "items": {
+                  "type": "number",
+                },
+                "type": "array",
+              },
+            ],
+          },
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema101": {
+          "description": "Current period unit, e.g. weeks for this week.",
+          "enum": [
+            "days",
+            "weeks",
+            "months",
+            "quarters",
+            "years",
+          ],
+          "type": "string",
+        },
+        "__schema107": {
+          "description": "Use for before/after comparisons against one explicit date or datetime.",
+          "enum": [
+            "lessThan",
+            "lessThanOrEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+          ],
+          "type": "string",
+        },
+        "__schema11": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema11",
+              "$ref": "#/definitions/__schema12",
             },
             {
               "type": "null",
@@ -2003,28 +2052,143 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
         },
-        "__schema100": {
-          "description": "Current period unit, e.g. weeks for this week.",
-          "enum": [
-            "days",
-            "weeks",
-            "months",
-            "quarters",
-            "years",
-          ],
-          "type": "string",
+        "__schema112": {
+          "description": "Exactly one explicit ISO date/datetime threshold.",
+          "items": {
+            "$ref": "#/definitions/__schema77",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
         },
-        "__schema106": {
-          "description": "Use for before/after comparisons against one explicit date or datetime.",
-          "enum": [
-            "lessThan",
-            "lessThanOrEqual",
-            "greaterThan",
-            "greaterThanOrEqual",
-          ],
-          "type": "string",
+        "__schema114": {
+          "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
+          "items": {
+            "$ref": "#/definitions/__schema77",
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array",
         },
-        "__schema11": {
+        "__schema115": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "displayName": {
+                "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                "type": "string",
+              },
+              "format": {
+                "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
+                "enum": [
+                  "number",
+                  "percent",
+                  null,
+                ],
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "formula": {
+                "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).
+Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
+Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
+Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
+Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
+MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
+All branches of an IF must return the same type.",
+                "type": "string",
+              },
+              "name": {
+                "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                "pattern": "^[a-zA-Z0-9_]+$",
+                "type": "string",
+              },
+              "resultType": {
+                "description": "Data type the formula evaluates to. null defaults to "number".",
+                "enum": [
+                  "number",
+                  "string",
+                  "date",
+                  "timestamp",
+                  "boolean",
+                  null,
+                ],
+                "type": [
+                  "string",
+                  "null",
+                ],
+              },
+              "type": {
+                "const": "formula",
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "displayName",
+              "type",
+              "formula",
+              "format",
+              "resultType",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "__schema118": {
+          "additionalProperties": false,
+          "properties": {
+            "dimensions": {
+              "items": {
+                "$ref": "#/definitions/__schema121",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "metrics": {
+              "items": {
+                "$ref": "#/definitions/__schema121",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "tableCalculations": {
+              "items": {
+                "$ref": "#/definitions/__schema42",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "type": {
+              "description": "Type of filter group operation",
+              "enum": [
+                "and",
+                "or",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "type",
+            "dimensions",
+            "metrics",
+            "tableCalculations",
+          ],
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema12": {
           "items": {
             "oneOf": [
               {
@@ -2041,7 +2205,7 @@ Example B — "Revenue by month with year-over-year comparison"
                   "filters": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema12",
+                        "$ref": "#/definitions/__schema13",
                       },
                       {
                         "type": "null",
@@ -2139,159 +2303,39 @@ Example B — "Revenue by month with year-over-year comparison"
           },
           "type": "array",
         },
-        "__schema111": {
-          "description": "Exactly one explicit ISO date/datetime threshold.",
-          "items": {
-            "$ref": "#/definitions/__schema76",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema113": {
-          "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
-          "items": {
-            "$ref": "#/definitions/__schema76",
-          },
-          "maxItems": 2,
-          "minItems": 2,
-          "type": "array",
-        },
-        "__schema114": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "displayName": {
-                "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                "type": "string",
-              },
-              "format": {
-                "description": "Display format. Use "percent" for ratios/shares/percent changes (value 0.12 renders as 12%). null defaults to "number".",
-                "enum": [
-                  "number",
-                  "percent",
-                  null,
-                ],
-                "type": [
-                  "string",
-                  "null",
-                ],
-              },
-              "formula": {
-                "description": "Spreadsheet-like formula evaluated row-by-row over the query results (after aggregation).
-Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
-Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
-Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
-Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
-Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
-MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
-All branches of an IF must return the same type.",
-                "type": "string",
-              },
-              "name": {
-                "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                "pattern": "^[a-zA-Z0-9_]+$",
-                "type": "string",
-              },
-              "resultType": {
-                "description": "Data type the formula evaluates to. null defaults to "number".",
-                "enum": [
-                  "number",
-                  "string",
-                  "date",
-                  "timestamp",
-                  "boolean",
-                  null,
-                ],
-                "type": [
-                  "string",
-                  "null",
-                ],
-              },
-              "type": {
-                "const": "formula",
-                "type": "string",
-              },
+        "__schema121": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema14",
             },
-            "required": [
-              "name",
-              "displayName",
-              "type",
-              "formula",
-              "format",
-              "resultType",
-            ],
-            "type": "object",
-          },
-          "type": "array",
-        },
-        "__schema117": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema120",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
+            {
+              "$ref": "#/definitions/__schema26",
             },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema120",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
+            {
+              "$ref": "#/definitions/__schema42",
             },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema41",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
+            {
+              "$ref": "#/definitions/__schema66",
             },
-            "type": {
-              "description": "Type of filter group operation",
-              "enum": [
-                "and",
-                "or",
-              ],
-              "type": "string",
-            },
-          },
-          "required": [
-            "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
-          ],
-          "type": [
-            "object",
-            "null",
           ],
         },
-        "__schema12": {
+        "__schema13": {
           "items": {
             "additionalProperties": false,
             "properties": {
               "filter": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/__schema13",
+                    "$ref": "#/definitions/__schema14",
                   },
                   {
-                    "$ref": "#/definitions/__schema25",
+                    "$ref": "#/definitions/__schema26",
                   },
                   {
-                    "$ref": "#/definitions/__schema41",
+                    "$ref": "#/definitions/__schema42",
                   },
                   {
-                    "$ref": "#/definitions/__schema65",
+                    "$ref": "#/definitions/__schema66",
                   },
                 ],
               },
@@ -2308,29 +2352,13 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema120": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/__schema13",
-            },
-            {
-              "$ref": "#/definitions/__schema25",
-            },
-            {
-              "$ref": "#/definitions/__schema41",
-            },
-            {
-              "$ref": "#/definitions/__schema65",
-            },
-          ],
-        },
-        "__schema129": {
+        "__schema130": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema130",
+                "$ref": "#/definitions/__schema131",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -2338,7 +2366,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema131",
+                "$ref": "#/definitions/__schema132",
               },
               "minItems": 1,
               "type": "array",
@@ -2365,7 +2393,97 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema13": {
+        "__schema131": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "queryConfig": {
+              "additionalProperties": false,
+              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
+              "properties": {
+                "customMetrics": {
+                  "$ref": "#/definitions/__schema11",
+                },
+                "dimensions": {
+                  "$ref": "#/definitions/__schema2",
+                },
+                "exploreName": {
+                  "description": "The name of the explore containing the metrics and dimensions used for the chart.",
+                  "type": "string",
+                },
+                "filters": {
+                  "$ref": "#/definitions/__schema118",
+                },
+                "metrics": {
+                  "$ref": "#/definitions/__schema4",
+                },
+                "sorts": {
+                  "$ref": "#/definitions/__schema6",
+                },
+              },
+              "required": [
+                "exploreName",
+                "dimensions",
+                "metrics",
+                "sorts",
+                "customMetrics",
+                "filters",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "id",
+            "queryConfig",
+          ],
+          "type": "object",
+        },
+        "__schema132": {
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "description": "One selected dimension from each source. Both must represent the same grain and value type.",
+              "items": {
+                "$ref": "#/definitions/__schema133",
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array",
+            },
+            "name": {
+              "description": "Stable output name for this shared join-key column.",
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "name",
+            "fields",
+          ],
+          "type": "object",
+        },
+        "__schema133": {
+          "additionalProperties": false,
+          "properties": {
+            "fieldId": {
+              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+              "type": "string",
+            },
+            "sourceId": {
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "sourceId",
+            "fieldId",
+          ],
+          "type": "object",
+        },
+        "__schema14": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -2460,96 +2578,6 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema130": {
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "minLength": 1,
-              "type": "string",
-            },
-            "queryConfig": {
-              "additionalProperties": false,
-              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
-              "properties": {
-                "customMetrics": {
-                  "$ref": "#/definitions/__schema10",
-                },
-                "dimensions": {
-                  "$ref": "#/definitions/__schema2",
-                },
-                "exploreName": {
-                  "description": "The name of the explore containing the metrics and dimensions used for the chart.",
-                  "type": "string",
-                },
-                "filters": {
-                  "$ref": "#/definitions/__schema117",
-                },
-                "metrics": {
-                  "$ref": "#/definitions/__schema4",
-                },
-                "sorts": {
-                  "$ref": "#/definitions/__schema6",
-                },
-              },
-              "required": [
-                "exploreName",
-                "dimensions",
-                "metrics",
-                "sorts",
-                "customMetrics",
-                "filters",
-              ],
-              "type": "object",
-            },
-          },
-          "required": [
-            "id",
-            "queryConfig",
-          ],
-          "type": "object",
-        },
-        "__schema131": {
-          "additionalProperties": false,
-          "properties": {
-            "fields": {
-              "description": "One selected dimension from each source. Both must represent the same grain and value type.",
-              "items": {
-                "$ref": "#/definitions/__schema132",
-              },
-              "maxItems": 2,
-              "minItems": 2,
-              "type": "array",
-            },
-            "name": {
-              "description": "Stable output name for this shared join-key column.",
-              "minLength": 1,
-              "type": "string",
-            },
-          },
-          "required": [
-            "name",
-            "fields",
-          ],
-          "type": "object",
-        },
-        "__schema132": {
-          "additionalProperties": false,
-          "properties": {
-            "fieldId": {
-              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-              "type": "string",
-            },
-            "sourceId": {
-              "minLength": 1,
-              "type": "string",
-            },
-          },
-          "required": [
-            "sourceId",
-            "fieldId",
-          ],
-          "type": "object",
-        },
         "__schema2": {
           "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
           "items": {
@@ -2558,7 +2586,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema25": {
+        "__schema26": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -2625,7 +2653,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema32",
+                  "$ref": "#/definitions/__schema33",
                 },
                 "values": {
                   "description": "String values to match. Do not put natural-language date ranges here.",
@@ -2646,7 +2674,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema32": {
+        "__schema33": {
           "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
           "enum": [
             "equals",
@@ -2666,7 +2694,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema41": {
+        "__schema42": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -2686,7 +2714,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema44",
                 },
                 "operator": {
                   "description": "Use isNull for missing values, notNull for present values.",
@@ -2724,7 +2752,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema44",
                 },
                 "operator": {
                   "description": "Use equals/notEquals for exact numeric matches.",
@@ -2770,10 +2798,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema44",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema53",
+                  "$ref": "#/definitions/__schema54",
                 },
                 "values": {
                   "description": "Exactly one numeric threshold value.",
@@ -2813,7 +2841,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema43",
+                  "$ref": "#/definitions/__schema44",
                 },
                 "operator": {
                   "description": "Use for ranges between two numeric bounds.",
@@ -2844,7 +2872,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema43": {
+        "__schema44": {
           "enum": [
             "number",
             "percentile",
@@ -2860,7 +2888,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema53": {
+        "__schema54": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -2877,7 +2905,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema65": {
+        "__schema66": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -2954,7 +2982,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema75",
+                  "$ref": "#/definitions/__schema76",
                 },
               },
               "required": [
@@ -2996,13 +3024,13 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema79",
+                  "$ref": "#/definitions/__schema80",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema85",
+                  "$ref": "#/definitions/__schema86",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema83",
+                  "$ref": "#/definitions/__schema84",
                 },
               },
               "required": [
@@ -3045,10 +3073,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema93",
+                  "$ref": "#/definitions/__schema94",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema98",
+                  "$ref": "#/definitions/__schema99",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -3097,10 +3125,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema106",
+                  "$ref": "#/definitions/__schema107",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema111",
+                  "$ref": "#/definitions/__schema112",
                 },
               },
               "required": [
@@ -3143,7 +3171,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema113",
+                  "$ref": "#/definitions/__schema114",
                 },
               },
               "required": [
@@ -3169,6 +3197,7 @@ All branches of an IF must return the same type.",
               "type": "string",
             },
             "nullsFirst": {
+              "default": null,
               "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
               "type": [
                 "boolean",
@@ -3179,39 +3208,38 @@ All branches of an IF must return the same type.",
           "required": [
             "fieldId",
             "descending",
-            "nullsFirst",
           ],
           "type": "object",
         },
-        "__schema75": {
+        "__schema76": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema76",
+            "$ref": "#/definitions/__schema77",
           },
           "type": "array",
         },
-        "__schema76": {
+        "__schema77": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema77",
+              "$ref": "#/definitions/__schema78",
             },
             {
-              "$ref": "#/definitions/__schema78",
+              "$ref": "#/definitions/__schema79",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema77": {
+        "__schema78": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema78": {
+        "__schema79": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema79": {
+        "__schema80": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -3220,7 +3248,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema83": {
+        "__schema84": {
           "description": "Exactly one positive number of periods, e.g. [2].",
           "items": {
             "exclusiveMinimum": 0,
@@ -3230,7 +3258,7 @@ All branches of an IF must return the same type.",
           "minItems": 1,
           "type": "array",
         },
-        "__schema85": {
+        "__schema86": {
           "additionalProperties": false,
           "description": "Relative period settings.",
           "properties": {
@@ -3239,7 +3267,7 @@ All branches of an IF must return the same type.",
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema87",
+              "$ref": "#/definitions/__schema88",
             },
           },
           "required": [
@@ -3248,7 +3276,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema87": {
+        "__schema88": {
           "description": "Period unit for the relative date filter.",
           "enum": [
             "days",
@@ -3259,35 +3287,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema9": {
-          "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "number",
-              },
-              {
-                "items": {
-                  "type": "string",
-                },
-                "type": "array",
-              },
-              {
-                "items": {
-                  "type": "number",
-                },
-                "type": "array",
-              },
-            ],
-          },
-          "type": [
-            "object",
-            "null",
-          ],
-        },
-        "__schema93": {
+        "__schema94": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
@@ -3295,7 +3295,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema98": {
+        "__schema99": {
           "additionalProperties": false,
           "description": "Current-period settings.",
           "properties": {
@@ -3305,7 +3305,7 @@ All branches of an IF must return the same type.",
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema100",
+              "$ref": "#/definitions/__schema101",
             },
           },
           "required": [
@@ -5647,6 +5647,71 @@ Notes:
           "type": "array",
         },
         "__schema10": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema11",
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "description": "Define new metric columns the explore doesn't already have. Two kinds:
+
+(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
+    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
+    Use when the requested metric doesn't exist in the explore.
+
+(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
+    back in time. Use whenever the user asks for "year-over-year",
+    "month-over-month", "vs last quarter", "compare to previous period",
+    "N periods ago".
+
+For period comparisons, every successful chart has three things:
+- The time dimension in queryConfig.dimensions
+- The base metric in queryConfig.metrics
+- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
+
+The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
+
+DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
+
+For aggregation entries:
+1. Add the entry to customMetrics with kind: "aggregation"
+2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+
+Example A — "Average customer age sorted descending"
+  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
+  queryConfig.metrics: ["customers_avg_customer_age"]
+  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
+
+Example B — "Revenue by month with year-over-year comparison"
+  queryConfig.dimensions: ["orders_order_date_month"]
+  queryConfig.metrics: ["orders_revenue"]
+  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
+        },
+        "__schema100": {
+          "description": "Current period unit, e.g. weeks for this week.",
+          "enum": [
+            "days",
+            "weeks",
+            "months",
+            "quarters",
+            "years",
+          ],
+          "type": "string",
+        },
+        "__schema106": {
+          "description": "Use for before/after comparisons against one explicit date or datetime.",
+          "enum": [
+            "lessThan",
+            "lessThanOrEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+          ],
+          "type": "string",
+        },
+        "__schema11": {
           "items": {
             "oneOf": [
               {
@@ -5663,7 +5728,7 @@ Notes:
                   "filters": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema11",
+                        "$ref": "#/definitions/__schema12",
                       },
                       {
                         "type": "null",
@@ -5761,68 +5826,25 @@ Notes:
           },
           "type": "array",
         },
-        "__schema105": {
-          "description": "Use for before/after comparisons against one explicit date or datetime.",
-          "enum": [
-            "lessThan",
-            "lessThanOrEqual",
-            "greaterThan",
-            "greaterThanOrEqual",
-          ],
-          "type": "string",
-        },
-        "__schema11": {
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "filter": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/__schema12",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema24",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema40",
-                  },
-                  {
-                    "$ref": "#/definitions/__schema64",
-                  },
-                ],
-              },
-              "table": {
-                "description": "Table name this filter field belongs to",
-                "type": "string",
-              },
-            },
-            "required": [
-              "filter",
-              "table",
-            ],
-            "type": "object",
-          },
-          "type": "array",
-        },
-        "__schema110": {
+        "__schema111": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
-            "$ref": "#/definitions/__schema75",
+            "$ref": "#/definitions/__schema76",
           },
           "maxItems": 1,
           "minItems": 1,
           "type": "array",
         },
-        "__schema112": {
+        "__schema113": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema75",
+            "$ref": "#/definitions/__schema76",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
-        "__schema113": {
+        "__schema114": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -5890,12 +5912,12 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema116": {
+        "__schema117": {
           "additionalProperties": false,
           "properties": {
             "dimensions": {
               "items": {
-                "$ref": "#/definitions/__schema119",
+                "$ref": "#/definitions/__schema120",
               },
               "type": [
                 "array",
@@ -5904,7 +5926,7 @@ All branches of an IF must return the same type.",
             },
             "metrics": {
               "items": {
-                "$ref": "#/definitions/__schema119",
+                "$ref": "#/definitions/__schema120",
               },
               "type": [
                 "array",
@@ -5913,7 +5935,7 @@ All branches of an IF must return the same type.",
             },
             "tableCalculations": {
               "items": {
-                "$ref": "#/definitions/__schema40",
+                "$ref": "#/definitions/__schema41",
               },
               "type": [
                 "array",
@@ -5940,23 +5962,56 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema119": {
+        "__schema12": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "filter": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/__schema13",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema25",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema41",
+                  },
+                  {
+                    "$ref": "#/definitions/__schema65",
+                  },
+                ],
+              },
+              "table": {
+                "description": "Table name this filter field belongs to",
+                "type": "string",
+              },
+            },
+            "required": [
+              "filter",
+              "table",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "__schema120": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema12",
+              "$ref": "#/definitions/__schema13",
             },
             {
-              "$ref": "#/definitions/__schema24",
+              "$ref": "#/definitions/__schema25",
             },
             {
-              "$ref": "#/definitions/__schema40",
+              "$ref": "#/definitions/__schema41",
             },
             {
-              "$ref": "#/definitions/__schema64",
+              "$ref": "#/definitions/__schema65",
             },
           ],
         },
-        "__schema12": {
+        "__schema13": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -6051,7 +6106,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema130": {
+        "__schema131": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -6070,13 +6125,13 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema131": {
+        "__schema132": {
           "additionalProperties": false,
           "properties": {
             "additionalSources": {
               "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
               "items": {
-                "$ref": "#/definitions/__schema132",
+                "$ref": "#/definitions/__schema133",
               },
               "maxItems": 1,
               "minItems": 1,
@@ -6084,7 +6139,7 @@ All branches of an IF must return the same type.",
             },
             "joinKey": {
               "items": {
-                "$ref": "#/definitions/__schema133",
+                "$ref": "#/definitions/__schema134",
               },
               "minItems": 1,
               "type": "array",
@@ -6111,7 +6166,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema132": {
+        "__schema133": {
           "additionalProperties": false,
           "properties": {
             "id": {
@@ -6123,7 +6178,7 @@ All branches of an IF must return the same type.",
               "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
               "properties": {
                 "customMetrics": {
-                  "$ref": "#/definitions/__schema9",
+                  "$ref": "#/definitions/__schema10",
                 },
                 "dimensions": {
                   "$ref": "#/definitions/__schema1",
@@ -6133,7 +6188,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema116",
+                  "$ref": "#/definitions/__schema117",
                 },
                 "metrics": {
                   "$ref": "#/definitions/__schema3",
@@ -6159,13 +6214,13 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema133": {
+        "__schema134": {
           "additionalProperties": false,
           "properties": {
             "fields": {
               "description": "One selected dimension from each source. Both must represent the same grain and value type.",
               "items": {
-                "$ref": "#/definitions/__schema134",
+                "$ref": "#/definitions/__schema135",
               },
               "maxItems": 2,
               "minItems": 2,
@@ -6183,7 +6238,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema134": {
+        "__schema135": {
           "additionalProperties": false,
           "properties": {
             "fieldId": {
@@ -6201,7 +6256,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "object",
         },
-        "__schema24": {
+        "__schema25": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -6268,7 +6323,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema31",
+                  "$ref": "#/definitions/__schema32",
                 },
                 "values": {
                   "description": "String values to match. Do not put natural-language date ranges here.",
@@ -6297,7 +6352,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema31": {
+        "__schema32": {
           "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
           "enum": [
             "equals",
@@ -6309,7 +6364,7 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema40": {
+        "__schema41": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -6329,7 +6384,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
                   "description": "Use isNull for missing values, notNull for present values.",
@@ -6367,7 +6422,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
                   "description": "Use equals/notEquals for exact numeric matches.",
@@ -6413,10 +6468,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema52",
+                  "$ref": "#/definitions/__schema53",
                 },
                 "values": {
                   "description": "Exactly one numeric threshold value.",
@@ -6456,7 +6511,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "fieldType": {
-                  "$ref": "#/definitions/__schema42",
+                  "$ref": "#/definitions/__schema43",
                 },
                 "operator": {
                   "description": "Use for ranges between two numeric bounds.",
@@ -6487,7 +6542,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema42": {
+        "__schema43": {
           "enum": [
             "number",
             "percentile",
@@ -6510,7 +6565,7 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema52": {
+        "__schema53": {
           "description": "Use for threshold comparisons such as greater than 100.",
           "enum": [
             "lessThan",
@@ -6532,6 +6587,7 @@ All branches of an IF must return the same type.",
               "type": "string",
             },
             "nullsFirst": {
+              "default": null,
               "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
               "type": [
                 "boolean",
@@ -6542,11 +6598,10 @@ All branches of an IF must return the same type.",
           "required": [
             "fieldId",
             "descending",
-            "nullsFirst",
           ],
           "type": "object",
         },
-        "__schema64": {
+        "__schema65": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -6623,7 +6678,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema74",
+                  "$ref": "#/definitions/__schema75",
                 },
               },
               "required": [
@@ -6665,13 +6720,13 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema78",
+                  "$ref": "#/definitions/__schema79",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema84",
+                  "$ref": "#/definitions/__schema85",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema82",
+                  "$ref": "#/definitions/__schema83",
                 },
               },
               "required": [
@@ -6714,10 +6769,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema92",
+                  "$ref": "#/definitions/__schema93",
                 },
                 "settings": {
-                  "$ref": "#/definitions/__schema97",
+                  "$ref": "#/definitions/__schema98",
                 },
                 "values": {
                   "description": "Always [1] for current-period filters.",
@@ -6766,10 +6821,10 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "operator": {
-                  "$ref": "#/definitions/__schema105",
+                  "$ref": "#/definitions/__schema106",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema110",
+                  "$ref": "#/definitions/__schema111",
                 },
               },
               "required": [
@@ -6812,7 +6867,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "values": {
-                  "$ref": "#/definitions/__schema112",
+                  "$ref": "#/definitions/__schema113",
                 },
               },
               "required": [
@@ -6826,35 +6881,35 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema74": {
+        "__schema75": {
           "description": "One or more explicit ISO dates/datetimes.",
           "items": {
-            "$ref": "#/definitions/__schema75",
+            "$ref": "#/definitions/__schema76",
           },
           "type": "array",
         },
-        "__schema75": {
+        "__schema76": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema76",
+              "$ref": "#/definitions/__schema77",
             },
             {
-              "$ref": "#/definitions/__schema77",
+              "$ref": "#/definitions/__schema78",
             },
           ],
           "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema76": {
+        "__schema77": {
           "format": "date",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
           "type": "string",
         },
-        "__schema77": {
+        "__schema78": {
           "format": "date-time",
           "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
           "type": "string",
         },
-        "__schema78": {
+        "__schema79": {
           "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
           "enum": [
             "inThePast",
@@ -6863,7 +6918,46 @@ All branches of an IF must return the same type.",
           ],
           "type": "string",
         },
-        "__schema8": {
+        "__schema83": {
+          "description": "Exactly one positive number of periods, e.g. [2].",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema85": {
+          "additionalProperties": false,
+          "description": "Relative period settings.",
+          "properties": {
+            "completed": {
+              "description": "false for rolling periods including the current partial period; true for completed periods only.",
+              "type": "boolean",
+            },
+            "unitOfTime": {
+              "$ref": "#/definitions/__schema87",
+            },
+          },
+          "required": [
+            "completed",
+            "unitOfTime",
+          ],
+          "type": "object",
+        },
+        "__schema87": {
+          "description": "Period unit for the relative date filter.",
+          "enum": [
+            "days",
+            "weeks",
+            "months",
+            "quarters",
+            "years",
+          ],
+          "type": "string",
+        },
+        "__schema9": {
           "additionalProperties": {
             "anyOf": [
               {
@@ -6891,90 +6985,7 @@ All branches of an IF must return the same type.",
             "null",
           ],
         },
-        "__schema82": {
-          "description": "Exactly one positive number of periods, e.g. [2].",
-          "items": {
-            "exclusiveMinimum": 0,
-            "type": "integer",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema84": {
-          "additionalProperties": false,
-          "description": "Relative period settings.",
-          "properties": {
-            "completed": {
-              "description": "false for rolling periods including the current partial period; true for completed periods only.",
-              "type": "boolean",
-            },
-            "unitOfTime": {
-              "$ref": "#/definitions/__schema86",
-            },
-          },
-          "required": [
-            "completed",
-            "unitOfTime",
-          ],
-          "type": "object",
-        },
-        "__schema86": {
-          "description": "Period unit for the relative date filter.",
-          "enum": [
-            "days",
-            "weeks",
-            "months",
-            "quarters",
-            "years",
-          ],
-          "type": "string",
-        },
-        "__schema9": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/__schema10",
-            },
-            {
-              "type": "null",
-            },
-          ],
-          "description": "Define new metric columns the explore doesn't already have. Two kinds:
-
-(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
-    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
-    Use when the requested metric doesn't exist in the explore.
-
-(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
-    back in time. Use whenever the user asks for "year-over-year",
-    "month-over-month", "vs last quarter", "compare to previous period",
-    "N periods ago".
-
-For period comparisons, every successful chart has three things:
-- The time dimension in queryConfig.dimensions
-- The base metric in queryConfig.metrics
-- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
-
-The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
-
-DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
-
-For aggregation entries:
-1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
-
-Example A — "Average customer age sorted descending"
-  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
-  queryConfig.metrics: ["customers_avg_customer_age"]
-  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
-
-Example B — "Revenue by month with year-over-year comparison"
-  queryConfig.dimensions: ["orders_order_date_month"]
-  queryConfig.metrics: ["orders_revenue"]
-  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
-        },
-        "__schema92": {
+        "__schema93": {
           "description": "Use for this/current period or to exclude this/current period.",
           "enum": [
             "inTheCurrent",
@@ -6982,7 +6993,7 @@ Example B — "Revenue by month with year-over-year comparison"
           ],
           "type": "string",
         },
-        "__schema97": {
+        "__schema98": {
           "additionalProperties": false,
           "description": "Current-period settings.",
           "properties": {
@@ -6992,7 +7003,7 @@ Example B — "Revenue by month with year-over-year comparison"
               "type": "boolean",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema99",
+              "$ref": "#/definitions/__schema100",
             },
           },
           "required": [
@@ -7000,17 +7011,6 @@ Example B — "Revenue by month with year-over-year comparison"
             "unitOfTime",
           ],
           "type": "object",
-        },
-        "__schema99": {
-          "description": "Current period unit, e.g. weeks for this week.",
-          "enum": [
-            "days",
-            "weeks",
-            "months",
-            "quarters",
-            "years",
-          ],
-          "type": "string",
         },
       },
       "properties": {
@@ -7148,7 +7148,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "options": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema130",
+                      "$ref": "#/definitions/__schema131",
                     },
                   ],
                   "default": null,
@@ -7173,7 +7173,7 @@ Example B — "Revenue by month with year-over-year comparison"
         "mergeConfig": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema131",
+              "$ref": "#/definitions/__schema132",
             },
             {
               "type": "null",
@@ -7186,7 +7186,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "additionalProperties": false,
           "properties": {
             "customMetrics": {
-              "$ref": "#/definitions/__schema9",
+              "$ref": "#/definitions/__schema10",
             },
             "dimensions": {
               "$ref": "#/definitions/__schema1",
@@ -7196,7 +7196,7 @@ Example B — "Revenue by month with year-over-year comparison"
               "type": "string",
             },
             "filters": {
-              "$ref": "#/definitions/__schema116",
+              "$ref": "#/definitions/__schema117",
             },
             "limit": {
               "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -7211,7 +7211,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "parameters": {
               "allOf": [
                 {
-                  "$ref": "#/definitions/__schema8",
+                  "$ref": "#/definitions/__schema9",
                 },
               ],
               "default": null,
@@ -7223,7 +7223,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "tableCalculations": {
               "anyOf": [
                 {
-                  "$ref": "#/definitions/__schema113",
+                  "$ref": "#/definitions/__schema114",
                 },
                 {
                   "type": "null",
@@ -8997,6 +8997,50 @@ Grammar: <field> <operator form>
         "type": "array",
       },
       "__schema10": {
+        "anyOf": [
+          {
+            "$ref": "#/definitions/__schema11",
+          },
+          {
+            "type": "null",
+          },
+        ],
+        "description": "Define new metric columns the explore doesn't already have. Two kinds:
+
+(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
+    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
+    Use when the requested metric doesn't exist in the explore.
+
+(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
+    back in time. Use whenever the user asks for "year-over-year",
+    "month-over-month", "vs last quarter", "compare to previous period",
+    "N periods ago".
+
+For period comparisons, every successful chart has three things:
+- The time dimension in queryConfig.dimensions
+- The base metric in queryConfig.metrics
+- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
+
+The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
+
+DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
+
+For aggregation entries:
+1. Add the entry to customMetrics with kind: "aggregation"
+2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+
+Example A — "Average customer age sorted descending"
+  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
+  queryConfig.metrics: ["customers_avg_customer_age"]
+  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
+
+Example B — "Revenue by month with year-over-year comparison"
+  queryConfig.dimensions: ["orders_order_date_month"]
+  queryConfig.metrics: ["orders_revenue"]
+  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
+      },
+      "__schema11": {
         "items": {
           "oneOf": [
             {
@@ -9109,7 +9153,7 @@ Grammar: <field> <operator form>
         },
         "type": "array",
       },
-      "__schema12": {
+      "__schema13": {
         "items": {
           "additionalProperties": false,
           "properties": {
@@ -9177,7 +9221,7 @@ All branches of an IF must return the same type.",
         },
         "type": "array",
       },
-      "__schema15": {
+      "__schema16": {
         "additionalProperties": false,
         "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
         "properties": {
@@ -9219,7 +9263,15 @@ All branches of an IF must return the same type.",
           "null",
         ],
       },
-      "__schema29": {
+      "__schema3": {
+        "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
+        "items": {
+          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+          "type": "string",
+        },
+        "type": "array",
+      },
+      "__schema30": {
         "additionalProperties": {
           "anyOf": [
             {
@@ -9238,21 +9290,13 @@ All branches of an IF must return the same type.",
           "null",
         ],
       },
-      "__schema3": {
-        "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
-        "items": {
-          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-          "type": "string",
-        },
-        "type": "array",
-      },
-      "__schema30": {
+      "__schema31": {
         "additionalProperties": false,
         "properties": {
           "additionalSources": {
             "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
             "items": {
-              "$ref": "#/definitions/__schema31",
+              "$ref": "#/definitions/__schema32",
             },
             "maxItems": 1,
             "minItems": 1,
@@ -9260,7 +9304,7 @@ All branches of an IF must return the same type.",
           },
           "joinKey": {
             "items": {
-              "$ref": "#/definitions/__schema32",
+              "$ref": "#/definitions/__schema33",
             },
             "minItems": 1,
             "type": "array",
@@ -9287,7 +9331,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema31": {
+      "__schema32": {
         "additionalProperties": false,
         "properties": {
           "id": {
@@ -9299,7 +9343,7 @@ All branches of an IF must return the same type.",
             "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
             "properties": {
               "customMetrics": {
-                "$ref": "#/definitions/__schema9",
+                "$ref": "#/definitions/__schema10",
               },
               "dimensions": {
                 "$ref": "#/definitions/__schema1",
@@ -9309,7 +9353,7 @@ All branches of an IF must return the same type.",
                 "type": "string",
               },
               "filters": {
-                "$ref": "#/definitions/__schema15",
+                "$ref": "#/definitions/__schema16",
               },
               "metrics": {
                 "$ref": "#/definitions/__schema3",
@@ -9335,13 +9379,13 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema32": {
+      "__schema33": {
         "additionalProperties": false,
         "properties": {
           "fields": {
             "description": "One selected dimension from each source. Both must represent the same grain and value type.",
             "items": {
-              "$ref": "#/definitions/__schema33",
+              "$ref": "#/definitions/__schema34",
             },
             "maxItems": 2,
             "minItems": 2,
@@ -9359,7 +9403,7 @@ All branches of an IF must return the same type.",
         ],
         "type": "object",
       },
-      "__schema33": {
+      "__schema34": {
         "additionalProperties": false,
         "properties": {
           "fieldId": {
@@ -9396,6 +9440,7 @@ All branches of an IF must return the same type.",
             "type": "string",
           },
           "nullsFirst": {
+            "default": null,
             "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
             "type": [
               "boolean",
@@ -9406,11 +9451,10 @@ All branches of an IF must return the same type.",
         "required": [
           "fieldId",
           "descending",
-          "nullsFirst",
         ],
         "type": "object",
       },
-      "__schema8": {
+      "__schema9": {
         "additionalProperties": {
           "anyOf": [
             {
@@ -9437,50 +9481,6 @@ All branches of an IF must return the same type.",
           "object",
           "null",
         ],
-      },
-      "__schema9": {
-        "anyOf": [
-          {
-            "$ref": "#/definitions/__schema10",
-          },
-          {
-            "type": "null",
-          },
-        ],
-        "description": "Define new metric columns the explore doesn't already have. Two kinds:
-
-(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
-    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
-    Use when the requested metric doesn't exist in the explore.
-
-(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
-    back in time. Use whenever the user asks for "year-over-year",
-    "month-over-month", "vs last quarter", "compare to previous period",
-    "N periods ago".
-
-For period comparisons, every successful chart has three things:
-- The time dimension in queryConfig.dimensions
-- The base metric in queryConfig.metrics
-- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
-
-The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
-
-DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
-
-For aggregation entries:
-1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
-
-Example A — "Average customer age sorted descending"
-  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
-  queryConfig.metrics: ["customers_avg_customer_age"]
-  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
-
-Example B — "Revenue by month with year-over-year comparison"
-  queryConfig.dimensions: ["orders_order_date_month"]
-  queryConfig.metrics: ["orders_revenue"]
-  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
       },
     },
     "properties": {
@@ -9618,7 +9618,7 @@ Example B — "Revenue by month with year-over-year comparison"
               "options": {
                 "allOf": [
                   {
-                    "$ref": "#/definitions/__schema29",
+                    "$ref": "#/definitions/__schema30",
                   },
                 ],
                 "default": null,
@@ -9643,7 +9643,7 @@ Example B — "Revenue by month with year-over-year comparison"
       "mergeConfig": {
         "anyOf": [
           {
-            "$ref": "#/definitions/__schema30",
+            "$ref": "#/definitions/__schema31",
           },
           {
             "type": "null",
@@ -9656,7 +9656,7 @@ Example B — "Revenue by month with year-over-year comparison"
         "additionalProperties": false,
         "properties": {
           "customMetrics": {
-            "$ref": "#/definitions/__schema9",
+            "$ref": "#/definitions/__schema10",
           },
           "dimensions": {
             "$ref": "#/definitions/__schema1",
@@ -9666,7 +9666,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "type": "string",
           },
           "filters": {
-            "$ref": "#/definitions/__schema15",
+            "$ref": "#/definitions/__schema16",
           },
           "limit": {
             "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -9681,7 +9681,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "parameters": {
             "allOf": [
               {
-                "$ref": "#/definitions/__schema8",
+                "$ref": "#/definitions/__schema9",
               },
             ],
             "default": null,
@@ -9693,7 +9693,7 @@ Example B — "Revenue by month with year-over-year comparison"
           "tableCalculations": {
             "anyOf": [
               {
-                "$ref": "#/definitions/__schema12",
+                "$ref": "#/definitions/__schema13",
               },
               {
                 "type": "null",

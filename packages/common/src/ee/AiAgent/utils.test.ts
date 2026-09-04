@@ -493,6 +493,31 @@ describe('getDataAppVizChartFromArtifact', () => {
     });
 });
 
+describe('parseVizConfig sort defaults', () => {
+    it('keeps omitted null ordering as the warehouse default', () => {
+        const parsed = parseVizConfig({
+            ...semanticConfig,
+            queryConfig: {
+                ...semanticConfig.queryConfig,
+                sorts: [
+                    {
+                        fieldId: 'orders_revenue',
+                        descending: true,
+                    },
+                ],
+            },
+        });
+
+        expect(parsed?.metricQuery.sorts).toEqual([
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+                nullsFirst: undefined,
+            },
+        ]);
+    });
+});
+
 describe('parseVizConfig table calculations', () => {
     const runQueryArgs = (tableCalculations: unknown) => ({
         title: 'Revenue',

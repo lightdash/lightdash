@@ -275,6 +275,59 @@ const uuidEnrichedChartConfig = {
     optionValues: { showLegend: true },
 };
 
+describe('sort defaults', () => {
+    const argsWithoutNullOrdering = buildV2Args({
+        sorts: [
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+            },
+        ],
+    });
+
+    it('defaults omitted null ordering to null in current and persisted inputs', () => {
+        expect(
+            toolRunQueryArgsSchema.parse(argsWithoutNullOrdering).queryConfig
+                .sorts,
+        ).toEqual([
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+                nullsFirst: null,
+            },
+        ]);
+        expect(
+            parsePersistedRunQueryArgs(argsWithoutNullOrdering)?.queryConfig
+                .sorts,
+        ).toEqual([
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+                nullsFirst: null,
+            },
+        ]);
+    });
+
+    it.each([true, false, null])(
+        'preserves explicit null ordering %s',
+        (nullsFirst) => {
+            expect(
+                toolRunQueryArgsSchema.parse(
+                    buildV2Args({
+                        sorts: [
+                            {
+                                fieldId: 'orders_revenue',
+                                descending: true,
+                                nullsFirst,
+                            },
+                        ],
+                    }),
+                ).queryConfig.sorts[0].nullsFirst,
+            ).toBe(nullsFirst);
+        },
+    );
+});
+
 describe('chartConfig builtin defaults', () => {
     it('defaults omitted secondary axis fields to null', () => {
         const parsed = toolRunQueryArgsSchema.parse({

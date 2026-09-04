@@ -7053,8 +7053,16 @@
                                             "type": "string"
                                         },
                                         "nullsFirst": {
-                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
-                                            "type": "boolean"
+                                            "anyOf": [
+                                                {
+                                                    "type": "boolean"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "default": null,
+                                            "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default"
                                         }
                                     },
                                     "required": ["fieldId", "descending"],
