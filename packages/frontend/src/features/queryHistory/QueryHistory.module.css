@@ -8,6 +8,13 @@
     overflow: hidden;
 }
 
+/* Reserved so the table does not drop a line when the subtitle arrives. */
+.subtitleLine {
+    display: flex;
+    align-items: center;
+    height: calc(var(--mantine-font-size-sm) * var(--mantine-line-height-sm));
+}
+
 /* ---------- table ---------- */
 
 /* Grows with its rows and only scrolls once it hits the viewport. */
@@ -34,6 +41,49 @@
 
 .showMoreRow :global(td) {
     background: var(--mantine-color-body);
+}
+
+/* Placeholder rows mirror a query row's two text lines so the row height
+   matches the real row that replaces them. */
+.skeletonRow {
+    pointer-events: none;
+}
+
+.skeletonLines {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.skeletonTitleLine,
+.skeletonSubLine {
+    display: flex;
+    align-items: center;
+}
+
+/* 1.35 is the ContentTable body cell line-height, which both lines inherit. */
+.skeletonTitleLine {
+    height: calc(var(--mantine-font-size-sm) * 1.35);
+}
+
+.skeletonSubLine {
+    height: calc(var(--mantine-font-size-xs) * 1.35);
+}
+
+.resultsSkeletonLine {
+    display: flex;
+    align-items: center;
+    height: calc(var(--mantine-font-size-xs) * var(--mantine-line-height));
+}
+
+.skeletonAlignEnd {
+    justify-content: flex-end;
+}
+
+/* Matches the count slot in the trigger segmented control. */
+.countSkeleton {
+    display: inline-flex;
+    align-items: center;
 }
 
 /* ---------- detail panel ---------- */

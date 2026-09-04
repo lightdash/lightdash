@@ -57,6 +57,7 @@ import { QueryStatusBadge } from './QueryHistoryQueryCell';
 
 const RESULTS_PREVIEW_COLUMNS = 6;
 const RESULTS_PREVIEW_ROWS = 8;
+const RESULTS_SKELETON_DEFAULT_COLUMNS = 4;
 const SQL_COLLAPSED_HEIGHT = 260;
 
 type Props = {
@@ -82,6 +83,58 @@ const TimingCell: FC<{
         </Text>
     </Box>
 );
+
+/**
+ * Same Table props as the real preview so the skeleton is the height of the
+ * table that replaces it; column and row counts come from the run itself.
+ */
+const ResultsSkeleton: FC<{ columns: number; rows: number }> = ({
+    columns,
+    rows,
+}) => {
+    const columnKeys = Array.from({ length: columns }, (_, i) => `c${i}`);
+    return (
+        <Paper className={styles.resultsTable} aria-busy>
+            <Table fz="xs" verticalSpacing="xs" horizontalSpacing="sm">
+                <Table.Thead>
+                    <Table.Tr>
+                        {columnKeys.map((key) => (
+                            <Table.Th key={key}>
+                                <Box className={styles.resultsSkeletonLine}>
+                                    <Skeleton h={10} w="60%" radius="xl" />
+                                </Box>
+                            </Table.Th>
+                        ))}
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {Array.from({ length: rows }, (_, rowIndex) => (
+                        // eslint-disable-next-line react/no-array-index-key
+                        <Table.Tr key={rowIndex}>
+                            {columnKeys.map((key, columnIndex) => (
+                                <Table.Td key={key}>
+                                    <Box className={styles.resultsSkeletonLine}>
+                                        <Skeleton
+                                            h={10}
+                                            w={
+                                                (rowIndex + columnIndex) % 2 ===
+                                                0
+                                                    ? '72%'
+                                                    : '48%'
+                                            }
+                                            radius="xl"
+                                            opacity={0.6}
+                                        />
+                                    </Box>
+                                </Table.Td>
+                            ))}
+                        </Table.Tr>
+                    ))}
+                </Table.Tbody>
+            </Table>
+        </Paper>
+    );
+};
 
 const ResultsPlaceholder: FC<{ children: React.ReactNode }> = ({
     children,
@@ -283,12 +336,22 @@ export const QueryHistoryDetailPanel: FC<Props> = ({
             );
         }
         if (resultsPreviewQuery.isInitialLoading) {
+            const expectedColumns = item.metricQuery
+                ? item.metricQuery.dimensions.length +
+                  item.metricQuery.metrics.length +
+                  item.metricQuery.tableCalculations.length
+                : RESULTS_SKELETON_DEFAULT_COLUMNS;
             return (
-                <Stack gap="xs">
-                    <Skeleton h={28} />
-                    <Skeleton h={28} />
-                    <Skeleton h={28} />
-                </Stack>
+                <ResultsSkeleton
+                    columns={Math.min(
+                        Math.max(expectedColumns, 1),
+                        RESULTS_PREVIEW_COLUMNS,
+                    )}
+                    rows={Math.min(
+                        item.totalRowCount ?? RESULTS_PREVIEW_ROWS,
+                        RESULTS_PREVIEW_ROWS,
+                    )}
+                />
             );
         }
         return (
