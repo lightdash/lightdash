@@ -1376,6 +1376,9 @@ export const getAiConfig = () => ({
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
                   ),
+                  providerOrder: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_PROVIDER_ORDER',
+                  ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
                   ),
