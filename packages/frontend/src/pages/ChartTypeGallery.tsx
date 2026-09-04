@@ -107,7 +107,7 @@ const ChartTypeGallery = () => {
                     <Tabs.List>
                         <Tabs.Tab value="chart-types">
                             <Group gap={6} wrap="nowrap">
-                                Chart types
+                                Installed charts
                                 {!isEmptyGallery && totalCount !== null && (
                                     <Text span fz="xs" c="dimmed">
                                         ({totalCount})
@@ -116,7 +116,7 @@ const ChartTypeGallery = () => {
                             </Group>
                         </Tabs.Tab>
                         {isLibraryEnabled && (
-                            <Tabs.Tab value="library">Library</Tabs.Tab>
+                            <Tabs.Tab value="library">Chart library</Tabs.Tab>
                         )}
                     </Tabs.List>
 
