@@ -258,6 +258,15 @@ import {
     getMergeSourceLabels,
 } from './mergeQueryExecution';
 import {
+    buildMergeExecutedEvent,
+    buildMergeRefusedEvent,
+    buildMergeRefusedEventFromErrors,
+    describeMergeQueryShape,
+    observeRowCapRefusal,
+    resolveComposeMergeOutcome,
+    type MergeSubmission,
+} from './mergeQueryTelemetry';
+import {
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
@@ -7892,7 +7901,47 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    private async executeAsyncMergeQueryInternal({
+    /**
+     * Every surface that runs a merge passes through here, so this is where
+     * a merge becomes visible: a Sentry transaction that keeps its failures
+     * apart from ordinary query failures, and a refusal event per refused
+     * submission. Executed events fire from the engine that ran the merge.
+     */
+    private async executeAsyncMergeQueryInternal(
+        args: ExecuteMergeQueryInternalArgs,
+    ): Promise<ApiExecuteAsyncMergeQueryResults> {
+        const { account, projectUuid, mergeQuery, context, mode } = args;
+        assertIsAccountWithOrg(account);
+        const submission: MergeSubmission = {
+            organizationUuid: account.organization.organizationUuid,
+            projectUuid,
+            context,
+            mergeQuery,
+        };
+        return wrapSentryTransaction(
+            'merge_query.submit',
+            {
+                projectUuid,
+                context,
+                mode: mode.type,
+                joinType: mergeQuery.joinType,
+                sourceCount: mergeQuery.sources.length,
+            },
+            async () => {
+                const outcome = await this.submitAsyncMergeQuery(args);
+                if (outcome.outcome === 'refused') {
+                    const refused = buildMergeRefusedEventFromErrors({
+                        submission,
+                        errors: outcome.errors,
+                    });
+                    if (refused) this.analytics.trackAccount(account, refused);
+                }
+                return outcome;
+            },
+        );
+    }
+
+    private async submitAsyncMergeQuery({
         account,
         projectUuid,
         mergeQuery,
@@ -8127,6 +8176,27 @@ export class AsyncQueryService extends ProjectService {
             },
             requestParameters,
         );
+        // The warehouse statement completes in the shared background tail,
+        // which has no merge hook, so this engine reports submission only
+        this.analytics.trackAccount(
+            account,
+            buildMergeExecutedEvent({
+                submission: {
+                    organizationUuid,
+                    projectUuid,
+                    context,
+                    mergeQuery,
+                },
+                queryId: queryUuid,
+                engine: 'warehouse',
+                status: 'started',
+                cacheHit: cacheMetadata.cacheHit,
+                legCacheHits: [],
+                rowCount: null,
+                durationMs: null,
+                joinExecutionTimeMs: null,
+            }),
+        );
 
         return {
             queryUuid,
@@ -8204,7 +8274,11 @@ export class AsyncQueryService extends ProjectService {
         const legs = await Promise.all(
             mergeQuery.sources.map(async (source) => {
                 if (isMergeResultSource(source)) {
-                    return [source.id, source.queryUuid] as const;
+                    return {
+                        sourceId: source.id,
+                        queryUuid: source.queryUuid,
+                        cacheHit: null,
+                    };
                 }
                 const leg = await this.executeAsyncMetricQuery({
                     account,
@@ -8219,10 +8293,19 @@ export class AsyncQueryService extends ProjectService {
                         limit: sourceRowCap,
                     },
                 });
-                return [source.id, leg.queryUuid] as const;
+                return {
+                    sourceId: source.id,
+                    queryUuid: leg.queryUuid,
+                    cacheHit: leg.cacheMetadata.cacheHit,
+                };
             }),
         );
-        const legQueryUuidBySourceId = Object.fromEntries(legs);
+        const legQueryUuidBySourceId = Object.fromEntries(
+            legs.map(({ sourceId, queryUuid }) => [sourceId, queryUuid]),
+        );
+        const legCacheHits = legs.flatMap(({ cacheHit }) =>
+            cacheHit === null ? [] : [cacheHit],
+        );
 
         const fieldTypes = await this.getMergeFieldTypesForQuery(
             account,
@@ -8363,44 +8446,74 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
 
-        void this.runDuckdbQuery({
-            account,
-            projectUuid,
+        const submission: MergeSubmission = {
             organizationUuid,
-            isPreviewProject:
-                projectSummary.type === ProjectType.PREVIEW ||
-                projectSummary.provisioningSource === 'playground',
-            onboardingFlow,
-            queryUuid,
-            sql,
-            references: {
-                kind: 'queries',
-                references,
-                guard: buildMergeRowCapGuard({
-                    legLabelByReferenceTable,
-                    sourceRowCap,
-                }),
-            },
-            columns: {
-                mode: 'supplied',
-                fieldsMap,
-                usedParameters: composer.getUsedParameters(),
-                originalColumns,
-                pivotConfiguration,
-            },
-            storedCompiledSql: null,
-            warehouseClient,
-            queryTags,
-            queryCreatedAt,
-            cacheKey,
+            projectUuid,
             context,
-        }).catch((e) => {
-            this.logger.error(
-                `Async compose merge query ${queryUuid} failed: ${getErrorMessage(
-                    e,
-                )}`,
-            );
-        });
+            mergeQuery,
+        };
+        const rowCap = observeRowCapRefusal(
+            buildMergeRowCapGuard({ legLabelByReferenceTable, sourceRowCap }),
+        );
+        void traceSpan(
+            {
+                op: 'merge_query.execute',
+                name: 'merge_query.execute.compose',
+                attributes: {
+                    'lightdash.queryUuid': queryUuid,
+                    'lightdash.projectUuid': projectUuid,
+                    'lightdash.queryContext': context,
+                    'lightdash.joinType': mergeQuery.joinType,
+                },
+            },
+            () =>
+                this.runDuckdbQuery({
+                    account,
+                    projectUuid,
+                    organizationUuid,
+                    isPreviewProject:
+                        projectSummary.type === ProjectType.PREVIEW ||
+                        projectSummary.provisioningSource === 'playground',
+                    onboardingFlow,
+                    queryUuid,
+                    sql,
+                    references: {
+                        kind: 'queries',
+                        references,
+                        guard: rowCap.guard,
+                    },
+                    columns: {
+                        mode: 'supplied',
+                        fieldsMap,
+                        usedParameters: composer.getUsedParameters(),
+                        originalColumns,
+                        pivotConfiguration,
+                    },
+                    storedCompiledSql: null,
+                    warehouseClient,
+                    queryTags,
+                    queryCreatedAt,
+                    cacheKey,
+                    context,
+                }),
+        )
+            .then(() =>
+                this.reportComposeMergeOutcome({
+                    account,
+                    submission,
+                    queryUuid,
+                    queryCreatedAt,
+                    legCacheHits,
+                    rowCapRefused: rowCap.wasRefused(),
+                }),
+            )
+            .catch((e) => {
+                this.logger.error(
+                    `Async compose merge query ${queryUuid} failed: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            });
 
         return {
             queryUuid,
@@ -8412,6 +8525,101 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: composer.getUsedParameters(),
             resolvedTimezone: composer.getDisplayTimezone(),
         };
+    }
+
+    /**
+     * The shared tail writes the merged query's terminal state, so the merge
+     * reads it back once the run settles: a row-cap refusal is a refusal, a
+     * ready query is an execution, and anything else is a failure that gets
+     * a Sentry issue of its own rather than vanishing into query history.
+     */
+    private async reportComposeMergeOutcome({
+        account,
+        submission,
+        queryUuid,
+        queryCreatedAt,
+        legCacheHits,
+        rowCapRefused,
+    }: {
+        account: Account;
+        submission: MergeSubmission;
+        queryUuid: string;
+        queryCreatedAt: Date;
+        legCacheHits: boolean[];
+        rowCapRefused: boolean;
+    }): Promise<void> {
+        const history = await this.queryHistoryModel.get(
+            queryUuid,
+            submission.projectUuid,
+            account,
+        );
+        const outcome = resolveComposeMergeOutcome({ history, rowCapRefused });
+        const durationMs = Date.now() - queryCreatedAt.getTime();
+        switch (outcome.kind) {
+            case 'refused_row_cap':
+                this.analytics.trackAccount(
+                    account,
+                    buildMergeRefusedEvent({
+                        submission,
+                        kinds: ['row_cap'],
+                        queryId: queryUuid,
+                    }),
+                );
+                return;
+            case 'ready':
+                this.analytics.trackAccount(
+                    account,
+                    buildMergeExecutedEvent({
+                        submission,
+                        queryId: queryUuid,
+                        engine: 'compose',
+                        status: 'ready',
+                        cacheHit: false,
+                        legCacheHits,
+                        rowCount: outcome.rowCount,
+                        durationMs,
+                        joinExecutionTimeMs: outcome.joinExecutionTimeMs,
+                    }),
+                );
+                return;
+            case 'error':
+                this.analytics.trackAccount(
+                    account,
+                    buildMergeExecutedEvent({
+                        submission,
+                        queryId: queryUuid,
+                        engine: 'compose',
+                        status: 'error',
+                        cacheHit: false,
+                        legCacheHits,
+                        rowCount: null,
+                        durationMs,
+                        joinExecutionTimeMs: null,
+                    }),
+                );
+                Sentry.withScope((scope) => {
+                    scope.setTag('lightdash.mergeQuery', 'true');
+                    scope.setTag('lightdash.queryUuid', queryUuid);
+                    scope.setTag(
+                        'lightdash.projectUuid',
+                        submission.projectUuid,
+                    );
+                    scope.setContext('merge_query', {
+                        ...describeMergeQueryShape(submission),
+                        error: outcome.error,
+                    });
+                    Sentry.captureException(
+                        new UnexpectedServerError(
+                            `Merge query ${queryUuid} failed on the compose engine: ${
+                                outcome.error ?? 'unknown error'
+                            }`,
+                        ),
+                    );
+                });
+                return;
+            default:
+                assertUnreachable(outcome, 'Unknown compose merge outcome');
+        }
     }
 
     /**

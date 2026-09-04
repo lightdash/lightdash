@@ -19,6 +19,8 @@ import {
     LightdashPage,
     LightdashRequestMethodHeader,
     LightdashUser,
+    MergeJoinType,
+    MergeQueryErrorKind,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
@@ -583,6 +585,52 @@ type ResultsCacheDeleteEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         cacheKey: string;
+    };
+};
+
+export type MergeEngine = 'compose' | 'warehouse';
+export type MergeSourceKind = 'metric' | 'result';
+/** The row cap has no compile-time kind: a leg is known to have reached it only once it has run. */
+export type MergeRefusalKind = MergeQueryErrorKind | 'row_cap';
+
+export type MergeQueryShapeProperties = {
+    organizationId: string;
+    projectId: string;
+    context: QueryExecutionContext;
+    joinType: MergeJoinType;
+    sourceKinds: MergeSourceKind[];
+    sourceCount: number;
+    joinKeyCount: number;
+    tableCalculationCount: number;
+};
+
+export type MergeQueryExecutedEvent = BaseTrack & {
+    event: 'merge_query.executed';
+    properties: MergeQueryShapeProperties & {
+        queryId: string;
+        engine: MergeEngine;
+        /** `ready` and `error` are terminal; `started` is a warehouse merge whose outcome is not tracked. */
+        status: 'started' | 'ready' | 'error';
+        /** Whether the merged result itself was served from cache. */
+        cacheHit: boolean;
+        /** Legs this merge ran; referenced results run nothing. */
+        legCount: number;
+        legCacheHitCount: number;
+        rowCount: number | null;
+        /** Submission to terminal state, including waiting on the legs. */
+        durationMs: number | null;
+        joinExecutionTimeMs: number | null;
+    };
+};
+
+export type MergeQueryRefusedEvent = BaseTrack & {
+    event: 'merge_query.refused';
+    properties: MergeQueryShapeProperties & {
+        kind: MergeRefusalKind;
+        kinds: MergeRefusalKind[];
+        refusalCount: number;
+        /** Set when the refusal arrived as the merged query's error, as the row cap does. */
+        queryId: string | null;
     };
 };
 
@@ -3636,6 +3684,8 @@ type TypedEvent =
     | CategoriesAppliedEvent
     | CustomFieldsReplaced
     | SubtotalQueryEvent
+    | MergeQueryExecutedEvent
+    | MergeQueryRefusedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent

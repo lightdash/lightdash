@@ -14,6 +14,7 @@ import {
     FilterOperator,
     ForbiddenError,
     MergeJoinType,
+    MergeQueryErrorKind,
     MetricType,
     MissingConfigError,
     NotFoundError,
@@ -813,11 +814,14 @@ describe('AsyncQueryService', () => {
 
         test('returns validation errors without starting execution', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const trackAccount = vi.spyOn(analyticsMock, 'trackAccount');
             vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
                 coreSql: null,
                 typedColumns: null,
                 terminalWrapper: null,
-                errors: [{ message: 'Fan-out' }],
+                errors: [
+                    { kind: MergeQueryErrorKind.FAN_OUT, message: 'Fan-out' },
+                ],
                 parameterReferences: ['date'],
                 fieldOrigins: {},
             } as never);
@@ -835,6 +839,19 @@ describe('AsyncQueryService', () => {
                 parameterReferences: ['date'],
                 errors: [{ message: 'Fan-out' }],
             });
+            expect(trackAccount).toHaveBeenCalledWith(sessionAccount, {
+                event: 'merge_query.refused',
+                properties: expect.objectContaining({
+                    projectId: projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    joinType: 'full',
+                    kind: MergeQueryErrorKind.FAN_OUT,
+                    kinds: [MergeQueryErrorKind.FAN_OUT],
+                    refusalCount: 1,
+                    queryId: null,
+                }),
+            });
+            trackAccount.mockRestore();
         });
     });
 
@@ -6053,6 +6070,8 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             context: QueryExecutionContext.EXPLORE,
             status: QueryHistoryStatus.READY,
             totalRowCount,
+            warehouseExecutionTimeMs: 12,
+            error: null,
             resultsFileName: `${queryUuid}.jsonl`,
             resultsExpiresAt: null,
             columns: {},
@@ -6102,24 +6121,42 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         ).mockResolvedValue(fieldTypes);
         vi.spyOn(service, 'executeAsyncMetricQuery').mockImplementation(
             async ({ metricQuery }) =>
-                ({
-                    queryUuid:
-                        metricQuery.exploreName === 'orders'
-                            ? legQueryUuidBySourceId.a
-                            : legQueryUuidBySourceId.b,
-                }) as never,
+                (metricQuery.exploreName === 'orders'
+                    ? {
+                          queryUuid: legQueryUuidBySourceId.a,
+                          cacheMetadata: { cacheHit: true },
+                      }
+                    : {
+                          queryUuid: legQueryUuidBySourceId.b,
+                          cacheMetadata: { cacheHit: false },
+                      }) as never,
         );
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
             .mockResolvedValue(undefined);
+        const trackAccount = vi
+            .spyOn(analyticsMock, 'trackAccount')
+            .mockImplementation(() => {});
         return {
             service,
             streamQuery,
             runWarehouseQuery,
+            trackAccount,
             create: service.queryHistoryModel.create as import('vitest').Mock,
             update: service.queryHistoryModel.update as import('vitest').Mock,
         };
     };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    const mergeEvents = (
+        trackAccount: ReturnType<typeof buildService>['trackAccount'],
+    ) =>
+        trackAccount.mock.calls
+            .map(([, event]) => event)
+            .filter(({ event }) => event.startsWith('merge_query.'));
 
     const execute = (service: AsyncQueryService) =>
         service.executeAsyncMergeQuery({
@@ -6172,11 +6209,66 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         );
     });
 
-    it('refuses before the join when a leg reached the row cap, naming the source', async () => {
-        const { service, streamQuery, runWarehouseQuery, update } =
-            buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
+    it('tracks the merge once it is ready, with leg cache hits and the merged row count', async () => {
+        const { service, trackAccount } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
 
         await execute(service);
+
+        await vi.waitFor(() =>
+            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        );
+        expect(mergeEvents(trackAccount)[0]).toEqual({
+            event: 'merge_query.executed',
+            properties: {
+                organizationId: projectSummary.organizationUuid,
+                projectId: projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                joinType: MergeJoinType.FULL,
+                sourceKinds: ['metric', 'metric'],
+                sourceCount: 2,
+                joinKeyCount: 1,
+                tableCalculationCount: 0,
+                queryId: 'merge-query-uuid',
+                engine: 'compose',
+                status: 'ready',
+                cacheHit: false,
+                legCount: 2,
+                legCacheHitCount: 1,
+                rowCount: 2,
+                durationMs: expect.any(Number),
+                joinExecutionTimeMs: 12,
+            },
+        });
+    });
+
+    it('refuses before the join when a leg reached the row cap, naming the source', async () => {
+        const {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            update,
+            trackAccount,
+        } = buildService({ config: cappedConfig, legRowCount: SOURCE_ROW_CAP });
+
+        await execute(service);
+
+        await vi.waitFor(() =>
+            expect(mergeEvents(trackAccount)).toHaveLength(1),
+        );
+        expect(mergeEvents(trackAccount)[0]).toMatchObject({
+            event: 'merge_query.refused',
+            properties: {
+                kind: 'row_cap',
+                kinds: ['row_cap'],
+                refusalCount: 1,
+                queryId: 'merge-query-uuid',
+                joinType: MergeJoinType.FULL,
+                sourceKinds: ['metric', 'metric'],
+            },
+        });
 
         await vi.waitFor(() =>
             expect(update).toHaveBeenCalledWith(
