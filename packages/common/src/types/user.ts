@@ -1,6 +1,7 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
+import { type ManagedSignIn } from './managedSignIn';
 import { OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 import { type PromotionAction } from './promotion';
@@ -298,6 +299,7 @@ export type LoginOptions = {
     redirectUri?: string;
     ssoPresentation?: MobileLoginSsoPresentation;
     localEmailAvailable?: boolean;
+    managedSignIn?: ManagedSignIn;
 };
 
 export type UserLoginOptions = Pick<
@@ -306,7 +308,8 @@ export type UserLoginOptions = Pick<
 >;
 
 export type MobileLoginOptions = UserLoginOptions &
-    Required<Pick<LoginOptions, 'ssoPresentation' | 'localEmailAvailable'>>;
+    Required<Pick<LoginOptions, 'ssoPresentation' | 'localEmailAvailable'>> &
+    Pick<LoginOptions, 'managedSignIn'>;
 
 export type ApiGetLoginOptionsResponse = {
     status: 'ok';

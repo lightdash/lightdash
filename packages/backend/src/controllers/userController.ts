@@ -20,6 +20,7 @@ import {
     hasInviteCode,
     isEmailOnlyUser,
     isMobileLoginIntent,
+    isMobilePlatform,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
@@ -617,18 +618,25 @@ export class UserController extends BaseController {
         @Request() req: express.Request,
         @Query() email?: string,
         @Query() mobile_login_intent?: string,
+        @Query() mobilePlatform?: string,
     ): Promise<ApiGetLoginOptionsResponse> {
         const userService = this.services.getUserService();
         const mobileLoginIntent = isMobileLoginIntent(mobile_login_intent)
             ? mobile_login_intent
             : undefined;
-        const [loginOptions, mobileLoginPresentation] = await Promise.all([
-            userService.getLoginOptions(email, mobileLoginIntent),
-            userService.getMobileLoginPresentation(),
-        ]);
+        const platform = isMobilePlatform(mobilePlatform)
+            ? mobilePlatform
+            : undefined;
+        const [loginOptions, mobileLoginPresentation, managedSignIn] =
+            await Promise.all([
+                userService.getLoginOptions(email, mobileLoginIntent),
+                userService.getMobileLoginPresentation(),
+                userService.getManagedSignIn(platform, email),
+            ]);
         const results: MobileLoginOptions = {
             ...loginOptions,
             ...mobileLoginPresentation,
+            ...(managedSignIn ? { managedSignIn } : {}),
         };
         this.setStatus(200);
         return {

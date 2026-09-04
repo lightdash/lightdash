@@ -2149,6 +2149,178 @@ describe('UserService', () => {
         });
     });
 
+    describe('getManagedSignIn', () => {
+        const withManagedSignIn = (
+            overrides: Partial<LightdashConfig['auth']> = {},
+        ): LightdashConfig => ({
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                microsoftManagedSignIn: {
+                    iosClientId: 'ios-registration',
+                    androidClientId: 'android-registration',
+                },
+                ...overrides,
+            },
+        });
+
+        const envTenantConfig = (tenantId: string) =>
+            withManagedSignIn({
+                azuread: {
+                    ...lightdashConfigMock.auth.azuread,
+                    oauth2TenantId: tenantId,
+                },
+            });
+
+        const azureMethod = (tenantId: string, organizationUuid = 'org-1') => ({
+            organizationUuid,
+            provider: OrganizationSsoProvider.AZUREAD,
+            config: {
+                oauth2ClientId: 'web-registration',
+                oauth2ClientSecret: 'secret',
+                oauth2TenantId: tenantId,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: false,
+        });
+
+        it('advertises the platform registration for the environment tenant', async () => {
+            const service = createUserService(envTenantConfig('tenant-abc'));
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toEqual({
+                provider: 'microsoft',
+                clientId: 'ios-registration',
+                authority: 'https://login.microsoftonline.com/tenant-abc',
+                tenantId: 'tenant-abc',
+                scopes: ['openid', 'profile', 'email'],
+            });
+
+            await expect(
+                service.getManagedSignIn('android', 'user@example.com'),
+            ).resolves.toMatchObject({
+                clientId: 'android-registration',
+            });
+        });
+
+        it('needs no email when the environment names the tenant', async () => {
+            const service = createUserService(envTenantConfig('tenant-abc'));
+
+            await expect(
+                service.getManagedSignIn('ios', undefined),
+            ).resolves.toMatchObject({ tenantId: 'tenant-abc' });
+        });
+
+        it('is absent without a platform', async () => {
+            const service = createUserService(envTenantConfig('tenant-abc'));
+
+            await expect(
+                service.getManagedSignIn(undefined, 'user@example.com'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('is absent when the platform registration is not configured', async () => {
+            const service = createUserService({
+                ...envTenantConfig('tenant-abc'),
+                auth: {
+                    ...envTenantConfig('tenant-abc').auth,
+                    microsoftManagedSignIn: {
+                        iosClientId: undefined,
+                        androidClientId: 'android-registration',
+                    },
+                },
+            });
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toBeUndefined();
+            await expect(
+                service.getManagedSignIn('android', 'user@example.com'),
+            ).resolves.toMatchObject({ clientId: 'android-registration' });
+        });
+
+        it('is absent when the server names no tenant', async () => {
+            const service = createUserService(withManagedSignIn());
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('takes the tenant from the organization the email routes to', async () => {
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValueOnce(
+                [azureMethod('tenant-from-org')],
+            );
+            const service = createUserService(withManagedSignIn());
+
+            await expect(
+                service.getManagedSignIn('android', 'user@example.com'),
+            ).resolves.toEqual({
+                provider: 'microsoft',
+                clientId: 'android-registration',
+                authority: 'https://login.microsoftonline.com/tenant-from-org',
+                tenantId: 'tenant-from-org',
+                scopes: ['openid', 'profile', 'email'],
+            });
+        });
+
+        it('is absent when two organizations claim the email domain with different tenants', async () => {
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValueOnce(
+                [
+                    azureMethod('tenant-one', 'org-1'),
+                    azureMethod('tenant-two', 'org-2'),
+                ],
+            );
+            const service = createUserService(withManagedSignIn());
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('is absent when the routed method is not Microsoft', async () => {
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockResolvedValueOnce(
+                [
+                    {
+                        organizationUuid: 'org-1',
+                        provider: OrganizationSsoProvider.OKTA,
+                        config: {
+                            oauth2Issuer: 'https://okta.example.com',
+                            oktaDomain: 'okta.example.com',
+                            oauth2ClientId: 'client',
+                            oauth2ClientSecret: 'secret',
+                            authorizationServerId: null,
+                            extraScopes: null,
+                        },
+                        enabled: true,
+                        overrideEmailDomains: false,
+                        emailDomains: [],
+                        allowPassword: false,
+                    },
+                ],
+            );
+            const service = createUserService(withManagedSignIn());
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toBeUndefined();
+        });
+
+        it('is absent when the organization lookup fails', async () => {
+            organizationSsoModel.findEnabledMethodsForEmailDomain.mockRejectedValueOnce(
+                new Error('database is down'),
+            );
+            const service = createUserService(withManagedSignIn());
+
+            await expect(
+                service.getManagedSignIn('ios', 'user@example.com'),
+            ).resolves.toBeUndefined();
+        });
+    });
+
     describe('mobile login intent filtering', () => {
         const mixedConfig = {
             ...lightdashConfigMock,
