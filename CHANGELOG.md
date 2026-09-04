@@ -1,3 +1,16 @@
+# [2.126.0](https://github.com/lightdash/lightdash/compare/2.125.0...2.126.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ai-agents:** hide error bubbles for unanswered Slack context turns ([#28607](https://github.com/lightdash/lightdash/issues/28607)) ([7ca3645](https://github.com/lightdash/lightdash/commit/7ca36452aab5cfd5c7a9b5d88ec1846ce807e2b4))
+* **pgwire:** compile EXTRACT/DATE_TRUNC over date dimensions to time frames ([#28645](https://github.com/lightdash/lightdash/issues/28645)) ([766d29a](https://github.com/lightdash/lightdash/commit/766d29a07656378d2e79ec0567491f6f7e960a70)), closes [lightdash/mintlify-docs#1211](https://github.com/lightdash/mintlify-docs/issues/1211) [#28635](https://github.com/lightdash/lightdash/issues/28635)
+
+
+### Features
+
+* **chart-registry:** beta badge on beta-channel library charts ([#28649](https://github.com/lightdash/lightdash/issues/28649)) ([ec2e539](https://github.com/lightdash/lightdash/commit/ec2e53903d32ed42cbcf21c513dffc80e93f1c8e)), closes [#28653](https://github.com/lightdash/lightdash/issues/28653)
+
 # [2.125.0](https://github.com/lightdash/lightdash/compare/2.124.0...2.125.0) (2026-09-04)
 
 
