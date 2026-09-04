@@ -11809,7 +11809,7 @@ Usage Tips:
 - Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
-- When filters is provided, pass one flat AND expression containing dimension fields only
+- When filters is present, it scopes the candidate-value search and must be one flat AND expression containing dimension fields only
 
 Filter expression syntax:
 - Join flat rules with AND only. OR is not supported by this tool.
@@ -11880,10 +11880,18 @@ Grammar: <field> <operator form>
         "type": "string",
       },
       "filters": {
-        "description": "Optional flat AND filter expression containing dimension fields only. Use null when the value search needs no additional scope.",
-        "maxLength": 16384,
-        "minLength": 1,
-        "type": "string",
+        "anyOf": [
+          {
+            "maxLength": 16384,
+            "minLength": 1,
+            "type": "string",
+          },
+          {
+            "type": "null",
+          },
+        ],
+        "default": null,
+        "description": "When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.",
       },
       "projectUuid": {
         "description": "Project UUID for this operation.",

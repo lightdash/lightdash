@@ -13,7 +13,7 @@ For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculati
 - Table calculations belong only in \`tableCalculations\`.
 - Each category is flat and uses AND or OR, never both.
 - The three categories combine implicitly with AND.
-- \`searchFieldValues.filters\` is one dimension expression string or null and is AND-only.
+- When present, \`searchFieldValues.filters\` is one flat dimension expression string and is AND-only.
 - The tool schema is authoritative for where each string is placed.
 
 Raw placement examples:
@@ -87,4 +87,4 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 - Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window."
 `;
 
-exports[`getSystemPromptV2 filter expressions > uses expression field-value guidance when enabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. \`searchFieldValues.filters\` is one raw dimension expression string or null and is AND-only."`;
+exports[`getSystemPromptV2 filter expressions > uses expression field-value guidance when enabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Omit \`filters\` when the search is unscoped. When present, \`filters\` scopes the candidate-value search and is one raw, flat, dimension-only AND expression."`;

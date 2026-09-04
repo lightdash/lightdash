@@ -2,6 +2,7 @@ import {
     DimensionType,
     FilterOperator,
     FilterType,
+    toolSearchFieldValuesExpressionArgsSchema,
     type Explore,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
@@ -151,22 +152,39 @@ describe('getSearchFieldValues', () => {
         expect(searchFieldValues).not.toHaveBeenCalled();
     });
 
-    it('does not load Explore metadata when filters are null', async () => {
-        const getExplore = vi.fn();
-        const tool = getSearchFieldValues({
-            searchFieldValues: vi.fn().mockResolvedValue([]),
-            getExplore,
-            enableFilterExpressions: true,
-        });
+    it.each([
+        { name: 'omitted', filters: undefined },
+        { name: 'null', filters: null },
+    ])(
+        'runs an unscoped search without loading Explore metadata when filters are $name',
+        async ({ filters }) => {
+            const getExplore = vi.fn();
+            const searchFieldValues = vi.fn().mockResolvedValue(['shipped']);
+            const tool = getSearchFieldValues({
+                searchFieldValues,
+                getExplore,
+                enableFilterExpressions: true,
+            });
 
-        const output = await execute(tool, {
-            table: 'orders',
-            fieldId: 'orders_status',
-            query: 'complete',
-            filters: null,
-        });
+            const args = toolSearchFieldValuesExpressionArgsSchema.parse({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+                ...(filters === null ? { filters } : {}),
+            });
+            const output = await execute(tool, args);
 
-        expect(output.metadata.status).toBe('success');
-        expect(getExplore).not.toHaveBeenCalled();
-    });
+            expect(output).toMatchObject({
+                result: '```json\n[\n  "shipped"\n]\n```',
+                metadata: { status: 'success' },
+            });
+            expect(getExplore).not.toHaveBeenCalled();
+            expect(searchFieldValues).toHaveBeenCalledWith({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'ship',
+                filters: undefined,
+            });
+        },
+    );
 });
