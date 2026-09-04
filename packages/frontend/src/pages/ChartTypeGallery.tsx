@@ -13,7 +13,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { Link, Navigate } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -31,9 +31,15 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 
+const GalleryTab = {
+    INSTALLED_CHARTS: 'installed-charts',
+    CHART_LIBRARY: 'chart-library',
+} as const;
+
 const ChartTypeGallery = () => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
+    const [searchParams, setSearchParams] = useSearchParams();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
@@ -74,6 +80,20 @@ const ChartTypeGallery = () => {
     const isEmptyGallery =
         !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
     const isLibraryEnabled = chartTypeRegistryFlag.data?.enabled === true;
+    const activeTab =
+        isLibraryEnabled && searchParams.get('tab') === GalleryTab.CHART_LIBRARY
+            ? GalleryTab.CHART_LIBRARY
+            : GalleryTab.INSTALLED_CHARTS;
+
+    const handleTabChange = (value: string | null) => {
+        const newParams = new URLSearchParams(searchParams);
+        if (value === GalleryTab.CHART_LIBRARY) {
+            newParams.set('tab', GalleryTab.CHART_LIBRARY);
+        } else {
+            newParams.delete('tab');
+        }
+        setSearchParams(newParams);
+    };
 
     if (!projectUuid) {
         return null;
@@ -103,9 +123,13 @@ const ChartTypeGallery = () => {
                     ]}
                 />
 
-                <Tabs defaultValue="chart-types" keepMounted={false}>
+                <Tabs
+                    value={activeTab}
+                    onChange={handleTabChange}
+                    keepMounted={false}
+                >
                     <Tabs.List>
-                        <Tabs.Tab value="chart-types">
+                        <Tabs.Tab value={GalleryTab.INSTALLED_CHARTS}>
                             <Group gap={6} wrap="nowrap">
                                 Installed charts
                                 {!isEmptyGallery && totalCount !== null && (
@@ -116,11 +140,13 @@ const ChartTypeGallery = () => {
                             </Group>
                         </Tabs.Tab>
                         {isLibraryEnabled && (
-                            <Tabs.Tab value="library">Chart library</Tabs.Tab>
+                            <Tabs.Tab value={GalleryTab.CHART_LIBRARY}>
+                                Chart library
+                            </Tabs.Tab>
                         )}
                     </Tabs.List>
 
-                    <Tabs.Panel value="chart-types" pt="xl">
+                    <Tabs.Panel value={GalleryTab.INSTALLED_CHARTS} pt="xl">
                         <Stack gap="md">
                             {!isEmptyGallery && (
                                 <Group justify="flex-end" gap="xs">
@@ -225,7 +251,7 @@ const ChartTypeGallery = () => {
                     </Tabs.Panel>
 
                     {isLibraryEnabled && (
-                        <Tabs.Panel value="library" pt="xl">
+                        <Tabs.Panel value={GalleryTab.CHART_LIBRARY} pt="xl">
                             <ChartTypeLibrarySection
                                 projectUuid={projectUuid}
                                 withHeader={false}
