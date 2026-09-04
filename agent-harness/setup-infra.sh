@@ -12,6 +12,7 @@ COMPOSE_FILE="$SCRIPT_DIR/docker-compose.agent.yml"
 PROJECT_NAME="agent-infra"
 TEMPLATE_DB="lightdash_template"
 DB_PORT="${AGENT_DB_PORT:-15432}"
+export PGPASSWORD="${PGPASSWORD:-password}"
 
 PSQL="psql -h localhost -p $DB_PORT -U postgres -d postgres"
 
@@ -50,19 +51,19 @@ else
 
     log "Running migrations..."
     LIGHTDASH_SECRET=template-secret \
-    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
+    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGDATABASE="$TEMPLATE_DB" \
         pnpm --dir "$REPO_ROOT" -F backend migrate
 
     log "Seeding Lightdash..."
     LIGHTDASH_SECRET=template-secret \
     DBT_DEMO_DIR="$REPO_ROOT/examples/full-jaffle-shop-demo" \
-    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
+    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGDATABASE="$TEMPLATE_DB" \
         pnpm --dir "$REPO_ROOT" -F backend seed
 
     log "Seeding Jaffle Shop (dbt models)..."
     LIGHTDASH_SECRET=template-secret \
     DBT_DEMO_DIR="$REPO_ROOT/examples/full-jaffle-shop-demo" \
-    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGPASSWORD=password PGDATABASE="$TEMPLATE_DB" \
+    PGHOST=localhost PGPORT="$DB_PORT" PGUSER=postgres PGDATABASE="$TEMPLATE_DB" \
         "$REPO_ROOT/scripts/seed-jaffle.sh"
 
     log "Marking '$TEMPLATE_DB' as a PostgreSQL template..."

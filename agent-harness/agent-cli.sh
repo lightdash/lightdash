@@ -166,7 +166,7 @@ case "$COMMAND" in
         export PGHOST=localhost
         export PGPORT="$DB_PORT"
         export PGUSER=postgres
-        export PGPASSWORD=password
+        export PGPASSWORD="${PGPASSWORD:-password}"
         export PGDATABASE="$AGENT_DB"
         export PORT="$API_PORT"
         export SITE_URL="http://localhost:${FE_PORT}"
