@@ -36,8 +36,12 @@ const ChartTypeLibrarySection: FC<Props> = ({
     }
 
     const charts = registryQuery.data?.charts ?? [];
+    // Installed-and-current chart types live in the installed tab only; the
+    // library lists what there is to get — new, upgradable, or incompatible.
+    const visibleCharts = charts.filter((chart) => chart.state !== 'installed');
+    const allInstalled = charts.length > 0 && visibleCharts.length === 0;
     const selected =
-        charts.find((chart) => chart.slug === selectedSlug) ?? null;
+        visibleCharts.find((chart) => chart.slug === selectedSlug) ?? null;
     // A fetch error with no cached data is the only case that has to be
     // shown; an error alongside cached data just keeps showing that data.
     const isOffline = !!registryQuery.error && !registryQuery.data;
@@ -52,7 +56,7 @@ const ChartTypeLibrarySection: FC<Props> = ({
                         </Text>
                         {registryQuery.data && (
                             <Text fz="xs" c="dimmed">
-                                ({charts.length})
+                                ({visibleCharts.length})
                             </Text>
                         )}
                     </Group>
@@ -73,15 +77,17 @@ const ChartTypeLibrarySection: FC<Props> = ({
                         The chart type library is unavailable right now.
                     </Text>
                 </Paper>
-            ) : charts.length === 0 ? (
+            ) : visibleCharts.length === 0 ? (
                 <Paper variant="dotted" p="xl">
                     <Text ta="center" fz="xs" c="dimmed">
-                        No chart types available in the registry yet.
+                        {allInstalled
+                            ? 'Every chart type from the library is installed — find them in your installed charts.'
+                            : 'No chart types available in the registry yet.'}
                     </Text>
                 </Paper>
             ) : (
                 <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
-                    {charts.map((chart) => (
+                    {visibleCharts.map((chart) => (
                         <ChartTypeLibraryCard
                             key={chart.slug}
                             item={chart}
