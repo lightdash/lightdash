@@ -1,6 +1,6 @@
 import { FeatureFlags, type DataAppViz } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppVersionHistory } from '../features/apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp';
@@ -113,13 +113,23 @@ const setFlags = ({
     );
 };
 
-const renderPage = () =>
+const LocationSearch = () => {
+    const { search } = useLocation();
+    return <div data-testid="location-search">{search}</div>;
+};
+
+const renderPage = (initialEntry = '/projects/project-1/gallery') =>
     renderWithProviders(
-        <MemoryRouter initialEntries={['/projects/project-1/gallery']}>
+        <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
                     path="/projects/:projectUuid/gallery"
-                    element={<ChartTypeGallery />}
+                    element={
+                        <>
+                            <ChartTypeGallery />
+                            <LocationSearch />
+                        </>
+                    }
                 />
                 <Route
                     path="/projects/:projectUuid/home"
@@ -202,6 +212,25 @@ describe('ChartTypeGallery', () => {
         fireEvent.click(libraryTab);
 
         expect(libraryTab).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByTestId('location-search')).toHaveTextContent(
+            '?tab=chart-library',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Radial gauge' }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(chartTypesTab);
+
+        expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
+    });
+
+    it('opens the chart library tab from a deep link', () => {
+        setData([makeDataAppViz({})]);
+        renderPage('/projects/project-1/gallery?tab=chart-library');
+
+        expect(
+            screen.getByRole('tab', { name: 'Chart library' }),
+        ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
         ).not.toBeInTheDocument();
