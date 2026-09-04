@@ -48,6 +48,8 @@ import type { SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromJwt } from '../../auth/account/account';
+import { defaultJwtToken } from '../../auth/account/account.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -5918,6 +5920,29 @@ describe('runDuckdbQuery', () => {
     });
 });
 
+// An explore whose base table is row-filtered by a user attribute, so a
+// different attribute value is a different WHERE clause in the compiled SQL
+const attributeScopedExplore: Explore = {
+    ...validExplore,
+    tables: {
+        ...validExplore.tables,
+        a: {
+            ...validExplore.tables.a,
+            sqlWhere: 'region = ${lightdash.attribute.region}',
+            dimensions: {
+                ...validExplore.tables.a.dimensions,
+                region_param: {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: 'region_param',
+                    label: 'region_param',
+                    sql: '${ld.parameters.region}',
+                    compiledSql: '${ld.parameters.region}',
+                },
+            },
+        },
+    },
+};
+
 describe('executeAsyncMergeQuery on the compose engine', () => {
     const SOURCE_ROW_CAP = 3;
     // Lowered through config rather than by seeding cap-many rows: the run
@@ -6061,6 +6086,37 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         limit: 500,
     };
 
+    // Both sources over the attribute-scoped explore, so each leg compiles
+    // its own row filter from the submission's overrides
+    const attributeScopedMergeQuery: MergeQuery = {
+        ...mergeQuery,
+        sources: [
+            {
+                id: 'a',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'orders',
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+            {
+                id: 'b',
+                metricQuery: {
+                    ...metricQueryMock,
+                    exploreName: 'payments',
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ],
+        joinKey: [
+            { name: 'dim1', fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' } },
+        ],
+    };
+
     const legHistory = (queryUuid: string, totalRowCount: number) =>
         ({
             queryUuid,
@@ -6078,7 +6134,18 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             metricQuery: metricQueryMock,
         }) as unknown as QueryHistory;
 
-    const buildService = ({
+    const legResultByExploreName = (exploreName: string) =>
+        exploreName === 'orders'
+            ? {
+                  queryUuid: legQueryUuidBySourceId.a,
+                  cacheMetadata: { cacheHit: true },
+              }
+            : {
+                  queryUuid: legQueryUuidBySourceId.b,
+                  cacheMetadata: { cacheHit: false },
+              };
+
+    const createComposeService = ({
         config,
         legRowCount,
     }: {
@@ -6119,18 +6186,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             service as AnyType,
             'getMergeFieldTypesForQuery',
         ).mockResolvedValue(fieldTypes);
-        vi.spyOn(service, 'executeAsyncMetricQuery').mockImplementation(
-            async ({ metricQuery }) =>
-                (metricQuery.exploreName === 'orders'
-                    ? {
-                          queryUuid: legQueryUuidBySourceId.a,
-                          cacheMetadata: { cacheHit: true },
-                      }
-                    : {
-                          queryUuid: legQueryUuidBySourceId.b,
-                          cacheMetadata: { cacheHit: false },
-                      }) as never,
-        );
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
             .mockResolvedValue(undefined);
@@ -6145,6 +6200,61 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             create: service.queryHistoryModel.create as import('vitest').Mock,
             update: service.queryHistoryModel.update as import('vitest').Mock,
         };
+    };
+
+    const buildService = (args: {
+        config: LightdashConfig;
+        legRowCount: number;
+    }) => {
+        const built = createComposeService(args);
+        vi.spyOn(built.service, 'executeAsyncMetricQuery').mockImplementation(
+            async ({ metricQuery }) =>
+                legResultByExploreName(metricQuery.exploreName) as never,
+        );
+        return built;
+    };
+
+    // Legs compile for real against the attribute-scoped explore; only the
+    // execution tail is captured, so each leg's compiled SQL is observable
+    const buildServiceWithCompiledLegs = () => {
+        const built = createComposeService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+        const { service } = built;
+        vi.spyOn(
+            service as AnyType,
+            'assertCustomSqlAuthorizedForQuery',
+        ).mockResolvedValue(undefined);
+        service.getExploreWithUserAccessControls = vi.fn(
+            async (
+                _account: Account,
+                _projectUuid: string,
+                exploreName: string,
+            ) => ({
+                explore: { ...attributeScopedExplore, name: exploreName },
+                userAccessControls: {
+                    userAttributes: { region: ['base'] },
+                    intrinsicUserAttributes: {},
+                },
+            }),
+        );
+        (service as AnyType).getWarehouseCredentials = vi
+            .fn()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        const executeAsyncQuery = vi.fn(
+            async ({ queryComposer }: { queryComposer: QueryComposer }) =>
+                legResultByExploreName(
+                    queryComposer.getMetricQuery().exploreName,
+                ),
+        );
+        service['executeAsyncQuery'] = executeAsyncQuery as never;
+        const compiledLegs = () =>
+            executeAsyncQuery.mock.calls.map(([{ queryComposer }]) => ({
+                exploreName: queryComposer.getMetricQuery().exploreName,
+                sql: queryComposer.getSql({ columnLimit: 100 }),
+            }));
+        return { ...built, executeAsyncQuery, compiledLegs };
     };
 
     afterEach(() => {
@@ -6303,6 +6413,43 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect.anything(),
         );
     });
+
+    it("compiles every leg with the submission's user attribute overrides, a different query per override", async () => {
+        const { service, executeAsyncQuery, compiledLegs } =
+            buildServiceWithCompiledLegs();
+        const submit = (region: string) =>
+            service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: attributeScopedMergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+                userAttributeOverrides: { region: [region] },
+            });
+
+        const eu = await submit('EU');
+        const us = await submit('US');
+
+        expect(eu.outcome).toBe('started');
+        expect(us.outcome).toBe('started');
+        expect(executeAsyncQuery).toHaveBeenCalledTimes(4);
+        const legs = compiledLegs();
+        const [euLegs, usLegs] = [legs.slice(0, 2), legs.slice(2)];
+        for (const exploreName of ['orders', 'payments']) {
+            const euSql = euLegs.find(
+                (leg) => leg.exploreName === exploreName,
+            )?.sql;
+            const usSql = usLegs.find(
+                (leg) => leg.exploreName === exploreName,
+            )?.sql;
+            expect(euSql).toContain("region = 'EU'");
+            expect(usSql).toContain("region = 'US'");
+            expect(euSql).not.toEqual(usSql);
+            // The override replaces the account's own value rather than adding to it
+            expect(euSql).not.toContain('base');
+            expect(usSql).not.toContain('base');
+        }
+    });
 });
 
 /**
@@ -6312,27 +6459,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
  * value lands in the SQL, and a missing one refuses.
  */
 describe('query sources carry the execution context', () => {
-    const attributeScopedExplore: Explore = {
-        ...validExplore,
-        tables: {
-            ...validExplore.tables,
-            a: {
-                ...validExplore.tables.a,
-                sqlWhere: 'region = ${lightdash.attribute.region}',
-                dimensions: {
-                    ...validExplore.tables.a.dimensions,
-                    region_param: {
-                        ...validExplore.tables.a.dimensions.dim1,
-                        name: 'region_param',
-                        label: 'region_param',
-                        sql: '${ld.parameters.region}',
-                        compiledSql: '${ld.parameters.region}',
-                    },
-                },
-            },
-        },
-    };
-
     const submissionDefaults: Omit<SubmitSourceQueryArgs, 'query'> = {
         account: sessionAccount,
         projectUuid,
@@ -6786,4 +6912,77 @@ describe('executeAsyncMergeQuery over a result source', () => {
 
         expect(compiled.errors).toEqual([]);
     });
+
+    const buildServiceWithForbiddenResult = (forbiddenQueryUuid: string) => {
+        const built = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT - 1,
+        });
+        const readable = built.service.queryHistoryModel.get;
+        built.service.queryHistoryModel.get = vi.fn(
+            async (queryUuid: string, ...rest: [string, Account]) => {
+                if (queryUuid === forbiddenQueryUuid) {
+                    throw new ForbiddenError(
+                        'User is not authorized to access this query',
+                    );
+                }
+                return readable(queryUuid, ...rest);
+            },
+        );
+        return built;
+    };
+
+    // The v1 mergeQuery routes cannot carry an embed account until PROD-10899 lands, so this pins the v2 service path
+    const embedAccount = fromJwt({
+        decodedToken: defaultJwtToken,
+        embed: {
+            projectUuid,
+            organization: {
+                organizationUuid: projectSummary.organizationUuid,
+                name: 'Test Organization',
+                createdAt: new Date('2024-01-01'),
+            },
+            encodedSecret: 'test-encoded-secret',
+            dashboardUuids: [],
+            allowAllDashboards: true,
+            chartUuids: [],
+            allowAllCharts: true,
+            allowAllApps: false,
+            appUuids: [],
+            createdAt: '2024-01-01',
+            user: null,
+        },
+        source: 'test-jwt-token',
+        content: {
+            type: 'dashboard',
+            dashboardUuid: 'test-dashboard-uuid',
+            chartUuids: [],
+            explores: [],
+        },
+        userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
+    });
+
+    it.each([
+        ['a session account', sessionAccount],
+        ['an embed account', embedAccount],
+    ])(
+        'refuses a merge over a referenced result %s cannot read as forbidden, never as unavailable',
+        async (_label, account) => {
+            const { service, runLeg, create } = buildServiceWithForbiddenResult(
+                resultQueryUuids.b,
+            );
+
+            await expect(
+                service.executeAsyncMergeQuery({
+                    account,
+                    projectUuid,
+                    mergeQuery,
+                    context: QueryExecutionContext.AI,
+                    mode: { type: 'interactive' },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(runLeg).not.toHaveBeenCalled();
+            expect(create).not.toHaveBeenCalled();
+        },
+    );
 });

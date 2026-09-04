@@ -5844,6 +5844,8 @@ export class ProjectService extends BaseService {
                             explore: null,
                         };
                     } catch (e) {
+                        // Access denial surfaces as the same 403 that fetching the results would
+                        if (e instanceof ForbiddenError) throw e;
                         resolutionErrors.push({
                             kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
                             sourceId: source.id,
