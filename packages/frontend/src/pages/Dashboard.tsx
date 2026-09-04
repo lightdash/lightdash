@@ -873,6 +873,7 @@ const Dashboard: FC = () => {
 
             if (dashboardUuid) {
                 const workbookEventProperties = {
+                    organizationUuid: user.data?.organizationUuid,
                     projectUuid,
                     dashboardUuid,
                     exploreName: chart.tableName,
@@ -942,6 +943,7 @@ const Dashboard: FC = () => {
             setHaveCustomMetricsChanged,
             dashboardUuid,
             projectUuid,
+            user.data?.organizationUuid,
             track,
         ],
     );
