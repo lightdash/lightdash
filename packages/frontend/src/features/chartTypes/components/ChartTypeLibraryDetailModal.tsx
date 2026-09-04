@@ -21,6 +21,7 @@ import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
 import classes from './ChartTypeLibraryDetailModal.module.css';
@@ -241,9 +242,14 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                             <Text fz={12} fw={600} c="ldGray.6">
                                 Version
                             </Text>
-                            <Text fz="sm" fw={500} c="ldGray.8">
-                                v{item.version}
-                            </Text>
+                            <Group gap="xs" wrap="nowrap">
+                                <Text fz="sm" fw={500} c="ldGray.8">
+                                    v{item.version}
+                                </Text>
+                                {item.channel === 'beta' && (
+                                    <ChartTypeBetaBadge />
+                                )}
+                            </Group>
                         </Box>
                         <Box>
                             <Text fz={12} fw={600} c="ldGray.6">

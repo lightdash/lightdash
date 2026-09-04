@@ -8,6 +8,7 @@ import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
+import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryCard.module.css';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
@@ -80,7 +81,10 @@ const ChartTypeLibraryCard: FC<Props> = ({ item, onClick }) => (
                 <Text fz={13} fw={600} truncate="end">
                     {item.name}
                 </Text>
-                <OfficialChartTypeBadge />
+                <Group gap={4} wrap="nowrap" className="ld-shrink-0">
+                    {item.channel === 'beta' && <ChartTypeBetaBadge />}
+                    <OfficialChartTypeBadge />
+                </Group>
             </Group>
             <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
                 {item.description || 'No description'}

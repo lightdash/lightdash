@@ -237,6 +237,19 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows a beta badge only on beta-channel charts', () => {
+        setFlag(true);
+        setRegistryData([
+            makeItem({ slug: 'a', name: 'Stable chart', channel: 'stable' }),
+            makeItem({ slug: 'b', name: 'Untagged chart' }),
+            makeItem({ slug: 'c', name: 'Beta chart', channel: 'beta' }),
+        ]);
+        renderSection();
+
+        expect(screen.getByText('Beta chart')).toBeInTheDocument();
+        expect(screen.getAllByText('Beta')).toHaveLength(1);
+    });
+
     it('renders each card as a keyboard-focusable button', () => {
         setFlag(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
