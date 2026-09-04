@@ -310,6 +310,15 @@ export const createLightdashPgWireHandlers = (
                                 kind: 'dimension' as const,
                                 type: d.type,
                                 description: describe(d),
+                                timeInterval:
+                                    d.timeInterval &&
+                                    d.timeIntervalBaseDimensionName
+                                        ? {
+                                              frame: d.timeInterval,
+                                              baseDimensionName:
+                                                  d.timeIntervalBaseDimensionName,
+                                          }
+                                        : null,
                             })),
                         ...getMetrics(explore)
                             .filter((m) => !m.hidden)
@@ -320,10 +329,12 @@ export const createLightdashPgWireHandlers = (
                                 kind: 'metric' as const,
                                 type: m.type,
                                 description: describe(m),
+                                timeInterval: null,
                             })),
                     ];
                     return {
                         name: explore.name,
+                        targetDatabase: explore.targetDatabase,
                         fields,
                         description:
                             explore.tables[

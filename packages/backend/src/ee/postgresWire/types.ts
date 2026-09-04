@@ -1,6 +1,17 @@
-import { type MetricQuery } from '@lightdash/common';
+import {
+    type MetricQuery,
+    type SupportedDbtAdapter,
+    type TimeFrames,
+} from '@lightdash/common';
 
 export type PgWireFieldKind = 'dimension' | 'metric';
+
+/** A dimension generated from a date/timestamp dimension at a fixed time frame (e.g. `order_date_year`) */
+export type PgWireTimeInterval = {
+    frame: TimeFrames;
+    /** name of the date/timestamp dimension the interval was derived from, within the same table */
+    baseDimensionName: string;
+};
 
 export type PgWireField = {
     /** Lightdash field id, exposed to clients as the column name (e.g. `orders_status`) */
@@ -14,6 +25,7 @@ export type PgWireField = {
     type: string;
     /** Shown as the column comment by schema browsers */
     description: string | null;
+    timeInterval: PgWireTimeInterval | null;
 };
 
 /** One explore exposed as a Postgres table */
@@ -22,6 +34,8 @@ export type PgWireTable = {
     fields: PgWireField[];
     /** Shown as the table comment by schema browsers */
     description: string | null;
+    /** warehouse dialect the explore compiles to; used for synthesised time-frame SQL */
+    targetDatabase: SupportedDbtAdapter;
 };
 
 export type PgWireColumnKind = PgWireFieldKind | 'table_calculation';

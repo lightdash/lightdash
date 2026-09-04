@@ -1,4 +1,4 @@
-import { type Account } from '@lightdash/common';
+import { SupportedDbtAdapter, type Account } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { ServiceRepository } from '../../services/ServiceRepository';
 import {
@@ -12,6 +12,7 @@ const catalog: PgWireTable[] = [
     {
         name: 'orders',
         description: null,
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
         fields: [
             {
                 fieldId: 'orders_status',
@@ -20,6 +21,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'string',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_amount',
@@ -28,6 +30,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'number',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_is_completed',
@@ -36,6 +39,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'boolean',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_order_date',
@@ -44,6 +48,7 @@ const catalog: PgWireTable[] = [
                 kind: 'dimension',
                 type: 'date',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_total',
@@ -52,6 +57,7 @@ const catalog: PgWireTable[] = [
                 kind: 'metric',
                 type: 'sum',
                 description: null,
+                timeInterval: null,
             },
             {
                 fieldId: 'orders_count',
@@ -60,6 +66,7 @@ const catalog: PgWireTable[] = [
                 kind: 'metric',
                 type: 'count',
                 description: null,
+                timeInterval: null,
             },
         ],
     },
@@ -267,6 +274,7 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
         name: 'orders',
         label: 'Orders',
         baseTable: 'orders',
+        targetDatabase: SupportedDbtAdapter.POSTGRES,
         joinedTables: [],
         tables: {
             orders: {
@@ -287,6 +295,7 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                         sql: '${TABLE}.status',
                         hidden: false,
                         description: 'Order status',
+                        timeInterval: null,
                     },
                     secret: {
                         fieldType: 'dimension',
@@ -297,6 +306,18 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                         tableLabel: 'Orders',
                         sql: '${TABLE}.secret',
                         hidden: true,
+                    },
+                    order_date_year: {
+                        fieldType: 'dimension',
+                        type: 'date',
+                        name: 'order_date_year',
+                        label: 'Order date year',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: "DATE_TRUNC('YEAR', ${TABLE}.order_date)",
+                        hidden: false,
+                        timeInterval: 'YEAR',
+                        timeIntervalBaseDimensionName: 'order_date',
                     },
                 },
                 metrics: {
@@ -345,6 +366,7 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
             {
                 name: 'orders',
                 description: 'Orders placed by customers',
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
                 fields: [
                     {
                         fieldId: 'orders_status',
@@ -353,6 +375,19 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                         kind: 'dimension',
                         type: 'string',
                         description: 'Order status',
+                        timeInterval: null,
+                    },
+                    {
+                        fieldId: 'orders_order_date_year',
+                        table: 'orders',
+                        name: 'order_date_year',
+                        kind: 'dimension',
+                        type: 'date',
+                        description: 'Order date year',
+                        timeInterval: {
+                            frame: 'YEAR',
+                            baseDimensionName: 'order_date',
+                        },
                     },
                     {
                         fieldId: 'orders_total',
@@ -361,6 +396,7 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                         kind: 'metric',
                         type: 'sum',
                         description: 'Total amount',
+                        timeInterval: null,
                     },
                 ],
             },
@@ -383,6 +419,12 @@ describe('lightdash pgwire handlers: end to end through authenticate', () => {
                     'Orders placed by customers',
                     'orders_status',
                     'Order status',
+                ],
+                [
+                    'orders',
+                    'Orders placed by customers',
+                    'orders_order_date_year',
+                    'Order date year',
                 ],
                 [
                     'orders',
