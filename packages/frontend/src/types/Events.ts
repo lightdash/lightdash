@@ -130,6 +130,10 @@ export enum EventName {
     DASHBOARD_FILTER_REQUIREMENTS_SAVED = 'dashboard_filter_requirements.saved',
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
+    DASHBOARD_CUSTOM_METRIC_CREATED = 'dashboard_custom_metric.created',
+    DASHBOARD_CUSTOM_METRIC_REUSED = 'dashboard_custom_metric.reused',
+    DASHBOARD_CHART_CREATED_IN_PLACE = 'dashboard_chart.created_in_place',
+    DASHBOARD_CHART_EDITED_IN_PLACE = 'dashboard_chart.edited_in_place',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
     // Headway-related notifications
     NOTIFICATIONS_CLICKED = 'notifications.clicked',
