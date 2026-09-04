@@ -293,8 +293,9 @@ export function ownExpandContractFloor(input: {
 
 /**
  * PURE. Assemble the marker from already-gathered inputs. Encodes the honesty
- * rules: rollingUpdateSafe is never silently true/false for a migration-bearing
- * (or unknown) release.
+ * rules: definitive AI verdicts stand despite incomplete metadata. Declared
+ * and config breaks plus required stops remain unsafe; a linter finding holds
+ * unless a definitive AI verdict clears it.
  */
 export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     const present: TriState = input.migrations
@@ -326,6 +327,16 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     const fullyChecked =
         rest.checked && mcp.checked && config.checked && metadataComplete;
     const deterministicallySafe = isDeterministicallyRollingUpdateSafe(input);
+    const requiredStops = [
+        ...new Set([
+            ...(input.requiredStops ?? []),
+            ...(declaredBreaks.some(
+                (declaredBreak) => declaredBreak.requiredStop,
+            )
+                ? [input.version]
+                : []),
+        ]),
+    ].sort(compareVersions);
 
     let rollingUpdateSafe: TriState = 'unknown';
     if (
@@ -347,10 +358,7 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
     ) {
         rollingUpdateSafe = input.aiReview.rollingUpdateSafe;
     }
-    if (!metadataComplete) {
-        rollingUpdateSafe = 'unknown';
-    }
-    if (deterministicBreak) {
+    if (deterministicBreak || requiredStops.includes(input.version)) {
         rollingUpdateSafe = false;
     }
 
@@ -376,16 +384,6 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         minPreviousVersion = carriedFloor;
     }
 
-    const requiredStops = [
-        ...new Set([
-            ...(input.requiredStops ?? []),
-            ...(declaredBreaks.some(
-                (declaredBreak) => declaredBreak.requiredStop,
-            )
-                ? [input.version]
-                : []),
-        ]),
-    ].sort(compareVersions);
     const migrationDetails = input.migrationDetails ?? [];
     const coreCount = migrationDetails.filter(
         (migration) => migration.edition === 'core',
