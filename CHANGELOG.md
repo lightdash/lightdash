@@ -1,3 +1,10 @@
+# [2.134.0](https://github.com/lightdash/lightdash/compare/2.133.2...2.134.0) (2026-09-04)
+
+
+### Features
+
+* **review-requests:** rework the request page as a request thread ([#28695](https://github.com/lightdash/lightdash/issues/28695)) ([49c58ad](https://github.com/lightdash/lightdash/commit/49c58ad12d2296d89c84496634aa20d29053d0fe))
+
 ## [2.133.2](https://github.com/lightdash/lightdash/compare/2.133.1...2.133.2) (2026-09-04)
 
 
