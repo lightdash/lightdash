@@ -12,7 +12,15 @@
     justify-content: flex-start;
     gap: var(--mantine-spacing-4xl);
     padding: var(--mantine-spacing-4xl);
-    background-color: #d6336c;
+    background: linear-gradient(
+        135deg,
+        #e03131,
+        #f08c00,
+        #f2c317,
+        #2f9e44,
+        #1971c2,
+        #6741d9
+    );
 }
 
 @media (max-width: $mantine-breakpoint-md) {
