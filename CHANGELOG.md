@@ -1,3 +1,19 @@
+# [2.128.0](https://github.com/lightdash/lightdash/compare/2.127.0...2.128.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **migrations:** move ai_prompt response_timing migration to the EE dir ([#28670](https://github.com/lightdash/lightdash/issues/28670)) ([3b26e3c](https://github.com/lightdash/lightdash/commit/3b26e3cc5e025eabc99adf3359063655447c257e)), closes [#28668](https://github.com/lightdash/lightdash/issues/28668)
+
+
+### Features
+
+* **chart-registry:** 'Built by Lightdash' badge replaces 'Official' ([#28664](https://github.com/lightdash/lightdash/issues/28664)) ([b11b242](https://github.com/lightdash/lightdash/commit/b11b242987a8c97417eea9fc23a1452936d95054)), closes [#28661](https://github.com/lightdash/lightdash/issues/28661)
+* **chart-registry:** offer registry upgrades from the installed tab ([#28661](https://github.com/lightdash/lightdash/issues/28661)) ([8902dde](https://github.com/lightdash/lightdash/commit/8902dde589dc2be856e06c22291e027e4279791d)), closes [#28660](https://github.com/lightdash/lightdash/issues/28660) [#28653](https://github.com/lightdash/lightdash/issues/28653)
+* **chart-registry:** show the registry version for installed official chart types ([#28665](https://github.com/lightdash/lightdash/issues/28665)) ([2cd0fac](https://github.com/lightdash/lightdash/commit/2cd0faca7aa9c977195062d9d8fd726ebafaa7ea)), closes [#28664](https://github.com/lightdash/lightdash/issues/28664)
+* **chart-registry:** typed field breakdown in the installed detail modal ([#28666](https://github.com/lightdash/lightdash/issues/28666)) ([d5768ac](https://github.com/lightdash/lightdash/commit/d5768aca5e3c9d5deb3676b6f4c8b098f7f9b385)), closes [#28665](https://github.com/lightdash/lightdash/issues/28665)
+* **dashboard:** track custom metric creation and reuse ([#28663](https://github.com/lightdash/lightdash/issues/28663)) ([60cc1ed](https://github.com/lightdash/lightdash/commit/60cc1eddf09b0da8a53c5d0d8539812edb31431e))
+
 # [2.127.0](https://github.com/lightdash/lightdash/compare/2.126.0...2.127.0) (2026-09-04)
 
 
