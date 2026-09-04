@@ -105,6 +105,7 @@ import {
     McpError,
     ServerNotification,
     ServerRequest,
+    SUPPORTED_PROTOCOL_VERSIONS,
     // eslint-disable-next-line import/extensions
 } from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
@@ -186,6 +187,8 @@ import {
     registerAppTool,
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
+
+export const MCP_SUPPORTED_PROTOCOL_VERSIONS = SUPPORTED_PROTOCOL_VERSIONS;
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',

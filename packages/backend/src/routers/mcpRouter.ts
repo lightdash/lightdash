@@ -22,6 +22,7 @@ import { allowApiKeyAuthentication } from '../controllers/authentication';
 import {
     ExtraContext,
     isProjectScopedMcpTool,
+    MCP_SUPPORTED_PROTOCOL_VERSIONS,
     McpService,
     type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
@@ -320,6 +321,18 @@ mcpRouter.all(
             }
 
             if (req.method === 'POST') {
+                const protocolVersion = extractProtocolVersionFromHeader(req);
+                if (
+                    protocolVersion &&
+                    !MCP_SUPPORTED_PROTOCOL_VERSIONS.includes(protocolVersion)
+                ) {
+                    return res.status(400).json({
+                        error: `Unsupported MCP protocol version: ${protocolVersion}`,
+                        supportedProtocolVersions:
+                            MCP_SUPPORTED_PROTOCOL_VERSIONS,
+                    });
+                }
+
                 // SDK 1.26.0 requires a new server+transport per request in stateless mode
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
@@ -346,7 +359,6 @@ mcpRouter.all(
                     }
                 }
                 const userAgent = req.account?.requestContext?.userAgent;
-                const protocolVersion = extractProtocolVersionFromHeader(req);
 
                 // Session ids group tool calls made over one client
                 // connection. Assigned on initialize (spec: clients MUST echo
