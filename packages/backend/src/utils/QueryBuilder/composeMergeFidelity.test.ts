@@ -35,6 +35,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
+    instance.closeSync();
     rmSync(dir, { recursive: true, force: true });
 });
 
