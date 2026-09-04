@@ -1,4 +1,11 @@
-import { cleanColorArray, getInvalidHexColors, isHexCodeColor } from './colors';
+import {
+    cleanColorArray,
+    getColorFromRange,
+    getInvalidHexColors,
+    isHexCodeColor,
+} from './colors';
+
+const colorRange = { start: '#fff', end: '#000000' };
 
 describe('isHexCodeColor', () => {
     it('should return true for valid 3-digit hex colors', () => {
@@ -104,5 +111,62 @@ describe('cleanColorArray', () => {
         const expectedCleanedColors = ['#123', 'red', '#456789', 'blue'];
 
         expect(cleanColorArray(mixedColors)).toEqual(expectedCleanedColors);
+    });
+});
+
+describe('getColorFromRange', () => {
+    it('should interpolate a color for a value within the range', () => {
+        expect(getColorFromRange(50, colorRange, { min: 0, max: 100 })).toBe(
+            '#808080',
+        );
+    });
+
+    it('should return the start color for the min value', () => {
+        expect(getColorFromRange(0, colorRange, { min: 0, max: 100 })).toBe(
+            '#fff',
+        );
+    });
+
+    it('should return the end color for the max value', () => {
+        expect(getColorFromRange(100, colorRange, { min: 0, max: 100 })).toBe(
+            '#000',
+        );
+    });
+
+    it('should saturate to the end color for values above the max', () => {
+        expect(getColorFromRange(400, colorRange, { min: 0, max: 100 })).toBe(
+            '#000',
+        );
+    });
+
+    it('should saturate to the start color for values below the min', () => {
+        expect(getColorFromRange(0, colorRange, { min: 10, max: 100 })).toBe(
+            '#fff',
+        );
+    });
+
+    it('should return undefined when min is greater than max', () => {
+        expect(
+            getColorFromRange(50, colorRange, { min: 100, max: 0 }),
+        ).toBeUndefined();
+    });
+
+    it('should return the end color when min equals max', () => {
+        expect(getColorFromRange(50, colorRange, { min: 50, max: 50 })).toBe(
+            '#000',
+        );
+    });
+
+    it('should return undefined for invalid color range', () => {
+        expect(
+            getColorFromRange(
+                50,
+                { start: 'red', end: '#000000' },
+                {
+                    min: 0,
+                    max: 100,
+                },
+            ),
+        ).toBeUndefined();
     });
 });
