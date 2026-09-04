@@ -16554,6 +16554,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardFilters_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DashboardFilters' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExecuteAsyncDashboardChartQueryResults: {
         dataType: 'refAlias',
         type: {
@@ -16566,6 +16576,9 @@ const models: TsoaRoute.Models = {
                         dateZoomApplied: {
                             dataType: 'boolean',
                             required: true,
+                        },
+                        appliedDashboardFiltersBySourceId: {
+                            ref: 'Record_string.DashboardFilters_',
                         },
                         appliedDashboardFilters: {
                             ref: 'DashboardFilters',

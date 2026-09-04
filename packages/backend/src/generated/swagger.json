@@ -17870,6 +17870,14 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
+            "Record_string.DashboardFilters_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardFilters"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ApiExecuteAsyncDashboardChartQueryResults": {
                 "allOf": [
                     {
@@ -17879,6 +17887,10 @@
                         "properties": {
                             "dateZoomApplied": {
                                 "type": "boolean"
+                            },
+                            "appliedDashboardFiltersBySourceId": {
+                                "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                                "description": "For a merged chart, the applied filters keyed by the merge source\nthey were pushed into (source ids match `fieldOrigins`). Absent on\nordinary tiles."
                             },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
@@ -59692,7 +59704,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.128.1",
+        "version": "2.129.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
