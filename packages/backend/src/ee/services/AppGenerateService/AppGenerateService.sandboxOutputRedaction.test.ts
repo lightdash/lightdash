@@ -32,6 +32,8 @@ type PrivateAppGenerateService = {
         model: 'sonnet',
         effort: 'low',
         structuredOutputSchema: string | null,
+        onTelemetry: undefined,
+        editScope: 'source' | 'manifest',
     ) => Promise<GenerationResult>;
 };
 
@@ -138,6 +140,8 @@ describe.each([
                 'sonnet',
                 'low',
                 null,
+                undefined,
+                'source',
             );
 
             expect(result.responseText).toBe('finished with [redacted]');
@@ -185,6 +189,8 @@ describe.each([
             'sonnet',
             'low',
             null,
+            undefined,
+            'source',
         );
         void generation.catch(() => undefined);
 

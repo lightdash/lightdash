@@ -92,6 +92,7 @@ import {
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
     type DataAppTemplate,
+    type DataAppTemplateKind,
     type DataAppTemplateSummary,
     type DataAppViz,
     type DataAppVizRenderMetadata,
@@ -309,6 +310,8 @@ import {
 import { getTemplateInstructions } from './templates';
 import {
     buildOrgTemplateInstructions,
+    orgTemplateBuildFixNote,
+    orgTemplateEditScope,
     shouldSeedOrgTemplate,
 } from './templateSources';
 
@@ -349,6 +352,17 @@ type AppExternalConnectionDoc = {
 };
 
 type AppRuntimeS3 = { client: S3Client; bucket: string };
+
+/**
+ * An organization template as the pipeline sees it: identity from the app
+ * row (slug + the kind pinned at creation) plus the version being built.
+ */
+type OrgTemplateBuildContext = {
+    organizationUuid: string;
+    slug: string;
+    kind: DataAppTemplateKind;
+    version: number;
+};
 
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -2932,14 +2946,13 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
-        orgTemplate?: { organizationUuid: string; slug: string; seed: boolean },
+        orgTemplate?: OrgTemplateBuildContext,
     ): Promise<{
         durationMs: number;
         tableCount: number;
         dimensionCount: number;
         metricCount: number;
         yamlBytes: number;
-        editScope: CodingAgentEditScope;
     }> {
         const start = performance.now();
 
@@ -2997,64 +3010,11 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        // Organization template: seed the workspace with the template's
-        // source from the org's template storage so the agent binds it
-        // (template.json edits against the real explores) instead of
-        // regenerating an app. The tar overwrites the scaffold's overlapping
-        // files and leaves the rest of the scaffold (src/lib,
-        // src/components/ui, css) untouched. The package's AGENTS.md is not
-        // a sandbox file; it travels as the template's prompt instructions.
-        let orgTemplateInstructions: string | null = null;
-        let editScope: CodingAgentEditScope = 'source';
-        if (orgTemplate) {
-            const resolved = await this.dataAppTemplateService.getSourceFiles(
-                orgTemplate.organizationUuid,
-                orgTemplate.slug,
-            );
-            // Instructions-only templates carry no source: nothing to seed,
-            // and AGENTS.md is the build prompt itself.
-            const isSeededKind = resolved.template.kind === 'seeded';
-            if (orgTemplate.seed && isSeededKind) {
-                const sourceFiles = resolved.files.filter((file) =>
-                    file.filename.startsWith('src/'),
-                );
-                if (sourceFiles.length > 0) {
-                    await sandbox.files.write(
-                        '/tmp/template-src.tar',
-                        await AppGenerateService.packModelFiles(sourceFiles),
-                    );
-                    const seededRoots = [
-                        ...new Set(
-                            sourceFiles.map(
-                                (file) => `/app/${file.filename.split('/')[0]}`,
-                            ),
-                        ),
-                    ].join(' ');
-                    await sandbox.commands.run(
-                        `tar -xf /tmp/template-src.tar -C /app && chmod -R a+rwX ${seededRoots} && rm -f /tmp/template-src.tar`,
-                        { timeoutMs: 60_000 },
-                    );
-                    this.logger.info(
-                        `App ${appUuid}: seeded ${sourceFiles.length} files from org template ${orgTemplate.slug}`,
-                    );
-                }
-            }
-            orgTemplateInstructions = buildOrgTemplateInstructions({
-                name: resolved.template.name,
-                guardrails: resolved.guardrails,
-                seeded: orgTemplate.seed && isSeededKind,
-                kind: resolved.template.kind,
-                iteration: !orgTemplate.seed,
-            });
-            // An app built from a seeded template stays an instance of that
-            // template: on every version the agent may only write the
-            // manifest. Changing what the template can do belongs to the
-            // template author; a user who wants a free copy duplicates the
-            // app or starts from scratch.
-            if (isSeededKind) {
-                editScope = 'manifest';
-            }
-        }
+        // Organization template: seed the workspace and/or prepend the
+        // template's instructions. See prepareOrgTemplate.
+        const orgTemplateInstructions = orgTemplate
+            ? await this.prepareOrgTemplate(sandbox, appUuid, orgTemplate)
+            : null;
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
@@ -3171,8 +3131,88 @@ export class AppGenerateService extends BaseService {
             dimensionCount,
             metricCount,
             yamlBytes: totalBytes,
-            editScope,
         };
+    }
+
+    /**
+     * Prepares a build for an app made from an organization template and
+     * returns the prompt block to prepend. The template's kind and the
+     * version come from the app row, not from the template's current files,
+     * so a republish or deletion never changes what an existing app is:
+     *
+     * - first build of a seeded template: the package's src/** is unpacked
+     *   over the scaffold (overlapping files replaced, the rest untouched)
+     *   and the agent is asked to bind the manifest. Re-runs on a retried
+     *   first build are safe: the catalog stage only runs before generation.
+     * - every other build (iterations, instructions-only templates): only
+     *   AGENTS.md is fetched. A deleted template degrades to the pinned kind
+     *   with no guardrails instead of failing the build.
+     *
+     * AGENTS.md is not a sandbox file; it travels as prompt text.
+     */
+    private async prepareOrgTemplate(
+        sandbox: SandboxHandle,
+        appUuid: string,
+        orgTemplate: OrgTemplateBuildContext,
+    ): Promise<string> {
+        const { organizationUuid, slug, kind, version } = orgTemplate;
+        const seed = shouldSeedOrgTemplate({ version, kind });
+        let name = slug;
+        let guardrails: string | null = null;
+        if (seed) {
+            const resolved = await this.dataAppTemplateService.getSourceFiles(
+                organizationUuid,
+                slug,
+            );
+            name = resolved.template.name;
+            guardrails = resolved.guardrails;
+            const sourceFiles = resolved.files.filter((file) =>
+                file.filename.startsWith('src/'),
+            );
+            if (sourceFiles.length > 0) {
+                await sandbox.files.write(
+                    '/tmp/template-src.tar',
+                    await AppGenerateService.packModelFiles(sourceFiles),
+                );
+                const seededRoots = [
+                    ...new Set(
+                        sourceFiles.map(
+                            (file) => `/app/${file.filename.split('/')[0]}`,
+                        ),
+                    ),
+                ].join(' ');
+                await sandbox.commands.run(
+                    `tar -xf /tmp/template-src.tar -C /app && chmod -R a+rwX ${seededRoots} && rm -f /tmp/template-src.tar`,
+                    { timeoutMs: 60_000 },
+                );
+                this.logger.info(
+                    `App ${appUuid}: seeded ${sourceFiles.length} files from org template ${slug}`,
+                );
+            }
+        } else {
+            const resolved = await this.dataAppTemplateService.getGuardrails(
+                organizationUuid,
+                slug,
+            );
+            if (resolved) {
+                name = resolved.template.name;
+                guardrails = resolved.guardrails;
+            } else {
+                this.logger.warn(
+                    `App ${appUuid}: org template ${slug} no longer exists; building v${version} from the kind pinned on the app without guardrails`,
+                );
+            }
+        }
+        return buildOrgTemplateInstructions({
+            name,
+            guardrails,
+            seeded: seed,
+            kind,
+            iteration: version > 1,
+            // Codex keeps its own sandbox policy, so the manifest-only scope
+            // is asked for there rather than enforced by tool permissions.
+            enforced: this.dataAppCodingAgent !== 'codex',
+        });
     }
 
     private static packModelFiles(files: ModelFile[]): Promise<Buffer> {
@@ -3552,8 +3592,10 @@ export class AppGenerateService extends BaseService {
         // failure) and emits the parsed object on the result event. `null`
         // for runs that don't collect a structured schema (metadata, builds).
         structuredOutputSchema: string | null,
-        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
-        editScope: CodingAgentEditScope = 'source',
+        onTelemetry:
+            | ((telemetry: ClaudeGenerationTelemetry) => void)
+            | undefined,
+        editScope: CodingAgentEditScope,
     ): Promise<CodingAgentGenerationResult> {
         const start = performance.now();
         let telemetry = ZERO_CLAUDE_GENERATION_TELEMETRY;
@@ -4046,10 +4088,15 @@ export class AppGenerateService extends BaseService {
         claudeModel: DataAppClaudeModel,
         reasoningEffort: DataAppClaudeEffort,
         structuredOutputSchema: string | null,
-        onTelemetry?: (telemetry: ClaudeGenerationTelemetry) => void,
-        // Claude only: Codex keeps its own sandbox policy, so a seeded
-        // template build under Codex is guided by the prompt alone.
-        editScope: CodingAgentEditScope = 'source',
+        onTelemetry:
+            | ((telemetry: ClaudeGenerationTelemetry) => void)
+            | undefined,
+        // Required rather than defaulted: a forgotten call site would
+        // silently hand a seeded-template app full source access. Claude
+        // enforces it through tool permissions; Codex keeps its own sandbox
+        // policy, so there the prompt asks for the scope instead of
+        // claiming it (see buildOrgTemplateInstructions' `enforced`).
+        editScope: CodingAgentEditScope,
     ): Promise<CodingAgentGenerationResult> {
         if (this.dataAppCodingAgent === 'codex') {
             return this.runCodexGeneration(
@@ -4253,8 +4300,10 @@ export class AppGenerateService extends BaseService {
         codingAgentEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
         claudeEffort: DataAppClaudeEffort,
-        onTelemetry?: (telemetry: DataAppBuildFixTelemetry) => void,
-        editScope: CodingAgentEditScope = 'source',
+        onTelemetry:
+            | ((telemetry: DataAppBuildFixTelemetry) => void)
+            | undefined,
+        editScope: CodingAgentEditScope,
     ): Promise<{
         buildMs: number;
         fixAttempts: number;
@@ -4327,13 +4376,13 @@ export class AppGenerateService extends BaseService {
                     `The code you just produced failed to build with \`pnpm build\`. ` +
                     `Analyze the build output below, identify the compilation errors, ` +
                     `and fix the code so it builds cleanly. Do not ask questions — ` +
-                    `apply the fix directly.\n\n` +
+                    `apply the fix directly.${orgTemplateBuildFixNote(editScope)}\n\n` +
                     `Build output:\n${errorOutput}`;
             } else {
                 fixPrompt =
                     `The code you just produced compiles, but it ships a blank page. ` +
                     `${blankAppProblem ?? ''} ` +
-                    `Do not ask questions — apply the fix directly.`;
+                    `Do not ask questions — apply the fix directly.${orgTemplateBuildFixNote(editScope)}`;
             }
             // Remove the previous prompt file first — after the Claude CLI
             // ran, it may be owned by a different user and writing would
@@ -4965,9 +5014,18 @@ export class AppGenerateService extends BaseService {
         const pipelineApp = await this.appModel.getApp(appUuid, projectUuid);
         const isDataAppViz = pipelineApp.template === DATA_APP_VIZ_TEMPLATE;
         // Org template: the payload carries it on the seeding build; the app
-        // row is the source of truth on iterations and retries.
+        // row is the source of truth on iterations and retries. The kind is
+        // pinned on the row at creation so a republished or deleted template
+        // never changes what an existing app is allowed to do.
         const orgTemplateSlug =
             payload.templateSlug ?? pipelineApp.template_slug ?? undefined;
+        const orgTemplateKind = orgTemplateSlug
+            ? (pipelineApp.template_kind ?? 'seeded')
+            : null;
+        // What the coding agent may write, on every stage of every version.
+        // Derived here rather than in the catalog stage so a retry that
+        // resumes past catalog (pod death mid-generation) keeps the lock.
+        const editScope = orgTemplateEditScope(orgTemplateKind);
         // Resolve the model once per pipeline run. Jobs enqueued before the
         // picker shipped (or any future caller that omits the field) fall back
         // to the default so we never run with `--model undefined`.
@@ -5088,9 +5146,6 @@ export class AppGenerateService extends BaseService {
             await AppGenerateService.prepareCodexProjectContext(sandbox);
         }
 
-        // Narrowed to the manifest by the catalog stage for a seeded
-        // template's first build; every other build writes anywhere in src.
-        let editScope: CodingAgentEditScope = 'source';
         let catalogStats = {
             tableCount: 0,
             dimensionCount: 0,
@@ -5183,19 +5238,16 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
-                    orgTemplateSlug
+                    orgTemplateSlug && orgTemplateKind
                         ? {
                               organizationUuid: payload.organizationUuid,
                               slug: orgTemplateSlug,
-                              seed: shouldSeedOrgTemplate({
-                                  version,
-                                  wasResumed,
-                              }),
+                              kind: orgTemplateKind,
+                              version,
                           }
                         : undefined,
                 );
                 durations.catalogMs = catalogResult.durationMs;
-                editScope = catalogResult.editScope;
                 catalogStats = {
                     tableCount: catalogResult.tableCount,
                     dimensionCount: catalogResult.dimensionCount,
@@ -5452,13 +5504,24 @@ export class AppGenerateService extends BaseService {
                 );
                 // Auto-fix runs Claude too — a classified upstream failure
                 // there (quota, spend limit, auth) is not a compile problem.
+                let buildUserMessage =
+                    "The generated code couldn't be compiled. Try again or simplify your request.";
+                if (
+                    error instanceof ClaudeGenerationError &&
+                    error.userMessage
+                ) {
+                    buildUserMessage = error.userMessage;
+                } else if (editScope === 'manifest' && orgTemplateSlug) {
+                    // The fixer could only touch the manifest, so a component
+                    // that no longer compiles (the scaffold moved under a
+                    // stored template) is the template author's to repair.
+                    buildUserMessage = `The "${orgTemplateSlug}" template's code couldn't be compiled. Ask the template's author to re-upload it after checking it builds.`;
+                }
                 const marked = await this.markError(
                     appUuid,
                     version,
                     error,
-                    error instanceof ClaudeGenerationError && error.userMessage
-                        ? error.userMessage
-                        : "The generated code couldn't be compiled. Try again or simplify your request.",
+                    buildUserMessage,
                 );
                 if (marked) {
                     await this.trackVersionFailed(
@@ -6490,6 +6553,7 @@ export class AppGenerateService extends BaseService {
                     created_by_user_uuid: user.userUuid,
                     template: persistedTemplate,
                     template_slug: orgTemplate?.slug ?? null,
+                    template_kind: orgTemplate?.kind ?? null,
                     space_uuid: spaceUuid ?? null,
                     design_uuid: resolvedDesignUuid,
                 },

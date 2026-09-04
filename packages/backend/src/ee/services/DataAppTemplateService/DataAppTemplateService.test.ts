@@ -390,6 +390,18 @@ describe('DataAppTemplateService.importPackage', () => {
         expect(bare.model.upsert).not.toHaveBeenCalled();
     });
 
+    it('rejects an instructions-only package whose AGENTS.md is blank', async () => {
+        const { service, model } = buildService();
+        const blank = await packFiles({
+            'src/template.json': MANIFEST,
+            'AGENTS.md': '   \n\n',
+        });
+        await expect(importArchive(service, blank)).rejects.toThrow(
+            /AGENTS\.md/,
+        );
+        expect(model.upsert).not.toHaveBeenCalled();
+    });
+
     it('rejects a package without a manifest', async () => {
         const { service, model } = buildService();
         const archive = await packFiles({ 'src/App.jsx': '// no manifest' });
@@ -526,5 +538,66 @@ describe('DataAppTemplateService.importFromApp', () => {
                 { path: 'package.json', contentBase64: b64('{}') },
             ]),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('DataAppTemplateService.getGuardrails', () => {
+    const summary = {
+        templateUuid: 'tpl-1',
+        organizationUuid: 'test-org-uuid',
+        slug: 'forecaster',
+        name: 'Forecaster',
+        description: 'x',
+        category: 'Forecasting',
+        questions: [],
+        kind: 'seeded' as const,
+        fileCount: 3,
+        createdByUserUuid: 'u',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    };
+
+    it('reads only AGENTS.md, not the whole package', async () => {
+        const { service, send } = buildService({
+            findBySlug: vi.fn().mockResolvedValue(summary),
+            listFiles: vi
+                .fn()
+                .mockResolvedValue([
+                    { filename: 'src/App.tsx' },
+                    { filename: 'src/template.json' },
+                    { filename: 'AGENTS.md' },
+                ]),
+        });
+        send.mockImplementation(async () => ({
+            Body: Readable.from([Buffer.from('Keep the methodology.\n')]),
+        }));
+        const result = await service.getGuardrails(
+            'test-org-uuid',
+            'forecaster',
+        );
+        expect(result).toEqual({
+            template: summary,
+            guardrails: 'Keep the methodology.\n',
+        });
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(
+            (send.mock.calls[0][0] as { input: { Key: string } }).input.Key,
+        ).toMatch(/AGENTS\.md$/);
+    });
+
+    it('returns no guardrails when the package has none, and nothing when the template is gone', async () => {
+        const { service, send } = buildService({
+            findBySlug: vi.fn().mockResolvedValue(summary),
+            listFiles: vi.fn().mockResolvedValue([{ filename: 'src/App.tsx' }]),
+        });
+        await expect(
+            service.getGuardrails('test-org-uuid', 'forecaster'),
+        ).resolves.toEqual({ template: summary, guardrails: null });
+        expect(send).not.toHaveBeenCalled();
+
+        const gone = buildService();
+        await expect(
+            gone.service.getGuardrails('test-org-uuid', 'forecaster'),
+        ).resolves.toBeUndefined();
     });
 });
