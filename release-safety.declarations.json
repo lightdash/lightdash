@@ -17,10 +17,6 @@
             "reason": "The graduated WriteBackCustomBinDimensions member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; supported custom-bin write-back is now available without a flag.",
             "requiredStop": false
         },
-        "client-custom-bin-preview-disabled": {
-            "reason": "The exported previewConvertCustomDimensionToDbt utility now rejects bin dimensions instead of returning placeholder, BigQuery-like SQL. Consumers that preview bins client-side must use the authenticated backend preview so model SQL and the project warehouse dialect are applied.",
-            "requiredStop": false
-        },
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false
