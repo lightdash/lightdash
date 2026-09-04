@@ -10,10 +10,10 @@ import {
 } from '@lightdash/common';
 
 export const STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
+    'Set `filters` to null when no additional scope is needed. If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
 
 export const EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    '`searchFieldValues.filters` is one raw dimension expression string or null and is AND-only.';
+    'Omit `filters` when the search is unscoped. When present, `filters` scopes the candidate-value search and is one raw, flat, dimension-only AND expression.';
 
 export const STRUCTURED_FILTER_GUIDANCE_SECTION = `## Time-based filtering
 
@@ -119,7 +119,7 @@ For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculati
 - Table calculations belong only in \`tableCalculations\`.
 - Each category is flat and uses AND or OR, never both.
 - The three categories combine implicitly with AND.
-- \`searchFieldValues.filters\` is one dimension expression string or null and is AND-only.
+- When present, \`searchFieldValues.filters\` is one flat dimension expression string and is AND-only.
 - The tool schema is authoritative for where each string is placed.
 
 ${FILTER_EXPRESSION_PLACEMENT_EXAMPLES}
