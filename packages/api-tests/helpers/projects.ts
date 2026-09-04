@@ -130,10 +130,55 @@ export type WarehouseTestEntry = {
     config: Record<string, unknown>;
 };
 
+const WAREHOUSE_NAMES = [
+    'postgres',
+    'snowflake',
+    'bigquery',
+    'databricks',
+    'trino',
+] as const;
+
+type WarehouseName = (typeof WAREHOUSE_NAMES)[number];
+
+const isWarehouseName = (name: string): name is WarehouseName =>
+    (WAREHOUSE_NAMES as readonly string[]).includes(name);
+
+const hasWarehouseCredentials: Record<WarehouseName, () => boolean> = {
+    postgres: () => true,
+    snowflake: hasSnowflakeCredentials,
+    bigquery: hasBigqueryCredentials,
+    databricks: hasDatabricksCredentials,
+    trino: hasTrinoCredentials,
+};
+
+/**
+ * `REQUIRED_WAREHOUSES` (comma-separated names) turns a credential-less skip
+ * into a failure naming the warehouse; unset, nothing is required.
+ */
+function assertRequiredWarehousesAvailable(): void {
+    const required = (process.env.REQUIRED_WAREHOUSES ?? '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter((name) => name.length > 0);
+    required.forEach((name) => {
+        if (!isWarehouseName(name)) {
+            throw new Error(
+                `REQUIRED_WAREHOUSES names "${name}", which is not a warehouse these suites know. Known: ${WAREHOUSE_NAMES.join(', ')}.`,
+            );
+        }
+        if (!hasWarehouseCredentials[name]()) {
+            throw new Error(
+                `REQUIRED_WAREHOUSES requires ${name}, but its credentials are not available, so every warehouse-parameterized suite would silently skip it.`,
+            );
+        }
+    });
+}
+
 /**
  * The warehouses whose credentials are currently available, ready to drive a
  * parameterized suite. Postgres and Databricks are included by default and can
- * be excluded per suite through options.
+ * be excluded per suite through options. Throws when a warehouse named in
+ * `REQUIRED_WAREHOUSES` has no credentials.
  */
 export function getAvailableWarehouseConfigs(
     options: {
@@ -141,6 +186,7 @@ export function getAvailableWarehouseConfigs(
         includeDatabricks?: boolean;
     } = {},
 ): WarehouseTestEntry[] {
+    assertRequiredWarehousesAvailable();
     const { includePostgres = true, includeDatabricks = true } = options;
     const entries: WarehouseTestEntry[] = [];
     if (includePostgres) {
