@@ -1,3 +1,15 @@
+# [2.130.0](https://github.com/lightdash/lightdash/compare/2.129.0...2.130.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **warehouses:** retry databricks operations while the SQL warehouse starts ([#28654](https://github.com/lightdash/lightdash/issues/28654)) ([ee61147](https://github.com/lightdash/lightdash/commit/ee611476d609f93d451e0ad5c3bf8c4adaac111f))
+
+
+### Features
+
+* **data-apps:** support OAuth client credentials ([#28674](https://github.com/lightdash/lightdash/issues/28674)) ([0682304](https://github.com/lightdash/lightdash/commit/0682304a6a8aeca7e56a81df5a1470ff7f317ca7))
+
 # [2.129.0](https://github.com/lightdash/lightdash/compare/2.128.1...2.129.0) (2026-09-04)
 
 

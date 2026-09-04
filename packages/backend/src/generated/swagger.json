@@ -7536,7 +7536,8 @@
                     "none",
                     "api_key",
                     "bearer_token",
-                    "google_service_account"
+                    "google_service_account",
+                    "oauth_client_credentials"
                 ]
             },
             "ExternalConnectionMethod": {
@@ -7547,6 +7548,10 @@
                 "type": "string",
                 "enum": ["header", "query"]
             },
+            "OAuthClientAuthMethod": {
+                "type": "string",
+                "enum": ["basic", "body"]
+            },
             "ExternalConnectionAsCode": {
                 "properties": {
                     "customHeaders": {
@@ -7556,6 +7561,25 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
                     },
                     "oauthScopes": {
                         "items": {
@@ -13458,6 +13482,25 @@
                         ],
                         "nullable": true
                     },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
                     "oauthScopes": {
                         "items": {
                             "type": "string"
@@ -13601,6 +13644,22 @@
                                 "$ref": "#/components/schemas/Record_string.string_"
                             }
                         ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
                         "nullable": true
                     },
                     "oauthScopes": {
@@ -13877,6 +13936,22 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "customHeaders": {
                         "allOf": [
                             {
@@ -14075,6 +14150,22 @@
                                 "$ref": "#/components/schemas/Record_string.string_"
                             }
                         ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
                         "nullable": true
                     },
                     "oauthScopes": {
@@ -59704,7 +59795,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.129.0",
+        "version": "2.130.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
