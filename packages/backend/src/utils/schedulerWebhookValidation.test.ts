@@ -112,6 +112,7 @@ describe('postSchedulerWebhook', () => {
         mockedSecureFetch.mockResolvedValueOnce({
             status: 202,
             contentType: '',
+            headers: {},
             bodyText: '',
             truncated: false,
         });
