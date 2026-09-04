@@ -34,6 +34,7 @@ import { InviteLinkModel } from './InviteLinkModel';
 import { JiraAppInstallationsModel } from './JiraAppInstallations/JiraAppInstallationsModel';
 import { JobModel } from './JobModel/JobModel';
 import { LinearAppInstallationsModel } from './LinearAppInstallations/LinearAppInstallationsModel';
+import { ManagedSignInModel } from './ManagedSignInModel';
 import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
@@ -115,6 +116,7 @@ export type ModelManifest = {
     headlessBrowserLoginGrantModel: HeadlessBrowserLoginGrantModel;
     inviteLinkModel: InviteLinkModel;
     jobModel: JobModel;
+    managedSignInModel: ManagedSignInModel;
     mcpContextModel: McpContextModel;
     migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
@@ -520,6 +522,13 @@ export class ModelRepository
         return this.getModel(
             'notificationsModel',
             () => new NotificationsModel({ database: this.database }),
+        );
+    }
+
+    public getManagedSignInModel(): ManagedSignInModel {
+        return this.getModel(
+            'managedSignInModel',
+            () => new ManagedSignInModel({ database: this.database }),
         );
     }
 

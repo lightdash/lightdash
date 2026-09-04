@@ -52,6 +52,7 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { LinearAppService } from './LinearAppService/LinearAppService';
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
+import { ManagedSignInService } from './OAuthService/managedSignIn/ManagedSignInService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
@@ -121,6 +122,7 @@ interface ServiceManifest {
     healthService: HealthService;
     licenseService: LicenseService;
     notificationService: NotificationsService;
+    managedSignInService: ManagedSignInService;
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
@@ -668,6 +670,19 @@ export class ServiceRepository
         );
     }
 
+    public getManagedSignInService(): ManagedSignInService {
+        return this.getService(
+            'managedSignInService',
+            () =>
+                new ManagedSignInService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
+                    managedSignInModel: this.models.getManagedSignInModel(),
+                    getUserService: () => this.getUserService(),
+                }),
+        );
+    }
+
     public getOauthService(): OAuthService {
         return this.getService(
             'oauthService',
@@ -676,6 +691,8 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     lightdashConfig: this.context.lightdashConfig,
+                    getManagedSignInService: () =>
+                        this.getManagedSignInService(),
                 }),
         );
     }

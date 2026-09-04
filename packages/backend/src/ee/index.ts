@@ -201,11 +201,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     apnsClient,
                 });
             },
-            oauthService: ({ models, context }) =>
+            oauthService: ({ models, context, repository }) =>
                 new OAuthService({
                     userModel: models.getUserModel(),
                     oauthModel: models.getOauthModel(),
                     lightdashConfig: context.lightdashConfig,
+                    getManagedSignInService: () =>
+                        repository.getManagedSignInService(),
                     onGrantRevoked: ({ userId, clientId }) =>
                         models
                             .getMobilePushNotificationModel<MobilePushNotificationModel>()

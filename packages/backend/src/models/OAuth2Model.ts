@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this */
 import {
     AuthTokenPrefix,
+    TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type OAuthClientSummary,
 } from '@lightdash/common';
@@ -44,6 +45,25 @@ export class OAuth2Model implements AuthorizationCodeModel {
             ?.mobileRefreshTokenLifetime;
     }
 
+    /**
+     * Managed sign-in is a server decision, not something a client asks for at
+     * registration: every mobile client gets the token-exchange grant. The
+     * exchange trusts the Microsoft token, not the client identity.
+     */
+    private static withTokenExchangeGrant(
+        grants: string[] | null | undefined,
+        redirectUris: string[] | string | null | undefined,
+    ): string[] {
+        const existing = grants ?? [];
+        if (
+            !isMobileOAuthClient(redirectUris) ||
+            existing.includes(TOKEN_EXCHANGE_GRANT_TYPE)
+        ) {
+            return existing;
+        }
+        return [...existing, TOKEN_EXCHANGE_GRANT_TYPE];
+    }
+
     private getRotationGraceMs(): number {
         return (
             (this.lightdashConfig.auth.oauthServer?.refreshTokenRotationGrace ??
@@ -73,7 +93,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
             clientId: client.client_id,
             id: client.client_id,
             redirectUris: client.redirect_uris,
-            grants: client.grants,
+            grants: OAuth2Model.withTokenExchangeGrant(
+                client.grants,
+                client.redirect_uris,
+            ),
             refreshTokenLifetime: this.getRefreshTokenLifetime(
                 client.redirect_uris,
             ),

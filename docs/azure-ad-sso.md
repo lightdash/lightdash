@@ -172,6 +172,92 @@ ENABLED_FEATURE_FLAGS=sso-organization-settings
 This makes the panel available to every org admin on the instance. On a
 self-hosted single-customer deployment, no further gating is needed.
 
+## Managed sign-in (mobile)
+
+A Microsoft tenant that enforces "Require app protection policy" blocks the
+in-app browser sheet, so browser sign-in fails on iOS and Android. Managed
+sign-in is the alternative: the app authenticates against Microsoft through
+MSAL and the broker, then exchanges the Microsoft ID token for Lightdash
+OAuth tokens.
+
+Vocabulary: **browser sign-in** is today's path, where the server talks to
+the identity provider. **Managed sign-in** is the new path. The **web
+registration** is the customer's confidential client used by browser
+sign-in. The **mobile registration** is Lightdash's multi-tenant public
+client, one per platform.
+
+### Configuration
+
+| Variable | Purpose |
+|---|---|
+| `AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID` | The iOS mobile registration client id |
+| `AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID` | The Android mobile registration client id |
+
+Neither replaces the web registration. Browser sign-in keeps using
+`AUTH_AZURE_AD_OAUTH_*` or the per-org config.
+
+### Discovery
+
+`GET /api/v1/user/login-options?mobilePlatform=ios` returns a `managedSignIn`
+block when both hold:
+
+* the server names a Microsoft tenant for the person signing in — the
+  environment tenant on a dedicated instance, or the single organization the
+  email routes to on a shared instance;
+* the platform's mobile registration client id is configured.
+
+```json
+{
+    "provider": "microsoft",
+    "clientId": "<mobile registration>",
+    "authority": "https://login.microsoftonline.com/<tenant id>",
+    "tenantId": "<tenant id>",
+    "scopes": ["openid", "profile", "email"]
+}
+```
+
+`loginExperienceVersion` does not change. The block is additive.
+
+### Token exchange
+
+```
+POST /api/v1/oauth/token   (application/x-www-form-urlencoded)
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+subject_token=<Microsoft Entra ID token>
+subject_token_type=urn:ietf:params:oauth:token-type:id_token
+client_id=<the app's Lightdash OAuth client id>
+scope=<the scopes the app requests today>
+```
+
+Success returns the same body as the authorisation-code grant. The tokens are
+recorded against the same user grant, so refresh and revocation are
+unchanged.
+
+Every rejection is an OAuth `invalid_grant`. The `error_description` is one
+of `tenant_not_configured`, `token_invalid`, `token_expired`,
+`token_replayed`, `email_unverified`, `user_not_allowed`. The server logs a
+structured line for each rejection and never logs the token.
+
+Validation runs in this order:
+
+1. Read `tid` from the token, fetch that tenant's OpenID configuration and
+   JWKS, verify the RS256 signature.
+2. `iss` must equal `https://login.microsoftonline.com/<tid>/v2.0`.
+3. `aud` must equal one of the configured mobile registration client ids.
+4. Resolve the organisation from `tid` alone. A dedicated instance requires
+   `tid` to equal the environment tenant. A shared instance requires exactly
+   one organisation whose Azure config names that tenant and is enabled.
+5. Honour `exp` and `nbf`, reject an `iat` older than five minutes, and
+   record the token hash so it can be used once.
+6. The `email` claim is required. `preferred_username` is never used.
+7. Build the OpenID user (issuer, `azuread`, subject `oid`, email) and call
+   `UserService.loginWithOpenId`, so just-in-time creation, allowed email
+   domains and organisation membership follow the browser sign-in rules.
+
+Entra `sub` is pairwise per client id, so the mobile identity is a second
+`openid_identities` row. It matches an existing web identity through the
+email path in `loginWithOpenId`.
+
 ## File map
 
 | Path | Purpose |
@@ -191,3 +277,6 @@ self-hosted single-customer deployment, no further gating is needed.
 | `packages/frontend/src/hooks/organization/useOrganizationSso.ts` | Frontend hooks for CRUD |
 | `packages/frontend/src/pages/Settings.tsx` | Route + nav link, gated by flag |
 | `packages/frontend/src/features/users/components/LoginLanding.tsx` | Forwards `preCheckEmail` as `loginHint` to SSO buttons |
+| `packages/common/src/types/managedSignIn.ts` | Managed sign-in field names, grant identifiers and error codes |
+| `packages/backend/src/services/OAuthService/managedSignIn/` | Token verification, organisation resolution and the token-exchange grant |
+| `packages/backend/src/models/ManagedSignInModel.ts` | Single-use record for exchanged tokens |
