@@ -47,7 +47,7 @@ const STATUS_OPTIONS: {
     label: string;
 }[] = [
     { value: 'all', label: 'All statuses' },
-    { value: ContentReviewRequestStatus.PENDING, label: 'Pending' },
+    { value: ContentReviewRequestStatus.PENDING, label: 'Waiting for review' },
     { value: ContentReviewRequestStatus.APPROVED, label: 'Approved' },
     { value: ContentReviewRequestStatus.REJECTED, label: 'Rejected' },
     { value: ContentReviewRequestStatus.CANCELLED, label: 'Cancelled' },
