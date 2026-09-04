@@ -921,8 +921,26 @@ type MapTileFallbackEvent = {
     };
 };
 
+// Workbook POC telemetry. Payload deliberately excludes metric SQL,
+// labels, descriptions and filter values.
+type DashboardWorkbookEvent = {
+    name:
+        | EventName.DASHBOARD_CUSTOM_METRIC_CREATED
+        | EventName.DASHBOARD_CUSTOM_METRIC_REUSED
+        | EventName.DASHBOARD_CHART_CREATED_IN_PLACE
+        | EventName.DASHBOARD_CHART_EDITED_IN_PLACE;
+    properties: {
+        projectUuid: string | undefined;
+        dashboardUuid: string;
+        exploreName: string;
+        registrySize: number;
+        distinctExploreCount: number;
+    };
+};
+
 export type EventData =
     | GenericEvent
+    | DashboardWorkbookEvent
     | MapTileUsageEvent
     | MapTileFallbackEvent
     | AgentOnboardingDemoOfferShownEvent

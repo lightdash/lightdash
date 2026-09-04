@@ -71,6 +71,8 @@ import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardCh
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
+import useTracking from '../providers/Tracking/useTracking';
+import { EventName } from '../types/Events';
 import { buildDashboardConfig } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
@@ -830,6 +832,7 @@ const Dashboard: FC = () => {
     const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
 
     const queryClient = useQueryClient();
+    const { track } = useTracking();
     const handleRegistryMetricEdited = useCallback(
         (metric: AdditionalMetric) => {
             // Server already persisted the swap; mirror it into the staged
@@ -856,6 +859,9 @@ const Dashboard: FC = () => {
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
             // Only the in-dashboard builder contributes to the registry.
+            const previousRegistryIds = new Set(
+                dashboardCustomMetrics.map(getItemId),
+            );
             const mergedCustomMetrics = mergeDashboardCustomMetrics(
                 dashboardCustomMetrics,
                 chart.metricQuery.additionalMetrics ?? [],
@@ -863,6 +869,43 @@ const Dashboard: FC = () => {
             if (mergedCustomMetrics !== dashboardCustomMetrics) {
                 setDashboardCustomMetrics(mergedCustomMetrics);
                 setHaveCustomMetricsChanged(true);
+            }
+
+            if (dashboardUuid) {
+                const workbookEventProperties = {
+                    projectUuid,
+                    dashboardUuid,
+                    exploreName: chart.tableName,
+                    registrySize: mergedCustomMetrics.length,
+                    // Distinct base tables — the closest explore proxy we hold
+                    distinctExploreCount: new Set(
+                        mergedCustomMetrics.map((metric) => metric.table),
+                    ).size,
+                };
+                mergedCustomMetrics.forEach((metric) => {
+                    if (!previousRegistryIds.has(getItemId(metric))) {
+                        track({
+                            name: EventName.DASHBOARD_CUSTOM_METRIC_CREATED,
+                            properties: workbookEventProperties,
+                        });
+                    }
+                });
+                // Selected metrics that were already shared = duplication avoided
+                (chart.metricQuery.metrics ?? []).forEach((metricId) => {
+                    if (previousRegistryIds.has(metricId)) {
+                        track({
+                            name: EventName.DASHBOARD_CUSTOM_METRIC_REUSED,
+                            properties: workbookEventProperties,
+                        });
+                    }
+                });
+                track({
+                    name:
+                        chart.uuid !== chartToEdit?.uuid
+                            ? EventName.DASHBOARD_CHART_CREATED_IN_PLACE
+                            : EventName.DASHBOARD_CHART_EDITED_IN_PLACE,
+                    properties: workbookEventProperties,
+                });
             }
 
             // New uuid means a brand-new chart; an existing tile refreshes
@@ -897,6 +940,9 @@ const Dashboard: FC = () => {
             dashboardCustomMetrics,
             setDashboardCustomMetrics,
             setHaveCustomMetricsChanged,
+            dashboardUuid,
+            projectUuid,
+            track,
         ],
     );
 
