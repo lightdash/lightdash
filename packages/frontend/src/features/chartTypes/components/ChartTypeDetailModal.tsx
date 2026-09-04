@@ -82,7 +82,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                             leftSection={<MantineIcon icon={IconTrash} />}
                             onClick={onDelete}
                         >
-                            Delete
+                            {isOfficial ? 'Uninstall' : 'Delete'}
                         </Button>
                     )
                 }

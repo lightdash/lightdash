@@ -1,4 +1,8 @@
-import { getAppDisplayName, type DataAppViz } from '@lightdash/common';
+import {
+    getAppDisplayName,
+    isOfficialChartType,
+    type DataAppViz,
+} from '@lightdash/common';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
@@ -23,6 +27,11 @@ const ChartTypeDeleteModal: FC<Props> = ({
 
     const { mutateAsync: deleteApp, isLoading: isDeleting } = useDeleteApp();
 
+    // Registry-official chart types are "uninstalled" (they can be
+    // reinstalled from the library); the underlying operation is the same
+    // app delete either way.
+    const isOfficial = isOfficialChartType(dataAppViz);
+
     const description = softDeleteEnabled
         ? `This chart type will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
         : 'This chart type and all of its versions will be permanently deleted, including any built artifacts in storage.';
@@ -31,7 +40,8 @@ const ChartTypeDeleteModal: FC<Props> = ({
         <MantineModal
             opened
             onClose={onClose}
-            title="Delete chart type"
+            title={isOfficial ? 'Uninstall chart type' : 'Delete chart type'}
+            confirmLabel={isOfficial ? 'Uninstall' : undefined}
             variant="delete"
             resourceType="chart type"
             resourceLabel={getAppDisplayName(
@@ -43,7 +53,9 @@ const ChartTypeDeleteModal: FC<Props> = ({
                 await deleteApp({
                     projectUuid,
                     appUuid: dataAppViz.dataAppVizUuid,
-                    successTitle: 'Chart type deleted',
+                    successTitle: isOfficial
+                        ? 'Chart type uninstalled'
+                        : 'Chart type deleted',
                 });
                 onDeleted();
             }}

@@ -21,9 +21,9 @@ import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
-import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
+import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
 import ChartTypeUninstallModal from './ChartTypeUninstallModal';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
@@ -104,18 +104,14 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 };
             case 'update_available':
                 return {
-                    actions: (
-                        <Group gap="sm" wrap="nowrap">
-                            {uninstallButton}
-                            {canInstallGate(
-                                <Button
-                                    loading={installMutation.isLoading}
-                                    onClick={handleInstall}
-                                >
-                                    Upgrade to v{item.version}
-                                </Button>,
-                            )}
-                        </Group>
+                    leftActions: uninstallButton,
+                    actions: canInstallGate(
+                        <Button
+                            loading={installMutation.isLoading}
+                            onClick={handleInstall}
+                        >
+                            Upgrade to v{item.version}
+                        </Button>,
                     ),
                 };
             case 'installed':
