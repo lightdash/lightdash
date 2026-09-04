@@ -40,7 +40,10 @@ import {
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useAddFilter } from '../../../hooks/useFilters';
-import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
+import {
+    useIsModalHosted,
+    useModalHostedDashboardMetricIds,
+} from '../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
@@ -130,11 +133,14 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const [isHover, toggleHover] = useToggle(false);
     const [isMenuOpen, toggleMenu] = useToggle(false);
 
-    // Registry metrics stay frozen in the selected section too.
+    // Registry metrics stay frozen here too; the badge marks provenance
     const dashboardMetricIds = useModalHostedDashboardMetricIds();
-    const isDashboardMetric =
+    const isModalHosted = useIsModalHosted();
+    const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
+    const isDashboardMetric =
+        isRegistryMetric || (isModalHosted && isAdditionalMetric(item));
 
     const selectIsFiltered = useMemo(
         () => (state: ExplorerStoreState) =>
@@ -156,7 +162,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         useCustomMetricDelete({
             item,
             fieldId,
-            isHover: isHover && !isDashboardMetric,
+            isHover: isHover && !isRegistryMetric,
         });
     const showDeleteAction = !hideActions && canShowDeleteAction;
 
@@ -331,7 +337,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 {/* Mounted on hover only so the labels get the space at rest */}
                 {!hideActions &&
                     (!basicActionsOnly ||
-                        isDashboardMetric ||
+                        isRegistryMetric ||
                         !!description ||
                         (!isAdditionalMetric(item) &&
                             isFilterableField(item))) &&
@@ -346,9 +352,9 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                             onMenuChange={onToggleMenu}
                             onAddFilter={fieldOnAddFilter}
                             basicActionsOnly={
-                                basicActionsOnly || isDashboardMetric
+                                basicActionsOnly || isRegistryMetric
                             }
-                            allowRegistryEdit={isDashboardMetric}
+                            allowRegistryEdit={isRegistryMetric}
                         />
                     )}
             </span>
