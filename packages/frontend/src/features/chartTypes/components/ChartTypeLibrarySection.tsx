@@ -36,9 +36,13 @@ const ChartTypeLibrarySection: FC<Props> = ({
     }
 
     const charts = registryQuery.data?.charts ?? [];
-    // Installed-and-current chart types live in the installed tab only; the
-    // library lists what there is to get — new, upgradable, or incompatible.
-    const visibleCharts = charts.filter((chart) => chart.state !== 'installed');
+    // Installed chart types (upgradable ones included) live in the installed
+    // tab only, where upgrades are offered; the library lists what there is
+    // to get — new or incompatible.
+    const visibleCharts = charts.filter(
+        (chart) =>
+            chart.state === 'not_installed' || chart.state === 'incompatible',
+    );
     const allInstalled = charts.length > 0 && visibleCharts.length === 0;
     const selected =
         visibleCharts.find((chart) => chart.slug === selectedSlug) ?? null;

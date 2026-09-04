@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type DataAppViz,
+    type RegistryChartTypeListItem,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -25,6 +29,7 @@ import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGal
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -44,6 +49,7 @@ const ChartTypeGallery = () => {
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
     );
+    const isLibraryEnabled = chartTypeRegistryFlag.data?.enabled === true;
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -64,6 +70,22 @@ const ChartTypeGallery = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data?.pages],
     );
+    // Upgrades for installed official chart types are offered here in the
+    // installed tab (the library hides installed charts entirely).
+    const registryQuery = useRegistryChartTypes(projectUuid, isLibraryEnabled);
+    const registryUpdatesBySlug = useMemo(() => {
+        const updates = new Map<string, RegistryChartTypeListItem>();
+        for (const chart of registryQuery.data?.charts ?? []) {
+            if (chart.state === 'update_available') {
+                updates.set(chart.slug, chart);
+            }
+        }
+        return updates;
+    }, [registryQuery.data?.charts]);
+    const registryUpdateFor = (viz: DataAppViz) =>
+        viz.registrySlug
+            ? (registryUpdatesBySlug.get(viz.registrySlug) ?? null)
+            : null;
     const selected = dataAppVizs.find(
         (viz) => viz.dataAppVizUuid === selectedUuid,
     );
@@ -79,7 +101,6 @@ const ChartTypeGallery = () => {
     // types at all yet: the empty state below carries its own CTA.
     const isEmptyGallery =
         !isInitialLoading && !error && !debouncedSearch && totalCount === 0;
-    const isLibraryEnabled = chartTypeRegistryFlag.data?.enabled === true;
     const activeTab =
         isLibraryEnabled && searchParams.get('tab') === GalleryTab.CHART_LIBRARY
             ? GalleryTab.CHART_LIBRARY
@@ -222,6 +243,10 @@ const ChartTypeGallery = () => {
                                             <ChartTypeGalleryCard
                                                 key={viz.dataAppVizUuid}
                                                 dataAppViz={viz}
+                                                hasRegistryUpdate={
+                                                    registryUpdateFor(viz) !==
+                                                    null
+                                                }
                                                 onClick={() =>
                                                     setSelectedUuid(
                                                         viz.dataAppVizUuid,
@@ -265,6 +290,7 @@ const ChartTypeGallery = () => {
                 <ChartTypeDetailModal
                     projectUuid={projectUuid}
                     dataAppViz={selected}
+                    registryUpdate={registryUpdateFor(selected)}
                     onClose={() => setSelectedUuid(null)}
                     onDelete={() => setDeleteUuid(selected.dataAppVizUuid)}
                 />
