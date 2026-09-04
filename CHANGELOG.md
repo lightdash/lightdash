@@ -1,3 +1,10 @@
+## [2.121.1](https://github.com/lightdash/lightdash/compare/2.121.0...2.121.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ai:** default sort null ordering ([#28627](https://github.com/lightdash/lightdash/issues/28627)) ([ffe7177](https://github.com/lightdash/lightdash/commit/ffe71775e7209edbb4d1664f87b4ae8ba0b76f62))
+
 # [2.121.0](https://github.com/lightdash/lightdash/compare/2.120.0...2.121.0) (2026-09-04)
 
 
