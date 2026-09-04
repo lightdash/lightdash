@@ -184,6 +184,34 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         ).resolves.toMatchObject({ type: 'rows', commandTag: 'SHOW' });
     });
 
+    it('answers the multiword SHOW spellings drivers send', async () => {
+        await expect(
+            handlers.query(session, 'SHOW TRANSACTION ISOLATION LEVEL;'),
+        ).resolves.toEqual({
+            type: 'rows',
+            fields: [{ name: 'transaction_isolation', oid: 25 }],
+            rows: [['read committed']],
+            commandTag: 'SHOW',
+        });
+        await expect(
+            handlers.query(session, 'SHOW transaction_isolation'),
+        ).resolves.toMatchObject({ rows: [['read committed']] });
+        await expect(
+            handlers.query(session, 'SHOW TIME ZONE'),
+        ).resolves.toEqual({
+            type: 'rows',
+            fields: [{ name: 'timezone', oid: 25 }],
+            rows: [['UTC']],
+            commandTag: 'SHOW',
+        });
+        await expect(
+            handlers.query(session, 'SHOW nonsense'),
+        ).rejects.toMatchObject({
+            code: '42704',
+            message: 'unrecognized configuration parameter "nonsense"',
+        });
+    });
+
     it('answers schema probes without touching the warehouse', async () => {
         runExploreQuery.mockClear();
         await expect(

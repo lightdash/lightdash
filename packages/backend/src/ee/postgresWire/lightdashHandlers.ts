@@ -89,6 +89,16 @@ const SHOW_PARAMETERS: Record<string, string> = {
 };
 
 /**
+ * Postgres accepts multiword spellings for a few settings, and drivers use
+ * them: pgjdbc's `getTransactionIsolation()` sends
+ * `SHOW TRANSACTION ISOLATION LEVEL`.
+ */
+const SHOW_PARAMETER_ALIASES: Record<string, string> = {
+    'transaction isolation level': 'transaction_isolation',
+    'time zone': 'timezone',
+};
+
+/**
  * Handle transaction/session statements that BI tools and drivers send but
  * that have no meaning against the semantic layer. Returns null when the
  * statement should be compiled as a real query.
@@ -122,7 +132,12 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
         case 'DEALLOCATE':
             return { type: 'command', commandTag: 'DEALLOCATE' };
         case 'SHOW': {
-            const param = secondWord.toLowerCase();
+            const argument = trimmed
+                .slice(firstWord.length)
+                .trim()
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+            const param = SHOW_PARAMETER_ALIASES[argument] ?? argument;
             const value = SHOW_PARAMETERS[param];
             if (value === undefined) {
                 throw new PgWireServerError(
