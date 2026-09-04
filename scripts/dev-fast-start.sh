@@ -169,7 +169,10 @@ if ! test -x venv/bin/dbt1.12; then
         "$SHARED_VENV_112/bin/pip" install 'dbt-core~=1.12.0' dbt-postgres >/dev/null 2>&1 \
             || fail "venv" "pip install dbt 1.12 into shared cache failed"
     fi
-    ln -sf "$SHARED_VENV_112/bin/dbt" "$SHARED_VENV/bin/dbt1.12" 2>/dev/null || ln -sf "$SHARED_VENV_112/bin/dbt" venv/bin/dbt1.12
+    ln -sf "$SHARED_VENV_112/bin/dbt" "$SHARED_VENV/bin/dbt1.12" 2>/dev/null || true
+    # A worktree whose ./venv is a real venv (not a symlink at the shared one)
+    # needs its own shim — the shared-venv link above doesn't reach it.
+    test -x venv/bin/dbt1.12 || ln -sf "$SHARED_VENV_112/bin/dbt" venv/bin/dbt1.12
     test -x venv/bin/dbt1.12 || fail "venv" "dbt1.12 shim is broken"
     echo "OK: dbt1.12 available ($SHARED_VENV_112)"
 fi
