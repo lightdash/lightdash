@@ -1122,7 +1122,7 @@ describe('getAgentTools workstream tool gate', () => {
                     ) ?? false,
                 fieldValueSearchUsesExpressions:
                     tools.searchFieldValues.description?.includes(
-                        'When filters is provided, pass one flat AND expression',
+                        'Join flat rules with AND only. OR is not supported by this tool.',
                     ) ?? false,
             }).toEqual({
                 promptUsesExpressions: enableFilterExpressions,
