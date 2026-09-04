@@ -394,6 +394,29 @@ describe('expression custom metric schemas', () => {
 });
 
 describe('expression run query schemas', () => {
+    it('defaults omitted sort null ordering to null', () => {
+        const parsed = toolRunQueryExpressionArgsSchema.parse({
+            ...baseArgs,
+            queryConfig: {
+                ...baseQueryConfig,
+                sorts: [
+                    {
+                        fieldId: 'orders_revenue',
+                        descending: true,
+                    },
+                ],
+            },
+        });
+
+        expect(parsed.queryConfig.sorts).toEqual([
+            {
+                fieldId: 'orders_revenue',
+                descending: true,
+                nullsFirst: null,
+            },
+        ]);
+    });
+
     it('uses formula-only table calculations for the merge-enabled agent contract', () => {
         expect(
             toolRunQueryExpressionArgsSchema.safeParse({
