@@ -45,11 +45,6 @@ export class OAuth2Model implements AuthorizationCodeModel {
             ?.mobileRefreshTokenLifetime;
     }
 
-    /**
-     * Managed sign-in is a server decision, not something a client asks for at
-     * registration: every mobile client gets the token-exchange grant. The
-     * exchange trusts the Microsoft token, not the client identity.
-     */
     private static withTokenExchangeGrant(
         grants: string[] | null | undefined,
         redirectUris: string[] | string | null | undefined,
