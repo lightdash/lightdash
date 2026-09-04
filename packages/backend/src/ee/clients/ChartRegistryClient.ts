@@ -29,6 +29,18 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
+// Servable asset shape: one image filename under a published version dir of
+// an indexed chart. Validated structurally (plus a slug check against the
+// index) rather than by exact enumeration: the index only lists each chart's
+// latest version, and its per-process TTL cache means the listing and asset
+// requests can straddle a publish on different cache generations — exact
+// matching 404s thumbnails for up to the TTL on every publish. Published
+// versions are immutable and served forever, so older versions' screenshots
+// are always safe to proxy; resolveUrl and the content-type allowlist bound
+// everything else.
+const ASSET_PATH_PATTERN =
+    /^charts\/([a-z0-9][a-z0-9-]*)\/\d+\.\d+\.\d+\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|jpe?g|webp|gif)$/;
+
 const normalizeContentType = (contentType: string): string =>
     contentType.split(';')[0].trim().toLowerCase();
 
@@ -339,12 +351,15 @@ export class ChartRegistryClient {
     async getAsset(
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
+        const match = path.match(ASSET_PATH_PATTERN);
+        if (!match) {
+            return undefined;
+        }
         const index = await this.getIndex();
-        const isKnownAsset = index.charts.some(
-            (chart) =>
-                chart.thumbnail === path || chart.screenshots.includes(path),
+        const isKnownChart = index.charts.some(
+            (chart) => chart.slug === match[1],
         );
-        if (!isKnownAsset) {
+        if (!isKnownChart) {
             return undefined;
         }
         const { status, body, contentType } = await this.fetchImpl(
