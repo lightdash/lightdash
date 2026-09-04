@@ -2,6 +2,7 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    ApiCustomDimensionWriteBackPreview,
     ApiGithubDbtWritePreview,
     CustomDimension,
     DbtGithubProjectConfig,
@@ -11,11 +12,13 @@ import {
     DbtVersionOptionLatest,
     ForbiddenError,
     friendlyName,
+    getCustomDimensionWriteBackError,
     getErrorMessage,
     getLatestSupportDbtVersion,
     GitBranch,
     GitFileOrDirectory,
     GitIntegrationConfiguration,
+    isCustomBinDimension,
     isUserWithOrg,
     NotFoundError,
     ParameterError,
@@ -25,18 +28,23 @@ import {
     PullRequestProvider,
     PullRequestSource,
     QueryExecutionContext,
+    RegisteredAccount,
     SavedChart,
     SessionUser,
     snakeCaseName,
     SupportedDbtVersions,
     UnexpectedServerError,
+    UUID,
     VizColumn,
 } from '@lightdash/common';
+import * as yaml from 'js-yaml';
 import { nanoid } from 'nanoid';
+import { z } from 'zod';
 import {
     LightdashAnalytics,
     WriteBackEvent,
 } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -78,6 +86,8 @@ type GitProps = {
 
 // Keep backward compatibility
 type GithubProps = GitProps;
+
+const yamlQuoteCharSchema = z.enum(['"', "'"]);
 
 export class GitIntegrationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -634,6 +644,91 @@ Affected charts:
         return gitProps;
     }
 
+    private static assertCustomDimensionsSupported(
+        customDimensions: CustomDimension[],
+    ): void {
+        const error = customDimensions
+            .map(getCustomDimensionWriteBackError)
+            .find((message): message is string => message !== null);
+        if (error) {
+            throw new ParameterError(error);
+        }
+    }
+
+    async previewCustomDimensions(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        customDimensions: CustomDimension[],
+        quoteChar: string,
+    ): Promise<ApiCustomDimensionWriteBackPreview['results']> {
+        if (customDimensions.length === 0) {
+            throw new ParameterError('No custom dimensions found');
+        }
+        const parsedQuoteChar = yamlQuoteCharSchema.safeParse(quoteChar);
+        if (!parsedQuoteChar.success) {
+            throw new ParameterError(
+                'YAML quote character must be either a single or double quote',
+            );
+        }
+        const yamlQuoteChar = parsedQuoteChar.data;
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: account.organization.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        GitIntegrationService.assertCustomDimensionsSupported(customDimensions);
+        await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
+
+        const user = toSessionUser(account);
+        const gitProps = await this.getGitProps(
+            user,
+            projectUuid,
+            yamlQuoteChar,
+        );
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseClient =
+            this.projectModel.getWarehouseClientFromCredentials(
+                warehouseCredentials,
+            );
+        const definitions: Record<string, unknown> = {};
+
+        for (const table of new Set(
+            customDimensions.map((dimension) => dimension.table),
+        )) {
+            const { yamlSchema } = await this.getYamlForTable({
+                ...gitProps,
+                branch: gitProps.mainBranch,
+                projectUuid,
+                table,
+            });
+            customDimensions
+                .filter((dimension) => dimension.table === table)
+                .forEach((dimension) => {
+                    definitions[dimension.id] =
+                        yamlSchema.getCustomDimensionDefinition(
+                            dimension,
+                            warehouseClient,
+                        );
+                });
+        }
+
+        return {
+            yaml: yaml.dump(definitions, { quotingType: yamlQuoteChar }),
+        };
+    }
+
     // Keep backward compatibility
     private async getGithubProps(
         user: SessionUser,
@@ -676,6 +771,9 @@ Affected charts:
             throw new ForbiddenError();
         }
 
+        if (args.type === 'customDimensions') {
+            GitIntegrationService.assertCustomDimensionsSupported(args.fields);
+        }
         await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
         const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
 
@@ -700,6 +798,12 @@ Affected charts:
             fields.length === 1
                 ? `\`${fields[0].name}\` ${typeName}`
                 : `${fields.length} ${typeName}s`;
+        const containsCustomBins =
+            args.type === 'customDimensions' &&
+            args.fields.some(isCustomBinDimension);
+        const replacementGuidance = containsCustomBins
+            ? '> ℹ️ **Existing saved charts keep their custom bin dimensions.** Lightdash does not automatically replace them with these YAML dimensions, so their current bin ordering remains unchanged. Use the new dimensions after refreshing the project, and define a separate numeric ordering dimension in dbt when bin order matters.'
+            : `> ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`;
         const eventProperties: WriteBackEvent['properties'] = {
             name: fieldsInfo,
             projectId: projectUuid,
@@ -721,7 +825,7 @@ Affected charts:
                 body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
-> ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`,
+${replacementGuidance}`,
                 head: gitProps.branch,
                 base: gitProps.mainBranch,
             });
