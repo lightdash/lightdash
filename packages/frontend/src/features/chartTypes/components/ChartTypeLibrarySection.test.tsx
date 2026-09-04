@@ -226,7 +226,7 @@ describe('ChartTypeLibrarySection', () => {
         // Installed chart types — upgradable ones included — are hidden from
         // the library; they live in the installed tab.
         expect(screen.getByText('(2)')).toBeInTheDocument();
-        expect(screen.getAllByText('Official')).toHaveLength(2);
+        expect(screen.getAllByText('Built by Lightdash')).toHaveLength(2);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
         expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
