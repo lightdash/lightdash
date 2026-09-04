@@ -28,8 +28,10 @@ import { CustomHeadersField } from '../../../features/externalConnections/compon
 import { MethodsField } from '../../../features/externalConnections/components/MethodsField';
 import { PathRulesField } from '../../../features/externalConnections/components/PathRulesField';
 import {
+    isValidGoogleOAuthScope,
     isValidOAuthScope,
     SUGGESTED_GOOGLE_SCOPES,
+    validateOAuthTokenUrl,
 } from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
 import { useProposeConnectionConfig } from '../../../features/externalConnections/hooks/useProposeConnectionConfig';
@@ -101,7 +103,22 @@ const toCreatePayload = (values: WizardValues): CreateExternalConnection => ({
     apiKeyName: values.type === 'api_key' ? values.apiKeyName.trim() : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
     oauthScopes:
-        values.type === 'google_service_account' ? values.oauthScopes : null,
+        values.type === 'google_service_account' ||
+        values.type === 'oauth_client_credentials'
+            ? values.oauthScopes
+            : null,
+    oauthTokenUrl:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthTokenUrl.trim()
+            : null,
+    oauthClientId:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientId.trim()
+            : null,
+    oauthClientAuthMethod:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientAuthMethod
+            : null,
     customHeaders: customHeaderRowsToRecord(values.customHeaders),
     allowedMethods: values.allowedMethods,
     allowedPathPrefixes: resolvePathPrefixes(
@@ -157,6 +174,10 @@ const AuthStep: FC<{
                         { value: 'api_key', label: 'API key' },
                         { value: 'bearer_token', label: 'Bearer token' },
                         { value: 'google_service_account', label: 'Google' },
+                        {
+                            value: 'oauth_client_credentials',
+                            label: 'OAuth 2',
+                        },
                     ]}
                     value={type}
                     onChange={(value) =>
@@ -199,7 +220,7 @@ const AuthStep: FC<{
                 </Callout>
             )}
 
-            {type !== 'none' && type !== 'google_service_account' && (
+            {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
                     required
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
@@ -210,6 +231,46 @@ const AuthStep: FC<{
                     }
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'oauth_client_credentials' && (
+                <>
+                    <TextInput
+                        required
+                        label="Token URL"
+                        description="The OAuth server endpoint used to obtain access tokens"
+                        placeholder="https://api.example.com/oauth/token"
+                        {...form.getInputProps('oauthTokenUrl')}
+                    />
+                    <TextInput
+                        required
+                        label="Client ID"
+                        placeholder="Your OAuth client ID"
+                        {...form.getInputProps('oauthClientId')}
+                    />
+                    <PasswordInput
+                        required
+                        label="Client secret"
+                        placeholder="Your OAuth client secret"
+                        {...form.getInputProps('secret')}
+                    />
+                    <Select
+                        required
+                        allowDeselect={false}
+                        label="Send client credentials as"
+                        data={[
+                            { value: 'basic', label: 'Authorization header' },
+                            { value: 'body', label: 'Request body' },
+                        ]}
+                        {...form.getInputProps('oauthClientAuthMethod')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes (optional)"
+                        description="Sent as a space-separated token request parameter"
+                        placeholder="Add a scope"
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'google_service_account' && (
@@ -349,6 +410,9 @@ export const AddConnectionWizard: FC<Props> = ({
             apiKeyName: '',
             apiKeyLocation: 'header',
             oauthScopes: [],
+            oauthTokenUrl: '',
+            oauthClientId: '',
+            oauthClientAuthMethod: 'basic',
             customHeaders: [],
             allowedMethods: ['GET'],
             pathMode: 'all',
@@ -373,13 +437,32 @@ export const AddConnectionWizard: FC<Props> = ({
                 return null;
             },
             oauthScopes: (value, values) => {
-                if (values.type !== 'google_service_account') return null;
-                if (value.length === 0) return 'Add at least one OAuth scope';
-                const invalid = value.find((s) => !isValidOAuthScope(s));
-                return invalid
-                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
-                    : null;
+                if (
+                    values.type !== 'google_service_account' &&
+                    values.type !== 'oauth_client_credentials'
+                )
+                    return null;
+                if (
+                    values.type === 'google_service_account' &&
+                    value.length === 0
+                )
+                    return 'Add at least one OAuth scope';
+                const isValid =
+                    values.type === 'google_service_account'
+                        ? isValidGoogleOAuthScope
+                        : isValidOAuthScope;
+                const invalid = value.find((s) => !isValid(s));
+                return invalid ? `Invalid OAuth scope: ${invalid}` : null;
             },
+            oauthTokenUrl: (value, values) =>
+                values.type === 'oauth_client_credentials'
+                    ? validateOAuthTokenUrl(value)
+                    : null,
+            oauthClientId: (value, values) =>
+                values.type === 'oauth_client_credentials' &&
+                value.trim().length === 0
+                    ? 'Client ID is required'
+                    : null,
             apiKeyName: (value, values) => {
                 if (values.type !== 'api_key') return null;
                 if (value.trim().length === 0)
@@ -461,11 +544,15 @@ export const AddConnectionWizard: FC<Props> = ({
         const secret = form.validateField('secret');
         const apiKeyName = form.validateField('apiKeyName');
         const oauthScopes = form.validateField('oauthScopes');
+        const oauthTokenUrl = form.validateField('oauthTokenUrl');
+        const oauthClientId = form.validateField('oauthClientId');
         const customHeaders = form.validateField('customHeaders');
         if (
             !secret.hasError &&
             !apiKeyName.hasError &&
             !oauthScopes.hasError &&
+            !oauthTokenUrl.hasError &&
+            !oauthClientId.hasError &&
             !customHeaders.hasError
         ) {
             setActive(2);

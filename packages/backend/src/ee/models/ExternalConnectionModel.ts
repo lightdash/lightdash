@@ -21,7 +21,10 @@ import {
     type DbApp as DbDataApp,
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { normalizeCredentialUrlOrigin } from '../../utils/credentialDestination';
+import {
+    normalizeCredentialUrlHref,
+    normalizeCredentialUrlOrigin,
+} from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AppExternalConnectionsTableName,
@@ -88,6 +91,9 @@ export class ExternalConnectionModel {
             apiKeyName: row.api_key_name,
             apiKeyLocation: row.api_key_location,
             oauthScopes: row.oauth_scopes,
+            oauthTokenUrl: row.oauth_token_url,
+            oauthClientId: row.oauth_client_id,
+            oauthClientAuthMethod: row.oauth_client_auth_method,
             customHeaders: row.custom_headers,
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
@@ -194,6 +200,10 @@ export class ExternalConnectionModel {
                         oauth_scopes: data.oauthScopes?.length
                             ? JSON.stringify(data.oauthScopes)
                             : null,
+                        oauth_token_url: data.oauthTokenUrl ?? null,
+                        oauth_client_id: data.oauthClientId ?? null,
+                        oauth_client_auth_method:
+                            data.oauthClientAuthMethod ?? null,
                         custom_headers:
                             data.customHeaders &&
                             Object.keys(data.customHeaders).length
@@ -290,6 +300,9 @@ export class ExternalConnectionModel {
                         oauth_scopes: src.oauth_scopes
                             ? JSON.stringify(src.oauth_scopes)
                             : null,
+                        oauth_token_url: src.oauth_token_url,
+                        oauth_client_id: src.oauth_client_id,
+                        oauth_client_auth_method: src.oauth_client_auth_method,
                         custom_headers: src.custom_headers
                             ? JSON.stringify(src.custom_headers)
                             : null,
@@ -719,6 +732,13 @@ export class ExternalConnectionModel {
                 updatePayload.oauth_scopes = data.oauthScopes?.length
                     ? JSON.stringify(data.oauthScopes)
                     : null;
+            if (data.oauthTokenUrl !== undefined)
+                updatePayload.oauth_token_url = data.oauthTokenUrl;
+            if (data.oauthClientId !== undefined)
+                updatePayload.oauth_client_id = data.oauthClientId;
+            if (data.oauthClientAuthMethod !== undefined)
+                updatePayload.oauth_client_auth_method =
+                    data.oauthClientAuthMethod;
             if (data.customHeaders !== undefined)
                 updatePayload.custom_headers =
                     data.customHeaders && Object.keys(data.customHeaders).length
@@ -731,7 +751,7 @@ export class ExternalConnectionModel {
 
             // Secret tri-state: `null` clears it, a non-empty string sets it,
             // and undefined/blank leaves it unchanged unless the credential's
-            // auth type or origin changes.
+            // auth type or credential destination changes.
             const resultingType = data.type ?? existing.type;
             const typeChanged =
                 data.type !== undefined && data.type !== existing.type;
@@ -739,10 +759,26 @@ export class ExternalConnectionModel {
                 data.origin !== undefined &&
                 normalizeCredentialUrlOrigin(data.origin) !==
                     normalizeCredentialUrlOrigin(existing.origin);
+            const keepsOAuthClientCredentialsType =
+                existing.type === 'oauth_client_credentials' &&
+                resultingType === 'oauth_client_credentials';
+            const oauthTokenUrlChanged =
+                keepsOAuthClientCredentialsType &&
+                data.oauthTokenUrl !== undefined &&
+                normalizeCredentialUrlHref(data.oauthTokenUrl ?? '') !==
+                    normalizeCredentialUrlHref(existing.oauth_token_url ?? '');
+            const oauthClientIdChanged =
+                keepsOAuthClientCredentialsType &&
+                data.oauthClientId !== undefined &&
+                data.oauthClientId !== existing.oauth_client_id;
             if (
                 resultingType === 'none' ||
                 data.secret === null ||
-                ((typeChanged || originChanged) && !data.secret)
+                ((typeChanged ||
+                    originChanged ||
+                    oauthTokenUrlChanged ||
+                    oauthClientIdChanged) &&
+                    !data.secret)
             ) {
                 await ExternalConnectionModel.deleteSecret(trx, uuid);
             } else if (data.secret) {
