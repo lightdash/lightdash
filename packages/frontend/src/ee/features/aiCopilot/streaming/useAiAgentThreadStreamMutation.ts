@@ -105,7 +105,7 @@ class ChatStreamParser extends DefaultChatTransport<UIMessage> {
     }
 }
 
-const getReasoningFromPart = (part: ReasoningUIPart) => {
+export const getReasoningFromPart = (part: ReasoningUIPart) => {
     switch (true) {
         case part.providerMetadata?.openai !== undefined:
             return {
@@ -120,6 +120,11 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
         case part.providerMetadata?.bedrock !== undefined:
             return {
                 reasoningId: part.providerMetadata.bedrock.signature,
+                text: part.text,
+            };
+        case part.providerMetadata?.google !== undefined:
+            return {
+                reasoningId: part.providerMetadata.google.signature,
                 text: part.text,
             };
         default:

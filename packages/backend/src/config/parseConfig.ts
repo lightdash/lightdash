@@ -45,6 +45,7 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_GOOGLE_MODEL_NAME,
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
@@ -1342,6 +1343,26 @@ export const getAiConfig = () => ({
                       ),
                   }
                 : undefined,
+        google: process.env.GEMINI_API_KEY
+            ? {
+                  apiKey: process.env.GEMINI_API_KEY,
+                  modelName:
+                      process.env.GEMINI_MODEL_NAME ||
+                      DEFAULT_GOOGLE_MODEL_NAME,
+                  baseUrl: process.env.GEMINI_BASE_URL
+                      ? normalizeLlmGatewayBaseUrl(
+                            process.env.GEMINI_BASE_URL,
+                            'GEMINI_BASE_URL',
+                        )
+                      : undefined,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'GEMINI_AVAILABLE_MODELS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'GEMINI_SUPPORTS_STREAMING',
+                  ),
+              }
+            : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,

@@ -149,6 +149,7 @@ services:
             AI_COPILOT_ENABLED: ${AI_COPILOT_ENABLED}
             AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER}
             ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+            GEMINI_API_KEY: ${GEMINI_API_KEY}
             OPENAI_API_KEY: ${OPENAI_API_KEY}
 
             # These were set in the render UI but are secret

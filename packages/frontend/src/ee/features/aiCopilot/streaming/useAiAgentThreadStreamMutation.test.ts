@@ -1,9 +1,43 @@
+import type { ReasoningUIPart } from 'ai';
 import { describe, expect, it } from 'vitest';
 import {
+    getReasoningFromPart,
     getStreamToolCallPart,
     getStepProgressFromChunk,
     readStreamResult,
 } from './useAiAgentThreadStreamMutation';
+
+describe('getReasoningFromPart', () => {
+    it('reads Gemini reasoning signatures', () => {
+        const part: ReasoningUIPart = {
+            type: 'reasoning',
+            text: 'Reasoning summary',
+            providerMetadata: {
+                google: { signature: 'gemini-signature' },
+            },
+        };
+
+        expect(getReasoningFromPart(part)).toEqual({
+            reasoningId: 'gemini-signature',
+            text: 'Reasoning summary',
+        });
+    });
+
+    it('leaves unsigned Gemini reasoning for downstream filtering', () => {
+        const part: ReasoningUIPart = {
+            type: 'reasoning',
+            text: 'Reasoning summary',
+            providerMetadata: {
+                google: { interactionId: 'interaction-id' },
+            },
+        };
+
+        expect(getReasoningFromPart(part)).toEqual({
+            reasoningId: undefined,
+            text: 'Reasoning summary',
+        });
+    });
+});
 
 describe('getStreamToolCallPart', () => {
     it('keeps MCP tool input parts for live rendering', () => {

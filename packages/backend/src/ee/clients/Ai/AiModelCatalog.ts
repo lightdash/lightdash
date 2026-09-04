@@ -56,6 +56,9 @@ export class AiModelCatalog {
             case 'openai':
                 // Not implemented yet — callers fail closed
                 return null;
+            case 'google':
+                // Not implemented yet — callers fail closed
+                return null;
             default:
                 return assertUnreachable(
                     provider,

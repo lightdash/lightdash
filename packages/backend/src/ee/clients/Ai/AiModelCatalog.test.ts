@@ -107,6 +107,12 @@ describe('AiModelCatalog', () => {
         expect(
             await catalog.getAccessibleModelIds('openai', 'sk-test'),
         ).toBeNull();
+        expect(
+            await catalog.getAccessibleModelIds(
+                'google',
+                'AIza-fake-gemini-key',
+            ),
+        ).toBeNull();
         expect(fetchFn).not.toHaveBeenCalled();
     });
 });

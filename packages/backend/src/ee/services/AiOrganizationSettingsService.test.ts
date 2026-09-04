@@ -25,8 +25,12 @@ const settingsWithKeys: AiOrganizationSettings = {
     requireExplicitSlackChannelLinking: false,
     defaultAiAgentModelConfig: null,
     modelVisibility: null,
-    providerApiKeysSet: { anthropic: true, openai: false },
-    providerApiKeyHints: { anthropic: 'sk-ant-api03-R2D...igAA', openai: null },
+    providerApiKeysSet: { anthropic: true, google: false, openai: false },
+    providerApiKeyHints: {
+        anthropic: 'sk-ant-api03-R2D...igAA',
+        google: null,
+        openai: null,
+    },
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -67,6 +71,21 @@ describe('findUnconfiguredProviderKeyWrites', () => {
             findUnconfiguredProviderKeyWrites(
                 { openai: 'sk-123' },
                 { openai: {} },
+            ),
+        ).toEqual([]);
+    });
+
+    it('applies the same configured-provider guard to Google keys', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { google: 'AIza-fake-gemini-key' },
+                { openai: {} },
+            ),
+        ).toEqual(['google']);
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { google: 'AIza-fake-gemini-key' },
+                { google: {} },
             ),
         ).toEqual([]);
     });

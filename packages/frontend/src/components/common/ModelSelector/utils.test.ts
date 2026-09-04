@@ -56,5 +56,8 @@ describe('getModelGroupLabel', () => {
 
     it('falls back to a human-readable provider label', () => {
         expect(getModelGroupLabel(current)).toBe('OpenAI');
+        expect(getModelGroupLabel({ ...current, provider: 'google' })).toBe(
+            'Google Gemini',
+        );
     });
 });

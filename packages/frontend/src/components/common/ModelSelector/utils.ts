@@ -7,6 +7,7 @@ export const getModelKey = (model: AiModelOption): string =>
 const MODEL_PROVIDER_LABELS: Record<string, string> = {
     anthropic: 'Anthropic',
     bedrock: 'Amazon Bedrock',
+    google: 'Google Gemini',
     openai: 'OpenAI',
     openrouter: 'OpenRouter',
 };

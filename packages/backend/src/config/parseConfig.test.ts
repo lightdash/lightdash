@@ -807,9 +807,28 @@ test('Should parse bedrock inference profile prefix from env', () => {
     });
 });
 
+test('Should configure Gemini only when an explicit API key is set', () => {
+    process.env.GEMINI_MODEL_NAME = 'gemini-3.5-flash-lite';
+    expect(parseConfig().ai.copilot.providers.google).toBeUndefined();
+
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    process.env.GEMINI_AVAILABLE_MODELS =
+        'gemini-3.8-flash,gemini-3.5-flash-lite';
+
+    expect(parseConfig().ai.copilot.providers.google).toEqual({
+        apiKey: 'test-gemini-key',
+        modelName: 'gemini-3.5-flash-lite',
+        baseUrl: undefined,
+        availableModels: ['gemini-3.8-flash', 'gemini-3.5-flash-lite'],
+        supportsStreaming: true,
+    });
+});
+
 test('Should parse and normalize LLM gateway base URLs', () => {
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
     process.env.ANTHROPIC_BASE_URL = ' https://anthropic-gateway.example/v1 ';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
+    process.env.GEMINI_BASE_URL = ' https://gemini-gateway.example/v1beta/ ';
     process.env.BEDROCK_API_KEY = 'test-bedrock-key';
     process.env.BEDROCK_REGION = 'us-east-1';
     process.env.BEDROCK_BASE_URL = ' https://bedrock-gateway.example/runtime ';
@@ -820,6 +839,9 @@ test('Should parse and normalize LLM gateway base URLs', () => {
                 providers: {
                     anthropic: {
                         baseUrl: 'https://anthropic-gateway.example',
+                    },
+                    google: {
+                        baseUrl: 'https://gemini-gateway.example/v1beta',
                     },
                     bedrock: {
                         baseUrl: 'https://bedrock-gateway.example/runtime',
@@ -847,9 +869,13 @@ test.each(['1', 'true'])(
 
 test.each([
     ['ANTHROPIC_BASE_URL', 'gateway.internal'],
+    ['GEMINI_BASE_URL', 'gateway.internal'],
     ['BEDROCK_BASE_URL', 'ftp://gateway.internal'],
 ])('rejects invalid %s values', (environmentVariable, value) => {
     process.env[environmentVariable] = value;
+    if (environmentVariable === 'GEMINI_BASE_URL') {
+        process.env.GEMINI_API_KEY = 'test-gemini-key';
+    }
     if (environmentVariable === 'BEDROCK_BASE_URL') {
         process.env.BEDROCK_API_KEY = 'test-bedrock-key';
         process.env.BEDROCK_REGION = 'us-east-1';
@@ -1059,6 +1085,7 @@ describe('getStringRecordFromEnvironmentVariable', () => {
 test('Should parse AI provider custom headers from env', () => {
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
     process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
     process.env.AZURE_AI_API_KEY = 'test-azure-key';
     process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
@@ -1127,6 +1154,7 @@ describe('AI provider supportsStreaming', () => {
     beforeEach(() => {
         process.env.OPENAI_API_KEY = 'test-openai-key';
         process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.GEMINI_API_KEY = 'test-gemini-key';
         process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
         process.env.AZURE_AI_API_KEY = 'test-azure-key';
         process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
@@ -1140,6 +1168,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: true },
             anthropic: { supportsStreaming: true },
+            google: { supportsStreaming: true },
             openrouter: { supportsStreaming: true },
             azure: { supportsStreaming: true },
             bedrock: { supportsStreaming: true },
@@ -1149,6 +1178,7 @@ describe('AI provider supportsStreaming', () => {
     test('stays true when env vars are explicitly "true"', () => {
         process.env.OPENAI_SUPPORTS_STREAMING = 'true';
         process.env.ANTHROPIC_SUPPORTS_STREAMING = 'true';
+        process.env.GEMINI_SUPPORTS_STREAMING = 'true';
         process.env.OPENROUTER_SUPPORTS_STREAMING = 'true';
         process.env.AZURE_AI_SUPPORTS_STREAMING = 'true';
         process.env.BEDROCK_SUPPORTS_STREAMING = 'true';
@@ -1156,6 +1186,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: true },
             anthropic: { supportsStreaming: true },
+            google: { supportsStreaming: true },
             openrouter: { supportsStreaming: true },
             azure: { supportsStreaming: true },
             bedrock: { supportsStreaming: true },
@@ -1165,6 +1196,7 @@ describe('AI provider supportsStreaming', () => {
     test('is false only when env vars are the literal "false"', () => {
         process.env.OPENAI_SUPPORTS_STREAMING = 'false';
         process.env.ANTHROPIC_SUPPORTS_STREAMING = 'false';
+        process.env.GEMINI_SUPPORTS_STREAMING = 'false';
         process.env.OPENROUTER_SUPPORTS_STREAMING = 'false';
         process.env.AZURE_AI_SUPPORTS_STREAMING = 'false';
         process.env.BEDROCK_SUPPORTS_STREAMING = 'false';
@@ -1172,6 +1204,7 @@ describe('AI provider supportsStreaming', () => {
         expect(parseConfig().ai.copilot.providers).toMatchObject({
             openai: { supportsStreaming: false },
             anthropic: { supportsStreaming: false },
+            google: { supportsStreaming: false },
             openrouter: { supportsStreaming: false },
             azure: { supportsStreaming: false },
             bedrock: { supportsStreaming: false },

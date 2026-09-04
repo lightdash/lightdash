@@ -369,8 +369,16 @@ export class AiOrganizationSettingsService extends BaseService {
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
                 dataAppModelVisibility: null,
-                providerApiKeysSet: { anthropic: false, openai: false },
-                providerApiKeyHints: { anthropic: null, openai: null },
+                providerApiKeysSet: {
+                    anthropic: false,
+                    google: false,
+                    openai: false,
+                },
+                providerApiKeyHints: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,

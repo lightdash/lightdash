@@ -27,7 +27,8 @@ export type AiCallAttribution = {
 
 /**
  * The AI SDK provider id (e.g. `amazon-bedrock`) doesn't always match our
- * configured provider vocabulary (`openai/azure/anthropic/bedrock/openrouter`)
+ * configured provider vocabulary
+ * (`openai/azure/anthropic/google/bedrock/openrouter`)
  * that cost accounting joins on. Normalize the mismatches here so the same
  * provider gets one label across LLM and embedding rows.
  */
@@ -38,7 +39,8 @@ const normalizeProvider = (provider: string): string =>
  * Model name + provider attribution derived from an AI SDK model object.
  * The SDK provider id is dot-namespaced (e.g. `azure.chat`,
  * `amazon-bedrock`); the first segment (after normalization) matches our
- * configured provider names (openai/azure/anthropic/bedrock/openrouter), which
+ * configured provider names
+ * (openai/azure/anthropic/google/bedrock/openrouter), which
  * is what cost accounting joins on — the same model name bills differently per
  * provider. Bare string models carry no provider information.
  */
