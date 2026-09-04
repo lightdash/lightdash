@@ -252,6 +252,51 @@ describe('validateMergeQuery', () => {
                 ]),
             );
         });
+
+        it('rejects a join key naming a field a source does not group by', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    joinKey: [
+                        {
+                            name: 'date_day',
+                            fieldIdBySourceId: {
+                                a: 'followers_signup_date',
+                                b: 'follower_snapshots_date',
+                            },
+                        },
+                    ],
+                }),
+            );
+
+            expect(errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.JOIN_KEY_NOT_SELECTED,
+                    sourceId: 'a',
+                    fieldIds: ['followers_signup_date'],
+                }),
+            );
+        });
+    });
+
+    describe('merge calculations', () => {
+        it('rejects two calculations sharing a name', () => {
+            const errors = validateMergeQuery(
+                mergeQuery({
+                    tableCalculations: [
+                        { name: 'net', displayName: 'Net', sql: '1' },
+                        { name: 'net', displayName: 'Net again', sql: '2' },
+                    ],
+                }),
+            );
+
+            expect(errors).toEqual([
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.DUPLICATE_CALCULATION_NAME,
+                    sourceId: null,
+                    fieldIds: ['net'],
+                }),
+            ]);
+        });
     });
 });
 
