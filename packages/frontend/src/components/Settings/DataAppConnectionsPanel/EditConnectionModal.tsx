@@ -10,6 +10,7 @@ import { type FC, useState } from 'react';
 import {
     isValidGoogleOAuthScope,
     isValidOAuthScope,
+    validateOAuthTokenUrl,
 } from '../../../features/externalConnections/constants';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
@@ -180,23 +181,10 @@ const EditConnectionModalContent: FC<Props> = ({
                 const invalid = value.find((s) => !isValid(s));
                 return invalid ? `Invalid OAuth scope: ${invalid}` : null;
             },
-            oauthTokenUrl: (value, values) => {
-                if (values.type !== 'oauth_client_credentials') return null;
-                try {
-                    const url = new URL(value);
-                    if (
-                        url.protocol !== 'https:' ||
-                        url.username ||
-                        url.password ||
-                        url.hash
-                    ) {
-                        return 'Enter a valid HTTPS token URL';
-                    }
-                } catch {
-                    return 'Enter a valid HTTPS token URL';
-                }
-                return null;
-            },
+            oauthTokenUrl: (value, values) =>
+                values.type === 'oauth_client_credentials'
+                    ? validateOAuthTokenUrl(value)
+                    : null,
             oauthClientId: (value, values) =>
                 values.type === 'oauth_client_credentials' &&
                 value.trim().length === 0

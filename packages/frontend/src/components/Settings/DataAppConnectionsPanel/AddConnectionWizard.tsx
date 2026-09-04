@@ -31,6 +31,7 @@ import {
     isValidGoogleOAuthScope,
     isValidOAuthScope,
     SUGGESTED_GOOGLE_SCOPES,
+    validateOAuthTokenUrl,
 } from '../../../features/externalConnections/constants';
 import { useCreateExternalConnection } from '../../../features/externalConnections/hooks/useCreateExternalConnection';
 import { useProposeConnectionConfig } from '../../../features/externalConnections/hooks/useProposeConnectionConfig';
@@ -88,20 +89,6 @@ const validateOrigin = (value: string): string | null => {
     }
     if ((url.pathname && url.pathname !== '/') || url.search || url.hash) {
         return 'Enter just the base URL, with no path or query';
-    }
-    return null;
-};
-
-const validateOAuthTokenUrl = (value: string): string | null => {
-    let url: URL;
-    try {
-        url = new URL(value);
-    } catch {
-        return 'Enter a valid token URL';
-    }
-    if (url.protocol !== 'https:') return 'Token URL must start with https://';
-    if (url.username || url.password || url.hash) {
-        return 'Token URL must not contain credentials or a fragment';
     }
     return null;
 };

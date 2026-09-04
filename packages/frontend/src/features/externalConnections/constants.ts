@@ -15,3 +15,17 @@ export const isValidOAuthScope = (scope: string): boolean =>
 
 export const isValidGoogleOAuthScope = (scope: string): boolean =>
     GOOGLE_OAUTH_SCOPE_REGEX.test(scope);
+
+export const validateOAuthTokenUrl = (value: string): string | null => {
+    let url: URL;
+    try {
+        url = new URL(value);
+    } catch {
+        return 'Enter a valid token URL';
+    }
+    if (url.protocol !== 'https:') return 'Token URL must start with https://';
+    if (url.username || url.password || url.hash) {
+        return 'Token URL must not contain credentials or a fragment';
+    }
+    return null;
+};

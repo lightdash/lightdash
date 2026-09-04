@@ -24,7 +24,11 @@ const MAX_EXPIRY_SKEW_MS = 60_000;
 const formEncode = (value: string): string =>
     new URLSearchParams({ value }).toString().slice('value='.length);
 
-/** Mints and caches OAuth 2.0 client-credentials bearer tokens in memory. */
+/**
+ * Mints and caches OAuth 2.0 client-credentials bearer tokens in process
+ * memory. Each backend process has an independent cache, and a restart remints
+ * tokens on the next request.
+ */
 export class OAuthClientCredentialsTokenProvider {
     private readonly cache = new Map<
         string,
