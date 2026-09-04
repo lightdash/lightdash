@@ -420,12 +420,15 @@ export class DataAppTemplateService extends BaseService {
         }
         // An instructions-only template has nothing to build from without
         // AGENTS.md; a seeded one can omit it (the source is the template).
+        // The file must carry text: a blank AGENTS.md would pass an
+        // existence check and free-generate from a header-only prompt.
+        const guardrailsFile = files.find(
+            (file) => file.filename === DATA_APP_TEMPLATE_GUARDRAILS_PATH,
+        );
         if (
             getDataAppTemplateKind(files.map((file) => file.filename)) ===
                 'instructions' &&
-            !files.some(
-                (file) => file.filename === DATA_APP_TEMPLATE_GUARDRAILS_PATH,
-            )
+            (guardrailsFile?.body.toString('utf-8').trim() ?? '').length === 0
         ) {
             throw new ParameterError(
                 `A template without source files must include ${DATA_APP_TEMPLATE_GUARDRAILS_PATH} with the instructions to build from`,
@@ -595,6 +598,50 @@ export class DataAppTemplateService extends BaseService {
         slug: string,
     ): Promise<DataAppTemplateSummary | undefined> {
         return this.dataAppTemplateModel.findBySlug(organizationUuid, slug);
+    }
+
+    /**
+     * The template's summary and AGENTS.md alone, for builds that do not
+     * seed (iterations, instructions-only templates): one row lookup and at
+     * most one storage read instead of the whole package. Undefined when the
+     * template has been deleted, so the caller can degrade instead of
+     * failing every later version of the apps built from it.
+     */
+    async getGuardrails(
+        organizationUuid: string,
+        slug: string,
+    ): Promise<
+        | { template: DataAppTemplateSummary; guardrails: string | null }
+        | undefined
+    > {
+        const template = await this.dataAppTemplateModel.findBySlug(
+            organizationUuid,
+            slug,
+        );
+        if (!template) {
+            return undefined;
+        }
+        const rows = await this.dataAppTemplateModel.listFiles(
+            template.templateUuid,
+        );
+        if (
+            !rows.some(
+                (row) => row.filename === DATA_APP_TEMPLATE_GUARDRAILS_PATH,
+            )
+        ) {
+            return { template, guardrails: null };
+        }
+        const { client, bucket } = this.getS3Client();
+        const buffer = await readS3ObjectAsBuffer(
+            client,
+            bucket,
+            templateS3Key(
+                organizationUuid,
+                template.templateUuid,
+                DATA_APP_TEMPLATE_GUARDRAILS_PATH,
+            ),
+        );
+        return { template, guardrails: buffer.toString('utf-8') };
     }
 
     /**

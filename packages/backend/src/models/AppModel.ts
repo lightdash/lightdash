@@ -90,6 +90,7 @@ export class AppModel {
                     | 'description'
                     | 'template'
                     | 'template_slug'
+                    | 'template_kind'
                     | 'space_uuid'
                     | 'design_uuid'
                 >
