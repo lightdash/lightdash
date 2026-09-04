@@ -210,6 +210,7 @@ describe('secureFetch GET behavior', () => {
         expect(result).toEqual({
             status: 503,
             contentType: 'application/json',
+            headers: { 'content-type': 'application/json' },
             bodyText: 'nope',
             truncated: false,
         });
@@ -217,7 +218,10 @@ describe('secureFetch GET behavior', () => {
 
     it('returns a SecureFetchResult on a happy-path GET', async () => {
         mockedFetch.mockResolvedValue(
-            jsonResponse('{"hello":"world"}', { status: 200 }),
+            jsonResponse('{"hello":"world"}', {
+                status: 200,
+                headers: { 'Retry-After': '3' },
+            }),
         );
         const result = await secureFetch(
             'https://example.com/x.json',
@@ -226,6 +230,10 @@ describe('secureFetch GET behavior', () => {
         expect(result).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: {
+                'content-type': 'application/json',
+                'retry-after': '3',
+            },
             bodyText: '{"hello":"world"}',
             truncated: false,
         });
@@ -261,6 +269,7 @@ describe('secureFetch POST behavior', () => {
         expect(result).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: { 'content-type': 'application/json' },
             bodyText: '{"accepted":true}',
             truncated: false,
         });
@@ -523,6 +532,7 @@ describe('secureFetch size and content-type', () => {
             ok: true,
             headers: {
                 get: (name: string) => (name === 'content-type' ? null : null),
+                forEach: () => undefined,
             },
             text: vi.fn().mockResolvedValue('{}'),
         };

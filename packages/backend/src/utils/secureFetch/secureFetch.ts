@@ -40,6 +40,9 @@ export type SecureFetchOptions = {
 export type SecureFetchResult = {
     status: number;
     contentType: string;
+    /** Upstream response headers, normalized to lowercase names. Callers must
+     *  still apply their own exposure policy before returning these to users. */
+    headers: Record<string, string>;
     bodyText: string;
     truncated: boolean;
 };
@@ -244,9 +247,15 @@ export async function secureFetch(
         throw new SecureFetchError('request_failed', 'Failed to read response');
     }
 
+    const headers = Object.create(null) as Record<string, string>;
+    response.headers.forEach((value, name) => {
+        headers[name.toLowerCase()] = value;
+    });
+
     return {
         status: response.status,
         contentType,
+        headers,
         bodyText,
         truncated: false,
     };

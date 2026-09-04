@@ -5,6 +5,7 @@
 If the app is linked to one or more **external connections** (third-party HTTP APIs the project admin configured), you'll see a `[Linked external connections — each file in /tmp/external-data/ ...]` block at the top of this prompt and one JSON file per connection at **`/tmp/external-data/{alias}.json`**.
 
 Each file documents one connection:
+
 - `instructions` — admin-authored notes on how to use this API (auth quirks, pagination, which endpoints matter, response caveats). Present only when the admin wrote them; when present, read and follow them.
 - `signature` / `howToCall` — the exact typed SDK call. Auth is injected by Lightdash — never include credentials or API keys.
 - `origin` / `requestUrl` — the connection's base origin (host only) and how the URL is formed: **the full request URL is `origin + path`.** Your `path` is appended to the origin verbatim — the origin and the path prefix are NOT auto-prepended.
@@ -24,20 +25,24 @@ Lightdash that stores the origin (host) and credentials. The app references it b
 
 ```tsx
 const res = await lightdash.externalFetch('stripe', {
-    method: 'GET',          // 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' — defaults to 'GET'. Must be one of the connection's allowed methods.
-    path: '/v1/charges',    // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
+    method: 'GET', // 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' — defaults to 'GET'. Must be one of the connection's allowed methods.
+    path: '/v1/charges', // COMPLETE path appended to the connection's origin (host). Full URL = origin + path. Must start with an allowed prefix; it is NOT relative to the prefix.
     query: { limit: '10' }, // Record<string, string> — values MUST be strings
     // body: { ... },       // JSON body — sent for every method except GET
 });
 
 // res.status      — upstream HTTP status (number)
 // res.contentType — upstream Content-Type
+// res.headers     — safe upstream response headers (lowercase names)
 // res.body        — parsed JSON (or raw text for non-JSON)
 // res.truncated   — true if Lightdash truncated an oversized response
 ```
 
 Lightdash resolves the alias to the stored connection, attaches its
 credentials, makes the request server-side, and returns the response.
+`res.headers` includes lowercase cache, pagination, and rate-limit headers such
+as `retry-after`, `ratelimit-*`, `x-ratelimit-*`, `etag`, and `link`. Other
+upstream headers are deliberately omitted.
 
 **Rules — follow exactly:**
 

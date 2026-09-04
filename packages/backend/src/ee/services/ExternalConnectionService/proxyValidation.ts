@@ -301,3 +301,118 @@ export function validateCustomHeaders(
         }
     }
 }
+
+/** Keep the public response-header contract intentionally small. External
+ * connection credentials are injected by Lightdash, so arbitrary upstream
+ * headers are not safe to expose to app code even though they arrived over an
+ * admin-approved connection. */
+const EXPOSED_RESPONSE_HEADER_NAMES = new Set([
+    'accept-ranges',
+    'cache-control',
+    'content-range',
+    'etag',
+    'expires',
+    'last-modified',
+    'link',
+    'ratelimit',
+    'retry-after',
+]);
+
+const EXPOSED_RESPONSE_HEADER_PREFIXES = [
+    'ratelimit-',
+    'x-ratelimit-',
+    'x-rate-limit-',
+] as const;
+
+/** Matches Node's default maximum inbound response-header size. Keep a local
+ * cap as well so the API contract does not depend on a process-wide Node flag. */
+export const EXTERNAL_RESPONSE_HEADER_MAX_BYTES = 16 * 1024;
+
+const shouldExposeResponseHeader = (name: string): boolean =>
+    EXPOSED_RESPONSE_HEADER_NAMES.has(name) ||
+    EXPOSED_RESPONSE_HEADER_PREFIXES.some((prefix) => name.startsWith(prefix));
+
+/**
+ * Sanitize RFC 8288 Link targets before exposing them to app code. A
+ * query-authenticated upstream commonly builds pagination links from the
+ * request URL, which would otherwise reflect the injected API key. Same-origin
+ * absolute links become relative paths, which are also directly reusable with
+ * externalFetch.
+ */
+const sanitizeLinkHeader = (
+    value: string,
+    requestUrl: string,
+    queryApiKeyName: string | null,
+): string | null => {
+    const requestOrigin = new URL(requestUrl).origin;
+    let foundTarget = false;
+    let invalidTarget = false;
+
+    const sanitized = value.replace(/<([^<>]*)>/g, (_match, target: string) => {
+        foundTarget = true;
+        try {
+            const url = new URL(target, requestUrl);
+            if (url.username || url.password) {
+                invalidTarget = true;
+                return '';
+            }
+            if (queryApiKeyName) {
+                url.searchParams.delete(queryApiKeyName);
+            }
+            const safeTarget =
+                url.origin === requestOrigin
+                    ? `${url.pathname}${url.search}${url.hash}`
+                    : url.toString();
+            return `<${safeTarget}>`;
+        } catch {
+            invalidTarget = true;
+            return '';
+        }
+    });
+
+    return foundTarget && !invalidTarget ? sanitized : null;
+};
+
+/**
+ * Select the response metadata app code may consume. Header names are
+ * case-insensitive and returned lowercase. Malformed Link values are omitted;
+ * oversized exposed metadata rejects the response instead of silently losing
+ * a rate-limit or pagination header.
+ */
+export function filterExternalResponseHeaders(args: {
+    headers: Record<string, string>;
+    requestUrl: string;
+    queryApiKeyName: string | null;
+}): Record<string, string> {
+    const exposed = Object.create(null) as Record<string, string>;
+    let exposedBytes = 0;
+
+    for (const [name, rawValue] of Object.entries(args.headers)) {
+        const normalizedName = name.toLowerCase();
+        if (shouldExposeResponseHeader(normalizedName)) {
+            const value =
+                normalizedName === 'link'
+                    ? sanitizeLinkHeader(
+                          rawValue,
+                          args.requestUrl,
+                          args.queryApiKeyName,
+                      )
+                    : rawValue;
+
+            if (value !== null) {
+                exposedBytes += Buffer.byteLength(
+                    `${normalizedName}: ${value}\r\n`,
+                    'utf8',
+                );
+                if (exposedBytes > EXTERNAL_RESPONSE_HEADER_MAX_BYTES) {
+                    throw new ParameterError(
+                        `Upstream response headers exceed the maximum of ${EXTERNAL_RESPONSE_HEADER_MAX_BYTES} bytes`,
+                    );
+                }
+                exposed[normalizedName] = value;
+            }
+        }
+    }
+
+    return exposed;
+}

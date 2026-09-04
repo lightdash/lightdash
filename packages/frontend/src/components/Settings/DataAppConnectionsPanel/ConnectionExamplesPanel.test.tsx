@@ -176,6 +176,7 @@ describe('ConnectionExamplesPanel draft config', () => {
         mocks.testResult = {
             status: 200,
             contentType: 'application/json',
+            headers: {},
             body: { id: 1 },
             truncated: false,
         };
@@ -201,6 +202,7 @@ describe('ConnectionExamplesPanel draft config', () => {
         mocks.testResult = {
             status: 200,
             contentType: 'application/json',
+            headers: {},
             body: { id: 1 },
             truncated: false,
         };

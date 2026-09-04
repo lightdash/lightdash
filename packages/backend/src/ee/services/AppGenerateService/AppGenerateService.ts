@@ -2845,7 +2845,7 @@ export class AppGenerateService extends BaseService {
                     alias: doc.alias,
                     ...(instructions ? { instructions } : {}),
                     signature:
-                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; body: unknown; truncated: boolean }>",
+                        "externalFetch(alias: string, opts: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; path: string; query?: Record<string, string>; body?: unknown }): Promise<{ status: number; contentType: string; headers: Record<string, string>; body: unknown; truncated: boolean }>",
                     origin: doc.origin,
                     browserImageOrigin: doc.browserImageOrigin,
                     // The single most-misread thing: `path` is the COMPLETE path from
@@ -2856,7 +2856,7 @@ export class AppGenerateService extends BaseService {
                         "query is Record<string, string> — EVERY value must be a string. Write { latitude: '52.52' }, never { latitude: 52.52 }. Numbers and booleans are rejected with a 422.",
                         `path is the COMPLETE path appended to the origin (requestUrl = origin + path). Pass the full path starting from the origin — e.g. "${examplePath}" — and make sure it starts with one of allowedPathPrefixes. Do NOT shorten it to the trailing segment and do NOT assume the origin or prefix is auto-prepended.`,
                         'method must be one of allowedMethods.',
-                        'Read the response from result.body. result.status is the upstream HTTP status; result.truncated is true if the response was capped.',
+                        'Read the response from result.body. result.status is the upstream HTTP status; result.headers contains safe upstream response headers with lowercase names; result.truncated is true if the response was capped.',
                         'Auth is injected by Lightdash — never include credentials, API keys, or headers.',
                         ...(doc.browserImageOrigin
                             ? [

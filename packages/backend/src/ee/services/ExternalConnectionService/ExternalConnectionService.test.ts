@@ -94,6 +94,7 @@ const fakeSample: ExternalConnectionSample = {
 const fetchResponse: ExternalFetchResponse = {
     status: 200,
     contentType: 'application/json',
+    headers: {},
     body: { temp: 21 },
     truncated: false,
 };

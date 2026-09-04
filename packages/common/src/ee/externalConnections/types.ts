@@ -170,6 +170,8 @@ export type ExternalFetchRequest = {
 export type ExternalFetchResponse = {
     status: number;
     contentType: string;
+    /** Safe upstream response headers, normalized to lowercase names. */
+    headers: Record<string, string>;
     body: unknown;
     truncated: boolean;
 };
