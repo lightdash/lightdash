@@ -5,6 +5,7 @@ import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric, type TimestampDomain } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
+import { type ResultNumericKind } from './results';
 import { type UserAttributeValueMap } from './userAttributes';
 
 const MAX_USER_ATTRIBUTE_QUERY_TAGS = 20;
@@ -184,8 +185,13 @@ export type WarehouseTables = {
     partitionColumn?: PartitionColumn;
 }[];
 
+export type WarehouseResultField = {
+    type: DimensionType;
+    numericKind?: ResultNumericKind;
+};
+
 export type WarehouseResults = {
-    fields: Record<string, { type: DimensionType }>;
+    fields: Record<string, WarehouseResultField>;
     rows: Record<string, AnyType>[];
 };
 
