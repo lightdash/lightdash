@@ -99,6 +99,18 @@ _Avoid_: connector, provider, data source (collides with warehouse connections)
 - The `merge-queries` flag gates the feature. Composition itself is not
   flagged: it is the plumbing under merges and external sources both.
 
+## Dashboards
+
+A merged chart is an ordinary `saved_chart` tile. A tile's dashboard filters
+are pushed into every source that has the field before the join (dimension
+filters as WHERE, metric filters as HAVING), so a join-key filter reaches both
+sides and the join stays aligned; a filter no source has is dropped as it is
+for any tile, except one that names a merged output column, which is refused
+because the merge has no post-join filter stage. The tile echo attributes the
+applied filters per source. Dashboard sorts and date zoom are left unapplied
+on merged tiles: a merge carries no sort input and a grain cannot be applied
+to one side only without misaligning the join.
+
 ## Related
 
 - `architecture.md` in this directory: execution paths and the current

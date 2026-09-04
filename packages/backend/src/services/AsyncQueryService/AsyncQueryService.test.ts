@@ -13,6 +13,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getFilterRulesFromGroup,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricType,
@@ -5382,6 +5383,234 @@ describe('AsyncQueryService', () => {
             expect(mergedJson).toContain('chart-value');
             // …the out-of-explore rule is dropped without failing the run.
             expect(mergedJson).not.toContain('customers_segment');
+        });
+    });
+
+    describe('executeAsyncDashboardChartQuery with a merged chart', () => {
+        const authorizedAccount = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const chartQuery = { ...metricQueryMock, tableCalculations: [] };
+        const otherQuery = {
+            ...metricQueryMock,
+            metrics: [],
+            tableCalculations: [],
+        };
+        const mergedChart = {
+            uuid: 'mergedChartUuid',
+            name: 'Merged chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            dashboardUuid: null,
+            tableName: validExplore.name,
+            metricQuery: chartQuery,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.TABLE },
+            merge: {
+                primarySourceId: 'a',
+                sources: [
+                    { id: 'a', kind: 'chart' },
+                    { id: 'b', kind: 'query', metricQuery: otherQuery },
+                ],
+                joinKey: [
+                    {
+                        name: 'dim1',
+                        fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
+                    },
+                ],
+                joinType: MergeJoinType.FULL,
+                tableCalculations: [],
+            },
+        };
+
+        const startedOutcome = {
+            outcome: 'started' as const,
+            query: {
+                queryUuid: 'merge-query-uuid',
+                cacheMetadata: { cacheHit: false },
+                metricQuery: chartQuery,
+                fields: {},
+                parameterReferences: [],
+                usedParametersValues: {},
+                resolvedTimezone: null,
+                warnings: [],
+            },
+            parameterReferences: [],
+            fieldOrigins: {},
+        };
+
+        const buildService = () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => mergedChart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                spaceModel: {
+                    getSpaceSummary: vi.fn(async () => ({
+                        uuid: 'spaceUuid',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                    })),
+                } as unknown as SpaceModel,
+                dashboardModel: {
+                    getDashboardParametersByIdOrSlug: vi.fn(
+                        async () => undefined,
+                    ),
+                } as unknown as DashboardModel,
+            });
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            const mergeSpy = vi.fn().mockResolvedValue(startedOutcome);
+            service.executeAsyncMergeQuery = mergeSpy;
+            const prepareSpy = vi.fn();
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            return { service, mergeSpy, prepareSpy };
+        };
+
+        const tileFilter = {
+            id: 'dash-rule',
+            target: { fieldId: 'b_dim1', tableName: 'b' },
+            operator: FilterOperator.EQUALS,
+            values: ['dashboard-value'],
+            label: undefined,
+        };
+
+        test('runs the merge with the tile filter pushed into both sources', async () => {
+            const { service, mergeSpy, prepareSpy } = buildService();
+
+            const result = await service.executeAsyncDashboardChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                tileUuid: 'tile-1',
+                chartUuid: mergedChart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [tileFilter],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+            });
+
+            // The primary source never ran on its own.
+            expect(prepareSpy).not.toHaveBeenCalled();
+            expect(mergeSpy).toHaveBeenCalledTimes(1);
+            const args = mergeSpy.mock.calls[0][0];
+            expect(args.context).toBe(QueryExecutionContext.DASHBOARD);
+            expect(args.mode).toEqual({ type: 'interactive' });
+            const sources: { id: string; metricQuery: MetricQuery }[] =
+                args.mergeQuery.sources;
+            expect(sources.map((source) => source.id)).toEqual(['a', 'b']);
+            sources.forEach((source) => {
+                expect(
+                    getFilterRulesFromGroup(
+                        source.metricQuery.filters.dimensions,
+                    ).map((rule) => rule.target.fieldId),
+                ).toEqual(['b_dim1']);
+            });
+
+            expect(result.queryUuid).toBe('merge-query-uuid');
+            expect(result.dateZoomApplied).toBe(false);
+            expect(
+                result.appliedDashboardFilters.dimensions.map((r) => r.id),
+            ).toEqual(['dash-rule']);
+            expect(
+                Object.keys(result.appliedDashboardFiltersBySourceId ?? {}),
+            ).toEqual(['a', 'b']);
+        });
+
+        test('refuses a tile filter that names a merged column instead of dropping it', async () => {
+            const { service, mergeSpy } = buildService();
+
+            await expect(
+                service.executeAsyncDashboardChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: mergedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [
+                            {
+                                ...tileFilter,
+                                id: 'merged-column-rule',
+                                target: { fieldId: 'a_a_met1', tableName: 'a' },
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(mergeSpy).not.toHaveBeenCalled();
+        });
+
+        test('surfaces a merge refusal the way the chart page does', async () => {
+            const { service, mergeSpy } = buildService();
+            mergeSpy.mockResolvedValue({
+                outcome: 'refused',
+                errors: [
+                    {
+                        kind: MergeQueryErrorKind.FAN_OUT,
+                        sourceId: 'b',
+                        fieldIds: [],
+                        message: 'Fan-out',
+                    },
+                ],
+                parameterReferences: [],
+                fieldOrigins: {},
+            });
+
+            await expect(
+                service.executeAsyncDashboardChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: mergedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                }),
+            ).rejects.toThrow('This saved merge cannot be run: Fan-out');
         });
     });
 
