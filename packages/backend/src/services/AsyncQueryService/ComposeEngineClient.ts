@@ -39,10 +39,11 @@ const SCOPED_SESSION_RESOURCE_LIMITS: DuckdbResourceLimits = {
  * Which S3 config owns the files a session reads. The DuckDB secret pins one
  * endpoint and region, so a session must be built from the config of the
  * bucket it reads: results storage for result files, the pre-aggregates
- * bucket for external-source files.
+ * bucket for external-source files. A scope limits the secret to the URIs
+ * the query is allowed to read; null is the shared warm instance.
  */
 export type ComposeEngineSession =
-    | { storage: 'results' }
+    | { storage: 'results'; scope: string[] | null }
     | { storage: 'externalSources'; scope: string | null };
 
 type ComposeEngineStorage = ComposeEngineSession['storage'];
@@ -181,25 +182,50 @@ export class ComposeEngineClient {
         }
     }
 
+    private static getSessionScope(
+        session: ComposeEngineSession,
+    ): string[] | null {
+        switch (session.storage) {
+            case 'results':
+                return session.scope;
+            case 'externalSources':
+                return session.scope === null ? null : [session.scope];
+            default:
+                return assertUnreachable(
+                    session,
+                    'Unknown compose engine storage',
+                );
+        }
+    }
+
     /**
      * A warehouse client on the compose engine for the given session. A
      * session without a scope is the shared warm instance of its storage; a
      * scoped one is an isolated, resource-limited session whose S3 secret
-     * only reaches that URI, and it is never cached.
+     * only reaches those URIs, and it is never cached.
      */
     createExecutionWarehouseClient(
         session: ComposeEngineSession,
     ): WarehouseClient {
         const s3Config = this.getSessionConfig(session.storage);
+        const scope = ComposeEngineClient.getSessionScope(session);
 
-        if (session.storage === 'externalSources' && session.scope !== null) {
+        if (scope !== null) {
+            if (scope.length === 0) {
+                throw new Error(
+                    'A scoped compose engine session needs at least one URI',
+                );
+            }
             return this.createDuckdbWarehouseClient({
-                s3Config: { ...s3Config, scope: session.scope },
+                s3Config: { ...s3Config, scope },
                 resourceLimits:
                     this.sharedResourceLimits ?? SCOPED_SESSION_RESOURCE_LIMITS,
+                // Only external sources carry a per-organization cap today
                 organizationConcurrencyLimit:
-                    this.lightdashConfig.externalSources
-                        .maxConcurrentDuckdbQueriesPerOrganization,
+                    session.storage === 'externalSources'
+                        ? this.lightdashConfig.externalSources
+                              .maxConcurrentDuckdbQueriesPerOrganization
+                        : undefined,
             });
         }
 

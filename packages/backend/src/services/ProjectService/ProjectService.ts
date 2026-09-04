@@ -5969,6 +5969,24 @@ export class ProjectService extends BaseService {
             };
         }
 
+        // Merge calculations are user SQL, so they pass the custom SQL gate;
+        // each source's own calculations are gated by that source's compile
+        if (mergeQuery.tableCalculations.length > 0) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            await this.assertCustomSqlAuthorizedForQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                exploreName: resolvedSources[0].metricQuery.exploreName,
+                metricQuery: {
+                    tableCalculations: mergeQuery.tableCalculations,
+                    customDimensions: [],
+                    additionalMetrics: [],
+                },
+            });
+        }
+
         const warehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,

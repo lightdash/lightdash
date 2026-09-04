@@ -905,8 +905,10 @@ describe('DuckdbWarehouseClient', () => {
                 runMock,
             ),
         );
-        const scope =
-            's3://bucket/external-sources/project/source/table/v1.parquet';
+        const scope = [
+            's3://bucket/external-sources/project/source/table/v1.parquet',
+            's3://bucket/external-sources/project/source/table/v2.parquet',
+        ];
         const client = DuckdbWarehouseClient.createForPreAggregate({
             type: 'duckdb_s3',
             s3Config: {
@@ -924,7 +926,7 @@ describe('DuckdbWarehouseClient', () => {
             .find((sql) =>
                 sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
             );
-        expect(secretSql).toContain(`SCOPE '${scope}'`);
+        expect(secretSql).toContain(`SCOPE ('${scope[0]}', '${scope[1]}')`);
     });
 
     it('caps isolated S3 queries per organization', async () => {
@@ -950,7 +952,7 @@ describe('DuckdbWarehouseClient', () => {
                         endpoint: 's3.amazonaws.com',
                         forcePathStyle: false,
                         useSsl: true,
-                        scope: 's3://bucket/external-sources/object.parquet',
+                        scope: ['s3://bucket/external-sources/object.parquet'],
                     },
                 },
                 {

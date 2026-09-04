@@ -1,3 +1,4 @@
+import { ForbiddenError, MergeJoinType } from '@lightdash/common';
 import { fetchMiddlewares } from '@tsoa/runtime';
 import express from 'express';
 import { PassThrough } from 'stream';
@@ -55,6 +56,88 @@ describe('ProjectController merged manifest', () => {
         expect(responseBody).toEqual(storedManifest);
         expect(JSON.parse(gunzipSync(responseBody).toString('utf8'))).toEqual(
             manifest,
+        );
+    });
+});
+
+describe('ProjectController merge routes', () => {
+    const mergeQuery = {
+        sources: [],
+        joinKey: [],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        limit: 500,
+    };
+
+    const buildController = () => {
+        const compileMergeQuery = vi.fn();
+        const executeLegacyAsyncMergeQuery = vi.fn();
+        const controller = new ProjectController({
+            getAsyncQueryService: () => ({
+                compileMergeQuery,
+                executeLegacyAsyncMergeQuery,
+            }),
+        } as unknown as ServiceRepository);
+        controller.setStatus = vi.fn();
+        return { controller, compileMergeQuery, executeLegacyAsyncMergeQuery };
+    };
+
+    const requestFor = (account: ReturnType<typeof buildAccount>) =>
+        ({
+            account,
+            headers: {},
+            header: vi.fn(),
+        }) as unknown as express.Request;
+
+    test('both routes refuse an unregistered account before reaching the service', async () => {
+        const { controller, compileMergeQuery, executeLegacyAsyncMergeQuery } =
+            buildController();
+        const embedRequest = requestFor(
+            buildAccount({ accountType: 'jwt', userType: 'anonymous' }),
+        );
+
+        await expect(
+            controller.CompileMergeQuery(
+                'project-uuid',
+                { mergeQuery },
+                embedRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            controller.RunMergeQuery(
+                'project-uuid',
+                { mergeQuery },
+                embedRequest,
+            ),
+        ).rejects.toThrow(ForbiddenError);
+
+        expect(compileMergeQuery).not.toHaveBeenCalled();
+        expect(executeLegacyAsyncMergeQuery).not.toHaveBeenCalled();
+    });
+
+    test('both routes forward a registered account to the service', async () => {
+        const { controller, compileMergeQuery, executeLegacyAsyncMergeQuery } =
+            buildController();
+        compileMergeQuery.mockResolvedValue({ sql: null, errors: [] });
+        executeLegacyAsyncMergeQuery.mockResolvedValue({
+            outcome: 'started',
+            query: { queryUuid: 'query-uuid' },
+        });
+        const account = buildAccount();
+        const request = requestFor(account);
+
+        await controller.CompileMergeQuery(
+            'project-uuid',
+            { mergeQuery },
+            request,
+        );
+        await controller.RunMergeQuery('project-uuid', { mergeQuery }, request);
+
+        expect(compileMergeQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ account, projectUuid: 'project-uuid' }),
+        );
+        expect(executeLegacyAsyncMergeQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ account, projectUuid: 'project-uuid' }),
         );
     });
 });

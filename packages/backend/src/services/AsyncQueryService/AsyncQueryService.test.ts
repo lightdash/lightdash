@@ -5961,7 +5961,7 @@ describe('runDuckdbQuery', () => {
         references: { kind: 'bound', referenceCtes: [] },
         columns: { mode: 'discover', limit: undefined, parameters: {} },
         storedCompiledSql: null,
-        warehouseClient: warehouseClientMock,
+        engine: { kind: 'client', warehouseClient: warehouseClientMock },
         queryTags: {} as AnyType,
         queryCreatedAt: new Date(),
         cacheKey: 'cache-key',
@@ -5975,7 +5975,7 @@ describe('runDuckdbQuery', () => {
         });
         const { run, runWarehouseQuery, update } = buildService();
 
-        await run(baseArgs({ warehouseClient }));
+        await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
 
         expect(streamQuery).toHaveBeenCalledTimes(1);
         expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
@@ -6046,7 +6046,7 @@ describe('runDuckdbQuery', () => {
 
         await run(
             baseArgs({
-                warehouseClient,
+                engine: { kind: 'client', warehouseClient },
                 sql: 'SELECT * FROM merge_source_0',
                 references: {
                     kind: 'queries',
@@ -6083,6 +6083,67 @@ describe('runDuckdbQuery', () => {
                 original_columns: originalColumns,
             },
             expect.anything(),
+        );
+    });
+
+    it('a session scoped to referenced results reaches exactly the bound leg files', async () => {
+        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            composeEngineClient: {
+                createExecutionWarehouseClient,
+            } as unknown as ComposeEngineClient,
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'results-bucket' },
+            } as unknown as S3ResultsFileStorageClient,
+            queryHistoryModel: {
+                update: vi.fn(),
+                pollForQueryCompletion: vi.fn(
+                    async ({ queryUuid }: { queryUuid: string }) => ({
+                        ...legHistory(1),
+                        queryUuid,
+                        resultsFileName: `${queryUuid}-results`,
+                    }),
+                ),
+            } as unknown as QueryHistoryModel,
+        } as never);
+        const runWarehouseQuery = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+
+        await (service as unknown as DuckdbQueryRunner).runDuckdbQuery(
+            baseArgs({
+                engine: { kind: 'scopedToReferencedResults' },
+                sql: 'SELECT * FROM merge_source_0 JOIN merge_source_1 USING (k)',
+                references: {
+                    kind: 'queries',
+                    references: {
+                        merge_source_0: 'leg-a',
+                        merge_source_1: 'leg-b',
+                    },
+                    guard: null,
+                },
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap: {},
+                    usedParameters: null,
+                    originalColumns: {},
+                    pivotConfiguration: undefined,
+                },
+            }),
+        );
+
+        expect(createExecutionWarehouseClient).toHaveBeenCalledTimes(1);
+        expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+            storage: 'results',
+            scope: [
+                's3://results-bucket/leg-a-results.jsonl',
+                's3://results-bucket/leg-b-results.jsonl',
+            ],
+        });
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery.mock.calls[0][0].warehouseClientOverride).toBe(
+            warehouseClientMock,
         );
     });
 
@@ -6125,7 +6186,7 @@ describe('runDuckdbQuery', () => {
 
         await run(
             baseArgs({
-                warehouseClient,
+                engine: { kind: 'client', warehouseClient },
                 references: {
                     kind: 'queries',
                     references: { orders: 'leg-uuid' },

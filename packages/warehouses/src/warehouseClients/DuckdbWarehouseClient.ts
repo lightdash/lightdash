@@ -104,8 +104,8 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
-    /** Limit this DuckDB secret to one trusted S3 URI or prefix. */
-    scope?: string;
+    /** Limit this DuckDB secret to trusted S3 URIs or prefixes. */
+    scope?: string[];
     /** PEM bundle httpfs verifies HTTPS object storage with. */
     caCertFile?: string;
 };
@@ -1350,7 +1350,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
         const scopeClause = s3Config.scope
-            ? `SCOPE '${escape(s3Config.scope)}',`
+            ? `SCOPE (${s3Config.scope
+                  .map((uri) => `'${escape(uri)}'`)
+                  .join(', ')}),`
             : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
