@@ -11,6 +11,7 @@ import {
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuidance';
 import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
@@ -40,6 +41,7 @@ type RegisteredMcpPrompt = {
 
 const mockRegisteredMcpTools: RegisteredMcpTool[] = [];
 const mockRegisteredMcpPrompts: RegisteredMcpPrompt[] = [];
+const mockMcpServerInstructions: Array<string | undefined> = [];
 
 vi.mock('@sentry/node', () => ({
     getActiveSpan: () => undefined,
@@ -49,7 +51,11 @@ vi.mock('@sentry/node', () => ({
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
-        function MockMcpServer() {
+        function MockMcpServer(
+            _serverInfo: unknown,
+            options?: { instructions?: string },
+        ) {
+            mockMcpServerInstructions.push(options?.instructions);
             return {
                 server: {
                     registerCapabilities: vi.fn(),
@@ -159,6 +165,12 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
 );
 
+const defaultMcpAnalystPromptOptions = {
+    runSqlEnabled: true,
+    runMetricQueryEnabled: true,
+    filterExpressionsEnabled: false,
+};
+
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
 });
@@ -167,6 +179,7 @@ describe('MCP tool contracts', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
+        mockMcpServerInstructions.length = 0;
     });
 
     it('matches the shared MCP tool definition names snapshot', () => {
@@ -187,7 +200,7 @@ describe('MCP tool contracts', () => {
     });
 
     it('uses the grep-fields MCP analyst prompt', () => {
-        const prompt = getMcpAnalystPrompt();
+        const prompt = getMcpAnalystPrompt(defaultMcpAnalystPromptOptions);
 
         expect(prompt).toContain('grep_fields');
         expect(prompt).toContain('get_metadata');
@@ -199,9 +212,34 @@ describe('MCP tool contracts', () => {
         const guidance =
             'follow step 0, then skip steps 1–3 and call `run_sql`';
 
-        expect(getMcpAnalystPrompt()).toContain(guidance);
-        expect(getMcpAnalystPrompt({ runSqlEnabled: false })).not.toContain(
+        expect(getMcpAnalystPrompt(defaultMcpAnalystPromptOptions)).toContain(
             guidance,
+        );
+        expect(
+            getMcpAnalystPrompt({
+                ...defaultMcpAnalystPromptOptions,
+                runSqlEnabled: false,
+            }),
+        ).not.toContain(guidance);
+    });
+
+    it('matches initialization guidance to the filter contract', async () => {
+        const mcpService = makeMcpService();
+
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: false,
+        });
+        expect(mockMcpServerInstructions.at(-1)).not.toContain(
+            MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
+        );
+
+        await mcpService.createServer({
+            runMetricQueryEnabled: true,
+            filterExpressionsEnabled: true,
+        });
+        expect(mockMcpServerInstructions.at(-1)).toContain(
+            MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
     });
 

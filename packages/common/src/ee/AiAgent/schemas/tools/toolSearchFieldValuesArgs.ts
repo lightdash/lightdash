@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
-import { getFieldIdSchema } from '../fieldId';
 import {
-    FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
-    filterExpressionInputSchema,
-} from '../filterExpressions/expressionSchemas';
+    modelGuidanceSourceByRuntime,
+    type ToolDescriptionContext,
+} from '../defineTool';
+import { getFieldIdSchema } from '../fieldId';
+import { filterExpressionInputSchema } from '../filterExpressions/expressionSchemas';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -50,11 +50,7 @@ Usage Tips:
 - ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
-- When filters is present, it scopes the candidate-value search and must be one flat AND expression containing dimension fields only
-
-Filter expression syntax:
-${FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION}
-
+- Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow ${modelGuidanceSourceByRuntime[runtime]}.
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()
