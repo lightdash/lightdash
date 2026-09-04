@@ -1,3 +1,10 @@
+## [2.122.1](https://github.com/lightdash/lightdash/compare/2.122.0...2.122.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **pgwire:** accept SHOW TRANSACTION ISOLATION LEVEL ([#28638](https://github.com/lightdash/lightdash/issues/28638)) ([86e0952](https://github.com/lightdash/lightdash/commit/86e0952e4e5444c33179ab0f5d400c11265bd0f4)), closes [#28634](https://github.com/lightdash/lightdash/issues/28634)
+
 # [2.122.0](https://github.com/lightdash/lightdash/compare/2.121.1...2.122.0) (2026-09-04)
 
 
