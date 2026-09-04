@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AgentSuggestion,
     AgentSummaryContext,
+    AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
     AiAgent,
     AiAgentEvalRunJobPayload,
@@ -3441,6 +3442,64 @@ export class AiAgentService extends BaseService {
      * feature flag blocks this endpoint entirely; the admin threads view uses a
      * separate path and keeps working.
      */
+    async updateAgentThreadTitle(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            title,
+        }: { agentUuid: string; threadUuid: string; title: string },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const trimmedTitle = title.trim();
+        if (trimmedTitle.length === 0) {
+            throw new ParameterError('Thread title cannot be empty');
+        }
+        if (trimmedTitle.length > AI_AGENT_THREAD_TITLE_MAX_LENGTH) {
+            throw new ParameterError(
+                `Thread title cannot exceed ${AI_AGENT_THREAD_TITLE_MAX_LENGTH} characters`,
+            );
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    userUuid: thread.user.uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to rename this thread',
+            );
+        }
+
+        await this.aiAgentModel.updateThreadTitle({
+            threadUuid,
+            title: trimmedTitle,
+        });
+    }
+
     async deleteAgentThread(
         user: SessionUser,
         agentUuid: string,

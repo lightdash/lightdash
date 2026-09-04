@@ -1,6 +1,7 @@
 import type {
     AiAgent,
     AiAgentModelConfig,
+    AiAgentProjectThreadSummary,
     AiAgentThreadFilters,
     AiPromptContext,
     AiPromptContextItem,
@@ -15,6 +16,7 @@ import type {
     ApiAiAgentThreadDataAppRestoreRequest,
     ApiAiAgentThreadDataAppRestoreResponse,
     ApiAiAgentThreadGenerateTitleResponse,
+    ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageInterruptResponse,
@@ -40,6 +42,7 @@ import {
     useQuery,
     useQueryClient,
     type InfiniteData,
+    type QueryClient,
     type UseInfiniteQueryOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
@@ -632,6 +635,114 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
     });
 };
 
+type ProjectThreadsInfiniteData = InfiniteData<
+    ApiAiAgentProjectThreadSummaryListResponse['results']
+>;
+
+const getProjectThreadsQueryKey = (projectUuid: string) =>
+    [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY] as const;
+
+// Snapshot every cached sidebar list (one per filter set) so a failed
+// mutation can restore them.
+const snapshotProjectThreads = (
+    queryClient: QueryClient,
+    projectUuid: string,
+) =>
+    queryClient.getQueriesData<ProjectThreadsInfiniteData | undefined>({
+        queryKey: getProjectThreadsQueryKey(projectUuid),
+    });
+
+const restoreProjectThreads = (
+    queryClient: QueryClient,
+    snapshot: ReturnType<typeof snapshotProjectThreads>,
+) => {
+    snapshot.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+    });
+};
+
+const patchProjectThread = (
+    queryClient: QueryClient,
+    projectUuid: string,
+    threadUuid: string,
+    patch: Partial<AiAgentProjectThreadSummary>,
+) => {
+    queryClient.setQueriesData<ProjectThreadsInfiniteData | undefined>(
+        { queryKey: getProjectThreadsQueryKey(projectUuid) },
+        (currentData) => {
+            if (!currentData) return currentData;
+            return {
+                ...currentData,
+                pages: currentData.pages.map((page) => ({
+                    ...page,
+                    data: page.data.map((thread) =>
+                        thread.uuid === threadUuid
+                            ? { ...thread, ...patch }
+                            : thread,
+                    ),
+                })),
+            };
+        },
+    );
+};
+
+const updateAgentThread = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    data: ApiAiAgentThreadUpdateRequest,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { agentUuid: string; threadUuid: string; title: string },
+        { snapshot: ReturnType<typeof snapshotProjectThreads> }
+    >({
+        mutationFn: ({ agentUuid, threadUuid, title }) =>
+            updateAgentThread(projectUuid, agentUuid, threadUuid, { title }),
+        onMutate: async ({ threadUuid, title }) => {
+            await queryClient.cancelQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+            const snapshot = snapshotProjectThreads(queryClient, projectUuid);
+            patchProjectThread(queryClient, projectUuid, threadUuid, { title });
+            return { snapshot };
+        },
+        onError: ({ error }, _variables, context) => {
+            if (context) restoreProjectThreads(queryClient, context.snapshot);
+            showToastApiError({
+                title: 'Failed to rename thread',
+                apiError: error,
+            });
+        },
+        onSettled: async (_result, _error, { agentUuid, threadUuid }) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: getProjectThreadsQueryKey(projectUuid),
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: getAiAgentThreadQueryKey(
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                    ),
+                }),
+            ]);
+        },
+    });
+};
+
 export const getAiAgentThreadQueryKey = (
     projectUuid: string,
     agentUuid: string | undefined,
@@ -926,28 +1037,9 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
         mutationFn: ({ agentUuid, threadUuid }) =>
             generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
         onSuccess: (data, { threadUuid }) => {
-            queryClient.setQueriesData<
-                | InfiniteData<
-                      ApiAiAgentProjectThreadSummaryListResponse['results']
-                  >
-                | undefined
-            >(
-                { queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY] },
-                (currentData) => {
-                    if (!currentData) return currentData;
-                    return {
-                        ...currentData,
-                        pages: currentData.pages.map((page) => ({
-                            ...page,
-                            data: page.data.map((thread) =>
-                                thread.uuid === threadUuid
-                                    ? { ...thread, title: data.title }
-                                    : thread,
-                            ),
-                        })),
-                    };
-                },
-            );
+            patchProjectThread(queryClient, projectUuid, threadUuid, {
+                title: data.title,
+            });
         },
         onError: ({ error }) => {
             // Silently fail - don't show error toast or navigate for background title generation
