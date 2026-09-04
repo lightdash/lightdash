@@ -7913,14 +7913,18 @@ export class AsyncQueryService extends ProjectService {
             context,
             mergeQuery,
         };
-        return wrapSentryTransaction(
-            'merge_query.submit',
+        // A span, not wrapSentryTransaction: refusals throw and must not become Sentry issues
+        return traceSpan(
             {
-                projectUuid,
-                context,
-                mode: mode.type,
-                joinType: mergeQuery.joinType,
-                sourceCount: mergeQuery.sources.length,
+                op: 'merge_query.submit',
+                name: 'merge_query.submit',
+                attributes: {
+                    'lightdash.projectUuid': projectUuid,
+                    'lightdash.queryContext': context,
+                    'lightdash.mergeMode': mode.type,
+                    'lightdash.joinType': mergeQuery.joinType,
+                    'lightdash.sourceCount': mergeQuery.sources.length,
+                },
             },
             async () => {
                 const outcome = await this.submitAsyncMergeQuery(args);
@@ -8586,25 +8590,6 @@ export class AsyncQueryService extends ProjectService {
                         joinExecutionTimeMs: null,
                     }),
                 );
-                Sentry.withScope((scope) => {
-                    scope.setTag('lightdash.mergeQuery', 'true');
-                    scope.setTag('lightdash.queryUuid', queryUuid);
-                    scope.setTag(
-                        'lightdash.projectUuid',
-                        submission.projectUuid,
-                    );
-                    scope.setContext('merge_query', {
-                        ...describeMergeQueryShape(submission),
-                        error: outcome.error,
-                    });
-                    Sentry.captureException(
-                        new UnexpectedServerError(
-                            `Merge query ${queryUuid} failed on the compose engine: ${
-                                outcome.error ?? 'unknown error'
-                            }`,
-                        ),
-                    );
-                });
                 return;
             default:
                 assertUnreachable(outcome, 'Unknown compose merge outcome');
