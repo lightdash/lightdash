@@ -224,6 +224,41 @@ export class OrganizationSsoModel {
     }
 
     /**
+     * Finds every enabled Azure AD method whose stored tenant id matches.
+     * Managed sign-in resolves the organisation from the Microsoft token's
+     * `tid` alone, so the caller must reject anything other than exactly one
+     * match. Configs are encrypted, so the tenant id cannot be a SQL
+     * predicate and every enabled Azure row is decrypted here.
+     */
+    async findEnabledAzureAdMethodsByTenantId(
+        tenantId: string,
+    ): Promise<OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD>[]> {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.AZUREAD,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows
+            .map(
+                (
+                    row,
+                ): OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD> => ({
+                    organizationUuid: row.organization_uuid,
+                    config: this.decryptConfig<OrganizationSsoProvider.AZUREAD>(
+                        row.config,
+                    ),
+                }),
+            )
+            .filter((method) => method.config.oauth2TenantId === tenantId);
+    }
+
+    /**
      * Finds every per-org Google policy row matching the email's domain,
      * including disabled ones. Google is enabled by default (shared instance
      * OAuth app); a row only exists when an org has set an explicit policy, so

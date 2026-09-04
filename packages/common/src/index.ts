@@ -158,6 +158,7 @@ export * from './types/job';
 export * from './types/knex-paginate';
 export * from './types/lightdashModel';
 export * from './types/lightdashProjectConfig';
+export * from './types/managedSignIn';
 export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
