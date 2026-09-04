@@ -1,3 +1,11 @@
+# [2.125.0](https://github.com/lightdash/lightdash/compare/2.124.0...2.125.0) (2026-09-04)
+
+
+### Features
+
+* deep link gallery tabs ([#28650](https://github.com/lightdash/lightdash/issues/28650)) ([9e4a994](https://github.com/lightdash/lightdash/commit/9e4a994fcbf340a4fa0b7bf50879587e3d661e4c))
+* **merge:** track merge execution and refusal events ([#28644](https://github.com/lightdash/lightdash/issues/28644)) ([e92d00e](https://github.com/lightdash/lightdash/commit/e92d00e442f3cc1031ef9540431423353d56ec4a))
+
 # [2.124.0](https://github.com/lightdash/lightdash/compare/2.123.0...2.124.0) (2026-09-04)
 
 
