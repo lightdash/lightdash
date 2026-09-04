@@ -43,6 +43,14 @@ export function generateTableCalculationTemplate(
                 partitionBy: [],
             };
 
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
+            return {
+                type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+                fieldId,
+                orderBy: mapSortsToOrderBy(currentSorts),
+                partitionBy: [],
+            };
+
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:
             return {
                 type: TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE,

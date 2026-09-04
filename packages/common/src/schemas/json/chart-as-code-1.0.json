@@ -3492,6 +3492,44 @@
                             "type": "array"
                         },
                         "partitionBy": {
+                            "description": "Fields to partition by",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS",
+                            "description": "Type of template calculation"
+                        }
+                    },
+                    "required": ["partitionBy", "orderBy", "fieldId", "type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "fieldId": {
+                            "description": "Field ID to apply the template to",
+                            "type": "string"
+                        },
+                        "orderBy": {
+                            "description": "Fields to order by for window functions",
+                            "items": {
+                                "properties": {
+                                    "fieldId": {
+                                        "type": "string"
+                                    },
+                                    "order": {
+                                        "enum": ["asc", "desc", null],
+                                        "type": ["string", "null"]
+                                    }
+                                },
+                                "required": ["order", "fieldId"],
+                                "type": "object"
+                            },
+                            "type": "array"
+                        },
+                        "partitionBy": {
                             "items": {
                                 "type": "string"
                             },
@@ -3624,6 +3662,10 @@
                     "type": "object"
                 }
             ]
+        },
+        "TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS": {
+            "enum": ["difference_from_previous"],
+            "type": "string"
         },
         "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
             "enum": ["percent_change_from_previous"],
