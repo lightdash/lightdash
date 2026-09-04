@@ -50,6 +50,7 @@ import {
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useIsModalHosted } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import {
@@ -174,6 +175,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const dashboardMetricIds = useTableTree(
         (context) => context.dashboardMetricIds,
     );
+    const isModalHosted = useIsModalHosted();
     const itemsAlerts = useTableTree((context) => context.itemsAlerts);
     const missingCustomDimensions = useTableTree(
         (context) => context.missingCustomDimensions,
@@ -283,10 +285,13 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         return false;
     }, [description, isMissing, item, metricInfo]);
 
-    // Registry metric: badged with '=' and frozen (no edit/duplicate/delete).
-    const isDashboardMetric =
+    // Shared with the dashboard: edits go via impact preview, actions reduced
+    const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
+    // The '=' badge marks provenance: dashboard-local from creation
+    const isDashboardMetric =
+        isRegistryMetric || (isModalHosted && isAdditionalMetric(item));
 
     const itemColors = getFieldColors(item);
     const alerts = itemsAlerts?.[getItemId(item)];
@@ -298,7 +303,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const { showDeleteAction, handleDeleteClick } = useCustomMetricDelete({
         item,
         fieldId,
-        isHover: isHover && !isDashboardMetric,
+        isHover: isHover && !isRegistryMetric,
     });
 
     const timeIntervalLabel =
@@ -557,8 +562,8 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     isSelected={isSelected}
                     isOpened={isMenuOpen}
                     hasDescription={!!description}
-                    basicActionsOnly={isDashboardMetric}
-                    allowRegistryEdit={isDashboardMetric}
+                    basicActionsOnly={isRegistryMetric}
+                    allowRegistryEdit={isRegistryMetric}
                     onViewDescription={onOpenDescriptionView}
                     onMenuChange={onToggleMenu}
                 />
