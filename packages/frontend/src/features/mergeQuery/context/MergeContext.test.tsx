@@ -13,17 +13,20 @@ import {
 } from '@lightdash/common';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { PRIMARY_SOURCE_ID } from '../constants';
 import { MergeProvider } from './MergeContext';
+import { MERGE_URL_PARAM, serializeMergeState } from './mergeUrlState';
 import { useMerge } from './useMerge';
 
 const setSearchParams = vi.fn();
-const { executeMergeQuery } = vi.hoisted(() => ({
+const { executeMergeQuery, searchParams } = vi.hoisted(() => ({
     executeMergeQuery: vi.fn(),
+    searchParams: new URLSearchParams(),
 }));
 
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
-    useSearchParams: () => [new URLSearchParams(), setSearchParams],
+    useSearchParams: () => [searchParams, setSearchParams],
 }));
 
 vi.mock('../../../hooks/useQueryResults', () => ({
@@ -111,6 +114,48 @@ const wrapper = ({ children }: PropsWithChildren) => (
 describe('MergeProvider', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        searchParams.delete(MERGE_URL_PARAM);
+    });
+
+    it('stops waiting for a restored merge once it is refused before execution', () => {
+        searchParams.set(
+            MERGE_URL_PARAM,
+            serializeMergeState({
+                focus: { kind: 'join' },
+                additionalSources: [
+                    {
+                        id: 'b',
+                        exploreName: 'payments',
+                        dimensions: [
+                            'orders_status',
+                            'payments_payment_method',
+                        ],
+                        metrics: ['payments_total_revenue'],
+                        filters: {},
+                    },
+                ],
+                joinParts: [
+                    {
+                        fieldIdBySourceId: {
+                            [PRIMARY_SOURCE_ID]: 'orders_status',
+                            b: 'orders_status',
+                        },
+                    },
+                ],
+                joinType: MergeJoinType.FULL,
+            }),
+        );
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        expect(result.current.wasRestored).toBe(true);
+
+        act(() => result.current.refuseRestoredRun());
+
+        expect(result.current.wasRestored).toBe(false);
+        expect(result.current.isRunning).toBe(false);
+        expect(result.current.mergeResults).toBeNull();
+        expect(result.current.runErrors).toEqual([]);
+        expect(result.current.runError).toBeNull();
+        expect(executeMergeQuery).not.toHaveBeenCalled();
     });
 
     it('publishes join type changes immediately', () => {
