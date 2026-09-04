@@ -1,3 +1,11 @@
+# [2.127.0](https://github.com/lightdash/lightdash/compare/2.126.0...2.127.0) (2026-09-04)
+
+
+### Features
+
+* **chart-registry:** hide installed chart types from the library list ([#28660](https://github.com/lightdash/lightdash/issues/28660)) ([db71f03](https://github.com/lightdash/lightdash/commit/db71f03794e32294ea9a5da4b00e1f7e536e460b))
+* **upgrade-automation:** make a held upgrade pull request obvious ([#28613](https://github.com/lightdash/lightdash/issues/28613)) ([71ffedf](https://github.com/lightdash/lightdash/commit/71ffedff1e3f1c1ad3357921462d9b00985dad94))
+
 # [2.126.0](https://github.com/lightdash/lightdash/compare/2.125.0...2.126.0) (2026-09-04)
 
 
