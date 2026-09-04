@@ -1,5 +1,8 @@
 import {
+    addFilterRule,
     buildPopAdditionalMetric,
+    FilterOperator,
+    getFilterRules,
     getGranularityRank,
     getItemId,
     getPopPeriodLabel,
@@ -7,10 +10,12 @@ import {
     isDimension,
     isSupportedPeriodOverPeriodGranularity,
     timeFrameConfigs,
+    TimeFrames,
+    UnitOfTime,
     type Dimension,
     type ItemsMap,
     type Metric,
-    type TimeFrames,
+    type PeriodOverPeriodComparisonMode,
 } from '@lightdash/common';
 import { Group, Select, Stack, Text, Tooltip } from '@mantine/core';
 import { IconTimelineEvent } from '@tabler/icons-react';
@@ -19,6 +24,7 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectDimensions,
+    selectFilters,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -26,12 +32,20 @@ import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
 import { NumberInput } from '../../common/NumberInput';
 
+const TO_DATE_UNITS: Partial<Record<TimeFrames, UnitOfTime>> = {
+    [TimeFrames.WEEK]: UnitOfTime.weeks,
+    [TimeFrames.MONTH]: UnitOfTime.months,
+    [TimeFrames.QUARTER]: UnitOfTime.quarters,
+    [TimeFrames.YEAR]: UnitOfTime.years,
+};
+
 const PeriodOverPeriodComparisonModalContent: FC<{
     metric: Metric;
     itemsMap: ItemsMap;
 }> = ({ metric, itemsMap }) => {
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const filters = useExplorerSelector(selectFilters);
 
     const selectedDimensions = useExplorerSelector(selectDimensions);
 
@@ -95,6 +109,8 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         string | null
     >(null);
     const [periodOffset, setPeriodOffset] = useState<number>(1);
+    const [comparisonMode, setComparisonMode] =
+        useState<PeriodOverPeriodComparisonMode>('full');
 
     const selectedDimensionObj = useMemo(() => {
         if (!selectedTimeDimensionId || !itemsMap) return null;
@@ -124,10 +140,49 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         [periodOffset],
     );
 
+    const toDateUnit = selectedGranularity
+        ? TO_DATE_UNITS[selectedGranularity]
+        : undefined;
+
     const timeDimensionId = useMemo(() => {
         if (!selectedDimensionObj) return null;
         return getItemId(selectedDimensionObj);
     }, [selectedDimensionObj]);
+
+    const toDateFilterAlreadyExists = useMemo(
+        () =>
+            !!timeDimensionId &&
+            !!toDateUnit &&
+            getFilterRules(filters).some(
+                (filter) =>
+                    filter.target.fieldId === timeDimensionId &&
+                    filter.operator === FilterOperator.IN_PERIOD_TO_DATE &&
+                    filter.settings?.unitOfTime === toDateUnit &&
+                    filter.disabled !== true,
+            ),
+        [filters, timeDimensionId, toDateUnit],
+    );
+
+    const effectiveComparisonMode = toDateFilterAlreadyExists
+        ? 'toDate'
+        : comparisonMode;
+    const comparisonModeOptions = useMemo(
+        () => [
+            {
+                value: 'full',
+                label: 'Full periods',
+                disabled: toDateFilterAlreadyExists,
+            },
+            {
+                value: 'toDate',
+                label: selectedGranularityLabel
+                    ? `All ${selectedGranularityLabel.toLowerCase()}s to date`
+                    : 'All periods to date',
+                disabled: !toDateUnit,
+            },
+        ],
+        [selectedGranularityLabel, toDateFilterAlreadyExists, toDateUnit],
+    );
 
     const popAlreadyExists = useMemo(() => {
         if (!timeDimensionId || !selectedGranularity) return false;
@@ -163,8 +218,29 @@ const PeriodOverPeriodComparisonModalContent: FC<{
             timeDimensionId,
             granularity: selectedGranularity,
             periodOffset: effectivePeriodOffset,
+            comparisonMode: effectiveComparisonMode,
         });
         dispatch(explorerActions.addAdditionalMetric(additionalMetric));
+
+        if (
+            effectiveComparisonMode === 'toDate' &&
+            toDateUnit &&
+            !toDateFilterAlreadyExists
+        ) {
+            dispatch(
+                explorerActions.setFilters(
+                    addFilterRule({
+                        filters,
+                        field: selectedDimensionObj,
+                        operator: FilterOperator.IN_PERIOD_TO_DATE,
+                        settings: {
+                            unitOfTime: toDateUnit,
+                            completed: false,
+                        },
+                    }),
+                ),
+            );
+        }
 
         dispatch(explorerActions.requestQueryExecution());
         dispatch(
@@ -172,12 +248,16 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         );
     }, [
         dispatch,
+        effectiveComparisonMode,
         effectivePeriodOffset,
+        filters,
+        metric,
         popAlreadyExists,
         selectedDimensionObj,
         selectedGranularity,
         timeDimensionId,
-        metric,
+        toDateFilterAlreadyExists,
+        toDateUnit,
     ]);
 
     return (
@@ -215,7 +295,16 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                     }
                     data={selectData}
                     value={selectedTimeDimensionId}
-                    onChange={setSelectedTimeDimensionId}
+                    onChange={(value) => {
+                        setSelectedTimeDimensionId(value);
+                        const item = value ? itemsMap[value] : undefined;
+                        const interval = isDimension(item)
+                            ? item.timeInterval
+                            : undefined;
+                        if (!interval || !TO_DATE_UNITS[interval]) {
+                            setComparisonMode('full');
+                        }
+                    }}
                     disabled={!canConfigure}
                     renderOption={renderSelectOption}
                     searchable
@@ -241,6 +330,20 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                     </Text>
                 </Group>
 
+                <Select
+                    label="Comparison mode"
+                    data={comparisonModeOptions}
+                    value={effectiveComparisonMode}
+                    onChange={(value) => {
+                        if (value) {
+                            setComparisonMode(
+                                value as PeriodOverPeriodComparisonMode,
+                            );
+                        }
+                    }}
+                    allowDeselect={false}
+                />
+
                 {selectedGranularity && timeDimensionId ? (
                     <Text size="sm" c="dimmed">
                         This will create:{' '}
@@ -249,6 +352,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                             {`(${getPopPeriodLabel(
                                 selectedGranularity,
                                 effectivePeriodOffset,
+                                effectiveComparisonMode,
                             )})`}
                         </Text>
                     </Text>

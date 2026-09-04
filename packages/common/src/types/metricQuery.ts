@@ -23,6 +23,8 @@ import {
 import { type Filters, type MetricFilterRule } from './filter';
 import { type TimeFrames } from './timeFrames';
 
+export type PeriodOverPeriodComparisonMode = 'full' | 'toDate';
+
 export interface AdditionalMetric {
     /** Display label for the metric */
     label?: string;
@@ -84,6 +86,11 @@ export interface AdditionalMetric {
      * For PoP-generated metrics, the number of periods to offset by (>= 1).
      */
     periodOffset?: number;
+    /**
+     * Whether the comparison uses the full period or the matching elapsed period.
+     * Missing values from older saved charts are treated as full-period comparisons.
+     */
+    comparisonMode?: PeriodOverPeriodComparisonMode;
 }
 
 export const isAdditionalMetric = (value: AnyType): value is AdditionalMetric =>

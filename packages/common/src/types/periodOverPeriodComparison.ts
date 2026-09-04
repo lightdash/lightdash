@@ -7,6 +7,7 @@ import {
     type AdditionalMetric,
     type MetricOverrides,
     type MetricQuery,
+    type PeriodOverPeriodComparisonMode,
 } from './metricQuery';
 import { TimeFrames } from './timeFrames';
 
@@ -97,11 +98,15 @@ export const buildPopAdditionalMetricName = ({
 export const getPopPeriodLabel = (
     granularity: TimeFrames,
     periodOffset: number,
+    comparisonMode: PeriodOverPeriodComparisonMode = 'full',
 ) => {
     const label = timeFrameConfigs[granularity]?.getLabel() || granularity;
-    return periodOffset === 1
-        ? `Previous ${String(label).toLowerCase()}`
-        : `${periodOffset} ${String(label).toLowerCase()}s ago`;
+    const periodLabel =
+        periodOffset === 1
+            ? `Previous ${String(label).toLowerCase()}`
+            : `${periodOffset} ${String(label).toLowerCase()}s ago`;
+
+    return comparisonMode === 'toDate' ? `${periodLabel} to date` : periodLabel;
 };
 
 export const getPopComparisonConfigKey = ({
@@ -147,6 +152,7 @@ export const buildPopAdditionalMetric = ({
     timeDimensionId,
     granularity,
     periodOffset,
+    comparisonMode = 'full',
 }: {
     metric: Pick<
         Metric,
@@ -165,6 +171,7 @@ export const buildPopAdditionalMetric = ({
     timeDimensionId: string;
     granularity: TimeFrames;
     periodOffset: number;
+    comparisonMode?: PeriodOverPeriodComparisonMode;
 }): { additionalMetric: AdditionalMetric; metricId: string } => {
     const baseMetricId = getItemId(metric);
     const popName = buildPopAdditionalMetricName({
@@ -182,6 +189,7 @@ export const buildPopAdditionalMetric = ({
         label: `${metric.label} (${getPopPeriodLabel(
             granularity,
             periodOffset,
+            comparisonMode,
         )})`,
         description: metric.description,
         type: metric.type,
@@ -197,6 +205,7 @@ export const buildPopAdditionalMetric = ({
         timeDimensionId,
         granularity,
         periodOffset,
+        comparisonMode,
     };
 
     return { additionalMetric, metricId: popMetricId };
