@@ -2,17 +2,20 @@ import {
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
+    type RegistryChartTypeListItem,
 } from '@lightdash/common';
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
@@ -22,6 +25,8 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 type Props = {
     projectUuid: string;
     dataAppViz: DataAppViz;
+    /** The newer registry version when this official chart type is upgradable */
+    registryUpdate: RegistryChartTypeListItem | null;
     onClose: () => void;
     onDelete: () => void;
 };
@@ -29,6 +34,7 @@ type Props = {
 const ChartTypeDetailModal: FC<Props> = ({
     projectUuid,
     dataAppViz,
+    registryUpdate,
     onClose,
     onDelete,
 }) => {
@@ -37,6 +43,7 @@ const ChartTypeDetailModal: FC<Props> = ({
     const canFork = useCanCreateDataApp(projectUuid);
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
+    const upgradeMutation = useInstallRegistryChartType();
     const { latestReadyVersion, oldest, latest, hasOrigin } =
         useAppVersionHistory(projectUuid, dataAppViz.dataAppVizUuid);
 
@@ -128,6 +135,39 @@ const ChartTypeDetailModal: FC<Props> = ({
                     <Text fz="sm" c="ldGray.7" lh={1.55}>
                         {dataAppViz.description || 'No description'}
                     </Text>
+                    {registryUpdate && (
+                        <Callout
+                            variant="info"
+                            title={`Update available: v${registryUpdate.version}`}
+                        >
+                            <Stack gap="sm" align="flex-start">
+                                <Text fz="sm">
+                                    {registryUpdate.changelog
+                                        ? `${registryUpdate.changelog} `
+                                        : ''}
+                                    Charts pinned to an earlier version keep
+                                    rendering it until each chart is upgraded;
+                                    charts without a pinned version switch to v
+                                    {registryUpdate.version} right away.
+                                </Text>
+                                {canFork && (
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        loading={upgradeMutation.isLoading}
+                                        onClick={() =>
+                                            upgradeMutation.mutate({
+                                                projectUuid,
+                                                chartSlug: registryUpdate.slug,
+                                            })
+                                        }
+                                    >
+                                        Upgrade to v{registryUpdate.version}
+                                    </Button>
+                                )}
+                            </Stack>
+                        </Callout>
+                    )}
                     <SimpleGrid cols={2} className={classes.metaPanel}>
                         {builtBy !== null && (
                             <Box>

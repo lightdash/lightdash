@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Group,
     Menu,
@@ -34,11 +35,18 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
     dataAppViz: DataAppViz;
+    /** A newer registry version of this official chart type exists */
+    hasRegistryUpdate: boolean;
     onClick: () => void;
     onDelete: () => void;
 };
 
-const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
+const ChartTypeGalleryCard: FC<Props> = ({
+    dataAppViz,
+    hasRegistryUpdate,
+    onClick,
+    onDelete,
+}) => {
     const canEdit = useCanEditDataApp(dataAppViz.projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
     const isOfficial = isOfficialChartType(dataAppViz);
@@ -74,6 +82,11 @@ const ChartTypeGalleryCard: FC<Props> = ({ dataAppViz, onClick, onDelete }) => {
                     <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
                         {dataAppViz.description || 'No description'}
                     </Text>
+                    {hasRegistryUpdate && (
+                        <Badge size="xs" variant="light" color="orange">
+                            Update available
+                        </Badge>
+                    )}
                 </Stack>
                 <FloatingActionsPill className={classes.menuHost}>
                     {isOfficial

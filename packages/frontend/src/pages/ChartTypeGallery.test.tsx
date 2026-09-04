@@ -8,6 +8,8 @@ import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
+import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useInstallRegistryChartType';
+import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeGallery from './ChartTypeGallery';
@@ -38,6 +40,14 @@ vi.mock('../features/apps/hooks/useDeleteApp', () => ({
 
 vi.mock('../features/apps/hooks/useDuplicateApp', () => ({
     useDuplicateApp: vi.fn(),
+}));
+
+vi.mock('../features/chartTypes/hooks/useRegistryChartTypes', () => ({
+    useRegistryChartTypes: vi.fn(),
+}));
+
+vi.mock('../features/chartTypes/hooks/useInstallRegistryChartType', () => ({
+    useInstallRegistryChartType: vi.fn(),
 }));
 
 vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
@@ -140,6 +150,23 @@ const renderPage = (initialEntry = '/projects/project-1/gallery') =>
     );
 
 const mockedDeleteApp = vi.fn();
+const mockedUpgradeMutate = vi.fn();
+
+const setRegistryCharts = (
+    charts: Array<{ slug: string; state: string; version: string }>,
+) => {
+    vi.mocked(useRegistryChartTypes).mockReturnValue({
+        data: {
+            registryEnabled: true,
+            charts: charts.map((chart) => ({
+                changelog: 'Adds things.',
+                ...chart,
+            })),
+        },
+        isInitialLoading: false,
+        error: null,
+    } as unknown as ReturnType<typeof useRegistryChartTypes>);
+};
 
 describe('ChartTypeGallery', () => {
     beforeEach(() => {
@@ -156,6 +183,11 @@ describe('ChartTypeGallery', () => {
             mutateAsync: mockedDeleteApp,
             isLoading: false,
         } as unknown as ReturnType<typeof useDeleteApp>);
+        setRegistryCharts([]);
+        vi.mocked(useInstallRegistryChartType).mockReturnValue({
+            mutate: mockedUpgradeMutate,
+            isLoading: false,
+        } as unknown as ReturnType<typeof useInstallRegistryChartType>);
         vi.mocked(useAppVersionHistory).mockReturnValue({
             versions: [],
             oldest: null,
@@ -350,6 +382,63 @@ describe('ChartTypeGallery', () => {
                 successTitle: 'Chart type uninstalled',
             }),
         );
+    });
+
+    it('badges official chart types that have a registry update', () => {
+        setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+        setRegistryCharts([
+            {
+                slug: 'radial-gauge',
+                state: 'update_available',
+                version: '1.2.0',
+            },
+        ]);
+        renderPage();
+
+        expect(screen.getByText('Update available')).toBeInTheDocument();
+    });
+
+    it('upgrades an official chart type from the detail modal', () => {
+        setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+        setRegistryCharts([
+            {
+                slug: 'radial-gauge',
+                state: 'update_available',
+                version: '1.2.0',
+            },
+        ]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            screen.getByText('Update available: v1.2.0'),
+        ).toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Upgrade to v1.2.0' }),
+        );
+
+        expect(mockedUpgradeMutate).toHaveBeenCalledWith({
+            projectUuid: 'project-1',
+            chartSlug: 'radial-gauge',
+        });
+    });
+
+    it('shows no update affordance when the installed version is current', () => {
+        setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+        setRegistryCharts([
+            { slug: 'radial-gauge', state: 'installed', version: '1.2.0' },
+        ]);
+        renderPage();
+
+        expect(screen.queryByText('Update available')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        expect(
+            screen.queryByRole('button', { name: /Upgrade to v/ }),
+        ).not.toBeInTheDocument();
     });
 
     it('hides edit and delete actions from non-editors', () => {
