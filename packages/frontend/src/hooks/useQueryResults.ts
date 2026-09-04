@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
+    isBigqueryTokenErrorMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
     ParameterError,
@@ -65,16 +66,21 @@ const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
     );
 };
 
-const getAsyncQueryError = (message: string | null): ApiError => {
+const getAsyncQueryErrorName = (message: string): ApiError['error']['name'] => {
+    if (isRedshiftIamTokenErrorMessage(message)) return 'RedshiftIamTokenError';
+    if (isBigqueryTokenErrorMessage(message)) return 'BigqueryTokenError';
+    return 'Error';
+};
+
+export const getAsyncQueryError = (message: string | null): ApiError => {
     const errorMessage = message || 'Query failed';
-    const isRedshiftIamTokenError =
-        isRedshiftIamTokenErrorMessage(errorMessage);
+    const name = getAsyncQueryErrorName(errorMessage);
 
     return {
         status: 'error',
         error: {
-            name: isRedshiftIamTokenError ? 'RedshiftIamTokenError' : 'Error',
-            statusCode: isRedshiftIamTokenError ? 401 : 500,
+            name,
+            statusCode: name === 'Error' ? 500 : 401,
             message: errorMessage,
             data: {},
         },
