@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     FeatureFlags,
-    MERGE_TABLE_NAME,
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
@@ -27,7 +26,6 @@ import {
     type FC,
     type RefObject,
 } from 'react';
-import { resolveMergeColumnOrder } from '../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { useChartColorConfig } from '../../hooks/useChartColorConfig/useChartColorConfig';
@@ -187,20 +185,22 @@ const VisualizationProvider: FC<
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
     const defaultColumnOrder = useMemo(() => {
-        const metricQuery = resultsData?.metricQuery;
-        const metricQueryFields =
-            metricQuery !== undefined
-                ? [
-                      ...metricQuery.dimensions,
-                      ...metricQuery.metrics,
-                      ...metricQuery.tableCalculations.map(({ name }) => name),
-                  ]
-                : [];
-        // A merged result is keyed by merged ids, which a chart saved before it was merged does not carry
-        if (metricQuery?.exploreName === MERGE_TABLE_NAME) {
-            return resolveMergeColumnOrder(metricQueryFields, columnOrder);
+        if (columnOrder.length > 0) {
+            return columnOrder;
+        } else {
+            const metricQuery = resultsData?.metricQuery;
+            const metricQueryFields =
+                metricQuery !== undefined
+                    ? [
+                          ...metricQuery.dimensions,
+                          ...metricQuery.metrics,
+                          ...metricQuery.tableCalculations.map(
+                              ({ name }) => name,
+                          ),
+                      ]
+                    : [];
+            return metricQueryFields;
         }
-        return columnOrder.length > 0 ? columnOrder : metricQueryFields;
     }, [resultsData?.metricQuery, columnOrder]);
 
     /**

@@ -146,35 +146,38 @@ const createMockService = (overrides: AnyType = {}) => {
 };
 
 describe('InstanceConfigurationService.initializeInstance', () => {
-    it('rejects an empty initial organization name', async () => {
-        const createOrganization = vi.fn();
-        const service = createMockService({
-            initialSetup: {
-                organization: {
-                    name: '',
-                    admin: {
-                        name: 'Admin User',
-                        email: mockAdminEmail,
+    it.each(['', '   '])(
+        'rejects the blank initial organization name %j',
+        async (name) => {
+            const createOrganization = vi.fn();
+            const service = createMockService({
+                initialSetup: {
+                    organization: {
+                        name,
+                        admin: {
+                            name: 'Admin User',
+                            email: mockAdminEmail,
+                        },
+                        emailDomains: [],
+                        defaultRole: OrganizationMemberRole.VIEWER,
                     },
-                    emailDomains: [],
-                    defaultRole: OrganizationMemberRole.VIEWER,
+                    projects: [],
                 },
-                projects: [],
-            },
-            organizationModel: {
-                hasOrgs: vi.fn().mockResolvedValue(false),
-                create: createOrganization,
-            },
-            projectModel: {
-                hasAnyProjects: vi.fn().mockResolvedValue(false),
-            },
-        });
+                organizationModel: {
+                    hasOrgs: vi.fn().mockResolvedValue(false),
+                    create: createOrganization,
+                },
+                projectModel: {
+                    hasAnyProjects: vi.fn().mockResolvedValue(false),
+                },
+            });
 
-        await expect(service.initializeInstance()).rejects.toBeInstanceOf(
-            ParameterError,
-        );
-        expect(createOrganization).not.toHaveBeenCalled();
-    });
+            await expect(service.initializeInstance()).rejects.toBeInstanceOf(
+                ParameterError,
+            );
+            expect(createOrganization).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('InstanceConfigurationService.updateInstanceConfiguration', () => {

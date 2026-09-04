@@ -42,7 +42,6 @@ import {
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
-    ApiAiAgentThreadUpdateRequest,
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
@@ -1055,34 +1054,6 @@ export class AiAgentController extends BaseController {
             toSessionUser(req.account),
             agentUuid,
             threadUuid,
-        );
-
-        return {
-            status: 'ok',
-            results: undefined,
-        };
-    }
-
-    /**
-     * Rename a thread. Only the thread owner or a project admin may do this.
-     * @summary Update AI agent thread
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Patch('/{agentUuid}/threads/{threadUuid}')
-    @OperationId('updateAgentThread')
-    async updateAgentThread(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: UUID,
-        @Path() threadUuid: UUID,
-        @Body() body: ApiAiAgentThreadUpdateRequest,
-    ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        await this.getAiAgentService().updateAgentThreadTitle(
-            toSessionUser(req.account),
-            { agentUuid, threadUuid, title: body.title },
         );
 
         return {

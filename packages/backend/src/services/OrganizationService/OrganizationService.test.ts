@@ -42,7 +42,6 @@ const projectModel = {
 const organizationModel = {
     get: vi.fn(async () => organization),
     create: vi.fn<OrganizationModel['create']>(async () => organization),
-    update: vi.fn<OrganizationModel['update']>(async () => organization),
     hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
     getImpersonationEnabled: vi.fn<
         OrganizationModel['getImpersonationEnabled']
@@ -148,22 +147,6 @@ describe('organization service', () => {
         process.env = {
             LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
         };
-    });
-
-    it('rejects updating an organization to an empty name', async () => {
-        const userWhoCanUpdateOrganization = {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { action: 'update', subject: 'Organization' },
-            ]),
-        };
-
-        await expect(
-            organizationService.updateOrg(userWhoCanUpdateOrganization, {
-                name: '',
-            }),
-        ).rejects.toBeInstanceOf(ParameterError);
-        expect(organizationModel.update).not.toHaveBeenCalled();
     });
 
     it.each(['', '   '])(

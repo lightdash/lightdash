@@ -901,12 +901,6 @@ export type ApiAiAgentThreadGenerateTitleResponse = {
     };
 };
 
-export const AI_AGENT_THREAD_TITLE_MAX_LENGTH = 200;
-
-export type ApiAiAgentThreadUpdateRequest = {
-    title: string;
-};
-
 export type ApiAiAgentThreadMessageViz = {
     type: AiResultType;
     metricQuery: AiMetricQuery;

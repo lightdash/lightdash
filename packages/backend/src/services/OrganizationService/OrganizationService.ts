@@ -245,7 +245,7 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (data.name !== undefined) {
+        if (data.name) {
             validateOrganizationNameOrThrow(data.name);
         }
         const org = await this.organizationModel.update(organizationUuid, data);
