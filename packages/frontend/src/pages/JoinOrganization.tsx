@@ -1,4 +1,8 @@
-import { getEmailDomain } from '@lightdash/common';
+import {
+    getEmailDomain,
+    getOrganizationNameSchema,
+    validateOrganizationName,
+} from '@lightdash/common';
 import {
     Anchor,
     Avatar,
@@ -7,13 +11,18 @@ import {
     Group,
     Stack,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { z } from 'zod';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
+import MantineModal from '../components/common/MantineModal';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../components/PageSpinner';
@@ -23,6 +32,12 @@ import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMu
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
 import useApp from '../providers/App/useApp';
 import styles from './JoinOrganization.module.css';
+
+const createOrganizationSchema = z.object({
+    name: getOrganizationNameSchema(),
+});
+
+type CreateOrganizationForm = z.infer<typeof createOrganizationSchema>;
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
@@ -43,19 +58,25 @@ const JoinOrganizationPage: FC = () => {
         isSuccess: hasJoinedOrg,
     } = useJoinOrganizationMutation();
     const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const createOrganizationForm = useForm<CreateOrganizationForm>({
+        initialValues: { name: '' },
+        validate: zodResolver(createOrganizationSchema),
+    });
+    const mustCreateOrganization =
+        allowedOrgs?.length === 0 && !user.data?.organizationUuid;
+    const showCreateOrganizationModal =
+        mustCreateOrganization || isCreateModalOpen;
 
-    // Read by both the effect that fires the auto-create and the guard that
-    // holds the page while it is on its way. Derived once: two copies of this
-    // condition can drift into a guard that spins for an effect that will
-    // never fire, with no way out of the spinner.
-    const shouldAutoCreateOrg =
-        !allowedOrgs?.length && !user.data?.organizationUuid && !createOrgError;
+    const closeCreateOrganizationModal = () => {
+        if (mustCreateOrganization) return;
+        setIsCreateModalOpen(false);
+        createOrganizationForm.reset();
+    };
 
-    useEffect(() => {
-        if (shouldAutoCreateOrg && !isCreatingOrg && !isLoadingAllowedOrgs) {
-            createOrg({ name: '' });
-        }
-    }, [shouldAutoCreateOrg, createOrg, isCreatingOrg, isLoadingAllowedOrgs]);
+    const submitCreateOrganization = createOrganizationForm.onSubmit(
+        ({ name }) => createOrg({ name: name.trim() }),
+    );
 
     useEffect(() => {
         if ((hasCreatedOrg || hasJoinedOrg) && !createOrgError) {
@@ -67,7 +88,6 @@ const JoinOrganizationPage: FC = () => {
         health.isInitialLoading ||
         isLoadingAllowedOrgs ||
         isCreatingOrg ||
-        shouldAutoCreateOrg ||
         hasCreatedOrg ||
         hasJoinedOrg
     ) {
@@ -148,30 +168,57 @@ const JoinOrganizationPage: FC = () => {
     );
 
     return (
-        <AuthLayout
-            pageTitle="Join a workspace"
-            title={isNewLayout ? 'Join a workspace' : undefined}
-            withLegacyCard={false}
-            footer={
-                <Anchor
-                    className={disabled ? styles.disabledAnchor : undefined}
-                    component="button"
-                    onClick={() => createOrg({ name: '' })}
-                    ta="center"
-                    size="sm"
-                >
-                    Create a new workspace
-                </Anchor>
-            }
-        >
-            {isNewLayout ? (
-                orgList
-            ) : (
-                <Card p="xl" radius="md">
-                    {orgList}
-                </Card>
-            )}
-        </AuthLayout>
+        <>
+            <AuthLayout
+                pageTitle="Join a workspace"
+                title={isNewLayout ? 'Join a workspace' : undefined}
+                withLegacyCard={false}
+                footer={
+                    <Anchor
+                        className={disabled ? styles.disabledAnchor : undefined}
+                        component="button"
+                        onClick={() => setIsCreateModalOpen(true)}
+                        ta="center"
+                        size="sm"
+                    >
+                        Create a new workspace
+                    </Anchor>
+                }
+            >
+                {isNewLayout ? (
+                    orgList
+                ) : (
+                    <Card p="xl" radius="md">
+                        {orgList}
+                    </Card>
+                )}
+            </AuthLayout>
+            <MantineModal
+                opened={showCreateOrganizationModal}
+                onClose={closeCreateOrganizationModal}
+                title="Create a new workspace"
+                subtitle="Choose a name for your organization."
+                confirmLabel="Create workspace"
+                confirmDisabled={
+                    !validateOrganizationName(
+                        createOrganizationForm.values.name,
+                    )
+                }
+                confirmLoading={isCreatingOrg}
+                onConfirm={submitCreateOrganization}
+                withCloseButton={!mustCreateOrganization}
+            >
+                <form onSubmit={submitCreateOrganization}>
+                    <TextInput
+                        label="Organization name"
+                        placeholder="Acme Analytics"
+                        required
+                        disabled={isCreatingOrg}
+                        {...createOrganizationForm.getInputProps('name')}
+                    />
+                </form>
+            </MantineModal>
+        </>
     );
 };
 

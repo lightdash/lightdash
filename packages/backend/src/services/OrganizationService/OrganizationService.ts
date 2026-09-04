@@ -245,7 +245,7 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (data.name) {
+        if (data.name !== undefined) {
             validateOrganizationNameOrThrow(data.name);
         }
         const org = await this.organizationModel.update(organizationUuid, data);
@@ -900,6 +900,7 @@ export class OrganizationService extends BaseService {
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
+        validateOrganizationNameOrThrow(data.name);
         const org = await this.organizationModel.create(data);
         const { enabled: newOnboardingEnabled } =
             await this.featureFlagModel.get({
