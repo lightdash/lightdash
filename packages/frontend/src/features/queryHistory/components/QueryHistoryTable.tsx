@@ -33,6 +33,7 @@ import {
     type QueryHistoryTableRow,
 } from '../utils/tableRows';
 import { QueryHistoryQueryCell } from './QueryHistoryQueryCell';
+import { QueryHistorySkeletonCell } from './QueryHistorySkeletonCell';
 
 type Props = {
     data: QueryHistoryTableRow[];
@@ -59,6 +60,12 @@ const isRuntimeSort = (sorting: ContentTableSortingState) =>
     sorting[0]?.id === QueryHistorySortBy.RUNTIME;
 
 const ROW_HEIGHT_ESTIMATE = 52;
+
+/* Vary placeholder widths per row so a block of skeletons reads as rows. */
+const SKELETON_TITLE_WIDTHS = ['62%', '48%', '71%', '55%', '44%'];
+const SKELETON_SUBLINE_WIDTHS = ['84%', '66%', '90%', '58%', '74%'];
+const skeletonWidth = (widths: string[], index: number) =>
+    widths[index % widths.length];
 
 export const QueryHistoryTable: FC<Props> = ({
     data,
@@ -148,6 +155,21 @@ export const QueryHistoryTable: FC<Props> = ({
                             </Button>
                         );
                     }
+                    if (original.kind === 'skeleton') {
+                        return (
+                            <QueryHistorySkeletonCell
+                                width={skeletonWidth(
+                                    SKELETON_TITLE_WIDTHS,
+                                    original.index,
+                                )}
+                                withSubline
+                                sublineWidth={skeletonWidth(
+                                    SKELETON_SUBLINE_WIDTHS,
+                                    original.index,
+                                )}
+                            />
+                        );
+                    }
                     return <QueryHistoryQueryCell item={original.item} />;
                 },
             },
@@ -159,6 +181,9 @@ export const QueryHistoryTable: FC<Props> = ({
                 enableSorting: false,
                 size: 100,
                 Cell: ({ row }) => {
+                    if (row.original.kind === 'skeleton') {
+                        return <QueryHistorySkeletonCell width={44} />;
+                    }
                     if (row.original.kind !== 'query') return null;
                     return (
                         <Badge size="xs">
@@ -175,6 +200,9 @@ export const QueryHistoryTable: FC<Props> = ({
                 enableSorting: false,
                 size: 110,
                 Cell: ({ row }) => {
+                    if (row.original.kind === 'skeleton') {
+                        return <QueryHistorySkeletonCell width={56} />;
+                    }
                     if (row.original.kind !== 'query') return null;
                     return (
                         <Text c="dimmed">
@@ -195,6 +223,11 @@ export const QueryHistoryTable: FC<Props> = ({
                 mantineTableHeadCellProps: { ta: 'right' },
                 mantineTableBodyCellProps: { ta: 'right' },
                 Cell: ({ row }) => {
+                    if (row.original.kind === 'skeleton') {
+                        return (
+                            <QueryHistorySkeletonCell width={40} align="end" />
+                        );
+                    }
                     if (row.original.kind !== 'query') return null;
                     const { warehouseExecutionTimeMs, status } =
                         row.original.item;
@@ -222,6 +255,11 @@ export const QueryHistoryTable: FC<Props> = ({
                 mantineTableHeadCellProps: { ta: 'right' },
                 mantineTableBodyCellProps: { ta: 'right' },
                 Cell: ({ row }) => {
+                    if (row.original.kind === 'skeleton') {
+                        return (
+                            <QueryHistorySkeletonCell width={32} align="end" />
+                        );
+                    }
                     if (row.original.kind !== 'query') return null;
                     const { totalRowCount } = row.original.item;
                     return (
@@ -254,6 +292,11 @@ export const QueryHistoryTable: FC<Props> = ({
                             <Text fz="xs" c="dimmed" className="ld-nowrap">
                                 {getWindowRangeLabel(row.original.window)}
                             </Text>
+                        );
+                    }
+                    if (row.original.kind === 'skeleton') {
+                        return (
+                            <QueryHistorySkeletonCell width={64} align="end" />
                         );
                     }
                     if (row.original.kind !== 'query') return null;
@@ -334,6 +377,9 @@ export const QueryHistoryTable: FC<Props> = ({
             }
             if (original.kind === 'showMore') {
                 return { className: styles.showMoreRow };
+            }
+            if (original.kind === 'skeleton') {
+                return { className: styles.skeletonRow, 'aria-busy': true };
             }
             return {
                 className:

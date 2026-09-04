@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
+    type InfiniteData,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -44,6 +45,17 @@ const getQueryHistory = async (
         method: 'GET',
         body: undefined,
     });
+
+/**
+ * Derived from the data being rendered rather than react-query's
+ * `hasNextPage`, which resets while `keepPreviousData` shows the old pages.
+ */
+export const getQueryHistoryHasNextPage = (
+    data: InfiniteData<QueryHistoryListResults> | undefined,
+): boolean => {
+    const pagination = data?.pages[data.pages.length - 1]?.pagination;
+    return pagination ? pagination.page < pagination.totalPageCount : false;
+};
 
 export const useInfiniteQueryHistory = (
     projectUuid: string | undefined,

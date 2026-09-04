@@ -4,7 +4,14 @@ import {
     QueryTrigger,
     type QueryHistoryCounts,
 } from '@lightdash/common';
-import { Button, Group, SegmentedControl, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    SegmentedControl,
+    Skeleton,
+    Text,
+} from '@mantine/core';
 import {
     IconClock,
     IconLayoutDashboard,
@@ -68,7 +75,11 @@ const TriggerLabel: FC<{
             <Text component="span" fz="xs" c="dimmed">
                 {count.toLocaleString()}
             </Text>
-        ) : null}
+        ) : (
+            <Box component="span" className={styles.countSkeleton}>
+                <Skeleton h={8} w={18} radius="xl" />
+            </Box>
+        )}
     </Group>
 );
 

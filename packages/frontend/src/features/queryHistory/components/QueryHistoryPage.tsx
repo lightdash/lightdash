@@ -9,14 +9,17 @@ import {
     type QueryLanguage,
     QueryTrigger,
 } from '@lightdash/common';
-import { Box, Stack, Text, Title } from '@mantine/core';
+import { Box, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { type ContentTableSortingState } from '../../../components/common/ContentTable';
 import Page from '../../../components/common/Page/Page';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
+import {
+    getQueryHistoryHasNextPage,
+    useInfiniteQueryHistory,
+} from '../hooks/useQueryHistory';
 import styles from '../QueryHistory.module.css';
 import { formatWarehouseTime } from '../utils/format';
 import {
@@ -133,6 +136,7 @@ export const QueryHistoryPage: FC = () => {
                     previous &&
                     previous.hasNextPage === meta.hasNextPage &&
                     previous.isFetching === meta.isFetching &&
+                    previous.isFetchingNextPage === meta.isFetchingNextPage &&
                     previous.remaining === meta.remaining
                 ) {
                     return current;
@@ -246,13 +250,21 @@ export const QueryHistoryPage: FC = () => {
         .filter(Boolean)
         .join(' · ');
 
+    // Before the first response nothing is known about which windows exist,
+    // so the table shows generic skeletons; per-window skeletons take over
+    // once counts arrive.
     const isInitialLoading = isFlatSort
         ? flatQuery.isLoading && flatItems.length === 0
-        : !counts &&
+        : counts === undefined &&
           QUERY_HISTORY_WINDOWS_ORDERED.some((window) =>
               expandedWindows.has(window),
-          ) &&
-          tableData.every((row) => row.kind !== 'query');
+          );
+
+    const isRefetching = isFlatSort
+        ? flatQuery.isFetching
+        : Object.values(windowMeta).some(
+              (meta) => meta.isFetching && !meta.isFetchingNextPage,
+          );
 
     return (
         <Page
@@ -301,11 +313,15 @@ export const QueryHistoryPage: FC = () => {
 
                 <Stack gap={2}>
                     <Title order={4}>My query history</Title>
-                    {subtitle ? (
-                        <Text fz="sm" c="dimmed">
-                            {subtitle}
-                        </Text>
-                    ) : null}
+                    <Box className={styles.subtitleLine}>
+                        {subtitle ? (
+                            <Text fz="sm" c="dimmed">
+                                {subtitle}
+                            </Text>
+                        ) : (
+                            <Skeleton h={10} w={320} radius="xl" />
+                        )}
+                    </Box>
                 </Stack>
 
                 <QueryHistoryTable
@@ -317,8 +333,8 @@ export const QueryHistoryPage: FC = () => {
                     sorting={sorting}
                     onSortingChange={setSorting}
                     isLoading={isInitialLoading}
-                    isFetching={isFlatSort && flatQuery.isFetching}
-                    hasNextPage={Boolean(flatQuery.hasNextPage)}
+                    isFetching={isRefetching}
+                    hasNextPage={getQueryHistoryHasNextPage(flatQuery.data)}
                     fetchNextPage={() => {
                         void flatQuery.fetchNextPage();
                     }}

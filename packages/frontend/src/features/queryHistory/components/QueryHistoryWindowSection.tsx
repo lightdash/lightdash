@@ -5,7 +5,10 @@ import {
     type QueryHistoryWindow,
 } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
-import { useInfiniteQueryHistory } from '../hooks/useQueryHistory';
+import {
+    getQueryHistoryHasNextPage,
+    useInfiniteQueryHistory,
+} from '../hooks/useQueryHistory';
 import {
     QUERY_HISTORY_WINDOW_PAGE_SIZE,
     type QueryHistoryWindowMeta,
@@ -47,7 +50,7 @@ export const QueryHistoryWindowSection: FC<Props> = ({
     onMetaChange,
     onRegisterFetchNext,
 }) => {
-    const { data, isFetching, hasNextPage, fetchNextPage } =
+    const { data, isFetching, isFetchingNextPage, fetchNextPage } =
         useInfiniteQueryHistory(
             projectUuid,
             { ...filters, window },
@@ -56,6 +59,7 @@ export const QueryHistoryWindowSection: FC<Props> = ({
         );
 
     const lastPage = data?.pages[data.pages.length - 1];
+    const hasNextPage = getQueryHistoryHasNextPage(data);
     const items = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
@@ -78,11 +82,19 @@ export const QueryHistoryWindowSection: FC<Props> = ({
 
     useEffect(() => {
         onMetaChange(window, {
-            hasNextPage: Boolean(hasNextPage),
+            hasNextPage,
             isFetching,
+            isFetchingNextPage,
             remaining,
         });
-    }, [window, hasNextPage, isFetching, remaining, onMetaChange]);
+    }, [
+        window,
+        hasNextPage,
+        isFetching,
+        isFetchingNextPage,
+        remaining,
+        onMetaChange,
+    ]);
 
     useEffect(() => {
         onRegisterFetchNext(window, () => {

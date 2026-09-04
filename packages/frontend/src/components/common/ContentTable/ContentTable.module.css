@@ -15,6 +15,8 @@
     flex: 0 0 auto;
 }
 
+/* Overlays the container's top edge instead of taking a row of layout, so
+   toggling it between fetches never shifts the table. */
 .progress {
     background: linear-gradient(
         90deg,
@@ -23,8 +25,10 @@
         transparent
     );
     height: 1px;
+    margin-bottom: -1px;
     overflow: hidden;
     position: relative;
+    z-index: 3;
 }
 
 .progress::before {
