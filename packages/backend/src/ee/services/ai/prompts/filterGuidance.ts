@@ -109,22 +109,64 @@ const FILTER_EXPRESSION_PLACEMENT_EXAMPLES = [
     `- tableCalculations: ${FILTER_EXPRESSION_PLACEMENT_EXPRESSIONS.tableCalculations}`,
 ].join('\n');
 
-export const FILTER_EXPRESSION_GUIDANCE_SECTION = `## Filter expressions
+const FILTER_EXPRESSION_SHARED_RULES = [
+    'A non-null category contains one raw string expression.',
+    'Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in `dimensions`; only metrics and custom metrics belong in `metrics`.',
+    'A field used only to restrict rows stays in its filter expression. Do not add it to `queryConfig.dimensions` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.',
+    'Table calculations belong only in `tableCalculations`.',
+    'Each category is flat and uses AND or OR, never both.',
+    'The three categories combine implicitly with AND.',
+];
 
-For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
+const filterExpressionGuidanceByRuntime = {
+    agent: {
+        heading: '## Filter expressions',
+        introduction:
+            'For `generateVisualization`, `dimensions`, `metrics`, and `tableCalculations` are independent string expressions or null.',
+        additionalRules: [],
+        searchFieldValuesRule:
+            'When present, `searchFieldValues.filters` is one flat dimension expression string and is AND-only.',
+    },
+    mcp: {
+        heading: '### Filter Expressions',
+        introduction:
+            'For `run_metric_query`, set `queryConfig.filters` to null when no query filters are needed. Otherwise, `dimensions`, `metrics`, and `tableCalculations` are independent string expressions or null.',
+        additionalRules: [
+            'Aggregation custom metric filters are flat AND expressions.',
+        ],
+        searchFieldValuesRule:
+            'Omit `search_field_values.filters` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.',
+    },
+} satisfies Record<
+    'agent' | 'mcp',
+    {
+        heading: string;
+        introduction: string;
+        additionalRules: string[];
+        searchFieldValuesRule: string;
+    }
+>;
 
-- A non-null category contains one raw string expression.
-- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
-- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
-- Table calculations belong only in \`tableCalculations\`.
-- Each category is flat and uses AND or OR, never both.
-- The three categories combine implicitly with AND.
-- When present, \`searchFieldValues.filters\` is one flat dimension expression string and is AND-only.
-- The tool schema is authoritative for where each string is placed.
+const getFilterExpressionGuidanceSection = (
+    runtime: keyof typeof filterExpressionGuidanceByRuntime,
+) => {
+    const guidance = filterExpressionGuidanceByRuntime[runtime];
+    const rules = [
+        ...FILTER_EXPRESSION_SHARED_RULES,
+        ...guidance.additionalRules,
+        guidance.searchFieldValuesRule,
+        'The tool schema is authoritative for where each string is placed.',
+    ]
+        .map((rule) => `- ${rule}`)
+        .join('\n');
 
-${FILTER_EXPRESSION_PLACEMENT_EXAMPLES}
+    return `${guidance.heading}\n\n${guidance.introduction}\n\n${rules}\n\n${FILTER_EXPRESSION_PLACEMENT_EXAMPLES}\n\n${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+};
 
-${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}
+export const MCP_FILTER_EXPRESSION_GUIDANCE_SECTION =
+    getFilterExpressionGuidanceSection('mcp');
+
+export const FILTER_EXPRESSION_GUIDANCE_SECTION = `${getFilterExpressionGuidanceSection('agent')}
 
 ## Time-based filtering
 

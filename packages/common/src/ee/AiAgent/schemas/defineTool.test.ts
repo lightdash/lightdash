@@ -2,7 +2,10 @@ import { getEncoding } from 'js-tiktoken';
 import { z } from 'zod';
 import { toJsonSchema, toLlmJsonSchema } from '../../../utils/zodJsonSchema';
 import { defineTool } from './defineTool';
-import { FILTER_EXPRESSION_GRAMMAR_DESCRIPTION } from './filterExpressions';
+import {
+    FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+    FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+} from './filterExpressions';
 import {
     agentToolNames,
     findContentToolDefinition,
@@ -45,6 +48,36 @@ describe('defineTool', () => {
         expect(runQueryFilterExpressionToolDefinition.for('mcp').name).toBe(
             'run_metric_query',
         );
+    });
+
+    it('points expression tools to runtime-owned guidance without embedding the grammar', () => {
+        const agentDescriptions = [
+            generateVisualizationFilterExpressionToolDefinition.for('agent')
+                .description,
+            runQueryFilterExpressionToolDefinition.for('agent').description,
+            searchFieldValuesFilterExpressionToolDefinition.for('agent')
+                .description,
+        ];
+        const mcpDescriptions = [
+            runQueryFilterExpressionToolDefinition.for('mcp').description,
+            searchFieldValuesFilterExpressionToolDefinition.for('mcp')
+                .description,
+        ];
+
+        agentDescriptions.forEach((description) => {
+            expect(description).toContain('the Agent system prompt');
+        });
+        mcpDescriptions.forEach((description) => {
+            expect(description).toContain('`InitializeResult.instructions`');
+        });
+        [...agentDescriptions, ...mcpDescriptions].forEach((description) => {
+            expect(description).not.toContain(
+                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
+            );
+            expect(description).not.toContain(
+                FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION,
+            );
+        });
     });
 
     it('keeps compact query contracts within size and token budgets', () => {
@@ -105,11 +138,6 @@ describe('defineTool', () => {
 
         expect(contracts.agentExpression).not.toContain('fieldFilterType');
         expect(contracts.mcpExpression).not.toContain('fieldFilterType');
-        expect(
-            mcpExpression.description.split(
-                FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
-            ),
-        ).toHaveLength(2);
 
         const measurements = {
             agentLegacy: measure(contracts.agentLegacy),

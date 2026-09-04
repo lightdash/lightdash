@@ -8,6 +8,11 @@ import {
 
 export type ToolRuntime = 'agent' | 'mcp';
 
+export const modelGuidanceSourceByRuntime = {
+    agent: 'the Agent system prompt',
+    mcp: 'the server instructions supplied in `InitializeResult.instructions`',
+} satisfies Record<ToolRuntime, string>;
+
 export type ToolDescriptionContext = {
     runtime: ToolRuntime;
     // The tool's own name as exposed to this runtime (canonical for agent,
