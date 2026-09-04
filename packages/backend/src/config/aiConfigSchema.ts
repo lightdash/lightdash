@@ -106,10 +106,11 @@ export const aiCopilotConfigSchema = z
                     sortOrder: z
                         .enum(['price', 'throughput', 'latency'])
                         .default('latency'),
-                    /** @ref https://openrouter.ai/models */
-                    allowedProviders: z
-                        .array(z.enum(['anthropic', 'openai', 'google']))
-                        .default(['openai']),
+                    // Upstream slugs from https://openrouter.ai/api/v1/providers.
+                    // allowedProviders is a hard filter; providerOrder is a
+                    // preference that still falls back to the rest of the pool.
+                    allowedProviders: z.array(z.string()).default([]),
+                    providerOrder: z.array(z.string()).default([]),
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
