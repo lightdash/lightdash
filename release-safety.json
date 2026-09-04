@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.130.0",
-  "previousVersion": "2.129.0",
-  "releaseDate": "2026-09-04T14:26:36.613Z",
+  "version": "2.131.0",
+  "previousVersion": "2.130.0",
+  "releaseDate": "2026-09-04T14:53:13.164Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260904120000_add_external_connection_oauth_client_credentials.ts",
-        "edition": "ee",
-        "tables": [
-          "external_connections"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -33,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/code/externalConnections — added the new `oauth_client_credentials` enum value to the `results/externalConnections/items/authType` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

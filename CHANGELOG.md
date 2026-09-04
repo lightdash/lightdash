@@ -1,3 +1,15 @@
+# [2.131.0](https://github.com/lightdash/lightdash/compare/2.130.0...2.131.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **dashboards:** render merged fields on a chart tile ([#28687](https://github.com/lightdash/lightdash/issues/28687)) ([8dff081](https://github.com/lightdash/lightdash/commit/8dff08154d1974569f9997d91fe3d15fee5d1630))
+
+
+### Features
+
+* **dashboard:** add organizationUuid to workbook telemetry events ([#28685](https://github.com/lightdash/lightdash/issues/28685)) ([16285d8](https://github.com/lightdash/lightdash/commit/16285d8b0f8c3454ba89f664d5eb58989a6827e7))
+
 # [2.130.0](https://github.com/lightdash/lightdash/compare/2.129.0...2.130.0) (2026-09-04)
 
 
