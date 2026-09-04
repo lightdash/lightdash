@@ -47,14 +47,15 @@ describe('JoinOrganizationPage', () => {
         const submitButton = within(dialog).getByRole('button', {
             name: 'Create workspace',
         });
-        expect(submitButton).toBeDisabled();
+        const organizationNameInput = within(dialog).getByRole('textbox', {
+            name: 'Organization name',
+        });
+        expect(organizationNameInput).toHaveValue('My organization');
+        expect(submitButton).toBeEnabled();
 
-        await user.type(
-            within(dialog).getByRole('textbox', {
-                name: 'Organization name',
-            }),
-            'Acme Analytics',
-        );
+        await user.clear(organizationNameInput);
+        expect(submitButton).toBeDisabled();
+        await user.type(organizationNameInput, 'Acme Analytics');
         expect(submitButton).toBeEnabled();
         await user.click(submitButton);
 

@@ -2,7 +2,10 @@ export type ExternalConnectionAuthType =
     | 'none'
     | 'api_key'
     | 'bearer_token'
-    | 'google_service_account';
+    | 'google_service_account'
+    | 'oauth_client_credentials';
+
+export type OAuthClientAuthMethod = 'basic' | 'body';
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */
@@ -74,8 +77,14 @@ export type ExternalConnection = {
     rateLimitPerMinute: number | null;
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
-    // OAuth scopes for type 'google_service_account'; null for other types.
+    // OAuth scopes for Google service accounts and OAuth client credentials.
     oauthScopes: string[] | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthTokenUrl?: string | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthClientId?: string | null;
+    /** Optional for compatibility with older servers during rolling upgrades. */
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     // Static non-secret headers sent on every proxied request, applied before
     // auth so the injected credential always wins (e.g. anthropic-version).
     customHeaders: Record<string, string> | null;
@@ -132,9 +141,12 @@ export type CreateExternalConnection = {
     rateLimitPerMinute?: number | null;
     apiKeyName?: string | null;
     apiKeyLocation?: ApiKeyLocation | null;
-    oauthScopes?: string[] | null; // OAuth scopes for type 'google_service_account'
+    oauthScopes?: string[] | null;
+    oauthTokenUrl?: string | null;
+    oauthClientId?: string | null;
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
-    secret?: string | null; // bearer token, api key, or service account keyfile JSON; null for type 'none'
+    secret?: string | null; // bearer token, api key, client secret, or service-account keyfile JSON; null for type 'none'
 };
 
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
@@ -220,6 +232,9 @@ export type ExternalConnectionConfigProposal = {
     apiKeyName: string | null;
     apiKeyLocation: ApiKeyLocation | null;
     oauthScopes: string[] | null;
+    oauthTokenUrl?: string | null;
+    oauthClientId?: string | null;
+    oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders: Record<string, string> | null;
     allowedMethods: ExternalConnectionMethod[];
     allowedPathPrefixes: string[];

@@ -60,7 +60,7 @@ const JoinOrganizationPage: FC = () => {
     const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const createOrganizationForm = useForm<CreateOrganizationForm>({
-        initialValues: { name: '' },
+        initialValues: { name: 'My organization' },
         validate: zodResolver(createOrganizationSchema),
     });
     const mustCreateOrganization =

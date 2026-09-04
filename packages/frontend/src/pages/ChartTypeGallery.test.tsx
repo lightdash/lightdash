@@ -10,6 +10,7 @@ import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
+import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeGallery from './ChartTypeGallery';
@@ -48,6 +49,10 @@ vi.mock('../features/chartTypes/hooks/useRegistryChartTypes', () => ({
 
 vi.mock('../features/chartTypes/hooks/useInstallRegistryChartType', () => ({
     useInstallRegistryChartType: vi.fn(),
+}));
+
+vi.mock('../hooks/useExplores', () => ({
+    useExplores: vi.fn(),
 }));
 
 vi.mock('../features/chartTypes/components/ChartTypeSamplePreview', () => ({
@@ -145,6 +150,14 @@ const renderPage = (initialEntry = '/projects/project-1/gallery') =>
                     path="/projects/:projectUuid/home"
                     element={<div>home</div>}
                 />
+                <Route
+                    path="/projects/:projectUuid/tables/:tableId"
+                    element={
+                        <div data-testid="explore-probe">
+                            <LocationSearch />
+                        </div>
+                    }
+                />
             </Routes>
         </MemoryRouter>,
     );
@@ -190,6 +203,13 @@ describe('ChartTypeGallery', () => {
             isLoading: false,
         } as unknown as ReturnType<typeof useDeleteApp>);
         setRegistryCharts([]);
+        vi.mocked(useExplores).mockReturnValue({
+            data: [
+                { name: 'orders', label: 'Orders' },
+                { name: 'customers', label: 'Customers' },
+            ],
+            isInitialLoading: false,
+        } as unknown as ReturnType<typeof useExplores>);
         vi.mocked(useInstallRegistryChartType).mockReturnValue({
             mutate: mockedUpgradeMutate,
             isLoading: false,
@@ -332,13 +352,15 @@ describe('ChartTypeGallery', () => {
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
 
+        fireEvent.click(screen.getByText('Preview in explorer'));
         expect(
-            screen.getByText('Preview in explorer').closest('a'),
-        ).toHaveAttribute(
-            'href',
-            '/projects/project-1/tables?dataAppVizUuid=data-app-viz-1',
-        );
+            screen.getByText(
+                'Choose the table to preview this chart type with.',
+            ),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
+        fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));
         fireEvent.click(screen.getByText('Delete'));
 
         expect(screen.getByText('Delete chart type')).toBeInTheDocument();
@@ -466,6 +488,31 @@ describe('ChartTypeGallery', () => {
         expect(
             screen.queryByRole('button', { name: /Upgrade to v/ }),
         ).not.toBeInTheDocument();
+    });
+
+    it('previews in the explorer with the chosen table and config open', () => {
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Preview in explorer' }),
+        );
+
+        const tableInput = screen.getByPlaceholderText('Select a table');
+        fireEvent.click(tableInput);
+        fireEvent.click(screen.getByText('Orders'));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Open in explorer' }),
+        );
+
+        expect(screen.getByTestId('explore-probe')).toBeInTheDocument();
+        expect(screen.getByTestId('location-search')).toHaveTextContent(
+            'dataAppVizUuid=data-app-viz-1',
+        );
+        expect(screen.getByTestId('location-search')).toHaveTextContent(
+            'chartSidebar=configure',
+        );
     });
 
     it('hides edit and delete actions from non-editors', () => {

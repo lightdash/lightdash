@@ -36,7 +36,12 @@ export const MethodsField: FC<Props> = ({
         >
             <Group gap="xs" mt={4}>
                 {METHOD_OPTIONS.map((method) => (
-                    <Chip key={method} value={method} disabled={disabled}>
+                    <Chip
+                        key={method}
+                        value={method}
+                        variant="filled"
+                        disabled={disabled}
+                    >
                         {method}
                     </Chip>
                 ))}

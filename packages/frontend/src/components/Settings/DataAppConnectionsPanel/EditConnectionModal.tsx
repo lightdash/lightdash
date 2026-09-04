@@ -7,7 +7,11 @@ import { Button, Stack, Tabs, Text, Textarea } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
-import { isValidOAuthScope } from '../../../features/externalConnections/constants';
+import {
+    isValidGoogleOAuthScope,
+    isValidOAuthScope,
+    validateOAuthTokenUrl,
+} from '../../../features/externalConnections/constants';
 import { useSaveConnectionSample } from '../../../features/externalConnections/hooks/useSaveConnectionSample';
 import { useUpdateExternalConnection } from '../../../features/externalConnections/hooks/useUpdateExternalConnection';
 import {
@@ -52,7 +56,22 @@ const toUpdateExternalConnection = (
     apiKeyName: values.type === 'api_key' ? values.apiKeyName : null,
     apiKeyLocation: values.type === 'api_key' ? values.apiKeyLocation : null,
     oauthScopes:
-        values.type === 'google_service_account' ? values.oauthScopes : null,
+        values.type === 'google_service_account' ||
+        values.type === 'oauth_client_credentials'
+            ? values.oauthScopes
+            : null,
+    oauthTokenUrl:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthTokenUrl.trim()
+            : null,
+    oauthClientId:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientId.trim()
+            : null,
+    oauthClientAuthMethod:
+        values.type === 'oauth_client_credentials'
+            ? values.oauthClientAuthMethod
+            : null,
     customHeaders: customHeaderRowsToRecord(values.customHeaders),
     // Blank => omit so the stored secret is unchanged. A non-blank value on a
     // non-"none" type is used for both testing and credential rotation.
@@ -97,6 +116,9 @@ const EditConnectionModalContent: FC<Props> = ({
             apiKeyName: connection.apiKeyName ?? '',
             apiKeyLocation: connection.apiKeyLocation ?? 'header',
             oauthScopes: connection.oauthScopes ?? [],
+            oauthTokenUrl: connection.oauthTokenUrl ?? '',
+            oauthClientId: connection.oauthClientId ?? '',
+            oauthClientAuthMethod: connection.oauthClientAuthMethod ?? 'basic',
             customHeaders: recordToCustomHeaderRows(connection.customHeaders),
             allowedMethods: connection.allowedMethods,
             pathMode: pathRules.mode,
@@ -123,16 +145,51 @@ const EditConnectionModalContent: FC<Props> = ({
                         return 'Paste valid service account JSON';
                     }
                 }
+                if (values.type === 'oauth_client_credentials' && !value) {
+                    if (
+                        connection.type !== 'oauth_client_credentials' ||
+                        !connection.hasSecret
+                    ) {
+                        return 'Client secret is required';
+                    }
+                    if (
+                        values.oauthTokenUrl.trim() !==
+                            (connection.oauthTokenUrl ?? '') ||
+                        values.oauthClientId.trim() !==
+                            (connection.oauthClientId ?? '')
+                    ) {
+                        return 'Re-enter the client secret when changing the token URL or client ID';
+                    }
+                }
                 return null;
             },
             oauthScopes: (value, values) => {
-                if (values.type !== 'google_service_account') return null;
-                if (value.length === 0) return 'Add at least one OAuth scope';
-                const invalid = value.find((s) => !isValidOAuthScope(s));
-                return invalid
-                    ? `Invalid OAuth scope: ${invalid} (use an https:// scope)`
-                    : null;
+                if (
+                    values.type !== 'google_service_account' &&
+                    values.type !== 'oauth_client_credentials'
+                )
+                    return null;
+                if (
+                    values.type === 'google_service_account' &&
+                    value.length === 0
+                )
+                    return 'Add at least one OAuth scope';
+                const isValid =
+                    values.type === 'google_service_account'
+                        ? isValidGoogleOAuthScope
+                        : isValidOAuthScope;
+                const invalid = value.find((s) => !isValid(s));
+                return invalid ? `Invalid OAuth scope: ${invalid}` : null;
             },
+            oauthTokenUrl: (value, values) =>
+                values.type === 'oauth_client_credentials'
+                    ? validateOAuthTokenUrl(value)
+                    : null,
+            oauthClientId: (value, values) =>
+                values.type === 'oauth_client_credentials' &&
+                value.trim().length === 0
+                    ? 'Client ID is required'
+                    : null,
             customHeaders: validateCustomHeaderRows,
             allowedMethods: (value, values) =>
                 value.length === 0 && !values.allowBrowserImages

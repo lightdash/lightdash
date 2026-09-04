@@ -1243,6 +1243,7 @@ const EXTERNAL_CONNECTION_SECRET_TYPES = new Set([
     'api_key',
     'bearer_token',
     'google_service_account',
+    'oauth_client_credentials',
 ]);
 
 /**

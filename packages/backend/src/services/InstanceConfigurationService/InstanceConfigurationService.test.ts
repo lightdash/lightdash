@@ -119,6 +119,7 @@ const createMockService = (overrides: AnyType = {}) => {
 
     const lightdashConfig = {
         ...lightdashConfigMock,
+        initialSetup: overrides.initialSetup,
         updateSetup: overrides.updateSetup || undefined,
     };
 
@@ -143,6 +144,38 @@ const createMockService = (overrides: AnyType = {}) => {
         rolesModel: rolesModel as AnyType,
     });
 };
+
+describe('InstanceConfigurationService.initializeInstance', () => {
+    it('rejects an empty initial organization name', async () => {
+        const createOrganization = vi.fn();
+        const service = createMockService({
+            initialSetup: {
+                organization: {
+                    name: '',
+                    admin: {
+                        name: 'Admin User',
+                        email: mockAdminEmail,
+                    },
+                    emailDomains: [],
+                    defaultRole: OrganizationMemberRole.VIEWER,
+                },
+                projects: [],
+            },
+            organizationModel: {
+                hasOrgs: vi.fn().mockResolvedValue(false),
+                create: createOrganization,
+            },
+            projectModel: {
+                hasAnyProjects: vi.fn().mockResolvedValue(false),
+            },
+        });
+
+        await expect(service.initializeInstance()).rejects.toBeInstanceOf(
+            ParameterError,
+        );
+        expect(createOrganization).not.toHaveBeenCalled();
+    });
+});
 
 describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
     let service: InstanceConfigurationService;

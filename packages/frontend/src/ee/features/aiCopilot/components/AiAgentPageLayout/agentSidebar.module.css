@@ -75,12 +75,13 @@
     }
 }
 
-.threadDeleteButton {
+.threadMenuButton {
     opacity: 0;
     transition: opacity 150ms ease;
 
     .threadNavLink:hover &,
-    &:focus-visible {
+    &:focus-visible,
+    &[data-expanded] {
         opacity: 1;
     }
 }

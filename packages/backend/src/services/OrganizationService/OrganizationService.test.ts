@@ -42,6 +42,7 @@ const projectModel = {
 const organizationModel = {
     get: vi.fn(async () => organization),
     create: vi.fn<OrganizationModel['create']>(async () => organization),
+    update: vi.fn<OrganizationModel['update']>(async () => organization),
     hasOrgs: vi.fn<OrganizationModel['hasOrgs']>(async () => false),
     getImpersonationEnabled: vi.fn<
         OrganizationModel['getImpersonationEnabled']
@@ -149,15 +150,34 @@ describe('organization service', () => {
         };
     });
 
-    it('rejects creating an organization without a name', async () => {
+    it('rejects updating an organization to an empty name', async () => {
+        const userWhoCanUpdateOrganization = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { action: 'update', subject: 'Organization' },
+            ]),
+        };
+
         await expect(
-            organizationService.createAndJoinOrg(
-                { ...user, organizationUuid: undefined },
-                { name: '   ' },
-            ),
+            organizationService.updateOrg(userWhoCanUpdateOrganization, {
+                name: '',
+            }),
         ).rejects.toBeInstanceOf(ParameterError);
-        expect(organizationModel.create).not.toHaveBeenCalled();
+        expect(organizationModel.update).not.toHaveBeenCalled();
     });
+
+    it.each(['', '   '])(
+        'rejects creating an organization with the blank name %j',
+        async (name) => {
+            await expect(
+                organizationService.createAndJoinOrg(
+                    { ...user, organizationUuid: undefined },
+                    { name },
+                ),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(organizationModel.create).not.toHaveBeenCalled();
+        },
+    );
 
     it('tracks the onboarding flow when creating an organization', async () => {
         await organizationService.createAndJoinOrg(

@@ -18,6 +18,7 @@ import {
     UnexpectedServerError,
     UpdateProject,
     validateOrganizationEmailDomains,
+    validateOrganizationNameOrThrow,
     WarehouseTypes,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -159,6 +160,7 @@ export class InstanceConfigurationService extends BaseService {
                 `Initial setup: Creating organization "${setup.organization.name}"`,
             );
 
+            validateOrganizationNameOrThrow(setup.organization.name);
             const { organizationUuid } = await this.organizationModel.create({
                 name: setup.organization.name,
             });

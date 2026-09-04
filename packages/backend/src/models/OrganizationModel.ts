@@ -10,7 +10,6 @@ import {
     UpdateColorPalette,
     UpdateOrganization,
     UserAllowedOrganization,
-    validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
@@ -277,7 +276,6 @@ export class OrganizationModel {
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
-        validateOrganizationNameOrThrow(data.name);
         const [org] = await this.database(OrganizationTableName)
             .insert({
                 organization_name: data.name,
@@ -304,9 +302,6 @@ export class OrganizationModel {
         organizationUuid: string,
         data: UpdateOrganization,
     ): Promise<Organization> {
-        if (data.name !== undefined) {
-            validateOrganizationNameOrThrow(data.name);
-        }
         // Undefined values are ignored by .update (it DOES NOT set null)
         const updateData: {
             organization_name?: string;

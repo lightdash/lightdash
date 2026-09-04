@@ -7124,6 +7124,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['api_key'] },
                 { dataType: 'enum', enums: ['bearer_token'] },
                 { dataType: 'enum', enums: ['google_service_account'] },
+                { dataType: 'enum', enums: ['oauth_client_credentials'] },
             ],
             validators: {},
         },
@@ -7156,6 +7157,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OAuthClientAuthMethod: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['basic'] },
+                { dataType: 'enum', enums: ['body'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionAsCode: {
         dataType: 'refAlias',
         type: {
@@ -7168,6 +7181,27 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
+                },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 oauthScopes: {
                     dataType: 'union',
@@ -12859,6 +12893,27 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 oauthScopes: {
                     dataType: 'union',
                     subSchemas: [
@@ -12962,6 +13017,27 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'Record_string.string_' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
@@ -13284,6 +13360,30 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 customHeaders: {
                     dataType: 'union',
                     subSchemas: [
@@ -13476,6 +13576,27 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
+                },
+                oauthClientAuthMethod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OAuthClientAuthMethod' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthClientId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                oauthTokenUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 oauthScopes: {
                     dataType: 'union',
@@ -16554,6 +16675,16 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.DashboardFilters_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'DashboardFilters' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiExecuteAsyncDashboardChartQueryResults: {
         dataType: 'refAlias',
         type: {
@@ -16566,6 +16697,9 @@ const models: TsoaRoute.Models = {
                         dateZoomApplied: {
                             dataType: 'boolean',
                             required: true,
+                        },
+                        appliedDashboardFiltersBySourceId: {
+                            ref: 'Record_string.DashboardFilters_',
                         },
                         appliedDashboardFilters: {
                             ref: 'DashboardFilters',
@@ -26449,6 +26583,15 @@ const models: TsoaRoute.Models = {
                 results: { ref: 'AiAgentThread', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadUpdateRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { title: { dataType: 'string', required: true } },
             validators: {},
         },
     },
@@ -77156,6 +77299,83 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteAgentThread',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_updateAgentThread: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        threadUuid: {
+            in: 'path',
+            name: 'threadUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiAiAgentThreadUpdateRequest',
+        },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.updateAgentThread,
+        ),
+
+        async function AiAgentController_updateAgentThread(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_updateAgentThread,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateAgentThread',
                     controller,
                     response,
                     next,
