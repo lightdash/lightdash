@@ -70,21 +70,19 @@ const ChartTypeGallery = () => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data?.pages],
     );
-    // Upgrades for installed official chart types are offered here in the
-    // installed tab (the library hides installed charts entirely).
+    // Registry context for installed official chart types: upgrade offers
+    // and the registry (semver) version live here in the installed tab.
     const registryQuery = useRegistryChartTypes(projectUuid, isLibraryEnabled);
-    const registryUpdatesBySlug = useMemo(() => {
-        const updates = new Map<string, RegistryChartTypeListItem>();
+    const registryEntriesBySlug = useMemo(() => {
+        const entries = new Map<string, RegistryChartTypeListItem>();
         for (const chart of registryQuery.data?.charts ?? []) {
-            if (chart.state === 'update_available') {
-                updates.set(chart.slug, chart);
-            }
+            entries.set(chart.slug, chart);
         }
-        return updates;
+        return entries;
     }, [registryQuery.data?.charts]);
-    const registryUpdateFor = (viz: DataAppViz) =>
+    const registryEntryFor = (viz: DataAppViz) =>
         viz.registrySlug
-            ? (registryUpdatesBySlug.get(viz.registrySlug) ?? null)
+            ? (registryEntriesBySlug.get(viz.registrySlug) ?? null)
             : null;
     const selected = dataAppVizs.find(
         (viz) => viz.dataAppVizUuid === selectedUuid,
@@ -244,8 +242,9 @@ const ChartTypeGallery = () => {
                                                 key={viz.dataAppVizUuid}
                                                 dataAppViz={viz}
                                                 hasRegistryUpdate={
-                                                    registryUpdateFor(viz) !==
-                                                    null
+                                                    registryEntryFor(viz)
+                                                        ?.state ===
+                                                    'update_available'
                                                 }
                                                 onClick={() =>
                                                     setSelectedUuid(
@@ -290,7 +289,7 @@ const ChartTypeGallery = () => {
                 <ChartTypeDetailModal
                     projectUuid={projectUuid}
                     dataAppViz={selected}
-                    registryUpdate={registryUpdateFor(selected)}
+                    registryEntry={registryEntryFor(selected)}
                     onClose={() => setSelectedUuid(null)}
                     onDelete={() => setDeleteUuid(selected.dataAppVizUuid)}
                 />

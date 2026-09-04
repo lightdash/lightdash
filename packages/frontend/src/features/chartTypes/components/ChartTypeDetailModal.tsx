@@ -25,8 +25,8 @@ import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 type Props = {
     projectUuid: string;
     dataAppViz: DataAppViz;
-    /** The newer registry version when this official chart type is upgradable */
-    registryUpdate: RegistryChartTypeListItem | null;
+    /** This chart type's registry entry, when it is a registry install */
+    registryEntry: RegistryChartTypeListItem | null;
     onClose: () => void;
     onDelete: () => void;
 };
@@ -34,7 +34,7 @@ type Props = {
 const ChartTypeDetailModal: FC<Props> = ({
     projectUuid,
     dataAppViz,
-    registryUpdate,
+    registryEntry,
     onClose,
     onDelete,
 }) => {
@@ -44,6 +44,8 @@ const ChartTypeDetailModal: FC<Props> = ({
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const upgradeMutation = useInstallRegistryChartType();
+    const registryUpdate =
+        registryEntry?.state === 'update_available' ? registryEntry : null;
     const { latestReadyVersion, oldest, latest, hasOrigin } =
         useAppVersionHistory(projectUuid, dataAppViz.dataAppVizUuid);
 
@@ -204,9 +206,15 @@ const ChartTypeDetailModal: FC<Props> = ({
                                 Version
                             </Text>
                             <Text fz="sm" fw={500} c="ldGray.8">
-                                {latestReadyVersion !== null
-                                    ? `v${latestReadyVersion}`
-                                    : '—'}
+                                {/* Officials show the registry semver, matching
+                                    the library; the internal app version only
+                                    describes locally built types. */}
+                                {isOfficial &&
+                                registryEntry?.installedRegistryVersion
+                                    ? `v${registryEntry.installedRegistryVersion}`
+                                    : latestReadyVersion !== null
+                                      ? `v${latestReadyVersion}`
+                                      : '—'}
                             </Text>
                         </Box>
                     </SimpleGrid>
