@@ -215,6 +215,7 @@ type DashboardTabsProps = {
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
+    onNewChart?: () => void;
 
     // parameters
     hasTilesThatSupportFilters: boolean;
@@ -242,6 +243,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     handleEditTile,
     setGridWidth,
     setAddingTab,
+    onNewChart,
     // parameters
     hasTilesThatSupportFilters,
     parameterValues,
@@ -1382,6 +1384,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles
                                         onAddTiles={handleAddTiles}
+                                        onNewChart={onNewChart}
                                         emptyContainerType={
                                             dashboardTabs &&
                                             dashboardTabs.length
