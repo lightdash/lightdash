@@ -22,6 +22,7 @@ import MantineIcon from '../common/MantineIcon';
 import DashboardCreateModal from '../common/modal/DashboardCreateModal';
 import SpaceActionModal from '../common/SpaceActionModal';
 import { ActionType } from '../common/SpaceActionModal/types';
+import AppColorSchemeScope from './AppColorSchemeScope';
 
 type Props = {
     projectUuid: string;
@@ -175,35 +176,39 @@ const ExploreMenu: FC<Props> = memo((props) => {
             </Can>
 
             {isCreateSpaceOpen && (
-                <SpaceActionModal
-                    projectUuid={projectUuid}
-                    actionType={ActionType.CREATE}
-                    title="Create new space"
-                    confirmButtonLabel="Create"
-                    icon={IconFolderPlus}
-                    onClose={() => setIsCreateSpaceOpen(false)}
-                    onSubmitForm={(space) => {
-                        if (space)
-                            void navigate(
-                                `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
-                            );
-                    }}
-                    parentSpaceUuid={null}
-                />
+                <AppColorSchemeScope>
+                    <SpaceActionModal
+                        projectUuid={projectUuid}
+                        actionType={ActionType.CREATE}
+                        title="Create new space"
+                        confirmButtonLabel="Create"
+                        icon={IconFolderPlus}
+                        onClose={() => setIsCreateSpaceOpen(false)}
+                        onSubmitForm={(space) => {
+                            if (space)
+                                void navigate(
+                                    `/projects/${projectUrlIdentifier}/spaces/${space.uuid}`,
+                                );
+                        }}
+                        parentSpaceUuid={null}
+                    />
+                </AppColorSchemeScope>
             )}
             {isCreateDashboardOpen && (
-                <DashboardCreateModal
-                    projectUuid={projectUuid}
-                    opened={isCreateDashboardOpen}
-                    onClose={() => setIsCreateDashboardOpen(false)}
-                    onConfirm={(dashboard) => {
-                        void navigate(
-                            `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
-                        );
+                <AppColorSchemeScope>
+                    <DashboardCreateModal
+                        projectUuid={projectUuid}
+                        opened={isCreateDashboardOpen}
+                        onClose={() => setIsCreateDashboardOpen(false)}
+                        onConfirm={(dashboard) => {
+                            void navigate(
+                                `/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}/edit`,
+                            );
 
-                        setIsCreateDashboardOpen(false);
-                    }}
-                />
+                            setIsCreateDashboardOpen(false);
+                        }}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );
