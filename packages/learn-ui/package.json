@@ -1,0 +1,57 @@
+{
+    "name": "@lightdash/learn-ui",
+    "version": "2.82.0",
+    "private": false,
+    "type": "module",
+    "description": "Lightdash Learn board and lesson UI shared by the in-app Learn section and learn.lightdash.com",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
+    "sideEffects": ["**/*.css"],
+    "files": ["dist"],
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "build": "tsc --project tsconfig.build.json && node scripts/copy-css.mjs",
+        "typecheck": "tsc --project tsconfig.json --noEmit",
+        "test": "vitest run",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+        "lint": "pnpm run linter ./src",
+        "fix-lint": "pnpm run linter ./src --fix",
+        "format": "oxfmt ./src --check",
+        "fix-format": "oxfmt ./src",
+        "release": "pnpm publish --no-git-checks --access public"
+    },
+    "peerDependencies": {
+        "@mantine/core": "^8.3.18",
+        "@mantine/hooks": "^8.3.18",
+        "react": "^18.x || ^19.x",
+        "react-dom": "^18.x || ^19.x"
+    },
+    "devDependencies": {
+        "@lightdash/common": "workspace:*",
+        "@types/node": "22.13.1",
+        "@mantine/core": "8.3.18",
+        "@mantine/hooks": "8.3.18",
+        "@testing-library/jest-dom": "6.9.1",
+        "@testing-library/react": "14.1.2",
+        "@types/react": "19.2.2",
+        "@types/react-dom": "19.2.2",
+        "@vitejs/plugin-react": "6.0.1",
+        "jsdom": "24.0.0",
+        "oxlint": "1.57.0",
+        "oxlint-tsgolint": "0.18.1",
+        "react": "19.2.0",
+        "react-dom": "19.2.0",
+        "typescript": "7.0.2",
+        "vitest": "4.1.6"
+    }
+}

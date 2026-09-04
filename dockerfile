@@ -207,6 +207,7 @@ COPY .oxlintrc.base.json .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
 COPY packages/formula/package.json ./packages/formula/
+COPY packages/learn-ui/package.json ./packages/learn-ui/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/backend/src/ee/services/McpService/mcp-chart-app/package.json ./packages/backend/src/ee/services/McpService/mcp-chart-app/
@@ -244,6 +245,18 @@ COPY packages/formula/src/ ./packages/formula/src/
 RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     turbo build --filter=@lightdash/formula
+
+# Build learn-ui package
+# learn-ui declares @lightdash/common as a devDependency, so Turbo's `^build`
+# pulls common into the graph — hence the copy from build-common.
+FROM prod-builder AS build-learn-ui
+COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY packages/learn-ui/tsconfig*.json ./packages/learn-ui/
+COPY packages/learn-ui/scripts/ ./packages/learn-ui/scripts/
+COPY packages/learn-ui/src/ ./packages/learn-ui/src/
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
+    turbo build --filter=@lightdash/learn-ui
 
 # Build warehouses package
 FROM prod-builder AS build-warehouses
@@ -289,6 +302,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
+COPY --from=build-learn-ui /usr/app/packages/learn-ui/ ./packages/learn-ui/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""

@@ -76,6 +76,10 @@ export default defineConfig({
                           __dirname,
                           '../formula/src/index.ts',
                       ),
+                      '@lightdash/learn-ui': path.resolve(
+                          __dirname,
+                          '../learn-ui/src/index.ts',
+                      ),
                   }
                 : undefined,
     },
@@ -157,7 +161,10 @@ export default defineConfig({
             ...(FE_HOST ? [FE_HOST] : []),
         ],
         watch: {
-            ignored: ['!**/node_modules/@lightdash/common/**'],
+            ignored: [
+                '!**/node_modules/@lightdash/common/**',
+                '!**/node_modules/@lightdash/learn-ui/**',
+            ],
         },
         proxy: {
             '/api': {

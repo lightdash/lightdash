@@ -107,6 +107,7 @@ module.exports = {
                     'packages/frontend/package.json',
                     'packages/warehouses/package.json',
                     'packages/query-sdk/package.json',
+                    'packages/learn-ui/package.json',
                     'packages/frontend/sdk/package.json',
                     'packages/backend/src/generated/routes.ts',
                     'packages/backend/src/generated/swagger.json',
