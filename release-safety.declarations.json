@@ -13,6 +13,10 @@
             "reason": "The retired ReplaceCustomMetricsOnCompile member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; runtime custom-metric replacement after eligible compiles is now unconditional.",
             "requiredStop": false
         },
+        "write-back-custom-bin-dimensions-flag-removed": {
+            "reason": "The graduated WriteBackCustomBinDimensions member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; supported custom-bin write-back is now available without a flag.",
+            "requiredStop": false
+        },
         "mobile-push-installation-uuid-path-params": {
             "reason": "PUT and DELETE /api/v1/mobile/push-notifications/installations/{installationUuid} now validate installationUuid as a UUID and reject other strings with a 400. Installation identifiers are server-generated UUIDs, and only the Lightdash mobile apps call these endpoints with the identifier they received, so no existing caller is affected.",
             "requiredStop": false
