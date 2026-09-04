@@ -3,6 +3,7 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { logRuntimeMemory } from './logging/runtimeMemory';
 import SchedulerApp from './SchedulerApp';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
 
@@ -24,6 +25,7 @@ process.on('uncaughtException', () => {
             Logger.warn(timezoneWarning);
         }
 
+        logRuntimeMemory(Logger, 'scheduler');
         const schedulerApp = new SchedulerApp({
             lightdashConfig,
             port: process.env.PORT || 8081,

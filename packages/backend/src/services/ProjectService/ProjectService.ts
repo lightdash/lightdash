@@ -298,6 +298,7 @@ import type { AppGenerateService } from '../../ee/services/AppGenerateService/Ap
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { buildRuntimeMemoryReport } from '../../logging/runtimeMemory';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -8966,6 +8967,29 @@ export class ProjectService extends BaseService {
             projectUuid,
             steps: [{ stepType: JobStepType.COMPILING }],
         };
+
+        // The heap ceiling is the first thing worth knowing from a log about a failed compile,
+        // because the image derives it from the container limit in plateaus rather than as a
+        // fraction, and an out-of-memory abort happens well below the container limit.
+        const memoryReport = buildRuntimeMemoryReport();
+        this.logger.info(
+            `dbt.compile.start projectUuid=${projectUuid} jobUuid=${jobUuid} heapLimitMb=${Math.round(
+                memoryReport.heapLimitBytes / 1024 / 1024,
+            )} containerLimitMb=${
+                memoryReport.containerMemoryLimitBytes === null
+                    ? 'unknown'
+                    : Math.round(
+                          memoryReport.containerMemoryLimitBytes / 1024 / 1024,
+                      )
+            } heapFlagSet=${memoryReport.heapFlagSet}`,
+            {
+                event: 'dbt.compile.start',
+                projectUuid,
+                jobUuid,
+                organizationUuid,
+                ...memoryReport,
+            },
+        );
 
         const onLockFailed = async () => {
             const holder = await this.projectModel

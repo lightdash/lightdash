@@ -5,6 +5,7 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { logRuntimeMemory } from './logging/runtimeMemory';
 import { getProcessTimezoneWarning } from './utils/processTimezone';
 
 // trigger BE tests
@@ -54,6 +55,7 @@ process.on('uncaughtException', () => {
         process.on('SIGHUP', onExit);
         process.on('SIGABRT', onExit);
 
+        logRuntimeMemory(Logger, 'api');
         Logger.info('Starting Lightdash server...');
         await app.start();
     } catch (error) {
