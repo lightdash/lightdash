@@ -5,6 +5,7 @@ import {
     isSafeRedirectScheme,
     NotFoundError,
     ParameterError,
+    TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
     type Account,
     type OAuthClientSummary,
@@ -14,6 +15,8 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
+import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
 
 export enum OAuthScope {
     READ = 'read',
@@ -32,6 +35,7 @@ type OAuthServiceArguments = {
     oauthModel: OAuth2Model;
     lightdashConfig: LightdashConfig;
     onGrantRevoked?: OAuthGrantRevokedHandler;
+    getManagedSignInService?: () => ManagedSignInService;
 };
 
 export class OAuthService extends BaseService {
@@ -45,23 +49,36 @@ export class OAuthService extends BaseService {
 
     private onGrantRevoked: OAuthGrantRevokedHandler | undefined;
 
+    private getManagedSignInService: (() => ManagedSignInService) | undefined;
+
     constructor({
         userModel,
         oauthModel,
         lightdashConfig,
         onGrantRevoked,
+        getManagedSignInService,
     }: OAuthServiceArguments) {
         super();
         this.userModel = userModel;
         this.oauthModel = oauthModel;
         this.lightdashConfig = lightdashConfig;
         this.onGrantRevoked = onGrantRevoked;
+        this.getManagedSignInService = getManagedSignInService;
         this.initializeOAuthServer();
     }
 
     private initializeOAuthServer(): void {
+        const { getManagedSignInService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
+            extendedGrantTypes: getManagedSignInService
+                ? {
+                      [TOKEN_EXCHANGE_GRANT_TYPE]:
+                          createMicrosoftTokenExchangeGrantType(
+                              getManagedSignInService,
+                          ),
+                  }
+                : undefined,
             allowBearerTokensInQueryString: true,
             allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:
@@ -71,6 +88,7 @@ export class OAuthService extends BaseService {
             // Allow public clients (no client authentication required for refresh tokens)
             requireClientAuthentication: {
                 refresh_token: false, // Don't require for refresh token (public client)
+                [TOKEN_EXCHANGE_GRANT_TYPE]: false,
             },
         });
     }
