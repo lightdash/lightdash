@@ -1,4 +1,4 @@
-import { type SshKeyPair } from '@lightdash/common';
+import { ParameterError, type SshKeyPair } from '@lightdash/common';
 import { Knex } from 'knex';
 import { generateOpenSshKeyPair } from '../utils';
 import { type EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
@@ -36,7 +36,9 @@ export class SshKeyPairModel {
             .where({ public_key: publicKey })
             .first();
         if (row === undefined) {
-            throw new Error('Public SSH Key not recognised');
+            throw new ParameterError(
+                'SSH public key not found. Generate a new key in the SSH tunnel settings and save again.',
+            );
         }
         const privateKey = this.encryptionUtil.decrypt(row.private_key);
         return {

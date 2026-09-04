@@ -6,6 +6,7 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Input,
 } from '@mantine/core';
 import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
@@ -65,6 +66,7 @@ const PostgresForm: FC<{
         (savedProject?.warehouseConnection?.type === WarehouseTypes.POSTGRES
             ? savedProject?.warehouseConnection?.sshTunnelPublicKey
             : undefined);
+    const sshTunnelPublicKeyError = form.errors['warehouse.sshTunnelPublicKey'];
 
     const sslMode: string | undefined =
         form.values.warehouse.sslmode ??
@@ -387,6 +389,11 @@ const PostgresForm: FC<{
                                         ? 'Regenerate key'
                                         : 'Generate public key'}
                                 </Button>
+                                {sshTunnelPublicKeyError && (
+                                    <Input.Error>
+                                        {sshTunnelPublicKeyError}
+                                    </Input.Error>
+                                )}
                             </Stack>
                         </FormSection>
                     </Stack>

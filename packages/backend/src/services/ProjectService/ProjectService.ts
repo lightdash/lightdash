@@ -1547,7 +1547,12 @@ export class ProjectService extends BaseService {
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
             args.warehouseConnection.useSshTunnel
         ) {
-            const publicKey = args.warehouseConnection.sshTunnelPublicKey || '';
+            const publicKey = args.warehouseConnection.sshTunnelPublicKey;
+            if (!publicKey) {
+                throw new ParameterError(
+                    'SSH tunnel is enabled but no public key was generated. Generate a public key and save again.',
+                );
+            }
             const { privateKey } = await this.sshKeyPairModel.get(publicKey);
             return {
                 ...args,

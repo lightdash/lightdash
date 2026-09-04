@@ -6,6 +6,7 @@ import {
     Anchor,
     Select,
     PasswordInput,
+    Input,
 } from '@mantine/core';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
@@ -131,6 +132,7 @@ const RedshiftForm: FC<{
         (savedProject?.warehouseConnection?.type === WarehouseTypes.REDSHIFT
             ? savedProject?.warehouseConnection?.sshTunnelPublicKey
             : undefined);
+    const sshTunnelPublicKeyError = form.errors['warehouse.sshTunnelPublicKey'];
 
     const { mutate, isLoading } = useCreateSshKeyPair({
         onSuccess: (data) => {
@@ -382,6 +384,11 @@ const RedshiftForm: FC<{
                                         ? 'Regenerate key'
                                         : 'Generate public key'}
                                 </Button>
+                                {sshTunnelPublicKeyError && (
+                                    <Input.Error>
+                                        {sshTunnelPublicKeyError}
+                                    </Input.Error>
+                                )}
                             </Stack>
                         </FormSection>
                     </Stack>

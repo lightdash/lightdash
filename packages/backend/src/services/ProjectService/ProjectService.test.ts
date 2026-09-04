@@ -1630,6 +1630,46 @@ describe('ProjectService', () => {
         );
     });
 
+    test('rejects an SSH tunnel connection without a generated public key', async () => {
+        await expect(
+            service.createWithoutCompile(
+                {
+                    ...user,
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'create' },
+                    ]),
+                },
+                {
+                    name: 'SSH project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection: {
+                        type: WarehouseTypes.POSTGRES,
+                        host: 'localhost',
+                        user: 'user',
+                        password: 'password',
+                        port: 5432,
+                        dbname: 'db',
+                        schema: 'public',
+                        useSshTunnel: true,
+                        sshTunnelHost: 'bastion',
+                        sshTunnelPort: 22,
+                        sshTunnelUser: 'ssh-user',
+                        sshTunnelPublicKey: '',
+                    },
+                },
+                RequestMethod.WEB_APP,
+            ),
+        ).rejects.toThrow(
+            'SSH tunnel is enabled but no public key was generated',
+        );
+    });
+
     describe('default AI agent provisioning', () => {
         test('provisions a default AI agent for a playground when the organization already has another project', async () => {
             const createdProjectUuid = 'created-playground-project-uuid';

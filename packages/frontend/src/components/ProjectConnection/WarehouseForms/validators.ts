@@ -15,11 +15,53 @@ import {
 } from '../../../utils/fieldValidators';
 import { type ProjectConnectionForm } from '../types';
 
-type Validator = (value: string) => string | undefined;
+type CreateValidator = (
+    value: string,
+    values: ProjectConnectionForm,
+) => string | undefined;
+
+const required = (
+    fieldName: string,
+    ...validators: FieldValidator<string>[]
+): CreateValidator => everyValidator(fieldName, isRequired, ...validators);
+
+const requiredWhen =
+    (
+        fieldName: string,
+        predicate: (values: ProjectConnectionForm) => boolean,
+        ...validators: FieldValidator<string>[]
+    ): CreateValidator =>
+    (value, values) =>
+        everyValidator(
+            fieldName,
+            ...(predicate(values) ? [isRequired, ...validators] : validators),
+        )(value);
+
+const sshTunnelEnabled = (values: ProjectConnectionForm) =>
+    (values.warehouse.type === WarehouseTypes.POSTGRES ||
+        values.warehouse.type === WarehouseTypes.REDSHIFT) &&
+    values.warehouse.useSshTunnel === true;
+
+const sshTunnelValidators: Record<string, CreateValidator> = {
+    sshTunnelHost: requiredWhen(
+        'SSH Remote Host',
+        sshTunnelEnabled,
+        hasNoWhiteSpaces,
+    ),
+    sshTunnelUser: requiredWhen(
+        'SSH Username',
+        sshTunnelEnabled,
+        hasNoWhiteSpaces,
+    ),
+    sshTunnelPublicKey: (value, values) =>
+        sshTunnelEnabled(values) && (!value || value.trim() === '')
+            ? 'Generate an SSH public key before saving'
+            : undefined,
+};
 
 export const warehouseValueValidators: Record<
     WarehouseTypes,
-    Record<string, Validator>
+    Record<string, CreateValidator>
 > = {
     [WarehouseTypes.BIGQUERY]: {
         dataset: hasNoWhiteSpaces('Data set'),
@@ -38,12 +80,14 @@ export const warehouseValueValidators: Record<
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
         dbname: hasNoWhiteSpaces('Database name'),
+        ...sshTunnelValidators,
     },
     [WarehouseTypes.REDSHIFT]: {
         schema: hasNoWhiteSpaces('Schema'),
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
         dbname: hasNoWhiteSpaces('Database name'),
+        ...sshTunnelValidators,
     },
     [WarehouseTypes.SNOWFLAKE]: {
         schema: hasNoWhiteSpaces('Schema'),
@@ -81,28 +125,6 @@ export const warehouseValueValidators: Record<
         token: hasNoWhiteSpaces('Service token'),
     },
 } as const;
-
-type CreateValidator = (
-    value: string,
-    values: ProjectConnectionForm,
-) => string | undefined;
-
-const required = (
-    fieldName: string,
-    ...validators: FieldValidator<string>[]
-): CreateValidator => everyValidator(fieldName, isRequired, ...validators);
-
-const requiredWhen =
-    (
-        fieldName: string,
-        predicate: (values: ProjectConnectionForm) => boolean,
-        ...validators: FieldValidator<string>[]
-    ): CreateValidator =>
-    (value, values) =>
-        everyValidator(
-            fieldName,
-            ...(predicate(values) ? [isRequired, ...validators] : validators),
-        )(value);
 
 const snowflakeAuthIs =
     (...types: SnowflakeAuthenticationType[]) =>
@@ -165,6 +187,7 @@ export const createWarehouseValueValidators: Record<
         user: required('User', hasNoWhiteSpaces),
         password: required('Password'),
         dbname: required('Database name', hasNoWhiteSpaces),
+        ...sshTunnelValidators,
     },
     [WarehouseTypes.REDSHIFT]: {
         schema: required('Schema', hasNoWhiteSpaces),
@@ -172,6 +195,7 @@ export const createWarehouseValueValidators: Record<
         user: required('User', hasNoWhiteSpaces),
         password: required('Password'),
         dbname: required('Database name', hasNoWhiteSpaces),
+        ...sshTunnelValidators,
     },
     [WarehouseTypes.SNOWFLAKE]: {
         schema: required('Schema', hasNoWhiteSpaces),
