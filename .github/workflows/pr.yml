@@ -571,6 +571,9 @@ jobs:
           TRINO_PORT: ${{ secrets.TRINO_PORT }}
           TRINO_USER: ${{ secrets.TRINO_USER }}
           TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
+          # Warehouses this job's secrets provide; a missing one fails the run
+          # instead of silently narrowing the parity suites to Postgres.
+          REQUIRED_WAREHOUSES: "snowflake,bigquery,trino"
           TZ: "UTC"
 
   app-tests:
