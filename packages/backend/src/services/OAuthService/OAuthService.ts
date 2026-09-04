@@ -88,7 +88,7 @@ export class OAuthService extends BaseService {
             // Allow public clients (no client authentication required for refresh tokens)
             requireClientAuthentication: {
                 refresh_token: false, // Don't require for refresh token (public client)
-                [TOKEN_EXCHANGE_GRANT_TYPE]: false, // Public mobile client
+                [TOKEN_EXCHANGE_GRANT_TYPE]: false,
             },
         });
     }

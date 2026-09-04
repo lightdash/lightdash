@@ -3958,11 +3958,6 @@ export class UserService extends BaseService {
             : microsoftManagedSignIn.androidClientId;
     }
 
-    /**
-     * The Microsoft tenant the server names for this person, or undefined when
-     * it names none. The env-based Azure config wins on dedicated instances;
-     * on shared instances the email must route to exactly one tenant.
-     */
     private async findManagedSignInTenantId(
         email: string | undefined,
     ): Promise<string | undefined> {

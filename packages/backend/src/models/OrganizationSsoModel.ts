@@ -223,13 +223,6 @@ export class OrganizationSsoModel {
             .find((method) => method.config.oauth2Issuer === oauth2Issuer);
     }
 
-    /**
-     * Finds every enabled Azure AD method whose stored tenant id matches.
-     * Managed sign-in resolves the organisation from the Microsoft token's
-     * `tid` alone, so the caller must reject anything other than exactly one
-     * match. Configs are encrypted, so the tenant id cannot be a SQL
-     * predicate and every enabled Azure row is decrypted here.
-     */
     async findEnabledAzureAdMethodsByTenantId(
         tenantId: string,
     ): Promise<OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD>[]> {

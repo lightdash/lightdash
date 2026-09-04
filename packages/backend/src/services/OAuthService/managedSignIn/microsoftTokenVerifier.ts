@@ -101,12 +101,6 @@ const toRejection = (error: unknown): ManagedSignInRejection => {
     );
 };
 
-/**
- * Verifies a Microsoft Entra ID token against the signing tenant's own JWKS.
- * The tenant is read from the unverified `tid` claim, then pinned: the issuer
- * must be that tenant's issuer and the signature must come from that tenant's
- * keys, so a token signed by another tenant cannot pass as this one.
- */
 export class MicrosoftTokenVerifier {
     private readonly discoveryCache = new Map<string, DiscoveryEntry>();
 

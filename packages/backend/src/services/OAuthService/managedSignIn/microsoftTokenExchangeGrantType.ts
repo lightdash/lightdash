@@ -10,15 +10,6 @@ const {
     InvalidScopeError,
 } = OAuth2Server;
 
-/**
- * RFC 8693 token exchange. The app authenticates against Microsoft through
- * MSAL, then trades the resulting ID token for the same Lightdash tokens the
- * authorisation-code grant issues, recorded against the same user grant so
- * refresh and revocation are unchanged.
- *
- * The grant class is built by a factory because `@node-oauth/oauth2-server`
- * constructs it itself and passes only its own options.
- */
 export const createMicrosoftTokenExchangeGrantType = (
     getManagedSignInService: () => ManagedSignInService,
 ) =>

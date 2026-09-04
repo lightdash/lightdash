@@ -43,7 +43,6 @@ type RejectionContext = {
 const hashToken = (token: string): string =>
     createHash('sha256').update(token).digest('hex');
 
-/** Unverified, for the rejection log only. */
 const readLogClaims = (
     token: string,
 ): Pick<RejectionContext, 'tid' | 'aud'> => {
@@ -76,11 +75,6 @@ const getName = (
     return { firstName, lastName };
 };
 
-/**
- * Turns a Microsoft Entra ID token into a Lightdash user. Browser sign-in and
- * managed sign-in share one rule set: this resolves the organisation from the
- * token's tenant, then hands the identity to `UserService.loginWithOpenId`.
- */
 export class ManagedSignInService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -108,11 +102,6 @@ export class ManagedSignInService {
         );
     }
 
-    /**
-     * The organisation the tenant belongs to, resolved from `tid` alone.
-     * Undefined means a dedicated instance, where the environment names the
-     * tenant and no per-organisation scoping applies.
-     */
     private async resolveOrganizationUuid(
         tenantId: string,
     ): Promise<string | undefined> {
