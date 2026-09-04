@@ -56,10 +56,13 @@ const jsonResponse = (body: unknown) => ({
 const makeClient = (
     fetchImpl: ReturnType<typeof vi.fn>,
     url: string | null = BASE,
+    channel: 'stable' | 'next' = 'stable',
 ) =>
     new ChartRegistryClient({
         lightdashConfig: {
-            appRuntime: { chartRegistry: { url, allowInsecure: false } },
+            appRuntime: {
+                chartRegistry: { url, allowInsecure: false, channel },
+            },
         } as never,
         fetchImpl: fetchImpl as unknown as ChartRegistryFetchType,
     });
@@ -92,6 +95,21 @@ describe('ChartRegistryClient', () => {
             `${BASE}/index.json`,
             expect.any(Number),
         );
+    });
+
+    it('fetches index-next.json on the next channel and keeps beta entries', async () => {
+        const betaIndex = {
+            ...index,
+            charts: [{ ...index.charts[0], channel: 'beta' }],
+        };
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(betaIndex));
+        const client = makeClient(fetchImpl, BASE, 'next');
+        const result = await client.getIndex();
+        expect(fetchImpl).toHaveBeenCalledWith(
+            `${BASE}/index-next.json`,
+            expect.any(Number),
+        );
+        expect(result.charts[0].channel).toBe('beta');
     });
 
     it('serves the stale cache when a refetch fails', async () => {

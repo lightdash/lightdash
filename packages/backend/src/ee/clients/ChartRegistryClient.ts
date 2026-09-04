@@ -235,6 +235,8 @@ export class ChartRegistryClient {
 
     private readonly allowInsecure: boolean;
 
+    private readonly indexFileName: string;
+
     private readonly fetchImpl: ChartRegistryFetch;
 
     private cache: { index: ChartRegistryIndex; fetchedAt: number } | null =
@@ -247,6 +249,13 @@ export class ChartRegistryClient {
         this.baseUrl = args.lightdashConfig.appRuntime.chartRegistry.url;
         this.allowInsecure =
             args.lightdashConfig.appRuntime.chartRegistry.allowInsecure;
+        // The next channel's index additionally lists charts whose latest
+        // version is a beta (entries carry `channel`); the stable index
+        // only ever lists stable versions.
+        this.indexFileName =
+            args.lightdashConfig.appRuntime.chartRegistry.channel === 'next'
+                ? 'index-next.json'
+                : 'index.json';
         this.fetchImpl = args.fetchImpl ?? this.defaultFetch.bind(this);
     }
 
@@ -281,7 +290,7 @@ export class ChartRegistryClient {
         }
         try {
             const { body } = await this.fetchImpl(
-                this.resolveUrl('index.json').toString(),
+                this.resolveUrl(this.indexFileName).toString(),
                 MAX_INDEX_BYTES,
             );
             const index = this.parseIndex(body);
