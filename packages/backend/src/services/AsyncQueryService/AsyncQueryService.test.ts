@@ -14,6 +14,7 @@ import {
     FilterOperator,
     ForbiddenError,
     MergeJoinType,
+    MergeQueryErrorKind,
     MetricType,
     MissingConfigError,
     NotFoundError,
@@ -6485,5 +6486,213 @@ describe('query sources carry the execution context', () => {
                 userAttributeOverrides: { region: ['EU'] },
             }),
         ).rejects.toThrow(ParameterError);
+    });
+});
+
+describe('executeAsyncMergeQuery over a result source', () => {
+    // Lowered on the referenced query rather than by seeding limit-many rows:
+    // the check reads the limit that query ran with.
+    const REFERENCED_LIMIT = 3;
+    const resultQueryUuids = {
+        a: '3c8b2b0e-4f5a-4b6c-8d7e-9f0a1b2c3d4e',
+        b: '4d9c3c1f-5a6b-4c7d-9e8f-0a1b2c3d4e5f',
+    };
+
+    const storedFields = (table: string, metric: string): ItemsMap => ({
+        [`${table}_month`]: {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'month',
+            label: 'Month',
+            table,
+            tableLabel: table,
+            sql: '',
+            hidden: false,
+            groups: [],
+        },
+        [`${table}_${metric}`]: {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: metric,
+            label: metric,
+            table,
+            tableLabel: table,
+            sql: '',
+            hidden: false,
+            groups: [],
+        },
+    });
+
+    const storedResult = ({
+        queryUuid,
+        table,
+        metric,
+        limit,
+        totalRowCount,
+    }: {
+        queryUuid: string;
+        table: string;
+        metric: string;
+        limit: number;
+        totalRowCount: number | null;
+    }): QueryHistory => ({
+        createdAt: new Date(),
+        organizationUuid: projectSummary.organizationUuid,
+        createdByUserUuid: sessionAccount.user.id,
+        createdBy: sessionAccount.user.id,
+        createdByAccount: null,
+        createdByActorType: 'session',
+        queryUuid,
+        projectUuid,
+        status: QueryHistoryStatus.READY,
+        error: null,
+        erroredAt: null,
+        metricQuery: {
+            ...metricQueryMock,
+            exploreName: table,
+            dimensions: [`${table}_month`],
+            metrics: [`${table}_${metric}`],
+            tableCalculations: [],
+            limit,
+        },
+        context: QueryExecutionContext.AI,
+        fields: storedFields(table, metric),
+        compiledSql: 'SELECT 1',
+        warehouseQueryId: null,
+        warehouseQueryMetadata: null,
+        requestParameters: {} as ExecuteAsyncQueryRequestParams,
+        usedParameters: null,
+        totalRowCount,
+        warehouseExecutionTimeMs: null,
+        defaultPageSize: null,
+        cacheKey: `${queryUuid}-cache-key`,
+        pivotConfiguration: null,
+        pivotTotalColumnCount: null,
+        pivotValuesColumns: null,
+        resultsFileName: `${queryUuid}.jsonl`,
+        resultsCreatedAt: new Date(),
+        resultsUpdatedAt: new Date(),
+        resultsExpiresAt: null,
+        columns: null,
+        originalColumns: null,
+        preAggregateCompiledSql: null,
+        preAggregateExecution: null,
+        preAggregateFallbackReason: null,
+        processingStartedAt: null,
+    });
+
+    const mergeQuery: MergeQuery = {
+        sources: [
+            { id: 'a', queryUuid: resultQueryUuids.a },
+            { id: 'b', queryUuid: resultQueryUuids.b },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        limit: 500,
+    };
+
+    const buildService = ({
+        aRowCount,
+        bRowCount,
+    }: {
+        aRowCount: number | null;
+        bRowCount: number | null;
+    }) => {
+        const storedByUuid: Record<string, QueryHistory> = {
+            [resultQueryUuids.a]: storedResult({
+                queryUuid: resultQueryUuids.a,
+                table: 'orders',
+                metric: 'count',
+                limit: REFERENCED_LIMIT,
+                totalRowCount: aRowCount,
+            }),
+            [resultQueryUuids.b]: storedResult({
+                queryUuid: resultQueryUuids.b,
+                table: 'payments',
+                metric: 'sum',
+                limit: REFERENCED_LIMIT,
+                totalRowCount: bRowCount,
+            }),
+        };
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        service.queryHistoryModel.get = vi.fn(async (queryUuid: string) => {
+            const stored = storedByUuid[queryUuid];
+            if (stored === undefined) {
+                throw new NotFoundError(`No stored result ${queryUuid}`);
+            }
+            return stored;
+        });
+        const runLeg = vi.spyOn(service, 'executeAsyncMetricQuery');
+        return {
+            service,
+            runLeg,
+            create: service.queryHistoryModel.create as import('vitest').Mock,
+        };
+    };
+
+    it('refuses before any leg or the join when a referenced result returned as many rows as its own limit, naming the source', async () => {
+        const { service, runLeg, create } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT,
+        });
+
+        const outcome = await service.executeAsyncMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+            context: QueryExecutionContext.AI,
+            mode: { type: 'interactive' },
+        });
+
+        expect(outcome).toMatchObject({
+            outcome: 'refused',
+            errors: [
+                {
+                    kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
+                    sourceId: 'b',
+                    fieldIds: [],
+                    message: `Query "b" cannot back a merge: its results were cut short at their own limit of ${REFERENCED_LIMIT} rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.`,
+                },
+            ],
+        });
+        expect(runLeg).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('compiles a merge whose referenced results are all under their own limits', async () => {
+        const { service } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: REFERENCED_LIMIT - 1,
+        });
+
+        const compiled = await service.compileMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+        });
+
+        expect(compiled.errors).toEqual([]);
+        expect(compiled.requiresCompose).toBe(true);
+    });
+
+    it('leaves a referenced result with no recorded row count alone', async () => {
+        const { service } = buildService({
+            aRowCount: REFERENCED_LIMIT - 1,
+            bRowCount: null,
+        });
+
+        const compiled = await service.compileMergeQuery({
+            account: sessionAccount,
+            projectUuid,
+            mergeQuery,
+        });
+
+        expect(compiled.errors).toEqual([]);
     });
 });

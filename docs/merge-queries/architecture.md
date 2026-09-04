@@ -142,6 +142,10 @@ These exist because getting them wrong produces confident wrong numbers.
 - **A leg that reaches the row cap is refused before the join**, from the leg's
   own `query_history` row count. On the compose path the legs run at the cap,
   so no guard inside the join SQL could ever see past it.
+- **A result source cut short at its own limit is refused at compile time**,
+  from the referenced query's stored limit and row count. It is checked
+  against its own limit only, never the row cap: it was never run at the cap,
+  and the remedy is re-running that query, not filtering it.
 - **Table calculations that depend on a source's own row set are refused**,
   because merging changes those rows.
 
@@ -158,7 +162,8 @@ Known gaps in that coverage, so you do not assume it is proving more than it is:
 the parity suite compares values numerically, so it cannot catch a formatting
 regression; there is no end-to-end test of merging at all; and a live row-cap
 trip needs more rows than the seed carries (the refusal itself is proven in
-`AsyncQueryService.test.ts` with the cap lowered through config).
+`AsyncQueryService.test.ts` with the cap lowered through config, and the
+result-source refusal the same way with the referenced query's limit lowered).
 
 ## Current work
 

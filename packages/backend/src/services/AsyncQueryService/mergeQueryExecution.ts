@@ -153,6 +153,20 @@ export const getMergeRowCapError = ({
         : `${capped.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
 };
 
+// A result that filled its own limit may hold more rows behind it; a missing limit or count is not evidence.
+export const getMergeResultSourceCutShortError = ({
+    limit,
+    totalRowCount,
+}: {
+    limit: number | null;
+    totalRowCount: number | null;
+}): string | null => {
+    if (limit === null || totalRowCount === null || totalRowCount < limit) {
+        return null;
+    }
+    return `its results were cut short at their own limit of ${limit} rows, so the merged results would be missing data. Re-run that query with a higher limit or without one, then merge again.`;
+};
+
 /**
  * The guard a merge hands the execution tail: once the legs complete, refuse
  * before the join when one of them reached the row cap.

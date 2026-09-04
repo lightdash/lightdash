@@ -255,6 +255,7 @@ import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
     buildMergeRowCapGuard,
+    getMergeResultSourceCutShortError,
     getMergeSourceLabels,
 } from './mergeQueryExecution';
 import {
@@ -8442,6 +8443,13 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(
                 'its results have expired. Re-run the query and merge the new result.',
             );
+        }
+        const cutShortError = getMergeResultSourceCutShortError({
+            limit: queryHistory.metricQuery.limit,
+            totalRowCount: queryHistory.totalRowCount,
+        });
+        if (cutShortError !== null) {
+            throw new ParameterError(cutShortError);
         }
         if (Object.keys(queryHistory.fields).length === 0) {
             throw new ParameterError(

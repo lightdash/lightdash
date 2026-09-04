@@ -68,6 +68,12 @@ before the join, naming the source, never silently trimmed, because a join over
 a trimmed side returns numbers that look complete and are not. It is known only
 once the leg has run, so unlike other refusals it arrives as the merged query's
 error.
+A result source is never re-run, so the row cap never bounded it: the only
+bound that matters for it is the limit its own query ran with. A referenced
+result that returned as many rows as that limit is refused at compile time,
+naming the source, with re-running that query (higher limit or none) as the
+remedy rather than a filter. Both checks refuse on evidence only: an
+unrecorded limit or row count never refuses.
 _Avoid_: limit (collides with the merged result's own limit), truncation
 
 **Compose engine**:
