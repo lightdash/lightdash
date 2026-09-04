@@ -31,6 +31,8 @@ const createMockInstance = (streamMock: Mock) => ({
             prepare: async () => ({
                 statementType: 1,
                 destroySync: vi.fn(),
+                bind: vi.fn(),
+                stream: streamMock,
             }),
         })),
         interrupt: vi.fn(),

@@ -114,12 +114,15 @@ const createMockExtractStatements = (
         count: number;
         statementType: number;
     }>,
+    streamMock?: Mock,
 ) =>
     vi.fn(async () => ({
         count: overrides?.count ?? 1,
         prepare: async () => ({
             statementType: overrides?.statementType ?? 1, // SELECT
             destroySync: vi.fn(),
+            bind: vi.fn(),
+            stream: streamMock ?? (async () => getMockStreamResult([], [])),
         }),
     }));
 
@@ -135,7 +138,8 @@ const createMockConnection = (
         run: runMock,
         stream: streamMock,
         extractStatements:
-            opts?.extractStatements ?? createMockExtractStatements(),
+            opts?.extractStatements ??
+            createMockExtractStatements(undefined, streamMock),
         interrupt: opts?.interrupt ?? vi.fn(),
         closeSync: vi.fn(),
         disconnectSync: vi.fn(),
@@ -1830,7 +1834,10 @@ describe('DuckdbWarehouseClient', () => {
                 const streamMock = vi.fn(async () =>
                     getMockStreamResult([rows], [DUCKDB_TYPE_IDS.INTEGER]),
                 );
-                const extractStatementsMock = createMockExtractStatements();
+                const extractStatementsMock = createMockExtractStatements(
+                    undefined,
+                    streamMock,
+                );
 
                 createInstanceMock.mockResolvedValue(
                     createMockConnection(streamMock, vi.fn(), {
@@ -2106,6 +2113,101 @@ describe('DuckdbWarehouseClient', () => {
                 'SELECT id, name FROM users WHERE id = 1',
             );
             expect(result.rows).toEqual([{ id: 1, name: 'test' }]);
+        });
+
+        it('should stream the validated prepared statement instead of re-preparing', async () => {
+            const rows = [{ val: 1 }];
+            const connectionStreamMock = vi.fn();
+            const stmtStreamMock = vi.fn(async () =>
+                getMockStreamResult([rows], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const stmtDestroyMock = vi.fn();
+            const prepareMock = vi.fn(async () => ({
+                statementType: 1, // SELECT
+                destroySync: stmtDestroyMock,
+                bind: vi.fn(),
+                stream: stmtStreamMock,
+            }));
+            const extractStatementsMock = vi.fn(async () => ({
+                count: 1,
+                prepare: prepareMock,
+            }));
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(connectionStreamMock, vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            const result = await client.runQuery('SELECT val FROM t');
+
+            expect(result.rows).toEqual(rows);
+            expect(extractStatementsMock).toHaveBeenCalledTimes(1);
+            expect(prepareMock).toHaveBeenCalledTimes(1);
+            expect(stmtStreamMock).toHaveBeenCalledTimes(1);
+            expect(stmtDestroyMock).toHaveBeenCalledTimes(1);
+            expect(connectionStreamMock).not.toHaveBeenCalled();
+        });
+
+        it('should bind values on the validated prepared statement', async () => {
+            const stmtBindMock = vi.fn();
+            const stmtStreamMock = vi.fn(async () =>
+                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+            );
+            const extractStatementsMock = vi.fn(async () => ({
+                count: 1,
+                prepare: async () => ({
+                    statementType: 1, // SELECT
+                    destroySync: vi.fn(),
+                    bind: stmtBindMock,
+                    stream: stmtStreamMock,
+                }),
+            }));
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(vi.fn(), vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await client.runQuery(
+                'SELECT $1 AS val',
+                undefined,
+                undefined,
+                [1],
+            );
+
+            expect(stmtBindMock).toHaveBeenCalledWith([1]);
+            expect(stmtStreamMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('should destroy the prepared statement when streaming fails', async () => {
+            const stmtDestroyMock = vi.fn();
+            const extractStatementsMock = vi.fn(async () => ({
+                count: 1,
+                prepare: async () => ({
+                    statementType: 1, // SELECT
+                    destroySync: stmtDestroyMock,
+                    bind: vi.fn(),
+                    stream: vi.fn(async () => {
+                        throw new Error('stream failed');
+                    }),
+                }),
+            }));
+
+            createInstanceMock.mockResolvedValue(
+                createMockConnection(vi.fn(), vi.fn(), {
+                    extractStatements: extractStatementsMock,
+                }),
+            );
+
+            const client = new DuckdbWarehouseClient();
+            await expect(client.runQuery('SELECT 1 AS val')).rejects.toThrow(
+                'stream failed',
+            );
+            expect(stmtDestroyMock).toHaveBeenCalledTimes(1);
         });
     });
 

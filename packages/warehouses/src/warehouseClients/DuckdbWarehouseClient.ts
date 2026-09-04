@@ -52,6 +52,8 @@ type DuckdbRunResult = {
 type DuckdbPreparedStatement = {
     statementType: number;
     destroySync: () => void;
+    bind: (values: AnyType[] | Record<string, AnyType>) => void;
+    stream: () => Promise<DuckdbStreamResult>;
 };
 
 type DuckdbExtractedStatements = {
@@ -2169,7 +2171,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private async validateSelectSql(
         db: DuckdbConnection,
         sql: string,
-    ): Promise<void> {
+    ): Promise<DuckdbPreparedStatement> {
         const extracted = await db.extractStatements(sql);
 
         if (extracted.count === 0) {
@@ -2183,32 +2185,31 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
 
         const stmt = await extracted.prepare(0);
-        try {
-            if (!ALLOWED_STATEMENT_TYPES_USER_SQL.has(stmt.statementType)) {
-                throw new Error(
-                    `SQL validation error: only SELECT statements are allowed (got statement type ${stmt.statementType})`,
-                );
-            }
-        } finally {
+        const { statementType } = stmt;
+        if (!ALLOWED_STATEMENT_TYPES_USER_SQL.has(statementType)) {
             stmt.destroySync();
+            throw new Error(
+                `SQL validation error: only SELECT statements are allowed (got statement type ${statementType})`,
+            );
         }
+        return stmt;
     }
 
     private async validateUserSql(
         db: DuckdbConnection,
         sql: string,
-    ): Promise<void> {
+    ): Promise<DuckdbPreparedStatement> {
         DuckdbWarehouseClient.validateSqlFunctions(sql);
         DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
-        await this.validateSelectSql(db, sql);
+        return this.validateSelectSql(db, sql);
     }
 
     private async validatePreAggregateSql(
         db: DuckdbConnection,
         sql: string,
-    ): Promise<void> {
+    ): Promise<DuckdbPreparedStatement> {
         DuckdbWarehouseClient.validateSqlFunctions(sql);
-        await this.validateSelectSql(db, sql);
+        return this.validateSelectSql(db, sql);
     }
 
     private async validateInternalSql(
@@ -2298,18 +2299,26 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         "SET disabled_filesystems = 'LocalFileSystem';",
                     );
                 }
-                if (this.allowsPreAggregateFileReads) {
-                    await this.validatePreAggregateSql(db, sql);
-                } else {
-                    await this.validateUserSql(db, sql);
-                }
+                const sqlWithMetadata = this.getSQLWithMetadata(
+                    sql,
+                    options?.tags,
+                );
+                const stmt = this.allowsPreAggregateFileReads
+                    ? await this.validatePreAggregateSql(db, sqlWithMetadata)
+                    : await this.validateUserSql(db, sqlWithMetadata);
                 reportPhase?.('session', performance.now() - sessionStart);
 
                 const queryStart = performance.now();
-                const result = await db.stream(
-                    this.getSQLWithMetadata(sql, options?.tags),
-                    this.getBindValues(options),
-                );
+                let result: DuckdbStreamResult;
+                try {
+                    const bindValues = this.getBindValues(options);
+                    if (bindValues) {
+                        stmt.bind(bindValues);
+                    }
+                    result = await stmt.stream();
+                } finally {
+                    stmt.destroySync();
+                }
                 const fields =
                     DuckdbWarehouseClient.getFieldsFromStreamResult(result);
 
