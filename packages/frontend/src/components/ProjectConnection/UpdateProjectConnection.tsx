@@ -7,7 +7,11 @@ import {
     type Project,
 } from '@lightdash/common';
 import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
-import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconExclamationCircle,
+    IconExternalLink,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useProject,
@@ -15,11 +19,13 @@ import {
     useUpdateWarehouseCredentialsMutation,
 } from '../../hooks/useProject';
 import { useProjectCompileLogs } from '../../hooks/useProjectCompileLogs';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import { dbtDefaults } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
@@ -31,7 +37,29 @@ import { type ProjectConnectionForm } from './types';
 import classes from './UpdateProjectConnection.module.css';
 import { useOnProjectError } from './useOnProjectError';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
+import {
+    clearSshPublicKeyDraft,
+    readSshPublicKeyDraft,
+} from './WarehouseForms/sshPublicKeyDraft';
 import { warehouseValueValidators } from './WarehouseForms/validators';
+
+// A key generated before a reload was never saved; restore it so the user
+// does not save without the key they already installed on the bastion.
+const restoreSshPublicKeyDraft = (
+    projectUuid: string,
+    project: Project,
+): { sshTunnelPublicKey: string } | undefined => {
+    const connection = project.warehouseConnection;
+    if (
+        connection?.type !== WarehouseTypes.POSTGRES &&
+        connection?.type !== WarehouseTypes.REDSHIFT
+    ) {
+        return undefined;
+    }
+    if (connection.sshTunnelPublicKey) return undefined;
+    const draft = readSshPublicKeyDraft(projectUuid);
+    return draft ? { sshTunnelPublicKey: draft } : undefined;
+};
 
 const UpdateProjectConnection: FC<{
     projectUuid: string;
@@ -79,6 +107,7 @@ const UpdateProjectConnection: FC<{
             warehouse: {
                 ...warehouseDefaultValues[warehouseType],
                 ...project.warehouseConnection,
+                ...restoreSshPublicKeyDraft(projectUuid, project),
             } as CreateWarehouseCredentials,
             dbtVersion: project.dbtVersion,
         },
@@ -88,6 +117,7 @@ const UpdateProjectConnection: FC<{
         },
         validateInputOnBlur: true,
     });
+    const leaveGuard = useUnsavedChangesGuard(form.isDirty() && !isSaving);
 
     const showSaveCredentials = !!health.data?.isSaveCredentialsFormEnabled;
     const {
@@ -117,6 +147,8 @@ const UpdateProjectConnection: FC<{
                 warehouseConnection: warehouseConnection,
                 dbtVersion,
             });
+            clearSshPublicKeyDraft(projectUuid);
+            form.resetDirty();
         }
     };
 
@@ -126,6 +158,17 @@ const UpdateProjectConnection: FC<{
 
     return (
         <FormProvider form={form}>
+            <MantineModal
+                opened={leaveGuard.isBlocked}
+                onClose={leaveGuard.reset}
+                role="alertdialog"
+                title="Unsaved changes"
+                icon={IconAlertCircle}
+                description="You have unsaved changes to this connection. Are you sure you want to leave without saving?"
+                confirmLabel="Leave"
+                cancelLabel="Stay"
+                onConfirm={leaveGuard.proceed}
+            />
             {project?.type === ProjectType.PREVIEW && (
                 <Alert
                     color="orange"

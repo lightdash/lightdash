@@ -2,7 +2,6 @@ import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     TextInput,
     Stack,
-    Button,
     Anchor,
     Select,
     PasswordInput,
@@ -20,7 +19,7 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { RedshiftDefaultValues } from './defaultValues';
-import { useCreateSshKeyPair } from './sshHooks';
+import SshPublicKeyButton from './SshPublicKeyButton';
 
 export const RedshiftSchemaInput: FC<{
     disabled: boolean;
@@ -133,12 +132,6 @@ const RedshiftForm: FC<{
             ? savedProject?.warehouseConnection?.sshTunnelPublicKey
             : undefined);
     const sshTunnelPublicKeyError = form.errors['warehouse.sshTunnelPublicKey'];
-
-    const { mutate, isLoading } = useCreateSshKeyPair({
-        onSuccess: (data) => {
-            form.setFieldValue('warehouse.sshTunnelPublicKey', data.publicKey);
-        },
-    });
 
     return (
         <>
@@ -375,15 +368,10 @@ const RedshiftForm: FC<{
                                         }
                                     />
                                 )}
-                                <Button
-                                    onClick={() => mutate()}
-                                    loading={isLoading}
-                                    disabled={disabled || isLoading}
-                                >
-                                    {sshTunnelPublicKey
-                                        ? 'Regenerate key'
-                                        : 'Generate public key'}
-                                </Button>
+                                <SshPublicKeyButton
+                                    disabled={disabled}
+                                    hasKey={!!sshTunnelPublicKey}
+                                />
                                 {sshTunnelPublicKeyError && (
                                     <Input.Error>
                                         {sshTunnelPublicKeyError}
