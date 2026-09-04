@@ -1,40 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.123.0",
-  "previousVersion": "2.122.1",
-  "releaseDate": "2026-09-04T10:25:13.359Z",
+  "version": "2.124.0",
+  "previousVersion": "2.123.0",
+  "releaseDate": "2026-09-04T10:59:34.503Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 1,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20260903120000_add_oauth2_refresh_token_revoked_at.ts",
-        "edition": "core",
-        "tables": [
-          "oauth2_refresh_tokens"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20260903121000_add_oauth_client_id_to_mobile_push_installations.ts",
-        "edition": "ee",
-        "tables": [
-          "mobile_push_installations",
-          "oauth2_clients"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -1,3 +1,19 @@
+# [2.124.0](https://github.com/lightdash/lightdash/compare/2.123.0...2.124.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ai:** clarify expression value quoting ([#28639](https://github.com/lightdash/lightdash/issues/28639)) ([e7fc05e](https://github.com/lightdash/lightdash/commit/e7fc05ed8e60f10e8d66aa32d541a713cb678cf9))
+* **dashboard:** open the chart editor modal from the empty-state Add tile ([#28648](https://github.com/lightdash/lightdash/issues/28648)) ([ca14cc6](https://github.com/lightdash/lightdash/commit/ca14cc66dec6383fc594dadb70121385cabacc4d))
+* **data-apps:** expose safe external fetch response headers ([#28641](https://github.com/lightdash/lightdash/issues/28641)) ([464f356](https://github.com/lightdash/lightdash/commit/464f3564cb78c38fd1b9df9f636f11c8b419adf6))
+* **merge:** refuse a merge over a result source cut short at its own limit ([#28642](https://github.com/lightdash/lightdash/issues/28642)) ([9b9451f](https://github.com/lightdash/lightdash/commit/9b9451ff074a40d51a1ebf6af93bab78ad301508))
+* **query-history:** reserve space while loading so the page stops shifting ([#28652](https://github.com/lightdash/lightdash/issues/28652)) ([4178a38](https://github.com/lightdash/lightdash/commit/4178a38e4bfc7b8840b99b32f433cd8b91ff93b3))
+
+
+### Features
+
+* **dashboard:** badge dashboard custom metrics from creation ([#28643](https://github.com/lightdash/lightdash/issues/28643)) ([4333777](https://github.com/lightdash/lightdash/commit/4333777a9cae1b940783e3d23c6693862198e907))
+
 # [2.123.0](https://github.com/lightdash/lightdash/compare/2.122.1...2.123.0) (2026-09-04)
 
 

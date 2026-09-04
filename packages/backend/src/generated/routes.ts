@@ -13342,6 +13342,7 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 truncated: { dataType: 'boolean', required: true },
                 body: { dataType: 'any', required: true },
+                headers: { ref: 'Record_string.string_', required: true },
                 contentType: { dataType: 'string', required: true },
                 status: { dataType: 'double', required: true },
             },
