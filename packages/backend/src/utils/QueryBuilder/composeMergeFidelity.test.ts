@@ -5,11 +5,13 @@ import {
     MergeJoinType,
     type MergeFieldTypes,
     type ResultColumns,
+    type ResultNumericKind,
 } from '@lightdash/common';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+    getJsonlReferenceSelect,
     getJsonlSqlTable,
     quoteDuckdbIdentifier,
     resultFieldTypeToDuckdbType,
@@ -19,10 +21,10 @@ import { applyMergeTerminalWrapper } from './MergeQueryBuilder';
 
 /**
  * Round-trips typed values through the compose engine exactly as a merge leg
- * travels: a result file on disk, bound with the read_json CTE a referenced
- * query gets, joined by the generated merge statement, read back. Cases that
- * are wrong on the JSONL path carry the correct expectation under test.fails,
- * so the parquet cutover (PROD-10894) flips them rather than leaving them red.
+ * travels: a result file on disk, bound with the typed-read CTE a referenced
+ * query gets, joined by the generated merge statement, read back. A case that
+ * is still wrong carries the correct expectation under test.fails so the fix
+ * flips it rather than leaving it red.
  */
 
 let dir: string;
@@ -54,7 +56,7 @@ const bindReference = (
     uri: string,
     columns: ResultColumns,
 ): string =>
-    `${quoteDuckdbIdentifier(tableName)} AS (SELECT * FROM ${getJsonlSqlTable(
+    `${quoteDuckdbIdentifier(tableName)} AS (${getJsonlReferenceSelect(
         uri,
         columns,
     )})`;
@@ -97,6 +99,7 @@ const keyColumn: ResultColumns = {
 const mergeRoundTrip = async (
     type: DimensionType,
     json: string,
+    numericKind?: ResultNumericKind,
 ): Promise<string | null> => {
     const legA = writeJsonl([`{"key":1,"measured":${json}}`]);
     const legB = writeJsonl(['{"key":1,"other":true}']);
@@ -119,7 +122,11 @@ const mergeRoundTrip = async (
     const referenceCtes = [
         bindReference(built.referenceTableBySourceId.a, legA, {
             ...keyColumn,
-            measured: { reference: 'measured', type },
+            measured: {
+                reference: 'measured',
+                type,
+                ...(numericKind ? { numericKind } : {}),
+            },
         }),
         bindReference(built.referenceTableBySourceId.b, legB, {
             ...keyColumn,
@@ -147,11 +154,37 @@ describe('value fidelity through the compose engine', () => {
         );
     });
 
-    // Red until PROD-10894: re-typed through DOUBLE, the value reads 9007199254740992
-    test.fails('a bigint above 2^53 round-trips unchanged', async () => {
+    test('a bigint above 2^53 round-trips unchanged when the column is integer-kinded', async () => {
+        expect(
+            await mergeRoundTrip(DimensionType.NUMBER, '9007199254740993', {
+                kind: 'integer',
+            }),
+        ).toBe('9007199254740993');
+    });
+
+    // Without a numeric kind NUMBER can only bind as DOUBLE, which reads 9007199254740992
+    test.fails('a bigint above 2^53 round-trips unchanged without a numeric kind', async () => {
         expect(
             await mergeRoundTrip(DimensionType.NUMBER, '9007199254740993'),
         ).toBe('9007199254740993');
+    });
+
+    test('a wide decimal serialised as text round-trips when the column is decimal-kinded', async () => {
+        expect(
+            await mergeRoundTrip(
+                DimensionType.NUMBER,
+                '"123456789012345678.8901"',
+                { kind: 'decimal', scale: 4 },
+            ),
+        ).toBe('123456789012345678.8901');
+    });
+
+    test('a float keeps its digits when the column is float-kinded', async () => {
+        expect(
+            await mergeRoundTrip(DimensionType.NUMBER, '3.14159265358979', {
+                kind: 'float',
+            }),
+        ).toBe('3.14159265358979');
     });
 
     test('a date round-trips', async () => {
@@ -187,8 +220,7 @@ describe('value fidelity through the compose engine', () => {
         ).toBe('2024-01-01 08:00:00');
     });
 
-    // Red until PROD-10894: the offset is discarded and the value reads 10:00:00
-    test.fails('a timestamp with a non-UTC offset lands at the correct instant', async () => {
+    test('a timestamp with a non-UTC offset lands at the correct instant', async () => {
         expect(
             await mergeRoundTrip(
                 DimensionType.TIMESTAMP,
@@ -197,8 +229,7 @@ describe('value fidelity through the compose engine', () => {
         ).toBe('2024-01-01 08:00:00');
     });
 
-    // Red until PROD-10894: read_json refuses a named zone as "not UTC"
-    test.fails('a named-zone timestamp reads without erroring', async () => {
+    test('a named-zone timestamp reads without erroring', async () => {
         expect(
             await mergeRoundTrip(
                 DimensionType.TIMESTAMP,
@@ -207,8 +238,25 @@ describe('value fidelity through the compose engine', () => {
         ).toBe('2024-01-01 00:00:00');
     });
 
-    // Red until PROD-10894: the engine's raw "JSON transform error" surfaces, naming no column
-    test.fails('an uncastable value refuses with an error naming the column', async () => {
+    test('a named-zone timestamp with a fraction, as Trino serialises it, lands at its instant', async () => {
+        expect(
+            await mergeRoundTrip(
+                DimensionType.TIMESTAMP,
+                '"2024-07-01 12:00:00.000 America/New_York"',
+            ),
+        ).toBe('2024-07-01 16:00:00');
+    });
+
+    test('a naive timestamp is read as-is whatever the session zone', async () => {
+        expect(
+            await mergeRoundTrip(
+                DimensionType.TIMESTAMP,
+                '"2024-01-01 08:00:00"',
+            ),
+        ).toBe('2024-01-01 08:00:00');
+    });
+
+    test('an uncastable value refuses with an error naming the column', async () => {
         const message = await mergeRoundTrip(
             DimensionType.NUMBER,
             '"not a number"',
@@ -222,9 +270,8 @@ describe('value fidelity through the compose engine', () => {
 });
 
 /**
- * The five-value map is what re-types a JSONL value on the way back in. One
- * case per entry pins what it does, so deleting the map (PROD-10894) removes
- * these with it rather than leaving behaviour undocumented.
+ * The five-value map still re-types JSONL for the parquet writer and pre-aggregate reads.
+ * One case per entry pins what it does; references no longer go through it.
  */
 const readThroughMap = async (
     type: DimensionType,
