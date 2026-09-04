@@ -323,6 +323,14 @@ oauthRouter.post('/token', async (req, res, next) => {
         const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
 
+        if (error instanceof OAuth2Server.OAuthError) {
+            res.status(error.code ?? 400).json({
+                error: error.name,
+                error_description: error.message,
+            });
+            return;
+        }
+
         // Return 401 for authentication errors, 400 for other errors
         const statusCode =
             errorMessage.includes('Invalid') ||
