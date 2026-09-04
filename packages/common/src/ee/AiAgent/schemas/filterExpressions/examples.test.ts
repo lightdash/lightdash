@@ -3,6 +3,7 @@ import { DimensionType } from '../../../../types/field';
 import { FilterOperator, FilterType } from '../../../../types/filter';
 import { type AiFilterExample } from '../filters/filterExamples';
 import {
+    FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
     formatFilterExpressionExample,
     getFilterExpressionExamples,
 } from './examples';
@@ -47,6 +48,37 @@ describe('filter expression examples', () => {
                 success: true,
             });
         }
+    });
+
+    it('generates a parseable canonical punctuated-string example', () => {
+        expect(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE).toBe(
+            'orders_product_name equals="Coffee Filters (100pk)"',
+        );
+        expect(
+            parseFilterExpression(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+        ).toMatchObject({
+            success: true,
+            expression: {
+                rules: [
+                    {
+                        field: { value: 'orders_product_name' },
+                        arguments: [{ value: 'Coffee Filters (100pk)' }],
+                    },
+                ],
+            },
+        });
+    });
+
+    it('double-quotes apostrophes in string values', () => {
+        expect(
+            formatFilterExpressionExample({
+                fieldId: 'orders_product_name',
+                fieldType: DimensionType.STRING,
+                fieldFilterType: FilterType.STRING,
+                operator: FilterOperator.EQUALS,
+                values: ["Valentine's Special"],
+            }),
+        ).toBe('orders_product_name equals="Valentine\'s Special"');
     });
 
     it('quotes protected lexical content without changing its value', () => {

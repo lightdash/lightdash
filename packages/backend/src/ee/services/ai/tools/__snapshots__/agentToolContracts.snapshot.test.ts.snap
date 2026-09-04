@@ -8773,7 +8773,7 @@ Usage Tips:
 
 Filter expression syntax:
 - Join flat rules with AND only. OR is not supported by this tool.
-- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -8933,7 +8933,7 @@ Notes:
 
 Filter expression syntax:
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Quote delimiters/reserved values; commas/braces are literal in quotes; backslash escapes.
+- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
