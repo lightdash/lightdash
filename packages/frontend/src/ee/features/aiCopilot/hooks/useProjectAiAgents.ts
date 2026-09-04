@@ -743,6 +743,59 @@ export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
     });
 };
 
+const setAgentThreadPinned = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    pinned: boolean,
+) =>
+    lightdashApi<ApiSuccessEmpty>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/pin`,
+        method: pinned ? 'POST' : 'DELETE',
+        body: undefined,
+    });
+
+export const usePinAiAgentThreadMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiSuccessEmpty,
+        ApiError,
+        { agentUuid: string; threadUuid: string; pinned: boolean },
+        { snapshot: ReturnType<typeof snapshotProjectThreads> }
+    >({
+        mutationFn: ({ agentUuid, threadUuid, pinned }) =>
+            setAgentThreadPinned(projectUuid, agentUuid, threadUuid, pinned),
+        onMutate: async ({ threadUuid, pinned }) => {
+            await queryClient.cancelQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+            const snapshot = snapshotProjectThreads(queryClient, projectUuid);
+            patchProjectThread(queryClient, projectUuid, threadUuid, {
+                pinnedAt: pinned ? new Date().toISOString() : null,
+            });
+            return { snapshot };
+        },
+        onError: ({ error }, { pinned }, context) => {
+            if (context) restoreProjectThreads(queryClient, context.snapshot);
+            showToastApiError({
+                title: pinned
+                    ? 'Failed to pin thread'
+                    : 'Failed to unpin thread',
+                apiError: error,
+            });
+        },
+        // The server owns the pinned ordering, so refetch once settled
+        onSettled: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: getProjectThreadsQueryKey(projectUuid),
+            });
+        },
+    });
+};
+
 export const getAiAgentThreadQueryKey = (
     projectUuid: string,
     agentUuid: string | undefined,
@@ -1133,6 +1186,7 @@ export const useCreateAgentThreadMutation = (
                         uuid: thread.uuid,
                         title: null,
                         titleGeneratedAt: null,
+                        pinnedAt: null,
                         liveStatus: null,
                         compactions: [],
                         messages: createOptimisticMessages(

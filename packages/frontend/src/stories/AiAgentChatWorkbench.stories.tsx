@@ -944,6 +944,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         createdFrom: 'web_app',
         title: scenario.title,
         titleGeneratedAt: createdAt,
+        pinnedAt: null,
         liveStatus: null,
         firstMessage: {
             uuid: 'prompt-0',

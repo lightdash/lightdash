@@ -91,6 +91,7 @@ const thread: AiAgentThread = {
     createdFrom: 'web_app',
     title: 'Revenue app',
     titleGeneratedAt: null,
+    pinnedAt: null,
     liveStatus: null,
     firstMessage: { uuid: 'prompt-1', message: 'Build me a revenue app' },
     user: { uuid: 'user-1', name: 'Demo User' },
