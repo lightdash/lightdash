@@ -39093,6 +39093,9 @@
                     "anthropic": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     },
+                    "google": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
                     "openai": {
                         "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
                     }
@@ -39122,31 +39125,46 @@
                 "$ref": "#/components/schemas/Partial_Record_DataAppClaudeModel.boolean__",
                 "description": "Org-admin control over which Data App Claude models users can pick.\nA model is hidden only when explicitly set to `false`; an absent key (or a\nnull/undefined visibility map) defaults to visible."
             },
-            "AiProviderApiKeysSet": {
+            "Record_ByoAiProvider.boolean_": {
                 "properties": {
-                    "openai": {
+                    "anthropic": {
                         "type": "boolean"
                     },
-                    "anthropic": {
+                    "google": {
+                        "type": "boolean"
+                    },
+                    "openai": {
                         "type": "boolean"
                     }
                 },
-                "required": ["openai", "anthropic"],
-                "type": "object"
+                "required": ["anthropic", "google", "openai"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiProviderApiKeysSet": {
+                "$ref": "#/components/schemas/Record_ByoAiProvider.boolean_"
+            },
+            "Record_ByoAiProvider.string-or-null_": {
+                "properties": {
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "google": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["anthropic", "google", "openai"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "AiProviderApiKeyHints": {
-                "properties": {
-                    "openai": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "anthropic": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["openai", "anthropic"],
-                "type": "object"
+                "$ref": "#/components/schemas/Record_ByoAiProvider.string-or-null_"
             },
             "AiOrganizationSettings": {
                 "properties": {
@@ -39333,18 +39351,26 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "UpdateAiProviderApiKeys": {
+            "Partial_Record_ByoAiProvider.string-or-null__": {
                 "properties": {
-                    "openai": {
+                    "anthropic": {
                         "type": "string",
                         "nullable": true
                     },
-                    "anthropic": {
+                    "google": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "openai": {
                         "type": "string",
                         "nullable": true
                     }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateAiProviderApiKeys": {
+                "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.string-or-null__"
             },
             "UpdateAiOrganizationSettings": {
                 "properties": {
@@ -59589,7 +59615,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.119.0",
+        "version": "2.120.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

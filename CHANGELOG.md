@@ -1,3 +1,10 @@
+# [2.120.0](https://github.com/lightdash/lightdash/compare/2.119.0...2.120.0) (2026-09-04)
+
+
+### Features
+
+* **ai:** add Gemini Developer API support ([#28546](https://github.com/lightdash/lightdash/issues/28546)) ([6c6842b](https://github.com/lightdash/lightdash/commit/6c6842b09df930dc5907984766a3974472c181ee))
+
 # [2.119.0](https://github.com/lightdash/lightdash/compare/2.118.1...2.119.0) (2026-09-03)
 
 
