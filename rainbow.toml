@@ -74,8 +74,23 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # LIGHTDASH_MODE=pr; LIGHTDASH_MODE=development here, so set it outright.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 
+# Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
+# seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
+# `jaffle` schema of the same Postgres. That is scripts/seed-jaffle.sh spelled
+# out rather than called, because the script pins dbt1.7 and the image carries
+# dbt1.12 — the version the seeded project itself compiles with. Then the
+# application database: the org, the admin user, the Jaffle shop project and
+# its charts and dashboards; the migrate rung has already run by now.
+#
+# Both are needed. With only the second, an environment boots looking seeded —
+# project, charts and dashboards all present — and every query against it fails
+# with `relation "jaffle.orders" does not exist`.
 [seed]
-run = "pnpm -F backend seed"       # the migrate rung has already run by now
+run = """
+dbt1.12 deps --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles &&
+dbt1.12 seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh &&
+dbt1.12 run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles --full-refresh --exclude fanouts_sales_targets &&
+pnpm -F backend seed"""
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; enables nothing
 
 # Readiness, in the app's own frame. http polls during boot; paints drives
