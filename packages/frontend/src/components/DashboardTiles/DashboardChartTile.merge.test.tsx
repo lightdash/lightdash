@@ -18,7 +18,7 @@ import {
     type MetricQuery,
     type SavedChart,
 } from '@lightdash/common';
-import { cleanup, waitFor } from '@testing-library/react';
+import { act, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
@@ -397,7 +397,7 @@ describe('DashboardChartTile with a merged chart', () => {
     });
 
     it('renders the merged result columns under a dashboard filter', async () => {
-        const { container } = renderTile();
+        const { container, unmount } = renderTile();
 
         await waitFor(() => {
             expect(
@@ -413,5 +413,10 @@ describe('DashboardChartTile with a merged chart', () => {
             expect.stringContaining('Total order amount'),
             expect.stringContaining('Unique payment count'),
         ]);
+
+        // Unmount here and drain queued query notifications while the window
+        // still exists, so none fire after the environment is torn down.
+        unmount();
+        await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
     });
 });
