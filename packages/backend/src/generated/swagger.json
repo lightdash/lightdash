@@ -53188,6 +53188,68 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "DashboardCustomMetricAffectedChart": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "DashboardCustomMetricUpdateResult": {
+                "properties": {
+                    "dryRun": {
+                        "type": "boolean"
+                    },
+                    "affectedCharts": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardCustomMetricAffectedChart"
+                        },
+                        "type": "array",
+                        "description": "Dashboard-owned charts whose snapshot references the metric"
+                    },
+                    "customMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dryRun", "affectedCharts", "customMetrics"],
+                "type": "object"
+            },
+            "ApiUpdateDashboardCustomMetricResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardCustomMetricUpdateResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateDashboardCustomMetric": {
+                "properties": {
+                    "dryRun": {
+                        "type": "boolean",
+                        "description": "Report affected charts without writing anything"
+                    },
+                    "metric": {
+                        "$ref": "#/components/schemas/AdditionalMetric",
+                        "description": "Replacement definition; must keep the existing table and name"
+                    }
+                },
+                "required": ["metric"],
+                "type": "object"
+            },
             "Pick_UpdatedByUser.userUuid-or-firstName-or-lastName_": {
                 "properties": {
                     "userUuid": {
@@ -59615,7 +59677,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.120.0",
+        "version": "2.121.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -91518,6 +91580,67 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/custom-metrics": {
+            "patch": {
+                "operationId": "updateDashboardCustomMetric",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateDashboardCustomMetricResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Edit a dashboard registry custom metric. Swaps the registry entry and\nre-versions every dashboard-owned chart that references it, atomically.\nWith `dryRun` it only reports the charts that would change.",
+                "summary": "Update dashboard custom metric",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "uuid or slug for the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    },
+                    {
+                        "description": "project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDashboardCustomMetric"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/dashboards/{dashboardUuidOrSlug}/history": {

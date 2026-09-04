@@ -1,3 +1,10 @@
+# [2.121.0](https://github.com/lightdash/lightdash/compare/2.120.0...2.121.0) (2026-09-04)
+
+
+### Features
+
+* **dashboard:** edit registry custom metrics with an impact preview ([#28625](https://github.com/lightdash/lightdash/issues/28625)) ([37a0402](https://github.com/lightdash/lightdash/commit/37a0402bf93e0938c6f493ae5d5fdeafdfdd97df))
+
 # [2.120.0](https://github.com/lightdash/lightdash/compare/2.119.0...2.120.0) (2026-09-04)
 
 
