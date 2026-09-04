@@ -558,6 +558,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     isOpened={isMenuOpen}
                     hasDescription={!!description}
                     basicActionsOnly={isDashboardMetric}
+                    allowRegistryEdit={isDashboardMetric}
                     onViewDescription={onOpenDescriptionView}
                     onMenuChange={onToggleMenu}
                 />

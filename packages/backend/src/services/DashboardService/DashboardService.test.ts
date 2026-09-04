@@ -77,6 +77,12 @@ const dashboardModel = {
 
     getOrphanedCharts: vi.fn(async () => []),
 
+    getDashboardOwnedChartUuidsUsingMetric: vi.fn(
+        async (): Promise<string[]> => [],
+    ),
+
+    updateLatestVersionConfig: vi.fn(async () => undefined),
+
     getDashboardsSummaryByOwner: vi.fn(async () => ({
         totalCount: 2,
         byProject: [
@@ -100,6 +106,10 @@ const analyticsModel = {
 };
 const savedChartModel = {
     get: vi.fn(async () => chart),
+    transaction: vi.fn(async (cb: (tx: never) => Promise<void>) =>
+        cb(undefined as never),
+    ),
+    createVersion: vi.fn(async () => chart),
     create: vi.fn(async () => ({ ...chart, uuid: 'duplicated-chart-uuid' })),
     permanentDelete: vi.fn(async () => ({
         uuid: 'chart_uuid',
@@ -150,6 +160,9 @@ const dashboardChartsResult = {
 const searchModel = {
     getDashboardCharts: vi.fn(async () => dashboardChartsResult),
 };
+
+const contentAsCodeProjectSettingsModel = { get: vi.fn() };
+const contentAsCodeSnapshotModel = { get: vi.fn() };
 
 const contentVerificationModel = {
     getByContent: vi.fn(
@@ -227,8 +240,9 @@ describe('DashboardService', () => {
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: slackClient as unknown as SlackClient,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
-        contentAsCodeProjectSettingsModel: { get: vi.fn() } as never,
-        contentAsCodeSnapshotModel: { get: vi.fn() } as never,
+        contentAsCodeProjectSettingsModel:
+            contentAsCodeProjectSettingsModel as never,
+        contentAsCodeSnapshotModel: contentAsCodeSnapshotModel as never,
         contentDraftModel: {
             findOpenDraft: vi.fn(),
             listOpenForContent: vi.fn(async () => []),
@@ -1677,6 +1691,125 @@ describe('DashboardService', () => {
                 ['projectUuid'],
             );
             expect(result).toEqual({ reassignedCount: 2 });
+        });
+    });
+
+    describe('updateCustomMetric', () => {
+        const registryMetric = {
+            name: 'amount_avg',
+            table: 'orders',
+            label: 'Avg amount',
+            sql: '${TABLE}.amount',
+            type: 'average',
+        };
+        const dashboardWithRegistry = {
+            ...dashboard,
+            config: {
+                isDateZoomDisabled: false,
+                customMetrics: [registryMetric],
+            },
+        };
+        const affectedChart = {
+            ...chart,
+            uuid: 'affected_chart_uuid',
+            name: 'Affected chart',
+            metricQuery: {
+                ...chart.metricQuery,
+                additionalMetrics: [registryMetric],
+            },
+        };
+        const updatedMetric = { ...registryMetric, label: 'Avg amount (net)' };
+
+        beforeEach(() => {
+            dashboardModel.getByIdOrSlug.mockResolvedValue(
+                dashboardWithRegistry as never,
+            );
+            dashboardModel.getDashboardOwnedChartUuidsUsingMetric.mockResolvedValue(
+                [affectedChart.uuid],
+            );
+            savedChartModel.get.mockResolvedValue(affectedChart as never);
+        });
+
+        test('swaps the registry entry and re-versions the affected charts', async () => {
+            const result = await service.updateCustomMetric(
+                user,
+                dashboardUuid,
+                { metric: updatedMetric as never },
+            );
+
+            expect(result.dryRun).toBe(false);
+            expect(result.customMetrics).toEqual([updatedMetric]);
+            expect(result.affectedCharts).toEqual([
+                { uuid: affectedChart.uuid, name: affectedChart.name },
+            ]);
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ customMetrics: [updatedMetric] }),
+                undefined,
+            );
+            expect(savedChartModel.createVersion).toHaveBeenCalledTimes(1);
+            expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+                affectedChart.uuid,
+                expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        additionalMetrics: [updatedMetric],
+                    }),
+                }),
+                user,
+                undefined,
+            );
+        });
+
+        test('dryRun reports affected charts without writing', async () => {
+            const result = await service.updateCustomMetric(
+                user,
+                dashboardUuid,
+                { metric: updatedMetric as never, dryRun: true },
+            );
+
+            expect(result.dryRun).toBe(true);
+            expect(result.affectedCharts).toEqual([
+                { uuid: affectedChart.uuid, name: affectedChart.name },
+            ]);
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test('blocks dashboards managed as code', async () => {
+            contentAsCodeProjectSettingsModel.get.mockResolvedValueOnce({
+                syncEnabled: true,
+            });
+            contentAsCodeSnapshotModel.get.mockResolvedValueOnce({
+                snapshot: {},
+                snapshotHash: 'hash',
+            });
+
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: updatedMetric as never,
+                }),
+            ).rejects.toThrowError(
+                'Shared metrics cannot be edited on a dashboard managed as code',
+            );
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects identity changes and unknown metrics as not-in-registry', async () => {
+            // Identity is the lookup key, so a rename can never match an entry
+            await expect(
+                service.updateCustomMetric(user, dashboardUuid, {
+                    metric: {
+                        ...updatedMetric,
+                        name: 'renamed_metric',
+                    } as never,
+                }),
+            ).rejects.toThrowError(NotFoundError);
         });
     });
 });

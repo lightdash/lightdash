@@ -37,6 +37,7 @@ import {
     UpdateMultipleDashboards,
     UserDashboardsSummary,
     type DashboardBasicDetailsWithTileTypes,
+    type DashboardConfig,
     type DashboardFilters,
     type DashboardParameters,
     type DashboardVersionSummary,
@@ -76,8 +77,10 @@ import {
     ProjectTableName,
 } from '../../database/entities/projects';
 import {
+    SavedChartAdditionalMetricTableName,
     SavedChartsTableName,
     SavedChartTable,
+    SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
@@ -1866,6 +1869,79 @@ export class DashboardModel {
         }
 
         return this.getByIdOrSlug(dashboardUuid);
+    }
+
+    /**
+     * Charts created inside this dashboard whose latest version snapshots the
+     * given custom metric — the only charts a registry edit may rewrite.
+     * Single query so the write-through doesn't fan out over every chart.
+     */
+    async getDashboardOwnedChartUuidsUsingMetric(
+        dashboardUuid: string,
+        metricTable: string,
+        metricName: string,
+    ): Promise<string[]> {
+        const { rows } = await this.database.raw<{
+            rows: { saved_query_uuid: string }[];
+        }>(
+            `
+            WITH latest_versions AS (
+                SELECT DISTINCT ON (v.saved_query_id)
+                    v.saved_query_id,
+                    v.saved_queries_version_id
+                FROM :versionsTable: v
+                JOIN :chartsTable: sq ON sq.saved_query_id = v.saved_query_id
+                WHERE sq.dashboard_uuid = :dashboardUuid
+                    AND sq.deleted_at IS NULL
+                ORDER BY v.saved_query_id, v.created_at DESC
+            )
+            SELECT sq.saved_query_uuid
+            FROM latest_versions lv
+            JOIN :chartsTable: sq ON sq.saved_query_id = lv.saved_query_id
+            JOIN :metricsTable: m
+                ON m.saved_queries_version_id = lv.saved_queries_version_id
+            WHERE m.name = :metricName AND m.table = :metricTable
+            `,
+            {
+                versionsTable: SavedChartVersionsTableName,
+                chartsTable: SavedChartsTableName,
+                metricsTable: SavedChartAdditionalMetricTableName,
+                dashboardUuid,
+                metricName,
+                metricTable,
+            },
+        );
+        return rows.map((row) => row.saved_query_uuid);
+    }
+
+    /**
+     * Rewrites the latest version's config in place. Used by the registry
+     * edit write-through, which must not duplicate tiles/filters the way a
+     * full addVersion would.
+     */
+    async updateLatestVersionConfig(
+        dashboardUuid: string,
+        config: DashboardConfig,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const db = tx ?? this.database;
+        const latest = await db(DashboardVersionsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .select(`${DashboardVersionsTableName}.dashboard_version_id`)
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .first();
+        if (!latest) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+        await db(DashboardVersionsTableName)
+            .update({ config })
+            .where('dashboard_version_id', latest.dashboard_version_id);
     }
 
     /*
