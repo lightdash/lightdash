@@ -35,9 +35,9 @@ installChunkLoadErrorHandler();
 // redirects. Keeping it off the entry graph means a signed-out visitor never
 // pays for the agent-onboarding hooks just to see the login page.
 const AgentOnboardingCompletionWatcher = lazy(() =>
-    import(
-        './ee/features/agentOnboarding/AgentOnboardingCompletionWatcher'
-    ).then((module) => ({ default: module.AgentOnboardingCompletionWatcher })),
+    import('./ee/features/agentOnboarding/AgentOnboardingCompletionWatcher').then(
+        (module) => ({ default: module.AgentOnboardingCompletionWatcher }),
+    ),
 );
 
 // const isMobile =
