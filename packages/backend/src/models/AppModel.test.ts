@@ -21,6 +21,7 @@ const appRow: DbApp = {
     sandbox_id: null,
     template: null,
     template_slug: null,
+    template_kind: null,
     design_uuid: null,
     upstream_app_uuid: null,
     registry_slug: null,

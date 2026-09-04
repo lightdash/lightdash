@@ -1,21 +1,58 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildOrgTemplateInstructions,
+    orgTemplateBuildFixNote,
+    orgTemplateEditScope,
     shouldSeedOrgTemplate,
 } from './templateSources';
 
 describe('template sources', () => {
     describe('organization templates', () => {
-        it('seeds only the first build of a fresh sandbox', () => {
+        it('seeds the first build of a seeded template, resumed sandbox or not', () => {
+            // The catalog stage only runs while generation has not started,
+            // so re-extracting the tar on a retried first build is safe and
+            // the only way a crash before seeding still produces a seeded app.
+            expect(shouldSeedOrgTemplate({ version: 1, kind: 'seeded' })).toBe(
+                true,
+            );
+            expect(shouldSeedOrgTemplate({ version: 2, kind: 'seeded' })).toBe(
+                false,
+            );
             expect(
-                shouldSeedOrgTemplate({ version: 1, wasResumed: false }),
-            ).toBe(true);
-            expect(
-                shouldSeedOrgTemplate({ version: 2, wasResumed: false }),
+                shouldSeedOrgTemplate({ version: 1, kind: 'instructions' }),
             ).toBe(false);
-            expect(
-                shouldSeedOrgTemplate({ version: 1, wasResumed: true }),
-            ).toBe(false);
+        });
+
+        it('locks the manifest for seeded-template apps from the kind pinned on the app', () => {
+            expect(orgTemplateEditScope('seeded')).toBe('manifest');
+            expect(orgTemplateEditScope('instructions')).toBe('source');
+            expect(orgTemplateEditScope(null)).toBe('source');
+        });
+
+        it('tells a manifest-scoped fixer what it can and cannot repair', () => {
+            expect(orgTemplateBuildFixNote('source')).toBe('');
+            const note = orgTemplateBuildFixNote('manifest');
+            expect(note).toContain('src/template.json');
+            expect(note).toMatch(/template/i);
+        });
+
+        it('softens the read-only claim when the agent cannot be held to it', () => {
+            const enforced = buildOrgTemplateInstructions({
+                name: 'Metric Forecaster',
+                guardrails: null,
+                seeded: true,
+                enforced: true,
+            });
+            expect(enforced).toContain('the only file you can write');
+            const unenforced = buildOrgTemplateInstructions({
+                name: 'Metric Forecaster',
+                guardrails: null,
+                seeded: true,
+                enforced: false,
+            });
+            expect(unenforced).not.toContain('the only file you can write');
+            expect(unenforced).toContain('src/template.json');
+            expect(unenforced).toMatch(/only edit|edit only/i);
         });
 
         it('binds a seeded org template and carries its guardrails verbatim', () => {
