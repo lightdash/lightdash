@@ -20,6 +20,7 @@ import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
+import DataAppVizFieldsList from './DataAppVizFieldsList';
 import OfficialChartTypeBadge from './OfficialChartTypeBadge';
 
 type Props = {
@@ -170,6 +171,11 @@ const ChartTypeDetailModal: FC<Props> = ({
                             </Stack>
                         </Callout>
                     )}
+                    {dataAppViz.schema !== null && (
+                        <DataAppVizFieldsList
+                            fields={dataAppViz.schema.fields}
+                        />
+                    )}
                     <SimpleGrid cols={2} className={classes.metaPanel}>
                         {builtBy !== null && (
                             <Box>
@@ -187,18 +193,6 @@ const ChartTypeDetailModal: FC<Props> = ({
                             </Text>
                             <Text fz="sm" fw={500} c="ldGray.8">
                                 {lastUpdatedAgo}
-                            </Text>
-                        </Box>
-                        <Box>
-                            <Text fz="xs" fw={600} c="dimmed">
-                                Inputs
-                            </Text>
-                            <Text fz="sm" fw={500} c="ldGray.8">
-                                {dataAppViz.schema !== null
-                                    ? dataAppViz.schema.fields
-                                          .map((field) => field.label)
-                                          .join(', ')
-                                    : '—'}
                             </Text>
                         </Box>
                         <Box>
