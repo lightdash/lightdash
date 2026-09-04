@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ChartType,
+    DashboardTileTypes,
     FilterOperator,
     isField,
     MergeJoinType,
@@ -8,9 +9,13 @@ import {
     QueryExecutionContext,
     SEED_PROJECT,
     type ApiCompiledMergeQueryResults,
+    type ApiExecuteAsyncDashboardChartQueryResults,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type CreateChartInSpace,
+    type CreateDashboard,
+    type Dashboard,
+    type DashboardFilters,
     type ItemsMap,
     type ResultRow,
     type SavedChart,
@@ -73,6 +78,35 @@ const mergeQuery = {
     joinType: 'full',
     tableCalculations: [],
     limit: 500,
+};
+
+// The same narrowing expressed as a chart filter and as a dashboard filter,
+// so a merge filtered either way is checked against one filtered baseline.
+const completedOnly = {
+    dimensions: {
+        id: 'merge-status-filter-group',
+        and: [
+            {
+                id: 'merge-status-filter',
+                target: { fieldId: 'orders_status' },
+                operator: FilterOperator.EQUALS,
+                values: ['completed'],
+            },
+        ],
+    },
+};
+const completedOnlyDashboardFilters: DashboardFilters = {
+    dimensions: [
+        {
+            id: 'dashboard-status-filter',
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            operator: FilterOperator.EQUALS,
+            values: ['completed'],
+            label: undefined,
+        },
+    ],
+    metrics: [],
+    tableCalculations: [],
 };
 
 // Merged columns are keyed by field id: the join key belongs to the merge
@@ -217,10 +251,19 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         });
     }, 60_000);
 
-    // Saved charts this suite persists; deleted even when a test fails.
+    // Saved charts and dashboards this suite persists; deleted even when a
+    // test fails.
     const createdChartUuids: string[] = [];
+    const createdDashboardUuids: string[] = [];
 
     afterAll(async () => {
+        for (const uuid of createdDashboardUuids) {
+            await admin
+                .delete(`/api/v1/dashboards/${uuid}`, {
+                    failOnStatusCode: false,
+                })
+                .catch(() => {});
+        }
         for (const uuid of createdChartUuids) {
             await admin
                 .delete(`/api/v1/saved/${uuid}`, { failOnStatusCode: false })
@@ -340,19 +383,6 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     }, 60_000);
 
     it('applies each source filter before aggregation and merging', async () => {
-        const completedOnly = {
-            dimensions: {
-                id: 'merge-status-filter-group',
-                and: [
-                    {
-                        id: 'merge-status-filter',
-                        target: { fieldId: 'orders_status' },
-                        operator: FilterOperator.EQUALS,
-                        values: ['completed'],
-                    },
-                ],
-            },
-        };
         const filteredOrders = {
             ...ordersByMonth,
             filters: completedOnly,
@@ -913,6 +943,116 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         );
         expectMergedValues(results.rows, ordersByKey, paymentsByKey);
     }, 90_000);
+
+    // On a dashboard the merged chart is an ordinary saved_chart tile, and a
+    // dashboard filter both sources have is pushed into each of them before
+    // the join. The bar is the same filtered baseline the chart-filter case
+    // uses: every merged value equals what its source returns with that
+    // filter, and the echo says which source each filter reached.
+    it('runs a merged chart as a merge on a dashboard tile, with the tile filter on both sources', async () => {
+        const merge: SavedMergeQuery = {
+            primarySourceId: 'orders',
+            sources: [
+                { id: 'orders', kind: 'chart' },
+                { id: 'payments', kind: 'query', metricQuery: paymentsByMonth },
+            ],
+            joinKey: mergeQuery.joinKey,
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+        };
+        const createdChart = await admin.post<Body<SavedChart>>(
+            `/api/v1/projects/${projectUuid}/saved`,
+            {
+                name: uniqueName('Merged chart on a dashboard'),
+                tableName: 'orders',
+                metricQuery: ordersByMonth,
+                chartConfig: { type: ChartType.TABLE },
+                tableConfig: { columnOrder: [] },
+                merge,
+                dashboardUuid: null,
+                spaceUuid: undefined,
+            } satisfies CreateChartInSpace,
+        );
+        expect(createdChart.status).toBe(200);
+        const chartUuid = createdChart.body.results.uuid;
+        createdChartUuids.push(chartUuid);
+
+        const createdDashboard = await admin.post<Body<Dashboard>>(
+            `/api/v1/projects/${projectUuid}/dashboards`,
+            {
+                name: uniqueName('Merged chart dashboard'),
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        w: 12,
+                        h: 6,
+                        tabUuid: null,
+                        properties: { savedChartUuid: chartUuid },
+                    },
+                ],
+                tabs: [],
+            } satisfies CreateDashboard,
+        );
+        expect(createdDashboard.status).toBe(201);
+        const dashboardUuid = createdDashboard.body.results.uuid;
+        createdDashboardUuids.push(dashboardUuid);
+        const [tile] = createdDashboard.body.results.tiles;
+        expect(tile).toBeDefined();
+
+        const [ordersRows, paymentsRows, started] = await Promise.all([
+            runSourceQuery({ ...ordersByMonth, filters: completedOnly }),
+            runSourceQuery({ ...paymentsByMonth, filters: completedOnly }),
+            admin.post<Body<ApiExecuteAsyncDashboardChartQueryResults>>(
+                `/api/v2/projects/${projectUuid}/query/dashboard-chart`,
+                {
+                    chartUuid,
+                    tileUuid: tile.uuid,
+                    dashboardUuid,
+                    dashboardFilters: completedOnlyDashboardFilters,
+                    dashboardSorts: [],
+                    context: QueryExecutionContext.DASHBOARD,
+                },
+            ),
+        ]);
+        expect(started.status).toBe(200);
+        // The tile carries the merged columns, not the primary source alone.
+        expect(Object.keys(started.body.results.fields)).toEqual(
+            expect.arrayContaining([
+                KEY_FIELD_ID,
+                ORDERS_FIELD_ID,
+                PAYMENTS_FIELD_ID,
+            ]),
+        );
+        expect(
+            started.body.results.appliedDashboardFilters.dimensions.map(
+                (rule) => rule.id,
+            ),
+        ).toEqual(['dashboard-status-filter']);
+        const bySourceId =
+            started.body.results.appliedDashboardFiltersBySourceId ?? {};
+        expect(Object.keys(bySourceId).sort()).toEqual(['orders', 'payments']);
+        Object.values(bySourceId).forEach((applied) => {
+            expect(applied.dimensions.map((rule) => rule.id)).toEqual([
+                'dashboard-status-filter',
+            ]);
+        });
+
+        const results = await pollQueryResults(
+            admin,
+            started.body.results.queryUuid,
+        );
+        const ordersByKey = byMonth(ordersRows, 'orders_total_order_amount');
+        const paymentsByKey = byMonth(
+            paymentsRows,
+            'payments_unique_payment_count',
+        );
+        expect(results.totalResults).toBe(
+            new Set([...ordersByKey.keys(), ...paymentsByKey.keys()]).size,
+        );
+        expectMergedValues(results.rows, ordersByKey, paymentsByKey);
+    }, 120_000);
 
     // Raw parity lets a formatting or labelling regression through: merged
     // cells and fields must format and label as the source the response names.

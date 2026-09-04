@@ -1014,6 +1014,12 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         appliedDashboardFilters: DashboardFilters;
+        /**
+         * For a merged chart, the applied filters keyed by the merge source
+         * they were pushed into (source ids match `fieldOrigins`). Absent on
+         * ordinary tiles.
+         */
+        appliedDashboardFiltersBySourceId?: Record<string, DashboardFilters>;
         dateZoomApplied: boolean;
     };
 

@@ -134,7 +134,9 @@ import {
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type ExternalSourceTableReference,
+    type Filters,
     type MergeQueryChart,
+    type MergeQueryExecutionMode,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -147,6 +149,7 @@ import {
     type ResultColumns,
     type RunQueryTags,
     type SavedChartDAO,
+    type SavedMergeQuery,
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
@@ -251,6 +254,12 @@ import { type ComposeEngineClient } from './ComposeEngineClient';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
+import {
+    applyDashboardFiltersToMergeQuery,
+    applyFilterOverridesToMergeQuery,
+    formatRefusedMergeDashboardFilters,
+    type MergeSourceExplores,
+} from './mergeDashboardFilters';
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
@@ -5697,6 +5706,7 @@ export class AsyncQueryService extends ProjectService {
         pivotResults,
         filterOverrides,
         dashboardFilters,
+        userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
@@ -5818,41 +5828,20 @@ export class AsyncQueryService extends ProjectService {
         };
 
         if (savedChart.merge) {
-            const mergeQuery = buildMergeQueryFromSaved(
-                metricQuery,
-                savedChart.merge,
-            );
-            const combinedParameters = {
-                ...savedChartParameters,
-                ...parameters,
-            };
-            const outcome = await this.executeAsyncMergeQuery({
+            return this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
-                mergeQuery,
+                savedChart,
+                merge: savedChart.merge,
                 context,
                 invalidateCache,
-                parameters: combinedParameters,
-                mode:
-                    limit === undefined
-                        ? { type: 'interactive' }
-                        : { type: 'export', limit },
-                chart: pivotResults
-                    ? {
-                          chartConfig: savedChart.chartConfig,
-                          pivotConfig: savedChart.pivotConfig,
-                      }
-                    : undefined,
+                limit,
+                parameters,
+                pivotResults,
+                filterOverrides,
+                dashboardFilters,
+                userAttributeOverrides,
             });
-            if (outcome.outcome === 'refused') {
-                throw new ParameterError(
-                    `This saved merge cannot be run: ${outcome.errors
-                        .map((error) => error.message)
-                        .join(' ')}`,
-                    { errors: outcome.errors },
-                );
-            }
-            return outcome.query;
         }
 
         const { maxLimit, csvCellsLimit } =
@@ -6199,6 +6188,271 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** Explores of every metric source, so filters can be resolved per side. */
+    private async getMergeSourceExplores({
+        account,
+        projectUuid,
+        organizationUuid,
+        mergeQuery,
+        preloadedExploresByName,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        mergeQuery: MergeQuery;
+        preloadedExploresByName: Record<string, Explore>;
+    }): Promise<MergeSourceExplores> {
+        const entries = await Promise.all(
+            mergeQuery.sources
+                .filter(isMergeMetricSource)
+                .map(
+                    async (source): Promise<[string, Explore]> => [
+                        source.id,
+                        preloadedExploresByName[
+                            source.metricQuery.exploreName
+                        ] ??
+                            (await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                                organizationUuid,
+                            )),
+                    ],
+                ),
+        );
+        return Object.fromEntries(entries);
+    }
+
+    private static getSavedMergeExecutionMode(
+        limit: number | null | undefined,
+    ): MergeQueryExecutionMode {
+        return limit === undefined
+            ? { type: 'interactive' }
+            : { type: 'export', limit };
+    }
+
+    private static getSavedMergeChart(
+        savedChart: SavedChartDAO,
+        pivotResults: boolean | undefined,
+    ): MergeQueryChart | undefined {
+        return pivotResults
+            ? {
+                  chartConfig: savedChart.chartConfig,
+                  pivotConfig: savedChart.pivotConfig,
+              }
+            : undefined;
+    }
+
+    private static assertSavedMergeStarted(
+        outcome: ApiExecuteAsyncMergeQueryResults,
+    ): ApiExecuteAsyncMetricQueryResults {
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(
+                `This saved merge cannot be run: ${outcome.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: outcome.errors },
+            );
+        }
+        return outcome.query;
+    }
+
+    /**
+     * A saved chart's merge on its own page or as a chart delivery. Filter
+     * overrides and data-app dashboard filters reach every source that has
+     * the field, so the join stays aligned.
+     */
+    private async executeAsyncSavedMergeQuery({
+        account,
+        projectUuid,
+        savedChart,
+        merge,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        filterOverrides,
+        dashboardFilters,
+        userAttributeOverrides,
+    }: Pick<
+        ExecuteAsyncSavedChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'context'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'pivotResults'
+        | 'filterOverrides'
+        | 'dashboardFilters'
+        | 'userAttributeOverrides'
+    > & {
+        savedChart: SavedChartDAO;
+        merge: SavedMergeQuery;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const baseMergeQuery = buildMergeQueryFromSaved(
+            savedChart.metricQuery,
+            merge,
+        );
+        const exploreBySourceId = await this.getMergeSourceExplores({
+            account,
+            projectUuid,
+            organizationUuid: savedChart.organizationUuid,
+            mergeQuery: baseMergeQuery,
+            preloadedExploresByName: {},
+        });
+        const withOverrides = filterOverrides
+            ? applyFilterOverridesToMergeQuery({
+                  mergeQuery: baseMergeQuery,
+                  filterOverrides,
+                  exploreBySourceId,
+              })
+            : baseMergeQuery;
+        const { mergeQuery, refusedDashboardFilters } = dashboardFilters
+            ? applyDashboardFiltersToMergeQuery({
+                  tileUuid: null,
+                  mergeQuery: withOverrides,
+                  dashboardFilters,
+                  exploreBySourceId,
+              })
+            : { mergeQuery: withOverrides, refusedDashboardFilters: [] };
+        if (refusedDashboardFilters.length > 0) {
+            throw new ParameterError(
+                formatRefusedMergeDashboardFilters(refusedDashboardFilters),
+            );
+        }
+        const outcome = await this.executeAsyncMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            context,
+            invalidateCache,
+            parameters: { ...savedChart.parameters, ...parameters },
+            userAttributeOverrides,
+            mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
+            chart: AsyncQueryService.getSavedMergeChart(
+                savedChart,
+                pivotResults,
+            ),
+        });
+        return AsyncQueryService.assertSavedMergeStarted(outcome);
+    }
+
+    /**
+     * A merged chart on a dashboard tile: the tile's dashboard filters are
+     * pushed into each source before the join. Dashboard sorts and date zoom
+     * have no merge-level input yet, so they are left unapplied rather than
+     * applied to one side only.
+     */
+    private async executeAsyncDashboardMergeQuery({
+        account,
+        projectUuid,
+        savedChart,
+        merge,
+        primaryExplore,
+        tileUuid,
+        dashboardUuid,
+        dashboardFilters,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        userAttributeOverrides,
+    }: Pick<
+        ExecuteAsyncDashboardChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'tileUuid'
+        | 'dashboardUuid'
+        | 'dashboardFilters'
+        | 'context'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'pivotResults'
+        | 'userAttributeOverrides'
+    > & {
+        savedChart: SavedChartDAO;
+        merge: SavedMergeQuery;
+        primaryExplore: Explore;
+    }): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
+        const baseMergeQuery = buildMergeQueryFromSaved(
+            savedChart.metricQuery,
+            merge,
+        );
+        const exploreBySourceId = await this.getMergeSourceExplores({
+            account,
+            projectUuid,
+            organizationUuid: savedChart.organizationUuid,
+            mergeQuery: baseMergeQuery,
+            preloadedExploresByName: { [primaryExplore.name]: primaryExplore },
+        });
+        const {
+            mergeQuery,
+            appliedDashboardFilters,
+            appliedDashboardFiltersBySourceId,
+            refusedDashboardFilters,
+        } = applyDashboardFiltersToMergeQuery({
+            tileUuid,
+            mergeQuery: baseMergeQuery,
+            dashboardFilters,
+            exploreBySourceId,
+        });
+        if (refusedDashboardFilters.length > 0) {
+            throw new ParameterError(
+                formatRefusedMergeDashboardFilters(refusedDashboardFilters),
+            );
+        }
+        const rawDashboardParameters =
+            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            );
+        const outcome = await this.executeAsyncMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            context,
+            invalidateCache,
+            parameters: {
+                ...savedChart.parameters,
+                ...convertDashboardParametersToValuesMap(
+                    rawDashboardParameters,
+                ),
+                ...parameters,
+            },
+            userAttributeOverrides,
+            mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
+            chart: AsyncQueryService.getSavedMergeChart(
+                savedChart,
+                pivotResults,
+            ),
+        });
+        const {
+            queryUuid,
+            cacheMetadata,
+            metricQuery,
+            fields,
+            parameterReferences,
+            usedParametersValues,
+            resolvedTimezone,
+        } = AsyncQueryService.assertSavedMergeStarted(outcome);
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery,
+            fields,
+            parameterReferences,
+            usedParametersValues,
+            resolvedTimezone,
+            appliedDashboardFilters,
+            appliedDashboardFiltersBySourceId,
+            dateZoomApplied: false,
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -6217,6 +6471,7 @@ export class AsyncQueryService extends ProjectService {
         sessionTimezone,
         preloadedSavedChart,
         preloadedProjectParameters,
+        userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -6288,6 +6543,25 @@ export class AsyncQueryService extends ProjectService {
                     error: e,
                 }),
             );
+
+        if (savedChart.merge) {
+            return this.executeAsyncDashboardMergeQuery({
+                account,
+                projectUuid,
+                savedChart,
+                merge: savedChart.merge,
+                primaryExplore: explore,
+                tileUuid,
+                dashboardUuid: resolvedDashboardUuid,
+                dashboardFilters,
+                context,
+                invalidateCache,
+                limit,
+                parameters,
+                pivotResults,
+                userAttributeOverrides,
+            });
+        }
 
         const { metricQuery: metricQueryWithFilters, appliedDashboardFilters } =
             applyDashboardFiltersForTile({
