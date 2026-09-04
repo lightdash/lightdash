@@ -153,13 +153,19 @@ const mockedDeleteApp = vi.fn();
 const mockedUpgradeMutate = vi.fn();
 
 const setRegistryCharts = (
-    charts: Array<{ slug: string; state: string; version: string }>,
+    charts: Array<{
+        slug: string;
+        state: string;
+        version: string;
+        installedRegistryVersion?: string;
+    }>,
 ) => {
     vi.mocked(useRegistryChartTypes).mockReturnValue({
         data: {
             registryEnabled: true,
             charts: charts.map((chart) => ({
                 changelog: 'Adds things.',
+                installedRegistryVersion: null,
                 ...chart,
             })),
         },
@@ -423,6 +429,25 @@ describe('ChartTypeGallery', () => {
             projectUuid: 'project-1',
             chartSlug: 'radial-gauge',
         });
+    });
+
+    it('shows the registry version for installed official chart types', () => {
+        setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+        setRegistryCharts([
+            {
+                slug: 'radial-gauge',
+                state: 'installed',
+                version: '1.2.0',
+                installedRegistryVersion: '1.2.0',
+            },
+        ]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+
+        // Registry semver, not the internal app version (v3 in the mock).
+        expect(screen.getByText('v1.2.0')).toBeInTheDocument();
+        expect(screen.queryByText('v3')).not.toBeInTheDocument();
     });
 
     it('shows no update affordance when the installed version is current', () => {
