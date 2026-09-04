@@ -23,6 +23,8 @@ import {
     JobStatusType,
     JobStepType,
     JobType,
+    MergeJoinType,
+    MergeQueryErrorKind,
     MetricType,
     NotFoundError,
     OrganizationMemberRole,
@@ -43,6 +45,8 @@ import {
     type DownloadFile,
     type Explore,
     type Job,
+    type MergeQuery,
+    type MergeQuerySource,
     type PossibleAbilities,
     type Project,
     type ProjectDbtSource,
@@ -179,7 +183,11 @@ vi.mock('worker_threads', async () => {
     };
 });
 
-vi.mock('@lightdash/warehouses', () => ({
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    // The merge compiler needs the real dialect builder, not a stub
+    warehouseSqlBuilderFromType: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).warehouseSqlBuilderFromType,
     SshTunnel: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockSshTunnel() {
@@ -5265,6 +5273,92 @@ describe('ProjectService', () => {
                     projectWithSnowflakeAuth(authenticationType),
                 ),
             ).not.toThrowError();
+        });
+    });
+
+    describe('compileMergeQuery', () => {
+        const source = (
+            id: string,
+            tableCalculations: MergeQuery['tableCalculations'] = [],
+        ): MergeQuerySource => ({
+            id,
+            metricQuery: {
+                exploreName: validExplore.name,
+                dimensions: ['a_dim1'],
+                metrics: ['a_met1'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations,
+            },
+        });
+
+        const mergeQuery = (
+            overrides: Partial<MergeQuery> = {},
+        ): MergeQuery => ({
+            sources: [source('a'), source('b')],
+            joinKey: [
+                {
+                    name: 'dim1',
+                    fieldIdBySourceId: { a: 'a_dim1', b: 'a_dim1' },
+                },
+            ],
+            joinType: MergeJoinType.FULL,
+            tableCalculations: [],
+            limit: 500,
+            ...overrides,
+        });
+
+        test('refuses a source calculation that depends on its own row set', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    sources: [
+                        source('a', [
+                            {
+                                name: 'running_total',
+                                displayName: 'Running total',
+                                sql: 'SUM(${a.met1}) OVER (ORDER BY ${a.dim1})',
+                            },
+                        ]),
+                        source('b'),
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.UNSUPPORTED_TABLE_CALCULATION,
+                    sourceId: 'a',
+                    fieldIds: ['running_total'],
+                }),
+            );
+        });
+
+        test('refuses a merge calculation referencing a column the merged result does not have', async () => {
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'ghost',
+                            displayName: 'Ghost',
+                            sql: '${a.a_met1} + ${b.ghost_metric}',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.sql).toBeNull();
+            expect(result.errors).toContainEqual(
+                expect.objectContaining({
+                    kind: MergeQueryErrorKind.UNRESOLVED_CALCULATION_REFERENCE,
+                    fieldIds: ['b.ghost_metric'],
+                }),
+            );
         });
     });
 });
