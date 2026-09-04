@@ -7901,12 +7901,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    /**
-     * Every surface that runs a merge passes through here, so this is where
-     * a merge becomes visible: a Sentry transaction that keeps its failures
-     * apart from ordinary query failures, and a refusal event per refused
-     * submission. Executed events fire from the engine that ran the merge.
-     */
+    /** Every merge surface passes through here; executed events fire from the engine that ran it. */
     private async executeAsyncMergeQueryInternal(
         args: ExecuteMergeQueryInternalArgs,
     ): Promise<ApiExecuteAsyncMergeQueryResults> {
@@ -8176,8 +8171,7 @@ export class AsyncQueryService extends ProjectService {
             },
             requestParameters,
         );
-        // The warehouse statement completes in the shared background tail,
-        // which has no merge hook, so this engine reports submission only
+        // The shared background tail has no merge hook, so this engine reports submission only
         this.analytics.trackAccount(
             account,
             buildMergeExecutedEvent({
@@ -8527,12 +8521,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /**
-     * The shared tail writes the merged query's terminal state, so the merge
-     * reads it back once the run settles: a row-cap refusal is a refusal, a
-     * ready query is an execution, and anything else is a failure that gets
-     * a Sentry issue of its own rather than vanishing into query history.
-     */
+    /** Reads the terminal state the shared tail wrote, once the background run settled. */
     private async reportComposeMergeOutcome({
         account,
         submission,

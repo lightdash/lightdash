@@ -116,11 +116,7 @@ export const buildMergeExecutedEvent = ({
     },
 });
 
-/**
- * Wraps the row-cap guard so the reporter can tell a refusal from a join
- * failure: both end as the merged query's error, and only the guard knows
- * which it was.
- */
+/** A refusal and a join failure both end as the query's error; only the guard knows which. */
 export const observeRowCapRefusal = (
     guard: DuckdbQueryReferenceGuard,
 ): { guard: DuckdbQueryReferenceGuard; wasRefused: () => boolean } => {
