@@ -22,6 +22,9 @@ export const getOpenRouterModel = (
                 ...(config.allowedProviders.length > 0
                     ? { only: config.allowedProviders }
                     : {}),
+                ...(config.providerOrder.length > 0
+                    ? { order: config.providerOrder }
+                    : {}),
             },
         },
     });

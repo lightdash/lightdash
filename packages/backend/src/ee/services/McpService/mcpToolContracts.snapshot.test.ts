@@ -324,13 +324,27 @@ describe('MCP tool contracts', () => {
         const registered = mockRegisteredMcpTools.find(
             ({ name }) => name === McpToolName.SEARCH_FIELD_VALUES,
         );
-        expect(registered).toBeDefined();
+        if (!registered) {
+            throw new Error('search_field_values was not registered');
+        }
+
+        const inputSchema = z.object(registered.config.inputSchema);
+        const baseArgs = {
+            table: 'orders',
+            fieldId: 'orders_status',
+            projectUuid: '00000000-0000-0000-0000-000000000000',
+        };
+        const omittedFilters = inputSchema.parse(baseArgs);
+        expect(omittedFilters).toMatchObject({ filters: null });
+        expect(omittedFilters).toEqual(
+            inputSchema.parse({ ...baseArgs, filters: null }),
+        );
         expect({
-            name: registered?.name,
-            title: registered?.config.title,
-            description: registered?.config.description,
-            annotations: registered?.config.annotations,
-            inputSchema: schemaToJson(registered?.config.inputSchema, 'input'),
+            name: registered.name,
+            title: registered.config.title,
+            description: registered.config.description,
+            annotations: registered.config.annotations,
+            inputSchema: schemaToJson(registered.config.inputSchema, 'input'),
         }).toMatchSnapshot();
     });
 

@@ -49,8 +49,8 @@ Usage Tips:
 - Prefer a non-empty query containing candidate text, such as "complete" for a status
 - ${boundedQueryInstructionByRuntime[runtime]}. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
 - If the user or field metadata already provides the exact value, use it directly instead of searching
-- ${emptyFiltersInstructionByRuntime[runtime]}
-- When filters is provided, pass one flat AND expression containing dimension fields only
+- Omit filters when the search does not need additional filters
+- When filters is present, it scopes the candidate-value search and must be one flat AND expression containing dimension fields only
 
 Filter expression syntax:
 ${FILTER_EXPRESSION_AND_ONLY_GRAMMAR_DESCRIPTION}
@@ -81,9 +81,10 @@ export const toolSearchFieldValuesExpressionArgsSchema =
     toolSearchFieldValuesArgsSchema
         .extend({
             filters: filterExpressionInputSchema
-                .nullable()
+                .nullish()
+                .default(null)
                 .describe(
-                    'Optional flat AND filter expression containing dimension fields only. Use null when the value search needs no additional scope.',
+                    'When present, scopes the candidate-value search with one flat AND filter expression containing dimension fields only.',
                 ),
         })
         .strict();

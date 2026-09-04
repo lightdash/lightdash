@@ -33,6 +33,22 @@ describe('searchFieldValues filter schemas', () => {
         },
     );
 
+    it('tells the expression Agent to omit unscoped filters', () => {
+        const description =
+            TOOL_SEARCH_FIELD_VALUES_FILTER_EXPRESSION_DESCRIPTION({
+                runtime: 'agent',
+                toolName: 'searchFieldValues',
+            });
+
+        expect(description).toContain(
+            'Omit filters when the search does not need additional filters',
+        );
+        expect(description).toContain(
+            'When filters is present, it scopes the candidate-value search',
+        );
+        expect(description).not.toContain('Set filters to null');
+    });
+
     it('keeps the structured schema', () => {
         expect(
             toolSearchFieldValuesArgsSchema.parse({
@@ -49,7 +65,7 @@ describe('searchFieldValues filter schemas', () => {
         });
     });
 
-    it('accepts a dimension expression or null', () => {
+    it('accepts a dimension expression or null and defaults omission to null', () => {
         expect(
             toolSearchFieldValuesExpressionArgsSchema.parse({
                 ...baseArgs,
@@ -63,6 +79,9 @@ describe('searchFieldValues filter schemas', () => {
                 ...baseArgs,
                 filters: null,
             }),
+        ).toMatchObject({ filters: null });
+        expect(
+            toolSearchFieldValuesExpressionArgsSchema.parse(baseArgs),
         ).toMatchObject({ filters: null });
     });
 

@@ -56,10 +56,13 @@ const jsonResponse = (body: unknown) => ({
 const makeClient = (
     fetchImpl: ReturnType<typeof vi.fn>,
     url: string | null = BASE,
+    channel: 'stable' | 'next' = 'stable',
 ) =>
     new ChartRegistryClient({
         lightdashConfig: {
-            appRuntime: { chartRegistry: { url, allowInsecure: false } },
+            appRuntime: {
+                chartRegistry: { url, allowInsecure: false, channel },
+            },
         } as never,
         fetchImpl: fetchImpl as unknown as ChartRegistryFetchType,
     });
@@ -92,6 +95,21 @@ describe('ChartRegistryClient', () => {
             `${BASE}/index.json`,
             expect.any(Number),
         );
+    });
+
+    it('fetches index-next.json on the next channel and keeps beta entries', async () => {
+        const betaIndex = {
+            ...index,
+            charts: [{ ...index.charts[0], channel: 'beta' }],
+        };
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(betaIndex));
+        const client = makeClient(fetchImpl, BASE, 'next');
+        const result = await client.getIndex();
+        expect(fetchImpl).toHaveBeenCalledWith(
+            `${BASE}/index-next.json`,
+            expect.any(Number),
+        );
+        expect(result.charts[0].channel).toBe('beta');
     });
 
     it('serves the stale cache when a refetch fails', async () => {
@@ -204,10 +222,50 @@ describe('ChartRegistryClient', () => {
         ).rejects.toThrow(/outside/i);
     });
 
-    it('only serves assets enumerated in the index', async () => {
+    it('only serves assets under chart slugs present in the index', async () => {
         const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(index));
         const client = makeClient(fetchImpl);
-        expect(await client.getAsset('charts/other/steal.png')).toBeUndefined();
+        expect(
+            await client.getAsset('charts/other/1.0.0/steal.png'),
+        ).toBeUndefined();
+    });
+
+    it('serves a previous version screenshot no longer enumerated in the index', async () => {
+        // The index lists only each chart's latest version, and the listing
+        // and asset requests can be served from different index cache
+        // generations across a publish — older versions are immutable and
+        // still served by the registry, so they must stay proxyable.
+        const oldBytes = Buffer.from('old-version-bytes');
+        const fetchImpl = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse(index))
+            .mockResolvedValueOnce({
+                status: 200,
+                body: oldBytes,
+                contentType: 'image/png',
+            });
+        const client = makeClient(fetchImpl);
+        const asset = await client.getAsset(
+            'charts/sankey/1.1.0/screenshot-1.png',
+        );
+        expect(asset?.buffer.equals(oldBytes)).toBe(true);
+    });
+
+    it('rejects non-image and malformed asset paths without fetching', async () => {
+        const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(index));
+        const client = makeClient(fetchImpl);
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/dist.tar'),
+        ).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/../../../etc/pw.png'),
+        ).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/not-semver/shot.png'),
+        ).toBeUndefined();
+        expect(await client.getAsset('index.json')).toBeUndefined();
+        // Shape-rejected paths short-circuit before any fetch, index included.
+        expect(fetchImpl).toHaveBeenCalledTimes(0);
     });
 
     it('serves an asset path enumerated in the index', async () => {
@@ -354,15 +412,10 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const baseUrl = await startServer((req, res) => {
             if (req.url === '/index.json') {
                 res.writeHead(200, { 'content-type': 'application/json' });
-                res.end(
-                    JSON.stringify({
-                        ...index,
-                        charts: [{ ...entry, thumbnail: 'thumb.png' }],
-                    }),
-                );
+                res.end(JSON.stringify(index));
                 return;
             }
-            if (req.url === '/thumb.png') {
+            if (req.url === '/charts/sankey/1.2.0/thumb.png') {
                 res.writeHead(404, { 'content-type': 'text/html' });
                 res.end('<html>not found</html>');
                 return;
@@ -371,7 +424,9 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
             res.end();
         });
         const client = makeRealClient(baseUrl);
-        expect(await client.getAsset('thumb.png')).toBeUndefined();
+        expect(
+            await client.getAsset('charts/sankey/1.2.0/thumb.png'),
+        ).toBeUndefined();
     });
 
     it('round-trips a binary asset byte-for-byte', async () => {
@@ -381,15 +436,10 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         const baseUrl = await startServer((req, res) => {
             if (req.url === '/index.json') {
                 res.writeHead(200, { 'content-type': 'application/json' });
-                res.end(
-                    JSON.stringify({
-                        ...index,
-                        charts: [{ ...entry, thumbnail: 'thumb.png' }],
-                    }),
-                );
+                res.end(JSON.stringify(index));
                 return;
             }
-            if (req.url === '/thumb.png') {
+            if (req.url === '/charts/sankey/1.2.0/thumb.png') {
                 res.writeHead(200, { 'content-type': 'image/png' });
                 res.end(imageBytes);
                 return;
@@ -398,7 +448,7 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
             res.end();
         });
         const client = makeRealClient(baseUrl);
-        const asset = await client.getAsset('thumb.png');
+        const asset = await client.getAsset('charts/sankey/1.2.0/thumb.png');
         expect(asset?.buffer.equals(imageBytes)).toBe(true);
         expect(asset?.contentType).toBe('image/png');
     });

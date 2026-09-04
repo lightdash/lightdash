@@ -1376,6 +1376,9 @@ export const getAiConfig = () => ({
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
                   ),
+                  providerOrder: getArrayFromCommaSeparatedList(
+                      'OPENROUTER_PROVIDER_ORDER',
+                  ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
                   ),
@@ -2144,6 +2147,8 @@ export type AppRuntimeConfig = {
         url: string | null;
         /** dev-only: allow http/private addresses for a local fixture registry */
         allowInsecure: boolean;
+        /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
+        channel: 'stable' | 'next';
     };
 };
 
@@ -2606,6 +2611,15 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             // local dev fixtures and trusted internal registry mirrors —
             // never with a registry URL you do not fully control.
             allowInsecure: parseChartRegistryAllowInsecure(),
+            channel: ((raw) => {
+                const normalized = raw?.trim().toLowerCase();
+                if (!normalized || normalized === 'stable')
+                    return 'stable' as const;
+                if (normalized === 'next') return 'next' as const;
+                throw new ParseError(
+                    `Cannot parse environment variable "LIGHTDASH_CHART_REGISTRY_CHANNEL". Value must be one of stable, next but LIGHTDASH_CHART_REGISTRY_CHANNEL=${raw}`,
+                );
+            })(process.env.LIGHTDASH_CHART_REGISTRY_CHANNEL),
         },
     };
 };

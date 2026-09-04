@@ -61,6 +61,8 @@ export type ChartRegistryEntry = {
     tags: string[];
     changelog: string;
     minLightdashVersion: string | null;
+    /** Release channel; absent = stable (the stable index omits the field) */
+    channel?: 'stable' | 'beta';
     vizSchema: DataAppVizSchema;
     thumbnail: string | null;
     screenshots: string[];
@@ -79,6 +81,7 @@ const registryEntrySchema = z.object({
     tags: z.array(z.string()).default([]),
     changelog: z.string().default(''),
     minLightdashVersion: semverString.nullable().default(null),
+    channel: z.enum(['stable', 'beta']).optional(),
     vizSchema: dataAppVizSchema,
     thumbnail: z.string().nullable().default(null),
     screenshots: z.array(z.string()).default([]),

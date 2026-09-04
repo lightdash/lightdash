@@ -1150,6 +1150,20 @@ test('Should parse selectable OpenRouter models from env', () => {
     });
 });
 
+test('Should pass OpenRouter provider routing slugs through from env', () => {
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.OPENROUTER_ALLOWED_PROVIDERS = 'deepinfra, baseten';
+    process.env.OPENROUTER_PROVIDER_ORDER = 'deepinfra';
+
+    expect(parseConfig().ai.copilot.providers.openrouter).toMatchObject({
+        allowedProviders: ['deepinfra', 'baseten'],
+        providerOrder: ['deepinfra'],
+        // Only set by the schema default, so it proves validation succeeded
+        // rather than falling back to the raw env object
+        sortOrder: 'latency',
+    });
+});
+
 describe('AI provider supportsStreaming', () => {
     beforeEach(() => {
         process.env.OPENAI_API_KEY = 'test-openai-key';

@@ -62,18 +62,33 @@ describe('getSystemPromptV2 filter expressions', () => {
     });
 
     test('keeps structured field-value guidance when disabled', () => {
-        expect(
-            searchFieldValuesInstruction({ availableExplores: [] }),
-        ).toMatchSnapshot();
+        const instruction = searchFieldValuesInstruction({
+            availableExplores: [],
+        });
+
+        expect(instruction).toMatchSnapshot();
+        expect(instruction).toContain(
+            'Set `filters` to null when no additional scope is needed.',
+        );
+        expect(instruction).not.toContain(
+            'Omit `filters` when the search is unscoped.',
+        );
     });
 
     test('uses expression field-value guidance when enabled', () => {
-        expect(
-            searchFieldValuesInstruction({
-                availableExplores: [],
-                enableFilterExpressions: true,
-            }),
-        ).toMatchSnapshot();
+        const instruction = searchFieldValuesInstruction({
+            availableExplores: [],
+            enableFilterExpressions: true,
+        });
+
+        expect(instruction).toMatchSnapshot();
+        expect(instruction).toContain(
+            'Omit `filters` when the search is unscoped.',
+        );
+        expect(instruction).toContain(
+            'When present, `filters` scopes the candidate-value search',
+        );
+        expect(instruction).not.toContain('Set `filters` to null');
     });
 
     test('renders expression-only filter guidance', () => {
