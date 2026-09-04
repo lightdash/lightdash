@@ -27,6 +27,8 @@ import {
     IconDots,
     IconInfoCircle,
     IconPencil,
+    IconPin,
+    IconPinnedOff,
     IconTrash,
 } from '@tabler/icons-react';
 import { useRef, useState, type FC } from 'react';
@@ -39,6 +41,7 @@ import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings
 import {
     useDeleteAiAgentThreadMutation,
     useInfiniteAiAgentThreads,
+    usePinAiAgentThreadMutation,
     useRenameAiAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
 import { AgentNamePill } from '../AgentNamePill';
@@ -108,6 +111,7 @@ type ThreadNavLinkProps = {
     deletionDisabled: boolean;
     onDelete: (thread: AiAgentProjectThreadSummary) => void;
     onRename: (thread: AiAgentProjectThreadSummary, title: string) => void;
+    onTogglePin: (thread: AiAgentProjectThreadSummary) => void;
 };
 
 const ThreadNavLink: FC<ThreadNavLinkProps> = ({
@@ -118,7 +122,9 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     deletionDisabled,
     onDelete,
     onRename,
+    onTogglePin,
 }) => {
+    const isPinned = thread.pinnedAt !== null;
     const threadTitle = (thread.title || thread.firstMessage.message).trim();
     const hasTitle = threadTitle.length > 0;
     const canManageThread = useCanManageAiAgentThread({
@@ -212,6 +218,20 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                             >
                                 <Menu.Item
                                     leftSection={
+                                        <MantineIcon
+                                            icon={
+                                                isPinned
+                                                    ? IconPinnedOff
+                                                    : IconPin
+                                            }
+                                        />
+                                    }
+                                    onClick={() => onTogglePin(thread)}
+                                >
+                                    {isPinned ? 'Unpin' : 'Pin'}
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
                                         <MantineIcon icon={IconPencil} />
                                     }
                                     onClick={() => setIsRenaming(true)}
@@ -239,6 +259,51 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     );
 };
 
+type ThreadGroupProps = {
+    title: string;
+    threads: AiAgentProjectThreadSummary[];
+    projectUuid: string;
+    threadUuid?: string;
+    showAgentName: boolean;
+    deletionDisabled: boolean;
+    onDelete: (thread: AiAgentProjectThreadSummary) => void;
+    onRename: (thread: AiAgentProjectThreadSummary, title: string) => void;
+    onTogglePin: (thread: AiAgentProjectThreadSummary) => void;
+};
+
+const ThreadGroup: FC<ThreadGroupProps> = ({
+    title,
+    threads,
+    projectUuid,
+    threadUuid,
+    showAgentName,
+    deletionDisabled,
+    onDelete,
+    onRename,
+    onTogglePin,
+}) => (
+    <Stack gap="xs">
+        <Title order={6} c="dimmed" size="xs" ml="xs">
+            {title}
+        </Title>
+        <Box>
+            {threads.map((thread) => (
+                <ThreadNavLink
+                    key={thread.uuid}
+                    thread={thread}
+                    isActive={thread.uuid === threadUuid}
+                    projectUuid={projectUuid}
+                    showAgentName={showAgentName}
+                    deletionDisabled={deletionDisabled}
+                    onDelete={onDelete}
+                    onRename={onRename}
+                    onTogglePin={onTogglePin}
+                />
+            ))}
+        </Box>
+    </Stack>
+);
+
 type ThreadListProps = {
     projectUuid: string;
     threadUuid?: string;
@@ -256,6 +321,8 @@ const ThreadList: FC<ThreadListProps> = ({
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
+    const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
+    const recentThreads = threads.filter((thread) => thread.pinnedAt === null);
 
     const deletionDisabledFlag = useServerFeatureFlag(
         FeatureFlags.AiDisableThreadDeletion,
@@ -268,6 +335,8 @@ const ThreadList: FC<ThreadListProps> = ({
         useDeleteAiAgentThreadMutation(projectUuid);
     const { mutate: renameThread } =
         useRenameAiAgentThreadMutation(projectUuid);
+    const { mutate: setThreadPinned } =
+        usePinAiAgentThreadMutation(projectUuid);
     const handleConfirmDelete = async () => {
         if (!threadToDelete) return;
         await deleteThread({
@@ -281,41 +350,62 @@ const ThreadList: FC<ThreadListProps> = ({
         return null;
     }
 
+    const groupHandlers = {
+        projectUuid,
+        threadUuid,
+        showAgentName,
+        deletionDisabled,
+        onDelete: setThreadToDelete,
+        onRename: (thread: AiAgentProjectThreadSummary, title: string) =>
+            renameThread({
+                agentUuid: thread.agentUuid,
+                threadUuid: thread.uuid,
+                title,
+            }),
+        onTogglePin: (thread: AiAgentProjectThreadSummary) =>
+            setThreadPinned({
+                agentUuid: thread.agentUuid,
+                threadUuid: thread.uuid,
+                pinned: thread.pinnedAt === null,
+            }),
+    };
+
     return (
-        <Stack gap="xs" className={classes.threadList}>
-            <Title order={6} c="dimmed" tt="uppercase" size="xs" ml="xs">
-                Recent
-            </Title>
+        <Stack gap="md" className={classes.threadList}>
+            {pinnedThreads.length > 0 && (
+                <ThreadGroup
+                    title="Pinned"
+                    threads={pinnedThreads}
+                    {...groupHandlers}
+                />
+            )}
 
-            <Stack gap={2} className={classes.threadItems}>
-                {threads.length === 0 && (
-                    <Paper variant="dotted" p="sm">
-                        <Text truncate="end" size="sm" c="dimmed" ta="center">
-                            No threads yet
-                        </Text>
-                    </Paper>
-                )}
-
-                <Box>
-                    {threads.map((thread) => (
-                        <ThreadNavLink
-                            key={thread.uuid}
-                            thread={thread}
-                            isActive={thread.uuid === threadUuid}
-                            projectUuid={projectUuid}
-                            showAgentName={showAgentName}
-                            deletionDisabled={deletionDisabled}
-                            onDelete={setThreadToDelete}
-                            onRename={(thread, title) =>
-                                renameThread({
-                                    agentUuid: thread.agentUuid,
-                                    threadUuid: thread.uuid,
-                                    title,
-                                })
-                            }
+            <Stack gap="xs" className={classes.threadItems}>
+                {threads.length === 0 ? (
+                    <>
+                        <Title order={6} c="dimmed" size="xs" ml="xs">
+                            Recent
+                        </Title>
+                        <Paper variant="dotted" p="sm">
+                            <Text
+                                truncate="end"
+                                size="sm"
+                                c="dimmed"
+                                ta="center"
+                            >
+                                No threads yet
+                            </Text>
+                        </Paper>
+                    </>
+                ) : (
+                    recentThreads.length > 0 && (
+                        <ThreadGroup
+                            title="Recent"
+                            threads={recentThreads}
+                            {...groupHandlers}
                         />
-                    ))}
-                </Box>
+                    )
+                )}
             </Stack>
 
             <Box>

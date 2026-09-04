@@ -1092,6 +1092,60 @@ export class AiAgentController extends BaseController {
     }
 
     /**
+     * Pin a thread to the top of the sidebar.
+     * @summary Pin AI agent thread
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/threads/{threadUuid}/pin')
+    @OperationId('pinAgentThread')
+    async pinAgentThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().setAgentThreadPinned(
+            toSessionUser(req.account),
+            { agentUuid, threadUuid, pinned: true },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Unpin a thread.
+     * @summary Unpin AI agent thread
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{agentUuid}/threads/{threadUuid}/pin')
+    @OperationId('unpinAgentThread')
+    async unpinAgentThread(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().setAgentThreadPinned(
+            toSessionUser(req.account),
+            { agentUuid, threadUuid, pinned: false },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Get the writeback pull request associated with a thread — the PR the
      * agent opened in this thread, or the PR a verification thread verifies.
      * @summary Get AI agent thread pull request

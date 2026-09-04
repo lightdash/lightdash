@@ -3442,27 +3442,17 @@ export class AiAgentService extends BaseService {
      * feature flag blocks this endpoint entirely; the admin threads view uses a
      * separate path and keeps working.
      */
-    async updateAgentThreadTitle(
+    private async getManagedThread(
         user: SessionUser,
         {
             agentUuid,
             threadUuid,
-            title,
-        }: { agentUuid: string; threadUuid: string; title: string },
-    ): Promise<void> {
+            action,
+        }: { agentUuid: string; threadUuid: string; action: string },
+    ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
-        }
-
-        const trimmedTitle = title.trim();
-        if (trimmedTitle.length === 0) {
-            throw new ParameterError('Thread title cannot be empty');
-        }
-        if (trimmedTitle.length > AI_AGENT_THREAD_TITLE_MAX_LENGTH) {
-            throw new ParameterError(
-                `Thread title cannot exceed ${AI_AGENT_THREAD_TITLE_MAX_LENGTH} characters`,
-            );
         }
 
         const agent = await this.aiAgentModel.getAgent({
@@ -3490,14 +3480,58 @@ export class AiAgentService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                'Insufficient permissions to rename this thread',
+                `Insufficient permissions to ${action} this thread`,
             );
         }
+
+        return thread;
+    }
+
+    async updateAgentThreadTitle(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            title,
+        }: { agentUuid: string; threadUuid: string; title: string },
+    ): Promise<void> {
+        const trimmedTitle = title.trim();
+        if (trimmedTitle.length === 0) {
+            throw new ParameterError('Thread title cannot be empty');
+        }
+        if (trimmedTitle.length > AI_AGENT_THREAD_TITLE_MAX_LENGTH) {
+            throw new ParameterError(
+                `Thread title cannot exceed ${AI_AGENT_THREAD_TITLE_MAX_LENGTH} characters`,
+            );
+        }
+
+        await this.getManagedThread(user, {
+            agentUuid,
+            threadUuid,
+            action: 'rename',
+        });
 
         await this.aiAgentModel.updateThreadTitle({
             threadUuid,
             title: trimmedTitle,
         });
+    }
+
+    async setAgentThreadPinned(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            pinned,
+        }: { agentUuid: string; threadUuid: string; pinned: boolean },
+    ): Promise<void> {
+        await this.getManagedThread(user, {
+            agentUuid,
+            threadUuid,
+            action: pinned ? 'pin' : 'unpin',
+        });
+
+        await this.aiAgentModel.setThreadPinned({ threadUuid, pinned });
     }
 
     async deleteAgentThread(

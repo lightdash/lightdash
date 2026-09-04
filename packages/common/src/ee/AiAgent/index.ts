@@ -343,6 +343,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
+    pinnedAt: string | null;
     firstMessage: {
         uuid: string;
         message: string;

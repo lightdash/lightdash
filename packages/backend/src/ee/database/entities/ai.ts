@@ -32,6 +32,7 @@ export type DbAiThread = {
     title: string | null;
     title_generated_at: Date | null;
     sql_auto_approved_at: Date | null;
+    pinned_at: Date | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -49,6 +50,7 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
             | 'sql_auto_approved_at'
+            | 'pinned_at'
         > & { updated_at: Date | Knex.Raw }
     >
 >;

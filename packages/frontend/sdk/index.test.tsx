@@ -630,6 +630,7 @@ describe('SDK API client', () => {
                 createdFrom: 'web_app',
                 title: 'Revenue check',
                 titleGeneratedAt: null,
+                pinnedAt: null,
                 firstMessage: {
                     uuid: 'test-message-uuid',
                     message: 'How is revenue looking?',
