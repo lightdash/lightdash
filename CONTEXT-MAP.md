@@ -11,6 +11,7 @@ collisions with other contexts' or repo-wide meanings.
 ## Contexts
 
 - [Data apps](./docs/data-apps/CONTEXT.md) — AI-generated interactive apps built on the semantic layer by a coding agent in a sandbox, versioned per prompt, found and read by the AI agent
+- [Chart type registry](./docs/chart-types/CONTEXT.md) — official project chart types published as prebuilt artifacts in a public registry and installed read-only per project, with explicit fork for customization
 - [Pre-aggregates](./docs/pre-aggregates/CONTEXT.md) — user-defined, pre-computed summaries of explores that serve matching queries from materialized files instead of the warehouse
 - [AI agent](./docs/ai-agent/CONTEXT.md) — the in-app conversational agent (Ask AI), what users pin to its prompts, and where it opens from
 - [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI agent distills from a user's threads and recalls on their future threads
