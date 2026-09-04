@@ -295,6 +295,34 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('Delete chart type')).toBeInTheDocument();
     });
 
+    it('labels the action Uninstall for official chart types', async () => {
+        setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+        renderPage();
+
+        fireEvent.click(screen.getByText('Radial gauge'));
+        expect(
+            screen.queryByRole('button', { name: 'Delete' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }));
+
+        expect(screen.getByText('Uninstall chart type')).toBeInTheDocument();
+
+        // Both modals are open and both buttons say Uninstall; the confirm
+        // modal portals in after the detail modal, so its CTA is last.
+        const uninstallButtons = screen.getAllByRole('button', {
+            name: 'Uninstall',
+        });
+        fireEvent.click(uninstallButtons[uninstallButtons.length - 1]);
+
+        await waitFor(() =>
+            expect(mockedDeleteApp).toHaveBeenCalledWith({
+                projectUuid: 'project-1',
+                appUuid: 'data-app-viz-1',
+                successTitle: 'Chart type uninstalled',
+            }),
+        );
+    });
+
     it('hides edit and delete actions from non-editors', () => {
         vi.mocked(useCanEditDataApp).mockReturnValue(false);
         setData([makeDataAppViz({})]);
