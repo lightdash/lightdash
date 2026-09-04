@@ -5,46 +5,10 @@ material correction to a published advisory.
 
 ## Triage automated drafts
 
-This runbook is for maintainers. This section defines how to handle private
-drafts created by the `AI Security Advisory Drafts` workflow so an AI result
-cannot bypass the normal disclosure checks. The workflow never requests a CVE
-or publishes an advisory.
-
-The scan runs after release, when the diff is already public. It is only a
-backstop for unnoticed security fixes, not a replacement for coordinated private
-disclosure. Before accepting an automated draft, verify:
-
-- that the change fixes an exploitable vulnerability rather than ordinary
-  hardening;
-- the attacker prerequisites, impact, CVSS vector, severity, and CWE identifiers;
-- the first affected, last vulnerable, and first patched versions for every
-  affected product;
-- the workaround or the statement that no workaround is available;
-- the GitHub release, Docker tag, and immutable image digest; and
-- the remediation instructions and private review evidence.
-
-A candidate can create a draft only when the first analysis classifies it as a
-high-confidence exploitable vulnerability, verifies its introduction version,
-provides a complete CVSS v3.1 base vector, and selects a specific primary CWE.
-A fresh skeptical review must then inspect the previous release and independently
-confirm that existing controls do not prevent effective security impact.
-
-The workflow requires the existing `ANTHROPIC_API_KEY`, a
-`SECURITY_ALERTS_SLACK_WEBHOOK_URL`, and a `SECURITY_ADVISORY_TOKEN`. The latter
-must be a fine-grained personal access token restricted to this repository with
-Repository security advisories read and write access. The token owner must remain
-a repository administrator or organization security manager. Set an expiration,
-record its owner, and rotate it before it expires.
-
-The `Security Advisory Triage Reminder` workflow checks the repository every day
-at 10:00 Europe/Lisbon. When one or more advisories are in GitHub's `triage`
-state, it posts their titles and private links to `#security-alerts` using the
-same token and webhook.
-
-Close false-positive or duplicate drafts. For an accepted draft, request the CVE
-while it remains private, complete every field required below, and follow the
-publication order. For vulnerabilities known before release, create the private
-advisory before making the fix public.
+The private AI security automation and its operating instructions live in the
+`lightdash/lightdash-internal-agents` repository. Maintainers with access must
+review every automated draft there before continuing with this disclosure
+runbook; the automation never requests a CVE or publishes an advisory.
 
 ## Prepare the fix and advisory
 

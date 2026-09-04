@@ -121,6 +121,28 @@ jobs:
             SENTRY_BACKEND_PROJECT=lightdash-backend
             SENTRY_ENVIRONMENT=cloud_beta
 
+  dispatch-ai-security-advisories:
+    name: Dispatch AI Security Advisory Drafts
+    needs: build-and-push-images
+    if: github.event.release.draft == false && github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Dispatch internal security analysis
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          gh workflow run ai-security-advisories.yml \
+            --repo lightdash/lightdash-internal-agents \
+            --ref main \
+            --field release_tag="$RELEASE_TAG" \
+            --field create_drafts=true
+
   # ============================================================================
   # Job 2: QA Blast Radius
   # ============================================================================
