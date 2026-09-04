@@ -1,3 +1,10 @@
+# [2.132.0](https://github.com/lightdash/lightdash/compare/2.131.0...2.132.0) (2026-09-04)
+
+
+### Features
+
+* **ai-agents:** rename threads from the sidebar ([#28680](https://github.com/lightdash/lightdash/issues/28680)) ([fa986f6](https://github.com/lightdash/lightdash/commit/fa986f626a565ae658594dd18f38eda90276b308))
+
 # [2.131.0](https://github.com/lightdash/lightdash/compare/2.130.0...2.131.0) (2026-09-04)
 
 

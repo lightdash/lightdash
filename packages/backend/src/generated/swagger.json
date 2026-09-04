@@ -27147,6 +27147,15 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiAiAgentThreadUpdateRequest": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["title"],
+                "type": "object"
+            },
             "AiAgentThreadPullRequest": {
                 "properties": {
                     "commitSha": {
@@ -59795,7 +59804,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.131.0",
+        "version": "2.132.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -68299,6 +68308,70 @@
                         }
                     }
                 ]
+            },
+            "patch": {
+                "operationId": "updateAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rename a thread. Only the thread owner or a project admin may do this.",
+                "summary": "Update AI agent thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadUpdateRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/pull-request": {
