@@ -184,14 +184,16 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('Value')).toBeInTheDocument();
     });
 
-    it('separates chart types and the library into top-level tabs', () => {
+    it('separates installed charts and the chart library into top-level tabs', () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
         const chartTypesTab = screen.getByRole('tab', {
-            name: 'Chart types (1)',
+            name: 'Installed charts (1)',
         });
-        const libraryTab = screen.getByRole('tab', { name: 'Library' });
+        const libraryTab = screen.getByRole('tab', {
+            name: 'Chart library',
+        });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
         expect(libraryTab).toHaveAttribute('aria-selected', 'false');
@@ -211,7 +213,7 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            screen.queryByRole('tab', { name: 'Library' }),
+            screen.queryByRole('tab', { name: 'Chart library' }),
         ).not.toBeInTheDocument();
     });
 
