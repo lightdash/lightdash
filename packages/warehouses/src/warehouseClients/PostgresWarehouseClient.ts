@@ -13,6 +13,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
@@ -176,6 +177,29 @@ const convertDataTypeIdToDimensionType = (
     }
 };
 
+// numeric(p,s) encodes its typmod as ((p << 16) | s) + 4; -1 means unspecified
+const getNumericKindFromDataType = (
+    dataTypeId: number,
+    dataTypeModifier: number,
+): ResultNumericKind | undefined => {
+    switch (dataTypeId) {
+        case builtins.INT2:
+        case builtins.INT4:
+        case builtins.INT8:
+            return { kind: 'integer' };
+        case builtins.FLOAT4:
+        case builtins.FLOAT8:
+            return { kind: 'float' };
+        case builtins.NUMERIC:
+            return Number.isInteger(dataTypeModifier) && dataTypeModifier >= 4
+                ? // eslint-disable-next-line no-bitwise
+                  { kind: 'decimal', scale: (dataTypeModifier - 4) & 0xffff }
+                : undefined;
+        default:
+            return undefined;
+    }
+};
+
 export class PostgresSqlBuilder extends WarehouseBaseSqlBuilder {
     type = WarehouseTypes.POSTGRES;
 
@@ -282,10 +306,19 @@ export class PostgresClient<
         fields: QueryResult<AnyType>['fields'],
     ): WarehouseResults['fields'] {
         return Object.fromEntries(
-            fields.map(({ name, dataTypeID }) => [
-                name,
-                { type: convertDataTypeIdToDimensionType(dataTypeID) },
-            ]),
+            fields.map(({ name, dataTypeID, dataTypeModifier }) => {
+                const numericKind = getNumericKindFromDataType(
+                    dataTypeID,
+                    dataTypeModifier,
+                );
+                return [
+                    name,
+                    {
+                        type: convertDataTypeIdToDimensionType(dataTypeID),
+                        ...(numericKind ? { numericKind } : {}),
+                    },
+                ];
+            }),
         );
     }
 

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     DimensionType,
+    type ResultColumn,
     type ResultColumns,
 } from '@lightdash/common';
 
@@ -67,6 +68,100 @@ export const getJsonlSqlTable = (
         .join(', ');
 
     return `read_json('${escapedUri}', columns={${columnDefs}}, format='newline_delimited')`;
+};
+
+/**
+ * DuckDB type a referenced result column is read back as. NUMBER binds by
+ * the source's numeric kind so integers above 2^53 and fixed-scale decimals
+ * survive; without a kind it stays DOUBLE, the only type that fits every
+ * JSON number.
+ */
+export const resultColumnToDuckdbType = (
+    column: Pick<ResultColumn, 'type' | 'numericKind'>,
+): string => {
+    if (column.type !== DimensionType.NUMBER) {
+        return resultFieldTypeToDuckdbType(column.type);
+    }
+    const kind = column.numericKind;
+    if (!kind) return 'DOUBLE';
+    switch (kind.kind) {
+        case 'integer':
+            return 'HUGEINT';
+        case 'decimal':
+            return `DECIMAL(38,${Math.min(Math.max(kind.scale, 0), 38)})`;
+        case 'float':
+            return 'DOUBLE';
+        default:
+            return assertUnreachable(kind, 'Unknown numeric kind');
+    }
+};
+
+// Date-only or date + wall-clock time with no zone; anything else carries a
+// zone (Z, ±hh[:mm], or a named zone) and is read as an instant.
+const NAIVE_TIMESTAMP_PATTERN =
+    '^\\d{4}-\\d{2}-\\d{2}([T ]\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?)?$';
+
+const getReferenceColumnCast = (
+    raw: string,
+    column: Pick<ResultColumn, 'type' | 'numericKind'>,
+): string => {
+    switch (column.type) {
+        case DimensionType.TIMESTAMP:
+            return `CASE WHEN regexp_matches(${raw}, '${NAIVE_TIMESTAMP_PATTERN}') THEN TRY_CAST(${raw} AS TIMESTAMP) ELSE timezone('UTC', TRY_CAST(${raw} AS TIMESTAMPTZ)) END`;
+        case DimensionType.NUMBER:
+        case DimensionType.DATE:
+        case DimensionType.BOOLEAN:
+            return `TRY_CAST(${raw} AS ${resultColumnToDuckdbType(column)})`;
+        case DimensionType.STRING:
+            return raw;
+        default:
+            return assertUnreachable(
+                column.type,
+                `Unknown DimensionType: ${column.type}`,
+            );
+    }
+};
+
+/**
+ * One select-list entry per referenced column: the JSONL text cast to the
+ * column's type, refusing with the column named when a non-null value does
+ * not cast. read_json's own transform cannot name the column it fails on.
+ */
+const getReferenceColumnSelect = (
+    fieldId: string,
+    column: Pick<ResultColumn, 'type' | 'numericKind'>,
+): string => {
+    const raw = quoteDuckdbIdentifier(fieldId);
+    const cast = getReferenceColumnCast(raw, column);
+    if (cast === raw) return raw;
+    const refusal = `error('Referenced column ${escapeSqlString(
+        fieldId,
+    )} holds a value that cannot be read as ${column.type}: ' || left(${raw}, 100))`;
+    return `COALESCE(${cast}, CASE WHEN ${raw} IS NULL THEN NULL ELSE ${refusal} END) AS ${raw}`;
+};
+
+/**
+ * The SELECT a referenced query result is exposed through. Every column is
+ * read as its JSONL text and cast in SQL, so the exact digits the driver
+ * serialised reach the typed value and zone-bearing timestamps land at
+ * their instant.
+ */
+export const getJsonlReferenceSelect = (
+    uri: string,
+    columns?: ResultColumns | null,
+): string => {
+    const escapedUri = escapeSqlString(uri);
+    const entries = Object.entries(columns ?? {});
+    if (entries.length === 0) {
+        return `SELECT * FROM read_json_auto('${escapedUri}')`;
+    }
+    const rawColumns = entries
+        .map(([fieldId]) => `${quoteDuckdbIdentifier(fieldId)}: 'VARCHAR'`)
+        .join(', ');
+    const selectList = entries
+        .map(([fieldId, column]) => getReferenceColumnSelect(fieldId, column))
+        .join(', ');
+    return `SELECT ${selectList} FROM read_json('${escapedUri}', columns={${rawColumns}}, format='newline_delimited')`;
 };
 
 const getParquetSqlTable = (uri: string): string => {

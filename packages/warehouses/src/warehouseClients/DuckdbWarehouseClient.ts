@@ -2,6 +2,7 @@ import {
     DuckDBInstance,
     DuckDBTypeId,
     version as duckdbVersion,
+    type DuckDBType,
 } from '@duckdb/node-api';
 import {
     AnyType,
@@ -25,6 +26,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
@@ -42,6 +44,7 @@ type DuckdbStreamResult = {
     columnCount: number;
     columnNames: () => string[];
     columnTypeId: (columnIndex: number) => number;
+    columnType: (columnIndex: number) => DuckDBType;
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
@@ -190,6 +193,31 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
             return DimensionType.NUMBER;
         default:
             return DimensionType.STRING;
+    }
+};
+
+const getNumericKindFromType = (
+    type: DuckDBType,
+): ResultNumericKind | undefined => {
+    switch (type.typeId) {
+        case DuckDBTypeId.TINYINT:
+        case DuckDBTypeId.SMALLINT:
+        case DuckDBTypeId.INTEGER:
+        case DuckDBTypeId.BIGINT:
+        case DuckDBTypeId.HUGEINT:
+        case DuckDBTypeId.UTINYINT:
+        case DuckDBTypeId.USMALLINT:
+        case DuckDBTypeId.UINTEGER:
+        case DuckDBTypeId.UBIGINT:
+        case DuckDBTypeId.UHUGEINT:
+            return { kind: 'integer' };
+        case DuckDBTypeId.FLOAT:
+        case DuckDBTypeId.DOUBLE:
+            return { kind: 'float' };
+        case DuckDBTypeId.DECIMAL:
+            return { kind: 'decimal', scale: type.scale };
+        default:
+            return undefined;
     }
 };
 
@@ -2065,8 +2093,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const columnNames = result.columnNames();
         const fields: WarehouseResults['fields'] = {};
         for (let i = 0; i < result.columnCount; i += 1) {
+            const numericKind = getNumericKindFromType(result.columnType(i));
             fields[columnNames[i]] = {
                 type: mapFieldTypeFromTypeId(result.columnTypeId(i)),
+                ...(numericKind ? { numericKind } : {}),
             };
         }
         return fields;

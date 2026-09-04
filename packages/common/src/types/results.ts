@@ -85,9 +85,20 @@ export type ResultColumnProvenance = {
     sourceQueryUuid?: string;
 };
 
+/**
+ * How a NUMBER column's values are represented at the source, so a typed
+ * read can bind them without loss. Absent ⇒ unknown, read as DOUBLE.
+ */
+export type ResultNumericKind =
+    | { kind: 'integer' }
+    | { kind: 'decimal'; scale: number }
+    | { kind: 'float' };
+
 export type ResultColumn = {
     reference: string;
     type: DimensionType; // Lightdash simple type. In the future, we might introduce the warehouse type as well, which provides more detail.
+    /** Only meaningful for NUMBER columns; carried when the driver reports it. */
+    numericKind?: ResultNumericKind;
     /** Display label. Absent ⇒ consumers fall back to the reference. */
     label?: string;
     /**

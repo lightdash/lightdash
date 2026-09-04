@@ -99,6 +99,7 @@ const getMockStreamResult = (
         columnCount: columnNames.length,
         columnNames: () => columnNames,
         columnTypeId: (i: number) => columnTypeIds[i] ?? 0,
+        columnType: (i: number) => ({ typeId: columnTypeIds[i] ?? 0 }),
         // eslint-disable-next-line object-shorthand, func-names, no-restricted-syntax
         yieldRowObjectJson: async function* () {
             // eslint-disable-next-line no-restricted-syntax
@@ -255,7 +256,10 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.rows).toEqual(rows);
         expect(result.fields).toEqual({
             customer_name: { type: DimensionType.STRING },
-            order_count: { type: DimensionType.NUMBER },
+            order_count: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
             last_order_at: { type: DimensionType.TIMESTAMP },
         });
     });
@@ -281,12 +285,14 @@ describe('DuckdbWarehouseClient', () => {
         );
 
         expect(streamCallback).toHaveBeenCalledTimes(2);
-        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, {
-            id: { type: DimensionType.NUMBER },
-        });
-        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, {
-            id: { type: DimensionType.NUMBER },
-        });
+        const idField = {
+            id: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+        };
+        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, idField);
+        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, idField);
         expect(result.totalRows).toBe(3);
     });
 
@@ -573,6 +579,7 @@ describe('DuckdbWarehouseClient', () => {
                     columnCount: 1,
                     columnNames: () => ['val'],
                     columnTypeId: () => DUCKDB_TYPE_IDS.INTEGER,
+                    columnType: () => ({ typeId: DUCKDB_TYPE_IDS.INTEGER }),
                     yieldRowObjectJson: () => iterator,
                 };
             });

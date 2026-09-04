@@ -192,7 +192,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
-    getJsonlSqlTable,
+    getJsonlReferenceSelect,
     quoteDuckdbIdentifier,
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
@@ -7082,14 +7082,12 @@ export class AsyncQueryService extends ProjectService {
                 const key = S3ResultsFileStorageClient.sanitizeFileExtension(
                     queryHistory.resultsFileName,
                 );
-                const table = getJsonlSqlTable(
+                const select = getJsonlReferenceSelect(
                     `s3://${bucket}/${key}`,
                     queryHistory.columns,
                 );
 
-                return `${quoteDuckdbIdentifier(
-                    tableName,
-                )} AS (SELECT * FROM ${table})`;
+                return `${quoteDuckdbIdentifier(tableName)} AS (${select})`;
             },
         );
     }
