@@ -17578,6 +17578,13 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 vizSchema: { ref: 'DataAppVizSchema', required: true },
+                channel: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['stable'] },
+                        { dataType: 'enum', enums: ['beta'] },
+                    ],
+                },
                 minLightdashVersion: {
                     dataType: 'union',
                     subSchemas: [

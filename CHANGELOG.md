@@ -1,3 +1,17 @@
+# [2.122.0](https://github.com/lightdash/lightdash/compare/2.121.1...2.122.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **ai:** default field search filters ([#28629](https://github.com/lightdash/lightdash/issues/28629)) ([277fe71](https://github.com/lightdash/lightdash/commit/277fe71670d8a69214c9d0c333365275cc36e946))
+* **chart-registry:** serve thumbnails across index cache generations ([#28631](https://github.com/lightdash/lightdash/issues/28631)) ([0bc6b5f](https://github.com/lightdash/lightdash/commit/0bc6b5fd00e81fda8d79eae19b9c23a2c5fec39c))
+
+
+### Features
+
+* **ai:** route OpenRouter models to a chosen upstream provider ([#28632](https://github.com/lightdash/lightdash/issues/28632)) ([e6ef629](https://github.com/lightdash/lightdash/commit/e6ef629dcc548e1dca3cb6f299426a1b6ee0bc56)), closes [#28600](https://github.com/lightdash/lightdash/issues/28600)
+* **chart-registry:** next channel reads index-next.json for staged charts ([#28628](https://github.com/lightdash/lightdash/issues/28628)) ([1e9573e](https://github.com/lightdash/lightdash/commit/1e9573e5eb4158d9e97dfc39418f405437f371cb))
+
 ## [2.121.1](https://github.com/lightdash/lightdash/compare/2.121.0...2.121.1) (2026-09-04)
 
 
