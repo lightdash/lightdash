@@ -1,3 +1,10 @@
+# [2.133.0](https://github.com/lightdash/lightdash/compare/2.132.0...2.133.0) (2026-09-04)
+
+
+### Features
+
+* **ai-agents:** pin threads to the top of the sidebar ([#28681](https://github.com/lightdash/lightdash/issues/28681)) ([c403b77](https://github.com/lightdash/lightdash/commit/c403b7792e513967984cd2be96bb7a115f2d5a12))
+
 # [2.132.0](https://github.com/lightdash/lightdash/compare/2.131.0...2.132.0) (2026-09-04)
 
 
