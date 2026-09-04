@@ -184,6 +184,7 @@ beforeEach(() => {
     mockSecureFetch.mockResolvedValue({
         status: 200,
         contentType: 'application/json',
+        headers: {},
         bodyText: '{"ok":true}',
         truncated: false,
     });
@@ -409,6 +410,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res).toEqual({
             status: 200,
             contentType: 'application/json',
+            headers: {},
             body: { ok: true },
             truncated: false,
         });
@@ -717,6 +719,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 400,
             contentType: 'application/json',
+            headers: { 'retry-after': '5' },
             bodyText: '{"error":"anthropic-version header is required"}',
             truncated: false,
         });
@@ -731,6 +734,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res.body).toEqual({
             error: 'anthropic-version header is required',
         });
+        expect(res.headers).toEqual({ 'retry-after': '5' });
         expect(analytics.trackAccount).toHaveBeenCalledWith(
             user,
             expect.objectContaining({
@@ -776,6 +780,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'text/plain',
+            headers: {},
             bodyText: 'plain text',
             truncated: false,
         });
@@ -795,6 +800,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'application/json',
+            headers: {},
             bodyText: 'not json{',
             truncated: false,
         });
@@ -810,6 +816,7 @@ describe('ExternalConnectionService.proxyFetch', () => {
         mockSecureFetch.mockResolvedValueOnce({
             status: 200,
             contentType: 'application/geo+json; charset=utf-8',
+            headers: {},
             bodyText: '{"type":"FeatureCollection","features":[]}',
             truncated: false,
         });

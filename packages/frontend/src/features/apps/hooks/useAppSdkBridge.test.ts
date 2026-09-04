@@ -931,6 +931,7 @@ describe('external-fetch branch', () => {
             results: {
                 status: 200,
                 contentType: 'application/json',
+                headers: {},
                 body: { ok: true },
                 truncated: false,
             },
@@ -973,6 +974,7 @@ describe('external-fetch branch', () => {
             results: {
                 status: 200,
                 contentType: 'application/json',
+                headers: {},
                 body: { temperature: 18 },
                 truncated: false,
             },
@@ -999,6 +1001,7 @@ describe('external-fetch branch', () => {
         const result = {
             status: 200,
             contentType: 'application/json',
+            headers: { 'retry-after': '2' },
             body: 1,
             truncated: false,
         };

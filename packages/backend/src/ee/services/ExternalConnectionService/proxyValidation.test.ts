@@ -3,6 +3,8 @@ import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
+    EXTERNAL_RESPONSE_HEADER_MAX_BYTES,
+    filterExternalResponseHeaders,
     normalizeAndValidatePath,
     serializeRequestBody,
     validateCustomHeaders,
@@ -389,6 +391,69 @@ describe('validateCustomHeaders', () => {
     it('rejects a collision with the api key header (case-insensitive)', () => {
         expect(() =>
             validateCustomHeaders({ 'x-service-key': 'v' }, 'X-Service-Key'),
+        ).toThrow(ParameterError);
+    });
+});
+
+describe('filterExternalResponseHeaders', () => {
+    const requestUrl = 'https://api.example.com/v1/items?page=1';
+
+    it('exposes supported cache, pagination, and rate-limit headers only', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: {
+                    'Retry-After': '3',
+                    'X-RateLimit-Remaining': '9',
+                    ETag: '"abc"',
+                    'Set-Cookie': 'session=secret',
+                    Server: 'internal-proxy',
+                    'Content-Length': '123',
+                },
+                requestUrl,
+                queryApiKeyName: null,
+            }),
+        ).toEqual({
+            'retry-after': '3',
+            'x-ratelimit-remaining': '9',
+            etag: '"abc"',
+        });
+    });
+
+    it('removes an injected query API key from reusable Link targets', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: {
+                    Link: '<https://api.example.com/v1/items?page=2&api_key=secret>; rel="next", <https://docs.example.com/items?api_key=secret>; rel="help"',
+                },
+                requestUrl: `${requestUrl}&api_key=secret`,
+                queryApiKeyName: 'api_key',
+            }),
+        ).toEqual({
+            link: '</v1/items?page=2>; rel="next", <https://docs.example.com/items>; rel="help"',
+        });
+    });
+
+    it('omits malformed Link values instead of exposing them unsanitized', () => {
+        expect(
+            filterExternalResponseHeaders({
+                headers: { Link: 'https://api.example.com/v1/items?page=2' },
+                requestUrl,
+                queryApiKeyName: 'api_key',
+            }),
+        ).toEqual({});
+    });
+
+    it('rejects exposed response metadata over the aggregate byte cap', () => {
+        expect(() =>
+            filterExternalResponseHeaders({
+                headers: {
+                    'Retry-After': '1'.repeat(
+                        EXTERNAL_RESPONSE_HEADER_MAX_BYTES,
+                    ),
+                },
+                requestUrl,
+                queryApiKeyName: null,
+            }),
         ).toThrow(ParameterError);
     });
 });

@@ -15,6 +15,7 @@ import {
     type AppColorScheme,
     type DashboardFilters,
     type DataAppVizContext,
+    type ExternalFetchResponse,
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
@@ -653,12 +654,7 @@ export function useAppSdkBridge({
                     const json = await res.json();
                     if (json.status === 'ok') {
                         const result = json.results as
-                            | {
-                                  status?: number;
-                                  contentType?: string;
-                                  body?: unknown;
-                                  truncated?: boolean;
-                              }
+                            | ExternalFetchResponse
                             | undefined;
                         emitExternal({
                             status: 'ready',

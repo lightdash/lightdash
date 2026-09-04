@@ -55,6 +55,7 @@ import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
+    filterExternalResponseHeaders,
     normalizeAndValidatePath,
     serializeRequestBody,
     validateCustomHeaders,
@@ -964,6 +965,15 @@ export class ExternalConnectionService extends BaseService {
             response: {
                 status: fetched.status,
                 contentType: fetched.contentType,
+                headers: filterExternalResponseHeaders({
+                    headers: fetched.headers,
+                    requestUrl: url,
+                    queryApiKeyName:
+                        connection.type === 'api_key' &&
+                        connection.apiKeyLocation === 'query'
+                            ? connection.apiKeyName
+                            : null,
+                }),
                 body: parsedBody,
                 // Reserved for future use; always false in v1 — oversize responses
                 // are rejected (SecureFetchError too_large), not truncated.
