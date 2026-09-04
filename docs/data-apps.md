@@ -223,6 +223,10 @@ queries: the explorer hands it rows and a field mapping, and it renders. They sh
 permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
 as code separately.
 
+Official chart types can also be installed prebuilt from a chart registry, are read-only once installed, and are
+customized by forking — the registry, library, install and fork model is documented in
+[`docs/chart-types.md`](./chart-types.md).
+
 A saved chart pins the version of the type it was saved with, so iterating on a type never changes existing charts.
 Charts saved before pins exist follow the latest version until they are next edited and saved. When a newer version
 exists, the explorer's configure panel offers an upgrade that lists the field, option and palette changes; upgrading
