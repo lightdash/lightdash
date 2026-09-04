@@ -84,9 +84,11 @@ describe('ComposeEngineClient', () => {
 
         const first = client.createExecutionWarehouseClient({
             storage: 'results',
+            scope: null,
         });
         const second = client.createExecutionWarehouseClient({
             storage: 'results',
+            scope: null,
         });
 
         expect(first).toBe(warehouseClientMock);
@@ -107,7 +109,10 @@ describe('ComposeEngineClient', () => {
             createDuckdbWarehouseClient,
         });
 
-        client.createExecutionWarehouseClient({ storage: 'results' });
+        client.createExecutionWarehouseClient({
+            storage: 'results',
+            scope: null,
+        });
 
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -135,6 +140,7 @@ describe('ComposeEngineClient', () => {
         });
         const results = client.createExecutionWarehouseClient({
             storage: 'results',
+            scope: null,
         });
 
         expect(second).toBe(first);
@@ -171,12 +177,66 @@ describe('ComposeEngineClient', () => {
 
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
-            s3Config: { ...preAggregateSession, scope },
+            s3Config: { ...preAggregateSession, scope: [scope] },
             resourceLimits: { memoryLimit: '512MB', threads: 2 },
             organizationConcurrencyLimit:
                 withPreAggregateBucket.externalSources
                     .maxConcurrentDuckdbQueriesPerOrganization,
         });
+    });
+
+    test('a results session scoped to leg files is isolated, never cached and reaches no other result file', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            lightdashConfig: withPreAggregateBucket,
+            createDuckdbWarehouseClient,
+        });
+        const legFiles = [
+            's3://results-bucket/leg-a.jsonl',
+            's3://results-bucket/leg-b.jsonl',
+        ];
+        const foreignResultFile = 's3://results-bucket/someone-else.jsonl';
+
+        client.createExecutionWarehouseClient({
+            storage: 'results',
+            scope: legFiles,
+        });
+        client.createExecutionWarehouseClient({
+            storage: 'results',
+            scope: legFiles,
+        });
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith({
+            s3Config: { ...resultsSession, scope: legFiles },
+            resourceLimits: { memoryLimit: '512MB', threads: 2 },
+            organizationConcurrencyLimit: undefined,
+        });
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                s3Config: expect.objectContaining({
+                    scope: expect.arrayContaining([foreignResultFile]),
+                }),
+            }),
+        );
+    });
+
+    test('refuses a results session scoped to nothing rather than widening it', () => {
+        const createDuckdbWarehouseClient = vi.fn(() => warehouseClientMock);
+        const client = new ComposeEngineClient({
+            resolveCaCertFile,
+            lightdashConfig: ossConfig,
+            createDuckdbWarehouseClient,
+        });
+
+        expect(() =>
+            client.createExecutionWarehouseClient({
+                storage: 'results',
+                scope: [],
+            }),
+        ).toThrow('A scoped compose engine session needs at least one URI');
+        expect(createDuckdbWarehouseClient).not.toHaveBeenCalled();
     });
 
     test('creates a real DuckDB client that may read result files', () => {
@@ -191,6 +251,7 @@ describe('ComposeEngineClient', () => {
 
         const warehouseClient = client.createExecutionWarehouseClient({
             storage: 'results',
+            scope: null,
         });
 
         expect(warehouseClient).toBeInstanceOf(DuckdbWarehouseClient);
@@ -217,7 +278,10 @@ describe('ComposeEngineClient', () => {
             createDuckdbWarehouseClient,
         });
 
-        client.createExecutionWarehouseClient({ storage: 'results' });
+        client.createExecutionWarehouseClient({
+            storage: 'results',
+            scope: null,
+        });
 
         expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -238,7 +302,10 @@ describe('ComposeEngineClient', () => {
         });
 
         expect(() =>
-            client.createExecutionWarehouseClient({ storage: 'results' }),
+            client.createExecutionWarehouseClient({
+                storage: 'results',
+                scope: null,
+            }),
         ).toThrow(
             new MissingConfigError(
                 COMPOSE_ENGINE_MISSING_RESULTS_STORAGE_MESSAGE,
@@ -283,7 +350,10 @@ describe('ComposeEngineClient', () => {
         });
 
         expect(() =>
-            client.createExecutionWarehouseClient({ storage: 'results' }),
+            client.createExecutionWarehouseClient({
+                storage: 'results',
+                scope: null,
+            }),
         ).toThrow(
             new MissingConfigError(COMPOSE_ENGINE_MISSING_CA_BUNDLE_MESSAGE),
         );

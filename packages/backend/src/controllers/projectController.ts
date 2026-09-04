@@ -580,6 +580,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         status: 'ok';
         results: ApiCompiledMergeQueryResults;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -588,7 +589,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             results: await this.services
                 .getAsyncQueryService()
                 .compileMergeQuery({
-                    account: req.account!,
+                    account: req.account,
                     projectUuid,
                     mergeQuery: body.mergeQuery,
                     parameters: body.parameters,
@@ -621,11 +622,12 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         status: 'ok';
         results: ApiExecuteAsyncMetricQueryResults;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
             .getAsyncQueryService()
             .executeLegacyAsyncMergeQuery({
-                account: req.account!,
+                account: req.account,
                 projectUuid,
                 mergeQuery: body.mergeQuery,
                 parameters: body.parameters,

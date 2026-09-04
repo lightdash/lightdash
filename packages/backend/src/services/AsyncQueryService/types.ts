@@ -334,6 +334,20 @@ export type DuckdbQueryReferences =
           guard: DuckdbQueryReferenceGuard | null;
       };
 
+/** Which compose engine session executes a DuckDB query. */
+export type DuckdbQueryEngine =
+    | { kind: 'client'; warehouseClient: WarehouseClient }
+    | {
+          /** An isolated results session whose credentials reach only the bound result files. */
+          kind: 'scopedToReferencedResults';
+      };
+
+/** A query's references, bound: the CTEs to attach and the result files they read. */
+export type BoundDuckdbQueryReferences = {
+    referenceCtes: string[];
+    resultFileUris: string[];
+};
+
 export type RunDuckdbQueryArgs = {
     account: Account;
     projectUuid: string;
@@ -347,7 +361,7 @@ export type RunDuckdbQueryArgs = {
     columns: DuckdbQueryColumns;
     /** Persisted instead of the executed SQL when that carries private URIs. */
     storedCompiledSql: string | null;
-    warehouseClient: WarehouseClient;
+    engine: DuckdbQueryEngine;
     queryTags: RunQueryTags;
     queryCreatedAt: Date;
     cacheKey: string;

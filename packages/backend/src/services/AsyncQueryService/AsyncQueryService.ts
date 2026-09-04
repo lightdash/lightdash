@@ -286,9 +286,11 @@ import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    type BoundDuckdbQueryReferences,
     type CommonAsyncQueryArgs,
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
+    type DuckdbQueryEngine,
     type DuckdbQueryReferences,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
@@ -7325,12 +7327,13 @@ export class AsyncQueryService extends ProjectService {
     /**
      * Builds one CTE per completed reference so the user SQL can select from
      * semantically-named tables: {"orders": "<queryUuid>"} exposes that
-     * query's results as `orders`.
+     * query's results as `orders`. Also returns the result file each CTE
+     * reads, which is the whole of what a scoped session may reach.
      */
     private buildQueryReferenceCtes(
         queryHistoryByTableName: Record<string, QueryHistory>,
-    ): string[] {
-        return Object.entries(queryHistoryByTableName).map(
+    ): BoundDuckdbQueryReferences {
+        const bound = Object.entries(queryHistoryByTableName).map(
             ([tableName, queryHistory]) => {
                 if (
                     queryHistory.resultsExpiresAt &&
@@ -7356,16 +7359,24 @@ export class AsyncQueryService extends ProjectService {
                 const key = S3ResultsFileStorageClient.sanitizeFileExtension(
                     queryHistory.resultsFileName,
                 );
+                const resultFileUri = `s3://${bucket}/${key}`;
                 const table = getJsonlSqlTable(
-                    `s3://${bucket}/${key}`,
+                    resultFileUri,
                     queryHistory.columns,
                 );
 
-                return `${quoteDuckdbIdentifier(
-                    tableName,
-                )} AS (SELECT * FROM ${table})`;
+                return {
+                    referenceCte: `${quoteDuckdbIdentifier(
+                        tableName,
+                    )} AS (SELECT * FROM ${table})`,
+                    resultFileUri,
+                };
             },
         );
+        return {
+            referenceCtes: bound.map(({ referenceCte }) => referenceCte),
+            resultFileUris: bound.map(({ resultFileUri }) => resultFileUri),
+        };
     }
 
     /**
@@ -7456,6 +7467,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'results',
+                scope: null,
             });
 
         const combinedParameters = await this.combineParameters(
@@ -7554,7 +7566,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters: combinedParameters,
             },
             storedCompiledSql: null,
-            warehouseClient,
+            engine: { kind: 'client', warehouseClient },
             queryTags,
             queryCreatedAt,
             cacheKey,
@@ -7792,7 +7804,7 @@ export class AsyncQueryService extends ProjectService {
             },
             // Only persist the user SQL; resolved SQL contains private URIs.
             storedCompiledSql: sql,
-            warehouseClient,
+            engine: { kind: 'client', warehouseClient },
             queryTags,
             queryCreatedAt,
             cacheKey,
@@ -7860,21 +7872,25 @@ export class AsyncQueryService extends ProjectService {
         references,
         columns,
         storedCompiledSql,
-        warehouseClient,
+        engine,
         queryTags,
         queryCreatedAt,
         cacheKey,
         context,
     }: RunDuckdbQueryArgs): Promise<void> {
         try {
-            const referenceCtes = await this.bindDuckdbQueryReferences({
+            const bound = await this.bindDuckdbQueryReferences({
                 account,
                 projectUuid,
                 references,
             });
+            const warehouseClient = this.resolveDuckdbQueryEngine(
+                engine,
+                bound,
+            );
             const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
                 sql,
-                referenceCtes,
+                bound.referenceCtes,
             );
             const execution = await this.resolveDuckdbQueryColumns({
                 resolvedSql,
@@ -7942,6 +7958,28 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * The session a DuckDB query runs on. A scoped session is built only
+     * once the references are bound, because the result files it may reach
+     * are not known before the referenced queries complete.
+     */
+    private resolveDuckdbQueryEngine(
+        engine: DuckdbQueryEngine,
+        bound: BoundDuckdbQueryReferences,
+    ): WarehouseClient {
+        switch (engine.kind) {
+            case 'client':
+                return engine.warehouseClient;
+            case 'scopedToReferencedResults':
+                return this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'results',
+                    scope: bound.resultFileUris,
+                });
+            default:
+                return assertUnreachable(engine, 'Unknown DuckDB query engine');
+        }
+    }
+
+    /**
      * Resolves a query's references to the CTEs that expose them. Referenced
      * queries are waited on, then the guard runs before anything is built,
      * so a refusal never costs an execution.
@@ -7954,10 +7992,13 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         references: DuckdbQueryReferences;
-    }): Promise<string[]> {
+    }): Promise<BoundDuckdbQueryReferences> {
         switch (references.kind) {
             case 'bound':
-                return references.referenceCtes;
+                return {
+                    referenceCtes: references.referenceCtes,
+                    resultFileUris: [],
+                };
             case 'queries': {
                 const completed = await this.waitForQueryReferences({
                     account,
@@ -8531,10 +8572,12 @@ export class AsyncQueryService extends ProjectService {
         if (!enabled) return null;
 
         // Throws MissingConfigError when results storage is not configured:
-        // a merge without an engine is refused, never silently downgraded
+        // a merge without an engine is refused, never silently downgraded.
+        // Dialect only: execution runs on a session scoped to the leg files
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'results',
+                scope: null,
             });
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -8763,7 +8806,9 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                     },
                     storedCompiledSql: null,
-                    warehouseClient,
+                    // A merge calculation is user SQL: it runs on a session
+                    // that reaches only the leg files it joins
+                    engine: { kind: 'scopedToReferencedResults' },
                     queryTags,
                     queryCreatedAt,
                     cacheKey,
