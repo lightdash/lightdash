@@ -849,6 +849,10 @@ const Dashboard: FC = () => {
         [setDashboardCustomMetrics, queryClient],
     );
 
+    const handleOpenNewChart = useCallback(() => {
+        setIsNewChartOpen(true);
+    }, []);
+
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
             // Only the in-dashboard builder contributes to the registry.
@@ -1025,7 +1029,7 @@ const Dashboard: FC = () => {
         onAddTiles: handleAddTiles,
         onNewChart:
             isDashboardCustomMetricsEnabled && isEditMode
-                ? () => setIsNewChartOpen(true)
+                ? handleOpenNewChart
                 : undefined,
         onSaveDashboard: () => {
             if (shouldShowVerificationSaveOptions) {
@@ -1234,6 +1238,12 @@ const Dashboard: FC = () => {
                                 handleEditTile={handleEditTiles}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
+                                onNewChart={
+                                    isDashboardCustomMetricsEnabled &&
+                                    isEditMode
+                                        ? handleOpenNewChart
+                                        : undefined
+                                }
                             />
                         </FilterBarPopoversProvider>
                     </DashboardChartEditContext.Provider>
