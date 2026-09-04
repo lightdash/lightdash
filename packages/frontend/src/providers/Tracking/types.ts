@@ -930,6 +930,7 @@ type DashboardWorkbookEvent = {
         | EventName.DASHBOARD_CHART_CREATED_IN_PLACE
         | EventName.DASHBOARD_CHART_EDITED_IN_PLACE;
     properties: {
+        organizationUuid: string | undefined;
         projectUuid: string | undefined;
         dashboardUuid: string;
         exploreName: string;
