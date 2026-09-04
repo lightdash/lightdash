@@ -182,6 +182,25 @@ describe('lightdash pgwire handlers: describe vs query', () => {
         await expect(
             handlers.query(session, 'SHOW server_version'),
         ).resolves.toMatchObject({ type: 'rows', commandTag: 'SHOW' });
+        await expect(
+            handlers.describe(session, 'SHOW TRANSACTION ISOLATION LEVEL'),
+        ).resolves.toEqual([{ name: 'transaction_isolation', oid: 25 }]);
+        await expect(
+            handlers.query(session, 'SHOW TRANSACTION ISOLATION LEVEL'),
+        ).resolves.toEqual({
+            type: 'rows',
+            fields: [{ name: 'transaction_isolation', oid: 25 }],
+            rows: [['read committed']],
+            commandTag: 'SHOW',
+        });
+        await expect(
+            handlers.query(session, 'SHOW TIME ZONE'),
+        ).resolves.toEqual({
+            type: 'rows',
+            fields: [{ name: 'timezone', oid: 25 }],
+            rows: [['UTC']],
+            commandTag: 'SHOW',
+        });
     });
 
     it('answers schema probes without touching the warehouse', async () => {

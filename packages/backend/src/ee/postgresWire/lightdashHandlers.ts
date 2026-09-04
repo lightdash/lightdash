@@ -88,6 +88,11 @@ const SHOW_PARAMETERS: Record<string, string> = {
     search_path: 'public',
 };
 
+const SHOW_PARAMETER_ALIASES: Record<string, string> = {
+    'TRANSACTION ISOLATION LEVEL': 'transaction_isolation',
+    'TIME ZONE': 'timezone',
+};
+
 /**
  * Handle transaction/session statements that BI tools and drivers send but
  * that have no meaning against the semantic layer. Returns null when the
@@ -122,7 +127,14 @@ const tryHandleSessionStatement = (sql: string): PgWireQueryResult | null => {
         case 'DEALLOCATE':
             return { type: 'command', commandTag: 'DEALLOCATE' };
         case 'SHOW': {
-            const param = secondWord.toLowerCase();
+            const showParameter = trimmed
+                .slice(firstWord.length)
+                .trim()
+                .replace(/\s+/g, ' ')
+                .toUpperCase();
+            const param =
+                SHOW_PARAMETER_ALIASES[showParameter] ??
+                secondWord.toLowerCase();
             const value = SHOW_PARAMETERS[param];
             if (value === undefined) {
                 throw new PgWireServerError(
