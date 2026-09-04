@@ -118,3 +118,77 @@ describe('MobilePushNotificationController.registerLiveActivityPushToStartToken'
         expect(JSON.stringify(response)).not.toContain('push-to-start-token');
     });
 });
+
+describe('MobilePushNotificationController.registerInstallation', () => {
+    const buildController = () => {
+        const registerInstallation = vi.fn<
+            MobilePushNotificationService['registerInstallation']
+        >(async () => undefined);
+        const services = {
+            getMobilePushNotificationService: () => ({
+                registerInstallation,
+            }),
+        } as unknown as ServiceRepository;
+        return {
+            registerInstallation,
+            controller: new MobilePushNotificationController(services),
+        };
+    };
+
+    const buildRequest = (authentication: Record<string, unknown>): Request =>
+        ({
+            account: {
+                user: {
+                    type: 'registered',
+                    id: 'user-uuid',
+                    userUuid: 'user-uuid',
+                },
+                organization: {
+                    organizationUuid: 'organization-uuid',
+                    name: 'Organization',
+                    createdAt: new Date('2026-08-31T12:00:00.000Z'),
+                },
+                authentication,
+            },
+        }) as unknown as Request;
+
+    const installationUuid = '10000000-0000-4000-8000-000000000003' as UUID;
+    const body = {
+        environment: 'sandbox' as const,
+        deviceToken: 'device-token',
+    };
+
+    it('records the OAuth client that registered the installation', async () => {
+        const { controller, registerInstallation } = buildController();
+
+        await controller.registerInstallation(
+            buildRequest({
+                type: 'oauth',
+                clientId: 'oauth-mobile',
+                token: 'oauth-token',
+                scopes: ['read'],
+                source: 'oauth-token',
+            }),
+            installationUuid,
+            body,
+        );
+
+        expect(registerInstallation).toHaveBeenCalledWith(
+            expect.objectContaining({ oauthClientId: 'oauth-mobile' }),
+        );
+    });
+
+    it('records no OAuth client for a session request', async () => {
+        const { controller, registerInstallation } = buildController();
+
+        await controller.registerInstallation(
+            buildRequest({ type: 'session', source: 'cookie' }),
+            installationUuid,
+            body,
+        );
+
+        expect(registerInstallation).toHaveBeenCalledWith(
+            expect.objectContaining({ oauthClientId: null }),
+        );
+    });
+});

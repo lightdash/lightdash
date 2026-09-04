@@ -84,6 +84,9 @@ const createDependencies = () => {
         findLiveActivityOwner: vi.fn<
             MobilePushNotificationStore['findLiveActivityOwner']
         >(async () => undefined),
+        installationHasLiveGrant: vi.fn<
+            MobilePushNotificationStore['installationHasLiveGrant']
+        >(async () => true),
         upsertInstallation: vi.fn<
             MobilePushNotificationStore['upsertInstallation']
         >(async () => ({ status: 'stored', installation })),
@@ -1199,6 +1202,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             platform: 'ios',
             environment: 'sandbox',
             deviceToken: validDeviceToken,
+            oauthClientId: null,
         });
 
         expect(
@@ -1210,6 +1214,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             platform: 'ios',
             environment: 'sandbox',
             deviceToken: validDeviceToken,
+            oauthClientId: null,
         });
         expect(dependencies.analytics.track).toHaveBeenCalledWith({
             event: 'mobile_push.installation_registered',
@@ -1240,6 +1245,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
                 platform: 'ios',
                 environment: 'sandbox',
                 deviceToken: validDeviceToken,
+                oauthClientId: null,
             }),
         ).rejects.toBeInstanceOf(NotFoundError);
         expect(dependencies.analytics.track).not.toHaveBeenCalled();
@@ -1256,6 +1262,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
                 platform: 'android',
                 environment: 'production',
                 deviceToken: 'fcm-registration:token_value',
+                oauthClientId: null,
             }),
         ).rejects.toBeInstanceOf(NotFoundError);
         expect(
@@ -1278,6 +1285,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             platform: 'android',
             environment: 'production',
             deviceToken: 'fcm-registration:token_value',
+            oauthClientId: null,
         });
 
         expect(
@@ -1289,6 +1297,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             platform: 'android',
             environment: 'production',
             deviceToken: 'fcm-registration:token_value',
+            oauthClientId: null,
         });
     });
 
@@ -1336,6 +1345,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
                     platform: 'ios',
                     environment: 'sandbox',
                     deviceToken,
+                    oauthClientId: null,
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(
@@ -1355,6 +1365,7 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             platform: 'ios',
             environment: 'sandbox',
             deviceToken: 'device-token',
+            oauthClientId: null,
         });
 
         expect(
@@ -1404,5 +1415,77 @@ describe('MobilePushNotificationService installation lifecycle', () => {
             threadUuid,
             liveActivityUuid,
         });
+    });
+});
+
+describe('MobilePushNotificationService mobile grant lifecycle', () => {
+    it('stores the OAuth client that registered the installation', async () => {
+        const dependencies = createDependencies();
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.registerInstallation({
+            user: { userUuid, organizationUuid },
+            installationUuid,
+            platform: 'ios',
+            environment: 'sandbox',
+            deviceToken: validDeviceToken,
+            oauthClientId: 'oauth-mobile',
+        });
+
+        expect(
+            dependencies.mobilePushNotificationStore.upsertInstallation,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ oauthClientId: 'oauth-mobile' }),
+        );
+    });
+
+    it('sends a Live Activity start while the grant is live', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore.installationHasLiveGrant,
+        ).toHaveBeenCalledWith(installationUuid);
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).toHaveBeenCalled();
+        expect(
+            dependencies.mobilePushNotificationStore.deleteInstallation,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('removes the installation and sends nothing once the grant is gone', async () => {
+        const dependencies = createDependencies();
+        dependencies.mobilePushNotificationStore.claimLiveActivityStartAttempt.mockResolvedValue(
+            claimedStartAttempt,
+        );
+        dependencies.mobilePushNotificationStore.installationHasLiveGrant.mockResolvedValue(
+            false,
+        );
+        const service = new MobilePushNotificationService(dependencies);
+
+        await service.deliverLiveActivityStart(liveActivityStartAttemptUuid);
+
+        expect(
+            dependencies.mobilePushNotificationStore.deleteInstallation,
+        ).toHaveBeenCalledWith({
+            installationUuid,
+            organizationUuid,
+            userUuid,
+        });
+        expect(
+            dependencies.apnsClient.sendLiveActivityStart,
+        ).not.toHaveBeenCalled();
+        expect(
+            JSON.stringify(
+                dependencies.mobilePushNotificationStore.deleteInstallation.mock
+                    .calls,
+            ),
+        ).not.toContain('push-to-start-token');
     });
 });

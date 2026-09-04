@@ -20,6 +20,7 @@ import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { JiraAppService } from '../services/JiraAppService/JiraAppService';
 import { LinearAppService } from '../services/LinearAppService/LinearAppService';
+import { OAuthService } from '../services/OAuthService/OAuthService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
@@ -199,6 +200,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     apnsClient,
                 });
             },
+            oauthService: ({ models, context }) =>
+                new OAuthService({
+                    userModel: models.getUserModel(),
+                    oauthModel: models.getOauthModel(),
+                    lightdashConfig: context.lightdashConfig,
+                    onGrantRevoked: ({ userId, clientId }) =>
+                        models
+                            .getMobilePushNotificationModel<MobilePushNotificationModel>()
+                            .deleteInstallationsWithoutLiveGrant({
+                                userId,
+                                clientId,
+                            }),
+                }),
             linearAppService: ({ models, context }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
