@@ -23,6 +23,7 @@ import useApp from '../../../providers/App/useApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
+import ChartTypeBetaBadge from './ChartTypeBetaBadge';
 import classes from './ChartTypeLibraryDetailModal.module.css';
 import ChartTypeUninstallModal from './ChartTypeUninstallModal';
 import DataAppVizFieldTypeBadge from './DataAppVizFieldTypeBadge';
@@ -103,18 +104,14 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                 };
             case 'update_available':
                 return {
-                    actions: (
-                        <Group gap="sm" wrap="nowrap">
-                            {uninstallButton}
-                            {canInstallGate(
-                                <Button
-                                    loading={installMutation.isLoading}
-                                    onClick={handleInstall}
-                                >
-                                    Upgrade to v{item.version}
-                                </Button>,
-                            )}
-                        </Group>
+                    leftActions: uninstallButton,
+                    actions: canInstallGate(
+                        <Button
+                            loading={installMutation.isLoading}
+                            onClick={handleInstall}
+                        >
+                            Upgrade to v{item.version}
+                        </Button>,
                     ),
                 };
             case 'installed':
@@ -241,9 +238,14 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
                             <Text fz={12} fw={600} c="ldGray.6">
                                 Version
                             </Text>
-                            <Text fz="sm" fw={500} c="ldGray.8">
-                                v{item.version}
-                            </Text>
+                            <Group gap="xs" wrap="nowrap">
+                                <Text fz="sm" fw={500} c="ldGray.8">
+                                    v{item.version}
+                                </Text>
+                                {item.channel === 'beta' && (
+                                    <ChartTypeBetaBadge />
+                                )}
+                            </Group>
                         </Box>
                         <Box>
                             <Text fz={12} fw={600} c="ldGray.6">
