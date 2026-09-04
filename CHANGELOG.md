@@ -1,3 +1,10 @@
+## [2.134.1](https://github.com/lightdash/lightdash/compare/2.134.0...2.134.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **compose:** bind referenced results with a typed read so values keep their precision ([#28691](https://github.com/lightdash/lightdash/issues/28691)) ([ba540ee](https://github.com/lightdash/lightdash/commit/ba540eeca2bc7424deabc7f89d1b9ce776ae2572))
+
 # [2.134.0](https://github.com/lightdash/lightdash/compare/2.133.2...2.134.0) (2026-09-04)
 
 

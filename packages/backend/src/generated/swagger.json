@@ -6356,6 +6356,48 @@
                 "enum": ["virtual_view"],
                 "type": "string"
             },
+            "ResultNumericKind": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["integer"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "scale": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["decimal"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["scale", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["float"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    }
+                ],
+                "description": "How a NUMBER column is represented at the source, so a typed read binds it without loss."
+            },
             "ResultColumnProvenance": {
                 "properties": {
                     "sourceQueryUuid": {
@@ -6399,6 +6441,10 @@
                     "label": {
                         "type": "string",
                         "description": "Display label. Absent ⇒ consumers fall back to the reference."
+                    },
+                    "numericKind": {
+                        "$ref": "#/components/schemas/ResultNumericKind",
+                        "description": "NUMBER columns only, when the driver reports it. Absent ⇒ unknown, read as DOUBLE."
                     },
                     "type": {
                         "$ref": "#/components/schemas/DimensionType"
@@ -59814,7 +59860,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.134.0",
+        "version": "2.134.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

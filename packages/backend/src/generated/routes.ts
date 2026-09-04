@@ -6036,6 +6036,47 @@ const models: TsoaRoute.Models = {
         enums: ['virtual_view'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ResultNumericKind: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['integer'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        scale: { dataType: 'double', required: true },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['decimal'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['float'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResultColumnProvenance: {
         dataType: 'refAlias',
         type: {
@@ -6060,6 +6101,7 @@ const models: TsoaRoute.Models = {
                 separator: { ref: 'NumberSeparator' },
                 format: { dataType: 'string' },
                 label: { dataType: 'string' },
+                numericKind: { ref: 'ResultNumericKind' },
                 type: { ref: 'DimensionType', required: true },
                 reference: { dataType: 'string', required: true },
             },
