@@ -21,7 +21,7 @@ overrides:
   'glob@>=10.2.0 <10.5.0': 10.5.0
   jws: 4.0.1
   qs: 6.15.2
-  hono: 4.12.27
+  hono: 4.12.34
   tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
@@ -42,8 +42,8 @@ overrides:
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
 minimumReleaseAgeExclude:
-  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27
-  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27
+  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.12.34
+  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.12.34
   # Renovate security update: nunjucks@3.2.4
   - nunjucks@3.2.4
   # Renovate security update: next@16.2.6

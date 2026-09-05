@@ -19,7 +19,7 @@ overrides:
   glob@>=10.2.0 <10.5.0: 10.5.0
   jws: 4.0.1
   qs: 6.15.2
-  hono: 4.12.27
+  hono: 4.12.34
   tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
@@ -3864,7 +3864,7 @@ packages:
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
     engines: {node: '>=18.14.1'}
     peerDependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -10766,8 +10766,8 @@ packages:
     resolution: {integrity: sha512-eSmmWE5bZTK2Nou4g0AI3zZ9rswp7GRKoKXS1BLUkvPviOqs4YTN1djQIqrXy9k5gEtdLPy86JjRwsNM9tnDcA==}
     engines: {node: '>=0.10.0'}
 
-  hono@4.12.27:
-    resolution: {integrity: sha512-1yrb/+w6HWQJrUCLkJ2IF5jNIPvvFkblV5RNOYl6bV+OA6p9GLcMpHFFGTosSvHvcAUibuUukRqhlYI4z32C7Q==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   html-encoding-sniffer@4.0.0:
@@ -19440,9 +19440,9 @@ snapshots:
       - '@types/react-dom'
       - react-native
 
-  '@hono/node-server@1.19.9(hono@4.12.27)':
+  '@hono/node-server@1.19.9(hono@4.12.34)':
     dependencies:
-      hono: 4.12.27
+      hono: 4.12.34
 
   '@humanwhocodes/config-array@0.13.0(supports-color@5.5.0)':
     dependencies:
@@ -19915,7 +19915,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@5.5.0)(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.27)
+      '@hono/node-server': 1.19.9(hono@4.12.34)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -19925,7 +19925,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1(supports-color@5.5.0)
       express-rate-limit: 8.3.0(express@5.2.1(supports-color@5.5.0))
-      hono: 4.12.27
+      hono: 4.12.34
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.0
@@ -19939,7 +19939,7 @@ snapshots:
 
   '@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@9.1.0)(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 1.19.9(hono@4.12.27)
+      '@hono/node-server': 1.19.9(hono@4.12.34)
       ajv: 8.18.0
       ajv-formats: 3.0.1(ajv@8.18.0)
       content-type: 1.0.5
@@ -19949,7 +19949,7 @@ snapshots:
       eventsource-parser: 3.0.8
       express: 5.2.1(supports-color@9.1.0)
       express-rate-limit: 8.3.0(express@5.2.1(supports-color@9.1.0))
-      hono: 4.12.27
+      hono: 4.12.34
       jose: 6.1.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.0
@@ -27649,7 +27649,7 @@ snapshots:
     dependencies:
       parse-passwd: 1.0.0
 
-  hono@4.12.27: {}
+  hono@4.12.34: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:
