@@ -36,6 +36,8 @@ describe('PreAggregationDuckDbClient', () => {
             columns: null,
             materializedAt: new Date('2024-01-01T00:00:00.000Z'),
             totalBytes: 987654,
+            rowCount: null,
+            resolvedMaxRows: null,
         },
     }: {
         lightdashConfig?: typeof lightdashConfigMock;
@@ -315,6 +317,8 @@ describe('PreAggregationDuckDbClient', () => {
                 },
                 materializedAt: new Date('2024-01-01T00:00:00.000Z'),
                 totalBytes: 987654,
+                rowCount: null,
+                resolvedMaxRows: null,
             },
         });
 
@@ -356,6 +360,8 @@ describe('PreAggregationDuckDbClient', () => {
                 },
                 materializedAt: new Date('2024-01-01T00:00:00.000Z'),
                 totalBytes: 987654,
+                rowCount: null,
+                resolvedMaxRows: null,
             },
         });
 
