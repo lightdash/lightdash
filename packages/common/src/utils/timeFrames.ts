@@ -727,6 +727,41 @@ const postgresConfig: WarehouseConfig = {
     },
 };
 
+const duckdbConfig: WarehouseConfig = {
+    ...postgresConfig,
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _type,
+        timezone,
+        sourceTimezone,
+        timestampDomain,
+    ) => {
+        const sql = timezone
+            ? getExtractInputTzSql(
+                  SupportedDbtAdapter.DUCKDB,
+                  originalSql,
+                  timezone,
+                  sourceTimezone,
+                  timestampDomain,
+              )
+            : originalSql;
+        const timeFrameExpressions: Record<TimeFrames, string | null> = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_NAME]: `strftime(${sql}, '%A')`,
+            [TimeFrames.MONTH_NAME]: `strftime(${sql}, '%B')`,
+            [TimeFrames.QUARTER_NAME]: `'Q' || quarter(${sql})`,
+        };
+        const formatExpression = timeFrameExpressions[timeFrame];
+        if (!formatExpression) {
+            throw new ParseError(
+                `Cannot recognise format expression for ${timeFrame}`,
+            );
+        }
+        return formatExpression;
+    },
+};
+
 const databricksConfig: WarehouseConfig = {
     getSqlForTruncatedDateAsDateInTimezone: null,
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
@@ -995,7 +1030,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
     [SupportedDbtAdapter.REDSHIFT]: postgresConfig,
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
-    [SupportedDbtAdapter.DUCKDB]: postgresConfig,
+    [SupportedDbtAdapter.DUCKDB]: duckdbConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.SPARK]: databricksConfig, // Spark uses same SQL dialect as Databricks
     [SupportedDbtAdapter.TRINO]: trinoConfig,
