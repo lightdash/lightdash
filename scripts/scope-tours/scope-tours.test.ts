@@ -1,7 +1,7 @@
 /**
  * Generation checks for scope walkthroughs (CS-209). Fixtures are written to
  * a temp directory: a small "frontend" with markers and anchors, and a docs
- * page they cite. Run with `npx tsx scripts/scope-tours/scope-tours.test.ts`.
+ * page they cite. Run with `npx tsx scripts/scope-tours.test.ts`.
  */
 import * as assert from 'assert';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -86,7 +86,7 @@ const write = (name: string, source: string) => {
 
 const run = async () => {
     const { checkTours } = await import('./check');
-    const { buildTours, docsParagraph } = await import('./lib');
+    const { buildTours, docsHeading, docsParagraph } = await import('./lib');
 
     // A curated set passes with no errors.
     {
@@ -99,7 +99,7 @@ const run = async () => {
         const { tours } = buildTours(files);
         assert.strictEqual(
             tours[0].steps.map((s) => s.title).join(' > '),
-            'Pinned content appears on the homepage > Click Browse > Click Pin to homepage > Go home > See the result',
+            'Pin content > Click Browse > Click Pin to homepage > Go home > See the result',
         );
         assert.strictEqual(
             tours[0].steps[2].body,
@@ -312,6 +312,14 @@ export const Card = () => (
             'explore/homepage.mdx#pin-content:2',
         );
     }
+
+    // The intro step is titled by the docs: the cited section's heading,
+    // or the page title for #intro.
+    assert.strictEqual(
+        docsHeading('explore/homepage.mdx#pin-content:2'),
+        'Pin content',
+    );
+    assert.strictEqual(docsHeading('explore/homepage.mdx#intro:1'), 'Homepage');
 
     // Docs citation selectors: sentence, paragraph, list item, intro.
     assert.strictEqual(

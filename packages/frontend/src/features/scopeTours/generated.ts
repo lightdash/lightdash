@@ -39,7 +39,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:Dashboard"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/dashboards/:dashboardUuid/view',
-                title: 'A dashboard is one view of many charts',
+                title: 'Dashboards',
                 body: 'A dashboard is a single view that arranges related charts alongside explanatory text and video.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -135,7 +135,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:Dashboard"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/dashboards/:dashboardUuid/view',
-                title: 'A dashboard arranges charts into one view',
+                title: 'Dashboards',
                 body: 'A dashboard is a single view that arranges related charts alongside explanatory text and video.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -370,7 +370,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:CustomFields"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid/edit',
-                title: 'The dimension joins the sidebar',
+                title: 'Custom dimensions',
                 body: "Sometimes, a group or filter that you need hasn't been added to your project, so you can use a custom dimension to create a grouping or filter on-the-fly.",
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -536,7 +536,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:Explore"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/tables/:tableName',
-                title: 'A query is a table, a metric and a dimension',
+                title: 'Run your own query',
                 body: "Open a Table and you're in the Explore view: pick the dimensions and metrics you want, sort the results, and Lightdash writes the SQL for you.",
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -650,7 +650,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:VirtualView"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/tables',
-                title: 'The virtual view is a table now',
+                title: 'Virtual views',
                 body: 'A virtual view is created in the [SQL Runner](https://docs.lightdash.com/explore/sql-runner) and lets other users reuse your custom SQL query in Lightdash.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -860,7 +860,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:UnderlyingData"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'Every number is made of records',
+                title: 'The Explore page',
                 body: '**Results**, the raw data returned from your database',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -968,7 +968,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:SavedChart"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'A saved chart is there for everyone with access',
+                title: 'Share a saved chart',
                 body: 'Everyone in your project can reach a saved chart, as long as they have access to the space you saved it to.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1054,7 +1054,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:ExportCsv"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: "A download keeps the table's rows",
+                title: 'Download results or a chart image',
                 body: 'Click the export icon on a chart to download it as JPEG, PNG, SVG, PDF, or JSON, with an opaque or transparent background.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1156,7 +1156,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:SavedChart"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'A saved chart keeps your query',
+                title: 'Save your chart',
                 body: 'Saving a chart lets you share it, add it to a dashboard, or come back to it later. A saved chart re-runs its query every time you open it, so it always shows the latest data in your database.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1324,7 +1324,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:ContentVerification"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'The green check marks trusted content',
+                title: 'Who can verify content',
                 body: 'Organization and project admins and developers can verify or unverify charts and dashboards.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1415,7 +1415,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:CompiledSql"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'Every chart is a query on a table',
+                title: 'The Explore view',
                 body: 'A **Table** is the starting point for querying data in Lightdash.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1492,7 +1492,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:Space"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/spaces/:spaceUuid',
-                title: 'Spaces are folders for charts and dashboards',
+                title: 'Spaces',
                 body: 'Spaces are kind of like folders. All saved charts and dashboards exist in a Space and can only be in one Space at a time.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1553,7 +1553,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:PinnedItems"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/home',
-                title: 'Pinned content is where your data team wants you to start',
+                title: 'Browsing instead of searching',
                 body: "When you don't know what you're looking for yet, browse. Your home page lists recent and pinned content as soon as you land in Lightdash.",
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1637,7 +1637,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:PinnedItems"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/home',
-                title: 'Pinned content appears on the homepage',
+                title: 'Pin content',
                 body: 'Editors, developers, admins, and custom roles with **Manage pinned items** can pin a saved chart, dashboard, space, or data app from its three-dot menu or header action menu.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1724,7 +1724,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:Space"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/spaces',
-                title: 'Every space has an access setting',
+                title: 'Managing access to a Space',
                 body: 'By default, when you create a Space, it has Inherited Access—inheriting permissions from the project (for root-level spaces) or from the parent space (for nested spaces). You can change a space to Restricted Access to limit it to only invited users and admins.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1880,7 +1880,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:Space"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/spaces/:spaceUuid',
-                title: 'A space keeps related content together',
+                title: 'Spaces',
                 body: 'Spaces are kind of like folders. All saved charts and dashboards exist in a Space and can only be in one Space at a time.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -1982,7 +1982,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:CustomSqlTableCalculations"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid/edit',
-                title: 'The calculation is a new column',
+                title: 'When to use table calculations',
                 body: "Sometimes the predefined metrics and dimensions aren't quite enough, and you might need to perform additional calculations for specific visualizations, create specialized metrics for particular analyses, or build custom logic to better communicate your insights.",
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2187,7 +2187,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:AiAgent"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid',
-                title: 'Your agent is ready to ask',
+                title: 'Set up AI agents',
                 body: 'Setting up AI agents is simple - you can begin using them right away on any project in your Lightdash instance.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2325,7 +2325,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:AiAgentThread"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid',
-                title: 'Ask the agent a question',
+                title: 'AI agents',
                 body: "Lightdash AI agents let your team ask questions in natural language and get answers built from your semantic layer — the saved dashboards, metrics, dimensions, joins, and descriptions you've already defined.",
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2420,7 +2420,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:AiDeepResearch"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/ai-agents/deep-research/:runUuid',
-                title: 'A report written from verified queries',
+                title: 'When to use deep research',
                 body: 'Choose deep research for multi-step investigations that need cross-checking, several data cuts, or a report you can save and revisit.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2514,7 +2514,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:ProjectHomepage"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/home',
-                title: 'The banner is live for everyone',
+                title: 'Build a homepage',
                 body: 'Project admins, organization admins, and custom roles with **Manage project homepage** can select **Customize homepage** from the project homepage.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2620,7 +2620,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:DataApp"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/apps/:appUuid',
-                title: 'Your app is in a space now',
+                title: 'Data apps',
                 body: 'Data apps let you describe what you want in plain English and get back a working, interactive application built on top of your semantic layer.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2756,7 +2756,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:DashboardComments"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/dashboards/:dashboardUuid/view',
-                title: 'A resolved thread folds away',
+                title: 'Comment on a tile',
                 body: 'Every chart, markdown, Loom, and data app tile carries its own comment thread.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2864,7 +2864,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="create:DashboardComments"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/dashboards/:dashboardUuid/view',
-                title: 'A comment lives on the tile it is about',
+                title: 'Comment on a tile',
                 body: 'Type **@** while writing a comment to mention someone; you can mention anyone who has access to the space the dashboard lives in.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -2973,7 +2973,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:DashboardComments"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/dashboards/:dashboardUuid/view',
-                title: 'Every tile carries its own comment thread',
+                title: 'Comment on a tile',
                 body: 'Every chart, markdown, Loom, and data app tile carries its own comment thread.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -3050,7 +3050,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:Tags"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/metrics',
-                title: 'Categories group metrics for everyone',
+                title: 'Browsing the catalog',
                 body: '**Categories**: Use categories to streamline your metrics and KPIs.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -3113,7 +3113,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="view:Tags"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/metrics',
-                title: 'The catalog lists every metric you can use',
+                title: 'Getting Started',
                 body: '**Catalog** — A searchable, filterable table of all your project metrics. Browse metrics by category, owner, or popularity, explore any metric over time in the Metrics Explorer, and curate what your business users see through **.yml** configuration.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -3174,7 +3174,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-scope="manage:SqlRunner"][data-tour-step="1"]',
                 route: '/projects/:projectUuid/sql-runner/:slug',
-                title: 'The chart is saved in its space',
+                title: 'SQL runner',
                 body: 'Only users with [**developer or admin access**](https://docs.lightdash.com/workspace-admin/roles) can use the SQL runner.',
                 interactive: false,
                 advanceOnTargetClick: false,
