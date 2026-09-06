@@ -22,11 +22,13 @@ import {
 import {
     CompileError,
     MissingCatalogEntryError,
+    NotSupportedError,
     ParseError,
 } from '../types/errors';
 import {
     InlineErrorType,
     isExploreError,
+    JoinRelationship,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -51,9 +53,11 @@ import {
 import { OrderFieldsByStrategy, type FieldGroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
 import {
+    getCatalogNestedColumnShape,
     getCatalogTimestampDomain,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
+    type WarehouseNestedColumnShape,
     type WarehouseSqlBuilder,
     type WarehouseTableSchema,
 } from '../types/warehouse';
@@ -652,6 +656,12 @@ function validateSets(
     return warnings;
 }
 
+const getColumnMeta = (column: DbtModelColumn): DbtColumnMetadata =>
+    merge({}, column.meta, column.config?.meta);
+
+const hasRepeatedAncestor = (column: DbtModelColumn): boolean =>
+    (column.repeated_ancestors?.length ?? 0) > 0;
+
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
@@ -662,6 +672,7 @@ export const convertTable = (
     allowPartialCompilation?: boolean,
     additionalTimeIntervals?: ResolvedAdditionalTimeIntervals,
     granularityLabels?: Partial<Record<TimeFrames, string>>,
+    unnestRepeatedColumns?: boolean,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -673,6 +684,17 @@ export const convertTable = (
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column, index) => {
+            // Containers can't be selected as scalars and leaves under an
+            // array belong to the unnested table, unless custom SQL made
+            // the column scalar on purpose.
+            if (
+                unnestRepeatedColumns &&
+                !getColumnMeta(column).dimension?.sql &&
+                (column.nested_shape !== undefined ||
+                    hasRepeatedAncestor(column))
+            ) {
+                return [prevDimensions, prevMetrics];
+            }
             const dimension = convertDimension(
                 index,
                 adapterType,
@@ -1129,10 +1151,206 @@ export type ExplorePostProcessor = (
     },
 ) => (Explore | ExploreError)[];
 
+export const getNestedTableName = (modelName: string, columnPath: string) =>
+    `${modelName}__${columnPath.split('.').join('__')}`;
+
+const getOffsetColumnSql = (quoteChar: string, tableName: string) =>
+    `${quoteChar}${tableName}__offset${quoteChar}`;
+
+// The full FROM item, alias included, because the offset alias has to follow
+// the table alias and the join renderer only appends an ON clause.
+const getUnnestFromSql = (
+    adapterType: SupportedDbtAdapter,
+    quoteChar: string,
+    parentTable: string,
+    columnSegment: string,
+    tableName: string,
+): string => {
+    const q = quoteChar;
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return `UNNEST(${q}${parentTable}${q}.${columnSegment}) AS ${q}${tableName}${q} WITH OFFSET AS ${q}${tableName}__offset${q}`;
+        default:
+            throw new NotSupportedError(
+                `Repeated column "${columnSegment}" can't be unnested on ${adapterType}. Unnesting repeated columns is only supported on BigQuery.`,
+            );
+    }
+};
+
+type ConvertNestedTablesArgs = {
+    adapterType: SupportedDbtAdapter;
+    model: DbtModelNode;
+    modelLabel: string;
+    reservedTableNames: Set<string>;
+    fieldQuoteChar: string;
+    spotlightConfig: LightdashProjectConfig['spotlight'];
+    startOfWeek?: WeekDay | null;
+    disableTimestampConversion?: boolean;
+    customGranularities?: Record<string, CustomGranularity>;
+    allowPartialCompilation?: boolean;
+    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals;
+    granularityLabels?: Partial<Record<TimeFrames, string>>;
+};
+
+/**
+ * One virtual table per repeated node reached by a documented leaf. Each is
+ * a synthetic model run through convertTable, so leaves keep every column
+ * feature; its FROM item is the UNNEST of the parent's column and it is
+ * joined ON TRUE as one-to-many. Nodes are emitted outermost first so a
+ * child's join always follows its parent's.
+ */
+export const convertNestedTables = ({
+    adapterType,
+    model,
+    modelLabel,
+    reservedTableNames,
+    fieldQuoteChar,
+    spotlightConfig,
+    startOfWeek,
+    disableTimestampConversion,
+    customGranularities,
+    allowPartialCompilation,
+    additionalTimeIntervals,
+    granularityLabels,
+}: ConvertNestedTablesArgs): {
+    tables: Omit<Table, 'lineageGraph'>[];
+    joins: NonNullable<DbtModelNode['meta']['joins']>;
+} => {
+    const columns = Object.values(model.columns);
+    const isRoutedLeaf = (column: DbtModelColumn) =>
+        hasRepeatedAncestor(column) && !getColumnMeta(column).dimension?.sql;
+    const nodePaths = Array.from(
+        new Set(
+            columns
+                .filter(isRoutedLeaf)
+                .flatMap((column) => column.repeated_ancestors ?? []),
+        ),
+    ).sort(
+        (a, b) =>
+            a.split('.').length - b.split('.').length || a.localeCompare(b),
+    );
+
+    const labelsByPath = new Map<string, string>();
+    return nodePaths.reduce<{
+        tables: Omit<Table, 'lineageGraph'>[];
+        joins: NonNullable<DbtModelNode['meta']['joins']>;
+    }>(
+        (acc, nodePath) => {
+            const segments = nodePath.split('.');
+            const segment = segments[segments.length - 1];
+            const parentPath = segments.slice(0, -1).join('.');
+            const parentTable = parentPath
+                ? getNestedTableName(model.name, parentPath)
+                : model.name;
+            const parentLabel = labelsByPath.get(parentPath) ?? modelLabel;
+            const tableName = getNestedTableName(model.name, nodePath);
+            if (reservedTableNames.has(tableName)) {
+                throw new ParseError(
+                    `Repeated column "${nodePath}" in model "${model.name}" would be unnested as table "${tableName}", which is already a model name. Rename one of them.`,
+                );
+            }
+            const container = model.columns[nodePath];
+            const containerMeta = container
+                ? getColumnMeta(container)
+                : undefined;
+            const label =
+                containerMeta?.dimension?.label ??
+                `${parentLabel}: ${friendlyName(segment)}`;
+            labelsByPath.set(nodePath, label);
+
+            const leafColumns = columns
+                .filter(
+                    (column) =>
+                        isRoutedLeaf(column) &&
+                        column.repeated_ancestors?.[
+                            column.repeated_ancestors.length - 1
+                        ] === nodePath,
+                )
+                .map(
+                    ({
+                        repeated_ancestors: _ancestors,
+                        nested_shape: nestedShape,
+                        ...column
+                    }): DbtModelColumn => ({
+                        ...column,
+                        name: column.name.slice(nodePath.length + 1),
+                        ...(nestedShape ? { nested_shape: nestedShape } : {}),
+                    }),
+                );
+            const offsetColumn: DbtModelColumn = {
+                name: 'offset',
+                description: `Position of the element within ${nodePath}, starting at 0`,
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    dimension: {
+                        type: DimensionType.NUMBER,
+                        sql: getOffsetColumnSql(fieldQuoteChar, tableName),
+                    },
+                },
+            };
+            const syntheticModel: DbtModelNode = {
+                ...model,
+                name: tableName,
+                alias: tableName,
+                unique_id: `${model.unique_id}.${nodePath}`,
+                description:
+                    container?.description ??
+                    `Elements of ${nodePath} in ${model.name}`,
+                relation_name: getUnnestFromSql(
+                    adapterType,
+                    fieldQuoteChar,
+                    parentTable,
+                    segment,
+                    tableName,
+                ),
+                columns: Object.fromEntries(
+                    [...leafColumns, offsetColumn].map((column) => [
+                        column.name,
+                        column,
+                    ]),
+                ),
+                meta: { label },
+                config: { ...model.config, meta: {} },
+            };
+            const table: Omit<Table, 'lineageGraph'> = {
+                ...convertTable(
+                    adapterType,
+                    syntheticModel,
+                    spotlightConfig,
+                    startOfWeek,
+                    disableTimestampConversion,
+                    customGranularities,
+                    allowPartialCompilation,
+                    additionalTimeIntervals,
+                    granularityLabels,
+                    true,
+                ),
+                nestedFrom: { parentTable, columnPath: nodePath },
+            };
+            return {
+                tables: [...acc.tables, table],
+                joins: [
+                    ...acc.joins,
+                    {
+                        join: tableName,
+                        sql_on: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        label,
+                        description: table.description,
+                    },
+                ],
+            };
+        },
+        { tables: [], joins: [] },
+    );
+};
+
 export type ConvertExploresOptions = {
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
+    unnestRepeatedColumns?: boolean;
 };
 
 const MODELS_PER_EVENT_LOOP_YIELD = 200;
@@ -1160,6 +1378,7 @@ export async function* iterateExplores(
         disableTimestampConversion,
         allowPartialCompilation,
         postProcessors,
+        unnestRepeatedColumns = false,
     } = options ?? {};
     const resolvedNamesByUniqueId = qualifyManifestNames(
         models.map((model) => ({
@@ -1227,6 +1446,23 @@ export async function* iterateExplores(
         models.map((model) => [model.unique_id, model.name]),
     );
     const tableLineage = translateDbtModelsToTableLineage(resolvedModels);
+    const modelNames = new Set(resolvedModels.map((model) => model.name));
+    const nestedJoinsByModel = new Map<
+        string,
+        NonNullable<DbtModelNode['meta']['joins']>
+    >();
+    // A model's unnested tables join right after the model itself; an aliased
+    // join is skipped because the UNNEST references the parent by name.
+    const withNestedJoins = (
+        baseModelName: string,
+        joins: NonNullable<DbtModelNode['meta']['joins']>,
+    ): NonNullable<DbtModelNode['meta']['joins']> => [
+        ...(nestedJoinsByModel.get(baseModelName) ?? []),
+        ...joins.flatMap((join) => [
+            join,
+            ...(join.alias ? [] : (nestedJoinsByModel.get(join.join) ?? [])),
+        ]),
+    ];
     const additionalTimeIntervals = resolveAdditionalTimeIntervals(
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
@@ -1263,6 +1499,7 @@ export async function* iterateExplores(
                 allowPartialCompilation,
                 additionalTimeIntervals,
                 granularityLabels,
+                unnestRepeatedColumns,
             );
 
             // add lineage
@@ -1278,7 +1515,30 @@ export async function* iterateExplores(
                 ...tableLineage[model.name],
             };
 
+            const nested = unnestRepeatedColumns
+                ? convertNestedTables({
+                      adapterType,
+                      model,
+                      modelLabel: table.label,
+                      reservedTableNames: modelNames,
+                      fieldQuoteChar: warehouseSqlBuilder.getFieldQuoteChar(),
+                      spotlightConfig: lightdashProjectConfig.spotlight,
+                      startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
+                      disableTimestampConversion,
+                      customGranularities:
+                          lightdashProjectConfig.custom_granularities,
+                      allowPartialCompilation,
+                      additionalTimeIntervals,
+                      granularityLabels,
+                  })
+                : { tables: [], joins: [] };
+            if (nested.joins.length > 0) {
+                nestedJoinsByModel.set(model.name, nested.joins);
+            }
             tables.push(tableWithLineage);
+            nested.tables.forEach((nestedTable) =>
+                tables.push({ ...nestedTable, lineageGraph: {} }),
+            );
         } catch (e: unknown) {
             const exploreError: ExploreError = {
                 name: model.name,
@@ -1352,7 +1612,7 @@ export async function* iterateExplores(
                           ...(meta.groups && meta.groups.length > 0
                               ? { groups: meta.groups }
                               : {}),
-                          joins: meta?.joins || [],
+                          joins: withNestedJoins(model.name, meta?.joins || []),
                           description: meta.description,
                           caseSensitive: meta.case_sensitive,
                           tables: tableLookup,
@@ -1417,7 +1677,10 @@ export async function* iterateExplores(
                                     }
                                   : {}),
                               // Inherit joins from base model if not specified in explore config
-                              joins: exploreConfig.joins || meta?.joins || [],
+                              joins: withNestedJoins(
+                                  model.name,
+                                  exploreConfig.joins || meta?.joins || [],
+                              ),
                               description: exploreConfig.description,
                               caseSensitive: exploreConfig.case_sensitive,
                               tables: {
@@ -1717,7 +1980,12 @@ export const attachTypesToModels = (
         { database, schema, name, alias }: DbtModelNode,
         columnName: string,
     ):
-        | { type: DimensionType; timestampDomain: TimestampDomain | undefined }
+        | {
+              type: DimensionType;
+              timestampDomain: TimestampDomain | undefined;
+              nestedShape: WarehouseNestedColumnShape | undefined;
+              repeatedAncestors: string[];
+          }
         | undefined => {
         const tableName = alias || name;
         const hit = lookup(database, schema, tableName);
@@ -1734,6 +2002,19 @@ export const attachTypesToModels = (
                 } else {
                     exactLookups += 1;
                 }
+                const getShape = (columnPath: string) =>
+                    getCatalogNestedColumnShape(
+                        warehouseCatalog,
+                        hit.location.database,
+                        hit.location.schema,
+                        hit.location.table,
+                        columnPath,
+                    );
+                const segments = columnMatch.split('.');
+                const repeatedAncestors = segments
+                    .slice(0, -1)
+                    .map((_, index) => segments.slice(0, index + 1).join('.'))
+                    .filter((prefix) => getShape(prefix)?.repeated === true);
                 return {
                     type: hit.columns[columnMatch],
                     timestampDomain: getCatalogTimestampDomain(
@@ -1743,6 +2024,8 @@ export const attachTypesToModels = (
                         hit.location.table,
                         columnMatch,
                     ),
+                    nestedShape: getShape(columnMatch),
+                    repeatedAncestors,
                 };
             }
         }
@@ -1772,6 +2055,16 @@ export const attachTypesToModels = (
                         // wholesale, so the domain must ride separately.
                         ...(columnType?.timestampDomain
                             ? { timestamp_domain: columnType.timestampDomain }
+                            : {}),
+                        ...(columnType?.nestedShape
+                            ? { nested_shape: columnType.nestedShape }
+                            : {}),
+                        ...(columnType &&
+                        columnType.repeatedAncestors.length > 0
+                            ? {
+                                  repeated_ancestors:
+                                      columnType.repeatedAncestors,
+                              }
                             : {}),
                     },
                 ];

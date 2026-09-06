@@ -61,6 +61,12 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
+     * Compile repeated (array) warehouse columns as unnested virtual tables
+     * instead of leaving their leaves as unqueryable dotted dimensions.
+     */
+    UnnestRepeatedColumns = 'unnest-repeated-columns',
+
+    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated

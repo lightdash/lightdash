@@ -1097,7 +1097,10 @@ export const findTablesWithMetricInflation = ({
         tablesWithMetricInflation.add(baseTable);
     } else {
         joinedTables.forEach((joinedTable) => {
-            if (!tables[joinedTable]?.primaryKey) {
+            if (
+                !tables[joinedTable]?.primaryKey &&
+                !tables[joinedTable]?.nestedFrom
+            ) {
                 // Warn the user about missing primary key so we can detect possible metric inflation
                 tablesWithoutPrimaryKey.add(joinedTable);
             }
@@ -1166,7 +1169,9 @@ export const findTablesWithMetricInflation = ({
 };
 
 type FindMetricInflationWarningsProps = {
-    tables: { [tableName: string]: Pick<CompiledTable, 'primaryKey'> };
+    tables: {
+        [tableName: string]: Pick<CompiledTable, 'primaryKey' | 'nestedFrom'>;
+    };
     possibleJoins: Explore['joinedTables']; // all joins metadata
     baseTable: Explore['baseTable']; // query table
     joinedTables: Set<string>; // query joined tables

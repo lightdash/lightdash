@@ -119,7 +119,13 @@ describe('Git explore compilation', () => {
                     })();
                 });
 
-            const result = await adapter[method](undefined, false, true);
+            const compileOptions = { unnestRepeatedColumns: true };
+            const result = await adapter[method](
+                undefined,
+                false,
+                true,
+                compileOptions,
+            );
             const collected = [];
             for await (const item of result) collected.push(item);
 
@@ -128,6 +134,7 @@ describe('Git explore compilation', () => {
                 undefined,
                 false,
                 true,
+                compileOptions,
             );
             expect(refresh).toHaveBeenCalledTimes(1);
         },

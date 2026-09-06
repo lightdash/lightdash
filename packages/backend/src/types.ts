@@ -15,6 +15,11 @@ export type TrackingParams = {
     jobUuid?: string;
 };
 
+/** Feature-flag driven compile behaviour, resolved by the caller per user. */
+export type ExploreCompileOptions = {
+    unnestRepeatedColumns: boolean;
+};
+
 export interface ProjectAdapter {
     /**
      * Compile all explores
@@ -27,12 +32,14 @@ export interface ProjectAdapter {
         trackingParams: TrackingParams | undefined,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        compileOptions?: ExploreCompileOptions,
     ): Promise<(Explore | ExploreError)[]>;
 
     prepareExploreStream(
         trackingParams: TrackingParams | undefined,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        compileOptions?: ExploreCompileOptions,
     ): Promise<AsyncIterable<Explore | ExploreError>>;
 
     getDbtPackages(): Promise<DbtPackages | undefined>;

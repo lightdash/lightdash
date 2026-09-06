@@ -622,6 +622,18 @@ describe('Parse dimension reference', () => {
             { refName: 'TABLE', refTable: 'table' },
         ]);
     });
+    test('should keep the first segment as the table and the rest as a nested field name', () => {
+        expect(
+            parseAllReferences('${orders.customer.address.city}', 'table'),
+        ).toStrictEqual([
+            { refName: 'customer.address.city', refTable: 'orders' },
+        ]);
+        // Two segments keep today's meaning: a nested field on the current
+        // table needs its table prefix.
+        expect(parseAllReferences('${customer.city}', 'orders')).toStrictEqual([
+            { refName: 'city', refTable: 'customer' },
+        ]);
+    });
     test('should parse unquoted TABLE column references', () => {
         expect(
             getTableColumnReferences(
