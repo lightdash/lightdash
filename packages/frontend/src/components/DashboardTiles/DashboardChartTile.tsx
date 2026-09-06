@@ -1833,19 +1833,41 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             </Menu.Dropdown>
                         </Menu>
 
-                        <ValidDashboardChartTile
-                            tileUuid={tileUuid}
-                            dashboardChartReadyQuery={dashboardChartReadyQuery}
-                            resultsData={resultsData}
-                            project={chart.projectUuid}
-                            isTitleHidden={hideTitle}
-                            colorPaletteOverride={props.colorPaletteOverride}
-                            darkColorPaletteOverride={
-                                props.darkColorPaletteOverride
-                            }
-                            onSeriesContextMenu={onSeriesContextMenu}
-                            setEchartsRef={setEchartRef}
-                        />
+                        <Box
+                            w="100%"
+                            h="100%"
+                            miw={0}
+                            mih={0}
+                            // Walkthrough result marker for view:Dashboard:
+                            // the chart, re-zoomed, is where reading a
+                            // dashboard ends. The first chart tile on the
+                            // page gets the ring. See scripts/scope-tours.
+                            data-tour-scope="view:Dashboard"
+                            data-tour-step="1"
+                            data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                            data-tour-label="A dashboard is one view of many charts"
+                            data-tour-docs="explore/dashboards.mdx#intro:1"
+                            data-tour-return="none"
+                            data-tour-resultdocs="explore/dashboards/interact.mdx#change-the-date-granularity:1"
+                        >
+                            <ValidDashboardChartTile
+                                tileUuid={tileUuid}
+                                dashboardChartReadyQuery={
+                                    dashboardChartReadyQuery
+                                }
+                                resultsData={resultsData}
+                                project={chart.projectUuid}
+                                isTitleHidden={hideTitle}
+                                colorPaletteOverride={
+                                    props.colorPaletteOverride
+                                }
+                                darkColorPaletteOverride={
+                                    props.darkColorPaletteOverride
+                                }
+                                onSeriesContextMenu={onSeriesContextMenu}
+                                setEchartsRef={setEchartRef}
+                            />
+                        </Box>
                     </>
                 </TileBase>
 

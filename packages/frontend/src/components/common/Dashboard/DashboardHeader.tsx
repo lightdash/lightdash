@@ -405,20 +405,7 @@ const DashboardHeader = memo(
                     className,
                 }}
             >
-                <Group
-                    gap="xs"
-                    flex={1}
-                    wrap="nowrap"
-                    // Walkthrough result marker for view:Dashboard: the
-                    // dashboard, re-zoomed, is where reading it ends.
-                    data-tour-scope="view:Dashboard"
-                    data-tour-step="1"
-                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                    data-tour-label="A dashboard is one view of many charts"
-                    data-tour-docs="explore/dashboards.mdx#intro:1"
-                    data-tour-return="none"
-                    data-tour-resultdocs="explore/dashboards/interact.mdx#change-the-date-granularity:1"
-                >
+                <Group gap="xs" flex={1} wrap="nowrap">
                     <Title
                         order={6}
                         // Walkthrough result marker for manage:Dashboard:
