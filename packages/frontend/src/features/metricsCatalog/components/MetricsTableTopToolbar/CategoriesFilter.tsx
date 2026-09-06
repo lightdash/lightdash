@@ -70,6 +70,25 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
         <FilterFacet
             label="Categories"
             icon={IconTag}
+            // Walkthrough for view:Tags: narrowing the catalog to one
+            // category is what tags are for. See scripts/scope-tours.
+            triggerProps={{
+                'data-tour-scope': 'view:Tags',
+                'data-tour-step': '2',
+                'data-tour-route': '/projects/:projectUuid/metrics',
+                'data-tour-label': 'Open the Categories filter',
+                'data-tour-title': 'Find metrics by category',
+                'data-tour-interactive': 'true',
+                'data-tour-via': '[data-tour-nav="metrics"]',
+                'data-tour-then':
+                    '[data-tour-anchor="category-option"][data-tour-value="Sales"]',
+                'data-tour-docs':
+                    'explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:2',
+            }}
+            // Each option is an anchor named by its category (the hint is
+            // declared here because the name is passed, not written):
+            //   data-tour-anchor="category-option" data-tour-hint="Choose {value}"
+            optionAnchor="category-option"
             options={options}
             selected={selectedCategories}
             onChange={setSelectedCategories}

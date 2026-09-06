@@ -124,7 +124,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
             {((containerHovered && !titleHovered && !chartHovered) ||
                 isMenuOpen ||
-                lockHeaderVisibility) &&
+                lockHeaderVisibility ||
+                // Content meant to stay visible (a tile's comment count)
+                // keeps the header shown without a hover.
+                !!visibleHeaderElement) &&
                 hasHeaderContent && (
                     <FloatingActionsPill
                         className={clsx('non-draggable', styles.tileTooltip)}
@@ -272,6 +275,14 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
             <Card
                 className={styles.tileCard}
+                // Walkthrough: a look at the tile while it can still be
+                // dragged and resized, before the dashboard is saved.
+                data-tour-scope="manage:Dashboard"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="add-charts-submit"]'
+                data-tour-interactive="true"
+                data-tour-label="Try resizing or moving the tile"
+                data-tour-docs="explore/dashboards.mdx#add-an-existing-chart:p2:1"
                 data-with-transparent-border={transparent}
                 data-with-edit-mode={isEditMode}
                 data-has-error={hasError}
