@@ -58,6 +58,19 @@ export const MainNavBarContent: FC<Props> = ({
                     // Navigation anchor for scope walkthroughs (data-tour-via)
                     data-tour-nav="home"
                     data-tour-hint="Click the Lightdash logo to go back home"
+                    // Also the action of the view:PinnedItems walkthrough:
+                    // the homepage is where pinned content waits, and the
+                    // pinned item picked after it is what gets opened.
+                    // See scripts/scope-tours.
+                    data-tour-scope="view:PinnedItems"
+                    data-tour-step="2"
+                    data-tour-route="/projects/:projectUuid/dashboards"
+                    data-tour-label="Click the Lightdash logo to go back home"
+                    data-tour-title="Find pinned content on the homepage"
+                    data-tour-interactive="true"
+                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"]'
+                    data-tour-then='[data-tour-anchor="pinned-item"][data-tour-value="Jaffle Shop overview"]'
+                    data-tour-docs="explore/search.mdx#browsing-instead-of-searching:p2:1"
                     title="Home"
                     className={classes.logoButton}
                 >

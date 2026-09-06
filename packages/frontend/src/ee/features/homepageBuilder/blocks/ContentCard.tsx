@@ -29,6 +29,8 @@ type Props = {
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
     variant?: 'row' | 'tile' | 'compact';
+    /** Walkthrough anchor for the card, picked by the content's name. */
+    tourAnchor?: string;
 };
 
 const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
@@ -142,14 +144,24 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
 );
 
 const MaybeLink: FC<
-    PropsWithChildren<{ to: string | null; className: string }>
-> = ({ to, className, children }) =>
+    PropsWithChildren<{
+        to: string | null;
+        className: string;
+        attrs?: Record<string, string>;
+    }>
+> = ({ to, className, attrs, children }) =>
     to ? (
-        <Link to={to} className={`${className} ${classes.plainLink}`}>
+        <Link
+            to={to}
+            className={`${className} ${classes.plainLink}`}
+            {...attrs}
+        >
             {children}
         </Link>
     ) : (
-        <Box className={className}>{children}</Box>
+        <Box className={className} {...attrs}>
+            {children}
+        </Box>
     );
 
 export const ContentCard: FC<Props> = ({
@@ -158,8 +170,18 @@ export const ContentCard: FC<Props> = ({
     onRemove,
     star,
     variant = 'row',
+    tourAnchor,
 }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
+    // Walkthrough anchor (data-tour-via), one card by its name.
+    const tourAttrs = tourAnchor
+        ? {
+              'data-tour-anchor': tourAnchor,
+              'data-tour-hint': 'Open a pinned item',
+              'data-tour-hint-named': 'Open {value}',
+              'data-tour-value': content.name,
+          }
+        : undefined;
     const to = onRemove
         ? null
         : getResourceUrl(
@@ -175,6 +197,7 @@ export const ContentCard: FC<Props> = ({
             <MaybeLink
                 to={to}
                 className={`${classes.resTile}${to ? ` ${classes.clickable}` : ''}`}
+                attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Group gap={5} wrap="nowrap" className={classes.resTileBody}>
@@ -202,6 +225,7 @@ export const ContentCard: FC<Props> = ({
             <MaybeLink
                 to={to}
                 className={`${cardClass} ${classes.cardUnitHalf} ${classes.contentTile}`}
+                attrs={tourAttrs}
             >
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box className={classes.tileBody}>
@@ -226,7 +250,7 @@ export const ContentCard: FC<Props> = ({
     }
 
     return (
-        <MaybeLink to={to} className={cardClass}>
+        <MaybeLink to={to} className={cardClass} attrs={tourAttrs}>
             <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box flex={1} miw={0}>
