@@ -38,7 +38,7 @@ const ID_COLUMN_WITHOUT_METRICS: DbtModelColumn = {
     data_type: DimensionType.STRING,
 };
 
-const column: DbtModelColumn = {
+export const column: DbtModelColumn = {
     name: 'myColumnName',
     meta: {},
 };

@@ -29,6 +29,7 @@ import {
     PartitionType,
     sanitizeQueryTagKey,
     sanitizeQueryTagValue,
+    setCatalogNestedColumnShape,
     setCatalogTimestampDomain,
     SupportedDbtAdapter,
     TimeIntervalUnit,
@@ -37,6 +38,7 @@ import {
     WarehouseResults,
     WarehouseTypes,
     type TimestampDomain,
+    type WarehouseNestedColumnShape,
 } from '@lightdash/common';
 import { pipeline, Transform } from 'stream';
 import {
@@ -99,6 +101,43 @@ const isBigqueryDecimal = (value: unknown): value is BigqueryDecimal =>
     value.c.length > 0 &&
     value.c.every((digit) => typeof digit === 'number');
 
+const isBigqueryTemporal = (
+    cell: unknown,
+): cell is BigQueryDate | BigQueryTimestamp | BigQueryDatetime | BigQueryTime =>
+    cell instanceof BigQueryDate ||
+    cell instanceof BigQueryTimestamp ||
+    cell instanceof BigQueryDatetime ||
+    cell instanceof BigQueryTime;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' &&
+    value !== null &&
+    Object.getPrototypeOf(value) === Object.prototype;
+
+// STRUCT and ARRAY values arrive as plain objects/arrays whose leaves are the
+// same SDK wrappers as top-level cells, so leaves are normalised before the
+// whole value is serialised.
+const normaliseNestedValue = (value: AnyType): AnyType => {
+    if (Array.isArray(value)) {
+        return value.map(normaliseNestedValue);
+    }
+    if (isBigqueryTemporal(value)) {
+        return value.value;
+    }
+    if (isBigqueryDecimal(value)) {
+        return Number(value.toFixed());
+    }
+    if (isPlainObject(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, nested]) => [
+                key,
+                normaliseNestedValue(nested),
+            ]),
+        );
+    }
+    return value;
+};
+
 const parseCell = (cell: AnyType) => {
     if (
         cell === undefined ||
@@ -109,17 +148,16 @@ const parseCell = (cell: AnyType) => {
         return cell;
     }
 
-    if (
-        cell instanceof BigQueryDate ||
-        cell instanceof BigQueryTimestamp ||
-        cell instanceof BigQueryDatetime ||
-        cell instanceof BigQueryTime
-    ) {
+    if (isBigqueryTemporal(cell)) {
         return new Date(cell.value);
     }
 
     if (isBigqueryDecimal(cell)) {
         return Number(cell.toFixed());
+    }
+
+    if (Array.isArray(cell) || isPlainObject(cell)) {
+        return JSON.stringify(normaliseNestedValue(cell));
     }
 
     return `${cell}`;
@@ -166,7 +204,10 @@ type TableSchema = {
     fields: SchemaFields[];
 };
 
-type SchemaFields = Required<Pick<bigquery.ITableFieldSchema, 'name' | 'type'>>;
+type SchemaFields = Required<
+    Pick<bigquery.ITableFieldSchema, 'name' | 'type'>
+> &
+    Pick<bigquery.ITableFieldSchema, 'mode' | 'fields'>;
 
 const isSchemaFields = (
     rawSchemaFields: bigquery.ITableFieldSchema[],
@@ -175,6 +216,41 @@ const isSchemaFields = (
 
 const isTableSchema = (schema: bigquery.ITableSchema): schema is TableSchema =>
     !!schema && !!schema.fields && isSchemaFields(schema.fields);
+
+const BIGQUERY_REPEATED_MODE = 'REPEATED';
+
+const isRecordType = (type: string) =>
+    type === BigqueryFieldType.RECORD || type === BigqueryFieldType.STRUCT;
+
+type FlattenedSchemaField = {
+    path: string;
+    type: string;
+    shape: WarehouseNestedColumnShape | undefined;
+};
+
+/**
+ * Walks nested RECORD fields depth-first, emitting every node under its dotted
+ * path. A record node is kept alongside its children so the container column
+ * still resolves; the shape says whether it is a struct, an array, or both.
+ */
+const flattenSchemaFields = (
+    fields: bigquery.ITableFieldSchema[],
+    prefix = '',
+): FlattenedSchemaField[] =>
+    fields.flatMap((field) => {
+        if (!field.name || !field.type) return [];
+        const path = prefix ? `${prefix}.${field.name}` : field.name;
+        const repeated = field.mode === BIGQUERY_REPEATED_MODE;
+        const record = isRecordType(field.type);
+        const node: FlattenedSchemaField = {
+            path,
+            type: field.type,
+            shape: repeated || record ? { repeated, record } : undefined,
+        };
+        return record
+            ? [node, ...flattenSchemaFields(field.fields ?? [], path)]
+            : [node];
+    });
 
 const parseRow = (row: Record<string, AnyType>[]) =>
     Object.fromEntries(
@@ -610,18 +686,27 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 acc[database] = acc[database] || {};
                 acc[database][schema] = acc[database][schema] || {};
                 acc[database][schema][table] = {};
-                tableSchema.fields.forEach(({ name, type }) => {
-                    if (name === undefined) return;
-                    acc[database][schema][table][name] = mapFieldType(type);
-                    setCatalogTimestampDomain(
-                        acc,
-                        database,
-                        schema,
-                        table,
-                        name,
-                        getBigqueryTimestampDomain(type),
-                    );
-                });
+                flattenSchemaFields(tableSchema.fields).forEach(
+                    ({ path, type, shape }) => {
+                        acc[database][schema][table][path] = mapFieldType(type);
+                        setCatalogTimestampDomain(
+                            acc,
+                            database,
+                            schema,
+                            table,
+                            path,
+                            getBigqueryTimestampDomain(type),
+                        );
+                        setCatalogNestedColumnShape(
+                            acc,
+                            database,
+                            schema,
+                            table,
+                            path,
+                            shape,
+                        );
+                    },
+                );
             }
 
             return acc;
@@ -708,24 +793,37 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         const dataset: Dataset = new Dataset(this.client, schema, {
             projectId: database,
         });
-        const schemas = await BigqueryWarehouseClient.getTableMetadata(
-            dataset,
-            tableName,
-        ).catch((e: unknown) => {
-            this.throwIfGoogleOauthTokenError(e);
-            throw e;
-        });
-        return this.parseWarehouseCatalog(
-            schemas[3].fields.map((column) => ({
-                table_catalog: schemas[0],
-                table_schema: schemas[1],
-                table_name: schemas[2],
-                column_name: column.name,
-                data_type: column.type,
+        const [tableCatalog, tableSchema, table, metadataSchema] =
+            await BigqueryWarehouseClient.getTableMetadata(
+                dataset,
+                tableName,
+            ).catch((e: unknown) => {
+                this.throwIfGoogleOauthTokenError(e);
+                throw e;
+            });
+        const flattenedFields = flattenSchemaFields(metadataSchema.fields);
+        const catalog = this.parseWarehouseCatalog(
+            flattenedFields.map(({ path, type }) => ({
+                table_catalog: tableCatalog,
+                table_schema: tableSchema,
+                table_name: table,
+                column_name: path,
+                data_type: type,
             })),
             mapFieldType,
             getBigqueryTimestampDomain,
         );
+        flattenedFields.forEach(({ path, shape }) =>
+            setCatalogNestedColumnShape(
+                catalog,
+                tableCatalog,
+                tableSchema,
+                table,
+                path,
+                shape,
+            ),
+        );
+        return catalog;
     }
 
     parseError(error: bigquery.IErrorProto, query: string = '') {
