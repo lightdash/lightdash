@@ -222,6 +222,12 @@ export const DeepResearchRunCard = ({
             p="lg"
             radius="md"
             aria-label="Deep research run"
+            // Walkthrough look at the run card once the thread opens.
+            data-tour-scope="create:AiDeepResearch"
+            data-tour-look="1"
+            data-tour-after='[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"]'
+            data-tour-label="The run card stays with the question"
+            data-tour-docs="agents/deep-research.mdx#follow-progress:1"
         >
             <Stack gap="md">
                 <DeepResearchRunHeading
@@ -442,6 +448,9 @@ export const DeepResearchRunCard = ({
                                 color="ldDark"
                                 size="xs"
                                 w="fit-content"
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="research-report-open"
+                                data-tour-hint="Open the full report"
                                 onClick={() => {
                                     if (
                                         run.status === 'completed' ||
