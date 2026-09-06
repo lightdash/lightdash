@@ -1,0 +1,544 @@
+import {
+    type ProjectMemberRole,
+    ProjectType,
+    ScopeGroup,
+} from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Checkbox,
+    Group,
+    Menu,
+    TextInput,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import {
+    IconBuilding,
+    IconChartHistogram,
+    IconCompass,
+    IconChevronDown,
+    IconDatabase,
+    IconHelpCircle,
+    IconSearch,
+    IconSend,
+    IconSettings,
+    IconSparkles,
+    IconTelescope,
+    type Icon,
+} from '@tabler/icons-react';
+import { type FC, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import MantineIcon from '../../components/common/MantineIcon';
+import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
+import { useProjects } from '../../hooks/useProjects';
+import useApp from '../../providers/App/useApp';
+import { SCOPE_TOURS } from '../scopeTours/generated';
+import { START_PARAM } from '../scopeTours/trainingCopy';
+import {
+    buildLearnCatalogue,
+    focusModules,
+    FOUNDATIONS,
+    GROUP_DESCRIPTIONS,
+    GROUP_LABELS,
+    GROUP_ORDER,
+    roleFromOrganizationRole,
+    roleHolds,
+    ROLE_LABELS,
+    ROLE_ORDER,
+    sortForRole,
+    type LearnGroup,
+    type LearnModule,
+} from './catalogue';
+import styles from './Learn.module.css';
+import { useLearnProgress } from './progress';
+import { thumbnailFor } from './thumbnails';
+import { useStartWalkthrough } from './useStartWalkthrough';
+
+const GROUP_ICONS: Record<LearnGroup, Icon> = {
+    [FOUNDATIONS]: IconCompass,
+    [ScopeGroup.CONTENT]: IconChartHistogram,
+    [ScopeGroup.SHARING]: IconSend,
+    [ScopeGroup.DATA]: IconDatabase,
+    [ScopeGroup.AI]: IconSparkles,
+    [ScopeGroup.PROJECT_MANAGEMENT]: IconSettings,
+    [ScopeGroup.SPOTLIGHT]: IconTelescope,
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: IconBuilding,
+};
+
+/** The library's band and glyph colours per group, as on learn.lightdash.com. */
+const GROUP_COLOURS: Record<LearnGroup, { band: string; fg: string }> = {
+    [FOUNDATIONS]: { band: '#f0dbd1', fg: '#b06a4c' },
+    [ScopeGroup.CONTENT]: { band: '#dfe8e2', fg: '#4f7d5d' },
+    [ScopeGroup.SHARING]: { band: '#dfe8e2', fg: '#4f7d5d' },
+    [ScopeGroup.DATA]: { band: '#ece3d1', fg: '#93743a' },
+    [ScopeGroup.AI]: { band: '#e2ddf1', fg: '#6b5bb8' },
+    [ScopeGroup.PROJECT_MANAGEMENT]: { band: '#d9e6e4', fg: '#41756f' },
+    [ScopeGroup.SPOTLIGHT]: { band: '#ece3d1', fg: '#93743a' },
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: { band: '#dfe1e6', fg: '#5b6478' },
+};
+
+const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+};
+
+const groupVars = (group: LearnGroup) =>
+    ({
+        '--mi-band': GROUP_COLOURS[group].band,
+        '--mi-fg': GROUP_COLOURS[group].fg,
+    }) as React.CSSProperties;
+
+type CardState = 'soon' | 'ready' | 'started' | 'done';
+
+const stateOf = (
+    module: LearnModule,
+    started: string[],
+    completed: string[],
+): CardState =>
+    !module.available
+        ? 'soon'
+        : completed.includes(module.scope)
+          ? 'done'
+          : started.includes(module.scope)
+            ? 'started'
+            : 'ready';
+
+const ModuleCard: FC<{
+    module: LearnModule;
+    state: CardState;
+    heldByRole: boolean;
+    opening: boolean;
+    onStart: (scope: string) => void;
+}> = ({ module, state, heldByRole, opening, onStart }) => {
+    const Glyph = GROUP_ICONS[module.group];
+    const shot = thumbnailFor(module.scope);
+    return (
+        <Box
+            component="article"
+            className={`${styles.card} ${state === 'soon' ? styles.cardSoon : ''}`}
+            data-learn-module={module.scope}
+            data-learn-state={state === 'started' ? 'ready' : state}
+        >
+            <Box
+                className={styles.band}
+                style={groupVars(module.group)}
+                aria-hidden
+            >
+                <Box className={styles.blob}>
+                    <MantineIcon icon={Glyph} size={17} stroke={1.6} />
+                </Box>
+                {shot && (
+                    <Box className={styles.shot}>
+                        <img alt="" loading="lazy" src={shot} />
+                    </Box>
+                )}
+            </Box>
+            <h3 className={styles.title}>{module.title}</h3>
+            {module.blurb !== '' && (
+                <p className={styles.desc}>{module.blurb}</p>
+            )}
+            <Box className={styles.progressRow}>
+                <span>
+                    {state === 'soon'
+                        ? 'Coming soon'
+                        : state === 'done'
+                          ? 'Complete'
+                          : `${module.stepCount} steps`}
+                </span>
+                <span>
+                    {module.minRole && !heldByRole
+                        ? `${ROLE_LABELS[module.minRole]} and above`
+                        : module.isEnterprise
+                          ? 'Enterprise'
+                          : ''}
+                </span>
+            </Box>
+            <Box
+                className={styles.segments}
+                role="img"
+                aria-label={
+                    state === 'done'
+                        ? 'Walkthrough complete'
+                        : state === 'started'
+                          ? 'Walkthrough started'
+                          : 'Not started'
+                }
+            >
+                <span
+                    className={`${styles.seg} ${
+                        state === 'started' || state === 'done'
+                            ? styles.segOn
+                            : ''
+                    }`}
+                />
+                <span
+                    className={`${styles.seg} ${styles.segEnd} ${
+                        state === 'done' ? styles.segEndOn : ''
+                    }`}
+                />
+            </Box>
+            {state !== 'soon' && (
+                <Button
+                    className={styles.cta}
+                    size="compact-sm"
+                    variant="default"
+                    loading={opening}
+                    onClick={() => onStart(module.scope)}
+                >
+                    {state === 'done'
+                        ? 'Start again'
+                        : state === 'started'
+                          ? 'Resume'
+                          : 'Start'}
+                </Button>
+            )}
+        </Box>
+    );
+};
+
+/**
+ * The learner's library: every feature they can practise in the training
+ * project, one card each, grouped as the scope registry groups them. Start
+ * opens the walkthrough in a fresh copy of the training project and brings
+ * the learner back here when it ends.
+ */
+const LearnPage: FC = () => {
+    const navigate = useNavigate();
+    const { user } = useApp();
+    const { data: projects } = useProjects();
+    const trainingProject = projects?.find(
+        (project) => project.type === ProjectType.TRAINING,
+    );
+    // The library is never shown inside a preview (a training copy): it
+    // belongs to the shared training project, so a preview's /learn goes
+    // there instead.
+    const projectRoute = useOptionalProjectRoute();
+    useEffect(() => {
+        if (
+            projectRoute?.project.type === ProjectType.PREVIEW &&
+            trainingProject
+        ) {
+            void navigate(`/projects/${trainingProject.projectUuid}/learn`, {
+                replace: true,
+            });
+        }
+    }, [projectRoute?.project.type, trainingProject, navigate]);
+
+    const catalogue = useMemo(buildLearnCatalogue, []);
+    const { completed, started, lastStarted } = useLearnProgress();
+    const [role, setRole] = useState<ProjectMemberRole>(() =>
+        roleFromOrganizationRole(user.data?.role),
+    );
+    const [query, setQuery] = useState('');
+    const [showExtra, setShowExtra] = useState(true);
+    const [showSoon, setShowSoon] = useState(true);
+    const [activeGroup, setActiveGroup] = useState<LearnGroup | null>(null);
+
+    const visible = useMemo(() => {
+        const needle = query.trim().toLowerCase();
+        return sortForRole(role, catalogue).filter(
+            (module) =>
+                (showExtra || roleHolds(role, module)) &&
+                (showSoon || module.available) &&
+                (needle === '' ||
+                    module.title.toLowerCase().includes(needle) ||
+                    module.scope.toLowerCase().includes(needle)),
+        );
+    }, [catalogue, role, showExtra, showSoon, query]);
+    const groups = GROUP_ORDER.filter((group) =>
+        visible.some((module) => module.group === group),
+    );
+    const available = catalogue.filter((m) => m.available);
+    const doneCount = available.filter((m) =>
+        completed.includes(m.scope),
+    ).length;
+    // Training exists to teach what a learner cannot yet do, so the
+    // recommendation is the first unfinished walkthrough, held-by-role ones
+    // first (sortForRole), rather than nothing for a viewer.
+    const { resume, recommended } = focusModules(
+        role,
+        available,
+        completed,
+        lastStarted,
+    );
+
+    // Start makes the learner's copy and goes straight into it; the
+    // walkthrough brings them back to the library side when it ends.
+    const { start, opening } = useStartWalkthrough(
+        trainingProject?.projectUuid,
+    );
+    // Arriving with ?start=<scope> (the completion dialog's Next) goes
+    // straight into that module, once, the way its Start button would.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const startOnArrival = searchParams.get(START_PARAM);
+    // Once only: a second copy request would remove the copy being opened.
+    const startedOnArrivalRef = useRef(false);
+    useEffect(() => {
+        if (!startOnArrival || !trainingProject) return;
+        if (startedOnArrivalRef.current) return;
+        startedOnArrivalRef.current = true;
+        setSearchParams(
+            (params) => {
+                params.delete(START_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+        if (SCOPE_TOURS[startOnArrival]) start(startOnArrival);
+    }, [startOnArrival, trainingProject, start, setSearchParams]);
+    const jumpTo = (group: LearnGroup) => {
+        setActiveGroup(group);
+        document
+            .getElementById(`learn-group-${group}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    return (
+        <Box className={styles.shell}>
+            <Box component="aside" className={styles.sidebar}>
+                <Box className={styles.sidebarInner}>
+                    <h2 className={styles.sidebarTitle}>Library</h2>
+                    <Box
+                        component="nav"
+                        className={styles.nav}
+                        aria-label="Library"
+                    >
+                        {groups.map((group) => {
+                            const Glyph = GROUP_ICONS[group];
+                            return (
+                                <UnstyledButton
+                                    key={group}
+                                    type="button"
+                                    className={`${styles.navItem} ${
+                                        activeGroup === group
+                                            ? styles.navItemActive
+                                            : ''
+                                    }`}
+                                    aria-current={
+                                        activeGroup === group
+                                            ? 'true'
+                                            : undefined
+                                    }
+                                    onClick={() => jumpTo(group)}
+                                >
+                                    <span
+                                        className={styles.navIcon}
+                                        style={groupVars(group)}
+                                    >
+                                        <MantineIcon icon={Glyph} size={15} />
+                                    </span>
+                                    {GROUP_LABELS[group]}
+                                </UnstyledButton>
+                            );
+                        })}
+                    </Box>
+                </Box>
+            </Box>
+            <Box className={styles.main}>
+                <Box className={styles.homeHead}>
+                    <h1 className={styles.greeting}>{greeting()}</h1>
+                    <Box className={styles.stats} data-learn-role={role}>
+                        <Menu position="bottom-end" withinPortal>
+                            <Menu.Target>
+                                <UnstyledButton
+                                    type="button"
+                                    className={`${styles.stat} ${styles.statButton}`}
+                                    aria-haspopup="menu"
+                                >
+                                    Viewing as <b>{ROLE_LABELS[role]}</b>
+                                    <MantineIcon
+                                        icon={IconChevronDown}
+                                        size={14}
+                                    />
+                                </UnstyledButton>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {ROLE_ORDER.map((candidate) => (
+                                    <Menu.Item
+                                        key={candidate}
+                                        onClick={() => setRole(candidate)}
+                                        fw={
+                                            candidate === role ? 600 : undefined
+                                        }
+                                    >
+                                        {ROLE_LABELS[candidate]}
+                                    </Menu.Item>
+                                ))}
+                            </Menu.Dropdown>
+                        </Menu>
+                        <span
+                            className={styles.stat}
+                            data-learn-progress={`${doneCount}/${available.length}`}
+                        >
+                            Modules{' '}
+                            <b>
+                                {doneCount} of {available.length}
+                            </b>
+                        </span>
+                    </Box>
+                </Box>
+                <Box className={styles.focusGrid}>
+                    {resume ? (
+                        <Box
+                            component="article"
+                            className={styles.focusCard}
+                            data-learn-resume={resume.scope}
+                        >
+                            <span
+                                className={`${styles.overline} ${styles.overlineAccent}`}
+                            >
+                                Resume
+                            </span>
+                            <h2>{resume.title}</h2>
+                            <p>{resume.blurb}</p>
+                            <Button
+                                className={styles.focusAction}
+                                variant="light"
+                                size="compact-md"
+                                loading={opening === resume.scope}
+                                onClick={() => start(resume.scope)}
+                            >
+                                Resume module
+                            </Button>
+                        </Box>
+                    ) : (
+                        <Box component="article" className={styles.focusCard}>
+                            <span
+                                className={`${styles.overline} ${styles.overlineAccent}`}
+                            >
+                                Resume
+                            </span>
+                            <h2>No module in progress</h2>
+                            <p>Start a module from the library below.</p>
+                        </Box>
+                    )}
+                    {recommended ? (
+                        <Box
+                            component="article"
+                            className={styles.focusCard}
+                            data-learn-recommended={recommended.scope}
+                        >
+                            <span className={styles.overline}>
+                                Recommended next
+                            </span>
+                            <h2>{recommended.title}</h2>
+                            <p>{recommended.blurb}</p>
+                            <Button
+                                className={styles.focusAction}
+                                variant="default"
+                                size="compact-md"
+                                loading={opening === recommended.scope}
+                                onClick={() => start(recommended.scope)}
+                            >
+                                Start
+                            </Button>
+                        </Box>
+                    ) : (
+                        <Box component="article" className={styles.focusCard}>
+                            <span className={styles.overline}>
+                                Recommendation
+                            </span>
+                            <h2>Nothing new for {ROLE_LABELS[role]}</h2>
+                            <p>
+                                Use Show extra modules when you want to go
+                                beyond your role.
+                            </p>
+                        </Box>
+                    )}
+                </Box>
+                <Box className={styles.toolbar}>
+                    <TextInput
+                        className={styles.search}
+                        size="sm"
+                        placeholder="Search the library"
+                        aria-label="Search the library"
+                        leftSection={<MantineIcon icon={IconSearch} />}
+                        value={query}
+                        onChange={(event) =>
+                            setQuery(event.currentTarget.value)
+                        }
+                    />
+                    <Group className={styles.toggles} gap="md">
+                        <Group gap={6} wrap="nowrap">
+                            <Checkbox
+                                size="xs"
+                                label="Show extra modules"
+                                checked={showExtra}
+                                onChange={(event) =>
+                                    setShowExtra(event.currentTarget.checked)
+                                }
+                            />
+                            <Tooltip
+                                label="Modules for roles above yours, with the role they need"
+                                withArrow
+                            >
+                                <span
+                                    role="img"
+                                    aria-label="Modules for roles above yours, with the role they need"
+                                >
+                                    <MantineIcon
+                                        icon={IconHelpCircle}
+                                        size={14}
+                                        color="dimmed"
+                                    />
+                                </span>
+                            </Tooltip>
+                        </Group>
+                        <Checkbox
+                            size="xs"
+                            label="Coming soon"
+                            checked={showSoon}
+                            onChange={(event) =>
+                                setShowSoon(event.currentTarget.checked)
+                            }
+                        />
+                    </Group>
+                </Box>
+                {groups.length === 0 && (
+                    <Box className={styles.empty}>
+                        No modules match this search.
+                    </Box>
+                )}
+                {groups.map((group) => (
+                    <Box
+                        key={group}
+                        component="section"
+                        id={`learn-group-${group}`}
+                        className={styles.group}
+                        data-learn-group={group}
+                    >
+                        <h2 className={styles.groupTitle}>
+                            {GROUP_LABELS[group]}
+                        </h2>
+                        <p className={styles.groupDesc}>
+                            {GROUP_DESCRIPTIONS[group]}
+                        </p>
+                        <Box className={styles.grid}>
+                            {visible
+                                .filter((module) => module.group === group)
+                                .map((module) => (
+                                    <ModuleCard
+                                        key={module.scope}
+                                        module={module}
+                                        state={stateOf(
+                                            module,
+                                            started,
+                                            completed,
+                                        )}
+                                        heldByRole={roleHolds(role, module)}
+                                        opening={opening === module.scope}
+                                        onStart={start}
+                                    />
+                                ))}
+                        </Box>
+                    </Box>
+                ))}
+            </Box>
+        </Box>
+    );
+};
+
+export default LearnPage;
