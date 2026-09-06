@@ -100,6 +100,7 @@ import {
     getThresholdUuidFromUrlParams,
     isSchedulerTypeSync,
 } from '../../../features/scheduler/utils';
+import { isLeavingTrainingCopy } from '../../../features/scopeTours/trainingCopy';
 import { SyncModal as GoogleSheetsSyncModal } from '../../../features/sync/components';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
@@ -159,6 +160,32 @@ const isChartPath = (
 
     const chartPath = `/projects/${projectUuid}/saved/${chartIdentifier}`;
     return pathname.endsWith(chartPath) || pathname.includes(`${chartPath}/`);
+};
+
+/**
+ * Walkthrough for manage:ContentVerification: verifying a chart from its
+ * actions menu; the green check in the header is the result.
+ */
+const verifyTourAction = {
+    'data-tour-scope': 'manage:ContentVerification',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid',
+    'data-tour-label': 'Click Verify',
+    'data-tour-title': 'Verify a chart',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"]',
+    'data-tour-docs':
+        'explore/verified-content.mdx#verifying-a-chart-or-dashboard:1',
+};
+const verifiedTourProps = {
+    'data-tour-scope': 'manage:ContentVerification',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid',
+    'data-tour-label': 'The green check marks trusted content',
+    'data-tour-docs': 'explore/verified-content.mdx#who-can-verify-content:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'explore/verified-content.mdx#intro:p2:1-2',
 };
 
 const SavedChartsHeader: FC = () => {
@@ -384,6 +411,7 @@ const SavedChartsHeader: FC = () => {
             hasUnsavedChanges &&
             isEditMode &&
             !isSaveModalOpen &&
+            !isLeavingTrainingCopy(nextLocation) &&
             !isChartPath(
                 nextLocation.pathname,
                 projectUrlIdentifier,
@@ -612,7 +640,22 @@ const SavedChartsHeader: FC = () => {
                                         dashboardName={savedChart.dashboardName}
                                     />
                                 )}
-                                <Title order={5} maw={500} lineClamp={1}>
+                                <Title
+                                    order={5}
+                                    maw={500}
+                                    lineClamp={1}
+                                    // Scope-tour result marker: a saved chart
+                                    // (manage:SavedChart). Saving lands here,
+                                    // so no return path. See
+                                    // scripts/scope-tours/generate.ts.
+                                    data-tour-scope="manage:SavedChart"
+                                    data-tour-step="1"
+                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                    data-tour-label="A saved chart keeps your query"
+                                    data-tour-docs="explore/explore-view.mdx#save-your-chart:1-2"
+                                    data-tour-return="none"
+                                    data-tour-resultdocs="explore/explore-view.mdx#saving-to-a-space:1"
+                                >
                                     {savedChart.name}
                                 </Title>
 
@@ -667,6 +710,7 @@ const SavedChartsHeader: FC = () => {
                                             style={{
                                                 color: 'var(--mantine-color-green-6)',
                                             }}
+                                            {...verifiedTourProps}
                                         />
                                     </Tooltip>
                                 )}
@@ -751,6 +795,9 @@ const SavedChartsHeader: FC = () => {
                                                         pathname: `/projects/${projectUrlIdentifier}/saved/${savedChart?.slug}/edit`,
                                                     })
                                                 }
+                                                // Anchor for scope walkthroughs (data-tour-via)
+                                                data-tour-anchor="edit-chart"
+                                                data-tour-hint="Edit the chart"
                                             >
                                                 Edit chart
                                             </Button>
@@ -1034,6 +1081,9 @@ const SavedChartsHeader: FC = () => {
                                 {canManageContentVerification &&
                                     savedChart?.uuid && (
                                         <Menu.Item
+                                            {...(isChartVerified
+                                                ? {}
+                                                : verifyTourAction)}
                                             leftSection={
                                                 isChartVerified ? (
                                                     <IconCircleCheckFilled
@@ -1184,6 +1234,9 @@ const SavedChartsHeader: FC = () => {
                                     variant="default"
                                     aria-label="Chart actions"
                                     disabled={!unsavedChartVersion.tableName}
+                                    // Anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-anchor="chart-actions"
+                                    data-tour-hint="Open the chart's actions"
                                 >
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>

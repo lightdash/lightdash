@@ -122,6 +122,20 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                         loading={isRunning}
                         onClick={onClick}
                         data-testid="RefreshButton/RunQueryButton"
+                        // Anchor for scope walkthroughs (data-tour-via), and
+                        // the action of the manage:Explore walkthrough: a
+                        // query of one's own is what the scope unlocks.
+                        // See scripts/scope-tours.
+                        data-tour-anchor="run-query"
+                        data-tour-hint="Run the query"
+                        data-tour-scope="manage:Explore"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/tables/:tableName"
+                        data-tour-label="Run the query"
+                        data-tour-title="Explore data"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"]'
+                        data-tour-docs="explore/explore-view.mdx#select-your-fields:li3"
                     >
                         Run query
                     </Button>

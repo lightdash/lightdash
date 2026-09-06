@@ -185,6 +185,17 @@ const CellContextMenu: FC<
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
+                            // Walkthrough action for view:UnderlyingData:
+                            // the records behind a number. See
+                            // scripts/scope-tours.
+                            data-tour-scope="view:UnderlyingData"
+                            data-tour-step="2"
+                            data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                            data-tour-label="Click View underlying data"
+                            data-tour-title="See the records behind a number"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="results-heading"] >> [data-tour-anchor="results-metric-cell"]'
+                            data-tour-docs="explore/dashboards/interact.mdx#view-underlying-data:1"
                         >
                             View underlying data
                         </Menu.Item>

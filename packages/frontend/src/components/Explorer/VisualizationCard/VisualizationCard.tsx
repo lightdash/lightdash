@@ -354,6 +354,18 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     title="Chart"
                     isOpen={isOpen}
                     isVisualizationCard
+                    // Walkthrough look for view:SavedChart: the chart is
+                    // the first thing to read on a saved chart. See
+                    // scripts/scope-tours.
+                    tourProps={{
+                        'data-tour-scope': 'view:SavedChart',
+                        'data-tour-look': '1',
+                        'data-tour-after':
+                            '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                        'data-tour-label': 'The chart shows the answer',
+                        'data-tour-docs':
+                            'explore/explore-view.mdx#the-explore-page:li3',
+                    }}
                     hideHeading={isFullscreen || minimal}
                     minimal={minimal}
                     onToggle={toggleSection}

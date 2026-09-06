@@ -1,4 +1,10 @@
-import { deepEqual, getItemId, getMetrics } from '@lightdash/common';
+import {
+    deepEqual,
+    getDimensions,
+    getItemId,
+    getItemLabelWithoutTableName,
+    getMetrics,
+} from '@lightdash/common';
 import { Button, Group, rgba, Text, Tooltip } from '@mantine/core';
 import {
     IconCircleCheckFilled,
@@ -192,6 +198,29 @@ const SaveChartButton: FC<{
         onComplete: handleMetadataComplete,
     });
 
+    // A deterministic name from the query, so the save dialog never opens
+    // with an empty name: "<metrics> by <dimensions>". AI-generated metadata
+    // takes precedence when available.
+    const defaultMetadata = useMemo(() => {
+        if (!explore) return undefined;
+        const { metrics, dimensions } = unsavedChartVersion.metricQuery;
+        const metricLabels = getMetrics(explore)
+            .filter((metric) => metrics.includes(getItemId(metric)))
+            .map(getItemLabelWithoutTableName);
+        const dimensionLabels = getDimensions(explore)
+            .filter((dimension) => dimensions.includes(getItemId(dimension)))
+            .map(getItemLabelWithoutTableName);
+        const name = [
+            metricLabels.join(', '),
+            dimensionLabels.length > 0
+                ? `by ${dimensionLabels.join(', ')}`
+                : '',
+        ]
+            .filter(Boolean)
+            .join(' ');
+        return { name: name || explore.label, description: '' };
+    }, [explore, unsavedChartVersion.metricQuery]);
+
     const isDisabled =
         disabled ||
         !unsavedChartVersion.tableName ||
@@ -272,6 +301,18 @@ const SaveChartButton: FC<{
                             }),
                         })}
                         onClick={handleSaveChart}
+                        // Scope-tour marker: the control manage:SavedChart
+                        // unlocks. Path and follow-up declared here; see
+                        // scripts/scope-tours/generate.ts.
+                        data-tour-scope="manage:SavedChart"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/tables/:tableName"
+                        data-tour-label="Click Save chart"
+                        data-tour-title="Save a chart"
+                        data-tour-docs="explore/explore-view.mdx#save-your-chart:p2:1"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-table"] >> [data-tour-anchor="explore-metric"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"]'
+                        data-tour-then='[data-tour-anchor="chart-save-to-space"] >> [data-tour-anchor="chart-save-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="chart-save-submit"]'
                     >
                         {savedChart ? 'Save changes' : 'Save chart'}
                     </Button>
@@ -318,7 +359,7 @@ const SaveChartButton: FC<{
                         onModalHostChartSaved?.(saved);
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
-                    chartMetadata={generatedMetadata ?? undefined}
+                    chartMetadata={generatedMetadata ?? defaultMetadata}
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
                     redirectOnSuccess={!suppressNavigation}
