@@ -46,6 +46,17 @@ type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 const DEFAULT_SQL_NAME = 'Untitled SQL query';
 const DEFAULT_NAME_VIRTUAL_VIEW = 'Untitled virtual view';
 
+/** Anchor for scope walkthroughs (data-tour-via): the Save chart button. */
+const saveChartAnchor = {
+    'data-tour-anchor': 'sql-save-chart',
+    'data-tour-hint': 'Click Save chart',
+};
+/** The same button once Create virtual view is the chosen action. */
+const virtualViewAnchor = {
+    'data-tour-anchor': 'sql-create-virtual-view',
+    'data-tour-hint': 'Click Create virtual view',
+};
+
 export const HeaderCreate: FC = () => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
@@ -289,6 +300,11 @@ export const HeaderCreate: FC = () => {
                                     leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
+                                    {...(ctaAction === 'save'
+                                        ? saveChartAnchor
+                                        : ctaAction === 'createVirtualView'
+                                          ? virtualViewAnchor
+                                          : {})}
                                 >
                                     {getCtaLabels(ctaAction).label}
                                 </Button>
@@ -307,6 +323,9 @@ export const HeaderCreate: FC = () => {
                                                 !loadedColumns || !hasAnyAction
                                             }
                                             variant="default"
+                                            // Anchor for scope walkthroughs (data-tour-via)
+                                            data-tour-anchor="sql-cta-menu"
+                                            data-tour-hint="Open the save options"
                                         >
                                             <MantineIcon
                                                 icon={IconChevronDown}
@@ -380,6 +399,9 @@ export const HeaderCreate: FC = () => {
                                                             'createVirtualView',
                                                         );
                                                     }}
+                                                    // Anchor for scope walkthroughs (data-tour-via)
+                                                    data-tour-anchor="sql-cta-virtual-view"
+                                                    data-tour-hint="Choose Create virtual view"
                                                 >
                                                     <Stack gap="two">
                                                         <Text

@@ -25,6 +25,7 @@ interface VirtualSectionHeaderProps {
 /**
  * Renders a section header (Dimensions, Metrics, etc.) in the virtualized tree
  */
+
 const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     item,
 }) => {
@@ -160,6 +161,9 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                             leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={handleAddCustomDimension}
                             data-testid="VirtualSectionHeader/AddCustomDimensionButton"
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="add-custom-dimension"
+                            data-tour-hint="Add a custom dimension"
                         >
                             Add
                         </Button>

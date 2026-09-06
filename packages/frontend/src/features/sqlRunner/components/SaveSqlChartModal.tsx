@@ -61,6 +61,23 @@ type SaveSqlChartModalContentProps = Props & {
     ) => void | Promise<void>;
 };
 
+/**
+ * Walkthrough action for manage:SqlRunner (with manage:CustomSql): saving a
+ * chart built in the SQL runner.
+ */
+const saveTourAction = {
+    'data-tour-scope': 'manage:SqlRunner',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/sql-runner',
+    'data-tour-label': 'Save the chart',
+    'data-tour-title': 'Run SQL and save a chart',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-save-chart"] >> [data-tour-anchor="sql-chart-name"] >> [data-tour-anchor="sql-chart-save-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"]',
+    'data-tour-docs':
+        'explore/sql-runner.mdx#saved-charts-in-the-sql-runner:p3:1',
+};
+
 export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     opened,
     onClose,
@@ -237,7 +254,13 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
 
         if (modalSteps.currentStep === ModalStep.InitialInfo) {
             return (
-                <Button onClick={handleNextStep} disabled={!form.values.name}>
+                <Button
+                    onClick={handleNextStep}
+                    disabled={!form.values.name}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="sql-chart-save-next"
+                    data-tour-hint="Click Next"
+                >
                     Next
                 </Button>
             );
@@ -251,6 +274,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                 <Button
                     type="submit"
                     form={SAVE_CHART_FORM_ID}
+                    {...saveTourAction}
                     disabled={!isFormReadyToSave}
                     loading={isLoading}
                 >
@@ -303,6 +327,11 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                                 label="Chart name"
                                 placeholder="eg. How many weekly active users do we have?"
                                 required
+                                // Typed anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="sql-chart-name"
+                                data-tour-hint="Name the chart"
+                                data-tour-input="true"
+                                data-tour-suggest="Orders by status"
                                 {...form.getInputProps('name')}
                             />
                             <Textarea
