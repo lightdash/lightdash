@@ -50,7 +50,7 @@
         "upload-autopilot-skill": "tsx src/scripts/upload-autopilot-skill.ts"
     },
     "dependencies": {
-        "@ai-sdk/amazon-bedrock": "4.0.148",
+        "@ai-sdk/amazon-bedrock": "4.0.154",
         "@ai-sdk/anthropic": "3.0.104",
         "@ai-sdk/azure": "3.0.26",
         "@ai-sdk/google": "3.0.119",
@@ -137,7 +137,7 @@
         "fs-extra": "10.0.0",
         "fuse.js": "6.5.3",
         "google-auth-library": "10.2.1",
-        "googleapis": "105.0.0",
+        "googleapis": "124.0.0",
         "graphile-worker": "0.13.0",
         "graphql": "16.8.1",
         "graphql-request": "5.2.0",
@@ -193,7 +193,7 @@
         "sshpk": "1.18.0",
         "sucrase": "3.35.1",
         "tar-stream": "3.1.8",
-        "undici": "6.27.0",
+        "undici": "6.28.1",
         "uuid": "11.1.1",
         "vitest": "4.1.6",
         "winston": "3.13.0",
