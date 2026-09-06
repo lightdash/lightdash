@@ -140,6 +140,8 @@ const AddTileButton: FC<Props> = ({
                             radius={radius}
                             disabled={disabled}
                             leftSection={<MantineIcon icon={IconPlus} />}
+                            data-tour-anchor="add-tile"
+                            data-tour-hint="Click Add tile"
                         >
                             Add tile
                         </Button>
@@ -154,6 +156,8 @@ const AddTileButton: FC<Props> = ({
                                 leftSection={
                                     <MantineIcon icon={IconChartBar} />
                                 }
+                                data-tour-anchor="add-saved-chart"
+                                data-tour-hint="Choose Saved chart"
                             >
                                 Saved chart
                             </Menu.Item>

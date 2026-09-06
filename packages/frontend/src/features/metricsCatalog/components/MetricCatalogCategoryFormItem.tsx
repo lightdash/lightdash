@@ -213,6 +213,17 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 w="90%"
                 pos="absolute"
                 tabIndex={-1}
+                // Walkthrough action for manage:Tags: every category in the
+                // open form carries it; the first one is the pick. See
+                // scripts/scope-tours.
+                data-tour-scope="manage:Tags"
+                data-tour-step="2"
+                data-tour-route="/projects/:projectUuid/metrics"
+                data-tour-label="Choose a category"
+                data-tour-title="Put a metric in a category"
+                data-tour-interactive="true"
+                data-tour-via='[data-tour-nav="metrics"] >> [data-tour-anchor="metric-categories"][data-tour-value="Total revenue"]'
+                data-tour-docs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:3"
             />
             <CatalogCategory category={category} onClick={onClick} />
 

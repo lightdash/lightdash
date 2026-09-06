@@ -405,8 +405,35 @@ const DashboardHeader = memo(
                     className,
                 }}
             >
-                <Group gap="xs" flex={1} wrap="nowrap">
-                    <Title order={6}>{dashboard.name}</Title>
+                <Group
+                    gap="xs"
+                    flex={1}
+                    wrap="nowrap"
+                    // Walkthrough result marker for view:Dashboard: the
+                    // dashboard, re-zoomed, is where reading it ends.
+                    data-tour-scope="view:Dashboard"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                    data-tour-label="A dashboard is one view of many charts"
+                    data-tour-docs="explore/dashboards.mdx#intro:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/dashboards/interact.mdx#change-the-date-granularity:1"
+                >
+                    <Title
+                        order={6}
+                        // Walkthrough result marker for manage:Dashboard:
+                        // saving lands here, so no return path. See
+                        // scripts/scope-tours/generate.ts.
+                        data-tour-scope="manage:Dashboard"
+                        data-tour-step="1"
+                        data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                        data-tour-label="A dashboard arranges charts into one view"
+                        data-tour-docs="explore/dashboards.mdx#intro:1"
+                        data-tour-return="none"
+                        data-tour-resultdocs="explore/dashboards.mdx#save-your-dashboard:2"
+                    >
+                        {dashboard.name}
+                    </Title>
                     {dashboard.hasUnpublishedChanges && (
                         <Tooltip
                             label="Only you can see these changes. A reviewer can write them back to the repo from Content review."
@@ -636,6 +663,20 @@ const DashboardHeader = memo(
                                     loading={isSaving}
                                     onClick={onSaveDashboard}
                                     color="green.7"
+                                    // Walkthrough marker for manage:Dashboard:
+                                    // a new dashboard with a saved chart on
+                                    // it, then saved. The name is typed (the
+                                    // card suggests one); the space and chart
+                                    // are picked by name. See
+                                    // scripts/scope-tours/generate.ts.
+                                    data-tour-scope="manage:Dashboard"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/edit"
+                                    data-tour-label="Click Save changes"
+                                    data-tour-title="Create a dashboard"
+                                    data-tour-interactive="true"
+                                    data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-dashboard"] >> [data-tour-anchor="dashboard-name"] >> [data-tour-anchor="dashboard-create-next"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="dashboard-create-submit"] >> [data-tour-anchor="add-tile"] >> [data-tour-anchor="add-saved-chart"] >> [data-tour-anchor="chart-picker"] >> [data-tour-anchor="chart-option"][data-tour-value="Orders over time"] >> [data-tour-anchor="add-charts-submit"]'
+                                    data-tour-docs="explore/dashboards.mdx#save-your-dashboard:1"
                                 >
                                     Save changes
                                 </Button>

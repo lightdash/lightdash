@@ -273,6 +273,12 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     top={0}
                     w="100%"
                     h="100%"
+                    // Walkthrough anchor (data-tour-via): a metric's category
+                    // cell, by the metric's name.
+                    data-tour-anchor="metric-categories"
+                    data-tour-hint="Open a metric's categories"
+                    data-tour-hint-named="Open the categories of {value}"
+                    data-tour-value={row.original.label}
                     onClick={() => {
                         // Prevent the cell from being clicked if the category or description popover is closing
                         if (

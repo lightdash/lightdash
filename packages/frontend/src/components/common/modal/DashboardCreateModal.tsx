@@ -206,6 +206,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                             onClick={handleNextStep}
                             disabled={!form.values.dashboardName}
                             data-testid="DashboardCreateModal/Next"
+                            data-tour-anchor="dashboard-create-next"
+                            data-tour-hint="Click Next"
                         >
                             Next
                         </Button>
@@ -219,6 +221,8 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 loading={isCreatingDashboard}
                                 type="submit"
                                 form="dashboard-create-modal"
+                                data-tour-anchor="dashboard-create-submit"
+                                data-tour-hint="Click Create"
                             >
                                 Create
                             </Button>
@@ -239,6 +243,12 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
                                 placeholder="eg. KPI Dashboard"
                                 disabled={isCreatingDashboard}
                                 required
+                                // Walkthrough: a typed step; the card offers
+                                // a name to use in one click.
+                                data-tour-anchor="dashboard-name"
+                                data-tour-input="true"
+                                data-tour-hint="Name your dashboard"
+                                data-tour-suggest="Orders overview"
                                 {...form.getInputProps('dashboardName')}
                             />
                             <Textarea

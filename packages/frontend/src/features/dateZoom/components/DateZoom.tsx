@@ -107,6 +107,10 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 }) => (
     <Menu.Item
         fz="xs"
+        // Walkthrough anchor, one granularity by its label.
+        data-tour-anchor="zoom-option"
+        data-tour-hint="Choose {value}"
+        data-tour-value={label}
         onClick={() => onSelect(granularity)}
         disabled={isActive}
         rightSection={
@@ -333,6 +337,19 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                             }
                                         />
                                     }
+                                    // Walkthrough marker for view:Dashboard:
+                                    // reading a dashboard means opening it
+                                    // and re-zooming its charts without
+                                    // editing. See scripts/scope-tours.
+                                    data-tour-scope="view:Dashboard"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                    data-tour-label="Open the date zoom"
+                                    data-tour-title="Open and read a dashboard"
+                                    data-tour-interactive="true"
+                                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                                    data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
+                                    data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
                                 >
                                     <Text span>
                                         <Text
