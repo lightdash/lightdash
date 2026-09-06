@@ -3,7 +3,7 @@ import {
     getScopes,
     getTrainingProjectScopes,
     ProjectMemberRole,
-    type ScopeGroup,
+    ScopeGroup,
 } from '@lightdash/common';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 
@@ -19,7 +19,7 @@ import { SCOPE_TOURS } from '../scopeTours/generated';
  * taught in the same format, and the first section of the library. Every
  * other group is the scope registry's own.
  */
-const FOUNDATIONS = 'foundations' as const;
+export const FOUNDATIONS = 'foundations' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
 
 export type LearnModule = {
@@ -34,13 +34,57 @@ export type LearnModule = {
     stepCount: number;
 };
 
-const ROLE_ORDER: ProjectMemberRole[] = [
+export const ROLE_ORDER: ProjectMemberRole[] = [
     ProjectMemberRole.VIEWER,
     ProjectMemberRole.INTERACTIVE_VIEWER,
     ProjectMemberRole.EDITOR,
     ProjectMemberRole.DEVELOPER,
     ProjectMemberRole.ADMIN,
 ];
+
+export const ROLE_LABELS: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'Viewer',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive viewer',
+    [ProjectMemberRole.EDITOR]: 'Editor',
+    [ProjectMemberRole.DEVELOPER]: 'Developer',
+    [ProjectMemberRole.ADMIN]: 'Admin',
+};
+
+export const GROUP_ORDER: LearnGroup[] = [
+    FOUNDATIONS,
+    ScopeGroup.CONTENT,
+    ScopeGroup.SHARING,
+    ScopeGroup.DATA,
+    ScopeGroup.AI,
+    ScopeGroup.PROJECT_MANAGEMENT,
+    ScopeGroup.SPOTLIGHT,
+    ScopeGroup.ORGANIZATION_MANAGEMENT,
+];
+
+/** The library's one-line purpose per group, as on learn.lightdash.com. */
+export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'Become a knowledgeable Lightdash user',
+    [ScopeGroup.CONTENT]: 'Create and maintain charts, dashboards, and spaces',
+    [ScopeGroup.SHARING]: 'Send, schedule, and discuss trusted answers',
+    [ScopeGroup.DATA]:
+        'Shape, inspect, and extend the data available in Lightdash',
+    [ScopeGroup.AI]: 'Ask better questions and manage AI-powered workflows',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'Keep project access and delivery healthy',
+    [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]:
+        'Administer people, roles, and organisation settings',
+};
+
+export const GROUP_LABELS: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'Foundations',
+    [ScopeGroup.CONTENT]: 'Content',
+    [ScopeGroup.SHARING]: 'Sharing',
+    [ScopeGroup.DATA]: 'Data',
+    [ScopeGroup.AI]: 'AI',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'Project management',
+    [ScopeGroup.SPOTLIGHT]: 'Spotlight',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'Organization',
+};
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
 
@@ -114,7 +158,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
 
 /** Whether a role holds a module's scope (its rank is at or above the minimum). */
 /** Available first, then modules the role holds, then by title. */
-const sortForRole = (
+export const sortForRole = (
     role: ProjectMemberRole,
     modules: LearnModule[],
 ): LearnModule[] =>
@@ -146,7 +190,10 @@ export const focusModules = (
     return { resume, recommended };
 };
 
-const roleHolds = (role: ProjectMemberRole, module: LearnModule): boolean =>
+export const roleHolds = (
+    role: ProjectMemberRole,
+    module: LearnModule,
+): boolean =>
     module.minRole !== null &&
     ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(module.minRole);
 
