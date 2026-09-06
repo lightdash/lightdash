@@ -22,7 +22,7 @@ export type ProvisionOnboardingHomepageArguments = {
     user: SessionUser;
     projectUuid: string;
     projectType: ProjectType;
-    provisioningSource?: 'playground';
+    provisioningSource?: 'playground' | 'training';
     featureFlagService: Pick<
         FeatureFlagService,
         'get' | 'ensureOrganizationOverrideEnabled'

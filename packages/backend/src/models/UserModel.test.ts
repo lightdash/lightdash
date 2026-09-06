@@ -50,6 +50,17 @@ vi.mock('../utils/hash', () => ({
 
 type TestableUserModel = {
     hasAuthentication: (userUuid: string, trx?: Knex) => Promise<boolean>;
+    getTrainingProjects: (
+        organizationId: number,
+        userUuid: string,
+        trx?: Knex,
+    ) => Promise<
+        {
+            projectUuid: string;
+            projectType: ProjectType;
+            createdByUserUuid: string | null;
+        }[]
+    >;
     getUserProjectRoles: (
         userUuid: string,
         options?: { trx?: Knex },
@@ -132,6 +143,7 @@ const createUserModel = (): TestableUserModel => {
 
     model.hasAuthentication = vi.fn(async () => true);
     model.getUserProjectRoles = vi.fn(async () => []);
+    model.getTrainingProjects = vi.fn(async () => []);
     model.getUserGroupProjectRoles = vi.fn(async () => []);
     model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
     model.findServiceAccountByUserUuid = vi.fn(async (userUuid) => ({
@@ -431,6 +443,7 @@ describe('UserModel', () => {
                 featureFlagModel,
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserProjectRoles = vi.fn(async () => [
                 {
                     projectUuid: 'project-1',
@@ -452,6 +465,85 @@ describe('UserModel', () => {
             model.applyServiceAccountProjectMemberships = vi.fn(async () => {});
             return model;
         };
+
+        it('grants the trainee layer on the org training project only', async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training-project',
+                    projectType: ProjectType.TRAINING,
+                    createdByUserUuid: 'someone-else',
+                },
+                {
+                    projectUuid: 'training-copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
+
+            const { abilityBuilder } =
+                await model.generateUserAbilityBuilder(humanDetails);
+            const ability = abilityBuilder.build();
+
+            expect(model.getTrainingProjects).toHaveBeenCalledWith(
+                humanDetails.organization_id,
+                humanDetails.user_uuid,
+                expect.anything(),
+            );
+            // the learner's own copy of the training project gets the layer too
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'training-copy' }),
+                ),
+            ).toBe(true);
+            // a viewer can pin, save and run SQL on the training project
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'Validation'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect(
+                    ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                ).toBe(true);
+            });
+            // but not on their real project
+            expect(
+                ability.can(
+                    'manage',
+                    subject('PinnedItems', { projectUuid: 'project-1' }),
+                ),
+            ).toBe(false);
+            // and never the excluded scopes on the training project
+            (
+                [
+                    ['delete', 'Project'],
+                    ['update', 'Project'],
+                    ['manage', 'CompileProject'],
+                    ['manage', 'ScheduledDeliveries'],
+                    ['manage', 'ExternalConnection'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
+            });
+        });
 
         it('unions org and project extra roles into a human user ability', async () => {
             const model = createHumanModel();
@@ -670,6 +762,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.customRoleScopes = vi.fn(async () => ({
@@ -755,6 +848,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);
@@ -783,6 +877,7 @@ describe('UserModel', () => {
             }) as unknown as TestableUserModel;
             model.hasAuthentication = vi.fn(async () => true);
             model.getUserProjectRoles = vi.fn(async () => []);
+            model.getTrainingProjects = vi.fn(async () => []);
             model.getUserGroupProjectRoles = vi.fn(async () => []);
             model.getOrganizationExtraRoleUuids = vi.fn(async () => []);
             model.findServiceAccountByUserUuid = vi.fn(async () => undefined);

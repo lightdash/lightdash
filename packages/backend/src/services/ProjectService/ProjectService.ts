@@ -46,6 +46,7 @@ import {
     CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     CreateSnowflakeCredentials,
+    CreateTrainingPreviewResults,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
     currentUtcWallClock,
@@ -239,6 +240,7 @@ import {
     WarehouseTypes,
     type AgentSqlScope,
     type ApiCreateProjectResults,
+    type ChartUsageIn,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
     type MergeCompiledLeg,
@@ -397,6 +399,14 @@ type RefreshTokenRotationSource =
       }
     | { kind: 'user'; userWarehouseCredentialsUuid: string };
 
+/**
+ * Projects created by Lightdash itself rather than by a user: the onboarding
+ * playground and the training project. Only these may use embedded DuckDB
+ * credentials or the `TRAINING` project type.
+ */
+export type InternalProvisioningSource = 'playground' | 'training';
+export type InternalProvisioning = { source: InternalProvisioningSource };
+
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -471,7 +481,7 @@ export type ProjectServiceArguments = {
         user: SessionUser;
         projectUuid: string;
         projectType: ProjectType;
-        provisioningSource?: 'playground';
+        provisioningSource?: InternalProvisioningSource;
     }) => Promise<void>;
     provisionPlaygroundProject?: (args: {
         user: SessionUser;
@@ -765,7 +775,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
-        provisioningSource?: 'playground',
+        provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
         if (projectType === ProjectType.PREVIEW) {
             return;
@@ -779,7 +789,7 @@ export class ProjectService extends BaseService {
         try {
             // Playgrounds are provisioned alongside a user's own project, so
             // they never pass the first-project check but still need an agent
-            if (provisioningSource !== 'playground') {
+            if (provisioningSource === undefined) {
                 const projects =
                     await this.projectModel.getAllByOrganizationUuid(
                         organizationUuid,
@@ -821,7 +831,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         projectType: ProjectType,
-        provisioningSource?: 'playground',
+        provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
         await this.provisionDefaultAiAgent(
             user,
@@ -958,6 +968,7 @@ export class ProjectService extends BaseService {
     private async validateProjectCreationPermissions(
         user: SessionUser,
         data: Pick<CreateProject, 'type' | 'upstreamProjectUuid'>,
+        internalProvisioning?: InternalProvisioning,
     ) {
         if (!data.type) {
             throw new ParameterError('Project type must be provided');
@@ -996,9 +1007,9 @@ export class ProjectService extends BaseService {
                 );
 
             case ProjectType.TRAINING:
-                throw new ForbiddenError(
-                    'Training projects are created by the training provisioner only.',
-                );
+                // Only reachable from internal provisioning; see
+                // assertTrainingTypeIsInternal at both creation entry points.
+                return true;
 
             case ProjectType.PREVIEW: {
                 let upstreamProject: Awaited<
@@ -1033,6 +1044,15 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError(
                             'Cannot create a preview project from a preview project',
                         );
+                    }
+                    // A learner's own copy of the training project for a
+                    // walkthrough: provisioned internally, so the trainee
+                    // needs no preview-creation scope. See createTrainingPreview.
+                    if (
+                        internalProvisioning?.source === 'training' &&
+                        upstreamProject.type === ProjectType.TRAINING
+                    ) {
+                        return true;
                     }
                     if (
                         // checks if user has permission to create project from an upstream project on a project level
@@ -2678,12 +2698,16 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         data: CreateProjectOptionalCredentials,
         method: RequestMethod,
-        internalProvisioning?: { source: 'playground' },
+        internalProvisioning?: InternalProvisioning,
     ): Promise<ApiCreateProjectResults> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        ProjectService.assertTrainingTypeIsInternal(
+            data.type,
+            internalProvisioning,
+        );
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
             internalProvisioning,
@@ -2692,7 +2716,11 @@ export class ProjectService extends BaseService {
             data.warehouseConnection,
         );
 
-        await this.validateProjectCreationPermissions(user, data);
+        await this.validateProjectCreationPermissions(
+            user,
+            data,
+            internalProvisioning,
+        );
         this.assertCanUseOrganizationWarehouseCredentials(
             user,
             user.organizationUuid,
@@ -2971,6 +2999,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        ProjectService.assertTrainingTypeIsInternal(data.type);
         ProjectService.assertEmbeddedCredentialsAreInternal(
             data.warehouseConnection,
         );
@@ -3450,14 +3479,33 @@ export class ProjectService extends BaseService {
         });
     }
 
+    /**
+     * `TRAINING` projects are created by the training provisioner only. The
+     * public API must never create one, because every org member is granted
+     * the trainee scope set on a project of that type.
+     */
+    private static assertTrainingTypeIsInternal(
+        type: ProjectType | undefined,
+        internalProvisioning?: InternalProvisioning,
+    ): void {
+        if (
+            type === ProjectType.TRAINING &&
+            internalProvisioning?.source !== 'training'
+        ) {
+            throw new ForbiddenError(
+                'Training projects can only be provisioned internally',
+            );
+        }
+    }
+
     private static assertEmbeddedCredentialsAreInternal(
         credentials: CreateWarehouseCredentials | undefined,
-        internalProvisioning?: { source: 'playground' },
+        internalProvisioning?: InternalProvisioning,
     ): void {
         if (
             credentials?.type === WarehouseTypes.DUCKDB &&
             credentials.connectionType === DuckdbConnectionType.EMBEDDED &&
-            internalProvisioning?.source !== 'playground'
+            internalProvisioning === undefined
         ) {
             throw new ParameterError(
                 'Embedded DuckDB connections can only be provisioned internally',
@@ -11044,6 +11092,156 @@ export class ProjectService extends BaseService {
             projectUuid: previewProject.project.projectUuid,
             compileJobUuid: jobUuid,
         };
+    }
+
+    /**
+     * A learner's own throwaway copy of the training project, so a walkthrough
+     * always starts from the seeded state and never touches what other
+     * learners are doing. Any earlier copy the learner had is deleted first,
+     * so "start the tour again" means "start clean". Expires like any preview;
+     * the scheduler removes it.
+     */
+    async createTrainingPreview(
+        user: SessionUser,
+        trainingProjectUuid: string,
+    ): Promise<CreateTrainingPreviewResults> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const training = await this.projectModel.get(trainingProjectUuid);
+        if (
+            training.type !== ProjectType.TRAINING ||
+            training.organizationUuid !== user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                "Training copies can only be made from your organization's training project",
+            );
+        }
+
+        await this.deleteTrainingPreviews(user, trainingProjectUuid);
+
+        const creation = await this.createWithoutCompile(
+            user,
+            {
+                name: `Training copy for ${user.firstName}`.trim(),
+                type: ProjectType.PREVIEW,
+                upstreamProjectUuid: trainingProjectUuid,
+                copyContent: true,
+                copyWarehouseConnectionFromUpstreamProject: true,
+                dbtConnection: { type: DbtProjectType.NONE },
+                dbtVersion: training.dbtVersion,
+                expiresInHours:
+                    ProjectService.TRAINING_PREVIEW_EXPIRES_IN_HOURS,
+            },
+            RequestMethod.BACKEND,
+            { source: 'training' },
+        );
+        await this.throwIfPreviewCopyFailed(creation);
+        const { projectUuid } = creation.project;
+        // Comments are keyed by tile uuid, which a copy would share with the
+        // training project; the copy gets its own tiles and its own comments.
+        await this.projectModel.giveTrainingCopyOwnTiles(projectUuid);
+        // The seeded research thread becomes the learner's own.
+        await this.projectModel.copyDeepResearchForTrainingCopy(
+            trainingProjectUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        // The training project's explores are a shipped bundle, never
+        // compiled from dbt, so copy the cache instead of scheduling a compile.
+        const explores = Object.values(
+            await this.projectModel.getAllExploresFromCache(
+                trainingProjectUuid,
+            ),
+        );
+        await this.projectModel.saveExploresToCache(
+            projectUuid,
+            explores,
+            true,
+        );
+        // The metrics catalog is built from that cache before the copy is
+        // handed over, so its first page already knows it has metrics (the
+        // Metrics link in the bar depends on it). The copied YAML tags are
+        // assigned to metrics by reference; a fresh copy has nothing from a
+        // previous index to migrate, so no scheduler job is needed.
+        const cachedExploresMap = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'uuid',
+        );
+        const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
+        const { catalogFieldMap } = await this.catalogModel.indexCatalog(
+            projectUuid,
+            cachedExploresMap,
+            projectYamlTags,
+            user.userUuid,
+        );
+        // Popularity (chart usage) orders the catalog; the copied charts
+        // count the same way the index job counts them.
+        const chartUsages = await this.savedChartModel.getChartCountPerField(
+            projectUuid,
+            Object.keys(catalogFieldMap),
+        );
+        await this.catalogModel.setChartUsages(
+            projectUuid,
+            chartUsages.flatMap<ChartUsageIn>(({ fieldId, count }) => {
+                const field = catalogFieldMap[fieldId];
+                if (!field || Number.isNaN(count)) return [];
+                return [
+                    {
+                        fieldName: field.fieldName,
+                        fieldType: field.fieldType,
+                        chartUsage: count,
+                        cachedExploreUuid: field.cachedExploreUuid,
+                    },
+                ];
+            }),
+        );
+
+        // The trainee layer on the new copy only exists in a freshly built
+        // ability; the cached session user still reflects the old copies.
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+
+        const preview = await this.projectModel.get(projectUuid);
+        return { projectUuid, expiresAt: preview.expiresAt ?? null };
+    }
+
+    private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;
+
+    /**
+     * Remove the caller's own copies of the training project (a finished or
+     * abandoned walkthrough). Other learners' copies are untouched.
+     */
+    async deleteTrainingPreviews(
+        user: SessionUser,
+        trainingProjectUuid: string,
+    ): Promise<{ deleted: number }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const training = await this.projectModel.get(trainingProjectUuid);
+        if (
+            training.type !== ProjectType.TRAINING ||
+            training.organizationUuid !== user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                "Only copies of your organization's training project can be removed this way",
+            );
+        }
+        const projects = await this.projectModel.getAllByOrganizationUuid(
+            user.organizationUuid,
+        );
+        const copies = projects.filter(
+            (project) =>
+                project.type === ProjectType.PREVIEW &&
+                project.upstreamProjectUuid === trainingProjectUuid &&
+                project.createdByUserUuid === user.userUuid,
+        );
+        await Promise.all(
+            copies.map((copy) => this.projectModel.delete(copy.projectUuid)),
+        );
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        return { deleted: copies.length };
     }
 
     /*

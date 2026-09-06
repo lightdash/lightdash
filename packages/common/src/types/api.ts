@@ -316,6 +316,7 @@ import { type ProjectMemberProfile } from './projectMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 import {
     DbtProjectType,
+    type CreateTrainingPreviewResults,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type EnsurePlaygroundProjectResults,
@@ -1260,6 +1261,7 @@ type ApiResults =
     | BigqueryProjectRecommendation
     | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
+    | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
