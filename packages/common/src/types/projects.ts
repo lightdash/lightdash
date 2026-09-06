@@ -1258,6 +1258,17 @@ export type EnsurePlaygroundProjectResults = {
     created: boolean;
 };
 
+/** The training project an org admin enabled Learn with (CS-257). */
+export type EnableLearnResults = {
+    projectUuid: string;
+    created: boolean;
+};
+
+export type ApiEnableLearnResponse = {
+    status: 'ok';
+    results: EnableLearnResults;
+};
+
 export const playgroundProjectTriggers = [
     'invite_expert',
     'agent_onboarding_wait',

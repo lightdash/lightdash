@@ -768,6 +768,14 @@ export type HealthState = {
     preAggregates: {
         enabled: boolean;
     };
+    learn: {
+        /**
+         * Whether Learn (the training project and its walkthroughs) is
+         * switched on for this instance (`LIGHTDASH_LEARN_ENABLED`). Off by
+         * default; an org admin still has to enable it for their org.
+         */
+        enabled: boolean;
+    };
     dataApps: {
         /**
          * Origin where data-app preview iframes are served (e.g.,

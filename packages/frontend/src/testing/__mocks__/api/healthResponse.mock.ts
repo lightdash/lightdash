@@ -151,6 +151,9 @@ export default function mockHealthResponse(
         preAggregates: {
             enabled: false,
         },
+        learn: {
+            enabled: false,
+        },
         dataApps: {
             previewOrigin: null,
             sampleDataEnabled: true,

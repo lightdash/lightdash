@@ -23,6 +23,7 @@ import { LinearAppService } from '../services/LinearAppService/LinearAppService'
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { OrganizationService } from '../services/OrganizationService/OrganizationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
+import { provisionTrainingProject } from '../services/ProjectService/provisionTrainingProject';
 import { QuerySourceRegistry } from '../services/QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from '../services/QuerySourceService/QuerySourceService';
 import { RolesService } from '../services/RolesService/RolesService';
@@ -1123,6 +1124,43 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     // belong to the training project.
                                 }),
                             analytics: context.lightdashAnalytics,
+                        }),
+                    provisionTrainingProject: ({ user, projectService }) =>
+                        provisionTrainingProject({
+                            user,
+                            projectService,
+                            learnEnabled: context.lightdashConfig.learn.enabled,
+                            projectModel: models.getProjectModel(),
+                            onboardingModel: models.getOnboardingModel(),
+                            catalogService: repository.getCatalogService(),
+                            analytics: context.lightdashAnalytics,
+                            seedTrainingContent: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundContent({
+                                    projectUuid,
+                                    user: seedUser,
+                                    content,
+                                    publicSpace: true,
+                                    spaceModel: models.getSpaceModel(),
+                                    savedChartModel:
+                                        models.getSavedChartModel(),
+                                    dashboardModel: models.getDashboardModel(),
+                                    pinnedListModel:
+                                        models.getPinnedListModel(),
+                                    commentModel: models.getCommentModel(),
+                                    tagsModel: models.getTagsModel(),
+                                    appModel: models.getAppModel(),
+                                    aiAgentModel:
+                                        models.getAiAgentModel<AiAgentModel>(),
+                                    aiDeepResearchRunModel:
+                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                                    appFileStore: createPlaygroundAppFileStore(
+                                        lightdashConfig.appRuntime.s3,
+                                    ),
+                                }),
                         }),
                 }),
             instanceConfigurationService: ({
