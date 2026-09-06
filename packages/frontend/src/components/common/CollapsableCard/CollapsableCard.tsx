@@ -18,6 +18,10 @@ interface CollapsableCardProps {
     isVisualizationCard?: boolean;
     hideHeading?: boolean;
     minimal?: boolean;
+    /** Walkthrough markers for the card itself (a surface worth a look). */
+    tourProps?: Record<`data-tour-${string}`, string>;
+    /** Walkthrough markers for the heading, whose click opens the card. */
+    headingTourProps?: Record<`data-tour-${string}`, string>;
 }
 
 const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
@@ -34,6 +38,8 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
     headerElement,
     rightHeaderElement,
     minHeight = 300,
+    tourProps,
+    headingTourProps,
 }) => {
     const handleToggle = useCallback(
         (value: boolean) => onToggle?.(value),
@@ -59,6 +65,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                 overflow: 'visible',
                 ...(shouldExpand ? { flex: 1 } : undefined),
             }}
+            {...tourProps}
         >
             {!hideHeading && (
                 <Flex
@@ -75,6 +82,7 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                             ? classes.inactiveCardHeading
                             : classes.activeCardHeading
                     }
+                    {...headingTourProps}
                 >
                     <Tooltip
                         position="top-start"

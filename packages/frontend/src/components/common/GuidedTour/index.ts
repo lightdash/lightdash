@@ -1,1 +1,1 @@
-export { GuidedTour, type GuidedTourStep } from './GuidedTour';
+export { GuidedTour, type GuidedTourStep, type TourPoint } from './GuidedTour';

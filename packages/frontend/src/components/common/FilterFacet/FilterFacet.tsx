@@ -63,6 +63,10 @@ export type FilterFacetProps = {
     enableSelectAll?: boolean;
     /** Rendered at the top of the dropdown, above the search input */
     headerSection?: ReactNode;
+    /** Walkthrough markers for the button that opens the facet. */
+    triggerProps?: Record<`data-tour-${string}`, string>;
+    /** Walkthrough anchor name for each option, picked by its search label. */
+    optionAnchor?: string;
     /** Shows a clear button next to the trigger while there is a selection */
     clearable?: boolean;
 };
@@ -97,6 +101,8 @@ const FilterFacet = ({
     enableSelectAll = false,
     headerSection,
     clearable = false,
+    triggerProps,
+    optionAnchor,
 }: FilterFacetProps) => {
     const selectedSet = new Set(selected);
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -178,6 +184,17 @@ const FilterFacet = ({
             <UnstyledButton
                 key={option.value}
                 onClick={() => toggle(option.value, disabled)}
+                {...(optionAnchor
+                    ? {
+                          'data-tour-anchor': optionAnchor,
+                          'data-tour-hint': 'Choose {value}',
+                          'data-tour-value':
+                              option.searchLabel ??
+                              (typeof option.label === 'string'
+                                  ? option.label
+                                  : option.value),
+                      }
+                    : {})}
                 px="xs"
                 py={6}
                 className={`${classes.option} ${
@@ -229,6 +246,7 @@ const FilterFacet = ({
             variant="default"
             size="xs"
             loading={loading}
+            {...triggerProps}
             className={
                 hasSelection
                     ? classes.filterButtonSelected

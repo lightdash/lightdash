@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/react';
 import { type FC } from 'react';
 import { Outlet, useMatches } from 'react-router';
+import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import SourceCodeDrawer from '../../../features/sourceCodeEditor/components/SourceCodeDrawer';
 import NavBar from '../../NavBar';
 
@@ -30,6 +31,9 @@ const ProjectLayout: FC = () => {
             <NavBar isFixed={isNavBarFixed} />
             <Sentry.ErrorBoundary fallback={<></>}>
                 <SourceCodeDrawer />
+            </Sentry.ErrorBoundary>
+            <Sentry.ErrorBoundary fallback={<></>}>
+                <ScopeTourHost />
             </Sentry.ErrorBoundary>
             <Outlet />
         </>

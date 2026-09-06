@@ -458,7 +458,9 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
     const { baseProjects, previewsByUpstream, baseProjectsByUuid } =
         useMemo(() => {
             const base = (projects ?? []).filter(
-                (p) => p.type === ProjectType.DEFAULT,
+                (p) =>
+                    p.type === ProjectType.DEFAULT ||
+                    p.type === ProjectType.TRAINING,
             );
 
             // Only show previews the user is allowed to access. Visibility is
