@@ -3,6 +3,7 @@ import {
     ApiColorPalettesResponse,
     ApiCreatedColorPaletteResponse,
     ApiCreateGroupResponse,
+    ApiEnableLearnResponse,
     ApiEnsurePlaygroundProjectResponse,
     ApiErrorPayload,
     ApiGroupListResponse,
@@ -864,6 +865,31 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .ensurePlaygroundProject(user, body?.trigger),
+        };
+    }
+
+    /**
+     * Enable Learn for the current organization: create the training project
+     * with the caller as its admin. Org admins only. Idempotent.
+     * @summary Enable Learn
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/training-project')
+    @OperationId('EnableLearn')
+    async enableLearn(
+        @Request() req: express.Request,
+    ): Promise<ApiEnableLearnResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .enableLearn(toSessionUser(req.account)),
         };
     }
 

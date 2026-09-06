@@ -61,7 +61,7 @@ export type ProvisionPlaygroundProjectArguments = {
     validatePlaygroundDatabase?: (databasePath: string) => Promise<void>;
 };
 
-const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
+export const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
     const client = new DuckdbWarehouseClient({
         type: WarehouseTypes.DUCKDB,
         connectionType: DuckdbConnectionType.EMBEDDED,
@@ -70,7 +70,7 @@ const validatePlaygroundDatabaseBundle = async (): Promise<void> => {
     await client.runQuery('SELECT count(*) FROM information_schema.tables');
 };
 
-const loadPlaygroundBundle = async (
+export const loadPlaygroundBundle = async (
     dataDirectory: string,
     validatePlaygroundDatabase: (databasePath: string) => Promise<void>,
 ): Promise<{

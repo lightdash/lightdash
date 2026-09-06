@@ -1122,6 +1122,41 @@ type PlaygroundProjectFailedEvent = BaseTrack & {
     };
 };
 
+type TrainingProjectProvisionedEvent = BaseTrack & {
+    event: 'training_project.provisioned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentSeedErrorType: string | null;
+        catalogIndexErrorType: string | null;
+    };
+};
+
+export type TrainingProjectSkippedReason =
+    | 'learn_disabled'
+    | 'training_project_already_exists';
+
+type TrainingProjectSkippedEvent = BaseTrack & {
+    event: 'training_project.skipped';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        reason: TrainingProjectSkippedReason;
+    };
+};
+
+type TrainingProjectFailedEvent = BaseTrack & {
+    event: 'training_project.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        errorType: string;
+    };
+};
+
 type ProjectDeletedEvent = BaseTrack & {
     event: 'project.deleted';
     userId: string;
@@ -3853,6 +3888,9 @@ type TypedEvent =
     | PlaygroundProjectProvisionedEvent
     | PlaygroundProjectSkippedEvent
     | PlaygroundProjectFailedEvent
+    | TrainingProjectProvisionedEvent
+    | TrainingProjectSkippedEvent
+    | TrainingProjectFailedEvent
     | ProjectDeletedEvent
     | ProjectCompiledEvent
     | DbtSourceEvent

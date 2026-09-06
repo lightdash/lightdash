@@ -75,6 +75,7 @@ import {
     DirectAccessResourceType,
     DownloadFileType,
     DuckdbConnectionType,
+    EnableLearnResults,
     EnsurePlaygroundProjectResults,
     Explore,
     ExploreError,
@@ -490,6 +491,15 @@ export type ProjectServiceArguments = {
         canViewProject: (project: OrganizationProject) => boolean;
         trigger: PlaygroundProjectTrigger;
     }) => Promise<EnsurePlaygroundProjectResults>;
+    /**
+     * Creates the org's training project when an admin enables Learn
+     * (CS-257). Wired by the service repository (core seeds what core can)
+     * and overridden by EE (adds the data app, agent and research run).
+     */
+    provisionTrainingProject?: (args: {
+        user: SessionUser;
+        projectService: ProjectService;
+    }) => Promise<EnableLearnResults>;
 };
 
 const isValidDbtCloudWebhookSignature = (
@@ -620,6 +630,8 @@ export class ProjectService extends BaseService {
 
     provisionPlaygroundProject: ProjectServiceArguments['provisionPlaygroundProject'];
 
+    provisionTrainingProject: ProjectServiceArguments['provisionTrainingProject'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -668,6 +680,7 @@ export class ProjectService extends BaseService {
         getAiAgentService,
         onProjectCreated,
         provisionPlaygroundProject,
+        provisionTrainingProject,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -719,6 +732,44 @@ export class ProjectService extends BaseService {
         this.getAiAgentService = getAiAgentService;
         this.onProjectCreated = onProjectCreated;
         this.provisionPlaygroundProject = provisionPlaygroundProject;
+        this.provisionTrainingProject = provisionTrainingProject;
+    }
+
+    /**
+     * Enable Learn for the user's organization (CS-257): create the training
+     * project, seeded, with the caller as its assigned admin. Idempotent.
+     * Org admins only; 404 when the instance has Learn switched off.
+     */
+    async enableLearn(user: SessionUser): Promise<EnableLearnResults> {
+        if (!this.lightdashConfig.learn.enabled) {
+            throw new NotFoundError('Learn is not enabled on this instance');
+        }
+        if (!this.provisionTrainingProject) {
+            throw new NotFoundError('Learn is not available');
+        }
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only an organization admin can enable Learn',
+            );
+        }
+        const result = await this.provisionTrainingProject({
+            user,
+            projectService: this,
+        });
+        // The admin's cached abilities predate the project; other users'
+        // entries expire on their own (per-pod TTL).
+        this.userModel.invalidateSessionUserCache(user.userUuid);
+        return result;
     }
 
     async ensurePlaygroundProject(
@@ -779,6 +830,12 @@ export class ProjectService extends BaseService {
         provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
         if (projectType === ProjectType.PREVIEW) {
+            return;
+        }
+        // The training project's agent comes with its seeded content (the
+        // walkthroughs name it); a second, default agent would make Ask AI
+        // land on either.
+        if (provisioningSource === 'training') {
             return;
         }
 
@@ -11143,6 +11200,10 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<CreateTrainingPreviewResults> {
+        // Learn off for the instance closes the sandbox: no copies either.
+        if (!this.lightdashConfig.learn.enabled) {
+            throw new NotFoundError('Learn is not enabled on this instance');
+        }
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -11300,6 +11361,9 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<{ deleted: number }> {
+        if (!this.lightdashConfig.learn.enabled) {
+            throw new NotFoundError('Learn is not enabled on this instance');
+        }
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

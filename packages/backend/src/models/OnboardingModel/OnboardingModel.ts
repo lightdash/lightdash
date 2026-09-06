@@ -8,6 +8,9 @@ type OnboardingModelArguments = {
 };
 
 const PLAYGROUND_PROVISIONING_LOCK_NAMESPACE = 19350428;
+// Distinct from the playground's, so enabling Learn and provisioning a
+// playground for the same org never wait on each other.
+const TRAINING_PROVISIONING_LOCK_NAMESPACE = 19350429;
 // One training copy at a time per learner: parallel requests would each
 // delete the others' copy and leave several live.
 const TRAINING_COPY_LOCK_NAMESPACE = 19350430;
@@ -41,9 +44,33 @@ export class OnboardingModel {
     }
 
     /**
-     * Serialises training copy creation per learner: the copy endpoint
-     * deletes the learner's previous copy before making a new one, so two
-     * requests at once must not interleave.
+     * Serialises training project creation per organization (CS-257): two
+     * admins clicking Enable Learn at once make one project.
+     */
+    async runInTrainingProvisioningLock<T>(
+        organizationUuid: string,
+        callback: (trx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const organization = await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .select('organization_id')
+                .first();
+            if (!organization) {
+                throw new NotFoundError('Cannot find organization');
+            }
+
+            await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [
+                TRAINING_PROVISIONING_LOCK_NAMESPACE,
+                organization.organization_id,
+            ]);
+            return callback(trx);
+        });
+    }
+
+    /**
+     * Serialises training copy creation per learner (see
+     * ProjectService.createTrainingPreview).
      */
     async runInTrainingCopyLock<T>(
         userUuid: string,

@@ -464,6 +464,9 @@ export const lightdashConfigMock: LightdashConfig = {
         bufferMaxSize: 10000,
         s3: null,
     },
+    learn: {
+        enabled: false,
+    },
     appRuntime: {
         enabled: false,
         dataAppCodingAgent: 'claude',

@@ -157,6 +157,9 @@ export const BaseResponse: HealthState = {
     preAggregates: {
         enabled: false,
     },
+    learn: {
+        enabled: false,
+    },
     dataApps: {
         previewOrigin: null,
         sampleDataEnabled: true,
