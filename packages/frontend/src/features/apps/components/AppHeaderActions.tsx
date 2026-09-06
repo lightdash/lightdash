@@ -129,15 +129,15 @@ type Props = {
  */
 
 /**
- * Walkthrough action for create:DataApp: duplicating the seeded app makes
+ * Walkthrough action for manage:DataApp: duplicating the seeded app makes
  * one of the learner's own; adding it to a space then shares it.
  */
 const duplicateTourAction = {
-    'data-tour-scope': 'create:DataApp',
+    'data-tour-scope': 'manage:DataApp',
     'data-tour-step': '2',
     'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
     'data-tour-label': 'Click Duplicate',
-    'data-tour-title': 'Make a data app your own and share it',
+    'data-tour-title': 'Share a data app with your team',
     'data-tour-interactive': 'true',
     'data-tour-via':
         '[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]',
@@ -295,6 +295,10 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         <ActionIcon
                             aria-label="Continue building"
+                            // Anchor for scope walkthroughs (data-tour-via):
+                            // from the running app into the builder.
+                            data-tour-anchor="app-continue-building"
+                            data-tour-hint="Click Continue building"
                             onClick={onEdit}
                             bg="foreground"
                             c="background"

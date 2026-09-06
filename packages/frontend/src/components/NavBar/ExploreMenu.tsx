@@ -157,6 +157,9 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             >
                                 <LargeMenuItem
                                     component={Link}
+                                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                                    data-tour-nav="new-app"
+                                    data-tour-hint="Choose Data App"
                                     title="Data App"
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
