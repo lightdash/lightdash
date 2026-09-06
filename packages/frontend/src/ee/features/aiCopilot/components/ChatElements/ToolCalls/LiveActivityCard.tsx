@@ -221,6 +221,7 @@ export const ReasoningHistoryRow: FC<{
                         size="xs"
                         className={styles.reasoningLabel}
                         data-live={isLive ? 'true' : 'false'}
+                        data-tour-status={isLive ? 'true' : undefined}
                     >
                         {label}
                     </Text>
@@ -326,6 +327,9 @@ const LatestRow: FC<{
                     size="xs"
                     className={styles.latestLabel}
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
+                    // Walkthrough: the product's own words for what the
+                    // agent is doing right now.
+                    data-tour-status={isLive ? 'true' : undefined}
                 >
                     {label}
                 </Text>
@@ -536,6 +540,7 @@ const renderInlineLiveStepProgress = (params: {
                     size="xs"
                     className={styles.liveStepProgressLabel}
                     data-active="true"
+                    data-tour-status="true"
                 >
                     {currentMessage}
                 </Text>
@@ -771,6 +776,7 @@ export const LiveActivityCard: FC<Props> = ({
                                     size="xs"
                                     className={styles.latestLabel}
                                     data-live="true"
+                                    data-tour-status="true"
                                 >
                                     Running SQL query
                                 </Text>

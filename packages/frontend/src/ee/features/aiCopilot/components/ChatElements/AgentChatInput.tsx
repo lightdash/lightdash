@@ -240,6 +240,25 @@ const extractToolHints = (editor: Editor | null): string[] => {
     return hints;
 };
 
+/**
+ * Walkthrough action for create:AiDeepResearch: switching the composer to
+ * deep research, the control that starts a run. Nothing is submitted; the
+ * tour then opens the seeded thread and its finished report.
+ */
+const deepResearchTourAction = {
+    'data-tour-scope': 'create:AiDeepResearch',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
+    'data-tour-label': 'Turn on Deep research',
+    'data-tour-title': 'Run deep research and read its report',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="ask-ai"] >> [data-tour-anchor="composer-options"]',
+    'data-tour-then':
+        '[data-tour-anchor="agent-thread"][data-tour-value="Why returns rose in the spring"] >> [data-tour-anchor="research-report-open"]',
+    'data-tour-docs': 'agents/deep-research.mdx#how-it-works:p2:1',
+};
+
 export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
@@ -865,6 +884,9 @@ export const AgentChatInput = ({
                 }
                 disabled={hasActiveDeepResearchRun}
                 closeMenuOnClick={false}
+                {...(composerMode === 'deep_research'
+                    ? {}
+                    : deepResearchTourAction)}
                 onClick={() =>
                     setComposerMode(
                         composerMode === 'deep_research'
@@ -911,6 +933,9 @@ export const AgentChatInput = ({
                         size={30}
                         radius="xl"
                         aria-label="Composer options"
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="composer-options"
+                        data-tour-hint="Open the composer options"
                         className={
                             showDeepResearchNudge &&
                             !hasActiveDeepResearchRun &&
@@ -1063,6 +1088,18 @@ export const AgentChatInput = ({
                 icon={IconArrowUp}
                 label={isDeepResearch ? 'Start research' : 'Send message'}
                 size={size}
+                // Walkthrough marker for create:AiAgentThread: sending the
+                // first message opens a thread. The learner picks one of the
+                // agent's suggested questions on the way, so nothing is typed.
+                // See scripts/scope-tours/generate.ts.
+                data-tour-scope="create:AiAgentThread"
+                data-tour-step="2"
+                data-tour-route="/projects/:projectUuid/ai-agents/:agentUuid"
+                data-tour-label="Send your question"
+                data-tour-title="Ask an AI agent"
+                data-tour-interactive="true"
+                data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="ai-suggestion"]'
+                data-tour-docs="agents.mdx#intro:2"
                 disabled={
                     disabled ||
                     !hasValue ||

@@ -109,6 +109,9 @@ export const AgentSelector = ({
                 <UnstyledButton
                     type="button"
                     onClick={() => combobox.toggleDropdown()}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="agent-selector"
+                    data-tour-hint="Open the agent dropdown"
                     className={`${styles.target} ${
                         compact ? styles.compact : ''
                     } ${variant === 'header' ? styles.headerTarget : ''}`}
@@ -196,7 +199,19 @@ export const AgentSelector = ({
                     ))}
 
                     <Combobox.Footer p={4} pr={6}>
-                        <Combobox.Option value="new" p={2}>
+                        <Combobox.Option
+                            value="new"
+                            p={2}
+                            // Anchor for scope walkthroughs (data-tour-via),
+                            // read first as a look at where agents start.
+                            data-tour-anchor="agent-new"
+                            data-tour-hint="Choose Create new agent"
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="1"
+                            data-tour-after='[data-tour-anchor="agent-selector"]'
+                            data-tour-label="Every agent starts from this dropdown"
+                            data-tour-docs="agents/set-up-agents.mdx#create-a-new-agent:1"
+                        >
                             <Group gap="xs" wrap="nowrap" miw={0} flex={1}>
                                 <Center w={22} h={22}>
                                     <MantineIcon

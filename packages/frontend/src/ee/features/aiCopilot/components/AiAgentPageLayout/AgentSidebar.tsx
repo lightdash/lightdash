@@ -155,6 +155,12 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             component={Link}
             key={thread.uuid}
             to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
+            // Anchor for scope walkthroughs (data-tour-via): a thread, by its
+            // title. The hint's {value} is the title:
+            //   data-tour-anchor="agent-thread" data-tour-hint="Open the {value} thread"
+            data-tour-anchor="agent-thread"
+            data-tour-hint="Open the {value} thread"
+            data-tour-value={threadTitle}
             px="xs"
             py={rem(4)}
             className={classes.threadNavLink}
