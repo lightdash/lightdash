@@ -118,6 +118,9 @@ const Spaces: FC = () => {
                                     }
                                     aria-hidden={isSharedWithMe}
                                     tabIndex={isSharedWithMe ? -1 : undefined}
+                                    // Walkthrough anchor (data-tour-via).
+                                    data-tour-anchor="add-space"
+                                    data-tour-hint="Click Add"
                                 >
                                     Add
                                 </Button>
