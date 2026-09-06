@@ -1,6 +1,8 @@
 import { useMediaQuery } from '@mantine/hooks';
+import * as Sentry from '@sentry/react';
 import { Outlet } from 'react-router';
 import NavBar from '../../../components/NavBar';
+import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import { MobileNavBar } from '../../../MobileRoutes';
 
 const AiAgentsRootLayout = () => {
@@ -8,6 +10,10 @@ const AiAgentsRootLayout = () => {
     return (
         <>
             {isMobile ? <MobileNavBar /> : <NavBar />}
+            {/* A walkthrough that clicked into Ask AI continues here. */}
+            <Sentry.ErrorBoundary fallback={<></>}>
+                <ScopeTourHost />
+            </Sentry.ErrorBoundary>
             <Outlet />
         </>
     );

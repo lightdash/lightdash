@@ -17,6 +17,8 @@ import { convertNestableListToTree, getAllParentPaths } from './utils';
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
 type Props = {
+    /** Anchor name for scope walkthroughs, set on every node with its label as data-tour-value. */
+    nodeTourAnchor?: string;
     withRootSelectable?: boolean;
     topLevelLabel: string;
     isExpanded: boolean;
@@ -241,7 +243,19 @@ const Tree: React.FC<Props> = (props) => {
                         const isRestricted = nodeItem.restricted === true;
 
                         return (
-                            <div {...elementProps}>
+                            <div
+                                {...elementProps}
+                                // Scope-tour anchors: a click path may name a
+                                // node by its label, e.g.
+                                // [data-tour-anchor="space-option"][data-tour-value="Shared"]
+                                data-tour-anchor={props.nodeTourAnchor}
+                                data-tour-value={
+                                    props.nodeTourAnchor &&
+                                    typeof node.label === 'string'
+                                        ? node.label
+                                        : undefined
+                                }
+                            >
                                 <TreeItem
                                     expanded={expanded}
                                     selected={selected}
@@ -264,6 +278,12 @@ const Tree: React.FC<Props> = (props) => {
                                             return;
                                         }
 
+                                        // A single required choice cannot
+                                        // be clicked away: re-clicking the
+                                        // selected node keeps it selected.
+                                        if (type === 'single' && selected) {
+                                            return;
+                                        }
                                         nTree.toggleSelected(node.value);
                                     }}
                                     onClickExpand={() =>

@@ -54,6 +54,9 @@ export const MainNavBarContent: FC<Props> = ({
                 <ActionIcon
                     component={Link}
                     to={homeUrl}
+                    // Navigation anchor for scope walkthroughs (data-tour-via)
+                    data-tour-nav="home"
+                    data-tour-hint="Click the Lightdash logo to go back home"
                     title="Home"
                     className={classes.logoButton}
                 >
@@ -92,7 +95,11 @@ export const MainNavBarContent: FC<Props> = ({
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
-                        <NotificationsMenu projectUuid={activeProjectUuid} />
+                        <>
+                            <NotificationsMenu
+                                projectUuid={activeProjectUuid}
+                            />
+                        </>
                     )}
 
                     <HelpMenu />

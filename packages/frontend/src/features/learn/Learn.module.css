@@ -1,0 +1,420 @@
+/* The library from learn.lightdash.com, brought in-app: the same shell,
+   sidebar, home cards, toolbar and module cards, on this app's neutrals. */
+.shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 100%;
+    --lu-accent: #5e4cff;
+    --lu-track: light-dark(#e9ecef, #343a46);
+    --lu-done-fg: #2f9e44;
+    --lu-done-border: light-dark(#b7e4c0, #2b5e3a);
+    --lu-surface: light-dark(#fff, var(--mantine-color-ldGray-9));
+    --lu-sunken: light-dark(#f8f9fa, var(--mantine-color-ldGray-8));
+    --lu-border: light-dark(#dee2e6, var(--mantine-color-ldGray-7));
+    --lu-ink: light-dark(#111418, #f1f3f5);
+    --lu-secondary: light-dark(#495057, #ced4da);
+    --lu-muted: light-dark(#868e96, #909aa6);
+}
+
+.sidebar {
+    border-right: 1px solid var(--lu-border);
+    background: var(--lu-sunken);
+    padding: 24px 18px;
+}
+
+.sidebarInner {
+    position: sticky;
+    top: 76px;
+}
+
+.sidebarTitle {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lu-muted);
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--lu-secondary);
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.navItem:hover {
+    background: var(--lu-surface);
+}
+
+.navItemActive {
+    background: var(--lu-surface);
+    color: var(--lu-ink);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(16, 16, 20, 0.06);
+}
+
+.navIcon {
+    display: inline-flex;
+    color: var(--mi-fg);
+}
+
+.main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 28px 48px;
+}
+
+.homeHead {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.greeting {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.stats {
+    display: inline-flex;
+    align-items: stretch;
+    margin-left: auto;
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    background: var(--lu-surface);
+}
+
+.stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    min-height: 32px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--lu-muted);
+    background: transparent;
+    border: 0;
+    border-right: 1px solid var(--lu-border);
+    white-space: nowrap;
+    cursor: default;
+}
+
+.stat b {
+    font-weight: 600;
+    color: var(--lu-ink);
+}
+
+.statButton {
+    cursor: pointer;
+}
+
+.stats > :last-child {
+    border-right: 0;
+}
+
+.focusGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
+    gap: 16px;
+}
+
+.focusCard {
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 150px;
+}
+
+.overline {
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: var(--lu-muted);
+}
+
+.overlineAccent {
+    color: var(--lu-accent);
+}
+
+.focusCard h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.25;
+}
+
+.focusCard p {
+    margin: 0;
+    color: var(--lu-muted);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.focusAction {
+    align-self: flex-start;
+    margin-top: auto;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.search {
+    flex: 1;
+    min-width: 220px;
+    max-width: 640px;
+}
+
+.toggles {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--lu-secondary);
+}
+
+.group {
+    margin: 6px 0 10px;
+    scroll-margin-top: 80px;
+}
+
+.groupTitle {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 600;
+    color: var(--lu-ink);
+}
+
+.groupDesc {
+    margin: 2px 0 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--lu-muted);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 246px;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.12s ease;
+}
+
+.card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgba(16, 16, 20, 0.08);
+}
+
+.cardSoon {
+    opacity: 0.7;
+}
+
+.band {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 86px;
+    flex: none;
+    margin: -15px -15px 12px;
+    padding: 0 14px;
+    background: var(--mi-band);
+}
+
+.band::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.16;
+    background-image: radial-gradient(var(--mi-fg) 1.2px, transparent 1.3px);
+    background-size: 12px 12px;
+    background-position: 6px 4px;
+}
+
+.blob {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--mi-fg);
+    border-radius: 44% 56% 47% 53% / 53% 44% 56% 47%;
+}
+
+.grid > :nth-child(even) .blob {
+    border-radius: 55% 45% 52% 48% / 47% 55% 45% 53%;
+}
+
+.grid > :nth-child(3n) .blob {
+    border-radius: 48% 52% 56% 44% / 55% 48% 52% 45%;
+}
+
+.shot {
+    position: absolute;
+    top: 18px;
+    bottom: 0;
+    right: 0;
+    width: 190px;
+    overflow: hidden;
+    border-radius: 7px 0 0 0;
+    border: 1px solid rgba(20, 16, 12, 0.14);
+    border-right: 0;
+    border-bottom: 0;
+    background: #fff;
+}
+
+.shot img {
+    display: block;
+    width: 360px;
+    height: auto;
+}
+
+.title {
+    margin: 0;
+    padding-right: 28px;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.desc {
+    margin: 5px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--lu-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.progressRow {
+    margin: 12px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--lu-muted);
+}
+
+.segments {
+    margin-top: auto;
+    padding-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.seg {
+    flex: 1;
+    min-width: 4px;
+    height: 5px;
+    border-radius: 99px;
+    background: var(--lu-track);
+}
+
+.segOn {
+    background: var(--lu-secondary);
+}
+
+.segEnd {
+    flex: 0 0 22px;
+    background: var(--lu-done-border);
+}
+
+.segEndOn {
+    background: var(--lu-done-fg);
+}
+
+.cta {
+    margin: 12px 0 0;
+    align-self: flex-end;
+}
+
+.empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--lu-muted);
+    border: 1px dashed var(--lu-border);
+    border-radius: 8px;
+}
+
+/* The completion page: the library's tokens and cards without its sidebar. */
+.overlineDone {
+    color: var(--lu-done-fg);
+}
+
+@media (max-width: 900px) {
+    .shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--lu-border);
+        padding: 10px 16px;
+    }
+    .sidebarInner {
+        position: static;
+    }
+    .sidebarTitle {
+        display: none;
+    }
+    .nav {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+    .navItem {
+        flex: none;
+        white-space: nowrap;
+    }
+    .focusGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

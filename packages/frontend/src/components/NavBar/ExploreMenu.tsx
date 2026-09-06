@@ -83,6 +83,9 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 />
                             }
                             data-testid="ExploreMenu/NewButton"
+                            // Navigation anchor for scope walkthroughs
+                            data-tour-nav="new"
+                            data-tour-hint="Click New"
                         >
                             New
                         </Button>
@@ -95,6 +98,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             description="Build queries and save them as charts."
                             to={`/projects/${projectUrlIdentifier}/tables`}
                             icon={IconTable}
+                            data-tour-nav="new-chart"
+                            data-tour-hint="Choose Chart"
                         />
 
                         <Can
@@ -109,6 +114,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 title="Query using SQL runner"
                                 description="Access your database to run ad-hoc queries."
                                 to={`/projects/${projectUrlIdentifier}/sql-runner`}
+                                data-tour-nav="new-sql-runner"
+                                data-tour-hint="Choose Query using SQL runner"
                                 onClick={(
                                     event: React.MouseEvent<HTMLAnchorElement>,
                                 ) => {
@@ -134,6 +141,8 @@ const ExploreMenu: FC<Props> = memo((props) => {
                                 onClick={() => setIsCreateDashboardOpen(true)}
                                 icon={IconLayoutDashboard}
                                 data-testid="ExploreMenu/NewDashboardButton"
+                                data-tour-nav="new-dashboard"
+                                data-tour-hint="Choose Dashboard"
                             />
                         )}
 

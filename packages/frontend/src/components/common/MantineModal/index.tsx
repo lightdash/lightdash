@@ -378,7 +378,13 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 {headerActions}
                             </Group>
                         ) : null}
-                        {withCloseButton && <Modal.CloseButton />}
+                        {withCloseButton && (
+                            <Modal.CloseButton
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="modal-close"
+                                data-tour-hint="Close the dialog"
+                            />
+                        )}
                     </Modal.Header>
 
                     {renderBody()}
@@ -414,6 +420,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                         onClick={onConfirm}
                                         disabled={confirmDisabled}
                                         loading={confirmLoading}
+                                        // Anchor for scope walkthroughs
+                                        data-tour-anchor="modal-confirm"
+                                        data-tour-hint="Confirm the change"
                                     >
                                         {effectiveConfirmLabel}
                                     </Button>
