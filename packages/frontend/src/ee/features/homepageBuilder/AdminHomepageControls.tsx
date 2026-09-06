@@ -108,6 +108,9 @@ export const AdminHomepageControls: FC<Props> = ({
                     type="button"
                     className={classes.tbBtn}
                     aria-label="Customize homepage"
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="customize-homepage"
+                    data-tour-hint="Click Customize homepage"
                     onClick={() =>
                         navigate(`/projects/${projectUuid}/homepage-builder`)
                     }

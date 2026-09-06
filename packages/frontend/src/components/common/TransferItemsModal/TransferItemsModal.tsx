@@ -184,6 +184,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                             !selectedSpaceUuid && !allSelectedItemsAreSpaces
                         }
                         onClick={handleConfirm}
+                        // Anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="transfer-confirm"
+                        data-tour-hint="Confirm the move"
                     >
                         {confirmLabel}
                     </Button>
