@@ -666,6 +666,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                         <Radio
                                             value={SaveDestination.Space}
                                             label="Space"
+                                            // Anchor for scope walkthroughs
+                                            data-tour-anchor="chart-save-to-space"
+                                            data-tour-hint="Choose to save it in a space"
                                             disabled={
                                                 !spaces || isLoadingSpaces
                                             }
@@ -830,6 +833,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                     }}
                                     disabled={!form.values.name}
                                     type="button"
+                                    data-tour-anchor="chart-save-next"
+                                    data-tour-hint="Click Next to accept the suggested name"
                                 >
                                     Next
                                 </Button>
@@ -841,6 +846,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 Back
                             </Button>
                             <Button
+                                data-tour-anchor="chart-save-submit"
+                                data-tour-hint="Save the chart"
                                 type="submit"
                                 loading={
                                     isSavingChart ||

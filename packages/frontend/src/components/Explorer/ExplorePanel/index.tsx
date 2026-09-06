@@ -276,6 +276,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 data-hidden={
                     !isChartGalleryEnabled && isVisualizationConfigOpen
                 }
+                // Walkthrough look for manage:Explore: the table's fields,
+                // seen once the table is open and before any is picked.
+                data-tour-scope="manage:Explore"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="explore-table"]'
+                data-tour-label="The fields you can query"
+                data-tour-docs="explore/explore-view.mdx#the-explore-page:li1"
             >
                 {merge?.isMerging && merge.readOnly && <MergeJoinBar />}
                 {/* The breadcrumbs, warnings and menu all belong to the
