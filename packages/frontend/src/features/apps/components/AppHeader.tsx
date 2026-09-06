@@ -48,11 +48,11 @@ type Props = {
  */
 
 /**
- * Walkthrough result for create:DataApp: the learner's own app, now filed
+ * Walkthrough result for manage:DataApp: the learner's own app, now filed
  * in a space where the team can find it.
  */
 const appInSpaceTourProps = {
-    'data-tour-scope': 'create:DataApp',
+    'data-tour-scope': 'manage:DataApp',
     'data-tour-step': '1',
     'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
     'data-tour-label': 'Your app is in a space now',

@@ -1286,6 +1286,13 @@ export const AttachButton: FC<{
                         onClick={() => setOpened((o) => !o)}
                         disabled={disabled}
                         aria-label="Attach resources"
+                        // Walkthrough look for create:DataApp: context makes
+                        // the agent's first version better.
+                        data-tour-scope="create:DataApp"
+                        data-tour-look="2"
+                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                        data-tour-label="Attach charts or a dashboard for context"
+                        data-tour-docs="data-apps.mdx#adding-context:1"
                         leftSection={<MantineIcon icon={IconPlus} size={14} />}
                     >
                         <Text span size="xs" fw={600} lh={1.2} c="inherit">

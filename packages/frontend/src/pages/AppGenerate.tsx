@@ -1768,6 +1768,14 @@ const AppGenerate: FC = () => {
                         <Box
                             ref={chatMessagesRef}
                             className={classes.chatMessages}
+                            // Walkthrough look for create:DataApp: the
+                            // conversation that builds the app, version by
+                            // version.
+                            data-tour-scope="create:DataApp"
+                            data-tour-look="4"
+                            data-tour-after='[data-tour-anchor="app-continue-building"]'
+                            data-tour-label="Every prompt makes a new version"
+                            data-tour-docs="data-apps.mdx#iterating-on-your-app:1-2"
                         >
                             {hasUnloadedEarlierVersions && (
                                 <Group
@@ -2469,6 +2477,14 @@ const AppGenerate: FC = () => {
                                 <Box
                                     onDragOver={handleDragOver}
                                     onDrop={handleDrop}
+                                    // Typed walkthrough step for create:DataApp:
+                                    // the first prompt, with a suggestion that
+                                    // fits the seeded Jaffle data. The kit fills
+                                    // the editor inside this box.
+                                    data-tour-anchor="app-prompt"
+                                    data-tour-hint="Describe the app you want"
+                                    data-tour-input="true"
+                                    data-tour-suggest="A one-page pulse of orders, revenue and top customers, with a filter on order status"
                                 >
                                     <PromptComposer
                                         ref={promptEditorRef}
@@ -2873,6 +2889,16 @@ const AppGenerate: FC = () => {
                                                     <ComposerSubmitButton
                                                         icon={IconArrowUp}
                                                         label="Send message"
+                                                        // Walkthrough look for
+                                                        // create:DataApp: the
+                                                        // build starts here;
+                                                        // the walkthrough
+                                                        // stops short of it.
+                                                        data-tour-scope="create:DataApp"
+                                                        data-tour-look="3"
+                                                        data-tour-after='[data-tour-anchor="app-prompt"]'
+                                                        data-tour-label="Send starts the build"
+                                                        data-tour-docs="data-apps.mdx#choosing-a-template:p2:2-3"
                                                         onClick={() =>
                                                             void handleSubmit()
                                                         }
@@ -3040,7 +3066,20 @@ const AppGenerate: FC = () => {
                                 />
                             )}
 
-                            <Box className={classes.previewContent}>
+                            <Box
+                                className={classes.previewContent}
+                                // Walkthrough result for create:DataApp: a
+                                // finished app in the builder, the seeded one
+                                // standing in for the build the learner did
+                                // not start.
+                                data-tour-scope="create:DataApp"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/apps/:appUuid"
+                                data-tour-label="A running app in the builder"
+                                data-tour-docs="data-apps.mdx#creating-a-new-app:1"
+                                data-tour-return="none"
+                                data-tour-resultdocs="data-apps.mdx#restoring-an-earlier-version:1"
+                            >
                                 {previewApp ? (
                                     <AppPreview
                                         ref={previewRef}
