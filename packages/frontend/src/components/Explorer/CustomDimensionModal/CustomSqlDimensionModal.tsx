@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Button,
     Group,
     Select,
@@ -51,6 +52,23 @@ type FormValues = {
     dimensionType: DimensionType;
 };
 const generateCustomSqlDimensionId = (label: string) => snakeCaseName(label);
+
+/**
+ * Walkthrough action for manage:CustomFields: creating a custom SQL
+ * dimension on a saved chart being edited.
+ */
+const createTourAction = {
+    'data-tour-scope': 'manage:CustomFields',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid/edit',
+    'data-tour-label': 'Create the dimension',
+    'data-tour-title': 'Add a custom SQL dimension',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="add-custom-dimension"] >> [data-tour-anchor="custom-dimension-label"] >> [data-tour-anchor="custom-dimension-sql"]',
+    'data-tour-then': '[data-tour-anchor="run-query"]',
+    'data-tour-docs': 'explore/create-custom-fields.mdx#custom-sql:2',
+};
 
 export const CustomSqlDimensionModal: FC<{
     isEditing: boolean;
@@ -224,12 +242,22 @@ export const CustomSqlDimensionModal: FC<{
                     type="submit"
                     form="custom-sql-dimension-form"
                     ref={submitButtonRef}
+                    {...(isEditing ? {} : createTourAction)}
                 >
                     {isEditing ? 'Save changes' : 'Create'}
                 </Button>
             }
         >
-            <form id="custom-sql-dimension-form" onSubmit={handleOnSubmit}>
+            <form
+                id="custom-sql-dimension-form"
+                onSubmit={handleOnSubmit}
+                // Walkthrough look at the form once it opens.
+                data-tour-scope="manage:CustomFields"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="add-custom-dimension"]'
+                data-tour-label="A custom SQL dimension reads straight from the warehouse"
+                data-tour-docs="explore/create-custom-fields.mdx#custom-sql:1"
+            >
                 <Stack gap="xs">
                     <Group justify="space-between">
                         <TextInput
@@ -239,6 +267,11 @@ export const CustomSqlDimensionModal: FC<{
                             flex={1}
                             {...form.getInputProps('customDimensionLabel')}
                             data-testid="CustomSqlDimensionModal/LabelInput"
+                            // Typed anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="custom-dimension-label"
+                            data-tour-hint="Name the dimension"
+                            data-tour-input="true"
+                            data-tour-suggest="Order size"
                         />
                         <Select
                             className="ld-self-start"
@@ -251,25 +284,35 @@ export const CustomSqlDimensionModal: FC<{
                         />
                     </Group>
 
-                    <SqlEditor
-                        mode="sql"
-                        placeholder="Enter SQL"
-                        theme={aceTheme}
-                        width="100%"
-                        maxLines={Infinity}
-                        minLines={isExpanded ? 25 : 8}
-                        setOptions={{
-                            autoScrollEditorIntoView: true,
-                        }}
-                        onLoad={setAceEditor}
-                        isFullScreen={isExpanded}
-                        enableLiveAutocompletion
-                        enableBasicAutocompletion
-                        showPrintMargin={false}
-                        wrapEnabled={true}
-                        gutterBackgroundColor={'var(--mantine-color-ldGray-1)'}
-                        {...form.getInputProps('sql')}
-                    />
+                    <Box
+                        // Typed anchor for scope walkthroughs: the SQL editor.
+                        data-tour-anchor="custom-dimension-sql"
+                        data-tour-hint="Write the SQL"
+                        data-tour-input="true"
+                        data-tour-suggest="CASE WHEN ${orders.amount} < 100 THEN 'small' ELSE 'large' END"
+                    >
+                        <SqlEditor
+                            mode="sql"
+                            placeholder="Enter SQL"
+                            theme={aceTheme}
+                            width="100%"
+                            maxLines={Infinity}
+                            minLines={isExpanded ? 25 : 8}
+                            setOptions={{
+                                autoScrollEditorIntoView: true,
+                            }}
+                            onLoad={setAceEditor}
+                            isFullScreen={isExpanded}
+                            enableLiveAutocompletion
+                            enableBasicAutocompletion
+                            showPrintMargin={false}
+                            wrapEnabled={true}
+                            gutterBackgroundColor={
+                                'var(--mantine-color-ldGray-1)'
+                            }
+                            {...form.getInputProps('sql')}
+                        />
+                    </Box>
 
                     {isAmbientAiEnabled && (
                         <AiSlot

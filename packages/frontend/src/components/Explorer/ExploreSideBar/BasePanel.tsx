@@ -275,6 +275,13 @@ const BasePanel = ({ onExploreClick, onExploreCreated }: Props) => {
                             placeholder="Search tables"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
+                            // Typed anchor for scope walkthroughs: the list
+                            // is virtualised, so a table far down it is
+                            // reached by searching for it.
+                            data-tour-anchor="explore-search"
+                            data-tour-hint="Search for the table"
+                            data-tour-input="true"
+                            data-tour-suggest="Orders by status"
                         />
 
                         <VirtualizedExploreList

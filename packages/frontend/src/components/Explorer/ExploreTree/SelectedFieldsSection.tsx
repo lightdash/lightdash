@@ -110,6 +110,20 @@ type RowProps = {
     onDeselect: (fieldId: string, isDimension: boolean) => void;
 };
 
+/**
+ * Walkthrough result for manage:CustomFields: a custom dimension's row in
+ * the sidebar's Selected list, there as soon as the dimension exists.
+ */
+const customDimensionTourProps = {
+    'data-tour-scope': 'manage:CustomFields',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/saved/:savedQueryUuid/edit',
+    'data-tour-label': 'The dimension joins the sidebar',
+    'data-tour-docs': 'explore/create-custom-fields.mdx#custom-dimensions:p2:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'explore/create-custom-fields.mdx#bin:p3:1',
+};
+
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const {
         fieldId,
@@ -271,6 +285,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             data-testid={`selected-field-${selectionKey ?? fieldId}`}
+            {...(isCustomDimension(item) ? customDimensionTourProps : {})}
         >
             <FieldIcon item={item} size="md" />
             <HoverCard
