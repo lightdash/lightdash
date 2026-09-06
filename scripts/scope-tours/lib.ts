@@ -287,6 +287,41 @@ export const docsUrl = (page: string, href: string): string => {
     return resolved;
 };
 
+/**
+ * The title the docs give the text a step cites: the section heading named
+ * by `file#anchor`, or the page's own title for `#intro`. Intro steps are
+ * titled this way so a walkthrough opens with the docs' words, not ours.
+ * A leading step number in a heading ("3. Run your own query") is dropped.
+ */
+export const docsHeading = (ref: string): string => {
+    const [relative, anchorWithRange] = ref.split('#');
+    const [anchor] = anchorWithRange.split(':');
+    const lines = readFileSync(path.join(docsDir, relative), 'utf8').split(
+        '\n',
+    );
+    if (anchor === 'intro') {
+        const title = lines
+            .slice(0, lines[0] === '---' ? lines.indexOf('---', 1) : 0)
+            .find((line) => /^title:/.test(line));
+        if (!title) throw new Error(`Docs page has no title: ${ref}`);
+        return title
+            .replace(/^title:\s*/, '')
+            .trim()
+            .replace(/^["']|["']$/g, '');
+    }
+    const heading = lines.find(
+        (line) =>
+            /^#{1,6}\s/.test(line) &&
+            slugify(line.replace(/^#+\s*/, '')) === anchor,
+    );
+    if (!heading) throw new Error(`Docs anchor not found: ${ref}`);
+    return heading
+        .replace(/^#+\s*/, '')
+        .replace(/^\d+\.\s+/, '')
+        .replace(/`/g, '')
+        .trim();
+};
+
 export const docsParagraph = (ref: string): string => {
     const [relative, anchorWithRange] = ref.split('#');
     const [anchor, ...selectors] = anchorWithRange.split(':');
@@ -575,7 +610,13 @@ export const buildTours = (
                 {
                     target: selectorFor(marker),
                     route: marker.route,
-                    title: marker.label ?? scopes.get(scope)!.description,
+                    // The intro step (the result marker, step 1) is titled
+                    // by the docs it cites; action steps keep their own
+                    // imperative labels ("Click Pin to homepage").
+                    title:
+                        marker.step === 1 && marker.docs
+                            ? docsHeading(marker.docs)
+                            : (marker.label ?? scopes.get(scope)!.description),
                     body: marker.docs
                         ? docsParagraph(marker.docs)
                         : scopes.get(scope)!.description,
