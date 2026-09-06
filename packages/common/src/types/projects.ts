@@ -5,6 +5,13 @@ import { type ProjectGroupAccess } from './projectGroupAccess';
 export enum ProjectType {
     DEFAULT = 'DEFAULT',
     PREVIEW = 'PREVIEW',
+    /**
+     * Sample-data training project. One per organization, created only by
+     * internal provisioning. Every org member gets the trainee scope set on
+     * it (see `getTrainingProjectScopes` in authorization) so people can be
+     * taught controls they do not hold on real projects.
+     */
+    TRAINING = 'TRAINING',
 }
 
 export enum DbtProjectType {
@@ -1261,6 +1268,17 @@ export type PlaygroundProjectTrigger =
 
 export type EnsurePlaygroundProjectRequest = {
     trigger?: PlaygroundProjectTrigger;
+};
+
+/** A learner's own throwaway copy of the training project, made for one walkthrough. */
+export type CreateTrainingPreviewResults = {
+    projectUuid: string;
+    expiresAt: Date | null;
+};
+
+export type ApiCreateTrainingPreviewResponse = {
+    status: 'ok';
+    results: CreateTrainingPreviewResults;
 };
 
 export type ApiEnsurePlaygroundProjectResponse = {

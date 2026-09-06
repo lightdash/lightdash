@@ -3,6 +3,7 @@ import {
     ProjectMemberRoleLabels,
 } from '../types/projectMemberRole';
 import type { RoleWithScopes } from '../types/roles';
+import { isOrganizationOnlyScope } from './scopes';
 
 /**
  * Utility functions to convert project member roles to equivalent scope sets
@@ -248,6 +249,61 @@ export const PROJECT_ROLE_TO_SCOPES_MAP: Record<ProjectMemberRole, string[]> =
 export const getAllScopesForRole = (role: ProjectMemberRole): string[] => [
     ...PROJECT_ROLE_TO_SCOPES_MAP[role],
 ];
+
+/**
+ * Scopes a training project never grants, on top of every organization-only
+ * scope (those are filtered by `isOrganizationOnlyScope`). Grouped by the
+ * reason each is left out. Everything else in the project-admin set is
+ * granted to every org member on the org's training project.
+ */
+export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
+    // Break-the-project: deleting it, changing its settings or connection,
+    // refreshing or redeploying dbt, pre-aggregation jobs. `manage:Project`
+    // goes too: CASL's `manage` implies every action, so keeping it would
+    // hand back `update` and `delete` on the project.
+    'manage:Project',
+    'delete:Project',
+    'delete:Project@self',
+    'update:Project',
+    'update:Project@self',
+    'manage:CompileProject',
+    'manage:DeployProject',
+    'manage:DeployProject@self',
+    'create:Job',
+    'manage:Job',
+    'manage:PreAggregation',
+    // Outbound messaging: a viewer must not be able to email or Slack
+    // arbitrary recipients through the instance
+    'create:ScheduledDeliveries',
+    'manage:ScheduledDeliveries',
+    'manage:ScheduledDeliveries@self',
+    'manage:GoogleSheets',
+    // Egress and supply chain: custom npm deps, external connections and
+    // sources, git integration, source-code PRs, preview-project creation
+    'manage:DataAppDependency',
+    'manage:ExternalConnection',
+    'view:ExternalConnection',
+    'manage:ExternalSource',
+    'manage:GitIntegration',
+    'manage:SourceCode',
+    'view:SourceCode',
+    'create:Project@preview',
+    'create:DataApp@preview',
+    'manage:DataApp@preview',
+];
+
+/**
+ * The trainee scope set: project admin minus organization-only scopes minus
+ * `TRAINING_PROJECT_EXCLUDED_SCOPES`. Derived by rule so an addition to the
+ * admin set is granted on training projects unless it is org-only or
+ * explicitly excluded here.
+ */
+export const getTrainingProjectScopes = (): string[] =>
+    getAllScopesForRole(ProjectMemberRole.ADMIN).filter(
+        (scope) =>
+            !isOrganizationOnlyScope(scope) &&
+            !TRAINING_PROJECT_EXCLUDED_SCOPES.includes(scope),
+    );
 
 /**
  * Gets only the non-enterprise scopes for a role (filters out enterprise-only features)
