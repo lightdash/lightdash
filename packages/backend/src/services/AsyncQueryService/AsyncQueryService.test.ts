@@ -8109,7 +8109,7 @@ describe('DuckDB source queries on the worker', () => {
         ).toBeNull();
     });
 
-    it('a discover run rebuilds its column probe and a results session', async () => {
+    it('a discover run rebuilds its column probe on a scoped session', async () => {
         const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             composeEngineClient: {
@@ -8147,7 +8147,7 @@ describe('DuckDB source queries on the worker', () => {
         } as unknown as QueryHistory);
         model.getDuckdbExecution.mockResolvedValue({
             references: { orders: referencedQueryHistory.queryUuid },
-            engine: 'client',
+            engine: 'scopedToReferencedResults',
             columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
             guard: null,
             storedCompiledSql: null,
@@ -8160,13 +8160,11 @@ describe('DuckDB source queries on the worker', () => {
             'nats-worker-1',
         );
 
-        expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
-            storage: 'results',
-            scope: null,
-        });
+        // The rebuild never opens the shared session: the run scopes its own
+        expect(createExecutionWarehouseClient).not.toHaveBeenCalled();
         expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
             columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
-            engine: { kind: 'client', warehouseClient: warehouseClientMock },
+            engine: { kind: 'scopedToReferencedResults' },
             references: {
                 kind: 'queries',
                 references: { orders: referencedQueryHistory.queryUuid },

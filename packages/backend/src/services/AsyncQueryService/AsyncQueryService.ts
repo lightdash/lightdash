@@ -7788,16 +7788,7 @@ export class AsyncQueryService extends ProjectService {
                               query.pivotConfiguration ?? undefined,
                       },
             storedCompiledSql: spec.storedCompiledSql,
-            engine:
-                spec.engine === 'client'
-                    ? {
-                          kind: 'client',
-                          warehouseClient:
-                              this.composeEngineClient.createExecutionWarehouseClient(
-                                  { storage: 'results', scope: null },
-                              ),
-                      }
-                    : { kind: 'scopedToReferencedResults' },
+            engine: { kind: spec.engine },
             queryTags:
                 queryTagsOverride ?? AsyncQueryService.buildQueryTags(query),
             queryCreatedAt: query.createdAt,

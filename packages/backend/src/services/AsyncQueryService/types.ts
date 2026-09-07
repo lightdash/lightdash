@@ -380,7 +380,8 @@ export type DuckdbQueryPlan = {
               originalColumns: ResultColumns;
               requestParameters: ExecuteAsyncQueryRequestParams;
           };
-    engine: DuckdbQueryEngine['kind'];
+    /** A planned node runs on a session scoped to what it references. */
+    engine: 'scopedToReferencedResults';
     /** Persisted with the row, so a worker rebuilds the same guard. */
     guard: DuckdbExecutionSpec['guard'];
     /** What the user calls each referenced table; empty when nothing names them. */

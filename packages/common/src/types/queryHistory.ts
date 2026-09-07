@@ -90,7 +90,8 @@ export type QueryHistory = {
 export type DuckdbExecutionSpec = {
     /** Table name -> queryUuid of the result it reads, already resolved. */
     references: Record<string, string>;
-    engine: 'client' | 'scopedToReferencedResults';
+    /** Always the scoped session: row data must never grant the shared one. */
+    engine: 'scopedToReferencedResults';
     columns:
         | {
               mode: 'discover';
