@@ -389,6 +389,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             <Menu
                 disabled={disabled}
                 opened={isOpen}
+                returnFocus={!isManageAccessOpen}
                 position="bottom-start"
                 withArrow
                 arrowPosition="center"

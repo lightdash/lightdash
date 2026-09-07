@@ -1,5 +1,6 @@
 import {
     CommercialFeatureFlags,
+    DirectAccessResourceType,
     type ApiError,
     type DirectAccessAssignment,
     type DirectAccessPrincipalType,
@@ -67,6 +68,36 @@ const useInvalidateAfterDirectAccessMutation = (
                 directAccessQueryKey(projectUuid, ref),
             ),
             queryClient.invalidateQueries(['favorites']),
+            queryClient.invalidateQueries({
+                predicate: ({ queryKey }) => {
+                    switch (ref.resourceType) {
+                        case DirectAccessResourceType.CHART:
+                            return (
+                                queryKey[0] === 'saved_query' &&
+                                queryKey[2] === projectUuid
+                            );
+                        case DirectAccessResourceType.DASHBOARD:
+                            return (
+                                queryKey[0] === 'saved_dashboard_query' &&
+                                queryKey[2] === projectUuid
+                            );
+                        case DirectAccessResourceType.SQL_CHART:
+                            return (
+                                (queryKey[0] === 'sqlRunner' &&
+                                    queryKey[1] === 'savedSqlChart' &&
+                                    queryKey[2] === projectUuid) ||
+                                (queryKey[0] === 'savedSqlChart' &&
+                                    queryKey[2] === 'registered' &&
+                                    queryKey[4] === projectUuid)
+                            );
+                        case DirectAccessResourceType.APP:
+                            return (
+                                queryKey[0] === 'app' &&
+                                queryKey[1] === projectUuid
+                            );
+                    }
+                },
+            }),
             invalidateContent(queryClient, projectUuid),
         ]);
     };

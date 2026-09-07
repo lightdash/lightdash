@@ -316,6 +316,7 @@ const AppHeaderActions: FC<Props> = ({
             )}
             <Menu
                 position="bottom-end"
+                returnFocus={!isDirectAccessModalOpen}
                 withArrow
                 arrowPosition="center"
                 onOpen={() => setMenuOpened(true)}

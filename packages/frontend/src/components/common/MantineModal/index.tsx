@@ -363,9 +363,14 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 </Paper>
                             ) : null}
                             <Stack gap={2} miw={0}>
-                                <Text c="ldDark.9" fw={600} fz="md" lh="28px">
+                                <Modal.Title
+                                    c="ldDark.9"
+                                    fw={600}
+                                    fz="md"
+                                    lh="28px"
+                                >
                                     {title}
-                                </Text>
+                                </Modal.Title>
                                 {subtitle ? (
                                     <Text c="dimmed" fz="sm" lh="20px">
                                         {subtitle}
@@ -378,7 +383,9 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 {headerActions}
                             </Group>
                         ) : null}
-                        {withCloseButton && <Modal.CloseButton />}
+                        {withCloseButton && (
+                            <Modal.CloseButton aria-label="Close" />
+                        )}
                     </Modal.Header>
 
                     {renderBody()}
@@ -438,10 +445,15 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             px="xl"
                             py="md"
                         >
-                            <Text c="ldDark.9" fw={600} fz="md" lh="28px">
+                            <Modal.Title
+                                c="ldDark.9"
+                                fw={600}
+                                fz="md"
+                                lh="28px"
+                            >
                                 Unsaved changes
-                            </Text>
-                            <Modal.CloseButton />
+                            </Modal.Title>
+                            <Modal.CloseButton aria-label="Close" />
                         </Modal.Header>
                         <Modal.Body p={0}>
                             <Stack gap="md" px="xl" py="md">

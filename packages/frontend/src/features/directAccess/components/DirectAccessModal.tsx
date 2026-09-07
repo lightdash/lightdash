@@ -38,6 +38,7 @@ import {
     useRevokeDirectAccessAssignment,
     useUpsertDirectAccessAssignment,
 } from '../hooks/useDirectAccess';
+import classes from './DirectAccessModal.module.css';
 
 const ROLE_OPTIONS = [
     { value: SpaceMemberRole.VIEWER, label: 'Can view' },
@@ -89,7 +90,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
 
     return (
         <Group gap="sm" justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap" miw={0}>
+            <Group gap="sm" wrap="nowrap" miw={0} flex={1}>
                 {isUser ? (
                     <LightdashUserAvatar
                         size="sm"
@@ -109,7 +110,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                         <MantineIcon icon={IconUsers} />
                     </LightdashUserAvatar>
                 )}
-                <Stack gap={0} miw={0}>
+                <Stack gap={0} miw={0} flex={1}>
                     <Text fw={600} fz="sm" truncate>
                         {isUser ? userDisplayName(principal) : principal.name}
                         {isSelf ? (
@@ -131,7 +132,7 @@ const AssignmentRow: FC<AssignmentRowProps> = ({
                 </Stack>
             </Group>
 
-            <Group gap="xs" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap" className="ld-shrink-0">
                 <Select
                     size="xs"
                     w={120}
@@ -240,8 +241,10 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
         <Group gap="xs" wrap="nowrap" align="flex-end">
             <Select
                 flex={1}
+                miw={0}
                 size="xs"
                 label="Share with"
+                autoFocus
                 placeholder="Select users or groups to share with"
                 searchable
                 clearable
@@ -255,6 +258,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             <Select
                 size="xs"
                 w={120}
+                className="ld-shrink-0"
                 aria-label="Role for new assignment"
                 data={ROLE_OPTIONS}
                 value={selectedRole}
@@ -265,6 +269,7 @@ const AddDirectAccess: FC<AddDirectAccessProps> = ({
             />
             <Button
                 size="xs"
+                className="ld-shrink-0"
                 disabled={!selectedPrincipal || isMutating}
                 onClick={handleAdd}
             >
@@ -308,6 +313,10 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
     const assignmentsQuery = useDirectAccessAssignments(projectUuid, ref, {
         enabled: opened && availability.isAvailable,
     });
+    const canManageAssignments =
+        availability.isAvailable &&
+        !assignmentsQuery.isInitialLoading &&
+        !assignmentsQuery.isError;
     const upsertMutation = useUpsertDirectAccessAssignment(projectUuid, ref);
     const revokeMutation = useRevokeDirectAccessAssignment(projectUuid, ref);
     const resetMutation = useResetDirectAccess(projectUuid, ref);
@@ -361,13 +370,15 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
     return (
         <>
             <MantineModal
-                opened={opened && confirmation === null}
+                opened={
+                    opened && (confirmation === null || !canManageAssignments)
+                }
                 onClose={onClose}
                 title={`Share "${resource.name}"`}
                 icon={IconUsers}
                 size="lg"
                 leftActions={
-                    assignments.length > 0 ? (
+                    canManageAssignments && assignments.length > 0 ? (
                         <Button
                             variant="subtle"
                             color="red"
@@ -385,7 +396,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                     </Button>
                 }
             >
-                <Stack gap="md">
+                <Stack gap="md" className={classes.content}>
                     {isUnavailable ? (
                         <Callout variant="info" title="Sharing isn't available">
                             <Text fz="sm">
@@ -394,18 +405,20 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                             </Text>
                         </Callout>
                     ) : null}
-                    <AddDirectAccess
-                        projectUuid={projectUuid}
-                        assignedKeys={assignedKeys}
-                        isMutating={isMutating}
-                        onAdd={(principalType, uuid, role) =>
-                            upsertMutation.mutate({
-                                principalType,
-                                principalUuid: uuid,
-                                role,
-                            })
-                        }
-                    />
+                    {canManageAssignments && (
+                        <AddDirectAccess
+                            projectUuid={projectUuid}
+                            assignedKeys={assignedKeys}
+                            isMutating={isMutating}
+                            onAdd={(principalType, uuid, role) =>
+                                upsertMutation.mutate({
+                                    principalType,
+                                    principalUuid: uuid,
+                                    role,
+                                })
+                            }
+                        />
+                    )}
 
                     {assignmentsQuery.isInitialLoading ? (
                         <Center py="lg">
@@ -421,15 +434,18 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    onClick={() =>
-                                        void assignmentsQuery.refetch()
-                                    }
+                                    autoFocus
+                                    onClick={() => {
+                                        setConfirmation(null);
+                                        void assignmentsQuery.refetch();
+                                    }}
                                 >
                                     Retry
                                 </Button>
                             </Stack>
                         </Callout>
-                    ) : assignments.length === 0 ? (
+                    ) : !canManageAssignments ? null : assignments.length ===
+                      0 ? (
                         <Text fz="sm" c="dimmed" ta="center" py="md">
                             {resource.resourceType ===
                             DirectAccessResourceType.APP
@@ -468,7 +484,7 @@ const DirectAccessModal: FC<DirectAccessModalProps> = ({
             </MantineModal>
 
             <MantineModal
-                opened={confirmation !== null}
+                opened={opened && confirmation !== null && canManageAssignments}
                 onClose={() => setConfirmation(null)}
                 variant="delete"
                 size="sm"

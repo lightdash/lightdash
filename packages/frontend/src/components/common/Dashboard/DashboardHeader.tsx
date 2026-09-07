@@ -764,6 +764,7 @@ const DashboardHeader = memo(
                         {!isFullscreen && (
                             <Menu
                                 data-testid="dashboard-header-menu"
+                                returnFocus={!isDirectAccessModalOpen}
                                 position="bottom"
                                 withArrow
                                 disabled={

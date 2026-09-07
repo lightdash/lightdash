@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type SpaceMemberRole } from '@lightdash/common';
+import { SpaceMemberRole } from '@lightdash/common';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
@@ -65,7 +65,9 @@ export const useCanManageDirectAccess = ({
               subject('DataApp', {
                   organizationUuid,
                   projectUuid,
-                  access: resolvedAccess,
+                  access: resolvedAccess.filter(
+                      ({ role }) => role === SpaceMemberRole.ADMIN,
+                  ),
                   // A null creator can never match the self rule.
                   createdByUserUuid: createdByUserUuid ?? '',
               }),
