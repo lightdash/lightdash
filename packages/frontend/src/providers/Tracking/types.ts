@@ -574,6 +574,16 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentBattleStartedEvent = {
+    name: EventName.AI_AGENT_BATTLE_STARTED;
+    properties: {
+        projectId: string;
+        aiAgentId: string;
+        modelA: string | null;
+        modelB: string | null;
+    };
+};
+
 type AiDeepResearchReportEngagedEvent = {
     name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED;
     properties: {
@@ -1016,6 +1026,7 @@ export type EventData =
     | AiAgentAskClickedEvent
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
+    | AiAgentBattleStartedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent

@@ -29,6 +29,8 @@ import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { BattleModeSetup } from '../../features/aiCopilot/components/Battle/BattleModeSetup';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
@@ -73,6 +75,7 @@ import styles from './AiAgentNewThreadPage.module.css';
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
+    const { track } = useTracking();
     const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
@@ -231,6 +234,21 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext,
             );
             if (isBattle && projectUuid) {
+                const modelB = getModelOptionByKey(
+                    battleModels,
+                    effectiveBattleModelBKey,
+                );
+                track({
+                    name: EventName.AI_AGENT_BATTLE_STARTED,
+                    properties: {
+                        projectId: projectUuid,
+                        aiAgentId: agentUuid,
+                        modelA: selectedModel
+                            ? getModelKey(selectedModel)
+                            : null,
+                        modelB: modelB ? getModelKey(modelB) : null,
+                    },
+                });
                 const shared = {
                     agentUuid,
                     prompt: message,
@@ -249,13 +267,7 @@ const AiAgentNewThreadPage: FC = () => {
                     }),
                     createBattleThread({
                         ...shared,
-                        modelConfig: getAiAgentModelConfig(
-                            getModelOptionByKey(
-                                battleModels,
-                                effectiveBattleModelBKey,
-                            ),
-                            false,
-                        ),
+                        modelConfig: getAiAgentModelConfig(modelB, false),
                     }),
                 ]).then(([threadA, threadB]) =>
                     navigate(
@@ -293,6 +305,7 @@ const AiAgentNewThreadPage: FC = () => {
             battleModels,
             effectiveBattleModelBKey,
             navigate,
+            track,
         ],
     );
 
