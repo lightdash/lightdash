@@ -46818,6 +46818,20 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
+            "MergeCompiledLeg": {
+                "properties": {
+                    "sql": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql", "sourceId"],
+                "type": "object",
+                "description": "One side of a merge as it runs: the statement its metric query compiles to,\nor null for a result source, whose rows already exist."
+            },
             "MergeFieldOrigin": {
                 "anyOf": [
                     {
@@ -47003,7 +47017,6 @@
                     "unresolved_calculation_reference",
                     "unresolved_column_type",
                     "missing_parameters",
-                    "compose_required",
                     "result_source_unavailable"
                 ],
                 "type": "string"
@@ -47041,7 +47054,7 @@
                     },
                     "requiresCompose": {
                         "type": "boolean",
-                        "description": "The merge references existing query results, so it has no warehouse\nstatement (`sql`/`coreSql` stay null without that being an error) and\nonly the compose engine can run it."
+                        "deprecated": true
                     },
                     "fieldIdByColumn": {
                         "$ref": "#/components/schemas/Record_string.FieldId_",
@@ -47101,11 +47114,19 @@
                     "coreSql": {
                         "type": "string",
                         "nullable": true,
-                        "description": "The composable core: a self-contained single-statement SELECT with no\nORDER BY, no LIMIT and no guard column — valid under `SELECT *`, so it\ncan back a virtual view. `sql` is this core with the terminal wrapper\nattached."
+                        "description": "The composable core of the join: a self-contained single-statement\nSELECT with no ORDER BY, no LIMIT and no guard column — valid under\n`SELECT *`, so it can back a virtual view. `sql` is this core with the\nterminal wrapper attached."
+                    },
+                    "legs": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeCompiledLeg"
+                        },
+                        "type": "array",
+                        "description": "What each source runs on its own, in source order. Empty on an error."
                     },
                     "sql": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "The join statement over the `merge_source_N` reference tables."
                     }
                 },
                 "required": [
@@ -47121,10 +47142,11 @@
                     "terminalWrapper",
                     "typedColumns",
                     "coreSql",
+                    "legs",
                     "sql"
                 ],
                 "type": "object",
-                "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run."
+                "description": "What the compile endpoint returns. `sql` is null exactly when `errors` is\nnon-empty: a merge that would produce wrong numbers is reported, not run.\n\nA merge runs as a composition: each metric source runs on its own as a\nleg, and the join runs on the compose engine over the legs' results, which\nit reads as `merge_source_N` tables in source order. `legs` and `sql`\ntogether are the SQL that runs."
             },
             "MergeQueryResultSource": {
                 "properties": {
@@ -47138,7 +47160,7 @@
                 },
                 "required": ["queryUuid", "id"],
                 "type": "object",
-                "description": "One side of a merge: an existing query result, referenced by queryUuid and\njoined as the rows it already holds — nothing re-runs. Its structure and\ntypes resolve at compile time from the stored query metadata, and the join\nexecutes on the compose engine (`requiresCompose` on the compiled merge),\nso a merge with a result source is refused where that engine is\nunavailable. Results are creator-scoped and expire; an expired reference\nis re-submitted as a query, not refreshed by handle."
+                "description": "One side of a merge: an existing query result, referenced by queryUuid and\njoined as the rows it already holds — nothing re-runs. Its structure and\ntypes resolve at compile time from the stored query metadata. Results are\ncreator-scoped and expire; an expired reference is re-submitted as a\nquery, not refreshed by handle."
             },
             "MergeQuerySource": {
                 "anyOf": [
@@ -59960,7 +59982,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.141.0",
+        "version": "2.142.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -96316,7 +96338,7 @@
                         }
                     }
                 },
-                "description": "Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results. Requires the merge-on-compose feature flag.",
+                "description": "Validates and executes a merge on the compose engine as one asynchronous query request. Unlike Execute merge query, sources may reference existing query results by queryUuid; each referenced query is authorized with the same access checks as fetching its results.",
                 "summary": "Execute compose merge query",
                 "tags": ["v2", "Query"],
                 "security": [],

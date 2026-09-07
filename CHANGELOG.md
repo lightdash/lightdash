@@ -1,3 +1,10 @@
+# [2.142.0](https://github.com/lightdash/lightdash/compare/2.141.0...2.142.0) (2026-09-07)
+
+
+### Features
+
+* **merge:** compile the join for the compose engine and delete the warehouse merge ([#28731](https://github.com/lightdash/lightdash/issues/28731)) ([90fab07](https://github.com/lightdash/lightdash/commit/90fab077607edaea0b09efceb3e9951cfc7f0d3b))
+
 # [2.141.0](https://github.com/lightdash/lightdash/compare/2.140.2...2.141.0) (2026-09-07)
 
 

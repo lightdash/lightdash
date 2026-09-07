@@ -46581,6 +46581,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MergeCompiledLeg: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sql: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                sourceId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MergeFieldOrigin: {
         dataType: 'refAlias',
         type: {
@@ -46771,7 +46790,6 @@ const models: TsoaRoute.Models = {
             'unresolved_calculation_reference',
             'unresolved_column_type',
             'missing_parameters',
-            'compose_required',
             'result_source_unavailable',
         ],
     },
@@ -46868,6 +46886,11 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
+                },
+                legs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'MergeCompiledLeg' },
                     required: true,
                 },
                 sql: {
