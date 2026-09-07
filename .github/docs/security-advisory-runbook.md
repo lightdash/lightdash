@@ -3,13 +3,6 @@
 Use this checklist for every Lightdash vulnerability disclosure and every
 material correction to a published advisory.
 
-## Triage automated drafts
-
-The private AI security automation and its operating instructions live in the
-`lightdash/lightdash-internal-agents` repository. Maintainers with access must
-review every automated draft there before continuing with this disclosure
-runbook; the automation never requests a CVE or publishes an advisory.
-
 ## Prepare the fix and advisory
 
 - Create a private GitHub repository security advisory and request the CVE
