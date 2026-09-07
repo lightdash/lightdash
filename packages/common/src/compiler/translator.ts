@@ -1187,11 +1187,40 @@ type NestedTableTemplate = {
     description: string | undefined;
 };
 
+const isRepeatedScalarColumn = (column: DbtModelColumn): boolean =>
+    column.nested_shape?.repeated === true &&
+    column.nested_shape.record === false &&
+    !getColumnMeta(column).dimension?.sql;
+
 /**
- * One template per repeated node reached by a documented leaf, outermost
- * first so a child's join always follows its parent's. Templates carry no
- * table names: the same model can be joined under several aliases, and the
- * UNNEST has to reference the parent by the name it has in that explore.
+ * An array of scalars has no leaves of its own: the element is the value, so
+ * the virtual table exposes it as a single `value` dimension whose SQL is the
+ * unnest alias itself. The container's dimension config (type, format...)
+ * applies to that element; its label names the table instead.
+ */
+const getScalarElementColumn = (container: DbtModelColumn): DbtModelColumn => {
+    const {
+        repeated_ancestors: _ancestors,
+        nested_shape: _shape,
+        config: _config,
+        ...column
+    } = container;
+    const { dimension, ...meta } = getColumnMeta(container);
+    const { label: _label, ...dimensionConfig } = dimension ?? {};
+    return {
+        ...column,
+        name: 'value',
+        description: container.description ?? `Element of ${container.name}`,
+        meta: { ...meta, dimension: { ...dimensionConfig, sql: '${TABLE}' } },
+    };
+};
+
+/**
+ * One template per repeated node: every array of records reached by a
+ * documented leaf, and every documented array of scalars. Outermost first so
+ * a child's join always follows its parent's. Templates carry no table
+ * names: the same model can be joined under several aliases, and the UNNEST
+ * has to reference the parent by the name it has in that explore.
  */
 export const getNestedTableTemplates = (
     model: DbtModelNode,
@@ -1200,41 +1229,59 @@ export const getNestedTableTemplates = (
     const isRoutedLeaf = (column: DbtModelColumn) =>
         hasRepeatedAncestor(column) && !getColumnMeta(column).dimension?.sql;
     const nodePaths = Array.from(
-        new Set(
-            columns
+        new Set([
+            ...columns
                 .filter(isRoutedLeaf)
                 .flatMap((column) => column.repeated_ancestors ?? []),
-        ),
+            ...columns
+                .filter(isRepeatedScalarColumn)
+                .flatMap((column) => [
+                    ...(column.repeated_ancestors ?? []),
+                    column.name,
+                ]),
+        ]),
     ).sort(
         (a, b) =>
             a.split('.').length - b.split('.').length || a.localeCompare(b),
     );
+    // A node can sit below a struct inside its repeated parent, so the
+    // parent is the deepest repeated prefix, not the previous path segment.
+    const getParentPath = (nodePath: string) =>
+        nodePaths
+            .filter((candidate) => nodePath.startsWith(`${candidate}.`))
+            .sort((a, b) => b.length - a.length)[0] ?? '';
     return nodePaths.map((nodePath) => {
-        const segments = nodePath.split('.');
+        const parentPath = getParentPath(nodePath);
         const container = model.columns[nodePath];
+        const leafColumns = columns
+            .filter(
+                (column) =>
+                    isRoutedLeaf(column) &&
+                    column.repeated_ancestors?.[
+                        column.repeated_ancestors.length - 1
+                    ] === nodePath,
+            )
+            .map(
+                ({
+                    repeated_ancestors: _ancestors,
+                    nested_shape: nestedShape,
+                    ...column
+                }): DbtModelColumn => ({
+                    ...column,
+                    name: column.name.slice(nodePath.length + 1),
+                    ...(nestedShape ? { nested_shape: nestedShape } : {}),
+                }),
+            );
         return {
             nodePath,
-            segment: segments[segments.length - 1],
-            parentPath: segments.slice(0, -1).join('.'),
-            columns: columns
-                .filter(
-                    (column) =>
-                        isRoutedLeaf(column) &&
-                        column.repeated_ancestors?.[
-                            column.repeated_ancestors.length - 1
-                        ] === nodePath,
-                )
-                .map(
-                    ({
-                        repeated_ancestors: _ancestors,
-                        nested_shape: nestedShape,
-                        ...column
-                    }): DbtModelColumn => ({
-                        ...column,
-                        name: column.name.slice(nodePath.length + 1),
-                        ...(nestedShape ? { nested_shape: nestedShape } : {}),
-                    }),
-                ),
+            segment: parentPath
+                ? nodePath.slice(parentPath.length + 1)
+                : nodePath,
+            parentPath,
+            columns:
+                container && isRepeatedScalarColumn(container)
+                    ? [getScalarElementColumn(container)]
+                    : leafColumns,
             label: container
                 ? getColumnMeta(container).dimension?.label
                 : undefined,
@@ -1305,9 +1352,10 @@ export const instantiateNestedTables = ({
             }
             const label =
                 template.label ??
-                `${labelsByPath.get(parentPath) ?? parentLabel}: ${friendlyName(
-                    segment,
-                )}`;
+                [
+                    labelsByPath.get(parentPath) ?? parentLabel,
+                    ...segment.split('.').map(friendlyName),
+                ].join(': ');
             labelsByPath.set(nodePath, label);
 
             const offsetColumn: DbtModelColumn = {

@@ -55,7 +55,14 @@ export const isGeneratableColumn = (
             prefix,
         );
         const isLeaf = index === segments.length - 1;
-        return isLeaf ? shape === undefined : shape?.repeated === false;
+        // An array of scalars is exposed through its container entry, so it
+        // is generated like a leaf; every other container and anything under
+        // an array is left for the user to document by hand.
+        const isScalarArray =
+            shape?.repeated === true && shape.record === false;
+        return isLeaf
+            ? shape === undefined || isScalarArray
+            : shape?.repeated === false;
     });
 };
 
