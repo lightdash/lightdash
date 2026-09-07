@@ -2,6 +2,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     getErrorMessage,
+    ProjectType,
     SupportedDbtVersions,
     UnexpectedGitError,
 } from '@lightdash/common';
@@ -52,10 +53,16 @@ export type DbtGitProjectAdapterArgs = {
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
     cacheIdentity?: DbtGitCacheIdentity;
+    cacheContext?: DbtGitCacheContext;
     credential?: {
         token: string;
         installationId?: string;
     };
+};
+
+export type DbtGitCacheContext = {
+    projectType?: ProjectType;
+    jobUuid?: string;
 };
 
 export type DbtGitFetchMetrics = {
@@ -66,6 +73,11 @@ export type DbtGitFetchMetrics = {
 };
 
 export type DbtGitCacheOutcome = {
+    projectUuid: string | null;
+    sourceUuid: string | null;
+    sourceType: DbtGitCacheIdentity['sourceType'] | null;
+    projectType: ProjectType | null;
+    jobUuid: string | null;
     cloneMode: 'fresh' | 'reused';
     depsMode: 'fresh' | 'reused';
     missReason: string | null;
@@ -300,6 +312,8 @@ export class DbtGitProjectAdapter
 
     private readonly cacheIdentity: DbtGitCacheIdentity | undefined;
 
+    private readonly cacheContext: DbtGitCacheContext | undefined;
+
     private readonly credential:
         | { token: string; installationId?: string }
         | undefined;
@@ -317,6 +331,11 @@ export class DbtGitProjectAdapter
     private readonly sensitiveValues: string[];
 
     private cacheOutcome: DbtGitCacheOutcome = {
+        projectUuid: null,
+        sourceUuid: null,
+        sourceType: null,
+        projectType: null,
+        jobUuid: null,
         cloneMode: 'fresh',
         depsMode: 'fresh',
         missReason: null,
@@ -356,6 +375,7 @@ export class DbtGitProjectAdapter
         gitConfigGlobalPath,
         dbtDepsErrorHint,
         cacheIdentity,
+        cacheContext,
         credential,
     }: DbtGitProjectAdapterArgs) {
         assertValidGitBranch(gitBranch);
@@ -425,7 +445,15 @@ export class DbtGitProjectAdapter
             isContainedRelativePath(projectDirectorySubPath)
                 ? cacheIdentity
                 : undefined;
-        if (!credentialMatchesUrl) {
+        this.cacheContext = cacheContext;
+        this.cacheOutcome.projectUuid = cacheIdentity?.projectUuid ?? null;
+        this.cacheOutcome.sourceUuid = cacheIdentity?.sourceUuid ?? null;
+        this.cacheOutcome.sourceType = cacheIdentity?.sourceType ?? null;
+        this.cacheOutcome.projectType = cacheContext?.projectType ?? null;
+        this.cacheOutcome.jobUuid = cacheContext?.jobUuid ?? null;
+        if (cacheContext?.projectType === ProjectType.PREVIEW) {
+            this.cacheOutcome.missReason = 'preview-project';
+        } else if (!credentialMatchesUrl) {
             this.cacheOutcome.missReason = 'credential-url-mismatch';
         } else if (!cacheIdentity) {
             this.cacheOutcome.missReason = 'cache-identity-unavailable';
@@ -966,7 +994,10 @@ export class DbtGitProjectAdapter
         if (this.refreshed) return;
         this.refreshAttempted = true;
         const initialDirectory = this.localRepositoryDir;
-        if (this.cacheIdentity) {
+        if (
+            this.cacheIdentity &&
+            this.cacheContext?.projectType !== ProjectType.PREVIEW
+        ) {
             try {
                 this.cacheLease = await acquireDbtGitProjectCache(
                     this.cacheIdentity,

@@ -1,6 +1,7 @@
 import {
     AuthorizationError,
     NotFoundError,
+    ProjectType,
     SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
@@ -329,6 +330,7 @@ describe('DbtGitProjectAdapter cache', () => {
         credential?: { token: string; installationId?: string },
         gitBranch = 'main',
         projectDirectorySubPath = '.',
+        cacheContext?: { projectType?: ProjectType; jobUuid?: string },
     ) =>
         new DbtGitProjectAdapter({
             warehouseClient: warehouseClientMock,
@@ -362,6 +364,7 @@ describe('DbtGitProjectAdapter cache', () => {
                 sourceUuid,
                 sourceType: 'additional',
             },
+            cacheContext,
         });
 
     beforeEach(async () => {
@@ -464,6 +467,49 @@ describe('DbtGitProjectAdapter cache', () => {
         } finally {
             info.mockRestore();
         }
+    });
+
+    it('skips preview caching and attributes the cache outcome', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const cacheContext = {
+            projectType: ProjectType.PREVIEW,
+            jobUuid: 'job',
+        };
+        const first = createAdapter(
+            remote,
+            'source',
+            undefined,
+            undefined,
+            'main',
+            '.',
+            cacheContext,
+        );
+        await first.getDbtManifest();
+        expect(first.getCacheOutcome()).toMatchObject({
+            projectUuid: 'project',
+            sourceUuid: 'source',
+            sourceType: 'additional',
+            projectType: ProjectType.PREVIEW,
+            jobUuid: 'job',
+            missReason: 'preview-project',
+            cloneMode: 'fresh',
+        });
+        await first.destroy();
+
+        const second = createAdapter(
+            remote,
+            'source',
+            undefined,
+            undefined,
+            'main',
+            '.',
+            cacheContext,
+        );
+        await second.getDbtManifest();
+        expect(second.getFetchMetrics().cloneMode).toBe('fresh');
+        await second.destroy();
     });
 
     it('sanitizes malformed credential-bearing repository URLs', () => {
