@@ -9,7 +9,7 @@ export type ManagedSignInProvider = 'microsoft';
 
 export const MANAGED_SIGN_IN_PROVIDER: ManagedSignInProvider = 'microsoft';
 
-export const MANAGED_SIGN_IN_SCOPES = ['openid', 'profile', 'email'];
+export const MANAGED_SIGN_IN_SCOPES = ['email'];
 
 export const MICROSOFT_LOGIN_HOST = 'https://login.microsoftonline.com';
 
@@ -49,6 +49,12 @@ export enum ManagedSignInError {
     TOKEN_REPLAYED = 'token_replayed',
     EMAIL_UNVERIFIED = 'email_unverified',
     USER_NOT_ALLOWED = 'user_not_allowed',
+    ORGANISATION_REQUIRED = 'organisation_required',
 }
+
+export const isManagedSignInError = (
+    value: string,
+): value is ManagedSignInError =>
+    Object.values(ManagedSignInError).includes(value as ManagedSignInError);
 
 export const MANAGED_SIGN_IN_MAX_TOKEN_AGE_SECONDS = 300;

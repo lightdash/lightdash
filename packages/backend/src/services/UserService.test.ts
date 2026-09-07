@@ -2196,7 +2196,7 @@ describe('UserService', () => {
                 clientId: 'ios-registration',
                 authority: 'https://login.microsoftonline.com/tenant-abc',
                 tenantId: 'tenant-abc',
-                scopes: ['openid', 'profile', 'email'],
+                scopes: ['email'],
             });
 
             await expect(
@@ -2263,7 +2263,7 @@ describe('UserService', () => {
                 clientId: 'android-registration',
                 authority: 'https://login.microsoftonline.com/tenant-from-org',
                 tenantId: 'tenant-from-org',
-                scopes: ['openid', 'profile', 'email'],
+                scopes: ['email'],
             });
         });
 

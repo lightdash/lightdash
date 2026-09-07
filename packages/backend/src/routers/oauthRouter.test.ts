@@ -562,6 +562,31 @@ describe('OAuth token errors', () => {
         },
     );
 
+    it('answers 400 for organisation_required despite the legacy word match', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidGrantError(
+                ManagedSignInError.ORGANISATION_REQUIRED,
+            ),
+        );
+
+        expect(status).toBe(400);
+        expect(body).toEqual({
+            error: 'invalid_grant',
+            error_description: 'organisation_required',
+        });
+    });
+
+    it('still answers 401 for a legacy message containing required', async () => {
+        const { body, status } = await requestToken(
+            new OAuth2Server.InvalidRequestError(
+                'Missing parameter: `client_id` is required',
+            ),
+        );
+
+        expect(status).toBe(401);
+        expect(body).toMatchObject({ error: 'invalid_request' });
+    });
+
     it('leaves a non-OAuth failure in the shape it had', async () => {
         const { body, status } = await requestToken(new Error('boom'));
 

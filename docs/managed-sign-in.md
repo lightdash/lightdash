@@ -61,7 +61,7 @@ When the parameter is present the response can carry an extra block:
     "clientId": "<mobile registration client id>",
     "authority": "https://login.microsoftonline.com/<tenant id>",
     "tenantId": "<tenant id>",
-    "scopes": ["openid", "profile", "email"]
+    "scopes": ["email"]
 }
 ```
 
@@ -83,6 +83,11 @@ The server names a tenant in one of two ways
 The block is absent when the platform parameter is missing, when the platform's
 client id is not configured, when no tenant is named, or when the lookup fails.
 Absence is the safe default: the app keeps browser sign-in.
+
+**The block sends only non-reserved scopes.** MSAL adds `openid`, `profile` and
+`offline_access` itself and refuses any request that names them, so the server
+sends only what the apps should ask for. Today that is `["email"]`. The apps
+keep their own filter as a safeguard.
 
 `ssoPresentation` is unchanged and stays `{ kind: 'branded', provider:
 'azuread' }` where it already was.
@@ -150,6 +155,9 @@ and `.../ManagedSignInService.ts:187`).
 10. **The `email` claim is required.** `preferred_username` is never used as an
     email.
 11. **Resolve the user** through `UserService.loginWithOpenId`.
+12. **Require an organisation.** A user with no organisation is rejected with
+    `organisation_required`. The apps have no join-organisation screen, so
+    tokens for such a user would show nothing.
 
 Steps 3 to 5 are what stop any Microsoft token from becoming a Lightdash login.
 A token from a tenant the customer does not control fails step 8; a token
@@ -181,9 +189,9 @@ The organisation comes from `tid` and nothing else
 | Shared | Exactly one organisation's Azure SSO config must name that tenant and be enabled. | `tenant_not_configured` for zero or more than one |
 
 On a shared instance the resolved organisation is then compared with the
-organisation the user lands in. A mismatch is `user_not_allowed`. On a
-dedicated instance there is no organisation to compare, so an organisation-less
-user passes through. See "Decisions still open".
+organisation the user lands in. A mismatch is `user_not_allowed`. On every
+instance, a user who belongs to no organisation at all is rejected with
+`organisation_required`.
 
 The lookup decrypts every enabled Azure row, because the stored config is
 encrypted and the tenant id cannot be a SQL predicate
@@ -236,6 +244,7 @@ one of these (`packages/common/src/types/managedSignIn.ts:45`).
 | `token_replayed` | The token was already exchanged. | A retry with the same token. |
 | `email_unverified` | The token carries no usable email. | The `email` claim is missing. |
 | `user_not_allowed` | Microsoft authenticated the person; Lightdash refused them. | Identity linking is off, the org refuses just-in-time creation, or the user's org does not match the tenant's org. |
+| `organisation_required` | The person signed in but belongs to no organisation. | Just-in-time creation made a user with no organisation. They need an invite, or an allowed email domain that joins them to one. |
 
 "Consent missing" and "policy not satisfied" never reach the server. They
 surface on the MSAL side before any token exists, and the apps map them from
@@ -281,6 +290,20 @@ platform's client id is set and the server can name a Microsoft tenant. A
 dedicated instance therefore needs the platform client id plus the existing
 `AUTH_AZURE_AD_OAUTH_TENANT_ID`. A shared instance needs the platform client id
 plus one organisation with an enabled Azure SSO config naming the tenant.
+
+### Rollout prerequisite: identity linking
+
+**On an instance that already has Microsoft users, turn on OIDC linking before
+you enable managed sign-in.** Set `AUTH_ENABLE_OIDC_LINKING=true`, or the
+per-organisation toggle.
+
+Without it, the first managed sign-in fails with `user_not_allowed` for every
+person who has already signed in through the browser. The mobile registration
+is a different Entra client, so its subject can never match the identity row
+browser sign-in stored, and the email path that would join them is off by
+default.
+
+A person who has never signed in on the web is unaffected.
 
 Neither variable replaces the web registration. Browser sign-in keeps using
 `AUTH_AZURE_AD_OAUTH_*` or the per-organisation config.
@@ -351,19 +374,14 @@ Three questions are open on
 [SPK-1909](https://linear.app/lightdash/issue/SPK-1909). The behaviour built
 today is described above; these may change it.
 
-- **Q7 — organisation-less users.** On a dedicated instance the exchange passes
-  a user with no organisation straight through, because there is no
-  organisation to compare against. The apps have no join-organisation screen,
-  so that person sees nothing. Options: reject with a new
-  `organisation_required` code, auto-join the single whitelisted organisation,
-  or rely on invites.
-- **Q8 — identity linking.** The first managed sign-in fails for every existing
-  web user unless OIDC linking is enabled. Options: document the prerequisite,
-  treat the two registrations as one trust inside the exchange, or store `oid`
-  for browser sign-in too.
-- **Q9 — freshness.** The five-minute `iat` window stands in for a nonce, which
-  neither MSAL SDK exposes for the ID token. The apps force a refresh so a
-  fresh token is minted. The alternative is to loosen the server rule.
+Q6, Q7, Q8 and Q9 are settled and built as described above: the server sends
+only non-reserved scopes, an organisation-less user is rejected with
+`organisation_required`, the linking prerequisite is documented rather than
+coded around, and the five-minute freshness rule stands.
+
+One follow-up remains open: treating the web and mobile registrations as one
+trust inside the exchange, so an existing web user does not need the linking
+prerequisite. See the rollout note above.
 
 Related: registration shape and vocabulary on
 [SPK-1905](https://linear.app/lightdash/issue/SPK-1905), the security review on

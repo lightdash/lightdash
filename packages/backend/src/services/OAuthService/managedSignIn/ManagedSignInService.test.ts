@@ -446,6 +446,37 @@ describe('ManagedSignInService', () => {
             );
         });
 
+        it('rejects a user who belongs to no organization', async () => {
+            const { service } = createService(dedicatedConfig(), {
+                loginWithOpenId: vi.fn(async () => ({
+                    ...sessionUser,
+                    organizationUuid: undefined,
+                })) as unknown as UserService['loginWithOpenId'],
+            });
+
+            await expectRejection(
+                exchange(service, await signToken()),
+                ManagedSignInError.ORGANISATION_REQUIRED,
+            );
+        });
+
+        it('leaves no token-use row when the user belongs to no organization', async () => {
+            const claimTokenUse = vi.fn(async () => true);
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse,
+                loginWithOpenId: vi.fn(async () => ({
+                    ...sessionUser,
+                    organizationUuid: undefined,
+                })) as unknown as UserService['loginWithOpenId'],
+            });
+
+            await expectRejection(
+                exchange(service, await signToken()),
+                ManagedSignInError.ORGANISATION_REQUIRED,
+            );
+            expect(claimTokenUse).not.toHaveBeenCalled();
+        });
+
         it('rejects a user who lands outside the tenant organization', async () => {
             const { service } = createService(configWith(), {
                 azureMethods: [azureMethod(TENANT_ID, 'org-uuid-other')],

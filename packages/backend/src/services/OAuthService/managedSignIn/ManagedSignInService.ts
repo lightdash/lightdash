@@ -226,6 +226,13 @@ export class ManagedSignInService {
                 );
             }
 
+            if (!user.organizationUuid) {
+                throw new ManagedSignInRejection(
+                    ManagedSignInError.ORGANISATION_REQUIRED,
+                    'user belongs to no organization',
+                );
+            }
+
             if (
                 organizationUuid !== undefined &&
                 user.organizationUuid !== organizationUuid
