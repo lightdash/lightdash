@@ -25,6 +25,26 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 const FORM_ID = 'create-virtual-view-form';
 
+/**
+ * Walkthrough action for create:VirtualView: turning a SQL runner query into
+ * a table everyone can explore. The tour then opens New > Chart, where the
+ * new table is listed.
+ */
+const createTourAction = {
+    'data-tour-scope': 'create:VirtualView',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/sql-runner',
+    'data-tour-label': 'Create the virtual view',
+    'data-tour-title': 'Create a virtual view',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="new"] >> [data-tour-nav="new-sql-runner"] >> [data-tour-anchor="sql-runner-editor"] >> [data-tour-anchor="sql-runner-run"] >> [data-tour-anchor="sql-cta-menu"] >> [data-tour-anchor="sql-cta-virtual-view"] >> [data-tour-anchor="sql-create-virtual-view"] >> [data-tour-anchor="virtual-view-name"]',
+    'data-tour-then':
+        '[data-tour-nav="new"] >> [data-tour-nav="new-chart"] >> [data-tour-anchor="explore-search"] >> [data-tour-anchor="explore-section"][data-tour-value="Virtual Views"]',
+    'data-tour-docs':
+        'semantic-layer/virtual-views.mdx#create-a-virtual-view:1',
+};
+
 export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const health = useHealth();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -115,6 +135,7 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     form={FORM_ID}
                     disabled={!form.values.name || !sql}
                     loading={isLoadingVirtual}
+                    {...createTourAction}
                 >
                     Create
                 </Button>
@@ -125,6 +146,11 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                     <TextInput
                         label="Name"
                         required
+                        // Typed anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="virtual-view-name"
+                        data-tour-hint="Name the virtual view"
+                        data-tour-input="true"
+                        data-tour-suggest="Orders by status"
                         {...form.getInputProps('name')}
                         error={!!error?.error}
                     />

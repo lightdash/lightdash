@@ -1,9 +1,10 @@
-import { Center, Loader } from '@mantine/core';
+import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Editor, {
     useMonaco,
@@ -12,8 +13,8 @@ import Editor, {
     type OnChange,
     type OnMount,
 } from '../../../components/MonacoEditor';
-import { useParameters } from '../../../hooks/parameters/useParameters';
 import '../../../styles/monaco.css';
+import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
 import { useSqlEditorPreferences } from '../hooks/useSqlEditorPreferences';
@@ -116,6 +117,7 @@ export const SqlEditor: FC<{
     });
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
+    const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
 
     const language = useMemo(
         () => getMonacoLanguage(warehouseConnectionType),
@@ -147,6 +149,12 @@ export const SqlEditor: FC<{
     const onMount: OnMount = useCallback(
         (editorObj, monacoObj) => {
             editorRef.current = editorObj;
+            if (wrapperRef.current) {
+                wrapperRef.current.tourEditor = {
+                    getValue: () => editorObj.getValue(),
+                    setValue: (value) => editorObj.setValue(value),
+                };
+            }
             decorationsCollectionRef.current =
                 editorObj.createDecorationsCollection();
             editorObj.addCommand(
@@ -294,16 +302,33 @@ export const SqlEditor: FC<{
     }
 
     return (
-        <Editor
-            className={styles.editor}
-            loading={<Loader color="gray" size="xs" />}
-            beforeMount={beforeMount}
-            onMount={onMount}
-            language={language}
-            value={sql}
-            onChange={onChange}
-            options={SQL_RUNNER_MONACO_OPTIONS}
-            theme={monacoTheme}
-        />
+        <Box
+            ref={wrapperRef}
+            h="100%"
+            // Typed anchor for scope walkthroughs: the query. The card
+            // suggests a query over the sample warehouse; the editor is
+            // handed to the tour on mount (tourEditor).
+            data-tour-anchor="sql-runner-editor"
+            data-tour-hint="Write your query"
+            data-tour-input="true"
+            data-tour-suggest="SELECT status, COUNT(*) AS orders FROM jaffle.orders GROUP BY 1"
+            data-tour-scope="manage:SqlRunner"
+            data-tour-look="1"
+            data-tour-after='[data-tour-nav="new-sql-runner"]'
+            data-tour-label="Write a query, then run it"
+            data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p3:1"
+        >
+            <Editor
+                className={styles.editor}
+                loading={<Loader color="gray" size="xs" />}
+                beforeMount={beforeMount}
+                onMount={onMount}
+                language={language}
+                value={sql}
+                onChange={onChange}
+                options={SQL_RUNNER_MONACO_OPTIONS}
+                theme={monacoTheme}
+            />
+        </Box>
     );
 };

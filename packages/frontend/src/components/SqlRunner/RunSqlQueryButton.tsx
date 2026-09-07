@@ -38,6 +38,9 @@ const RunSqlQueryButton: FC<{
                     onClick={onSubmit}
                     loading={isLoading}
                     disabled={disabled}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="sql-runner-run"
+                    data-tour-hint="Run the query"
                 >
                     Run query
                 </Button>

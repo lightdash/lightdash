@@ -57,6 +57,21 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 
+/**
+ * Walkthrough result for manage:SqlRunner: the saved SQL chart's own page,
+ * which saving opens.
+ */
+const savedChartTourProps = {
+    'data-tour-scope': 'manage:SqlRunner',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/sql-runner/:slug',
+    'data-tour-label': 'The chart is saved in its space',
+    'data-tour-docs': 'explore/sql-runner.mdx#intro:p2:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs':
+        'explore/sql-runner.mdx#saved-charts-in-the-sql-runner:1',
+};
+
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
     const { search, pathname } = useLocation();
@@ -209,7 +224,12 @@ export const HeaderView: FC = () => {
                                     spaceName={space.name}
                                 />
                             )}
-                            <Title order={5} maw={500} lineClamp={1}>
+                            <Title
+                                order={5}
+                                maw={500}
+                                lineClamp={1}
+                                {...savedChartTourProps}
+                            >
                                 {savedSqlChart.name}
                             </Title>
                             {contentReview.pendingRequest && (
