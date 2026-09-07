@@ -40,6 +40,7 @@ import {
 import { EnableLearnPanel } from './EnableLearnPanel';
 import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
+import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
@@ -187,16 +188,37 @@ const LearnPage: FC = () => {
     // belongs to the shared training project, so a preview's /learn goes
     // there instead.
     const projectRoute = useOptionalProjectRoute();
+    // The library is opened on the learner's own project (the Learn icon
+    // keeps the project route) and remembers it, so a walkthrough's Skip
+    // and Back to library return to this project rather than the training
+    // project. A preview's /learn goes to the remembered project's library
+    // when there is one, else the training project's.
+    useEffect(() => {
+        const type = projectRoute?.project.type;
+        if (
+            projectRoute &&
+            type !== ProjectType.PREVIEW &&
+            type !== ProjectType.TRAINING
+        ) {
+            rememberLearnOrigin(projectRoute.project.projectUuid);
+        }
+    }, [projectRoute]);
     useEffect(() => {
         if (
             projectRoute?.project.type === ProjectType.PREVIEW &&
             trainingProject
         ) {
-            void navigate(`/projects/${trainingProject.projectUuid}/learn`, {
+            const origin = readLearnOrigin();
+            const returnProject =
+                origin &&
+                projects?.some((project) => project.projectUuid === origin)
+                    ? origin
+                    : trainingProject.projectUuid;
+            void navigate(`/projects/${returnProject}/learn`, {
                 replace: true,
             });
         }
-    }, [projectRoute?.project.type, trainingProject, navigate]);
+    }, [projectRoute?.project.type, trainingProject, projects, navigate]);
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
