@@ -1,3 +1,15 @@
+# [2.139.0](https://github.com/lightdash/lightdash/compare/2.138.0...2.139.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **sdk:** follow the token prop when rotating embed tokens ([#28761](https://github.com/lightdash/lightdash/issues/28761)) ([8f4ee39](https://github.com/lightdash/lightdash/commit/8f4ee3946b71e5527c8847781f98b227f752a6bc))
+
+
+### Features
+
+* **direct-access:** import portable access blocks atomically ([#28301](https://github.com/lightdash/lightdash/issues/28301)) ([3d03608](https://github.com/lightdash/lightdash/commit/3d03608efeac3b48884da60c1373ac73e5a6c362))
+
 # [2.138.0](https://github.com/lightdash/lightdash/compare/2.137.0...2.138.0) (2026-09-07)
 
 
