@@ -70,7 +70,6 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
-    isMetricSourcedMergeQuery,
     isValidTimezone,
     isVizTableConfig,
     ItemsMap,
@@ -78,7 +77,6 @@ import {
     KnexPaginatedData,
     LightdashError,
     MergeQuery,
-    MergeQueryErrorKind,
     MetricQuery,
     MissingConfigError,
     normalizeIndexColumns,
@@ -130,7 +128,6 @@ import {
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncExternalSqlQueryRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
-    type ExecuteAsyncMergeQueryRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -206,7 +203,7 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
-import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
+import { composeMergeReferenceTable } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { getSqlBuilderForExplore } from '../../utils/QueryBuilder/getSqlBuilderForExplore';
 import {
@@ -320,12 +317,14 @@ import {
     type UnboundedRerunFromQueryHistoryResult,
 } from './types';
 
+/** A compiled merge that can run: no errors, the join core and full metadata. */
 type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
     coreSql: string;
-    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
     terminalWrapper: NonNullable<
         ApiCompiledMergeQueryResults['terminalWrapper']
     >;
+    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
+    columns: NonNullable<ApiCompiledMergeQueryResults['columns']>;
 };
 
 const isRunnableCompiledMergeQuery = (
@@ -333,23 +332,7 @@ const isRunnableCompiledMergeQuery = (
 ): compiled is RunnableCompiledMergeQuery =>
     compiled.errors.length === 0 &&
     compiled.coreSql !== null &&
-    compiled.typedColumns !== null &&
-    compiled.terminalWrapper !== null;
-
-/**
- * A compiled merge the compose engine can run: no errors and full metadata.
- * Unlike the warehouse-runnable narrowing it needs no statement — the
- * compose path builds its own join over the sources' materialized results.
- */
-type ComposableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
-    typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
-    columns: NonNullable<ApiCompiledMergeQueryResults['columns']>;
-};
-
-const isComposableCompiledMergeQuery = (
-    compiled: ApiCompiledMergeQueryResults,
-): compiled is ComposableCompiledMergeQuery =>
-    compiled.errors.length === 0 &&
+    compiled.terminalWrapper !== null &&
     compiled.typedColumns !== null &&
     compiled.columns !== null;
 
@@ -360,15 +343,6 @@ type DuckdbQueryExecution = {
     usedParameters: ParametersValuesMap | null;
     originalColumns: ResultColumns;
     pivotConfiguration: PivotConfiguration | undefined;
-};
-
-type ExecuteCompiledAsyncMergeQueryArgs = Omit<
-    ExecuteAsyncMergeQueryArgs,
-    'mode' | 'chart'
-> & {
-    organizationUuid: string;
-    compiledMerge: RunnableCompiledMergeQuery;
-    pivotConfiguration?: PivotConfiguration;
 };
 
 type ExecuteMergeQueryInternalArgs = Omit<
@@ -7306,10 +7280,12 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         references,
+        labelByTable,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
+        labelByTable: Record<string, string>;
     }): Promise<Record<string, QueryHistory>> {
         const completed = await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
@@ -7324,10 +7300,17 @@ export class AsyncQueryService extends ProjectService {
                         });
                     return [tableName, queryHistory] as const;
                 } catch (e) {
-                    throw new ParameterError(
-                        `Referenced query "${tableName}" (${queryUuid}) did not complete: ${getErrorMessage(
+                    // The message names what the user knows; the uuid goes to the log
+                    const label = labelByTable[tableName];
+                    this.logger.info(
+                        `Referenced query ${queryUuid} (${tableName}) did not complete: ${getErrorMessage(
                             e,
                         )}`,
+                    );
+                    throw new ParameterError(
+                        `${
+                            label ?? `Referenced query "${tableName}"`
+                        } did not complete: ${getErrorMessage(e)}`,
                     );
                 }
             }),
@@ -7462,6 +7445,7 @@ export class AsyncQueryService extends ProjectService {
                 columns: { mode: 'discover' },
                 engine: 'client',
                 guard: null,
+                referenceLabels: {},
             },
         });
 
@@ -7600,6 +7584,7 @@ export class AsyncQueryService extends ProjectService {
                 kind: 'queries',
                 references: normalizedReferences ?? {},
                 guard: plan.guard,
+                labelByTable: plan.referenceLabels,
             },
             columns: resolved.columns,
             storedCompiledSql: null,
@@ -8128,6 +8113,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     references: references.references,
+                    labelByTable: references.labelByTable,
                 });
                 const refusal = references.guard?.(completed) ?? null;
                 if (refusal !== null) throw new ParameterError(refusal);
@@ -8415,7 +8401,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             userAttributeOverrides,
         });
-        if (!isComposableCompiledMergeQuery(compiledMerge)) {
+        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
             return {
                 outcome: 'refused',
                 errors: compiledMerge.errors,
@@ -8443,7 +8429,7 @@ export class AsyncQueryService extends ProjectService {
             return undefined;
         })();
 
-        const composeQuery = await this.tryExecuteComposeMergeQuery({
+        const query = await this.submitMergeDag({
             account,
             projectUuid,
             organizationUuid,
@@ -8454,55 +8440,6 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             pivotConfiguration,
             compiledMerge,
-        });
-        if (composeQuery !== null) {
-            return {
-                outcome: 'started',
-                query: composeQuery,
-                parameterReferences: compiledMerge.parameterReferences,
-                fieldOrigins: compiledMerge.fieldOrigins,
-            };
-        }
-
-        // Result sources and external source tables have no warehouse
-        // statement to fall back to
-        if (compiledMerge.requiresCompose) {
-            return {
-                outcome: 'refused',
-                errors: [
-                    {
-                        kind: MergeQueryErrorKind.COMPOSE_REQUIRED,
-                        sourceId: null,
-                        fieldIds: [],
-                        message:
-                            'This merge reads existing query results or external source tables, which need the compose engine. It is not enabled or not available on this instance.',
-                    },
-                ],
-                parameterReferences: compiledMerge.parameterReferences,
-                fieldOrigins: compiledMerge.fieldOrigins,
-            };
-        }
-
-        if (!isRunnableCompiledMergeQuery(compiledMerge)) {
-            return {
-                outcome: 'refused',
-                errors: compiledMerge.errors,
-                parameterReferences: compiledMerge.parameterReferences,
-                fieldOrigins: compiledMerge.fieldOrigins,
-            };
-        }
-
-        const query = await this.executeCompiledAsyncMergeQuery({
-            account,
-            projectUuid,
-            organizationUuid,
-            mergeQuery: effectiveMergeQuery,
-            context,
-            invalidateCache,
-            parameters,
-            pivotConfiguration,
-            compiledMerge,
-            userAttributeOverrides,
         });
 
         return {
@@ -8514,154 +8451,13 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
-     * Runs a merge as one statement on the org's own warehouse.
-     *
-     * The compile is the merge: both sides become CTEs of one statement in
-     * the warehouse's dialect, and that statement runs through the ordinary
-     * async tail — query history, paging, formatting, pivoting, caching and
-     * downloads all behave as for any other query. Nothing materialises to
-     * S3 and nothing runs anywhere but the project warehouse.
+     * Submits a compiled merge as a query source DAG: one semantic-layer node
+     * per metric source, inheriting that query's access rules and result
+     * cache, and one duckdb node that joins the materialized results with
+     * the compile's join statement. Submission never blocks on the legs: the
+     * join waits for their results through the standard reference wait.
      */
-    private async executeCompiledAsyncMergeQuery({
-        account,
-        projectUuid,
-        mergeQuery,
-        context,
-        invalidateCache,
-        pivotConfiguration,
-        parameters,
-        organizationUuid,
-        compiledMerge,
-        userAttributeOverrides,
-    }: ExecuteCompiledAsyncMergeQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
-        // Only for composing SQL — quoting and the pivot stage need the
-        // dialect. The async runtime opens its own connection to execute.
-        const [warehouseCredentials, userAccessControls] = await Promise.all([
-            this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-            this.getUserAttributes({ account }),
-        ]);
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-        );
-
-        let composer: MergeQueryComposer;
-        try {
-            composer = new MergeQueryComposer({
-                coreSql: compiledMerge.coreSql,
-                terminalWrapper: compiledMerge.terminalWrapper,
-                itemsMap: compiledMerge.itemsMap,
-                typedColumns: compiledMerge.typedColumns,
-                columnOrder: Object.values(compiledMerge.fieldIdByColumn),
-                limit: mergeQuery.limit,
-                parameterReferences: compiledMerge.parameterReferences,
-                usedParametersValues: compiledMerge.usedParametersValues,
-                warehouseClient,
-                pivotConfiguration,
-            });
-        } finally {
-            await sshTunnel.disconnect();
-        }
-
-        const baseQueryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            ...AsyncQueryService.getSchedulerQueryTags(),
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            query_context: context,
-        };
-        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
-            baseQueryTags,
-            userAttributeOverrides
-                ? {
-                      ...userAccessControls,
-                      userAttributes: {
-                          ...userAccessControls.userAttributes,
-                          ...userAttributeOverrides,
-                      },
-                  }
-                : userAccessControls,
-        );
-        // Routing guarantees this: merges with result sources never reach
-        // the warehouse path (they require the compose engine)
-        if (!isMetricSourcedMergeQuery(mergeQuery)) {
-            throw new UnexpectedServerError(
-                'A merge with result sources cannot run as a warehouse statement',
-            );
-        }
-        const requestParameters: ExecuteAsyncMergeQueryRequestParams = {
-            context,
-            invalidateCache,
-            mergeQuery,
-            parameters,
-            pivotConfiguration,
-        };
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                account,
-                projectUuid,
-                organizationUuid,
-                context,
-                queryTags,
-                invalidateCache,
-                queryComposer: composer,
-                warehouseCredentials,
-                routingTarget: 'warehouse',
-            },
-            requestParameters,
-        );
-        // The shared background tail has no merge hook, so this engine reports submission only
-        this.analytics.trackAccount(
-            account,
-            buildMergeExecutedEvent({
-                submission: {
-                    organizationUuid,
-                    projectUuid,
-                    context,
-                    mergeQuery,
-                },
-                queryId: queryUuid,
-                engine: 'warehouse',
-                status: 'started',
-                cacheHit: cacheMetadata.cacheHit,
-                legCacheHits: [],
-                rowCount: null,
-                durationMs: null,
-                joinExecutionTimeMs: null,
-            }),
-        );
-
-        return {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: composer.getMetricQuery(),
-            fields: composer.getFields(),
-            warnings: composer.getWarnings(),
-            parameterReferences: composer.getParameterReferences(),
-            usedParametersValues: composer.getUsedParameters(),
-            resolvedTimezone: composer.getDisplayTimezone(),
-        };
-    }
-
-    /**
-     * Runs a merge as composition when the merge-on-compose flag is on and
-     * the compose engine is available; returns null to fall back to the
-     * single-statement warehouse merge otherwise.
-     *
-     * Each source executes as its own metric query — inheriting that query's
-     * access rules and the metric-query result cache — and the DuckDB
-     * compose engine joins the materialized results. The join is the same
-     * MergeQueryBuilder assembly as the warehouse statement, in the DuckDB
-     * dialect over reference tables, so join semantics are shared by
-     * construction. Submission never blocks on the legs: the background
-     * phase waits for their results through the standard reference wait.
-     */
-    private async tryExecuteComposeMergeQuery({
+    private async submitMergeDag({
         account,
         projectUuid,
         organizationUuid,
@@ -8682,18 +8478,9 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
         pivotConfiguration: PivotConfiguration | undefined;
-        compiledMerge: ComposableCompiledMergeQuery;
-    }): Promise<ApiExecuteAsyncMetricQueryResults | null> {
+        compiledMerge: RunnableCompiledMergeQuery;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
-
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.MergeOnCompose,
-        });
-        if (!enabled) return null;
 
         // Throws MissingConfigError when results storage is not configured:
         // a merge without an engine is refused, never silently downgraded.
@@ -8730,36 +8517,19 @@ export class AsyncQueryService extends ProjectService {
             ]),
         );
 
-        const fieldTypes = await this.getMergeFieldTypesForQuery(
-            account,
-            projectUuid,
-            mergeQuery,
-        );
         const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
-        const { coreSql, terminalWrapper, referenceTableBySourceId } =
-            buildComposeMergeSql({
-                sources: mergeQuery.sources.map((source) => ({
-                    id: source.id,
-                    valueColumns: Object.keys(
-                        compiledMerge.columns.valueColumnBySourceColumn[
-                            source.id
-                        ] ?? {},
-                    ),
-                })),
-                joinKey: mergeQuery.joinKey,
-                joinType: mergeQuery.joinType,
-                tableCalculations: mergeQuery.tableCalculations,
-                fieldTypes,
-                outputAliasByColumn: compiledMerge.fieldIdByColumn,
-                limit: Math.min(mergeQuery.limit, sourceRowCap),
-            });
+        const referenceTableBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source, index) => [
+                source.id,
+                composeMergeReferenceTable(index),
+            ]),
+        );
 
-        // The same composer as the warehouse merge, with the compose engine
-        // as the dialect: the pivot stage and terminal wrapper compile for
-        // DuckDB through the one shared seam
+        // The pivot stage and terminal wrapper compile for the compose
+        // engine over the compile's join core
         const composer = new MergeQueryComposer({
-            coreSql,
-            terminalWrapper,
+            coreSql: compiledMerge.coreSql,
+            terminalWrapper: compiledMerge.terminalWrapper,
             itemsMap: compiledMerge.itemsMap,
             typedColumns: compiledMerge.typedColumns,
             columnOrder,
@@ -8838,7 +8608,16 @@ export class AsyncQueryService extends ProjectService {
             // reaches only the leg files it joins
             engine: 'scopedToReferencedResults',
             guard: rowCap.guard,
+            referenceLabels: legLabelByReferenceTable,
         };
+
+        // A statement that reads files is refused before any leg runs; the
+        // join node checks it again when it submits
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
 
         // The DAG submits the legs, then the join with its references
         // rewritten to their queryUuids; the join waits for the legs itself

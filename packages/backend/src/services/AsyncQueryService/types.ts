@@ -335,6 +335,8 @@ export type DuckdbQueryReferences =
           kind: 'queries';
           references: Record<string, string>;
           guard: DuckdbQueryReferenceGuard | null;
+          /** What the user calls each referenced table, for messages that name one. */
+          labelByTable: Record<string, string>;
       };
 
 /** Which compose engine session executes a DuckDB query. */
@@ -365,6 +367,8 @@ export type DuckdbQueryPlan = {
           });
     engine: DuckdbQueryEngine['kind'];
     guard: DuckdbQueryReferenceGuard | null;
+    /** What the user calls each referenced table; empty when nothing names them. */
+    referenceLabels: Record<string, string>;
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {

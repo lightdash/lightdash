@@ -92,6 +92,8 @@ import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
+import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -631,9 +633,7 @@ describe('AsyncQueryService', () => {
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.ComposeSqlRunner ||
-                        featureFlagId === FeatureFlags.MergeOnCompose,
+                    enabled: featureFlagId === FeatureFlags.ComposeSqlRunner,
                 }),
             ),
         } as unknown as FeatureFlagModel;
@@ -813,6 +813,7 @@ describe('AsyncQueryService', () => {
                     },
                     engine: 'scopedToReferencedResults',
                     guard,
+                    referenceLabels: {},
                 },
             });
             await vi.waitFor(() =>
@@ -845,6 +846,7 @@ describe('AsyncQueryService', () => {
                     kind: 'queries',
                     references: { orders: referencedQueryHistory.queryUuid },
                     guard,
+                    labelByTable: {},
                 },
             });
             // The shared session is built for the dialect and to refuse a
@@ -909,7 +911,11 @@ describe('AsyncQueryService', () => {
             vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
                 coreSql: 'SELECT 1',
                 typedColumns: [],
-                terminalWrapper: null,
+                terminalWrapper: {
+                    orderBy: [],
+                    limit: null,
+                    sourceLimitExceededSql: null,
+                },
                 errors: [],
                 parameterReferences: [],
                 fieldOrigins: {},
@@ -917,7 +923,7 @@ describe('AsyncQueryService', () => {
                 fieldIdByColumn: {},
                 itemsMap: {},
                 usedParametersValues: {},
-                requiresCompose: false,
+                legs: [],
             } as never);
 
             await expect(
@@ -6185,6 +6191,7 @@ describe('runDuckdbQuery', () => {
                     kind: 'queries',
                     references: { merge_source_0: 'leg-uuid' },
                     guard: null,
+                    labelByTable: {},
                 },
                 columns: {
                     mode: 'supplied',
@@ -6255,6 +6262,7 @@ describe('runDuckdbQuery', () => {
                         merge_source_1: 'leg-b',
                     },
                     guard: null,
+                    labelByTable: {},
                 },
                 columns: {
                     mode: 'supplied',
@@ -6312,6 +6320,36 @@ describe('runDuckdbQuery', () => {
         );
     });
 
+    it('a leg that fails names the source in the error, not the reference table', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
+            buildService();
+        pollForQueryCompletion.mockRejectedValueOnce(
+            new Error('permission denied for table orders'),
+        );
+
+        await run(
+            baseArgs({
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: { merge_source_0: 'Query A ("a")' },
+                },
+            }),
+        );
+
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Query A ("a") did not complete: permission denied for table orders',
+            }),
+            expect.anything(),
+        );
+    });
+
     it('a guard refusal lands as the query error before anything runs', async () => {
         const { streamQuery, warehouseClient } = probingClient({});
         const { run, runWarehouseQuery, update } = buildService();
@@ -6324,6 +6362,7 @@ describe('runDuckdbQuery', () => {
                     kind: 'queries',
                     references: { orders: 'leg-uuid' },
                     guard,
+                    labelByTable: {},
                 },
             }),
         );
@@ -6378,13 +6417,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         a: '1a6f0f8c-2d3e-4f5a-8b9c-0d1e2f3a4b5c',
         b: '2b7a1a9d-3e4f-4a6b-9c0d-1e2f3a4b5c6d',
     };
-    const composeFlags = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled: featureFlagId === FeatureFlags.MergeOnCompose,
-        })),
-    } as unknown as FeatureFlagModel;
-
     const itemsMap = {
         merge_month: {
             fieldType: FieldType.DIMENSION,
@@ -6450,11 +6482,39 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         a: { orders_month: { type: DimensionType.DATE, timeInterval: null } },
         b: { payments_month: { type: DimensionType.DATE, timeInterval: null } },
     };
+    const fieldIdByColumn = {
+        month: 'merge_month',
+        c0_0: 'a_orders_count',
+        c1_0: 'b_payments_sum',
+    };
+    // The join core exactly as the compile emits it, so the run path is
+    // exercised on the real DuckDB statement over the reference tables
+    const joinSql = buildComposeMergeSql({
+        sources: [
+            { id: 'a', valueColumns: ['orders_count'] },
+            { id: 'b', valueColumns: ['payments_sum'] },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fieldIdBySourceId: { a: 'orders_month', b: 'payments_month' },
+            },
+        ],
+        joinType: MergeJoinType.FULL,
+        tableCalculations: [],
+        fieldTypes,
+        outputAliasByColumn: fieldIdByColumn,
+        limit: 500,
+    });
     const compiledMerge = {
-        sql: null,
-        coreSql: null,
+        sql: applyMergeTerminalWrapper(
+            joinSql.coreSql,
+            joinSql.terminalWrapper,
+        ),
+        legs: [],
+        coreSql: joinSql.coreSql,
         typedColumns,
-        terminalWrapper: null,
+        terminalWrapper: joinSql.terminalWrapper,
         columns: {
             joinKeyColumns: ['month'],
             valueColumnBySourceColumn: {
@@ -6467,12 +6527,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         fieldOrigins: {},
         parameterReferences: [],
         usedParametersValues: {},
-        fieldIdByColumn: {
-            month: 'merge_month',
-            c0_0: 'a_orders_count',
-            c1_0: 'b_payments_sum',
-        },
-        requiresCompose: false,
+        fieldIdByColumn,
         errors: [],
     };
     const mergeQuery: MergeQuery = {
@@ -6602,7 +6657,6 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             };
         };
         const service = getMockedAsyncQueryService(config, {
-            featureFlagModel: composeFlags,
             composeEngineClient: new ComposeEngineClient({
                 lightdashConfig: config,
                 createDuckdbWarehouseClient: () => warehouseClient,
@@ -6812,6 +6866,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 joinExecutionTimeMs: 12,
             },
         });
+    });
+
+    it('refuses a join that reads files before any leg runs', async () => {
+        const { service, create } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+            ...compiledMerge,
+            coreSql: "SELECT * FROM read_parquet('s3://bucket/secret.parquet')",
+        } as never);
+
+        await expect(execute(service)).rejects.toThrow(ParameterError);
+
+        expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
     });
 
     it('refuses before the join when a leg reached the row cap, naming the source', async () => {
@@ -7359,7 +7429,13 @@ describe('executeAsyncMergeQuery over a result source', () => {
         });
 
         expect(compiled.errors).toEqual([]);
-        expect(compiled.requiresCompose).toBe(true);
+        // A result source contributes rows, never a leg statement
+        expect(compiled.legs).toEqual([
+            { sourceId: 'a', sql: null },
+            { sourceId: 'b', sql: null },
+        ]);
+        expect(compiled.coreSql).toContain('"merge_source_0"');
+        expect(compiled.coreSql).toContain('"merge_source_1"');
     });
 
     it('leaves a referenced result with no recorded row count alone', async () => {

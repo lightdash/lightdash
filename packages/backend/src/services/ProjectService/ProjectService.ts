@@ -241,6 +241,7 @@ import {
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
     type DataTimezonePreviewRequest,
+    type MergeCompiledLeg,
     type MergeItemEntry,
     type MergeTypedColumn,
     type Metric,
@@ -338,11 +339,8 @@ import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLi
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import {
-    applyMergeTerminalWrapper,
-    getMergeJoinKeySqlOptions,
-    MergeQueryBuilder,
-} from '../../utils/QueryBuilder/MergeQueryBuilder';
+import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
+import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
@@ -5874,16 +5872,6 @@ export class ProjectService extends BaseService {
                 };
             }),
         );
-        // Result sources have no warehouse statement, and external source
-        // explores have no warehouse relation — either forces the compose
-        // engine.
-        const requiresCompose =
-            mergeQuery.sources.some(isMergeResultSource) ||
-            maybeResolvedSources.some(
-                (source) =>
-                    source?.explore?.type === ExploreType.EXTERNAL_SOURCE,
-            );
-
         if (resolutionErrors.length > 0) {
             return {
                 sql: null,
@@ -5897,7 +5885,8 @@ export class ProjectService extends BaseService {
                 parameterReferences: [],
                 usedParametersValues: {},
                 fieldIdByColumn: {},
-                requiresCompose,
+                legs: [],
+                requiresCompose: false,
                 errors: resolutionErrors,
             };
         }
@@ -5963,7 +5952,8 @@ export class ProjectService extends BaseService {
                 parameterReferences: [],
                 usedParametersValues: {},
                 fieldIdByColumn: {},
-                requiresCompose,
+                legs: [],
+                requiresCompose: false,
                 errors,
             };
         }
@@ -5986,25 +5976,14 @@ export class ProjectService extends BaseService {
             });
         }
 
-        const warehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
+        // Each leg runs whole: the merged statement sorts and limits, and a
+        // side is never silently truncated below the source row cap
+        const sourceRowCap = this.lightdashConfig.query.maxLimit;
 
         const sources = await Promise.all(
             mergeQuery.sources.map(async (source) => {
                 const resolvedMetricQuery =
                     resolvedMetricQueryBySourceId[source.id];
-                const joinKeyColumnByName = Object.fromEntries(
-                    mergeQuery.joinKey.map((part) => [
-                        part.name,
-                        part.fieldIdBySourceId[source.id],
-                    ]),
-                );
                 const valueColumns = [
                     ...resolvedMetricQuery.metrics,
                     ...resolvedMetricQuery.tableCalculations.map(
@@ -6016,13 +5995,11 @@ export class ProjectService extends BaseService {
                 );
 
                 // A result source is already materialized: it contributes
-                // columns and rows, never SQL — only the compose engine can
-                // join it, which `requiresCompose` reports.
+                // columns and rows, never SQL
                 if (isMergeResultSource(source)) {
                     return {
                         id: source.id,
-                        sql: '',
-                        joinKeyColumnByName,
+                        sql: null,
                         valueColumns,
                         missingParameters: [],
                         parameterReferences: [],
@@ -6034,24 +6011,20 @@ export class ProjectService extends BaseService {
                 // Each metric source compiles exactly as it would on its own,
                 // so a merged query inherits the same access rules, required
                 // filters and parameter handling as the query it was built
-                // from.
+                // from. This is the statement the leg runs: whole, at the
+                // source row cap, unsorted.
                 const compiled = await this.compileQuery({
                     account,
                     projectUuid,
                     exploreName: source.metricQuery.exploreName,
-                    body: { ...source.metricQuery, parameters },
+                    body: {
+                        ...source.metricQuery,
+                        sorts: [],
+                        limit: sourceRowCap,
+                        parameters,
+                    },
                     userAttributeOverrides,
-                    // A pre-aggregate compiles to a placeholder table name
-                    // that only the pre-aggregate execution path resolves.
-                    // A merge embeds this SQL as a CTE and runs it itself,
-                    // so routing here would emit a statement the warehouse
-                    // cannot parse.
                     usePreAggregateCache: false,
-                    // No per-side ORDER BY or LIMIT: a limited side would
-                    // join only its top-N rows — a silent truncation that
-                    // looks like real data. The merged statement sorts and
-                    // limits once for the whole result.
-                    asCteBody: true,
                 });
                 // The single-query path refuses to run with an unvalued
                 // parameter; the compile-for-embedding path only warns.
@@ -6063,7 +6036,6 @@ export class ProjectService extends BaseService {
                 return {
                     id: source.id,
                     sql: compiled.query,
-                    joinKeyColumnByName,
                     valueColumns,
                     missingParameters: Array.from(
                         compiled.missingParameterReferences,
@@ -6098,6 +6070,10 @@ export class ProjectService extends BaseService {
             {},
             ...sources.map((source) => source.usedParametersValues),
         );
+        const legs: MergeCompiledLeg[] = sources.map((source) => ({
+            sourceId: source.id,
+            sql: source.sql,
+        }));
         if (parameterErrors.length > 0) {
             return {
                 sql: null,
@@ -6111,41 +6087,26 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
-                requiresCompose,
+                legs: [],
+                requiresCompose: false,
                 errors: parameterErrors,
             };
         }
 
-        // A placeholder per key so null keys match each other rather than
-        // landing as two unmatched rows. Safe because the join also compares
-        // null-ness: a real value equal to the placeholder can never pair with
-        // a null.
-        const { nullPlaceholderByKeyName, stringJoinKeyNames } =
-            getMergeJoinKeySqlOptions(
-                mergeQuery.joinKey,
-                fieldTypes,
-                warehouseSqlBuilder,
-            );
-
-        const mergeQueryBuilder = new MergeQueryBuilder({
-            sources,
-            joinKeyNames: mergeQuery.joinKey.map((part) => part.name),
+        // The join, in the compose engine's dialect over the legs' results.
+        // Clamped like any other query: the merged statement is the one
+        // that actually returns rows, so the instance row cap applies to it
+        // rather than to the queries it was assembled from.
+        const { builder: mergeQueryBuilder } = createComposeMergeQueryBuilder({
+            sources: sources.map((source) => ({
+                id: source.id,
+                valueColumns: source.valueColumns,
+            })),
+            joinKey: mergeQuery.joinKey,
             joinType: mergeQuery.joinType,
-            warehouseSqlBuilder,
-            // Clamped like any other query: the merged statement is the one
-            // that actually returns rows, so the instance row cap applies to
-            // it rather than to the queries it was assembled from.
-            limit: Math.min(
-                mergeQuery.limit,
-                this.lightdashConfig.query.maxLimit,
-            ),
             tableCalculations: mergeQuery.tableCalculations,
-            nullPlaceholderByKeyName,
-            stringJoinKeyNames,
-            // Each query is bounded, but reaching the bound is reported rather
-            // than trimmed: a join over a trimmed side returns numbers that
-            // look complete and are not.
-            sourceRowCap: this.lightdashConfig.query.maxLimit,
+            fieldTypes,
+            limit: Math.min(mergeQuery.limit, sourceRowCap),
         });
 
         // Resolve calculation references against the columns the merge
@@ -6201,7 +6162,8 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
-                requiresCompose,
+                legs: [],
+                requiresCompose: false,
                 errors: referenceErrors,
             };
         }
@@ -6539,27 +6501,21 @@ export class ProjectService extends BaseService {
                 parameterReferences,
                 usedParametersValues,
                 fieldIdByColumn: {},
-                requiresCompose,
+                legs: [],
+                requiresCompose: false,
                 errors: typeErrors,
             };
         }
 
         // Named by field id, so results are keyed by the same ids the
-        // items map is keyed by and every lookup downstream resolves. A merge
-        // over result sources has no warehouse statement: the compose path
-        // builds its own join over the referenced results.
-        const coreSql = requiresCompose
-            ? null
-            : mergeQueryBuilder.toCoreSql(fieldIdByColumn);
-        const terminalWrapper = requiresCompose
-            ? null
-            : mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
+        // items map is keyed by and every lookup downstream resolves
+        const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
+        const terminalWrapper =
+            mergeQueryBuilder.buildTerminalWrapper(fieldIdByColumn);
 
         return {
-            sql:
-                coreSql !== null && terminalWrapper !== null
-                    ? applyMergeTerminalWrapper(coreSql, terminalWrapper)
-                    : null,
+            sql: applyMergeTerminalWrapper(coreSql, terminalWrapper),
+            legs,
             coreSql,
             typedColumns,
             terminalWrapper,
@@ -6572,7 +6528,7 @@ export class ProjectService extends BaseService {
             parameterReferences,
             usedParametersValues,
             fieldIdByColumn,
-            requiresCompose,
+            requiresCompose: false,
             errors: [],
         };
     }

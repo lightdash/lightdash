@@ -486,6 +486,7 @@ describe('QuerySourceService', () => {
             columns: { mode: 'discover' },
             engine: 'scopedToReferencedResults',
             guard: null,
+            referenceLabels: {},
         };
         const legAndJoin: SourceQuery[] = [
             {
@@ -740,6 +741,7 @@ describe('composer pipelines return the standard results interface', () => {
             columns: { mode: 'discover' },
             engine: 'scopedToReferencedResults',
             guard: null,
+            referenceLabels: {},
         };
 
         const result = await service.submitQueries({
@@ -817,6 +819,7 @@ describe('composer pipelines return the standard results interface', () => {
             },
             engine: 'scopedToReferencedResults',
             guard: null,
+            referenceLabels: {},
         };
 
         await service.submitQueries({

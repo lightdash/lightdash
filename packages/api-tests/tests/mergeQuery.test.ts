@@ -33,12 +33,11 @@ import { uniqueName } from '../helpers/test-isolation';
 
 // Two independent aggregations of the jaffle dataset, joined on the order
 // month. The payments explore joins orders, so both sides expose the same
-// month dimension. Two flags touch merges: `merge-queries` gates the Explorer
-// entry point only, and `merge-on-compose` runs each source as its own leg
-// and joins the results on the compose engine instead of in one warehouse
-// statement. Whichever path a warehouse takes, every merged value must equal
-// what its source query returns on its own; this suite is that bar, and a
-// warehouse going green here is the gate for changing how its merges run.
+// month dimension. One flag touches merges: `merge-queries` gates the
+// Explorer entry point only. A merge runs each source as its own leg on the
+// warehouse and joins the results on the compose engine; every merged value
+// must equal what its source query returns on its own, and this suite is
+// that bar for every credentialed warehouse.
 const ordersByMonth = {
     exploreName: 'orders',
     dimensions: ['orders_order_date_month'],
@@ -481,12 +480,9 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
     }, 90_000);
 
     // Result sources: an existing query result referenced by queryUuid joins
-    // as the rows it already holds — nothing re-runs. Only the compose
-    // engine can join one, so environments without it must refuse with the
-    // compose_required contract instead of falling back to a warehouse
-    // statement that cannot exist. The same parity bar applies either way:
-    // merged values must equal what the referenced queries returned.
-    it('merges existing query results by queryUuid, or refuses without the compose engine', async () => {
+    // as the rows it already holds — nothing re-runs. The same parity bar
+    // applies: merged values must equal what the referenced queries returned.
+    it('merges existing query results by queryUuid', async () => {
         const startAndFetch = async (query: Record<string, unknown>) => {
             const started = await admin.post<Body<{ queryUuid: string }>>(
                 `/api/v2/projects/${projectUuid}/query/metric-query`,
@@ -527,11 +523,12 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
             context: QueryExecutionContext.EXPLORE,
         });
         expect(runResp.status).toBe(200);
-        if (runResp.body.results.outcome === 'refused') {
-            expect(
-                runResp.body.results.errors.map((error) => error.kind),
-            ).toContain(MergeQueryErrorKind.COMPOSE_REQUIRED);
-            return;
+        if (runResp.body.results.outcome !== 'started') {
+            throw new Error(
+                `Expected the merge to start: ${JSON.stringify(
+                    runResp.body.results.errors,
+                )}`,
+            );
         }
 
         const results = await pollQueryResults(

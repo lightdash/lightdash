@@ -291,14 +291,6 @@ export enum FeatureFlags {
     QueryHistory = 'query-history',
 
     /**
-     * Run merges as composition: each source executes separately against
-     * the warehouse and the DuckDB compose engine joins the results. Falls
-     * back to the single-statement warehouse merge when the compose engine
-     * is unavailable or the merge needs a pivot. Off by default.
-     */
-    MergeOnCompose = 'merge-on-compose',
-
-    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */

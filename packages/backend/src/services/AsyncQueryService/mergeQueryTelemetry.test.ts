@@ -97,30 +97,6 @@ describe('buildMergeExecutedEvent', () => {
             },
         });
     });
-
-    it('reports a warehouse merge with no legs and no outcome', () => {
-        const event = buildMergeExecutedEvent({
-            submission,
-            queryId: 'merge-query-uuid',
-            engine: 'warehouse',
-            status: 'started',
-            cacheHit: true,
-            legCacheHits: [],
-            rowCount: null,
-            durationMs: null,
-            joinExecutionTimeMs: null,
-        });
-
-        expect(event.properties).toMatchObject({
-            engine: 'warehouse',
-            status: 'started',
-            cacheHit: true,
-            legCount: 0,
-            legCacheHitCount: 0,
-            rowCount: null,
-            durationMs: null,
-        });
-    });
 });
 
 describe('buildMergeRefusedEvent', () => {
