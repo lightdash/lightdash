@@ -10,7 +10,7 @@ on:
         paths:
             - 'packages/frontend/src/**'
             - 'scripts/scope-tours/**'
-            - 'scripts/scope-tours.test.ts'
+            - 'scripts/scope-tours/scope-tours.test.ts'
             - '.github/workflows/scope-tours-check.yml'
 
 permissions:
@@ -33,7 +33,7 @@ jobs:
             - name: Build common
               run: pnpm common-build
             - name: Checker tests
-              run: npx tsx scripts/scope-tours.test.ts
+              run: npx tsx scripts/scope-tours/scope-tours.test.ts
             - name: Generated tours are up to date
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
