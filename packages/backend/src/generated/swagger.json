@@ -59952,7 +59952,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.139.0",
+        "version": "2.140.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -92154,6 +92154,84 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/custom-metrics/{metricTable}/{metricName}": {
+            "delete": {
+                "operationId": "deleteDashboardCustomMetric",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateDashboardCustomMetricResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a custom metric from the dashboard registry. Charts keep their\nlocal snapshots — the metric just stops being offered to new charts.\nWith `dryRun` it only reports the charts still using it.",
+                "summary": "Delete dashboard custom metric",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "uuid or slug for the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    },
+                    {
+                        "description": "table of the registry metric to remove",
+                        "in": "path",
+                        "name": "metricTable",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "name of the registry metric to remove",
+                        "in": "path",
+                        "name": "metricName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "report affected charts without writing",
+                        "in": "query",
+                        "name": "dryRun",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/dashboards/{dashboardUuidOrSlug}/history": {

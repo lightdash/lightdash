@@ -1,3 +1,11 @@
+# [2.140.0](https://github.com/lightdash/lightdash/compare/2.139.0...2.140.0) (2026-09-07)
+
+
+### Features
+
+* **dashboard:** confirm before discarding unsaved chart edits in the modal ([#28747](https://github.com/lightdash/lightdash/issues/28747)) ([ac278fe](https://github.com/lightdash/lightdash/commit/ac278fe36d09ab530eb51cbe9a567b928061af5f)), closes [#28740](https://github.com/lightdash/lightdash/issues/28740)
+* **dashboard:** delete registry custom metrics with an impact preview ([#28740](https://github.com/lightdash/lightdash/issues/28740)) ([d9e1875](https://github.com/lightdash/lightdash/commit/d9e1875df90c36861cffd41049a532792fa1359d))
+
 # [2.139.0](https://github.com/lightdash/lightdash/compare/2.138.0...2.139.0) (2026-09-07)
 
 
