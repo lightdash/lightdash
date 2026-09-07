@@ -1080,6 +1080,8 @@ export class SavedChartService
             savedChartUuid,
             chartVersion,
             user,
+            undefined,
+            { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
 
         if (!verificationAfterUpdate) {
@@ -1304,6 +1306,7 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.update(
             savedChartUuid,
             chartUpdate,
+            { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
 
         if (!verificationAfterUpdate) {
@@ -2858,7 +2861,10 @@ export class SavedChartService
         chartUuid: string,
         versionUuid: string,
     ): Promise<void> {
-        const { grantAudit } = await this.checkUpdateAccess(user, chartUuid);
+        const { grantAudit, savedChart } = await this.checkUpdateAccess(
+            user,
+            chartUuid,
+        );
         const currentChartVersion = await this.savedChartModel.get(chartUuid);
         const chartVersion = await this.savedChartModel.get(
             chartUuid,
@@ -2868,6 +2874,12 @@ export class SavedChartService
             chartUuid,
             chartVersion,
             user,
+            undefined,
+            {
+                projectUuid: savedChart.projectUuid,
+                dashboardUuid: savedChart.dashboardUuid ?? null,
+                spaceUuid: savedChart.spaceUuid,
+            },
         );
         this.analytics.track({
             event: 'saved_chart_version.rollback',

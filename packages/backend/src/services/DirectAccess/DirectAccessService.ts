@@ -5,10 +5,10 @@ import {
     DirectAccessResourceType,
     ForbiddenError,
     NotFoundError,
+    SpaceMemberRole,
     type DirectAccessAssignment,
     type DirectAccessPrincipalRef,
     type RegisteredAccount,
-    type SpaceMemberRole,
     type UUID,
 } from '@lightdash/common';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
@@ -343,6 +343,10 @@ export class DirectAccessService extends BaseService {
                       'manage',
                       subject('DataApp', {
                           ...context,
+                          // App editing rights do not include policy management.
+                          access: context.access.filter(
+                              ({ role }) => role === SpaceMemberRole.ADMIN,
+                          ),
                           // A null creator can never match the self rule.
                           createdByUserUuid: location.createdByUserUuid ?? '',
                       }),

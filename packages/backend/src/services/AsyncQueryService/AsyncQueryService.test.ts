@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     Account,
     AnyType,
+    assertUnreachable,
     ChartType,
     CreateWarehouseCredentials,
     DimensionType,
@@ -5313,8 +5314,22 @@ describe('AsyncQueryService', () => {
         });
 
         it('threads the source dateZoom from request_parameters into the totals query', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-uuid',
+                        projectUuid,
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space-uuid',
+                        dashboardUuid: 'dashboard-uuid',
+                    }),
+                },
+            } as never);
             const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                ...account.user.ability.rules,
+                { subject: 'SavedChart', action: 'view' },
+            ]);
 
             const dateZoom = {
                 granularity: 'MONTH',
@@ -6242,6 +6257,568 @@ describe('checkDashboardChartQueryPermissions', () => {
             },
         );
     });
+});
+
+describe('saved chart query result access', () => {
+    const buildFixture = (
+        accountOptions: Parameters<typeof buildAccount>[0] = {},
+    ) => {
+        const account = buildAccount(accountOptions);
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                subject: 'Project',
+                action: 'view',
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: {
+                    access: { $elemMatch: { userUuid: account.user.id } },
+                },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: { inheritsFromOrgOrProject: true },
+            },
+            { subject: 'UnderlyingData', action: 'view' },
+            { subject: 'Explore', action: 'manage' },
+        ]);
+        const history: QueryHistory = {
+            queryUuid: 'source-query-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            context: QueryExecutionContext.CHART,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { chartUuid: 'source-chart-uuid' },
+            metricQuery: metricQueryMock,
+            fields: validExplore.tables.a.dimensions,
+            columns: expectedColumns,
+            resultsFileName: 'results.jsonl',
+            resultsExpiresAt: new Date(Date.now() + 60_000),
+            totalRowCount: 1,
+            defaultPageSize: 10,
+            createdAt: new Date(),
+            createdBy: account.user.id,
+            createdByUserUuid: account.user.id,
+            createdByAccount: null,
+            createdByActorType: account.authentication.type,
+            warehouseQueryId: null,
+            warehouseQueryMetadata: null,
+            compiledSql: 'select 1',
+            usedParameters: null,
+            warehouseExecutionTimeMs: null,
+            error: null,
+            erroredAt: null,
+            cacheKey: 'cache-key',
+            pivotConfiguration: null,
+            pivotValuesColumns: null,
+            pivotTotalColumnCount: null,
+            resultsCreatedAt: new Date(),
+            resultsUpdatedAt: new Date(),
+            originalColumns: expectedColumns,
+            preAggregateCompiledSql: null,
+            preAggregateExecution: null,
+            preAggregateFallbackReason: null,
+            processingStartedAt: null,
+        };
+        const getChart = vi.fn().mockResolvedValue({
+            uuid: 'source-chart-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            spaceUuid: 'current-space-uuid',
+            dashboardUuid: null,
+        });
+        const resolveAccess = vi.fn().mockResolvedValue({
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            inheritsFromOrgOrProject: false,
+            access: [],
+            admins: [],
+            directOnly: false,
+        });
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: { get: getChart },
+            spacePermissionService: { resolveAccess },
+            featureFlagModel: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.ComposeSqlRunner,
+                    enabled: true,
+                })),
+            },
+        } as never);
+        service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
+        service.exportsStorageClient = {
+            isEnabled: () => true,
+        } as FileStorageClient;
+        const exportFile = vi
+            .spyOn(
+                service as unknown as {
+                    downloadAsyncQueryResultsAsFormattedFile: () => Promise<{
+                        fileUrl: string;
+                        truncated: boolean;
+                    }>;
+                },
+                'downloadAsyncQueryResultsAsFormattedFile',
+            )
+            .mockResolvedValue({ fileUrl: 'export.csv', truncated: false });
+        return {
+            account,
+            service,
+            history,
+            getChart,
+            resolveAccess,
+            exportFile,
+        };
+    };
+
+    it('denies result reads after the source chart grant is revoked', async () => {
+        const { account, service } = buildFixture();
+        await expect(
+            service.getAsyncQueryResults({
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('denies CSV generation after the source chart grant is revoked', async () => {
+        const { account, service, exportFile } = buildFixture();
+        await expect(
+            service.download({
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+                type: DownloadFileType.CSV,
+                accessMode:
+                    PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(exportFile).not.toHaveBeenCalled();
+        expect(
+            service.resultsStorageClient.getFirstLine,
+        ).not.toHaveBeenCalled();
+    });
+
+    const readOrDownload = (
+        service: AsyncQueryService,
+        account: Account,
+        operation: 'read' | 'download',
+    ) => {
+        const args = { account, projectUuid, queryUuid: 'source-query-uuid' };
+        return operation === 'read'
+            ? service.getAsyncQueryResults(args)
+            : service.download({
+                  ...args,
+                  type: DownloadFileType.CSV,
+                  accessMode:
+                      PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+              });
+    };
+
+    describe.each(['read', 'download'] as const)('%s', (operation) => {
+        it.each(['direct', 'group', 'space', 'project'] as const)(
+            'allows remaining %s access after a direct grant is removed',
+            async (accessSource) => {
+                const { account, service, resolveAccess } = buildFixture();
+                resolveAccess.mockResolvedValue({
+                    inheritsFromOrgOrProject: accessSource === 'project',
+                    access:
+                        accessSource === 'project'
+                            ? []
+                            : [{ userUuid: account.user.id, role: 'viewer' }],
+                    directOnly: accessSource === 'direct',
+                });
+                await expect(
+                    readOrDownload(service, account, operation),
+                ).resolves.toBeDefined();
+            },
+        );
+
+        it('checks the current owning dashboard instead of the historical one', async () => {
+            const { account, service, history, getChart, resolveAccess } =
+                buildFixture();
+            history.requestParameters = {
+                chartUuid: 'source-chart-uuid',
+                dashboardUuid: 'old-dashboard-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+            };
+            getChart.mockResolvedValue({
+                uuid: 'source-chart-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                spaceUuid: 'current-space-uuid',
+                dashboardUuid: 'current-dashboard-uuid',
+            });
+            resolveAccess.mockImplementation(async (_userUuid, target) => ({
+                inheritsFromOrgOrProject: false,
+                access:
+                    target.dashboardUuid === 'old-dashboard-uuid'
+                        ? [{ userUuid: account.user.id, role: 'viewer' }]
+                        : [],
+            }));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getChart).toHaveBeenCalledWith(
+                'source-chart-uuid',
+                undefined,
+                { projectUuid },
+            );
+        });
+
+        it('allows access through the current owning dashboard', async () => {
+            const { account, service, getChart, resolveAccess } =
+                buildFixture();
+            getChart.mockResolvedValue({
+                uuid: 'source-chart-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                spaceUuid: 'current-space-uuid',
+                dashboardUuid: 'current-dashboard-uuid',
+            });
+            resolveAccess.mockImplementation(async (_userUuid, target) => ({
+                inheritsFromOrgOrProject: false,
+                access:
+                    target.dashboardUuid === 'current-dashboard-uuid'
+                        ? [{ userUuid: account.user.id, role: 'viewer' }]
+                        : [],
+            }));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+        });
+
+        it('denies results when the source chart has been deleted', async () => {
+            const { account, service, getChart } = buildFixture();
+            getChart.mockRejectedValue(new NotFoundError('Chart not found'));
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('preserves inherited service-account access', async () => {
+            const { account, service, resolveAccess } = buildFixture({
+                accountType: 'service-account',
+            });
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            });
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+        });
+
+        it('preserves the existing JWT access contract', async () => {
+            const { account, service, getChart } = buildFixture({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+            await expect(
+                readOrDownload(service, account, operation),
+            ).resolves.toBeDefined();
+            expect(getChart).not.toHaveBeenCalled();
+        });
+
+        it.each(['metric', 'sql', 'legacySqlChart'] as const)(
+            'preserves %s queries without saved-chart identity',
+            async (queryType) => {
+                const { account, service, history, getChart } = buildFixture();
+                history.requestParameters =
+                    queryType === 'sql'
+                        ? { sql: 'select 1' }
+                        : { query: metricQueryMock };
+                history.context =
+                    queryType === 'legacySqlChart'
+                        ? QueryExecutionContext.SQL_CHART
+                        : QueryExecutionContext.EXPLORE;
+                await expect(
+                    readOrDownload(service, account, operation),
+                ).resolves.toBeDefined();
+                expect(getChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('retains query ownership checks before source access', async () => {
+            const { account, service, getChart } = buildFixture();
+            vi.mocked(service.queryHistoryModel.get).mockRejectedValue(
+                new NotFoundError('Query not found for account'),
+            );
+            await expect(
+                readOrDownload(service, account, operation),
+            ).rejects.toThrow(NotFoundError);
+            expect(getChart).not.toHaveBeenCalled();
+        });
+    });
+
+    it.each([
+        'history',
+        'raw',
+        'stream',
+        'rerun',
+        'totals',
+        'underlying',
+        'schedule',
+    ] as const)(
+        'denies revoked source access through %s',
+        async (operation) => {
+            const { account, service } = buildFixture();
+            const args = {
+                account,
+                projectUuid,
+                queryUuid: 'source-query-uuid',
+            };
+            const run = () => {
+                switch (operation) {
+                    case 'schedule':
+                        return service.scheduleDownloadAsyncQueryResults(args);
+                    case 'history':
+                        return service.getAsyncQueryHistory(args);
+                    case 'raw':
+                        return service.getRawAsyncQueryResults(args);
+                    case 'stream':
+                        return service.getResultsStream(args);
+                    case 'rerun':
+                        return service.executeAsyncUnboundedRerunFromQueryHistory(
+                            { ...args, context: QueryExecutionContext.CSV },
+                        );
+                    case 'totals':
+                        return service.executeAsyncCalculateTotalFromQueryHistory(
+                            { ...args, kind: 'grandTotal' },
+                        );
+                    case 'underlying':
+                        return service.executeAsyncUnderlyingDataQuery({
+                            account,
+                            projectUuid,
+                            underlyingDataSourceQueryUuid: args.queryUuid,
+                            filters: {},
+                            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        });
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown query operation',
+                        );
+                }
+            };
+            await expect(run()).rejects.toThrow(ForbiddenError);
+        },
+    );
+    it('denies composing a reference to a revoked saved-chart result', async () => {
+        const { account, service, getChart } = buildFixture();
+        const references = { source: '11111111-1111-4111-8111-111111111111' };
+        await expect(
+            service.executeAsyncComposeSqlQuery({
+                account,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'select * from source',
+                references,
+            }),
+        ).rejects.toThrow("You don't have access to this chart");
+        expect(getChart).toHaveBeenCalled();
+    });
+
+    it('denies merge metadata for a revoked saved-chart result', async () => {
+        const { account, service } = buildFixture();
+        await expect(
+            service['getMergeResultSourceMetadata'](
+                account,
+                projectUuid,
+                'source-query-uuid',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it.each(['totals', 'rerun', 'underlying'] as const)(
+        'retains source access when %s are prepared before revocation',
+        async (operation) => {
+            const { account, service, history, resolveAccess } = buildFixture();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            const execution = service as unknown as {
+                getExploreForMetricQueryExecution: () => Promise<unknown>;
+                getExploreWithUserAccessControls: () => Promise<unknown>;
+                prepareMetricQueryAsyncQueryArgs: () => Promise<QueryComposer>;
+                executeAsyncQuery: (
+                    args: unknown,
+                    parameters: ExecuteAsyncQueryRequestParams,
+                ) => Promise<{ queryUuid: string; cacheMetadata: {} }>;
+            };
+            vi.spyOn(
+                execution,
+                'getExploreForMetricQueryExecution',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'getExploreWithUserAccessControls',
+            ).mockResolvedValue({ explore: validExplore });
+            vi.spyOn(
+                execution,
+                'prepareMetricQueryAsyncQueryArgs',
+            ).mockResolvedValue(createQueryComposerMock());
+            const persist = vi
+                .spyOn(execution, 'executeAsyncQuery')
+                .mockImplementation(async (_args, requestParameters) => {
+                    vi.mocked(service.queryHistoryModel.get).mockImplementation(
+                        async (queryUuid) =>
+                            queryUuid === history.queryUuid
+                                ? history
+                                : {
+                                      ...history,
+                                      queryUuid: 'derived-query-uuid',
+                                      requestParameters,
+                                  },
+                    );
+                    return {
+                        queryUuid: 'derived-query-uuid',
+                        cacheMetadata: {},
+                    };
+                });
+            const args = { account, projectUuid, queryUuid: history.queryUuid };
+            const derive = async () => {
+                switch (operation) {
+                    case 'totals':
+                        return service.executeAsyncCalculateTotalFromQueryHistory(
+                            { ...args, kind: 'grandTotal' },
+                        );
+                    case 'rerun':
+                        return service.executeAsyncUnboundedRerunFromQueryHistory(
+                            { ...args, context: QueryExecutionContext.CSV },
+                        );
+                    case 'underlying':
+                        return service.executeAsyncUnderlyingDataQuery({
+                            account,
+                            projectUuid,
+                            underlyingDataSourceQueryUuid: history.queryUuid,
+                            filters: {},
+                            context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                        });
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown derivation',
+                        );
+                }
+            };
+            const result = await derive();
+            expect(result).toMatchObject({ queryUuid: 'derived-query-uuid' });
+            expect(persist).toHaveBeenCalledTimes(1);
+            const persistedParameters = persist.mock.calls[0][1];
+            expect(persistedParameters).not.toHaveProperty('chartUuid');
+            if (operation === 'underlying') {
+                expect(persistedParameters).toMatchObject({
+                    underlyingDataSourceQueryUuid: history.queryUuid,
+                    filters: {},
+                });
+            } else {
+                expect(persistedParameters).toMatchObject({
+                    query: metricQueryMock,
+                });
+                expect(persistedParameters).not.toHaveProperty(
+                    'underlyingDataSourceQueryUuid',
+                );
+            }
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            });
+            await expect(
+                service.getAsyncQueryResults({
+                    ...args,
+                    queryUuid: 'derived-query-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+    it.each(['underlying', 'compose', 'merge'] as const)(
+        'rechecks the source of existing %s result references',
+        async (operation) => {
+            const { account, service, history, resolveAccess } = buildFixture();
+            const sourceUuid = history.queryUuid;
+            const getRequestParameters = (): ExecuteAsyncQueryRequestParams => {
+                switch (operation) {
+                    case 'underlying':
+                        return {
+                            underlyingDataSourceQueryUuid: sourceUuid,
+                            filters: {},
+                        };
+                    case 'compose':
+                        return {
+                            sql: 'select * from source',
+                            references: { source: sourceUuid },
+                        };
+                    case 'merge':
+                        return {
+                            mergeQuery: {
+                                sources: [
+                                    { id: 'source', queryUuid: sourceUuid },
+                                ],
+                                joinKey: [],
+                                joinType: MergeJoinType.INNER,
+                                tableCalculations: [],
+                                limit: 10,
+                            },
+                        };
+                    default:
+                        return assertUnreachable(
+                            operation,
+                            'Unknown derived source',
+                        );
+                }
+            };
+            const requestParameters = getRequestParameters();
+            vi.mocked(service.queryHistoryModel.get).mockImplementation(
+                async (queryUuid) =>
+                    queryUuid === sourceUuid
+                        ? history
+                        : {
+                              ...history,
+                              queryUuid: 'derived-query-uuid',
+                              requestParameters,
+                          },
+            );
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [{ userUuid: account.user.id, role: 'viewer' }],
+            });
+            const args = {
+                account,
+                projectUuid,
+                queryUuid: 'derived-query-uuid',
+            };
+            await expect(
+                service.getAsyncQueryResults(args),
+            ).resolves.toBeDefined();
+            resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: false,
+                access: [],
+            });
+            await expect(service.getAsyncQueryResults(args)).rejects.toThrow(
+                ForbiddenError,
+            );
+            await expect(
+                service.download({
+                    ...args,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
 });
 
 describe('getQueryHistoryList', () => {

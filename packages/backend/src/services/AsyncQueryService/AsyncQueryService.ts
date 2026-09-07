@@ -1288,18 +1288,113 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private static getQuerySourceParameters(
+        parameters: ExecuteAsyncQueryRequestParams | undefined,
+    ): { chartUuid?: string; references?: Record<string, string> } {
+        if (!parameters) {
+            return {};
+        }
+        if ('chartUuid' in parameters) {
+            return { chartUuid: parameters.chartUuid };
+        }
+        if ('underlyingDataSourceQueryUuid' in parameters) {
+            return {
+                references: {
+                    source: parameters.underlyingDataSourceQueryUuid,
+                },
+            };
+        }
+        if ('references' in parameters) {
+            return { references: parameters.references };
+        }
+        if ('mergeQuery' in parameters) {
+            return {
+                references: Object.fromEntries(
+                    parameters.mergeQuery.sources.flatMap((source) =>
+                        'queryUuid' in source
+                            ? [[source.id, source.queryUuid]]
+                            : [],
+                    ),
+                ),
+            };
+        }
+        return {};
+    }
+
+    private async assertSavedChartQuerySourceAccess(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+        checkedQueries = new Set<string>(),
+    ): Promise<void> {
+        if (isJwtUser(account) || checkedQueries.has(queryHistory.queryUuid)) {
+            return;
+        }
+        checkedQueries.add(queryHistory.queryUuid);
+        const { chartUuid, references } =
+            AsyncQueryService.getQuerySourceParameters(
+                queryHistory.requestParameters,
+            );
+        if (!chartUuid) {
+            await Promise.all(
+                Object.values(references ?? {}).map(async (sourceQueryUuid) => {
+                    const source = await this.queryHistoryModel.get(
+                        sourceQueryUuid,
+                        projectUuid,
+                        account,
+                    );
+                    await this.assertSavedChartQuerySourceAccess(
+                        account,
+                        projectUuid,
+                        source,
+                        checkedQueries,
+                    );
+                }),
+            );
+            return;
+        }
+
+        const chart = await this.savedChartModel.get(chartUuid, undefined, {
+            projectUuid,
+        });
+        const context = await this.spacePermissionService.resolveAccess(
+            account.user.id,
+            {
+                type: 'chart',
+                chartUuid: chart.uuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            },
+        );
+        const ability = this.createAuditedAbility(account);
+        if (
+            ability.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    inheritsFromOrgOrProject: context.inheritsFromOrgOrProject,
+                    access: context.access,
+                    metadata: { savedChartUuid: chart.uuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
     /**
      * The access check for reading a query's results by uuid: the account
      * must be able to view the project, be the embed AI JWT creator of the
      * query, or be able to view the query's explore. Note the query history
      * row itself is already creator-scoped by QueryHistoryModel.get.
      */
-    private throwIfCannotReadQueryHistory(
+    private async throwIfCannotReadQueryHistory(
         account: Account,
         projectUuid: string,
         organizationUuid: string,
         queryHistory: QueryHistory,
-    ): void {
+    ): Promise<void> {
         const { queryUuid } = queryHistory;
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -1336,6 +1431,12 @@ export class AsyncQueryService extends ProjectService {
         if (isForbidden) {
             throw new ForbiddenError();
         }
+
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
     }
 
     async getAsyncQueryResults({
@@ -1352,7 +1453,7 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
         ]);
 
-        this.throwIfCannotReadQueryHistory(
+        await this.throwIfCannotReadQueryHistory(
             account,
             projectUuid,
             organizationUuid,
@@ -1578,15 +1679,20 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        if (canViewProject) {
-            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
-        }
-
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            queryHistory,
+        );
+
+        if (canViewProject) {
+            return queryHistory;
+        }
 
         if (
             auditedAbility.cannot(
@@ -1640,6 +1746,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const { status, resultsFileName } = queryHistory;
@@ -1755,6 +1866,17 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            payload.queryUuid,
+            payload.projectUuid,
+            account,
+        );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            payload.projectUuid,
+            queryHistory,
+        );
 
         const userUuid = account.user.id;
 
@@ -1946,6 +2068,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
@@ -5100,6 +5227,7 @@ export class AsyncQueryService extends ProjectService {
             totalConfiguration,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
+        sourceQueryHistory?: QueryHistory,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -5224,7 +5352,15 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer.getUserAccessControls(),
             );
 
+        const sourceParameters = AsyncQueryService.getQuerySourceParameters(
+            sourceQueryHistory?.requestParameters,
+        );
+        const references =
+            sourceQueryHistory && sourceParameters.chartUuid
+                ? { source: sourceQueryHistory.queryUuid }
+                : sourceParameters.references;
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
+            ...(references ? { references } : {}),
             context,
             query: effectiveMetricQuery,
             parameters: combinedParameters,
@@ -5324,6 +5460,11 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            source,
+        );
 
         const { csvCellsLimit, maxLimit } =
             await resolveOrganizationExportLimits(
@@ -5358,6 +5499,7 @@ export class AsyncQueryService extends ProjectService {
                     invalidateCache,
                 },
                 organizationUuid,
+                source,
             );
 
         return {
@@ -5390,13 +5532,16 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        // `get` enforces the query belongs to this project and was created by
-        // this account — that ownership authorizes the totals query, so we skip
-        // the explore-level CASL gate (which embed JWT callers can't pass).
+        // Preserve the embed JWT contract without requiring explore-level access.
         const [source, { organizationUuid }] = await Promise.all([
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            source,
+        );
 
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
@@ -5424,6 +5569,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
             },
             organizationUuid,
+            source,
         );
     }
 
@@ -6838,12 +6984,17 @@ export class AsyncQueryService extends ProjectService {
             isServiceAccount: account.isServiceAccount(),
         });
 
-        const { metricQuery, fields: metricQueryFields } =
-            await this.queryHistoryModel.get(
-                underlyingDataSourceQueryUuid,
-                projectUuid,
-                account,
-            );
+        const source = await this.queryHistoryModel.get(
+            underlyingDataSourceQueryUuid,
+            projectUuid,
+            account,
+        );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            source,
+        );
+        const { metricQuery, fields: metricQueryFields } = source;
 
         const { exploreName } = metricQuery;
 
@@ -7251,7 +7402,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                 );
 
-                this.throwIfCannotReadQueryHistory(
+                await this.throwIfCannotReadQueryHistory(
                     account,
                     projectUuid,
                     organizationUuid,
@@ -9197,6 +9348,11 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             projectUuid,
             account,
+        );
+        await this.assertSavedChartQuerySourceAccess(
+            account,
+            projectUuid,
+            queryHistory,
         );
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new ParameterError(
