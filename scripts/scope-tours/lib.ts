@@ -270,11 +270,21 @@ export const DOCS_SITE = 'https://docs.lightdash.com';
  * URLs are left alone.
  */
 export const docsUrl = (page: string, href: string): string => {
-    if (/^[a-z]+:/i.test(href)) return href;
-    if (href.startsWith('#')) {
-        return `${DOCS_SITE}/${page.replace(/\.mdx$/, '')}${href}`;
+    const resolved = (() => {
+        if (/^[a-z]+:/i.test(href)) return href;
+        if (href.startsWith('#')) {
+            return `${DOCS_SITE}/${page.replace(/\.mdx$/, '')}${href}`;
+        }
+        return `${DOCS_SITE}${href.startsWith('/') ? '' : '/'}${href}`;
+    })();
+    // Cards link to the docs site only: a docs edit must not be able to
+    // send learners anywhere else from inside the product.
+    if (!resolved.startsWith(`${DOCS_SITE}/`)) {
+        throw new Error(
+            `Docs link off the docs site is not allowed in a walkthrough: ${href} (in ${page})`,
+        );
     }
-    return `${DOCS_SITE}${href.startsWith('/') ? '' : '/'}${href}`;
+    return resolved;
 };
 
 export const docsParagraph = (ref: string): string => {

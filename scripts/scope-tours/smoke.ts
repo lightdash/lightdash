@@ -1,11 +1,13 @@
+import { getTrainingProjectScopes } from '@lightdash/common';
 /**
  * Runtime smoke for every generated walkthrough (CS-209): a learner starts
  * each tour on a running instance and a driver completes it by clicking
  * only what the tour highlights (the ring's control, or the card's own
  * button), never anything else. A tour fails when a step makes no progress
  * in time, when Got it does not open the completion dialog, when Back to
- * library does not land on the shared training project's library, or when
- * the learner holds the scope in a real project (nothing to train).
+ * library does not land on the shared training project's library, when the
+ * scope is not in the trainee set the learner's copy grants, or when the
+ * learner holds the scope in a real project (nothing to train).
  *
  * Needs a running instance with a training project and a learner account:
  *   SMOKE_BASE_URL   (default http://localhost:3030)
@@ -446,6 +448,7 @@ const main = async () => {
                 conditions?: { projectUuid?: string };
             }[];
         });
+        const traineeScopes = getTrainingProjectScopes();
         const holds = (scope: string, projectUuid: string) => {
             const [action, subject] = scope.split(':');
             return ability.some(
@@ -461,9 +464,14 @@ const main = async () => {
         for (const scope of scopes) {
             const started = Date.now();
             try {
-                if (!holds(scope, training.projectUuid)) {
+                if (!traineeScopes.includes(scope)) {
                     throw new Error(
-                        'the learner does not hold the scope in the training project',
+                        'the scope is not in the trainee set a training copy grants',
+                    );
+                }
+                if (!holds('view:Project', training.projectUuid)) {
+                    throw new Error(
+                        'the learner cannot view the shared training project',
                     );
                 }
                 if (real && holds(scope, real.projectUuid)) {
