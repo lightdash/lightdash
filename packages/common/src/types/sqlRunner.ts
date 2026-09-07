@@ -333,6 +333,13 @@ export type ApiGithubDbtWriteBack = {
     results: PullRequestCreated;
 };
 
+export type ApiCustomDimensionWriteBackPreview = {
+    status: 'ok';
+    results: {
+        yaml: string;
+    };
+};
+
 export type ApiGithubDbtWritePreview = {
     status: 'ok';
     results: {
