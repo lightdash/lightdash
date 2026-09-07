@@ -41,7 +41,10 @@ describe('ExternalSourceModel lifecycle integration', () => {
     beforeEach(async () => {
         transaction = await getTestContext().db.transaction();
         const [organization] = await transaction('organizations')
-            .insert({ organization_name: 'External lifecycle test' })
+            .insert({
+                organization_name: 'External lifecycle test',
+                is_setup_complete: true,
+            })
             .returning(['organization_id', 'organization_uuid']);
         const [user] = await transaction('users')
             .insert({

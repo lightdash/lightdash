@@ -5,6 +5,7 @@ import {
     LightdashMode,
     validateOrganizationEmailDomains,
     type HealthState,
+    type Organization,
     type OrganizationBrandColor,
     type OrganizationBrandLogo,
 } from '@lightdash/common';
@@ -80,13 +81,6 @@ const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
     return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
 };
 
-const inferOrganizationName = (domain: string): string =>
-    (domain.split('.')[0] ?? '')
-        .split(/[-_]/)
-        .filter(Boolean)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-
 const buildBrandColors = (
     selectedColor: string,
     brandColors: OrganizationBrandColor[],
@@ -116,18 +110,18 @@ type OrganizationSetupFormValues = {
 type OrganizationSetupContentProps = {
     user: UserWithAbility;
     health: HealthState;
-    organizationHasName: boolean;
+    organization: Organization;
     completeMutation: ReturnType<typeof useUserCompleteMutation>;
 };
 
 const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     user,
     health,
-    organizationHasName,
+    organization,
     completeMutation,
 }) => {
-    const canEnterOrganizationName =
-        user.organizationName === '' && !organizationHasName;
+    // Only the creator of a not-yet-set-up organization gets the workspace step.
+    const canEnterOrganizationName = !organization.isSetupComplete;
     const emailDomain = user.email ? getEmailDomain(user.email) : '';
     const isCompanyDomain =
         !!user.email && !validateOrganizationEmailDomains([emailDomain]);
@@ -136,10 +130,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
     const form = useForm<OrganizationSetupFormValues>({
         initialValues: {
-            organizationName:
-                canEnterOrganizationName && isCompanyDomain
-                    ? inferOrganizationName(emailDomain)
-                    : '',
+            organizationName: canEnterOrganizationName ? organization.name : '',
             jobTitle: '',
             howDidYouHearAboutUs: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
@@ -591,7 +582,7 @@ const OrganizationSetup: FC = () => {
         return <Navigate to="/" />;
     }
 
-    if (organization.isInitialLoading) {
+    if (organization.isInitialLoading || !organization.data) {
         return <PageSpinner />;
     }
 
@@ -600,7 +591,7 @@ const OrganizationSetup: FC = () => {
             key={user.data.userUuid}
             user={user.data}
             health={health.data}
-            organizationHasName={!!organization.data?.name}
+            organization={organization.data}
             completeMutation={completeMutation}
         />
     );

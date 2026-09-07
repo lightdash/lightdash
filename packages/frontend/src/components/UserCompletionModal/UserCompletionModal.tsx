@@ -5,6 +5,7 @@ import {
     LightdashMode,
     validateOrganizationEmailDomains,
     type CompleteUserArgs,
+    type Organization,
 } from '@lightdash/common';
 import { Button, Checkbox, Select, Stack, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -13,16 +14,22 @@ import { useIsMutating } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
 import { jobTitles } from './jobTitles';
 
-const UserCompletionModal: FC = () => {
+type UserCompletionFormProps = {
+    organization: Organization;
+};
+
+const UserCompletionForm: FC<UserCompletionFormProps> = ({ organization }) => {
     const { health, user } = useApp();
 
-    const canEnterOrganizationName = user.data?.organizationName === '';
+    // Only the creator of a not-yet-set-up organization gets to name it.
+    const canEnterOrganizationName = !organization.isSetupComplete;
 
     const validate = useMemo(
         () =>
@@ -42,7 +49,7 @@ const UserCompletionModal: FC = () => {
 
     const form = useForm<CompleteUserArgs>({
         initialValues: {
-            organizationName: '',
+            organizationName: canEnterOrganizationName ? organization.name : '',
             jobTitle: '',
             howDidYouHearAboutUs: '',
             enableEmailDomainAccess: false,
@@ -61,11 +68,11 @@ const UserCompletionModal: FC = () => {
             ? data.howDidYouHearAboutUs?.trim() || undefined
             : undefined;
         const payload = { ...data, howDidYouHearAboutUs };
-        if (user.data?.organizationName) {
+        if (canEnterOrganizationName) {
+            mutate(payload);
+        } else {
             const { organizationName, ...rest } = payload;
             mutate(rest);
-        } else {
-            mutate(payload);
         }
     });
 
@@ -82,10 +89,11 @@ const UserCompletionModal: FC = () => {
     const canEnableEmailDomainAccess =
         canEnterOrganizationName && isValidOrganizationDomain;
 
-    useEffect(() => {
-        if (!user.data) return;
-        setFieldValue('organizationName', user.data.organizationName);
-    }, [setFieldValue, user.data]);
+    const canSubmit =
+        !!form.values.jobTitle &&
+        (!canEnterOrganizationName ||
+            (!!form.values.organizationName &&
+                !!form.values.howDidYouHearAboutUs?.trim()));
 
     useEffect(() => {
         if (!canEnableEmailDomainAccess) return;
@@ -115,14 +123,7 @@ const UserCompletionModal: FC = () => {
                     type="submit"
                     form="complete_user"
                     loading={isLoading}
-                    disabled={
-                        !(
-                            form.values.organizationName &&
-                            form.values.jobTitle &&
-                            (!canEnterOrganizationName ||
-                                form.values.howDidYouHearAboutUs?.trim())
-                        )
-                    }
+                    disabled={!canSubmit}
                 >
                     Next
                 </Button>
@@ -205,6 +206,19 @@ const UserCompletionModal: FC = () => {
             </form>
         </MantineModal>
     );
+};
+
+const UserCompletionModal: FC = () => {
+    const { user } = useApp();
+    const organization = useOrganization({
+        enabled: !!user.data && !user.data.isSetupComplete,
+    });
+
+    if (!user.data || user.data.isSetupComplete || !organization.data) {
+        return null;
+    }
+
+    return <UserCompletionForm organization={organization.data} />;
 };
 
 const UserCompletionModalWithUser = () => {

@@ -1,4 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, type Organization } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -85,6 +85,24 @@ const renderModal = (mocks?: Parameters<typeof renderWithProviders>[1]) =>
         mocks,
     );
 
+type MockOrganization = Pick<Organization, 'name' | 'isSetupComplete'>;
+
+const pendingOrganization: MockOrganization = {
+    name: 'My organization',
+    isSetupComplete: false,
+};
+
+const namedOrganization: MockOrganization = {
+    name: 'test organization',
+    isSetupComplete: true,
+};
+
+const mockOrgApi = (organization: MockOrganization) =>
+    nock(BASE_API_URL)
+        .persist()
+        .get('/api/v1/org')
+        .reply(200, { status: 'ok', results: organization });
+
 describe('UserCompletionModal', () => {
     beforeEach(() => {
         mockFeatureFlag(false);
@@ -99,6 +117,7 @@ describe('UserCompletionModal', () => {
     });
 
     it("should render user completion modal if user's setup is not complete", async () => {
+        mockOrgApi(namedOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
@@ -112,7 +131,8 @@ describe('UserCompletionModal', () => {
         ).toBeInTheDocument();
     });
 
-    it('should not show organization name input if organization already has organization name', async () => {
+    it('should not show organization name input if the organization is already set up', async () => {
+        mockOrgApi(namedOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
@@ -130,11 +150,11 @@ describe('UserCompletionModal', () => {
         expect(nameInput).not.toBeInTheDocument();
     });
 
-    it('should show organization name input if organization does not have organization name', async () => {
+    it('should show organization name input, seeded with the placeholder, while the organization is pending setup', async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
         });
 
@@ -146,14 +166,14 @@ describe('UserCompletionModal', () => {
 
         const nameInput =
             await screen.findByPlaceholderText('Enter company name');
-        expect(nameInput).toBeInTheDocument();
+        expect(nameInput).toHaveValue('My organization');
     });
 
     it("should not show email domain checkbox if user's email provider is from common email providers", async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
                 email: 'demo@gmail.com',
             },
         });
@@ -171,10 +191,10 @@ describe('UserCompletionModal', () => {
     });
 
     it('should show email domain checkbox if user is using custom email provider', async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
                 email: 'demo@lightdash.com',
             },
         });
@@ -192,10 +212,10 @@ describe('UserCompletionModal', () => {
     });
 
     it("should not show anonymize tracking checkbox if organization's mode is cloud beta", async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
             health: {
                 mode: LightdashMode.CLOUD_BETA,
@@ -215,10 +235,10 @@ describe('UserCompletionModal', () => {
     });
 
     it('should show anonymize tracking checkbox if organization is not cloud beta', async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
             health: {
                 mode: LightdashMode.DEFAULT,
@@ -240,10 +260,11 @@ describe('UserCompletionModal', () => {
     it("should submit user's completion with correct data", async () => {
         const user = userEvent.setup();
 
+        mockOrgApi(pendingOrganization);
+
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
                 email: 'demo@lightdash.com',
             },
             health: {
@@ -261,6 +282,7 @@ describe('UserCompletionModal', () => {
         const nameInput =
             await screen.findByPlaceholderText('Enter company name');
         expect(nameInput).toBeInTheDocument();
+        await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
 
         // select role
@@ -323,8 +345,10 @@ describe('UserCompletionModal', () => {
         await waitFor(() => expect(scope.isDone()).toBe(true));
     });
 
-    it("should not submit organization name and email domain if user's organization already has organization name", async () => {
+    it('should not submit organization name and email domain when the organization is already set up', async () => {
         const user = userEvent.setup();
+
+        mockOrgApi(namedOrganization);
 
         renderModal({
             user: {
@@ -385,10 +409,10 @@ describe('UserCompletionModal', () => {
     });
 
     it('should render the how did you hear about us input for the org creator', async () => {
+        mockOrgApi(pendingOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
         });
 
@@ -401,6 +425,7 @@ describe('UserCompletionModal', () => {
     });
 
     it('should not render the how did you hear about us input for invited members', async () => {
+        mockOrgApi(namedOrganization);
         renderModal({
             user: {
                 isSetupComplete: false,
@@ -419,10 +444,11 @@ describe('UserCompletionModal', () => {
     it('should submit the trimmed how did you hear about us answer', async () => {
         const user = userEvent.setup();
 
+        mockOrgApi(pendingOrganization);
+
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
         });
 
@@ -432,6 +458,7 @@ describe('UserCompletionModal', () => {
 
         const nameInput =
             await screen.findByPlaceholderText('Enter company name');
+        await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
 
         const roleSelect =
@@ -466,10 +493,11 @@ describe('UserCompletionModal', () => {
     it('should not submit completion request when referral field is empty', async () => {
         const user = userEvent.setup();
 
+        mockOrgApi(pendingOrganization);
+
         renderModal({
             user: {
                 isSetupComplete: false,
-                organizationName: '',
             },
         });
 
@@ -479,6 +507,7 @@ describe('UserCompletionModal', () => {
 
         const nameInput =
             await screen.findByPlaceholderText('Enter company name');
+        await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
 
         const roleSelect =

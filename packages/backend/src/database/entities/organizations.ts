@@ -27,9 +27,13 @@ export type DbOrganization = {
     impersonation_enabled: boolean;
     ai_agent_memory_enabled: boolean | null;
     brand: DbOrganizationBrand | null;
+    is_setup_complete: boolean;
 };
 
-export type DbOrganizationIn = Pick<DbOrganization, 'organization_name'>;
+export type DbOrganizationIn = Pick<
+    DbOrganization,
+    'organization_name' | 'is_setup_complete'
+>;
 export type DbOrganizationUpdate = Partial<
     Pick<
         DbOrganization,
@@ -39,6 +43,7 @@ export type DbOrganizationUpdate = Partial<
         | 'impersonation_enabled'
         | 'ai_agent_memory_enabled'
         | 'brand'
+        | 'is_setup_complete'
     >
 >;
 

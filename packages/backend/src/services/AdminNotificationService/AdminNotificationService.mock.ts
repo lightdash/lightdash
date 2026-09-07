@@ -21,6 +21,7 @@ export const mockOrganization: Organization = {
     needsProject: false,
     defaultProjectUuid: undefined,
     chartColors: [],
+    isSetupComplete: true,
 };
 
 export const mockTargetUser: LightdashUser = {

@@ -36,6 +36,7 @@ export const user: SessionUser = {
 export const organization: Organization = {
     organizationUuid: 'organizationUuid',
     name: 'Lightdash',
+    isSetupComplete: true,
 };
 
 export const Config = {

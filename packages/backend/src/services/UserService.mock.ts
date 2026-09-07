@@ -112,6 +112,7 @@ export const newUser: SessionUser = {
 export const organisation: Organization = {
     organizationUuid: 'organizationUuid',
     name: 'organizationName',
+    isSetupComplete: true,
 };
 
 export const userWithoutOrg: LightdashUser = {

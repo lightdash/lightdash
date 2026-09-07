@@ -49,9 +49,11 @@ export async function seed(knex: Knex): Promise<void> {
     await knex('users').del();
     await knex('organizations').del();
 
-    const addOrganization = async (seedOrganization: DbOrganizationIn) => {
+    const addOrganization = async (
+        seedOrganization: Omit<DbOrganizationIn, 'is_setup_complete'>,
+    ) => {
         const [organization] = await knex('organizations')
-            .insert(seedOrganization)
+            .insert({ ...seedOrganization, is_setup_complete: true })
             .returning(['organization_id', 'organization_uuid']);
 
         if (organization === undefined) {

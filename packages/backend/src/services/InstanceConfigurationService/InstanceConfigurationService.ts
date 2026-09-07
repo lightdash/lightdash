@@ -153,6 +153,12 @@ export class InstanceConfigurationService extends BaseService {
                 );
             }
 
+            if (setup.organization.name.trim() === '') {
+                throw new ParameterError(
+                    'Initial setup: organization name must not be empty',
+                );
+            }
+
             // No organization and no projects, we can create a new one
             // using the initial setup config
             this.logger.debug(
@@ -161,6 +167,7 @@ export class InstanceConfigurationService extends BaseService {
 
             const { organizationUuid } = await this.organizationModel.create({
                 name: setup.organization.name,
+                isSetupComplete: true,
             });
 
             this.logger.info(

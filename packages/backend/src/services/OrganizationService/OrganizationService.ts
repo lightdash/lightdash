@@ -245,7 +245,7 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (data.name) {
+        if (data.name !== undefined) {
             validateOrganizationNameOrThrow(data.name);
         }
         const org = await this.organizationModel.update(organizationUuid, data);
@@ -888,6 +888,7 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
         data: CreateOrganization,
     ): Promise<void> {
+        validateOrganizationNameOrThrow(data.name);
         if (
             !this.lightdashConfig.allowMultiOrgs &&
             (await this.userModel.hasUsers()) &&
@@ -900,7 +901,12 @@ export class OrganizationService extends BaseService {
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
-        const org = await this.organizationModel.create(data);
+        // Self-serve organizations start with a placeholder name that the
+        // creator confirms in onboarding.
+        const org = await this.organizationModel.create({
+            name: data.name,
+            isSetupComplete: false,
+        });
         const { enabled: newOnboardingEnabled } =
             await this.featureFlagModel.get({
                 user,

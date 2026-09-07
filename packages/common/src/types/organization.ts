@@ -37,6 +37,12 @@ export type Organization = {
      */
     needsProject?: boolean;
     /**
+     * Whether the person who created the organization has finished setting it
+     * up. Organizations created during signup carry a placeholder name until
+     * their creator confirms one in onboarding.
+     */
+    isSetupComplete: boolean;
+    /**
      * The project a user sees when they first log in to the organization
      */
     defaultProjectUuid?: string;
@@ -64,7 +70,7 @@ export type Organization = {
 export type CreateOrganization = Pick<Organization, 'name'>;
 
 export type UpdateOrganization = Partial<
-    Omit<Organization, 'organizationUuid' | 'needsProject'>
+    Omit<Organization, 'organizationUuid' | 'needsProject' | 'isSetupComplete'>
 >;
 
 export type ApiOrganization = {

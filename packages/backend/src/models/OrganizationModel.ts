@@ -1,6 +1,5 @@
 import {
     CreateColorPalette,
-    CreateOrganization,
     NotFoundError,
     Organization,
     OrganizationBrand,
@@ -203,6 +202,7 @@ export class OrganizationModel {
                 ? data.default_project_uuid
                 : undefined,
             createdAt: data.created_at,
+            isSetupComplete: data.is_setup_complete,
         };
     }
 
@@ -275,10 +275,13 @@ export class OrganizationModel {
         );
     }
 
-    async create(data: CreateOrganization): Promise<Organization> {
+    async create(
+        data: Pick<Organization, 'name' | 'isSetupComplete'>,
+    ): Promise<Organization> {
         const [org] = await this.database(OrganizationTableName)
             .insert({
                 organization_name: data.name,
+                is_setup_complete: data.isSetupComplete,
             })
             .returning('*');
         // seed with default color palettes
@@ -300,17 +303,20 @@ export class OrganizationModel {
 
     async update(
         organizationUuid: string,
-        data: UpdateOrganization,
+        data: UpdateOrganization &
+            Partial<Pick<Organization, 'isSetupComplete'>>,
     ): Promise<Organization> {
         // Undefined values are ignored by .update (it DOES NOT set null)
         const updateData: {
             organization_name?: string;
             default_project_uuid?: string | null;
             color_palette_uuid?: string | null;
+            is_setup_complete?: boolean;
         } = {
             organization_name: data.name,
             default_project_uuid: data.defaultProjectUuid,
             color_palette_uuid: data.colorPaletteUuid,
+            is_setup_complete: data.isSetupComplete,
         };
 
         const [org] = await this.database(OrganizationTableName)

@@ -1,4 +1,4 @@
-import { LightdashMode } from '@lightdash/common';
+import { LightdashMode, type Organization } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
@@ -34,12 +34,27 @@ const renderSetupPage = (
         mocks,
     );
 
-const mockOrgApi = (name: string, { optional = false } = {}) => {
+type MockOrganization = Pick<Organization, 'name' | 'isSetupComplete'>;
+
+const pendingOrganization: MockOrganization = {
+    name: 'My organization',
+    isSetupComplete: false,
+};
+
+const namedOrganization: MockOrganization = {
+    name: 'test organization',
+    isSetupComplete: true,
+};
+
+const mockOrgApi = (
+    organization: MockOrganization,
+    { optional = false } = {},
+) => {
     const interceptor = nock(BASE_API_URL).get('/api/v1/org');
     if (optional) {
         interceptor.optionally();
     }
-    return interceptor.reply(200, { status: 'ok', results: { name } });
+    return interceptor.reply(200, { status: 'ok', results: organization });
 };
 
 const selectRole = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -60,7 +75,7 @@ describe('OrganizationSetup', () => {
     it('does not ask invited members how they heard about us', async () => {
         const user = userEvent.setup();
 
-        mockOrgApi('test organization');
+        mockOrgApi(namedOrganization);
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -110,7 +125,7 @@ describe('OrganizationSetup', () => {
     it('submits the trimmed referral answer when a user creating an organization answers it', async () => {
         const user = userEvent.setup();
 
-        mockOrgApi('');
+        mockOrgApi(pendingOrganization);
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -123,6 +138,7 @@ describe('OrganizationSetup', () => {
         });
 
         const nameInput = await screen.findByPlaceholderText('Acme Analytics');
+        expect(nameInput).toHaveValue('My organization');
         await user.clear(nameInput);
         await user.type(nameInput, 'test organization');
         await user.click(
@@ -158,10 +174,10 @@ describe('OrganizationSetup', () => {
         await waitFor(() => expect(brandScope.isDone()).toBe(true));
     });
 
-    it('skips the workspace step when the organization is already named', async () => {
+    it('skips the workspace step when the organization is already set up', async () => {
         const user = userEvent.setup();
 
-        mockOrgApi('test organization');
+        mockOrgApi(namedOrganization);
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -204,7 +220,7 @@ describe('OrganizationSetup', () => {
     it('does not submit when referral field is empty', async () => {
         const user = userEvent.setup();
 
-        mockOrgApi('');
+        mockOrgApi(pendingOrganization);
         renderSetupPage({
             user: {
                 isSetupComplete: false,
@@ -262,7 +278,7 @@ describe('OrganizationSetup', () => {
     });
 
     it('redirects to the redirect target when setup is already complete', async () => {
-        mockOrgApi('test organization', { optional: true });
+        mockOrgApi(namedOrganization, { optional: true });
         renderSetupPage(
             {
                 user: {
@@ -277,7 +293,7 @@ describe('OrganizationSetup', () => {
     });
 
     it('falls back to home when the redirect target is the setup page itself', async () => {
-        mockOrgApi('test organization', { optional: true });
+        mockOrgApi(namedOrganization, { optional: true });
         renderSetupPage(
             {
                 user: {

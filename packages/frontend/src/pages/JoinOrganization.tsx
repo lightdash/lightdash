@@ -1,4 +1,4 @@
-import { getEmailDomain } from '@lightdash/common';
+import { getDefaultOrganizationName, getEmailDomain } from '@lightdash/common';
 import {
     Anchor,
     Avatar,
@@ -43,6 +43,9 @@ const JoinOrganizationPage: FC = () => {
         isSuccess: hasJoinedOrg,
     } = useJoinOrganizationMutation();
     const emailDomain = user.data?.email ? getEmailDomain(user.data.email) : '';
+    const defaultOrganizationName = getDefaultOrganizationName(
+        user.data?.email,
+    );
 
     // Read by both the effect that fires the auto-create and the guard that
     // holds the page while it is on its way. Derived once: two copies of this
@@ -53,9 +56,15 @@ const JoinOrganizationPage: FC = () => {
 
     useEffect(() => {
         if (shouldAutoCreateOrg && !isCreatingOrg && !isLoadingAllowedOrgs) {
-            createOrg({ name: '' });
+            createOrg({ name: defaultOrganizationName });
         }
-    }, [shouldAutoCreateOrg, createOrg, isCreatingOrg, isLoadingAllowedOrgs]);
+    }, [
+        shouldAutoCreateOrg,
+        createOrg,
+        isCreatingOrg,
+        isLoadingAllowedOrgs,
+        defaultOrganizationName,
+    ]);
 
     useEffect(() => {
         if ((hasCreatedOrg || hasJoinedOrg) && !createOrgError) {
@@ -156,7 +165,7 @@ const JoinOrganizationPage: FC = () => {
                 <Anchor
                     className={disabled ? styles.disabledAnchor : undefined}
                     component="button"
-                    onClick={() => createOrg({ name: '' })}
+                    onClick={() => createOrg({ name: defaultOrganizationName })}
                     ta="center"
                     size="sm"
                 >

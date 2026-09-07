@@ -177,6 +177,7 @@ const emailClient = {
 
 const organizationModel = {
     get: vi.fn(async () => organisation),
+    update: vi.fn(async () => organisation),
     getAllowedOrgsForDomain: vi.fn(async () => []),
 };
 
@@ -590,6 +591,50 @@ describe('UserService', () => {
     });
 
     describe('completeUserSetup', () => {
+        test('names the organization and marks its setup complete', async () => {
+            const organizationAdmin: SessionUser = {
+                ...sessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Organization', action: ['update'] },
+                ]),
+            };
+
+            await userService.completeUserSetup(organizationAdmin, {
+                organizationName: 'Acme Analytics',
+                jobTitle: '',
+                howDidYouHearAboutUs: 'A podcast',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(organizationModel.update)).toHaveBeenCalledWith(
+                sessionUser.organizationUuid,
+                { name: 'Acme Analytics', isSetupComplete: true },
+            );
+        });
+
+        test('rejects a blank organization name', async () => {
+            const organizationAdmin: SessionUser = {
+                ...sessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Organization', action: ['update'] },
+                ]),
+            };
+
+            await expect(
+                userService.completeUserSetup(organizationAdmin, {
+                    organizationName: '   ',
+                    jobTitle: '',
+                    howDidYouHearAboutUs: 'A podcast',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(organizationModel.update).not.toHaveBeenCalled();
+        });
+
         test('persists and tracks a trimmed answer', async () => {
             await userService.completeUserSetup(sessionUser, {
                 jobTitle: '',

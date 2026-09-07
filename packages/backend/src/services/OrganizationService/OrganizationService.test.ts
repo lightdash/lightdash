@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
+    ParameterError,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
@@ -146,6 +147,28 @@ describe('organization service', () => {
         process.env = {
             LIGHTDASH_INSTALL_TYPE: LightdashInstallType.UNKNOWN,
         };
+    });
+
+    it('creates the organization pending setup by its creator', async () => {
+        await organizationService.createAndJoinOrg(
+            { ...user, organizationUuid: undefined },
+            { name: 'Organization' },
+        );
+
+        expect(organizationModel.create).toHaveBeenCalledExactlyOnceWith({
+            name: 'Organization',
+            isSetupComplete: false,
+        });
+    });
+
+    it('rejects a blank organization name', async () => {
+        await expect(
+            organizationService.createAndJoinOrg(
+                { ...user, organizationUuid: undefined },
+                { name: '   ' },
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationModel.create).not.toHaveBeenCalled();
     });
 
     it('tracks the onboarding flow when creating an organization', async () => {

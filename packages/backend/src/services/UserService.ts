@@ -1506,6 +1506,7 @@ export class UserService extends BaseService {
 
             await this.organizationModel.update(user.organizationUuid, {
                 name: organizationName,
+                isSetupComplete: true,
             });
             this.analytics.track({
                 userId: user.userUuid,
