@@ -73,6 +73,11 @@ type ReclaimClaim = {
     claimant: LeaseOwner;
 };
 
+type LeaseOwnerState =
+    | { status: 'missing-directory' }
+    | { status: 'protected' }
+    | { status: 'owned'; owner: LeaseOwner };
+
 type LeaseHeartbeat = {
     timer: NodeJS.Timeout;
     pending: Promise<void>;
@@ -317,6 +322,50 @@ const readLeaseOwner = async (leaseDirectory: string) => {
         return heartbeat;
     }
     return owner;
+};
+
+const inspectLeaseOwner = async (
+    leaseDirectory: string,
+): Promise<LeaseOwnerState> => {
+    try {
+        const stat: Stats = await fs.lstat(leaseDirectory);
+        if (!stat.isDirectory() || stat.isSymbolicLink()) {
+            return { status: 'protected' };
+        }
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return { status: 'missing-directory' };
+        }
+        warnSwallowedFilesystemError(
+            'Failed to inspect dbt git cache lease directory',
+            error,
+        );
+        return { status: 'protected' };
+    }
+    let contents: string;
+    try {
+        contents = await fs.readFile(
+            path.join(leaseDirectory, LEASE_OWNER),
+            'utf8',
+        );
+    } catch (error) {
+        warnSwallowedFilesystemError(
+            'Failed to read dbt git cache lease owner',
+            error,
+        );
+        return { status: 'protected' };
+    }
+    try {
+        const owner = JSON.parse(contents);
+        if (!isLeaseOwner(owner)) return { status: 'protected' };
+        const current = await readLeaseOwner(leaseDirectory);
+        return isLeaseOwner(current)
+            ? { status: 'owned', owner: current }
+            : { status: 'protected' };
+    } catch (error) {
+        Logger.warn('Failed to parse dbt git cache lease owner', { error });
+        return { status: 'protected' };
+    }
 };
 
 const writeLeaseHeartbeat = async (
@@ -995,21 +1044,20 @@ const toPublicLease = (
     lease: DirectoryLease,
     reused: boolean,
 ): DbtGitCacheLease => {
-    const abortController =
-        lease.heartbeat?.abortController ?? new AbortController();
+    const { heartbeat } = lease;
+    const abortController = heartbeat?.abortController ?? new AbortController();
     const publicLease: DbtGitCacheLease = {
         key,
         entryDirectory,
         checkoutDirectory: path.join(entryDirectory, 'checkout'),
         depsMarkerPath: path.join(entryDirectory, 'deps.json'),
         leaseId: lease.leaseId,
-        heartbeat: lease.heartbeat,
+        heartbeat,
         reused,
         invalidated: abortController.signal.aborted,
         closed: false,
         signal: abortController.signal,
     };
-    const heartbeat = lease.heartbeat;
     if (heartbeat) {
         heartbeat.onInvalidated = () => {
             publicLease.invalidated = true;
@@ -1106,10 +1154,14 @@ const abandonedEntry = async (
     ) {
         return undefined;
     }
-    const owner = await readLeaseOwner(
+    const ownerState = await inspectLeaseOwner(
         path.join(entry.entryDirectory, LEASE_DIRECTORY),
     );
-    if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
+    if (
+        ownerState.status === 'protected' ||
+        (ownerState.status === 'owned' &&
+            !(await leaseOwnerIsProvablyStale(ownerState.owner)))
+    ) {
         return undefined;
     }
     return { entry, stat };
@@ -1142,10 +1194,14 @@ const reserveAbandonedEntryCleanup = async (
     }
     const lease = await tryEntryLease(candidate.entry.entryDirectory);
     if (!lease) {
-        const owner = await readLeaseOwner(
+        const ownerState = await inspectLeaseOwner(
             path.join(candidate.entry.entryDirectory, LEASE_DIRECTORY),
         );
-        if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
+        if (
+            ownerState.status === 'protected' ||
+            (ownerState.status === 'owned' &&
+                !(await leaseOwnerIsProvablyStale(ownerState.owner)))
+        ) {
             return undefined;
         }
     } else {
@@ -1208,8 +1264,16 @@ const reserveRootDebrisCleanup = async (
         configuration.root,
         `.retired-${randomUUID()}.tmp`,
     );
-    await fs.rename(candidate.path, retiredPath);
-    return { path: retiredPath };
+    try {
+        await fs.rename(candidate.path, retiredPath);
+        return { path: retiredPath };
+    } catch (error) {
+        warnSwallowedFilesystemError(
+            'Failed to reserve dbt git cache root debris cleanup',
+            error,
+        );
+        return undefined;
+    }
 };
 
 const cleanupReservedRootCandidate = async (cleanup: ReservedCleanup) => {
@@ -1427,9 +1491,13 @@ export const invalidateOwnedDbtGitCacheLease = async (
 const declineDbtGitCacheRetention = async (
     lease: DbtGitCacheLease,
     reason: string,
+    paths?: string[],
 ) => {
     Object.assign(lease, { retained: false, retentionReason: reason });
-    Logger.warn('Declined dbt git cache retention', { reason });
+    Logger.warn(
+        'Declined dbt git cache retention',
+        paths ? { reason, paths } : { reason },
+    );
     await removeWhileLeased(lease);
 };
 
@@ -1457,14 +1525,20 @@ const retainDbtGitProjectCache = async (
     }
     let cleanup: Promise<boolean> | undefined;
     let declineRetention: string | undefined;
+    let declineRetentionPaths: string[] | undefined;
     try {
         const entries = await listOwnedEntries();
-        const corrupt = entries.some(
+        const corrupt = entries.filter(
             (entry) =>
                 !entry.owned || (entry.kind === 'entry' && !entry.metadata),
         );
-        if (corrupt || entries.length > DBT_GIT_CACHE_MAX_ENTRIES) {
-            declineRetention = corrupt ? 'corrupt-root-entry' : 'entry-limit';
+        if (corrupt.length > 0 || entries.length > DBT_GIT_CACHE_MAX_ENTRIES) {
+            declineRetention =
+                corrupt.length > 0 ? 'corrupt-root-entry' : 'entry-limit';
+            declineRetentionPaths =
+                corrupt.length > 0
+                    ? corrupt.map((entry) => entry.entryDirectory)
+                    : undefined;
         } else {
             const others = entries.filter(
                 (entry) => entry.entryDirectory !== lease.entryDirectory,
@@ -1576,7 +1650,11 @@ const retainDbtGitProjectCache = async (
         await releaseDirectoryLease(cacheLock);
     }
     if (declineRetention) {
-        await declineDbtGitCacheRetention(lease, declineRetention);
+        await declineDbtGitCacheRetention(
+            lease,
+            declineRetention,
+            declineRetentionPaths,
+        );
         return;
     }
     if (cleanup) {
@@ -1759,19 +1837,6 @@ export async function maintainDbtGitProjectCache() {
                         (live !== undefined &&
                             checkedIdentities.has(identityKey) &&
                             !live.has(identityKey));
-                } else {
-                    const markerStat = await fs
-                        .lstat(path.join(entry.entryDirectory, ENTRY_MARKER))
-                        .catch((error) => {
-                            warnSwallowedFilesystemError(
-                                'Failed to inspect dbt git cache entry marker',
-                                error,
-                            );
-                            return undefined;
-                        });
-                    shouldDelete ||=
-                        markerStat !== undefined &&
-                        now - markerStat.mtimeMs > configuration.maxAgeMs;
                 }
                 if (shouldDelete) {
                     await removeWhileLeased(lease);

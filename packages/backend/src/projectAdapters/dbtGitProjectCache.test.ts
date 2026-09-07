@@ -1416,6 +1416,74 @@ describe('dbt git project cache', () => {
         expect(await entryDirectories(root)).toHaveLength(0);
     });
 
+    it('protects a metadata-less entry with an unreadable lease owner', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        const markerPath = path.join(
+            entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        const ownerPath = path.join(entryDirectory, 'lease', 'owner.json');
+        await fs.mkdir(path.dirname(ownerPath), {
+            recursive: true,
+            mode: 0o700,
+        });
+        await fs.writeFile(markerPath, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        await fs.writeFile(ownerPath, JSON.stringify(staleOwner()));
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(markerPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const error = new Error('permission denied') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        readFile.mockImplementation(async (...args) => {
+            if (args[0] === ownerPath) throw error;
+            return actualFs.readFile(...args);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(entryDirectory)).resolves.toBeUndefined();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to read dbt git cache lease owner',
+                { error },
+            );
+        } finally {
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
+    it('protects a metadata-less entry with an owner-less lease directory', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        const markerPath = path.join(
+            entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        await fs.mkdir(path.join(entryDirectory, 'lease'), {
+            recursive: true,
+            mode: 0o700,
+        });
+        await fs.writeFile(markerPath, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(markerPath, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(entryDirectory)).resolves.toBeUndefined();
+    });
+
     it('reclaims orphaned root marker writes only after the grace period', async () => {
         const root = await configure();
         const temporaryPath = path.join(
@@ -1431,6 +1499,44 @@ describe('dbt git project cache', () => {
         await fs.utimes(temporaryPath, stale, stale);
         await maintainDbtGitProjectCache();
         await expect(fs.access(temporaryPath)).rejects.toThrow();
+    });
+
+    it('drains reserved cleanup when a debris reservation fails', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const { key } = seed!;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const abandonedPath = path.join(root, key);
+        await fs.mkdir(abandonedPath, { mode: 0o700 });
+        const temporaryPath = path.join(
+            root,
+            '.lightdash-dbt-git-cache.json.00000000-0000-4000-8000-000000000001.tmp',
+        );
+        await fs.writeFile(temporaryPath, '{}', { mode: 0o600 });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(abandonedPath, stale, stale);
+        await fs.utimes(temporaryPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === temporaryPath) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(abandonedPath)).rejects.toThrow();
+            await expect(fs.access(temporaryPath)).resolves.toBeUndefined();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to reserve dbt git cache root debris cleanup',
+                { error },
+            );
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
     });
 
     it('protects an active unowned entry during abandoned object cleanup', async () => {
@@ -1472,7 +1578,10 @@ describe('dbt git project cache', () => {
 
         expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
             'Declined dbt git cache retention',
-            { reason: 'corrupt-root-entry' },
+            {
+                reason: 'corrupt-root-entry',
+                paths: [path.join(root, '0'.repeat(64))],
+            },
         );
     });
 
