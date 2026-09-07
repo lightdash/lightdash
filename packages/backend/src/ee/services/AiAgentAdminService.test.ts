@@ -525,7 +525,12 @@ const makeService = ({
         lightdashConfig: {
             siteUrl: SITE_URL,
             appRuntime: { e2bApiKey: 'e2b-api-key' },
-            aiWriteback: { anthropicApiKey: 'anthropic-api-key' },
+            ai: {
+                copilot: {
+                    providers: { anthropic: { apiKey: 'anthropic-api-key' } },
+                },
+            },
+            aiWriteback: { legacyAnthropicApiKey: null },
         },
     } as unknown as ConstructorParameters<typeof AiAgentAdminService>[0]);
 
