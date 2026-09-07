@@ -1,3 +1,10 @@
+## [2.140.2](https://github.com/lightdash/lightdash/compare/2.140.1...2.140.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** include custom org roles in space share picker ([#28766](https://github.com/lightdash/lightdash/issues/28766)) ([6138c88](https://github.com/lightdash/lightdash/commit/6138c886b9e690412810cc0d31f8d6e17964449a))
+
 ## [2.140.1](https://github.com/lightdash/lightdash/compare/2.140.0...2.140.1) (2026-09-07)
 
 
