@@ -7,18 +7,18 @@ import path from 'path';
  * Node must land on `dist/cjs` through both `import` and `require`; bundlers
  * pick up `dist/esm` via the `module` condition, which Node ignores.
  */
-type ConditionalExport = Record<string, string>;
+type ExportTarget = string | string[] | Record<string, string>;
 
 const packageJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'),
-) as { exports: Record<string, ConditionalExport | string> };
+) as { exports: Record<string, ExportTarget> };
+
+const conditionalEntries = Object.entries(packageJson.exports).filter(
+    (entry): entry is [string, Record<string, string>] =>
+        typeof entry[1] === 'object' && !Array.isArray(entry[1]),
+);
 
 describe('@lightdash/common exports map', () => {
-    const conditionalEntries = Object.entries(packageJson.exports).filter(
-        (entry): entry is [string, ConditionalExport] =>
-            typeof entry[1] === 'object',
-    );
-
     it('covers the entry points the workspace imports', () => {
         expect(Object.keys(packageJson.exports)).toEqual([
             '.',
@@ -56,4 +56,14 @@ describe('@lightdash/common exports map', () => {
             );
         },
     );
+
+    // Callers write `@lightdash/common/src/pivot/pivotQueryResults`; without the
+    // extension candidates the map resolves to a path that has no file.
+    it('resolves extensionless source subpaths', () => {
+        expect(packageJson.exports['./src/*']).toEqual([
+            './src/*.ts',
+            './src/*.tsx',
+            './src/*',
+        ]);
+    });
 });

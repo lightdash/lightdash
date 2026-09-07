@@ -10,7 +10,10 @@ import path from 'path';
 const SRC = __dirname;
 const EXTENSIONS = ['.ts', '.tsx', '.json', '/index.ts', '/index.tsx'];
 
-const resolveSpecifier = (fromFile: string, specifier: string): string | null => {
+const resolveSpecifier = (
+    fromFile: string,
+    specifier: string,
+): string | null => {
     const base = path.resolve(path.dirname(fromFile), specifier);
     if (fs.existsSync(base) && fs.statSync(base).isFile()) return base;
     for (const ext of EXTENSIONS) {
@@ -32,14 +35,15 @@ const collectReachableModules = (entry: string): Set<string> => {
     const queue = [entry];
     while (queue.length > 0) {
         const file = queue.pop()!;
-        if (seen.has(file)) continue;
-        seen.add(file);
-        if (file.endsWith('.json')) continue;
-
-        const source = fs.readFileSync(file, 'utf8');
-        for (const match of source.matchAll(STATIC_SPECIFIER)) {
-            const resolved = resolveSpecifier(file, match[1]!);
-            if (resolved !== null) queue.push(resolved);
+        if (!seen.has(file)) {
+            seen.add(file);
+            if (!file.endsWith('.json')) {
+                const source = fs.readFileSync(file, 'utf8');
+                for (const match of source.matchAll(STATIC_SPECIFIER)) {
+                    const resolved = resolveSpecifier(file, match[1]!);
+                    if (resolved !== null) queue.push(resolved);
+                }
+            }
         }
     }
     return seen;
@@ -51,7 +55,9 @@ describe('@lightdash/common barrel eager payload (#28697)', () => {
 
     it('does not reach the dbt manifest schemas', () => {
         const dbtSchemas = reachableJson
-            .filter((f) => f.includes(`${path.sep}dbt${path.sep}schemas${path.sep}`))
+            .filter((f) =>
+                f.includes(`${path.sep}dbt${path.sep}schemas${path.sep}`),
+            )
             .map((f) => path.relative(SRC, f));
 
         expect(dbtSchemas).toEqual([]);

@@ -28,7 +28,11 @@
       "default": "./dist/cjs/dbt/validation.js"
     },
     "./src": "./src/index.ts",
-    "./src/*": "./src/*",
+    "./src/*": [
+      "./src/*.ts",
+      "./src/*.tsx",
+      "./src/*"
+    ],
     "./dist/*": "./dist/*",
     "./package.json": "./package.json"
   },
