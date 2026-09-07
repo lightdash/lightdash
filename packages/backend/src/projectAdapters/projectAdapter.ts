@@ -1,5 +1,6 @@
 import {
     CreateWarehouseCredentials,
+    DbtManifestProjectConfig,
     DbtProjectConfig,
     DbtProjectType,
     DbtVersionOption,
@@ -17,11 +18,16 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
+import {
+    DbtManifestProjectAdapter,
+    ManifestInput,
+} from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 
 export const projectAdapterFromConfig = async (
-    config: DbtProjectConfig,
+    config:
+        | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
+        | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
@@ -67,7 +73,9 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
-                manifest: config.manifest,
+                ...(config.parsedManifest !== undefined
+                    ? { parsedManifest: config.parsedManifest }
+                    : { manifest: config.manifest }),
                 dbtProjectDir: manifestOptions?.projectDir,
                 selectedModelIds: manifestOptions?.selectedModelIds,
             });
