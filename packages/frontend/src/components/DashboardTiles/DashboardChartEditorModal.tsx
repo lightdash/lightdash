@@ -2,6 +2,7 @@ import {
     ChartType,
     mergeDashboardCustomMetrics,
     type AdditionalMetric,
+    type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
@@ -13,6 +14,8 @@ import {
 } from '../../features/explorer/store';
 import { MergeProvider } from '../../features/mergeQuery/context/MergeContext';
 import { useDashboardCustomMetricSeed } from '../../hooks/dashboard/useDashboardCustomMetricSeed';
+import { useDeleteDashboardCustomMetric } from '../../hooks/dashboard/useUpdateDashboardCustomMetric';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { ExplorerSection } from '../../providers/Explorer/types';
@@ -20,6 +23,7 @@ import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
 import Explorer from '../Explorer';
+import RegistryImpactPreviewModal from '../Explorer/CustomMetricModal/RegistryImpactPreviewModal';
 import ExploreSideBar from '../Explorer/ExploreSideBar';
 import PageSpinner from '../PageSpinner';
 
@@ -135,6 +139,7 @@ type Props = {
     editChart?: SavedChart;
     onChartSaved: (chart: SavedChart) => void;
     onRegistryMetricEdited: (metric: AdditionalMetric) => void;
+    onRegistryMetricDeleted: (metric: AdditionalMetric) => void;
     onClose: () => void;
 };
 
@@ -149,6 +154,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     editChart,
     onChartSaved,
     onRegistryMetricEdited,
+    onRegistryMetricDeleted,
     onClose,
 }) => {
     const [pickedExploreId, setPickedExploreId] = useState<string>();
@@ -159,6 +165,70 @@ const DashboardChartEditorModal: FC<Props> = ({
         dashboardMetricIds,
         isLoading: isSeedLoading,
     } = useDashboardCustomMetricSeed(exploreId);
+
+    const { showToastSuccess, showToastError } = useToaster();
+    const deleteRegistryMetric = useDeleteDashboardCustomMetric(dashboardUuid);
+    const [registryDeletePreview, setRegistryDeletePreview] = useState<{
+        metric: AdditionalMetric;
+        affectedCharts: DashboardCustomMetricAffectedChart[];
+    } | null>(null);
+
+    const requestRegistryMetricDelete = useCallback(
+        (metric: AdditionalMetric) => {
+            // Dry-run feeds the impact preview before anything commits.
+            deleteRegistryMetric.mutate(
+                {
+                    metricTable: metric.table,
+                    metricName: metric.name,
+                    dryRun: true,
+                },
+                {
+                    onSuccess: (result) => {
+                        setRegistryDeletePreview({
+                            metric,
+                            affectedCharts: result.affectedCharts,
+                        });
+                    },
+                    onError: (error) => {
+                        showToastError({
+                            title: 'Failed to prepare metric removal',
+                            subtitle: error.error?.message,
+                        });
+                    },
+                },
+            );
+        },
+        [deleteRegistryMetric, showToastError],
+    );
+
+    const handleConfirmRegistryDelete = useCallback(() => {
+        if (!registryDeletePreview) return;
+        const { metric } = registryDeletePreview;
+        deleteRegistryMetric.mutate(
+            { metricTable: metric.table, metricName: metric.name },
+            {
+                onSuccess: () => {
+                    onRegistryMetricDeleted(metric);
+                    showToastSuccess({
+                        title: 'Custom metric removed from this dashboard',
+                    });
+                    setRegistryDeletePreview(null);
+                },
+                onError: (error) => {
+                    showToastError({
+                        title: 'Failed to remove custom metric',
+                        subtitle: error.error?.message,
+                    });
+                },
+            },
+        );
+    }, [
+        registryDeletePreview,
+        deleteRegistryMetric,
+        onRegistryMetricDeleted,
+        showToastSuccess,
+        showToastError,
+    ]);
 
     // Saving closes the modal via the host, bypassing handleClose — reset the
     // picked explore here too so the next New chart starts at the picker.
@@ -177,6 +247,7 @@ const DashboardChartEditorModal: FC<Props> = ({
             dashboard: { uuid: dashboardUuid, name: dashboardName },
             dashboardMetricIds,
             onRegistryMetricEdited,
+            requestRegistryMetricDelete,
         }),
         [
             handleChartSaved,
@@ -184,6 +255,7 @@ const DashboardChartEditorModal: FC<Props> = ({
             dashboardName,
             dashboardMetricIds,
             onRegistryMetricEdited,
+            requestRegistryMetricDelete,
         ],
     );
 
@@ -217,6 +289,19 @@ const DashboardChartEditorModal: FC<Props> = ({
                         onBackToTables={() => setPickedExploreId(undefined)}
                     />
                 )}
+                <RegistryImpactPreviewModal
+                    opened={registryDeletePreview !== null}
+                    variant="delete"
+                    metricLabel={
+                        registryDeletePreview?.metric.label ??
+                        registryDeletePreview?.metric.name ??
+                        ''
+                    }
+                    affectedCharts={registryDeletePreview?.affectedCharts ?? []}
+                    isSaving={deleteRegistryMetric.isLoading}
+                    onBack={() => setRegistryDeletePreview(null)}
+                    onConfirm={handleConfirmRegistryDelete}
+                />
             </ModalHostedContext.Provider>
         </MantineModal>
     );

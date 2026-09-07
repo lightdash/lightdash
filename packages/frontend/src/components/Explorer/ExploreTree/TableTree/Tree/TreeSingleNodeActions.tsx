@@ -42,6 +42,7 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { useRequestRegistryMetricDelete } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
@@ -90,6 +91,8 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
+
+    const requestRegistryMetricDelete = useRequestRegistryMetricDelete();
 
     const { data: customGroupBinsFlag } = useServerFeatureFlag(
         FeatureFlags.CustomGroupBins,
@@ -204,6 +207,20 @@ const TreeSingleNodeActions: FC<Props> = ({
                         }}
                     >
                         Edit custom metric
+                    </Menu.Item>
+                ) : null}
+
+                {allowRegistryEdit && isAdditionalMetric(item) ? (
+                    <Menu.Item
+                        component="button"
+                        color="red"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                            e.stopPropagation();
+                            requestRegistryMetricDelete?.(item);
+                        }}
+                    >
+                        Delete custom metric
                     </Menu.Item>
                 ) : null}
 

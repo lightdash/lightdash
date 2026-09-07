@@ -12,6 +12,10 @@ type ModalHostedValue = {
     dashboardMetricIds?: Set<string>;
     /** Syncs a write-through registry edit back into the host's staged state. */
     onRegistryMetricEdited?: (metric: AdditionalMetric) => void;
+    /** Syncs a registry deletion back into the host's staged state. */
+    onRegistryMetricDeleted?: (metric: AdditionalMetric) => void;
+    /** Opens the host-owned delete flow (impact preview + confirm). */
+    requestRegistryMetricDelete?: (metric: AdditionalMetric) => void;
 };
 
 export const ModalHostedContext = createContext<ModalHostedValue>({
@@ -35,3 +39,7 @@ export const useModalHostedDashboardMetricIds = (): Set<string> | undefined =>
 export const useModalHostedRegistryMetricEdited = ():
     | ((metric: AdditionalMetric) => void)
     | undefined => useContext(ModalHostedContext).onRegistryMetricEdited;
+
+export const useRequestRegistryMetricDelete = ():
+    | ((metric: AdditionalMetric) => void)
+    | undefined => useContext(ModalHostedContext).requestRegistryMetricDelete;
