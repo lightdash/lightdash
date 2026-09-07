@@ -5,12 +5,24 @@ import {
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
-import { IconChartBar } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { Button, Group, Text } from '@mantine/core';
+import { IconAlertTriangle, IconChartBar } from '@tabler/icons-react';
+import {
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Provider } from 'react-redux';
 import {
     buildInitialExplorerState,
     createExplorerStore,
+    selectActiveFields,
+    selectHasUnsavedChanges,
+    selectSavedChart,
+    useExplorerSelector,
 } from '../../features/explorer/store';
 import { MergeProvider } from '../../features/mergeQuery/context/MergeContext';
 import { useDashboardCustomMetricSeed } from '../../hooks/dashboard/useDashboardCustomMetricSeed';
@@ -31,6 +43,7 @@ type ContentProps = {
     exploreId: string;
     editChart?: SavedChart;
     seededMetrics: AdditionalMetric[];
+    onDirtyChange: (isDirty: boolean) => void;
     onExploreSelect: (exploreName: string) => void;
     onBackToTables: () => void;
 };
@@ -39,6 +52,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
     exploreId,
     editChart,
     seededMetrics,
+    onDirtyChange,
     onExploreSelect,
     onBackToTables,
 }) => {
@@ -103,6 +117,7 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
     return (
         <Provider store={store}>
             <ExplorerEffects />
+            <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
             <Page
                 withContainerHeight
                 title={data ? data.label : 'Tables'}
@@ -129,6 +144,22 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
 // Query effects must run inside the store Provider.
 const ExplorerEffects: FC = () => {
     useExplorerQueryEffects();
+    return null;
+};
+
+// Reports the session's dirty state to the host so closing can warn.
+// New charts have no savedChart to diff, so any selected field counts.
+const UnsavedChangesBridge: FC<{
+    onDirtyChange: (isDirty: boolean) => void;
+}> = ({ onDirtyChange }) => {
+    const savedChart = useExplorerSelector(selectSavedChart);
+    const hasUnsavedChanges = useExplorerSelector(selectHasUnsavedChanges);
+    const activeFields = useExplorerSelector(selectActiveFields);
+    const isDirty = savedChart ? hasUnsavedChanges : activeFields.size > 0;
+    // Layout effect: the host ref must be current before the next input event
+    useLayoutEffect(() => {
+        onDirtyChange(isDirty);
+    }, [isDirty, onDirtyChange]);
     return null;
 };
 
@@ -259,7 +290,24 @@ const DashboardChartEditorModal: FC<Props> = ({
         ],
     );
 
+    const isDirtyRef = useRef(false);
+    const handleDirtyChange = useCallback((isDirty: boolean) => {
+        isDirtyRef.current = isDirty;
+    }, []);
+    const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
+
     const handleClose = useCallback(() => {
+        if (isDirtyRef.current) {
+            setIsDiscardConfirmOpen(true);
+            return;
+        }
+        setPickedExploreId(undefined);
+        onClose();
+    }, [onClose]);
+
+    const handleDiscard = useCallback(() => {
+        setIsDiscardConfirmOpen(false);
+        isDirtyRef.current = false;
         setPickedExploreId(undefined);
         onClose();
     }, [onClose]);
@@ -285,10 +333,35 @@ const DashboardChartEditorModal: FC<Props> = ({
                         exploreId={exploreId ?? ''}
                         editChart={editChart}
                         seededMetrics={seededMetrics}
+                        onDirtyChange={handleDirtyChange}
                         onExploreSelect={setPickedExploreId}
                         onBackToTables={() => setPickedExploreId(undefined)}
                     />
                 )}
+                <MantineModal
+                    opened={isDiscardConfirmOpen}
+                    onClose={() => setIsDiscardConfirmOpen(false)}
+                    title="Discard chart changes?"
+                    icon={IconAlertTriangle}
+                    cancelLabel={false}
+                    actions={
+                        <Group gap="xs">
+                            <Button
+                                variant="default"
+                                onClick={() => setIsDiscardConfirmOpen(false)}
+                            >
+                                Keep editing
+                            </Button>
+                            <Button color="red" onClick={handleDiscard}>
+                                Discard changes
+                            </Button>
+                        </Group>
+                    }
+                >
+                    <Text size="sm">
+                        Your unsaved chart edits will be lost.
+                    </Text>
+                </MantineModal>
                 <RegistryImpactPreviewModal
                     opened={registryDeletePreview !== null}
                     variant="delete"
