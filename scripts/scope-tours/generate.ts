@@ -124,9 +124,7 @@ export type ScopeTourDefinition = {
     steps: ScopeTourStepDefinition[];
 };
 
-export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
-${body}
-};
+export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = ${body ? `{\n${body}\n}` : '{}'};
 `;
     writeFileSync(outputPath, output);
     console.log(

@@ -1,7 +1,7 @@
 /**
  * Generation checks for scope walkthroughs (CS-209). Fixtures are written to
  * a temp directory: a small "frontend" with markers and anchors, and a docs
- * page they cite. Run with `npx tsx scripts/scope-tours.test.ts`.
+ * page they cite. Run with `npx tsx scripts/scope-tours/scope-tours.test.ts`.
  */
 import * as assert from 'assert';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -85,8 +85,8 @@ const write = (name: string, source: string) => {
 };
 
 const run = async () => {
-    const { checkTours } = await import('./scope-tours/check');
-    const { buildTours, docsParagraph } = await import('./scope-tours/lib');
+    const { checkTours } = await import('./check');
+    const { buildTours, docsParagraph } = await import('./lib');
 
     // A curated set passes with no errors.
     {
@@ -226,7 +226,7 @@ const run = async () => {
     // A path mentioning an anchor is not that anchor: its hint must come
     // from the anchor's own element, even when the mention is found first.
     {
-        const { hintFor } = await import('./scope-tours/lib');
+        const { hintFor } = await import('./lib');
         const mention = write(
             'AMenu.tsx',
             `
@@ -261,8 +261,7 @@ const props = {
     // A typed anchor declared as an object literal (a prop spread) counts,
     // suggestion included.
     {
-        const { isInputAnchor, suggestionFor } =
-            await import('./scope-tours/lib');
+        const { isInputAnchor, suggestionFor } = await import('./lib');
         const file = write(
             'Editor.tsx',
             `
@@ -292,7 +291,7 @@ export const Editor = () => (
 
     // Object-literal markers: a via path holding `>>` must not end the block.
     {
-        const { findMarkers } = await import('./scope-tours/lib');
+        const { findMarkers } = await import('./lib');
         const file = write(
             'Card.tsx',
             `
@@ -356,7 +355,7 @@ export const Card = () => (
 
     // Suggestions: a hint from the control's text, docs from the label.
     {
-        const { suggestFor } = await import('./scope-tours/suggest');
+        const { suggestFor } = await import('./suggest');
         const files = [
             write('Nav.tsx', nav(null)),
             write(
