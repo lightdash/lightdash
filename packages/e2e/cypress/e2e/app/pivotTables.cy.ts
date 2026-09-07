@@ -59,9 +59,9 @@ describe('Pivot Tables', () => {
 
         // Save a pivot table
         cy.contains('Save chart').click();
-        cy.get('[data-testid="ChartCreateModal/NameInput"]').type(
-            'My Pivot Table Chart',
-        );
+        cy.get('[data-testid="ChartCreateModal/NameInput"]')
+            .clear()
+            .type('My Pivot Table Chart');
         cy.findByText('Next').click();
         cy.findByText('Save').click();
         cy.contains('Chart was saved');

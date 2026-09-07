@@ -180,9 +180,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Unique payment count').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the number of unique payments per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the number of unique payments per payment method?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! What's the number of unique payments per payment method? was added to Title`,
@@ -231,9 +231,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Total revenue').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the total revenue per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the total revenue per payment method?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! What's the total revenue per payment method? was added to Title`,
@@ -290,9 +290,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Amount').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `Stg Payments (payment method x amount)?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`Stg Payments (payment method x amount)?`);
         cy.findByText('Save').click();
         cy.findByText(
             `Success! Stg Payments (payment method x amount)? was added to Title`,
@@ -369,9 +369,9 @@ describe('Dashboard', () => {
         cy.findByText('Payment method').click();
         cy.findByText('Unique payment count').click();
         cy.findByText('Save chart').click();
-        cy.findByTestId('ChartCreateModal/NameInput').type(
-            `What's the number of unique payments per payment method?`,
-        );
+        cy.findByTestId('ChartCreateModal/NameInput')
+            .clear()
+            .type(`What's the number of unique payments per payment method?`);
         cy.findByText('Save').click();
 
         cy.findByText('Save changes').click();
