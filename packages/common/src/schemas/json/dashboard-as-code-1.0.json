@@ -183,6 +183,51 @@
                 }
             ]
         },
+        "ContentAsCodeDirectAccess": {
+            "description": "Portable direct user/group grants on a single resource. Mirrors the space\naccess block: principals are identified by organization email or group name,\nnever by internal identifiers. Inherited and effective roles are never part\nof this shape — it reflects stored direct policy only.\n\nOn upload: omission leaves the resource's existing direct policy unchanged;\na present block (including empty `users` and `groups`) atomically replaces\nthe whole policy.",
+            "properties": {
+                "groups": {
+                    "items": {
+                        "$ref": "#/$defs/ContentAsCodeDirectAccessGroup"
+                    },
+                    "type": "array"
+                },
+                "users": {
+                    "items": {
+                        "$ref": "#/$defs/ContentAsCodeDirectAccessUser"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["groups", "users"],
+            "type": "object"
+        },
+        "ContentAsCodeDirectAccessGroup": {
+            "properties": {
+                "name": {
+                    "description": "Exact, case-sensitive organization group name.",
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/$defs/SpaceMemberRole"
+                }
+            },
+            "required": ["role", "name"],
+            "type": "object"
+        },
+        "ContentAsCodeDirectAccessUser": {
+            "properties": {
+                "email": {
+                    "description": "Primary email of a human organization member.",
+                    "type": "string"
+                },
+                "role": {
+                    "$ref": "#/$defs/SpaceMemberRole"
+                }
+            },
+            "required": ["role", "email"],
+            "type": "object"
+        },
         "ContentAsCodeType.DASHBOARD": {
             "enum": ["dashboard"],
             "type": "string"
@@ -1329,6 +1374,10 @@
             "properties": {},
             "type": "object"
         },
+        "SpaceMemberRole": {
+            "enum": ["viewer", "editor", "admin"],
+            "type": "string"
+        },
         "TimeFrames": {
             "enum": [
                 "RAW",
@@ -1362,6 +1411,10 @@
     "additionalProperties": false,
     "description": "From T, pick a set of properties whose keys are in the union K",
     "properties": {
+        "access": {
+            "$ref": "#/$defs/ContentAsCodeDirectAccess",
+            "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+        },
         "config": {
             "$ref": "#/$defs/DashboardConfig"
         },

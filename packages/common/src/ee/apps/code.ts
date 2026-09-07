@@ -1,5 +1,6 @@
 import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
+import { type ContentAsCodeDirectAccess } from '../../types/contentAsCode/directAccess';
 import { type DataAppTemplate, type DataAppVizSchema } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
@@ -50,6 +51,12 @@ export type DataAppManifest = {
     // creating the space if missing; absent → personal app on download,
     // placement left untouched on upload (also covers pre-field bundles).
     spaceSlug?: string;
+    // Direct user/group grants on the app, referenced by organization email /
+    // group name (same portable identity as space access blocks). Present
+    // (including empty users+groups) → upload atomically replaces the app's
+    // direct policy; absent → the existing policy is left untouched (bundles
+    // downloaded before this field, or exports made while sharing is off).
+    access?: ContentAsCodeDirectAccess;
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };

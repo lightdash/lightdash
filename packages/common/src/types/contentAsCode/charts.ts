@@ -20,6 +20,7 @@ import type {
 } from '../savedCharts';
 import type { SqlChart } from '../sqlRunner';
 import type { ContentAsCodeType, FiltersInput } from './core';
+import type { ContentAsCodeDirectAccess } from './directAccess';
 import type { SpaceAsCode } from './spaces';
 
 /**
@@ -104,6 +105,12 @@ export type ChartAsCode = Omit<
     verified?: boolean;
     /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
+    /**
+     * Direct user/group grants on this chart. Only independently saved charts
+     * carry one — dashboard-owned chart definitions are not grantable.
+     * Omission leaves the existing policy unchanged on upload.
+     */
+    access?: ContentAsCodeDirectAccess;
 };
 
 // SQL Charts are stored separately from regular saved charts
@@ -117,6 +124,8 @@ export type SqlChartAsCode = Pick<
     spaceSlug: string;
     updatedAt?: Date;
     downloadedAt?: Date;
+    /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
+    access?: ContentAsCodeDirectAccess;
 };
 
 export type ApiChartAsCodeListResponse = {
