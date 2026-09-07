@@ -1,43 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "2.144.0",
-  "previousVersion": "2.143.0",
-  "releaseDate": "2026-09-07T16:46:01.005Z",
+  "version": "2.145.0",
+  "previousVersion": "2.144.0",
+  "releaseDate": "2026-09-07T17:29:23.738Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260904160000_add_training_project_type.ts",
-        "edition": "core",
-        "tables": [
-          "project_type"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20260907140000_add_duckdb_execution_to_query_history.ts",
-        "edition": "core",
-        "tables": [
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -45,19 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/org/projects — added the new `TRAINING` enum value to the `results/items/type` response property for the response status `200`",
-        "POST /api/v1/org/projects — added the new `TRAINING` enum value to the `results/project/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid} — added the new `TRAINING` enum value to the `results/type` response property for the response status `200`",
-        "PATCH /api/v1/projects/{projectUuid}/details — added the new `TRAINING` enum value to the `results/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/user-credentials — added the new `TRAINING` enum value to the `results/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/user-warehouse-credentials — added the new `TRAINING` enum value to the `results/items/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`",
-        "GET /api/v1/user/warehouseCredentials — added the new `TRAINING` enum value to the `results/items/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`",
-        "POST /api/v1/user/warehouseCredentials — added the new `TRAINING` enum value to the `results/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`",
-        "POST /api/v1/user/warehouseCredentials/redshift/aws-sso/complete — added the new `TRAINING` enum value to the `results/anyOf[subschema #2]/credentials/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`",
-        "PATCH /api/v1/user/warehouseCredentials/{uuid} — added the new `TRAINING` enum value to the `results/project/allOf[#/components/schemas/UserWarehouseCredentialsProject]/type` response property for the response status `200`"
-      ],
-      "advisoryCount": 10
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

@@ -1,3 +1,32 @@
+# [2.145.0](https://github.com/lightdash/lightdash/compare/2.144.0...2.145.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ai:** send the configured OpenRouter provider sort ([#28779](https://github.com/lightdash/lightdash/issues/28779)) ([c426b33](https://github.com/lightdash/lightdash/commit/c426b334cdd09eacb3a178d84a3f95e7fe7afd59)), closes [#28632](https://github.com/lightdash/lightdash/issues/28632)
+* **content-as-code:** upload succeeds when the target space was deleted ([#28778](https://github.com/lightdash/lightdash/issues/28778)) ([45680b1](https://github.com/lightdash/lightdash/commit/45680b14e6924e2112b6305987cba704730e2074))
+* log why a process died before it exits ([#28738](https://github.com/lightdash/lightdash/issues/28738)) ([e39da50](https://github.com/lightdash/lightdash/commit/e39da50277a63d56388962bc01d4aa543e54533c))
+* **mcp:** gate filter prompt guidance ([#28657](https://github.com/lightdash/lightdash/issues/28657)) ([c1f12da](https://github.com/lightdash/lightdash/commit/c1f12daf23e4ac413ab5a527cce42cd11143ff30))
+
+
+### Features
+
+* **ai:** picker metadata for glm-5.3, qwen3.8-flash and gpt-oss-120b ([#28780](https://github.com/lightdash/lightdash/issues/28780)) ([c8fc0e9](https://github.com/lightdash/lightdash/commit/c8fc0e9b0848cbad33939f653ad49a22f6ce2aa0))
+* **analytics:** carry the verified filter on search events ([#28775](https://github.com/lightdash/lightdash/issues/28775)) ([f439607](https://github.com/lightdash/lightdash/commit/f439607b0b2b5dd9095fbd929100737a920801f7))
+* **analytics:** track AI agent thread actions, model choice and response timing ([#28772](https://github.com/lightdash/lightdash/issues/28772)) ([c27c1b2](https://github.com/lightdash/lightdash/commit/c27c1b2b3c05e675a23b99045d42d2a4fea44e13))
+* **analytics:** track dashboard owner assignments ([#28774](https://github.com/lightdash/lightdash/issues/28774)) ([fb3bed7](https://github.com/lightdash/lightdash/commit/fb3bed7ff65c69013575e76e60cd172bfa12c54b))
+* **analytics:** track review settings and the similar content nudge ([#28773](https://github.com/lightdash/lightdash/issues/28773)) ([2a2aaf1](https://github.com/lightdash/lightdash/commit/2a2aaf17cd3a6af8ef101a4c0cff2d4b5ca94eb6))
+* **backend:** seed the content the walkthroughs use ([#28712](https://github.com/lightdash/lightdash/issues/28712)) ([567095c](https://github.com/lightdash/lightdash/commit/567095cdf154d47f7fdbde34eed7c2f5375b221c)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28711](https://github.com/lightdash/lightdash/issues/28711) [#28713](https://github.com/lightdash/lightdash/issues/28713) [#28714](https://github.com/lightdash/lightdash/issues/28714) [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+* **frontend:** guided-tour kit for interactive walkthroughs ([#28713](https://github.com/lightdash/lightdash/issues/28713)) ([68fb5e1](https://github.com/lightdash/lightdash/commit/68fb5e172e2e0c43e391555114dde864a11d148e)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28711](https://github.com/lightdash/lightdash/issues/28711) [#28712](https://github.com/lightdash/lightdash/issues/28712) [#28714](https://github.com/lightdash/lightdash/issues/28714) [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+* **frontend:** Learn library, one card per trainee scope ([#28715](https://github.com/lightdash/lightdash/issues/28715)) ([30f58c3](https://github.com/lightdash/lightdash/commit/30f58c3823d61565231f6754ef39ff0513478f18)), closes [#28714](https://github.com/lightdash/lightdash/issues/28714) [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28711](https://github.com/lightdash/lightdash/issues/28711) [#28712](https://github.com/lightdash/lightdash/issues/28712) [#28713](https://github.com/lightdash/lightdash/issues/28713) [#28714](https://github.com/lightdash/lightdash/issues/28714) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+* **frontend:** scope-tour host, generator and checks ([#28714](https://github.com/lightdash/lightdash/issues/28714)) ([04ffd9e](https://github.com/lightdash/lightdash/commit/04ffd9ee69770748383b74770985a2cad02e0a16)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28711](https://github.com/lightdash/lightdash/issues/28711) [#28712](https://github.com/lightdash/lightdash/issues/28712) [#28713](https://github.com/lightdash/lightdash/issues/28713) [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+* **learn:** Enable Learn from the Learn page; the enabling admin owns the training project ([#28716](https://github.com/lightdash/lightdash/issues/28716)) ([73ea8a3](https://github.com/lightdash/lightdash/commit/73ea8a3d44b107faa1fe8227fb8b1dc71052f85e)), closes [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28710](https://github.com/lightdash/lightdash/issues/28710)
+
+
+### Performance Improvements
+
+* stop copying every table per model when converting explores ([#28741](https://github.com/lightdash/lightdash/issues/28741)) ([bb27585](https://github.com/lightdash/lightdash/commit/bb27585f27884ebe5e4d7b567df9fcca128fcf79))
+
 # [2.144.0](https://github.com/lightdash/lightdash/compare/2.143.0...2.144.0) (2026-09-07)
 
 

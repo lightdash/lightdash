@@ -51164,6 +51164,33 @@
                 },
                 "type": "object"
             },
+            "EnableLearnResults": {
+                "properties": {
+                    "created": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["created", "projectUuid"],
+                "type": "object",
+                "description": "The training project an org admin enabled Learn with (CS-257)."
+            },
+            "ApiEnableLearnResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/EnableLearnResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ImpersonationOrganizationSettings": {
                 "properties": {
                     "impersonationEnabled": {
@@ -60011,7 +60038,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.144.0",
+        "version": "2.145.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -88193,6 +88220,38 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/org/training-project": {
+            "post": {
+                "operationId": "EnableLearn",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnableLearnResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Enable Learn for the current organization: create the training project\nwith the caller as its admin. Org admins only. Idempotent.",
+                "summary": "Enable Learn",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/org/impersonation": {
