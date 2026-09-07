@@ -238,30 +238,53 @@ describe('createSavedChart', () => {
         ).toBe(true);
     });
 
-    test('rejects a forced slug owned by a deleted chart', async () => {
+    test('revives a deleted chart that owns a forced slug', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
                 saved_query_uuid: 'deleted-chart-uuid',
                 deleted_at: new Date(),
             },
         ]);
+        tracker.on.select(SpaceTableName).responseOnce([{ space_id: 7 }]);
+        tracker.on
+            .update(SavedChartsTableName)
+            .responseOnce([
+                { saved_query_id: 11, saved_query_uuid: 'deleted-chart-uuid' },
+            ]);
+        tracker.on
+            .insert('saved_queries_versions')
+            .responseOnce([{ saved_queries_version_id: 13 }]);
 
-        await expect(
-            createSavedChart(
-                database,
-                '22222222-2222-4222-8222-222222222222',
-                '11111111-1111-4111-8111-111111111111',
-                {
-                    ...chartInput,
-                    spaceUuid: '33333333-3333-4333-8333-333333333333',
-                    dashboardUuid: null,
-                    forceSlug: true,
-                },
-            ),
-        ).rejects.toThrow(
-            'Chart slug "orders" is already used by a deleted chart',
+        const result = await createSavedChart(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            '11111111-1111-4111-8111-111111111111',
+            {
+                ...chartInput,
+                spaceUuid: '33333333-3333-4333-8333-333333333333',
+                dashboardUuid: null,
+                forceSlug: true,
+            },
         );
-        expect(tracker.history.insert).toHaveLength(0);
+
+        expect(result).toBe('deleted-chart-uuid');
+        expect(
+            tracker.history.insert.some((query) =>
+                query.sql.includes(`into "${SavedChartsTableName}"`),
+            ),
+        ).toBe(false);
+        const revive = tracker.history.update.find((query) =>
+            query.sql.includes(`update "${SavedChartsTableName}"`),
+        );
+        expect(revive?.sql).toContain('"deleted_at" = $');
+        expect(revive?.sql).not.toContain('"slug"');
+        expect(revive?.bindings).toEqual(
+            expect.arrayContaining([7, 'deleted-chart-uuid']),
+        );
+        const versionInsert = tracker.history.insert.find((query) =>
+            query.sql.includes('into "saved_queries_versions"'),
+        );
+        expect(versionInsert?.bindings).toContain(11);
     });
 
     test('preserves a long forced slug', async () => {

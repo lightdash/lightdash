@@ -404,26 +404,93 @@ describe('DashboardModel', () => {
         });
     });
 
-    test('rejects an exact slug owned by a deleted dashboard', async () => {
+    test('revives a deleted dashboard that owns an exact slug', async () => {
         tracker.on.select('pg_advisory_xact_lock').response({});
         tracker.on.select(DashboardsTableName).responseOnce([
             {
                 dashboard_uuid: 'deleted-dashboard-uuid',
                 deleted_at: new Date(),
+                deleted_by_user_uuid: 'deleter-user-uuid',
             },
         ]);
-
-        await expect(
-            model.create(
-                'spaceUuid',
-                { ...createDashboard, forceSlug: true },
-                user,
-                projectUuid,
-            ),
-        ).rejects.toThrow(
-            `Dashboard slug "${createDashboard.slug}" is already used by a deleted dashboard`,
+        tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
+        tracker.on.update(DashboardsTableName).responseOnce([
+            {
+                dashboard_id: dashboardEntry.dashboard_id,
+                dashboard_uuid: 'deleted-dashboard-uuid',
+            },
+        ]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        tracker.on
+            .insert(DashboardVersionsTableName)
+            .responseOnce([dashboardVersionEntry]);
+        tracker.on
+            .insert(DashboardViewsTableName)
+            .responseOnce([dashboardViewEntry]);
+        tracker.on
+            .insert(DashboardTilesTableName)
+            .responseOnce([dashboardTileEntry]);
+        tracker.on.select(SavedChartsTableName).responseOnce([savedChartEntry]);
+        tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+        tracker.on.update(DashboardViewsTableName).responseOnce([]);
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
         );
+
+        await model.create(
+            'spaceUuid',
+            { ...createDashboard, forceSlug: true },
+            user,
+            projectUuid,
+        );
+
+        expect(
+            tracker.history.insert.some((query) =>
+                query.sql.includes(`into "${DashboardsTableName}"`),
+            ),
+        ).toBe(false);
+        const revive = tracker.history.update.find((query) =>
+            query.sql.includes(`update "${DashboardsTableName}"`),
+        );
+        expect(revive?.sql).toContain('"deleted_at" = $');
+        expect(revive?.bindings).toEqual(
+            expect.arrayContaining([
+                createDashboard.name,
+                spaceEntry.space_id,
+                'deleted-dashboard-uuid',
+            ]),
+        );
+        const chartRevive = tracker.history.update.find((query) =>
+            query.sql.includes(`update "${SavedChartsTableName}"`),
+        );
+        expect(chartRevive?.bindings).toContain('deleter-user-uuid');
+        expect(tracker.history.insert[0].sql).toContain(
+            DashboardVersionsTableName,
+        );
+    });
+
+    test('reuses an active dashboard that owns an exact slug', async () => {
+        tracker.on.select('pg_advisory_xact_lock').response({});
+        tracker.on.select(DashboardsTableName).responseOnce([
+            {
+                dashboard_uuid: 'active-dashboard-uuid',
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            },
+        ]);
+        vi.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
+
+        await model.create(
+            'spaceUuid',
+            { ...createDashboard, forceSlug: true },
+            user,
+            projectUuid,
+        );
+
         expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
     });
 
     test('should update dashboard', async () => {
