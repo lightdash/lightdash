@@ -33,6 +33,7 @@ import {
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import pLimit from 'p-limit';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -55,6 +56,7 @@ import { GitIntegrationService } from '../GitIntegrationService/GitIntegrationSe
 
 type ContentAsCodeWritebackServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     gitIntegrationService: GitIntegrationService;
     coderService: CoderService;
@@ -80,6 +82,7 @@ type RepoContentFile = {
     content: string;
 };
 
+const ANALYTICS_ERROR_MAX_LENGTH = 500;
 const WRITEBACK_BRANCH_PREFIX = 'lightdash/write-back';
 
 // The stored branch column is varchar(255); file-backed git hosts cap a ref
@@ -148,6 +151,8 @@ export class ContentAsCodeWritebackService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly gitIntegrationService: GitIntegrationService;
 
     private readonly coderService: CoderService;
@@ -171,6 +176,7 @@ export class ContentAsCodeWritebackService extends BaseService {
     constructor(args: ContentAsCodeWritebackServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
+        this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.gitIntegrationService = args.gitIntegrationService;
         this.coderService = args.coderService;
@@ -180,6 +186,15 @@ export class ContentAsCodeWritebackService extends BaseService {
         this.contentAsCodeWritebackModel = args.contentAsCodeWritebackModel;
         this.contentDraftModel = args.contentDraftModel;
         this.userModel = args.userModel;
+    }
+
+    private static toWritebackContentType(
+        contentType: string,
+    ): WritebackContentType {
+        if (contentType !== 'chart' && contentType !== 'dashboard') {
+            throw new ParameterError('Unsupported draft content type');
+        }
+        return contentType;
     }
 
     // Identifies this instance in branch names so two instances editing the
@@ -299,7 +314,7 @@ export class ContentAsCodeWritebackService extends BaseService {
                 `Content "${slug}" is not managed as code; pass addToGit to deliberately add it to the repo`,
             );
         }
-        return this.writeContentToWritebackPr(user, {
+        const row = await this.writeContentToWritebackPr(user, {
             projectUuid,
             contentType,
             contentUuid,
@@ -307,6 +322,19 @@ export class ContentAsCodeWritebackService extends BaseService {
             contentDraftUuid: null,
             author: commitAuthorFromUser(user),
         });
+        this.analytics.track({
+            event: 'content_as_code.proposed',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentType,
+                contentId: contentUuid,
+                addToGit: options.addToGit === true,
+                writebackId: row.uuid,
+                prNumber: row.prNumber,
+            },
+        });
+        return row;
     }
 
     // Write-back visibility is a dev/admin surface (the sync panel), never
@@ -648,6 +676,16 @@ export class ContentAsCodeWritebackService extends BaseService {
             }
         }
         /* eslint-enable no-await-in-loop */
+        this.analytics.track({
+            event: 'content_as_code.pulled_from_git',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                chartsCount: summary.charts,
+                dashboardsCount: summary.dashboards,
+                failureCount: summary.failures.length,
+            },
+        });
         return summary;
     }
 
@@ -843,6 +881,18 @@ export class ContentAsCodeWritebackService extends BaseService {
             writtenBackPublished: published,
             writtenBackDraft: draftDoc,
         });
+        this.analytics.track({
+            event: 'content_draft.written_back',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                draftId: draft.uuid,
+                contentType,
+                contentId: draft.contentUuid,
+                writebackId: row.uuid,
+                prNumber: row.prNumber,
+            },
+        });
         return { ...draft, status: 'written_back', prUrl: row.prUrl };
     }
 
@@ -889,6 +939,20 @@ export class ContentAsCodeWritebackService extends BaseService {
         }
         await this.contentDraftModel.update(draft.uuid, {
             status: 'dismissed',
+        });
+        this.analytics.track({
+            event: 'content_draft.dismissed',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                draftId: draft.uuid,
+                contentType:
+                    ContentAsCodeWritebackService.toWritebackContentType(
+                        draft.contentType,
+                    ),
+                contentId: draft.contentUuid,
+                reason: 'reviewer',
+            },
         });
     }
 
@@ -1019,6 +1083,23 @@ export class ContentAsCodeWritebackService extends BaseService {
         });
         const updated = await this.contentDraftModel.get(draft.uuid);
         if (!updated) throw new ParameterError('Draft not found');
+        const conflictingFields = staleness?.conflictingFields ?? [];
+        const keptLatestCount = conflictingFields.filter(
+            (field) => resolutions[field] === 'latest',
+        ).length;
+        this.analytics.track({
+            event: 'content_draft.rebased',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                draftId: draft.uuid,
+                contentType: draft.contentType,
+                contentId: draft.contentUuid,
+                conflictingFieldCount: conflictingFields.length,
+                keptLatestCount,
+                keptDraftCount: conflictingFields.length - keptLatestCount,
+            },
+        });
         return updated;
     }
 
@@ -1051,6 +1132,19 @@ export class ContentAsCodeWritebackService extends BaseService {
             );
         }
         await this.contentDraftModel.update(draft.uuid, { status: 'open' });
+        this.analytics.track({
+            event: 'content_draft.reopened',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                draftId: draft.uuid,
+                contentType:
+                    ContentAsCodeWritebackService.toWritebackContentType(
+                        draft.contentType,
+                    ),
+                contentId: draft.contentUuid,
+            },
+        });
         return { ...draft, status: 'open' };
     }
 
@@ -1096,11 +1190,13 @@ export class ContentAsCodeWritebackService extends BaseService {
                             row.uuid,
                             { status: 'merged' },
                         );
+                        this.trackPullRequestOutcome(row, 'merged');
                     } else if (pr.state === 'closed') {
                         await this.contentAsCodeWritebackModel.update(
                             row.uuid,
                             { status: 'closed' },
                         );
+                        this.trackPullRequestOutcome(row, 'closed');
                         await this.releaseDraftOfClosedPullRequest(row);
                     }
                 } catch (error) {
@@ -1111,6 +1207,32 @@ export class ContentAsCodeWritebackService extends BaseService {
                 }
             }),
         );
+    }
+
+    // The outcome is decided on the provider by whoever reviewed the PR, so
+    // the row is attributed to the instance rather than the polling user
+    private trackPullRequestOutcome(
+        row: ContentAsCodeWriteback,
+        outcome: 'merged' | 'closed',
+    ): void {
+        if (row.prNumber === null) return;
+        this.analytics.track({
+            event:
+                outcome === 'merged'
+                    ? 'content_as_code_writeback.pull_request_merged'
+                    : 'content_as_code_writeback.pull_request_closed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                projectId: row.projectUuid,
+                writebackId: row.uuid,
+                contentType:
+                    ContentAsCodeWritebackService.toWritebackContentType(
+                        row.contentType,
+                    ),
+                prNumber: row.prNumber,
+                hadDraft: row.contentDraftUuid !== null,
+            },
+        });
     }
 
     // A PR closed without merging hands the change back to its author as a
@@ -1124,6 +1246,20 @@ export class ContentAsCodeWritebackService extends BaseService {
         await this.contentDraftModel.update(draft.uuid, {
             status: 'dismissed',
             prUrl: null,
+        });
+        this.analytics.track({
+            event: 'content_draft.dismissed',
+            anonymousId: LightdashAnalytics.anonymousId,
+            properties: {
+                projectId: draft.projectUuid,
+                draftId: draft.uuid,
+                contentType:
+                    ContentAsCodeWritebackService.toWritebackContentType(
+                        draft.contentType,
+                    ),
+                contentId: draft.contentUuid,
+                reason: 'pull_request_closed',
+            },
         });
         this.logger.info(
             `Draft ${draft.uuid} for ${row.slug} released after PR #${row.prNumber} was closed without merging`,
@@ -1210,6 +1346,17 @@ export class ContentAsCodeWritebackService extends BaseService {
             await this.contentAsCodeWritebackModel.update(row.uuid, {
                 status: 'error',
                 error: message,
+            });
+            this.analytics.track({
+                event: 'content_as_code_writeback.failed',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    contentType,
+                    contentId: target.contentUuid,
+                    isDraft: target.contentDraftUuid !== null,
+                    error: message.slice(0, ANALYTICS_ERROR_MAX_LENGTH),
+                },
             });
             throw error;
         }
