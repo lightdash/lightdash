@@ -155,6 +155,15 @@ const containsUnsafeDependency = (value: unknown): boolean => {
     );
 };
 
+const literalGitCleanExclusion = (
+    relativePath: string,
+    directory: boolean,
+): string => {
+    const normalizedPath = relativePath.split(path.sep).join('/');
+    const escapedPath = normalizedPath.replace(/[\\*?[\]!# ]/g, '\\$&');
+    return `/${escapedPath}${directory ? '/' : ''}`;
+};
+
 const FILESYSTEM_BATCH_SIZE = 32;
 
 const directorySize = async (directory: string): Promise<number> => {
@@ -537,8 +546,7 @@ export class DbtGitProjectAdapter
                 : null;
             if (
                 containsUnsafeDependency(parsedPackages) ||
-                containsUnsafeDependency(parsedDependencies) ||
-                containsUnsafeDependency(parsedProject)
+                containsUnsafeDependency(parsedDependencies)
             ) {
                 throw new Error('Dynamic or local package configuration');
             }
@@ -555,7 +563,8 @@ export class DbtGitProjectAdapter
                 installPath === '.' ||
                 !isContainedRelativePath(installPath) ||
                 installPath.includes('{{') ||
-                installPath.includes('{%')
+                installPath.includes('{%') ||
+                /[*?[\]]/.test(installPath)
             ) {
                 throw new Error('Unsafe package install path');
             }
@@ -791,13 +800,22 @@ export class DbtGitProjectAdapter
         const exclusions =
             marker?.inputHash === layout.inputHash
                 ? [
-                      path.relative(
-                          this.localRepositoryDir,
-                          layout.installDirectory,
+                      literalGitCleanExclusion(
+                          path.relative(
+                              this.localRepositoryDir,
+                              layout.installDirectory,
+                          ),
+                          true,
                       ),
-                      path.relative(
-                          this.localRepositoryDir,
-                          path.join(this.dbtProjectDir!, 'package-lock.yml'),
+                      literalGitCleanExclusion(
+                          path.relative(
+                              this.localRepositoryDir,
+                              path.join(
+                                  this.dbtProjectDir!,
+                                  'package-lock.yml',
+                              ),
+                          ),
+                          false,
                       ),
                   ]
                 : [];

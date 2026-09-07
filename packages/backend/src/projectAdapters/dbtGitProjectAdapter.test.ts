@@ -283,6 +283,7 @@ describe('DbtGitProjectAdapter cache', () => {
         gitConfigGlobalPath?: string,
         credential?: { token: string; installationId?: string },
         gitBranch = 'main',
+        projectDirectorySubPath = '.',
     ) =>
         new DbtGitProjectAdapter({
             warehouseClient: warehouseClientMock,
@@ -291,7 +292,7 @@ describe('DbtGitProjectAdapter cache', () => {
                 : pathToFileURL(remote).href,
             repository: 'test/repository',
             gitBranch,
-            projectDirectorySubPath: '.',
+            projectDirectorySubPath,
             warehouseCredentials: {
                 type: WarehouseTypes.POSTGRES,
                 host: 'localhost',
@@ -440,6 +441,140 @@ describe('DbtGitProjectAdapter cache', () => {
         await second.getDbtManifest();
         expect(second.getFetchMetrics().depsMode).toBe('reused');
         expect(installDeps).toHaveBeenCalledTimes(1);
+        await second.destroy();
+    });
+
+    it('keeps hooks and vars Jinja cacheable and invalidates on project config edits', async () => {
+        const { remote, source } = await createRemote({
+            'dbt_project.yml':
+                'name: test\non-run-end: "{{ first_hook() }}"\nvars:\n  start: "{{ env_var(\'START_DATE\') }}"\n',
+        });
+        const first = createAdapter(remote);
+        await first.getDbtManifest();
+        await first.destroy();
+        const second = createAdapter(remote);
+        await second.getDbtManifest();
+        expect(second.getFetchMetrics()).toMatchObject({
+            cloneMode: 'reused',
+            depsMode: 'reused',
+        });
+        await second.destroy();
+
+        await commitRemote(source, {
+            'dbt_project.yml':
+                'name: test\non-run-end: "{{ second_hook() }}"\nvars:\n  start: "{{ env_var(\'START_DATE\') }}"\n',
+        });
+        const third = createAdapter(remote);
+        await third.getDbtManifest();
+        expect(third.getFetchMetrics()).toMatchObject({
+            cloneMode: 'reused',
+            depsMode: 'fresh',
+        });
+        expect(installDeps).toHaveBeenCalledTimes(2);
+        await third.destroy();
+    });
+
+    it.each([
+        ['packages.yml', 'packages:\n  - local: "{{ env_var(\'LOCAL\') }}"\n'],
+        ['packages.yml', 'packages:\n  - nested:\n      path: ../package\n'],
+        [
+            'dependencies.yml',
+            'projects:\n  - name: package\n    config:\n      local: ../package\n',
+        ],
+    ])(
+        'declines retention for unsafe recursive dependency config in %s',
+        async (filename, content) => {
+            const { remote } = await createRemote({
+                'dbt_project.yml': 'name: test\n',
+                [filename]: content,
+            });
+            const first = createAdapter(remote);
+            await first.getDbtManifest();
+            await first.destroy();
+            const second = createAdapter(remote);
+            await second.getDbtManifest();
+
+            expect(second.getFetchMetrics()).toMatchObject({
+                cloneMode: 'fresh',
+                depsMode: 'fresh',
+            });
+            await second.destroy();
+        },
+    );
+
+    it('preserves packages and removes junk for literal metacharacter subpaths', async () => {
+        const projectSubPath =
+            ' leading /!/hash#/bracket[/question?/star*/ trailing ';
+        const { remote } = await createRemote({
+            [`${projectSubPath}/dbt_project.yml`]: 'name: test\n',
+            [`${projectSubPath}/packages.yml`]:
+                'packages:\n  - package: example/package\n',
+        });
+        installDeps.mockImplementation(
+            async function mockInstall(this: DbtCliClient) {
+                await fs.mkdir(
+                    path.join(this.dbtProjectDirectory, 'dbt_packages'),
+                );
+                await fs.writeFile(
+                    path.join(
+                        this.dbtProjectDirectory,
+                        'dbt_packages',
+                        'installed.sql',
+                    ),
+                    'select 1\n',
+                );
+                await fs.writeFile(
+                    path.join(this.dbtProjectDirectory, 'package-lock.yml'),
+                    'packages: []\n',
+                );
+            },
+        );
+        const first = createAdapter(
+            remote,
+            'source',
+            undefined,
+            undefined,
+            'main',
+            projectSubPath,
+        );
+        await first.getDbtManifest();
+        const retainedCheckout = first.localRepositoryDir;
+        await first.destroy();
+        await fs.writeFile(
+            path.join(retainedCheckout, projectSubPath, 'junk.sql'),
+            'select 2\n',
+        );
+        const second = createAdapter(
+            remote,
+            'source',
+            undefined,
+            undefined,
+            'main',
+            projectSubPath,
+        );
+        await second.getDbtManifest();
+
+        await expect(
+            fs.readFile(
+                path.join(
+                    second.localRepositoryDir,
+                    projectSubPath,
+                    'dbt_packages',
+                    'installed.sql',
+                ),
+                'utf8',
+            ),
+        ).resolves.toBe('select 1\n');
+        await expect(
+            fs.access(
+                path.join(
+                    second.localRepositoryDir,
+                    projectSubPath,
+                    'junk.sql',
+                ),
+            ),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(second.getFetchMetrics().depsMode).toBe('reused');
         await second.destroy();
     });
 
@@ -920,6 +1055,23 @@ describe('DbtGitProjectAdapter cache', () => {
             depsMode: 'fresh',
         });
         expect(installDeps).toHaveBeenCalledTimes(2);
+        await second.destroy();
+    });
+
+    it('declines retention for a glob package install path', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml':
+                'name: test\npackages-install-path: "dbt*packages"\n',
+        });
+        const first = createAdapter(remote);
+        await first.getDbtManifest();
+        await first.destroy();
+        const second = createAdapter(remote);
+        await second.getDbtManifest();
+        expect(second.getFetchMetrics()).toMatchObject({
+            cloneMode: 'fresh',
+            depsMode: 'fresh',
+        });
         await second.destroy();
     });
 });
