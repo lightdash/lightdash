@@ -66,21 +66,27 @@ const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
     );
 };
 
-const getAsyncQueryErrorName = (message: string): ApiError['error']['name'] => {
-    if (isRedshiftIamTokenErrorMessage(message)) return 'RedshiftIamTokenError';
-    if (isBigqueryTokenErrorMessage(message)) return 'BigqueryTokenError';
-    return 'Error';
+const getAsyncQueryErrorType = (
+    message: string,
+): Pick<ApiError['error'], 'name' | 'statusCode'> => {
+    if (isRedshiftIamTokenErrorMessage(message)) {
+        return { name: 'RedshiftIamTokenError', statusCode: 401 };
+    }
+    if (isBigqueryTokenErrorMessage(message)) {
+        return { name: 'BigqueryTokenError', statusCode: 401 };
+    }
+    return { name: 'Error', statusCode: 500 };
 };
 
 export const getAsyncQueryError = (message: string | null): ApiError => {
     const errorMessage = message || 'Query failed';
-    const name = getAsyncQueryErrorName(errorMessage);
+    const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
 
     return {
         status: 'error',
         error: {
             name,
-            statusCode: name === 'Error' ? 500 : 401,
+            statusCode,
             message: errorMessage,
             data: {},
         },
