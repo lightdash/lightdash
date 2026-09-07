@@ -1,6 +1,11 @@
 import { type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
-import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
+import {
+    isChartContent,
+    isDashboardContent,
+    type CreateEmbedJwt,
+    type EffectiveEmbedPermissions,
+} from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
 import type { MemberAbility } from './types';
@@ -353,6 +358,7 @@ export function applyEmbeddedAbility(
     embed: OssEmbed,
     externalId: string,
     builder: AbilityBuilder<MemberAbility>,
+    effectivePermissions?: EffectiveEmbedPermissions,
 ) {
     if (!content) {
         throw new Error('Content is required');
@@ -361,7 +367,10 @@ export function applyEmbeddedAbility(
     const applyAbilities = flow(getEmbeddedAbilitiesForType(content.type));
 
     applyAbilities({
-        embedUser,
+        embedUser: {
+            ...embedUser,
+            content: { ...embedUser.content, ...effectivePermissions },
+        },
         content,
         embed,
         externalId,

@@ -19,6 +19,7 @@ describe('serializeAccount', () => {
         expect(serialized).toEqual({
             organization: account.organization,
             authentication: { type: 'jwt' },
+            embedPermissions: account.embedPermissions,
             user,
             embedWriteContext: {
                 canUpdateDashboard: true,

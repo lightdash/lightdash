@@ -72,6 +72,7 @@ const checkRoleCoveredByScopes = (
  * List of enterprise-only subject names that should be filtered in non-enterprise mode
  */
 const ENTERPRISE_SUBJECTS = new Set([
+    'Embed',
     'MetricsTree',
     'SpotlightTableConfig',
     'AiAgent',

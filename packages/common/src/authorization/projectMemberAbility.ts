@@ -3,7 +3,11 @@ import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
-import { type MemberAbility } from './types';
+import {
+    INTERACTIVE_VIEWER_EMBED_PERMISSIONS,
+    VIEWER_EMBED_PERMISSIONS,
+    type MemberAbility,
+} from './types';
 
 // eslint-disable-next-line import/prefer-default-export
 export const projectMemberAbilities: Record<
@@ -14,6 +18,12 @@ export const projectMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
+        VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
+            can('view', 'Embed', {
+                projectUuid: member.projectUuid,
+                permission,
+            });
+        });
         can('view', 'Dashboard', {
             projectUuid: member.projectUuid,
             inheritsFromOrgOrProject: true,
@@ -75,6 +85,12 @@ export const projectMemberAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
+        INTERACTIVE_VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
+            can('view', 'Embed', {
+                projectUuid: member.projectUuid,
+                permission,
+            });
+        });
         can('view', 'UnderlyingData', {
             projectUuid: member.projectUuid,
         });

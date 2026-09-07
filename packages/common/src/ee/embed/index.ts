@@ -68,6 +68,20 @@ export type ParameterInteractivityOptions = z.infer<
     typeof ParameterInteractivityOptionsSchema
 >;
 
+export type EffectiveEmbedPermissions = Pick<
+    CommonEmbedJwtContent,
+    | 'dashboardFiltersInteractivity'
+    | 'parameterInteractivity'
+    | 'canExportCsv'
+    | 'canExportDashboardCsv'
+    | 'canExportImages'
+    | 'canExportPagePdf'
+    | 'canDateZoom'
+    | 'canExplore'
+    | 'canViewUnderlyingData'
+    | 'canViewDataApps'
+>;
+
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),

@@ -1,3 +1,4 @@
+import { type EffectiveEmbedPermissions } from '../ee';
 import {
     type Account,
     type AccountOrganization,
@@ -18,6 +19,7 @@ export type SerializedAccount = {
     authentication: { type: AuthType };
     user: Omit<Account['user'], 'ability' | 'abilityRules'>;
     embedWriteContext?: AnonymousAccount['embedWriteContext'];
+    embedPermissions?: EffectiveEmbedPermissions;
 };
 
 export type ApiGetAccountResponse = {

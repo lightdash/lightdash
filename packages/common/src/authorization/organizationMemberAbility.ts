@@ -6,7 +6,11 @@ import {
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
-import { type MemberAbility } from './types';
+import {
+    INTERACTIVE_VIEWER_EMBED_PERMISSIONS,
+    VIEWER_EMBED_PERMISSIONS,
+    type MemberAbility,
+} from './types';
 
 const applyOrganizationMemberDynamicAbilities = ({
     role,
@@ -41,6 +45,12 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
+        VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
+            can('view', 'Embed', {
+                organizationUuid: member.organizationUuid,
+                permission,
+            });
+        });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
@@ -102,6 +112,12 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
+        INTERACTIVE_VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
+            can('view', 'Embed', {
+                organizationUuid: member.organizationUuid,
+                permission,
+            });
+        });
         can('create', 'Job');
         can('view', 'Job', { userUuid: member.userUuid });
         can('view', 'UnderlyingData', {

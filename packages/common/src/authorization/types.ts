@@ -11,6 +11,39 @@ export type AbilityAction =
     | 'update'
     | 'view';
 
+export const EMBED_PERMISSIONS = [
+    'dashboardFiltersInteractivity',
+    'canAddFilters',
+    'parameterInteractivity',
+    'canExportCsv',
+    'canExportDashboardCsv',
+    'canExportImages',
+    'canExportPagePdf',
+    'canDateZoom',
+    'canExplore',
+    'canViewUnderlyingData',
+    'canViewDataApps',
+] as const;
+
+export type EmbedPermission = (typeof EMBED_PERMISSIONS)[number];
+
+export const VIEWER_EMBED_PERMISSIONS = [
+    'dashboardFiltersInteractivity',
+    'canAddFilters',
+    'parameterInteractivity',
+    'canExportCsv',
+    'canExportDashboardCsv',
+    'canExportImages',
+    'canExportPagePdf',
+    'canDateZoom',
+] as const satisfies readonly EmbedPermission[];
+
+export const INTERACTIVE_VIEWER_EMBED_PERMISSIONS = [
+    'canExplore',
+    'canViewUnderlyingData',
+    'canViewDataApps',
+] as const satisfies readonly EmbedPermission[];
+
 interface Project {
     organizationUuid: string;
     projectUuid: string;
@@ -41,6 +74,7 @@ export type CaslSubjectNames =
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'
+    | 'Embed'
     | 'Explore'
     | 'ExternalConnection'
     | 'ExternalSource'

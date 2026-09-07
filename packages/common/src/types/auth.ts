@@ -1,6 +1,7 @@
 import {
     type CreateEmbedJwt,
     type DashboardFilterInteractivityOptions,
+    type EffectiveEmbedPermissions,
     type ParameterInteractivityOptions,
 } from '../ee';
 import { ForbiddenError } from './errors';
@@ -181,6 +182,7 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     authentication: JwtAuth;
     user: ExternalUser;
     embedWriteUser?: SessionUser;
+    embedPermissions: EffectiveEmbedPermissions;
     embedWriteContext?: {
         canUpdateDashboard: boolean;
         canUpdateSavedChart: boolean;

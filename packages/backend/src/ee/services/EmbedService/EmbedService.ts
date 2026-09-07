@@ -620,8 +620,8 @@ export class EmbedService extends BaseService {
         if (!isDashboardContent(decodedToken.content)) {
             throw new ParameterError('JWT content is not of type dashboard');
         }
+        const { isPreview, stickyHeader } = decodedToken.content;
         const {
-            isPreview,
             canExportCsv,
             canExportDashboardCsv,
             canExportImages,
@@ -630,8 +630,7 @@ export class EmbedService extends BaseService {
             canExplore,
             canViewUnderlyingData,
             canViewDataApps,
-            stickyHeader,
-        } = decodedToken.content;
+        } = account.embedPermissions;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {

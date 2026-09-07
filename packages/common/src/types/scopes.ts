@@ -1,6 +1,7 @@
 import {
     type AbilityAction,
     type CaslSubjectNames,
+    type EmbedPermission,
 } from '../authorization/types';
 import { type ProjectType } from './projects';
 import { type RoleLevel } from './roles';
@@ -15,6 +16,7 @@ export enum ScopeGroup {
     DATA = 'data',
     SHARING = 'sharing',
     AI = 'ai',
+    EMBED = 'embed',
     SPOTLIGHT = 'spotlight',
 }
 
@@ -55,7 +57,13 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
+export type ScopeModifer =
+    | 'self'
+    | 'public'
+    | 'assigned'
+    | 'space'
+    | 'preview'
+    | EmbedPermission;
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**

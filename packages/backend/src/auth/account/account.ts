@@ -13,6 +13,7 @@ import {
     CreateEmbedJwt,
     EmbedContent,
     ForbiddenError,
+    getEffectiveEmbedPermissions,
     isDashboardContent,
     isJwtUser,
     MemberAbility,
@@ -96,8 +97,20 @@ export const fromJwt = ({
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
+    const embedPermissions = getEffectiveEmbedPermissions({
+        embedUser: decodedToken,
+        embed,
+        embedWriteUserAbility: embedWriteUser?.ability,
+    });
 
-    applyEmbeddedAbility(decodedToken, content, embed, externalId, builder);
+    applyEmbeddedAbility(
+        decodedToken,
+        content,
+        embed,
+        externalId,
+        builder,
+        embedPermissions,
+    );
     const abilities = builder.build();
 
     return createAccount({
@@ -111,14 +124,15 @@ export const fromJwt = ({
         access: {
             content,
             filtering: isDashboardContent(decodedToken.content)
-                ? decodedToken.content.dashboardFiltersInteractivity
+                ? embedPermissions.dashboardFiltersInteractivity
                 : undefined,
             parameters: isDashboardContent(decodedToken.content)
-                ? decodedToken.content.parameterInteractivity
+                ? embedPermissions.parameterInteractivity
                 : undefined,
             controls: userAttributes,
         },
         embedWriteUser,
+        embedPermissions,
         embedWriteContext,
         // Create the fields we're able to set from the JWT
         user: {

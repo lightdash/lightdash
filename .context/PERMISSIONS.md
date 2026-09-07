@@ -68,6 +68,7 @@ Scopes are the fundamental permission units in Lightdash. Each scope defines wha
 | `ORGANIZATION_MANAGEMENT` | Org settings, members, groups, invite links |
 | `DATA` | SQL runner, explore, underlying data, exports |
 | `SHARING` | Export to CSV/image/PDF |
+| `EMBED` | Embedded content controls and capabilities |
 | `AI` | AI agent features (enterprise) |
 | `SPOTLIGHT` | Metrics tree, spotlight config (enterprise) |
 
@@ -97,7 +98,7 @@ CASL is the underlying authorization library. Lightdash builds CASL abilities fr
 **CaslSubjectNames** (~35 subject types):
 ```
 AiAgent, AiAgentThread, Analytics, ChangeCsvResults, CompileProject,
-ContentAsCode, CustomSql, Dashboard, DashboardComments, Explore, ExportCsv, GoogleSheets, 
+ContentAsCode, CustomSql, Dashboard, DashboardComments, Embed, Explore, ExportCsv, GoogleSheets,
 Group, InviteLink, Job, JobStatus, MetricsTree, Organization,
 OrganizationMemberProfile, OrganizationWarehouseCredentials,
 PersonalAccessToken, PinnedItems, Project, SavedChart, ScheduledDeliveries,
@@ -327,7 +328,98 @@ const handlePatConfigApplication = (context, builder) => {
 
 ### Embedded (JWT) Permissions
 
-Embedded dashboards use limited, token-based permissions for anonymous users.
+Embedded content historically used boolean capability flags in the JWT. These
+flags remain supported for backward compatibility, but they are planned for
+deprecation. **Prefer adding a CASL scope for every new embedded capability; do
+not add another JWT boolean flag.**
+
+Embed scopes use `view:Embed@<capability>`, for example
+`view:Embed@canExplore`. The modifier is also stored on the CASL subject as the
+`permission` condition:
+
+```typescript
+ability.can(
+    'view',
+    subject('Embed', {
+        organizationUuid,
+        projectUuid,
+        permission: 'canExplore',
+    }),
+);
+```
+
+#### Effective permission resolution
+
+Scopes are considered only when the embed JWT has a `writeActions` actor that
+successfully resolves to either a Lightdash user (`userUuid`) or service
+account (`serviceAccountUserUuid`). That actor supplies the `MemberAbility` used for
+the scope check.
+
+If there is no resolved write actor, preserve the legacy trust model and use
+only the JWT values. Do not use the embed creator, organization admin, or a
+default role as an implicit actor.
+
+When a write actor is present, legacy flags and scopes are combined with OR
+semantics:
+
+```typescript
+const isAllowed =
+    jwtCapability === true ||
+    writeActorAbility.can(
+        'view',
+        subject('Embed', {
+            organizationUuid,
+            projectUuid,
+            permission: capability,
+        }),
+    );
+```
+
+A JWT value of `false` must not override a granted scope. Conversely, adding a
+`writeActions` actor must not remove a capability that the JWT explicitly set
+to `true`.
+
+For structured legacy options, resolve the effective value centrally rather
+than scattering boolean checks through the UI. For example, the dashboard
+filter scope grants interactivity for all dashboard filters, while preserving
+hidden-filter presentation. Without that scope, retain the JWT's `enabled`
+and `allowedFilters` behavior.
+
+#### Implementation checklist for embed capabilities
+
+1. Add the capability to `EmbedPermission` and define its
+   `view:Embed@<capability>` scope in
+   `packages/common/src/authorization/scopes.ts` under `ScopeGroup.EMBED`.
+2. Give system roles sensible defaults in
+   `projectMemberAbility.ts`, `organizationMemberAbility.ts`, and
+   `roleToScopeMapping.ts`. Keep those files in
+   parity. Match the closest existing Lightdash capability: viewer for basic
+   interaction/export permissions, interactive viewer for Explore, underlying
+   data, and data apps. Higher roles inherit those defaults.
+3. Leave custom roles explicit. The new scope becomes independently editable
+   in the custom-role UI and is not automatically granted to existing custom
+   roles.
+4. Resolve JWT compatibility and actor scopes in
+   `getEffectiveEmbedPermissions` (`authorization/embedPermissions.ts`). Use the
+   resolved permissions everywhere abilities, backend responses, or frontend
+   visibility are derived; do not re-read raw JWT flags downstream.
+5. Carry effective permissions on the anonymous embed account and overlay them
+   in `EmbedProvider` because some embedded frontend actions read the decoded
+   token through embed context.
+6. Verify three cases: no write actor uses only the JWT; JWT `true` remains
+   allowed with an actor; JWT `false` plus a granted actor scope is allowed.
+   Also verify at least one system role and one custom role through the embed
+   UI.
+
+During the compatibility period, existing JWT fields are an API contract:
+keep accepting them, avoid changing their meaning, and document any eventual
+removal through the normal deprecation and release-note process.
+Preserve omitted-field defaults too, including PDF export being enabled when
+`canExportPagePdf` is absent.
+
+Organization and project role grants remain additive. To restrict an embed
+through a project custom role, avoid also granting the capability through the
+actor's organization role (for example, use organization Member).
 
 ---
 

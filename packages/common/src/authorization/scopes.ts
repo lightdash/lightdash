@@ -11,7 +11,11 @@ import {
     type ScopeName,
 } from '../types/scopes';
 import { SpaceMemberRole } from '../types/space';
-import { type AbilityAction, type CaslSubjectNames } from './types';
+import {
+    type AbilityAction,
+    type CaslSubjectNames,
+    type EmbedPermission,
+} from './types';
 
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
@@ -43,6 +47,15 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 
 /** Applies the UUID condition as the only condition for a scope. */
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
+
+const addEmbedPermissionCondition = (permission: EmbedPermission) =>
+    flow(
+        (context: ScopeContext) => ({
+            ...addUuidCondition(context),
+            permission,
+        }),
+        Array.of,
+    );
 
 /**
  * Deployment config caps token access: a listed scope can be switched off by
@@ -1255,6 +1268,103 @@ const scopes: Scope[] = [
         group: ScopeGroup.DATA,
         dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
+    },
+
+    // Embedding
+    {
+        name: 'view:Embed@dashboardFiltersInteractivity',
+        description: 'Interact with filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition(
+            'dashboardFiltersInteractivity',
+        ),
+    },
+    {
+        name: 'view:Embed@canAddFilters',
+        description: 'Add temporary filters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [
+            {
+                name: 'view:Embed@dashboardFiltersInteractivity',
+                description: 'Interact with dashboard filters',
+            },
+        ],
+        getConditions: addEmbedPermissionCondition('canAddFilters'),
+    },
+    {
+        name: 'view:Embed@parameterInteractivity',
+        description: 'Change parameters in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('parameterInteractivity'),
+    },
+    {
+        name: 'view:Embed@canExportCsv',
+        description: 'Export individual embedded chart tiles as CSV',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canExportCsv'),
+    },
+    {
+        name: 'view:Embed@canExportDashboardCsv',
+        description: 'Export all tiles from an embedded dashboard',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canExportDashboardCsv'),
+    },
+    {
+        name: 'view:Embed@canExportImages',
+        description: 'Export embedded chart tiles as images',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canExportImages'),
+    },
+    {
+        name: 'view:Embed@canExportPagePdf',
+        description: 'Export embedded dashboard pages as PDF',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canExportPagePdf'),
+    },
+    {
+        name: 'view:Embed@canDateZoom',
+        description: 'Use date zoom in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canDateZoom'),
+    },
+    {
+        name: 'view:Embed@canExplore',
+        description: 'Open embedded charts in Explore',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canExplore'),
+    },
+    {
+        name: 'view:Embed@canViewUnderlyingData',
+        description: 'View underlying data from embedded charts',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canViewUnderlyingData'),
+    },
+    {
+        name: 'view:Embed@canViewDataApps',
+        description: 'View data app tiles in embedded dashboards',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addEmbedPermissionCondition('canViewDataApps'),
     },
 
     // AI Agent

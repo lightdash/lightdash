@@ -138,6 +138,21 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
         [tokenFromStorageOrProps],
     );
+    const effectiveContent = useMemo(() => {
+        if (!embedJwtPayload?.content) {
+            return undefined;
+        }
+
+        const embedPermissions =
+            account && 'embedPermissions' in account
+                ? account.embedPermissions
+                : undefined;
+
+        return {
+            ...embedJwtPayload.content,
+            ...embedPermissions,
+        } as CreateEmbedJwt['content'];
+    }, [account, embedJwtPayload?.content]);
     const handleChartSaved = useCallback(
         (chart: SavedChart, action: ChartSavedAction) => {
             onChartSaved?.(chart, action);
@@ -200,7 +215,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             // direct-embed transport adds its source here.
             t: (input: UiStringKey) => uiOverrides?.[input],
             projectUuid: embed?.projectUuid || projectUuid,
-            content: embedJwtPayload?.content,
+            content: effectiveContent,
             writeActions: embedJwtPayload?.writeActions,
             embedWriteContext,
             paletteUuid,
@@ -220,7 +235,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     }, [
         embed?.projectUuid,
         tokenFromStorageOrProps,
-        embedJwtPayload?.content,
+        effectiveContent,
         embedJwtPayload?.writeActions,
         embedWriteContext,
         filters,
