@@ -49,6 +49,33 @@ export function* chunkRowsByBytes<R>(
     }
 }
 
+export async function* chunkAsyncRowsByBytes<R>(
+    rows: AsyncIterable<SizedRow<R>>,
+    maxBytes: number = DEFAULT_CHUNK_MAX_BYTES,
+    maxRows: number = DEFAULT_CHUNK_MAX_ROWS,
+): AsyncGenerator<{ rows: R[]; bytes: number }, void, undefined> {
+    const byteLimit = Math.max(1, maxBytes);
+    const rowLimit = Math.max(1, maxRows);
+    let current: R[] = [];
+    let currentBytes = 0;
+
+    for await (const { row, bytes } of rows) {
+        if (
+            current.length > 0 &&
+            (currentBytes + bytes > byteLimit || current.length >= rowLimit)
+        ) {
+            yield { rows: current, bytes: currentBytes };
+            current = [];
+            currentBytes = 0;
+        }
+        current.push(row);
+        currentBytes += bytes;
+    }
+    if (current.length > 0) {
+        yield { rows: current, bytes: currentBytes };
+    }
+}
+
 /**
  * Serialised size of an explore set as one JSON array, without holding the array as a string.
  * Each element is serialised and released; only the running total is kept.

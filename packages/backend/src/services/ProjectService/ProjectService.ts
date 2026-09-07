@@ -26,7 +26,6 @@ import {
     buildDataTimezonePreviewSql,
     buildMergeItems,
     CacheMetadata,
-    calculateCompilationReport,
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
@@ -100,7 +99,6 @@ import {
     getDimensions,
     getErrorMessage,
     getFieldFormatOverrideProps,
-    getFields,
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
@@ -343,6 +341,7 @@ import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLi
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -522,6 +521,25 @@ type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
 };
+type SaveCompiledExploresArgs = {
+    userUuid: string;
+    projectUuid: string;
+    compilationSource: CompilationSource;
+    jobUuid?: string | null;
+    requestMethod?: string | null;
+    projectConfigDefaults?: ProjectDefaults;
+    cliVersion?: string | null;
+    complete?: boolean;
+};
+
+type PreparedExploreStream = {
+    exploreStream: AsyncIterable<Explore | ExploreError>;
+    lightdashProjectConfig: LightdashProjectConfig;
+    projectContext: ProjectContextEntry[] | undefined;
+    stagedMergedManifest?: Buffer;
+    onCompiled?: (summary: ExploreCompilationSummary) => void;
+};
+
 export class ProjectService extends BaseService {
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
@@ -2458,21 +2476,64 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async saveExploresToCacheAndIndexCatalog(args: {
-        userUuid: string;
-        projectUuid: string;
-        explores: (Explore | ExploreError)[];
-        compilationSource: CompilationSource;
-        jobUuid?: string | null;
-        requestMethod?: string | null;
-        projectConfigDefaults?: ProjectDefaults;
-        cliVersion?: string | null;
-        complete?: boolean;
-    }) {
+    async saveExploresToCacheAndIndexCatalog(
+        args: SaveCompiledExploresArgs & {
+            explores: (Explore | ExploreError)[];
+        },
+    ) {
+        const { explores, ...metadata } = args;
+        const result = await this.saveExploresAndIndexCatalog({
+            ...metadata,
+            saveExplores: async (summary) => {
+                const saved = await this.projectModel.saveExploresToCache(
+                    args.projectUuid,
+                    explores,
+                    args.complete,
+                );
+                explores.forEach((explore) => summary.add(explore));
+                return saved;
+            },
+        });
+        return result.indexCatalogJobUuid;
+    }
+
+    private async saveExploreStreamToCacheAndIndexCatalog(
+        args: Omit<SaveCompiledExploresArgs, 'complete'> & {
+            exploreStream: AsyncIterable<Explore | ExploreError>;
+            onCompiled?: (summary: ExploreCompilationSummary) => void;
+        },
+    ) {
+        const { exploreStream, onCompiled, ...metadata } = args;
+        return this.saveExploresAndIndexCatalog({
+            ...metadata,
+            complete: true,
+            saveExplores: async (summary) => {
+                async function* observedExplores() {
+                    for await (const explore of exploreStream) {
+                        summary.add(explore, onCompiled !== undefined);
+                        yield explore;
+                    }
+                    onCompiled?.(summary);
+                }
+                return this.projectModel.saveExploreStreamToCache(
+                    args.projectUuid,
+                    observedExplores(),
+                );
+            },
+        });
+    }
+
+    private async saveExploresAndIndexCatalog(
+        args: SaveCompiledExploresArgs & {
+            saveExplores: (
+                summary: ExploreCompilationSummary,
+            ) => Promise<{ cachedExploreUuids: string[] }>;
+        },
+    ) {
         const {
             userUuid,
             projectUuid,
-            explores,
+            saveExplores,
             compilationSource,
             jobUuid,
             requestMethod,
@@ -2480,6 +2541,7 @@ export class ProjectService extends BaseService {
             cliVersion,
             complete,
         } = args;
+        const summary = new ExploreCompilationSummary();
         const prevCatalogItemsWithTags =
             await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
                 onlyTagged: true, // We only need the tagged catalog items
@@ -2510,12 +2572,7 @@ export class ProjectService extends BaseService {
             });
         }
 
-        const { cachedExploreUuids } =
-            await this.projectModel.saveExploresToCache(
-                projectUuid,
-                explores,
-                complete,
-            );
+        const { cachedExploreUuids } = await saveExplores(summary);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -2528,7 +2585,7 @@ export class ProjectService extends BaseService {
         // "dashboard loaded with stale reference at T2".
         try {
             const NAME_SAMPLE_CAP = 50;
-            const newNames = explores.map((explore) => explore.name);
+            const newNames = summary.names;
             const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
             const removed = complete
@@ -2571,7 +2628,7 @@ export class ProjectService extends BaseService {
             });
         }
 
-        const compilationReport = calculateCompilationReport({ explores });
+        const compilationReport = summary.report;
         const project = await this.projectModel.get(projectUuid);
 
         Logger.info('compile.case_sensitive_resolution', {
@@ -2580,21 +2637,9 @@ export class ProjectService extends BaseService {
             compilationSource,
             cliVersion: cliVersion ?? null,
             projectDefault: projectConfigDefaults?.case_sensitive ?? null,
-            exploreCount: explores.length,
-            exploresWithFlag: explores
-                .filter((e) => e.caseSensitive !== undefined)
-                .map((e) => ({ name: e.name, value: e.caseSensitive })),
-            dimensionsWithFlag: explores.flatMap((e) =>
-                Object.entries(e.tables ?? {}).flatMap(([t, tbl]) =>
-                    Object.values(tbl.dimensions ?? {})
-                        .filter((d) => d.caseSensitive !== undefined)
-                        .map((d) => ({
-                            table: t,
-                            name: d.name,
-                            value: d.caseSensitive,
-                        })),
-                ),
-            ),
+            exploreCount: summary.report.totalExploresCount,
+            exploresWithFlag: summary.caseSensitiveExplores,
+            dimensionsWithFlag: summary.caseSensitiveDimensions,
         });
 
         await this.projectCompileLogModel.insert({
@@ -2632,7 +2677,11 @@ export class ProjectService extends BaseService {
             });
         }
 
-        return indexCatalogJob;
+        return {
+            indexCatalogJobUuid: indexCatalogJob,
+            errorCount: summary.report.errorExploresCount,
+            total: summary.report.totalExploresCount,
+        };
     }
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {
@@ -4046,8 +4095,8 @@ export class ProjectService extends BaseService {
                                 jobUuid: job.jobUuid,
                             };
                             timings.compileExplores.start = performance.now();
-                            const explores =
-                                await compileAdapter.compileAllExplores(
+                            const exploreStream =
+                                await compileAdapter.prepareExploreStream(
                                     trackingParams,
                                     false, // loadSources
                                     true, // allowPartialCompilation
@@ -4106,30 +4155,26 @@ export class ProjectService extends BaseService {
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
-                            const indexCatalogJobUuid =
-                                await this.saveExploresToCacheAndIndexCatalog({
-                                    userUuid: user.userUuid,
-                                    projectUuid,
-                                    explores,
-                                    compilationSource,
-                                    jobUuid: job.jobUuid,
-                                    requestMethod: method,
-                                    projectConfigDefaults:
-                                        lightdashProjectConfig.defaults,
-                                    complete: true,
-                                });
+                            const result =
+                                await this.saveExploreStreamToCacheAndIndexCatalog(
+                                    {
+                                        userUuid: user.userUuid,
+                                        projectUuid,
+                                        exploreStream,
+                                        compilationSource,
+                                        jobUuid: job.jobUuid,
+                                        requestMethod: method,
+                                        projectConfigDefaults:
+                                            lightdashProjectConfig.defaults,
+                                    },
+                                );
                             await this.persistMergedManifest(
                                 projectUuid,
                                 stagedMergedManifest,
                             );
                             timings.cacheExplores.end = performance.now();
 
-                            return {
-                                indexCatalogJobUuid,
-                                errorCount:
-                                    explores.filter(isExploreError).length,
-                                total: explores.length,
-                            };
+                            return result;
                         } finally {
                             await compileAdapter.destroy();
                             await sshTunnel.disconnect();
@@ -8516,17 +8561,13 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private async refreshTablesAndProjectConfig(
+    private async refreshTablesAndProjectConfig<T>(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         requestMethod: RequestMethod,
-        jobUuid?: string,
-    ): Promise<{
-        explores: (Explore | ExploreError)[];
-        lightdashProjectConfig: LightdashProjectConfig;
-        projectContext: ProjectContextEntry[] | undefined;
-        stagedMergedManifest?: Buffer;
-    }> {
+        jobUuid: string | undefined,
+        consume: (prepared: PreparedExploreStream) => Promise<T>,
+    ): Promise<T> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
 
@@ -8549,8 +8590,10 @@ export class ProjectService extends BaseService {
                 this.projectParametersModel.find(upstreamProjectUuid),
                 this.projectModel.getTableGroups(upstreamProjectUuid),
             ]);
-            return {
-                explores: Object.values(upstreamExplores),
+            return consume({
+                exploreStream: (async function* upstreamStream() {
+                    yield* Object.values(upstreamExplores);
+                })(),
                 lightdashProjectConfig: {
                     spotlight: DEFAULT_SPOTLIGHT_CONFIG,
                     parameters: Object.fromEntries(
@@ -8563,7 +8606,7 @@ export class ProjectService extends BaseService {
                     defaults: upstreamProject.projectDefaults,
                 },
                 projectContext: undefined,
-            };
+            });
         }
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
@@ -8598,139 +8641,29 @@ export class ProjectService extends BaseService {
                 userUuid: user.userUuid,
                 jobUuid,
             };
-            const explores = await adapter.compileAllExplores(
+            const exploreStream = await adapter.prepareExploreStream(
                 trackingParams,
-                false, // loadSources
-                true, // allowPartialCompilation
+                false,
+                true,
             );
-            this.analytics.track({
-                event: 'project.compiled',
-                userId: user.userUuid,
-                properties: {
-                    requestMethod,
-                    projectId: projectUuid,
-                    projectName: project.name,
-                    projectType: project.dbtConnection.type,
-                    warehouseType: project.warehouseConnection?.type,
-                    modelsCount: explores.length,
-                    modelsWithErrorsCount:
-                        explores.filter(isExploreError).length,
-                    modelsWithGroupLabelCount: explores.filter(
-                        ({ groupLabel }) => !!groupLabel,
-                    ).length,
-                    metricsCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return acc + getMetrics(explore).length;
-                        }
-                        return acc;
-                    }, 0),
-                    packagesCount: packages
-                        ? Object.keys(packages).length
-                        : undefined,
-                    roundCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return (
-                                acc +
-                                getMetrics(explore).filter(
-                                    ({ round }) => round !== undefined,
-                                ).length +
-                                getDimensions(explore).filter(
-                                    ({ round }) => round !== undefined,
-                                ).length
-                            );
-                        }
-                        return acc;
-                    }, 0),
-                    urlsCount: explores.reduce<number>((acc, explore) => {
-                        if (!isExploreError(explore)) {
-                            return (
-                                acc +
-                                getFields(explore)
-                                    .map((field) => (field.urls || []).length)
-                                    .reduce((a, b) => a + b, 0)
-                            );
-                        }
-                        return acc;
-                    }, 0),
-                    formattedFieldsCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            try {
-                                if (!isExploreError(explore)) {
-                                    const filteredExplore = {
-                                        ...explore,
-                                        tables: {
-                                            [explore.baseTable]:
-                                                explore.tables[
-                                                    explore.baseTable
-                                                ],
-                                        },
-                                    };
-
-                                    return (
-                                        acc +
-                                        getFields(filteredExplore).filter(
-                                            ({ format }) =>
-                                                format !== undefined,
-                                        ).length
-                                    );
-                                }
-                            } catch (e) {
-                                this.logger.error(
-                                    `Unable to reduce formattedFieldsCount. ${e}`,
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
-                    modelsWithSqlFiltersCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (
-                                explore.tables &&
-                                explore.baseTable &&
-                                explore.tables[explore.baseTable].sqlWhere !==
-                                    undefined
-                            )
-                                return acc + 1;
-                            return acc;
-                        },
-                        0,
-                    ),
-                    columnAccessFiltersCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (!isExploreError(explore)) {
-                                return (
-                                    acc +
-                                    getDimensions(explore).filter(
-                                        ({ requiredAttributes }) =>
-                                            requiredAttributes !== undefined,
-                                    ).length
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
-                    additionalDimensionsCount: explores.reduce<number>(
-                        (acc, explore) => {
-                            if (!isExploreError(explore)) {
-                                return (
-                                    acc +
-                                    Object.values(
-                                        explore.tables[explore.baseTable]
-                                            .dimensions,
-                                    ).filter(
-                                        (field) => field.isAdditionalDimension,
-                                    ).length
-                                );
-                            }
-                            return acc;
-                        },
-                        0,
-                    ),
-                    dbtSourceCount,
-                },
-            });
+            const onCompiled = (summary: ExploreCompilationSummary) => {
+                this.analytics.track({
+                    event: 'project.compiled',
+                    userId: user.userUuid,
+                    properties: {
+                        requestMethod,
+                        projectId: projectUuid,
+                        projectName: project.name,
+                        projectType: project.dbtConnection.type,
+                        warehouseType: project.warehouseConnection?.type,
+                        ...summary.analytics,
+                        packagesCount: packages
+                            ? Object.keys(packages).length
+                            : undefined,
+                        dbtSourceCount,
+                    },
+                });
+            };
 
             const lightdashProjectConfig =
                 await adapter.getLightdashProjectConfig(trackingParams);
@@ -8740,12 +8673,13 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
             });
 
-            return {
-                explores,
+            return await consume({
+                exploreStream,
                 lightdashProjectConfig,
                 projectContext,
                 stagedMergedManifest,
-            };
+                onCompiled,
+            });
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -9159,83 +9093,83 @@ export class ProjectService extends BaseService {
                 const compileResult = await this.jobModel.tryJobStep(
                     job.jobUuid,
                     JobStepType.COMPILING,
-                    async () => {
-                        const {
-                            explores,
-                            lightdashProjectConfig,
-                            projectContext,
-                            stagedMergedManifest,
-                        } = await this.refreshTablesAndProjectConfig(
+                    async () =>
+                        this.refreshTablesAndProjectConfig(
                             user,
                             projectUuid,
                             requestMethod,
                             job.jobUuid,
-                        );
+                            async ({
+                                exploreStream,
+                                lightdashProjectConfig,
+                                projectContext,
+                                stagedMergedManifest,
+                                onCompiled,
+                            }) => {
+                                timings.yaml.start = performance.now();
+                                await this.replaceYamlTagsWithoutPermissionCheck(
+                                    user,
+                                    organizationUuid,
+                                    projectUuid,
+                                    // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                    Object.entries(
+                                        lightdashProjectConfig.spotlight
+                                            ?.categories || {},
+                                    ).map(([key, category]) => ({
+                                        yamlReference: key,
+                                        name: category.label,
+                                        color: category.color ?? 'gray',
+                                    })),
+                                );
+                                timings.yaml.end = performance.now();
+                                timings.parameters.start = performance.now();
+                                await this.replaceProjectParameters({
+                                    user,
+                                    projectUuid,
+                                    parameters:
+                                        lightdashProjectConfig.parameters,
+                                });
+                                await this.projectModel.setTableGroups(
+                                    projectUuid,
+                                    lightdashProjectConfig.table_groups,
+                                );
+                                // Mirrors CLI deploy semantics: only overwrite stored
+                                // defaults when the config file defines them
+                                if (lightdashProjectConfig.defaults) {
+                                    await this.projectModel.updateProjectDefaults(
+                                        projectUuid,
+                                        lightdashProjectConfig.defaults,
+                                    );
+                                }
+                                await this.replaceProjectContext(
+                                    projectUuid,
+                                    projectContext,
+                                );
+                                timings.parameters.end = performance.now();
+                                timings.cacheExplores.start = performance.now();
+                                const result =
+                                    await this.saveExploreStreamToCacheAndIndexCatalog(
+                                        {
+                                            userUuid: user.userUuid,
+                                            projectUuid,
+                                            exploreStream,
+                                            onCompiled,
+                                            compilationSource: 'refresh_dbt',
+                                            jobUuid: job.jobUuid,
+                                            requestMethod,
+                                            projectConfigDefaults:
+                                                lightdashProjectConfig.defaults,
+                                        },
+                                    );
+                                await this.persistMergedManifest(
+                                    projectUuid,
+                                    stagedMergedManifest,
+                                );
+                                timings.cacheExplores.end = performance.now();
 
-                        timings.yaml.start = performance.now();
-                        await this.replaceYamlTagsWithoutPermissionCheck(
-                            user,
-                            organizationUuid,
-                            projectUuid,
-                            // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
-                            Object.entries(
-                                lightdashProjectConfig.spotlight?.categories ||
-                                    {},
-                            ).map(([key, category]) => ({
-                                yamlReference: key,
-                                name: category.label,
-                                color: category.color ?? 'gray',
-                            })),
-                        );
-                        timings.yaml.end = performance.now();
-                        timings.parameters.start = performance.now();
-                        await this.replaceProjectParameters({
-                            user,
-                            projectUuid,
-                            parameters: lightdashProjectConfig.parameters,
-                        });
-                        await this.projectModel.setTableGroups(
-                            projectUuid,
-                            lightdashProjectConfig.table_groups,
-                        );
-                        // Mirrors CLI deploy semantics: only overwrite stored
-                        // defaults when the config file defines them
-                        if (lightdashProjectConfig.defaults) {
-                            await this.projectModel.updateProjectDefaults(
-                                projectUuid,
-                                lightdashProjectConfig.defaults,
-                            );
-                        }
-                        await this.replaceProjectContext(
-                            projectUuid,
-                            projectContext,
-                        );
-                        timings.parameters.end = performance.now();
-                        timings.cacheExplores.start = performance.now();
-                        const indexCatalogJobUuid =
-                            await this.saveExploresToCacheAndIndexCatalog({
-                                userUuid: user.userUuid,
-                                projectUuid,
-                                explores,
-                                compilationSource: 'refresh_dbt',
-                                jobUuid: job.jobUuid,
-                                requestMethod,
-                                projectConfigDefaults:
-                                    lightdashProjectConfig.defaults,
-                                complete: true,
-                            });
-                        await this.persistMergedManifest(
-                            projectUuid,
-                            stagedMergedManifest,
-                        );
-                        timings.cacheExplores.end = performance.now();
-
-                        return {
-                            indexCatalogJobUuid,
-                            errorCount: explores.filter(isExploreError).length,
-                            total: explores.length,
-                        };
-                    },
+                                return result;
+                            },
+                        ),
                 );
 
                 if (afterCompile) {

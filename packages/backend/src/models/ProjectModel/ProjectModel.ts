@@ -168,7 +168,10 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
-import { chunkRowsByBytes } from '../../utils/chunkRowsByBytes';
+import {
+    chunkAsyncRowsByBytes,
+    chunkRowsByBytes,
+} from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -2336,6 +2339,119 @@ export class ProjectModel {
                     return {
                         cachedExploreUuids: individualCachedExplores.map(
                             (explore) => explore.cached_explore_uuid,
+                        ),
+                    };
+                }),
+        );
+    }
+
+    async saveExploreStreamToCache(
+        projectUuid: string,
+        explores: AsyncIterable<Explore | ExploreError>,
+    ): Promise<{ cachedExploreUuids: string[] }> {
+        return wrapSentryTransaction(
+            'ProjectModel.saveExploresToCache',
+            {},
+            async () =>
+                this.database.transaction(async (trx) => {
+                    await ProjectModel.lockAndEnsureCachedExplores(
+                        trx,
+                        projectUuid,
+                    );
+                    const userManagedRows = await trx(CachedExploreTableName)
+                        .select<{ explore: Explore | ExploreError }[]>(
+                            'explore',
+                        )
+                        .where('project_uuid', projectUuid)
+                        .whereRaw("explore->>'type' = ANY(?)", [
+                            [...USER_MANAGED_EXPLORE_TYPES],
+                        ]);
+                    const userManagedExplores = new Map(
+                        userManagedRows.map(({ explore }) => [
+                            explore.name,
+                            explore,
+                        ]),
+                    );
+                    await trx(CachedExploreTableName)
+                        .where('project_uuid', projectUuid)
+                        .delete();
+
+                    let savedBytes = 0;
+                    const seenNames = new Set<string>();
+                    async function* resolvedExplores() {
+                        for await (const explore of explores) {
+                            seenNames.add(explore.name);
+                            yield (
+                                userManagedExplores.get(explore.name) ?? explore
+                            );
+                        }
+                        for (const [name, explore] of userManagedExplores) {
+                            if (!seenNames.has(name)) yield explore;
+                        }
+                    }
+                    async function* sizedRows() {
+                        for await (const explore of resolvedExplores()) {
+                            const serialised = JSON.stringify(explore);
+                            const bytes = Buffer.byteLength(serialised);
+                            savedBytes += bytes;
+                            yield {
+                                row: {
+                                    project_uuid: projectUuid,
+                                    name: explore.name,
+                                    table_names: Object.keys(
+                                        explore.tables || {},
+                                    ),
+                                    explore: serialised,
+                                },
+                                bytes,
+                            };
+                        }
+                    }
+
+                    const cachedExploreUuidsByName = new Map<string, string>();
+                    let chunkCount = 0;
+                    let largestChunkBytes = 0;
+                    for await (const { rows, bytes } of chunkAsyncRowsByBytes(
+                        sizedRows(),
+                    )) {
+                        const uniqueRows = Array.from(
+                            new Map(
+                                rows.map((row) => [row.name, row]),
+                            ).values(),
+                        );
+                        const saved = await trx<DbCachedExplore>(
+                            CachedExploreTableName,
+                        )
+                            .insert(uniqueRows)
+                            .onConflict(['name', 'project_uuid'])
+                            .merge(['table_names', 'explore'])
+                            .returning(['name', 'cached_explore_uuid']);
+                        for (const row of saved) {
+                            cachedExploreUuidsByName.set(
+                                row.name,
+                                row.cached_explore_uuid,
+                            );
+                        }
+                        chunkCount += 1;
+                        largestChunkBytes = Math.max(largestChunkBytes, bytes);
+                    }
+                    if (cachedExploreUuidsByName.size === 0) {
+                        throw new ParameterError('No explores to save');
+                    }
+                    Logger.info(
+                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${cachedExploreUuidsByName.size} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes}`,
+                        {
+                            event: 'dbt.compile.saveExplores',
+                            projectUuid,
+                            explores: cachedExploreUuidsByName.size,
+                            chunks: chunkCount,
+                            largestChunkBytes,
+                            savedBytes,
+                        },
+                    );
+                    return {
+                        cachedExploreUuids: Array.from(
+                            cachedExploreUuidsByName.values(),
                         ),
                     };
                 }),

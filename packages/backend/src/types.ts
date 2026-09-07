@@ -29,6 +29,12 @@ export interface ProjectAdapter {
         allowPartialCompilation?: boolean,
     ): Promise<(Explore | ExploreError)[]>;
 
+    prepareExploreStream(
+        trackingParams: TrackingParams | undefined,
+        loadSources?: boolean,
+        allowPartialCompilation?: boolean,
+    ): Promise<AsyncIterable<Explore | ExploreError>>;
+
     getDbtPackages(): Promise<DbtPackages | undefined>;
 
     /**

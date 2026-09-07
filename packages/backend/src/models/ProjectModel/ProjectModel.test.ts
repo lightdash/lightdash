@@ -68,6 +68,15 @@ import {
     updateTableSelectionMock,
 } from './ProjectModel.mock';
 
+const { chunkAsyncRowsByBytesMock } = vi.hoisted(() => ({
+    chunkAsyncRowsByBytesMock: vi.fn(),
+}));
+
+vi.mock('../../utils/chunkRowsByBytes', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../utils/chunkRowsByBytes')>()),
+    chunkAsyncRowsByBytes: chunkAsyncRowsByBytesMock,
+}));
+
 function queryMatcher(
     tableName: string,
     params: AnyType[] = [],
@@ -858,6 +867,160 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(2);
+        });
+    });
+
+    describe('saveExploreStreamToCache', () => {
+        const oneRowChunks = () => {
+            vi.mocked(chunkAsyncRowsByBytesMock).mockImplementation(
+                async function* singleRowChunks(rows) {
+                    for await (const row of rows) {
+                        yield { rows: [row.row], bytes: row.bytes };
+                    }
+                },
+            );
+        };
+
+        const stream = async function* exploreStream<T>(items: T[]) {
+            for (const item of items) {
+                yield item;
+            }
+        };
+
+        const mockCacheQueries = (
+            userManagedExplores: { explore: unknown }[] = [],
+        ) => {
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([{}]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore"'))
+                .response(userManagedExplores);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explore"'))
+                .response(({ bindings }) => {
+                    const serialised = bindings.find(
+                        (binding): binding is string =>
+                            typeof binding === 'string' &&
+                            binding.startsWith('{'),
+                    );
+                    const saved = JSON.parse(serialised ?? '{}') as {
+                        label?: string;
+                        name: string;
+                    };
+                    return [
+                        {
+                            name: saved.name,
+                            cached_explore_uuid: `${saved.name}-${saved.label}`,
+                        },
+                    ];
+                });
+        };
+
+        test('keeps managed explores, appends absent managed explores, and preserves UUID order', async () => {
+            oneRowChunks();
+            const managedOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'managed',
+                type: ExploreType.VIRTUAL,
+            };
+            const managedAppend = {
+                ...exploreWithMetricFilters,
+                name: 'managed_append',
+                label: 'append',
+                type: ExploreType.VIRTUAL,
+            };
+            const incomingOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'incoming',
+            };
+            const incoming = {
+                ...exploreWithMetricFilters,
+                name: 'incoming',
+                label: 'incoming',
+            };
+            mockCacheQueries([
+                { explore: managedOverride },
+                { explore: managedAppend },
+            ]);
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([incomingOverride, incoming]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: [
+                    'managed_override-managed',
+                    'incoming-incoming',
+                    'managed_append-append',
+                ],
+            });
+
+            expect(tracker.history.insert).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify(managedOverride),
+                        ]),
+                    }),
+                    expect.objectContaining({
+                        bindings: expect.arrayContaining([
+                            JSON.stringify(managedAppend),
+                        ]),
+                    }),
+                ]),
+            );
+        });
+
+        test('keeps the last duplicate across streamed batches', async () => {
+            oneRowChunks();
+            const first = {
+                ...exploreWithMetricFilters,
+                name: 'duplicate',
+                label: 'first',
+            };
+            const second = { ...first, label: 'second' };
+            mockCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([first, second]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: ['duplicate-second'],
+            });
+        });
+
+        test('rejects an empty stream', async () => {
+            oneRowChunks();
+            mockCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, stream([])),
+            ).rejects.toThrow('No explores to save');
+        });
+
+        test('propagates source stream failures', async () => {
+            oneRowChunks();
+            mockCacheQueries();
+            async function* failingStream() {
+                yield exploreWithMetricFilters;
+                throw new Error('stream failed');
+            }
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, failingStream()),
+            ).rejects.toThrow('stream failed');
         });
     });
 

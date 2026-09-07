@@ -1148,14 +1148,14 @@ const yieldToEventLoop = (): Promise<void> =>
         }
     });
 
-export const convertExplores = async (
+export async function* iterateExplores(
     models: DbtModelNode[],
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
     warehouseSqlBuilder: WarehouseSqlBuilder,
     lightdashProjectConfig: LightdashProjectConfig,
     options?: ConvertExploresOptions,
-): Promise<(Explore | ExploreError)[]> => {
+): AsyncGenerator<Explore | ExploreError> {
     const {
         disableTimestampConversion,
         allowPartialCompilation,
@@ -1324,7 +1324,6 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
         allowPartialCompilation,
     });
-    const explores: (Explore | ExploreError)[] = [];
     // eslint-disable-next-line no-restricted-syntax
     for (const [modelIndex, model] of validModels.entries()) {
         // Config block takes priority, then meta block
@@ -1564,7 +1563,8 @@ export const convertExplores = async (
             return [...errors, ...processor(successes, postProcessorContext)];
         }, successfulExplores);
 
-        explores.push(...compileErrors, ...postProcessedExplores);
+        yield* compileErrors;
+        yield* postProcessedExplores;
 
         if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
             // eslint-disable-next-line no-await-in-loop
@@ -1572,7 +1572,29 @@ export const convertExplores = async (
         }
     }
 
-    return [...explores, ...exploreErrors];
+    yield* exploreErrors;
+}
+
+export const convertExplores = async (
+    models: DbtModelNode[],
+    loadSources: boolean,
+    adapterType: SupportedDbtAdapter,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
+    lightdashProjectConfig: LightdashProjectConfig,
+    options?: ConvertExploresOptions,
+): Promise<(Explore | ExploreError)[]> => {
+    const explores: (Explore | ExploreError)[] = [];
+    for await (const explore of iterateExplores(
+        models,
+        loadSources,
+        adapterType,
+        warehouseSqlBuilder,
+        lightdashProjectConfig,
+        options,
+    )) {
+        explores.push(explore);
+    }
+    return explores;
 };
 
 export type AttachTypesDiagnostics = {
