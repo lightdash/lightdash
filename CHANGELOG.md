@@ -1,3 +1,11 @@
+## [2.135.2](https://github.com/lightdash/lightdash/compare/2.135.1...2.135.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** replace the share redirect history entry ([#28722](https://github.com/lightdash/lightdash/issues/28722)) ([d5bbe35](https://github.com/lightdash/lightdash/commit/d5bbe35bde8dfcb763b78aa20e73c0ab5ed17a29)), closes [#28622](https://github.com/lightdash/lightdash/issues/28622)
+* **frontend:** resolve project slugs in useProjectUuid outside ProjectRoute ([#28721](https://github.com/lightdash/lightdash/issues/28721)) ([2de5305](https://github.com/lightdash/lightdash/commit/2de530512f73e74169ae19431dc98e3a5b342e2f))
+
 ## [2.135.1](https://github.com/lightdash/lightdash/compare/2.135.0...2.135.1) (2026-09-07)
 
 
