@@ -404,16 +404,16 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }[] = queryResult.value.columns ?? [];
             const fields = schema.reduce<WarehouseResults['fields']>(
                 (acc, column) => {
-                    const numericKind = getTrinoNumericKind(
-                        column.type ?? column.typeSignature.rawType,
-                    );
+                    // The full type string carries the decimal scale that rawType drops
+                    const type =
+                        column.type ??
+                        column.typeSignature.rawType ??
+                        TrinoTypes.VARCHAR;
+                    const numericKind = getTrinoNumericKind(type);
                     return {
                         ...acc,
                         [normalizeColumnName(column.name)]: {
-                            type: convertDataTypeToDimensionType(
-                                column.typeSignature.rawType ??
-                                    TrinoTypes.VARCHAR,
-                            ),
+                            type: convertDataTypeToDimensionType(type),
                             ...(numericKind ? { numericKind } : {}),
                         },
                     };
