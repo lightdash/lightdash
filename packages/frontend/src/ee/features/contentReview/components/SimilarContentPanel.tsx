@@ -1,8 +1,13 @@
-import { type ContentReviewSimilarContentItem } from '@lightdash/common';
+import {
+    type ContentReviewContentType,
+    type ContentReviewSimilarContentItem,
+} from '@lightdash/common';
 import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { getContentHref } from '../utils';
 import ContentReviewItemRow from './ContentReviewItemRow';
 import classes from './SimilarContentPanel.module.css';
@@ -11,11 +16,19 @@ const VISIBLE_ROWS = 3;
 
 type Props = {
     projectUuid: string;
+    contentType: ContentReviewContentType;
+    contentUuid: string;
     items: ContentReviewSimilarContentItem[];
 };
 
-const SimilarContentPanel: FC<Props> = ({ projectUuid, items }) => {
+const SimilarContentPanel: FC<Props> = ({
+    projectUuid,
+    contentType,
+    contentUuid,
+    items,
+}) => {
     const [showAll, setShowAll] = useState(false);
+    const { track } = useTracking();
     if (items.length === 0) return null;
     const hidden = Math.max(items.length - VISIBLE_ROWS, 0);
     const visible = showAll ? items : items.slice(0, VISIBLE_ROWS);
@@ -49,6 +62,18 @@ const SimilarContentPanel: FC<Props> = ({ projectUuid, items }) => {
                         )}
                         isVerified={item.isVerified}
                         compact
+                        onClick={() =>
+                            track({
+                                name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED,
+                                properties: {
+                                    projectId: projectUuid,
+                                    contentType,
+                                    contentId: contentUuid,
+                                    similarContentId: item.contentUuid,
+                                    similarContentIsVerified: item.isVerified,
+                                },
+                            })
+                        }
                     />
                 ))}
                 {hidden > 0 && (

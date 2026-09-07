@@ -218,6 +218,8 @@ const RequestReviewModal: FC<Props> = ({
                         </Group>
                         <SimilarContentPanel
                             projectUuid={projectUuid}
+                            contentType={contentType}
+                            contentUuid={contentUuid}
                             items={similarContent}
                         />
                         <Textarea

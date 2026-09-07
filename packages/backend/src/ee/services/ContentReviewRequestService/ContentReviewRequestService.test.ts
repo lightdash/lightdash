@@ -731,4 +731,42 @@ describe('ContentReviewRequestService', () => {
             expect(contentVerificationModel.verify).not.toHaveBeenCalled();
         });
     });
+
+    describe('settings', () => {
+        const admin = buildUser('admin-uuid', [
+            { subject: 'Project', action: 'manage' },
+        ]);
+
+        it('tracks how reviews are routed when settings change', async () => {
+            const {
+                service,
+                contentReviewSettingsModel,
+                groupsModel,
+                analytics,
+            } = buildService();
+            groupsModel.getGroup.mockResolvedValue({ organizationUuid: ORG });
+            contentReviewSettingsModel.upsert.mockResolvedValue({
+                projectUuid: PROJECT,
+                reviewerGroupUuid: 'group-uuid',
+                verifyOnApproveDefault: true,
+                slackChannelId: 'C123',
+            });
+
+            await service.updateSettings(admin, PROJECT, {
+                reviewerGroupUuid: 'group-uuid',
+            });
+
+            expect(analytics.track).toHaveBeenCalledWith({
+                event: 'content_review_settings.updated',
+                userId: 'admin-uuid',
+                properties: {
+                    organizationId: ORG,
+                    projectId: PROJECT,
+                    routedTo: 'group',
+                    verifyOnApproveDefault: true,
+                    slackNotificationsEnabled: true,
+                },
+            });
+        });
+    });
 });

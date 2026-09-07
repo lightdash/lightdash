@@ -1145,7 +1145,7 @@ export class ContentReviewRequestService extends BaseService {
             excludeContentUuid: string | null;
         },
     ): Promise<ContentReviewSimilarContentItem[]> {
-        await this.getProjectContext(user, projectUuid);
+        const context = await this.getProjectContext(user, projectUuid);
         if (params.name.trim().length === 0) return [];
         const candidates =
             await this.contentReviewRequestModel.findSimilarByName({
@@ -1184,7 +1184,7 @@ export class ContentReviewRequestService extends BaseService {
                 },
             ),
         );
-        return visible
+        const results = visible
             .map((c) => {
                 const isVerified =
                     verifiedByType.get(c.contentType)?.has(c.uuid) ?? false;
@@ -1201,6 +1201,22 @@ export class ContentReviewRequestService extends BaseService {
             })
             .sort((a, b) => b.score - a.score)
             .slice(0, SIMILAR_RESULT_LIMIT);
+        if (results.length > 0) {
+            this.analytics.track({
+                event: 'content_review_request.similar_content_found',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: context.organizationUuid,
+                    projectId: projectUuid,
+                    contentType: params.contentType,
+                    contentId: params.excludeContentUuid,
+                    matchCount: results.length,
+                    verifiedMatchCount: results.filter((r) => r.isVerified)
+                        .length,
+                },
+            });
+        }
+        return results;
     }
 
     private assertCanManageSettings(
@@ -1249,6 +1265,24 @@ export class ContentReviewRequestService extends BaseService {
                 throw new NotFoundError('Group not found');
             }
         }
-        return this.contentReviewSettingsModel.upsert(projectUuid, update);
+        const settings = await this.contentReviewSettingsModel.upsert(
+            projectUuid,
+            update,
+        );
+        this.analytics.track({
+            event: 'content_review_settings.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: context.organizationUuid,
+                projectId: projectUuid,
+                routedTo:
+                    settings.reviewerGroupUuid === null
+                        ? 'space_editors'
+                        : 'group',
+                verifyOnApproveDefault: settings.verifyOnApproveDefault,
+                slackNotificationsEnabled: settings.slackChannelId !== null,
+            },
+        });
+        return settings;
     }
 }

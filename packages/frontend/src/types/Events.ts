@@ -210,6 +210,9 @@ export enum EventName {
     AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
     AI_AGENT_BATTLE_STARTED = 'ai_agent_battle.started',
 
+    // Content review
+    CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED = 'content_review_similar_content.clicked',
+
     // Theme
     THEME_TOGGLED = 'theme.toggled',
 

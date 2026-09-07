@@ -3080,6 +3080,31 @@ export type ContentReviewRequestEvent = BaseTrack & {
     };
 };
 
+export type ContentReviewSettingsUpdatedEvent = BaseTrack & {
+    event: 'content_review_settings.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        routedTo: 'space_editors' | 'group';
+        verifyOnApproveDefault: boolean;
+        slackNotificationsEnabled: boolean;
+    };
+};
+
+export type ContentReviewSimilarContentFoundEvent = BaseTrack & {
+    event: 'content_review_request.similar_content_found';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string | null;
+        matchCount: number;
+        verifiedMatchCount: number;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -3935,6 +3960,8 @@ type TypedEvent =
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | ContentReviewRequestEvent
+    | ContentReviewSettingsUpdatedEvent
+    | ContentReviewSimilarContentFoundEvent
     | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
