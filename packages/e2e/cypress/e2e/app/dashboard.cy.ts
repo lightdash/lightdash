@@ -55,8 +55,7 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);
@@ -194,8 +193,7 @@ describe('Dashboard', () => {
 
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);
@@ -425,8 +423,7 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect').click();
-        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
+        cy.findByTestId('FilterConfiguration/FieldSelect')
             .click()
             .type('payment');
         cy.wait(200);
