@@ -1,3 +1,10 @@
+## [2.149.4](https://github.com/lightdash/lightdash/compare/2.149.3...2.149.4) (2026-09-07)
+
+
+### Bug Fixes
+
+* save compiled explores in batches ([#28783](https://github.com/lightdash/lightdash/issues/28783)) ([1f19995](https://github.com/lightdash/lightdash/commit/1f19995609adb1f0b4d347eea35807e010ad0a78))
+
 ## [2.149.3](https://github.com/lightdash/lightdash/compare/2.149.2...2.149.3) (2026-09-07)
 
 
