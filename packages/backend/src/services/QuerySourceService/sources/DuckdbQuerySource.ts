@@ -112,11 +112,13 @@ export class DuckdbQuerySource implements QuerySourceClient {
     /**
      * User attribute overrides have nothing to apply to here: referenced
      * results were produced under them and compose SQL carries no attribute
-     * references. A pivot refuses until the join node owns the pivot stage.
+     * references.
      *
      * Without a plan the query takes the public compose SQL path, which
-     * carries its own flag and ability gates. With one it goes straight to
-     * the execution tail: the caller that built the plan owns authorization.
+     * carries its own flag and ability gates and cannot pivot: raw SQL has no
+     * fields to pivot on. With a plan it goes straight to the execution
+     * tail, where the plan's composer owns the pivot stage; the caller that
+     * built the plan owns authorization.
      */
     async submitQuery({
         account,
@@ -130,7 +132,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         plan,
     }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
-        if (pivotConfiguration !== null) {
+        if (pivotConfiguration !== null && plan === null) {
             throw new ParameterError(
                 `${QuerySourceType.DUCKDB} queries do not support pivotConfiguration yet`,
             );
@@ -163,6 +165,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
                 ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
+                      pivotConfiguration: pivotConfiguration ?? undefined,
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,

@@ -27,10 +27,13 @@ is a dumb executor and must not become the place refusals are decided.
 
 Submission (`AsyncQueryService.submitMergeDag`) turns the compile into nodes:
 one `semanticLayer` node per metric source (`buildMergeLegNode`), and one
-`duckdb` node holding the join SQL, whose references map each
-`merge_source_N` to a leg node or, for a result source, straight to that
-result's queryUuid. The join node carries an execution plan: the compile's
-fields map, columns and metric query so nothing is probed, a session scoped to
+`duckdb` node holding the join core and the merge's pivot, whose references
+map each `merge_source_N` to a leg node or, for a result source, straight to
+that result's queryUuid. The join node carries an execution plan: a composer
+factory over the core (`MergeQueryComposer`, built by the node for the
+engine's dialect and the node's own pivot, so the pivot stage and the
+terminal wrapper are composed where the node runs and nothing upstream knows
+the merge is pivoted), the columns with their provenance, a session scoped to
 the leg files it reads, and the row-cap guard. Provenance on a supplied column
 may name a leg node; the duckdb source resolves it to the leg's queryUuid at
 submit, the way it resolves a table reference. The join's queryUuid is what

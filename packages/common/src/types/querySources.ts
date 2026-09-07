@@ -159,9 +159,10 @@ export type DuckdbSourceQuery = {
         | QueryNodeId[]
         | Record<QuerySourceTableName, QueryResultReference>;
     /**
-     * Pivots this node's result the way a pivoted chart does. Honoured by
-     * semanticLayer and sql nodes; duckdb and external nodes refuse it until
-     * the join node owns the pivot stage.
+     * Pivots this node's result the way a pivoted chart does. Refused on
+     * this endpoint: raw SQL has no fields to pivot on. A duckdb node
+     * submitted inside the server with an execution plan, such as a merge's
+     * join, pivots through that plan.
      */
     pivotConfiguration?: PivotConfiguration;
 };
