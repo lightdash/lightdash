@@ -458,6 +458,115 @@ describe('ManagedSignInService', () => {
         });
     });
 
+    describe('single use is claimed last', () => {
+        it('leaves no token-use row when the user is refused', async () => {
+            const claimTokenUse = vi.fn(async () => true);
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse,
+                loginWithOpenId: vi.fn(async () => {
+                    throw new ForbiddenError('not invited');
+                }) as unknown as UserService['loginWithOpenId'],
+            });
+
+            await expectRejection(
+                exchange(service, await signToken()),
+                ManagedSignInError.USER_NOT_ALLOWED,
+            );
+            expect(claimTokenUse).not.toHaveBeenCalled();
+        });
+
+        it('leaves no token-use row when the email claim is missing', async () => {
+            const claimTokenUse = vi.fn(async () => true);
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse,
+            });
+
+            await expectRejection(
+                exchange(service, await signToken({ email: undefined })),
+                ManagedSignInError.EMAIL_UNVERIFIED,
+            );
+            expect(claimTokenUse).not.toHaveBeenCalled();
+        });
+
+        it('leaves no token-use row when the user lands outside the tenant organization', async () => {
+            const claimTokenUse = vi.fn(async () => true);
+            const { service } = createService(configWith(), {
+                azureMethods: [azureMethod(TENANT_ID, 'org-uuid-other')],
+                claimTokenUse,
+            });
+
+            await expectRejection(
+                exchange(service, await signToken()),
+                ManagedSignInError.USER_NOT_ALLOWED,
+            );
+            expect(claimTokenUse).not.toHaveBeenCalled();
+        });
+
+        it('lets a retry through after a transient failure burned nothing', async () => {
+            const used = new Set<string>();
+            const claimTokenUse = vi.fn(async (hash: string) => {
+                if (used.has(hash)) return false;
+                used.add(hash);
+                return true;
+            });
+            const loginWithOpenId = vi
+                .fn()
+                .mockRejectedValueOnce(new Error('connection terminated'))
+                .mockResolvedValue(
+                    sessionUser,
+                ) as unknown as UserService['loginWithOpenId'];
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse,
+                loginWithOpenId,
+            });
+            const token = await signToken();
+
+            await expectRejection(
+                exchange(service, token),
+                ManagedSignInError.USER_NOT_ALLOWED,
+            );
+            await expect(exchange(service, token)).resolves.toEqual(
+                sessionUser,
+            );
+            expect(claimTokenUse).toHaveBeenCalledTimes(1);
+        });
+
+        it('lets exactly one of two concurrent exchanges win', async () => {
+            const used = new Set<string>();
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse: vi.fn(async (hash: string) => {
+                    if (used.has(hash)) return false;
+                    used.add(hash);
+                    return true;
+                }),
+            });
+            const token = await signToken();
+
+            const outcomes = await Promise.allSettled([
+                exchange(service, token),
+                exchange(service, token),
+            ]);
+
+            const fulfilled = outcomes.filter(
+                (outcome) => outcome.status === 'fulfilled',
+            );
+            const rejected = outcomes.filter(
+                (outcome) => outcome.status === 'rejected',
+            );
+            expect(fulfilled).toHaveLength(1);
+            expect(rejected).toHaveLength(1);
+            expect(
+                (rejected[0] as PromiseRejectedResult).reason,
+            ).toBeInstanceOf(ManagedSignInRejection);
+            expect(
+                (
+                    (rejected[0] as PromiseRejectedResult)
+                        .reason as ManagedSignInRejection
+                ).code,
+            ).toEqual(ManagedSignInError.TOKEN_REPLAYED);
+        });
+    });
+
     describe('single use', () => {
         it('rejects a token whose hash is already recorded', async () => {
             const { service } = createService(dedicatedConfig(), {

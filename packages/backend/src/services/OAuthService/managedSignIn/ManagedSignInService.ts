@@ -206,8 +206,6 @@ export class ManagedSignInService {
             );
             context.organizationUuid = organizationUuid;
 
-            await this.claimSingleUse(subjectToken, claims);
-
             const openIdUser = ManagedSignInService.buildOpenIdUser(claims);
 
             let user: SessionUser;
@@ -237,6 +235,8 @@ export class ManagedSignInService {
                     'user does not belong to the tenant organization',
                 );
             }
+
+            await this.claimSingleUse(subjectToken, claims);
 
             return user;
         } catch (error) {
