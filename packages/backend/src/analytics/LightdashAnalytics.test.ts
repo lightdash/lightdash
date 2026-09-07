@@ -157,6 +157,77 @@ describe('LightdashAnalytics', () => {
         });
     });
 
+    describe('actor fallback', () => {
+        const analytics = new LightdashAnalytics({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                rudder: {
+                    writeKey: 'test-write-key',
+                    dataPlaneUrl: 'http://localhost',
+                },
+            },
+            writeKey: 'test-write-key',
+            dataPlaneUrl: 'http://localhost',
+            options: { enable: false },
+        });
+
+        let superTrackSpy: ReturnType<typeof vi.spyOn>;
+
+        beforeEach(() => {
+            superTrackSpy = vi
+                .spyOn(Analytics.prototype, 'track')
+                .mockImplementation(() => {});
+        });
+
+        afterEach(() => {
+            superTrackSpy.mockRestore();
+        });
+
+        it('sends an event with no actor under the instance anonymous id', () => {
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+
+            analytics.track({
+                event: 'content_as_code.pulled_from_git',
+                properties: {
+                    projectId: 'project-uuid',
+                    chartsCount: 1,
+                    dashboardsCount: 0,
+                    failureCount: 0,
+                },
+            } as never);
+
+            expect(superTrackSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    anonymousId: LightdashAnalytics.anonymousId,
+                }),
+            );
+            expect(warn).toHaveBeenCalledTimes(1);
+            warn.mockRestore();
+        });
+
+        it('leaves an event with a userId untouched', () => {
+            analytics.track({
+                event: 'content_as_code.pulled_from_git',
+                userId: 'user-uuid',
+                properties: {
+                    projectId: 'project-uuid',
+                    chartsCount: 1,
+                    dashboardsCount: 0,
+                    failureCount: 0,
+                },
+            });
+
+            expect(superTrackSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ userId: 'user-uuid' }),
+            );
+            expect(superTrackSpy).toHaveBeenCalledWith(
+                expect.not.objectContaining({ anonymousId: expect.anything() }),
+            );
+        });
+    });
+
     describe('user.deleted anonymization', () => {
         const analytics = new LightdashAnalytics({
             lightdashConfig: {

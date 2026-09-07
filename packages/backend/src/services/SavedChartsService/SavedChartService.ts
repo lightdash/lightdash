@@ -788,6 +788,17 @@ export class SavedChartService
             draft: pruneUnchangedDraftFields(existingChart, draftFields),
             base,
         });
+        this.analytics.track({
+            event: 'content_draft.saved',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingChart.projectUuid,
+                draftId: stored.uuid,
+                contentType: 'chart',
+                contentId: existingChart.uuid,
+                draftedFieldCount: Object.keys(stored.draft).length,
+            },
+        });
         const chartForOverlay =
             'metricQuery' in existingChart
                 ? existingChart

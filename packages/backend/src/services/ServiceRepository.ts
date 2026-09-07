@@ -1364,6 +1364,7 @@ export class ServiceRepository
             () =>
                 new ContentAsCodeWritebackService({
                     lightdashConfig: this.context.lightdashConfig,
+                    analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
                     gitIntegrationService: this.getGitIntegrationService(),
                     coderService: this.getCoderService(),

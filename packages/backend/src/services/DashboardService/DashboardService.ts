@@ -1905,6 +1905,17 @@ export class DashboardService
             ),
             base,
         });
+        this.analytics.track({
+            event: 'content_draft.saved',
+            userId: user.userUuid,
+            properties: {
+                projectId: existingDashboardDao.projectUuid,
+                draftId: stored.uuid,
+                contentType: 'dashboard',
+                contentId: existingDashboardDao.uuid,
+                draftedFieldCount: Object.keys(stored.draft).length,
+            },
+        });
         const overlaid = DashboardService.mergeDraftIntoDashboard(
             existingDashboardDao,
             stored.draft,

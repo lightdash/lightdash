@@ -3466,6 +3466,116 @@ export type DashboardOwnershipReassignedEvent = BaseTrack & {
     };
 };
 
+type ContentAsCodeContentType = 'chart' | 'dashboard';
+
+type ContentDraftProperties = {
+    projectId: string;
+    draftId: string;
+    contentType: ContentAsCodeContentType;
+    contentId: string;
+};
+
+export type ContentDraftSavedEvent = BaseTrack & {
+    event: 'content_draft.saved';
+    userId: string;
+    properties: ContentDraftProperties & {
+        draftedFieldCount: number;
+    };
+};
+
+export type ContentDraftWrittenBackEvent = BaseTrack & {
+    event: 'content_draft.written_back';
+    userId: string;
+    properties: ContentDraftProperties & {
+        writebackId: string;
+        prNumber: number | null;
+    };
+};
+
+export type ContentDraftDismissedEvent = BaseTrack &
+    ({ userId: string } | { anonymousId: string }) & {
+        event: 'content_draft.dismissed';
+        properties: ContentDraftProperties & {
+            reason: 'reviewer' | 'pull_request_closed';
+        };
+    };
+
+export type ContentDraftReopenedEvent = BaseTrack & {
+    event: 'content_draft.reopened';
+    userId: string;
+    properties: ContentDraftProperties;
+};
+
+export type ContentDraftRebasedEvent = BaseTrack & {
+    event: 'content_draft.rebased';
+    userId: string;
+    properties: ContentDraftProperties & {
+        conflictingFieldCount: number;
+        keptLatestCount: number;
+        keptDraftCount: number;
+    };
+};
+
+export type ContentAsCodeProposedEvent = BaseTrack & {
+    event: 'content_as_code.proposed';
+    userId: string;
+    properties: {
+        projectId: string;
+        contentType: ContentAsCodeContentType;
+        contentId: string;
+        addToGit: boolean;
+        writebackId: string;
+        prNumber: number | null;
+    };
+};
+
+export type ContentAsCodeWritebackFailedEvent = BaseTrack & {
+    event: 'content_as_code_writeback.failed';
+    userId: string;
+    properties: {
+        projectId: string;
+        contentType: ContentAsCodeContentType;
+        contentId: string;
+        isDraft: boolean;
+        error: string;
+    };
+};
+
+export type ContentAsCodeWritebackPullRequestEvent = BaseTrack & {
+    event:
+        | 'content_as_code_writeback.pull_request_merged'
+        | 'content_as_code_writeback.pull_request_closed';
+    anonymousId: string;
+    properties: {
+        projectId: string;
+        writebackId: string;
+        contentType: ContentAsCodeContentType;
+        prNumber: number;
+        hadDraft: boolean;
+    };
+};
+
+export type ContentAsCodePulledFromGitEvent = BaseTrack & {
+    event: 'content_as_code.pulled_from_git';
+    userId: string;
+    properties: {
+        projectId: string;
+        chartsCount: number;
+        dashboardsCount: number;
+        failureCount: number;
+    };
+};
+
+export type ContentAsCodeSettingsStampedEvent = BaseTrack & {
+    event: 'content_as_code.settings_stamped';
+    userId: string;
+    properties: {
+        projectId: string;
+        syncEnabled: boolean;
+        pathConfigured: boolean;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -3741,6 +3851,16 @@ type TypedEvent =
     | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
+    | ContentDraftSavedEvent
+    | ContentDraftWrittenBackEvent
+    | ContentDraftDismissedEvent
+    | ContentDraftReopenedEvent
+    | ContentDraftRebasedEvent
+    | ContentAsCodeProposedEvent
+    | ContentAsCodeWritebackFailedEvent
+    | ContentAsCodeWritebackPullRequestEvent
+    | ContentAsCodePulledFromGitEvent
+    | ContentAsCodeSettingsStampedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
     | FeatureFlagCheckedAggregatedEvent
@@ -3820,6 +3940,17 @@ export class LightdashAnalytics extends Analytics {
         });
     }
 
+    // RudderStack asserts that every event carries a userId or anonymousId.
+    // A system event that forgot its actor lands under the instance id
+    // instead of throwing inside the request that emitted it.
+    private static ensureActor<T extends BaseTrack>(payload: T): T {
+        if (payload.userId || payload.anonymousId) return payload;
+        Logger.warn(
+            `Analytics event ${payload.event} has no userId or anonymousId; using the instance anonymous id`,
+        );
+        return { ...payload, anonymousId: LightdashAnalytics.anonymousId };
+    }
+
     track<T extends BaseTrack>(payload: TypedEvent | UntypedEvent<T>) {
         // Usage event stream fires regardless of Rudderstack/anonymization settings
         this.eventStreamSink?.handle(payload);
@@ -3844,7 +3975,7 @@ export class LightdashAnalytics extends Analytics {
             };
 
             super.track({
-                ...payload,
+                ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: payload.properties.isTrackingAnonymized
@@ -3860,7 +3991,7 @@ export class LightdashAnalytics extends Analytics {
         }
         if (isUserVerifiedEvent(payload)) {
             super.track({
-                ...payload,
+                ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
                 properties: {
@@ -3881,7 +4012,7 @@ export class LightdashAnalytics extends Analytics {
             };
 
             super.track({
-                ...payload,
+                ...LightdashAnalytics.ensureActor(payload),
                 event: `${this.lightdashContext.app.name}.${payload.event}`,
                 context: { ...this.lightdashContext },
                 properties: payload.properties.isTrackingAnonymized
@@ -3897,7 +4028,7 @@ export class LightdashAnalytics extends Analytics {
         }
 
         super.track({
-            ...payload,
+            ...LightdashAnalytics.ensureActor(payload),
             event: `${this.lightdashContext.app.name}.${payload.event}`,
             context: { ...this.lightdashContext }, // NOTE: spread because rudderstack manipulates arg
         });

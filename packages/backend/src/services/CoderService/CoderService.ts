@@ -3507,6 +3507,15 @@ export class CoderService extends BaseService {
                     ? null
                     : normalizeContentAsCodePath(settings.path),
         });
+        this.analytics.track({
+            event: 'content_as_code.settings_stamped',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                syncEnabled: settings.sync,
+                pathConfigured: settings.path !== undefined,
+            },
+        });
     }
 
     // Stamped project settings keep snapshot recording consistent for callers
