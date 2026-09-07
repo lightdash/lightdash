@@ -364,6 +364,7 @@ import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -1547,14 +1548,12 @@ export class ProjectService extends BaseService {
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
             args.warehouseConnection.useSshTunnel
         ) {
-            const publicKey = args.warehouseConnection.sshTunnelPublicKey || '';
-            const { privateKey } = await this.sshKeyPairModel.get(publicKey);
             return {
                 ...args,
-                warehouseConnection: {
-                    ...args.warehouseConnection,
-                    sshTunnelPrivateKey: privateKey,
-                },
+                warehouseConnection: await resolveSshTunnelPrivateKey(
+                    this.sshKeyPairModel,
+                    args.warehouseConnection,
+                ),
             };
         }
 
