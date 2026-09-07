@@ -23,6 +23,7 @@ import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
 import { configureDbtGitProjectCache } from './dbtGitProjectCache';
 import { inspectDbtGitProject } from './dbtGitProjectInspection';
+import * as dbtGitVersion from './dbtGitVersion';
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
@@ -510,6 +511,34 @@ describe('DbtGitProjectAdapter cache', () => {
         await second.getDbtManifest();
         expect(second.getFetchMetrics().cloneMode).toBe('fresh');
         await second.destroy();
+    });
+
+    it('uses fresh clones when the installed Git version is unsupported', async () => {
+        const probe = vi
+            .spyOn(dbtGitVersion, 'getDbtGitVersionSupport')
+            .mockResolvedValue({
+                supported: false,
+                reason: 'git-version-unsupported',
+            });
+        try {
+            const { remote } = await createRemote({
+                'dbt_project.yml': 'name: test\n',
+            });
+            const first = createAdapter(remote);
+            await first.getDbtManifest();
+            expect(first.getCacheOutcome()).toMatchObject({
+                cloneMode: 'fresh',
+                missReason: 'git-version-unsupported',
+            });
+            await first.destroy();
+
+            const second = createAdapter(remote);
+            await second.getDbtManifest();
+            expect(second.getFetchMetrics().cloneMode).toBe('fresh');
+            await second.destroy();
+        } finally {
+            probe.mockRestore();
+        }
     });
 
     it('sanitizes malformed credential-bearing repository URLs', () => {

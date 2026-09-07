@@ -33,6 +33,7 @@ import {
     releaseDbtGitProjectCache,
 } from './dbtGitProjectCache';
 import { inspectDbtGitProject } from './dbtGitProjectInspection';
+import * as dbtGitVersion from './dbtGitVersion';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
 
@@ -998,23 +999,29 @@ export class DbtGitProjectAdapter
             this.cacheIdentity &&
             this.cacheContext?.projectType !== ProjectType.PREVIEW
         ) {
-            try {
-                this.cacheLease = await acquireDbtGitProjectCache(
-                    this.cacheIdentity,
-                    this.repositoryIdentity,
-                    (reason) => {
-                        this.cacheOutcome.missReason = reason;
-                    },
-                );
-                if (this.cacheLease && !this.cacheLease.reused) {
-                    this.cacheOutcome.missReason = 'cold';
+            const gitVersionSupport =
+                await dbtGitVersion.getDbtGitVersionSupport();
+            if (!gitVersionSupport.supported) {
+                this.cacheOutcome.missReason = gitVersionSupport.reason;
+            } else {
+                try {
+                    this.cacheLease = await acquireDbtGitProjectCache(
+                        this.cacheIdentity,
+                        this.repositoryIdentity,
+                        (reason) => {
+                            this.cacheOutcome.missReason = reason;
+                        },
+                    );
+                    if (this.cacheLease && !this.cacheLease.reused) {
+                        this.cacheOutcome.missReason = 'cold';
+                    }
+                } catch (error) {
+                    this.cacheOutcome.missReason = 'acquire-error';
+                    this.warnSwallowedError(
+                        'Failed to acquire dbt Git checkout cache',
+                        error,
+                    );
                 }
-            } catch (error) {
-                this.cacheOutcome.missReason = 'acquire-error';
-                this.warnSwallowedError(
-                    'Failed to acquire dbt Git checkout cache',
-                    error,
-                );
             }
         }
         if (this.cacheLease) {
