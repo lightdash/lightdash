@@ -1323,16 +1323,20 @@ const retainDbtGitProjectCache = async (
                 const pendingAfterAccounting = await pathExists(
                     path.join(lease.entryDirectory, PENDING_DELETE),
                 );
+                const ownsLease = await leaseOwnsEntry(lease);
                 if (
                     lease.invalidated ||
                     pendingAfterAccounting ||
                     !isMetadata(current) ||
-                    current.key !== lease.key
+                    current.key !== lease.key ||
+                    !ownsLease
                 ) {
                     if (lease.invalidated) {
                         declineRetention = 'invalidated';
                     } else if (pendingAfterAccounting) {
                         declineRetention = 'pending-delete';
+                    } else if (!ownsLease) {
+                        declineRetention = 'lease-lost';
                     } else {
                         declineRetention = 'invalid-metadata';
                     }

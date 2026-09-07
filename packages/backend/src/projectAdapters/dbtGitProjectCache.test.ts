@@ -230,6 +230,54 @@ describe('dbt git project cache', () => {
         });
     });
 
+    it('declines retention after lease ownership changes', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const currentOwner = JSON.parse(
+            await fs.readFile(
+                path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+                'utf8',
+            ),
+        );
+        const replacementOwner = staleOwner({
+            leaseId: '00000000-0000-4000-8000-000000000002',
+            pid: process.pid,
+            processStartTime: currentOwner.processStartTime,
+            heartbeatAt: Date.now(),
+        });
+        await fs.writeFile(
+            path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+            JSON.stringify(replacementOwner),
+        );
+
+        await releaseDbtGitProjectCache(lease!, 100);
+
+        expect(lease).toMatchObject({
+            retained: false,
+            retentionReason: 'lease-lost',
+        });
+        expect(
+            JSON.parse(
+                await fs.readFile(
+                    path.join(lease!.entryDirectory, 'metadata.json'),
+                    'utf8',
+                ),
+            ),
+        ).toMatchObject({ state: 'active' });
+        expect(
+            JSON.parse(
+                await fs.readFile(
+                    path.join(lease!.entryDirectory, 'lease', 'owner.json'),
+                    'utf8',
+                ),
+            ),
+        ).toEqual(replacementOwner);
+    });
+
     it('reports a busy cache miss', async () => {
         await configure();
         const active = await acquireDbtGitProjectCache(
