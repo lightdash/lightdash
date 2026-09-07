@@ -33,7 +33,8 @@ export type AiCallFeature =
     | 'llm-judge'
     | 'data-app'
     | 'managed-agent'
-    | 'external-connection-config';
+    | 'external-connection-config'
+    | 'delivery-summary';
 
 /**
  * Whether the AI call ran on Lightdash's own (instance) provider key or the
