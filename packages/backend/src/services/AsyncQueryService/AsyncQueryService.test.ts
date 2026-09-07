@@ -6875,6 +6875,43 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
     ) =>
         vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
 
+    it('refuses a pivot the composer rejects before any leg runs', async () => {
+        const { service, create } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+
+        await expect(
+            // The v1 route hands over a pivot the caller derived itself
+            service.executeLegacyAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.EXPLORE,
+                mode: { type: 'interactive' },
+                // A group column that is also the index column is refused by
+                // the pivot builder
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'merge_month',
+                        type: VizIndexType.TIME,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'a_orders_count',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'merge_month' }],
+                    sortBy: undefined,
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+
+        expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
+    });
+
     it('runs the join in supplied mode: no column probe, and the compile-time columns reach execution unchanged', async () => {
         const {
             service,

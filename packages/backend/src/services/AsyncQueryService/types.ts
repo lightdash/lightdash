@@ -365,15 +365,17 @@ export type DuckdbQueryEngine =
  * it resolves to that node's query at submit time, the way a table
  * reference does.
  */
+export type DuckdbQueryPlanComposer = (args: {
+    warehouseClient: WarehouseClient;
+    pivotConfiguration: PivotConfiguration | undefined;
+}) => QueryComposer;
+
 export type DuckdbQueryPlan = {
     columns:
         | { mode: 'discover' }
         | {
               mode: 'supplied';
-              compose: (args: {
-                  warehouseClient: WarehouseClient;
-                  pivotConfiguration: PivotConfiguration | undefined;
-              }) => QueryComposer;
+              compose: DuckdbQueryPlanComposer;
               originalColumns: ResultColumns;
               requestParameters: ExecuteAsyncQueryRequestParams;
           };

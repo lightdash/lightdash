@@ -292,6 +292,7 @@ import {
     type DuckdbQueryColumns,
     type DuckdbQueryEngine,
     type DuckdbQueryPlan,
+    type DuckdbQueryPlanComposer,
     type DuckdbQueryReferences,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
@@ -7522,6 +7523,13 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             warehouseClient,
         });
+        // The statement that runs is the composed one, so it is checked too:
+        // a plan's composer must not be able to reach a file the raw SQL could not
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(resolved.sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
 
         // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
@@ -8578,23 +8586,38 @@ export class AsyncQueryService extends ProjectService {
             references,
             pivotConfiguration,
         };
+        const compose: DuckdbQueryPlanComposer = ({
+            warehouseClient,
+            pivotConfiguration: pivot,
+        }) =>
+            new MergeQueryComposer({
+                coreSql: compiledMerge.coreSql,
+                terminalWrapper: compiledMerge.terminalWrapper,
+                itemsMap: compiledMerge.itemsMap,
+                typedColumns: compiledMerge.typedColumns,
+                columnOrder,
+                limit: mergeQuery.limit,
+                parameterReferences: compiledMerge.parameterReferences,
+                usedParametersValues: compiledMerge.usedParametersValues,
+                warehouseClient,
+                pivotConfiguration: pivot,
+            });
+        // A pivot the composer refuses fails here, before any leg runs; the
+        // join node composes again with the same inputs when it executes
+        compose({
+            warehouseClient:
+                this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'results',
+                    scope: null,
+                }),
+            pivotConfiguration,
+        }).getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
         const plan: DuckdbQueryPlan = {
             columns: {
                 mode: 'supplied',
-                compose: ({ warehouseClient, pivotConfiguration: pivot }) =>
-                    new MergeQueryComposer({
-                        coreSql: compiledMerge.coreSql,
-                        terminalWrapper: compiledMerge.terminalWrapper,
-                        itemsMap: compiledMerge.itemsMap,
-                        typedColumns: compiledMerge.typedColumns,
-                        columnOrder,
-                        limit: mergeQuery.limit,
-                        parameterReferences: compiledMerge.parameterReferences,
-                        usedParametersValues:
-                            compiledMerge.usedParametersValues,
-                        warehouseClient,
-                        pivotConfiguration: pivot,
-                    }),
+                compose,
                 originalColumns,
                 requestParameters,
             },
