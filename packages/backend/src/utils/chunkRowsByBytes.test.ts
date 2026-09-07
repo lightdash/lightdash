@@ -1,4 +1,5 @@
 import {
+    chunkAsyncRowsByBytes,
     chunkRowsByBytes,
     describeWholeSetOverflow,
     POSTGRES_JSONB_MAX_BYTES,
@@ -74,6 +75,50 @@ describe('chunkRowsByBytes', () => {
         expect(
             [...chunkRowsByBytes(sized(5, 5), 0, 0)].map((c) => c.rows),
         ).toEqual([['row0'], ['row1']]);
+    });
+});
+
+describe('chunkAsyncRowsByBytes', () => {
+    it('bounds chunks by bytes and rows while preserving row order', async () => {
+        async function* rows() {
+            yield { row: 'row0', bytes: 40 };
+            yield { row: 'row1', bytes: 40 };
+            yield { row: 'row2', bytes: 40 };
+            yield { row: 'row3', bytes: 40 };
+        }
+
+        const chunks = [];
+        for await (const chunk of chunkAsyncRowsByBytes(rows(), 100, 2)) {
+            chunks.push(chunk);
+        }
+
+        expect(chunks).toEqual([
+            { rows: ['row0', 'row1'], bytes: 80 },
+            { rows: ['row2', 'row3'], bytes: 80 },
+        ]);
+    });
+
+    it('leaves unconsumed rows unread and closes the source on cancellation', async () => {
+        let produced = 0;
+        let closed = false;
+        async function* rows() {
+            try {
+                for (let index = 0; index < 10; index += 1) {
+                    produced += 1;
+                    yield { row: `row${index}`, bytes: 10 };
+                }
+            } finally {
+                closed = true;
+            }
+        }
+
+        const chunks = chunkAsyncRowsByBytes(rows(), 20, 1000);
+
+        await chunks.next();
+        await chunks.return(undefined);
+
+        expect(produced).toBe(3);
+        expect(closed).toBe(true);
     });
 });
 

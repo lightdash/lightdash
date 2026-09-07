@@ -3,7 +3,6 @@ import {
     applyMetricFlowMetricsToModels,
     attachTypesToModels,
     catalogHasTimestampDomains,
-    convertExplores,
     DbtManifestVersion,
     DbtModelNode,
     DbtPackages,
@@ -21,6 +20,7 @@ import {
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
+    iterateExplores,
     loadLightdashProjectConfig,
     loadProjectContextFile,
     MissingCatalogEntryError,
@@ -196,6 +196,21 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
     ): Promise<(Explore | ExploreError)[]> {
+        const stream = await this.prepareExploreStream(
+            trackingParams,
+            loadSources,
+            allowPartialCompilation,
+        );
+        const explores: (Explore | ExploreError)[] = [];
+        for await (const explore of stream) explores.push(explore);
+        return explores;
+    }
+
+    public async prepareExploreStream(
+        trackingParams?: TrackingParams,
+        loadSources: boolean = false,
+        allowPartialCompilation: boolean = true,
+    ): Promise<AsyncIterable<Explore | ExploreError>> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
         if (this.dbtClient.installDeps !== undefined) {
@@ -327,7 +342,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 this.warehouseClient.credentials.disableTimestampConversion ===
                     true;
 
-            const lazyExplores = await convertExplores(
+            const lazyExplores = iterateExplores(
                 lazyTypedModels,
                 loadSources,
                 adapterType,
@@ -339,8 +354,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     postProcessors,
                 },
             );
-            Logger.info('Finished compiling explores');
-            return [...lazyExplores, ...failedExplores];
+            return (async function* compiledExplores() {
+                yield* lazyExplores;
+                yield* failedExplores;
+                Logger.info('Finished compiling explores');
+            })();
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
                 Logger.info(
@@ -386,7 +404,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     this.warehouseClient.credentials
                         .disableTimestampConversion === true;
 
-                const explores = await convertExplores(
+                const explores = iterateExplores(
                     typedModels,
                     loadSources,
                     adapterType,
@@ -398,10 +416,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         postProcessors,
                     },
                 );
-                Logger.info(
-                    'Finished compiling explores after missing catalog error',
-                );
-                return [...explores, ...failedExplores];
+                return (async function* compiledExplores() {
+                    yield* explores;
+                    yield* failedExplores;
+                    Logger.info(
+                        'Finished compiling explores after missing catalog error',
+                    );
+                })();
             }
             throw e;
         }

@@ -119,12 +119,14 @@ import {
 import { ProjectMergedManifestsTable } from '../../database/entities/projectMergedManifests';
 import {
     CachedExploresTableName,
+    CachedExploreStagingTableName,
     CachedExploreTableName,
     CachedWarehouseTableName,
     DbCachedWarehouse,
     DbProject,
     ProjectTableName,
     type DbCachedExplore,
+    type DbCachedExploreStaging,
 } from '../../database/entities/projects';
 import { RolesTableName } from '../../database/entities/roles';
 import {
@@ -168,7 +170,10 @@ import {
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
-import { chunkRowsByBytes } from '../../utils/chunkRowsByBytes';
+import {
+    chunkAsyncRowsByBytes,
+    chunkRowsByBytes,
+} from '../../utils/chunkRowsByBytes';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -2339,6 +2344,243 @@ export class ProjectModel {
                         ),
                     };
                 }),
+        );
+    }
+
+    async saveExploreStreamToCache(
+        projectUuid: string,
+        explores: AsyncIterable<Explore | ExploreError>,
+    ): Promise<{ cachedExploreUuids: string[] }> {
+        return wrapSentryTransaction(
+            'ProjectModel.saveExploresToCache',
+            {},
+            async () => {
+                const saveUuid = uuidv4();
+                try {
+                    const stageStartedAt = performance.now();
+                    let savedBytes = 0;
+                    const stagedNames = new Set<string>();
+                    const stagedNameOrder: string[] = [];
+                    const sizedRows = async function* sizedRowsGenerator() {
+                        for await (const explore of explores) {
+                            if (!stagedNames.has(explore.name)) {
+                                stagedNames.add(explore.name);
+                                stagedNameOrder.push(explore.name);
+                            }
+                            const serialised = JSON.stringify(explore);
+                            const bytes = Buffer.byteLength(serialised);
+                            savedBytes += bytes;
+                            yield {
+                                row: {
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                    name: explore.name,
+                                    table_names: Object.keys(
+                                        explore.tables || {},
+                                    ),
+                                    explore: serialised,
+                                },
+                                bytes,
+                            };
+                        }
+                    };
+
+                    let chunkCount = 0;
+                    let largestChunkBytes = 0;
+                    for await (const { rows, bytes } of chunkAsyncRowsByBytes(
+                        sizedRows(),
+                    )) {
+                        const uniqueRows = Array.from(
+                            new Map(
+                                rows.map((row) => [row.name, row]),
+                            ).values(),
+                        );
+                        await this.database<DbCachedExploreStaging>(
+                            CachedExploreStagingTableName,
+                        )
+                            .insert(uniqueRows)
+                            .onConflict(['save_uuid', 'name', 'project_uuid'])
+                            .merge(['table_names', 'explore']);
+                        chunkCount += 1;
+                        largestChunkBytes = Math.max(largestChunkBytes, bytes);
+                    }
+                    const stageDurationMs = Math.round(
+                        performance.now() - stageStartedAt,
+                    );
+
+                    const swapStartedAt = performance.now();
+                    const { promotedRows, managedNames } =
+                        await this.database.transaction(async (trx) => {
+                            await ProjectModel.lockAndEnsureCachedExplores(
+                                trx,
+                                projectUuid,
+                            );
+                            const managedResult = await trx.raw<{
+                                rows: {
+                                    name: string;
+                                    cached_explore_uuid: string;
+                                }[];
+                            }>(
+                                `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore)
+                                 SELECT ?, project_uuid, name, table_names, explore
+                                 FROM ??
+                                 WHERE project_uuid = ?
+                                   AND explore->>'type' = ANY(?)
+                                 ON CONFLICT (save_uuid, name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore
+                                 RETURNING name, cached_explore_uuid`,
+                                [
+                                    CachedExploreStagingTableName,
+                                    saveUuid,
+                                    CachedExploreTableName,
+                                    projectUuid,
+                                    [...USER_MANAGED_EXPLORE_TYPES],
+                                ],
+                            );
+                            const expectedNames = new Set(stagedNames);
+                            managedResult.rows.forEach(({ name }) =>
+                                expectedNames.add(name),
+                            );
+                            if (expectedNames.size === 0) {
+                                throw new ParameterError('No explores to save');
+                            }
+                            const lockedStagedRows = await trx(
+                                CachedExploreStagingTableName,
+                            )
+                                .select<{ name: string }[]>('name')
+                                .where({
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                })
+                                .forUpdate();
+                            if (
+                                lockedStagedRows.length !==
+                                    expectedNames.size ||
+                                lockedStagedRows.some(
+                                    ({ name }) => !expectedNames.has(name),
+                                )
+                            ) {
+                                throw new UnexpectedServerError(
+                                    'Cached explore staging name set mismatch',
+                                );
+                            }
+                            await trx(CachedExploreTableName)
+                                .where('project_uuid', projectUuid)
+                                .delete();
+                            const promotedResult = await trx.raw<{
+                                rows: {
+                                    name: string;
+                                    cached_explore_uuid: string;
+                                }[];
+                            }>(
+                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore)
+                                 SELECT cached_explore_uuid, project_uuid, name, table_names, explore
+                                 FROM ??
+                                 WHERE save_uuid = ? AND project_uuid = ?
+                                 RETURNING name, cached_explore_uuid`,
+                                [
+                                    CachedExploreTableName,
+                                    CachedExploreStagingTableName,
+                                    saveUuid,
+                                    projectUuid,
+                                ],
+                            );
+                            return {
+                                promotedRows: promotedResult.rows,
+                                managedNames: managedResult.rows.map(
+                                    ({ name }) => name,
+                                ),
+                            };
+                        });
+                    const swapDurationMs = Math.round(
+                        performance.now() - swapStartedAt,
+                    );
+                    const cachedExploreUuidsByName = new Map(
+                        promotedRows.map(
+                            ({
+                                name,
+                                cached_explore_uuid: cachedExploreUuid,
+                            }) => [name, cachedExploreUuid],
+                        ),
+                    );
+                    const resultNames = [...stagedNameOrder];
+                    for (const name of managedNames) {
+                        if (!stagedNames.has(name)) resultNames.push(name);
+                    }
+                    Logger.info(
+                        `dbt.compile.saveExplores projectUuid=${projectUuid} explores=${cachedExploreUuidsByName.size} chunks=${chunkCount} largestChunkBytes=${largestChunkBytes} stageDurationMs=${stageDurationMs} swapDurationMs=${swapDurationMs}`,
+                        {
+                            event: 'dbt.compile.saveExplores',
+                            projectUuid,
+                            explores: cachedExploreUuidsByName.size,
+                            chunks: chunkCount,
+                            largestChunkBytes,
+                            savedBytes,
+                            stageDurationMs,
+                            swapDurationMs,
+                        },
+                    );
+                    return {
+                        cachedExploreUuids: resultNames.map((name) => {
+                            const cachedExploreUuid =
+                                cachedExploreUuidsByName.get(name);
+                            if (cachedExploreUuid === undefined) {
+                                throw new UnexpectedServerError(
+                                    `Missing cached explore UUID for ${name}`,
+                                );
+                            }
+                            return cachedExploreUuid;
+                        }),
+                    };
+                } finally {
+                    const cleanupErrors: Error[] = [];
+                    try {
+                        await this.database(CachedExploreStagingTableName)
+                            .where('save_uuid', saveUuid)
+                            .delete();
+                    } catch (error) {
+                        cleanupErrors.push(
+                            error instanceof Error
+                                ? error
+                                : new Error(String(error)),
+                        );
+                    }
+                    try {
+                        await this.database(CachedExploreStagingTableName)
+                            .whereIn(
+                                'save_uuid',
+                                this.database(CachedExploreStagingTableName)
+                                    .select('save_uuid')
+                                    .groupBy('save_uuid')
+                                    .havingRaw(
+                                        "max(created_at) < now() - interval '24 hours'",
+                                    )
+                                    .limit(100),
+                            )
+                            .delete();
+                    } catch (error) {
+                        cleanupErrors.push(
+                            error instanceof Error
+                                ? error
+                                : new Error(String(error)),
+                        );
+                    }
+                    if (cleanupErrors.length > 0) {
+                        Logger.error(
+                            `dbt.compile.saveExplores.cleanupFailed projectUuid=${projectUuid} saveUuid=${saveUuid} errors=${cleanupErrors.length}`,
+                            {
+                                event: 'dbt.compile.saveExplores.cleanupFailed',
+                                projectUuid,
+                                saveUuid,
+                                errors: cleanupErrors.map(
+                                    (error) => error.message,
+                                ),
+                            },
+                        );
+                    }
+                }
+            },
         );
     }
 

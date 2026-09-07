@@ -45,6 +45,14 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         );
     }
 
+    public async prepareExploreStream(): Promise<
+        AsyncIterable<Explore | ExploreError>
+    > {
+        throw new ParameterError(
+            'Cannot compile explores as this project was created via CLI and has no dbt connection configured. Either configure a dbt connection in project settings or use the CLI to deploy explores.',
+        );
+    }
+
     // eslint-disable-next-line class-methods-use-this
     public async getDbtPackages(): Promise<DbtPackages | undefined> {
         Logger.debug(`Get dbt packages`);

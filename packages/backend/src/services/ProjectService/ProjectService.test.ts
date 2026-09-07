@@ -44,7 +44,9 @@ import {
     type DbtManifest,
     type DownloadFile,
     type Explore,
+    type ExploreError,
     type Job,
+    type LightdashProjectConfig,
     type MergeQuery,
     type MergeQuerySource,
     type PossibleAbilities,
@@ -242,6 +244,14 @@ const projectModel = {
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
+        async (_projectUuid, explores) => {
+            for await (const explore of explores) {
+                expect(explore.name).toBeDefined();
+            }
+            return { cachedExploreUuids: [] };
+        },
+    ),
     setTableGroups: vi.fn(async () => undefined),
     updateProjectDefaults: vi.fn(async () => undefined),
     updateDefaultUserSpaces: vi.fn(async () => undefined),
@@ -540,6 +550,18 @@ const viewerAccount = {
         ]),
     },
 } as typeof account;
+
+type RefreshForTest = <T>(
+    user: Pick<SessionUser, 'userUuid'>,
+    projectUuid: string,
+    requestMethod: RequestMethod,
+    jobUuid: string | undefined,
+    consume: (prepared: {
+        exploreStream: AsyncIterable<Explore | ExploreError>;
+        lightdashProjectConfig: LightdashProjectConfig;
+        projectContext: undefined;
+    }) => Promise<T>,
+) => Promise<T>;
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
@@ -1868,23 +1890,20 @@ describe('ProjectService', () => {
         const callRefresh = () =>
             (
                 service as unknown as {
-                    refreshTablesAndProjectConfig: (
-                        user: { userUuid: string },
-                        projectUuid: string,
-                        requestMethod: RequestMethod,
-                    ) => Promise<{
-                        explores: unknown[];
-                        lightdashProjectConfig: {
-                            parameters?: Record<string, unknown>;
-                            table_groups?: Record<string, unknown>;
-                            defaults?: unknown;
-                        };
-                    }>;
+                    refreshTablesAndProjectConfig: RefreshForTest;
                 }
             ).refreshTablesAndProjectConfig(
                 { userUuid: user.userUuid },
                 previewProjectUuid,
                 RequestMethod.WEB_APP,
+                undefined,
+                async ({ exploreStream, lightdashProjectConfig }) => {
+                    const explores = [];
+                    for await (const explore of exploreStream) {
+                        explores.push(explore);
+                    }
+                    return { explores, lightdashProjectConfig };
+                },
             );
 
         test('reuses the upstream explores and config instead of compiling from dbt', async () => {
@@ -3611,29 +3630,38 @@ describe('ProjectService', () => {
 
             vi.spyOn(
                 service as unknown as {
-                    refreshTablesAndProjectConfig: () => Promise<unknown>;
+                    refreshTablesAndProjectConfig: RefreshForTest;
                 },
                 'refreshTablesAndProjectConfig',
-            ).mockResolvedValueOnce({
-                explores: [
-                    validExplore,
-                    {
-                        name: 'invalid_orders',
-                        label: 'Invalid orders',
-                        errors: [],
-                    },
-                ],
-                lightdashProjectConfig: {
-                    spotlight: {
-                        categories: {
-                            finance: { label: 'Finance', color: 'blue' },
+            ).mockImplementationOnce(
+                async (_user, _projectUuid, _method, _jobUuid, consume) =>
+                    consume({
+                        exploreStream: (async function* stream() {
+                            yield* [
+                                validExplore,
+                                {
+                                    name: 'invalid_orders',
+                                    label: 'Invalid orders',
+                                    errors: [],
+                                },
+                            ];
+                        })(),
+                        lightdashProjectConfig: {
+                            spotlight: {
+                                ...DEFAULT_SPOTLIGHT_CONFIG,
+                                categories: {
+                                    finance: {
+                                        label: 'Finance',
+                                        color: 'blue',
+                                    },
+                                },
+                            },
+                            parameters: {},
+                            table_groups: {},
                         },
-                    },
-                    parameters: {},
-                    table_groups: {},
-                },
-                projectContext: undefined,
-            });
+                        projectContext: undefined,
+                    }),
+            );
             (projectModel.getSummary as import('vitest').Mock)
                 .mockResolvedValueOnce({
                     ...projectSummary,
@@ -3696,19 +3724,27 @@ describe('ProjectService', () => {
             vi
                 .spyOn(
                     service as unknown as {
-                        refreshTablesAndProjectConfig: () => Promise<unknown>;
+                        refreshTablesAndProjectConfig: RefreshForTest;
                     },
                     'refreshTablesAndProjectConfig',
                 )
-                .mockResolvedValueOnce({
-                    explores: [validExplore],
-                    lightdashProjectConfig: {
-                        spotlight: { categories: {} },
-                        parameters: {},
-                        table_groups: {},
-                    },
-                    projectContext: undefined,
-                });
+                .mockImplementationOnce(
+                    async (_user, _projectUuid, _method, _jobUuid, consume) =>
+                        consume({
+                            exploreStream: (async function* stream() {
+                                yield validExplore;
+                            })(),
+                            lightdashProjectConfig: {
+                                spotlight: {
+                                    ...DEFAULT_SPOTLIGHT_CONFIG,
+                                    categories: {},
+                                },
+                                parameters: {},
+                                table_groups: {},
+                            },
+                            projectContext: undefined,
+                        }),
+                );
 
         test('runs the afterCompile step after compiling and before the job is done', async () => {
             const compileJobUuid = 'compile-job-uuid';
@@ -3872,12 +3908,14 @@ describe('ProjectService', () => {
                 errors: [],
             };
             const adapter = {
-                compileAllExplores: vi.fn(async () => [
-                    validExplore,
-                    invalidExplore,
-                ]),
+                prepareExploreStream: vi.fn(async () =>
+                    (async function* explores() {
+                        yield validExplore;
+                        yield invalidExplore;
+                    })(),
+                ),
                 getLightdashProjectConfig: vi.fn(async () => ({
-                    spotlight: { categories: {} },
+                    spotlight: { ...DEFAULT_SPOTLIGHT_CONFIG, categories: {} },
                     parameters: {},
                     table_groups: {},
                 })),
@@ -3913,10 +3951,9 @@ describe('ProjectService', () => {
                 },
                 'getProjectContextFromAdapter',
             ).mockResolvedValueOnce(undefined);
-            vi.spyOn(
-                service,
-                'saveExploresToCacheAndIndexCatalog',
-            ).mockResolvedValueOnce('catalog-job-1');
+            vi.mocked(schedulerClient.indexCatalog).mockResolvedValueOnce({
+                jobId: 'catalog-job-1',
+            });
 
             await service.testAndCompileProject(
                 {
@@ -3934,7 +3971,7 @@ describe('ProjectService', () => {
             expect(jobModel.update).toHaveBeenCalledWith(compileJobUuid, {
                 jobStatus: JobStatusType.DONE,
                 jobResults: {
-                    indexCatalogJobUuid: 'catalog-job-1',
+                    indexCatalogJobUuid: { jobId: 'catalog-job-1' },
                     errorCount: 1,
                     total: 2,
                 },
@@ -6478,7 +6515,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             destroy: vi.fn(async () => undefined),
         } as unknown as ProjectAdapter;
         const mergedAdapter = {
-            compileAllExplores,
+            prepareExploreStream: vi.fn(
+                async (
+                    ...args: Parameters<ProjectAdapter['compileAllExplores']>
+                ) => {
+                    const explores = await compileAllExplores(...args);
+                    return (async function* stream() {
+                        yield* explores;
+                    })();
+                },
+            ),
             getDbtPackages: vi.fn(async () => ({})),
             getLightdashProjectConfig: vi.fn(async () => ({
                 spotlight: {},
@@ -6555,9 +6601,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploresToCache
+        projectModel.saveExploreStreamToCache
             .mockReset()
-            .mockImplementationOnce(async () => {
+            .mockImplementationOnce(async (_projectUuid, explores) => {
+                for await (const explore of explores) {
+                    expect(explore.name).toBeDefined();
+                }
                 await Promise.resolve();
                 cacheCompleted = true;
                 return { cachedExploreUuids: [] };
@@ -6580,10 +6629,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploresToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploresToCache).mock
+            vi.mocked(projectModel.saveExploreStreamToCache).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -6596,9 +6645,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploresToCache
+        projectModel.saveExploreStreamToCache
             .mockReset()
-            .mockImplementationOnce(async () => {
+            .mockImplementationOnce(async (_projectUuid, explores) => {
+                for await (const explore of explores) {
+                    expect(explore.name).toBeDefined();
+                }
                 await Promise.resolve();
                 cacheCompleted = true;
                 return { cachedExploreUuids: [] };
@@ -6621,10 +6673,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploresToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploresToCache).mock
+            vi.mocked(projectModel.saveExploreStreamToCache).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -6639,7 +6691,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             (projectService as unknown as ProjectServiceInternals).logger,
             'warn',
         );
-        projectModel.saveExploresToCache
+        projectModel.saveExploreStreamToCache
             .mockReset()
             .mockResolvedValueOnce({ cachedExploreUuids: [] });
         projectModel.upsertMergedManifest.mockRejectedValueOnce(

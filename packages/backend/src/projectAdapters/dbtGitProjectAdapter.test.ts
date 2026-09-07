@@ -3,9 +3,11 @@ import {
     NotFoundError,
     UnexpectedGitError,
     UnexpectedServerError,
+    type ExploreError,
 } from '@lightdash/common';
 import { GitError } from 'simple-git';
-import { gitErrorHandler } from './dbtGitProjectAdapter';
+import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
+import { DbtGitProjectAdapter, gitErrorHandler } from './dbtGitProjectAdapter';
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
@@ -85,4 +87,49 @@ describe('gitErrorHandler', () => {
             );
         }
     });
+});
+
+describe('Git explore compilation', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it.each(['prepareExploreStream', 'compileAllExplores'] as const)(
+        '%s refreshes the checkout before preparing the compile',
+        async (method) => {
+            const adapter = Object.create(
+                DbtGitProjectAdapter.prototype,
+            ) as DbtGitProjectAdapter;
+            const refresh = vi.fn(async () => undefined);
+            Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
+            const explore: ExploreError = {
+                name: 'orders',
+                label: 'Orders',
+                errors: [],
+            };
+            const prepare = vi
+                .mocked(
+                    vi.spyOn(
+                        DbtBaseProjectAdapter.prototype,
+                        'prepareExploreStream',
+                    ),
+                )
+                .mockImplementation(async () => {
+                    expect(refresh).toHaveBeenCalledTimes(1);
+                    return (async function* stream() {
+                        yield explore;
+                    })();
+                });
+
+            const result = await adapter[method](undefined, false, true);
+            const collected = [];
+            for await (const item of result) collected.push(item);
+
+            expect(collected).toEqual([explore]);
+            expect(prepare).toHaveBeenCalledExactlyOnceWith(
+                undefined,
+                false,
+                true,
+            );
+            expect(refresh).toHaveBeenCalledTimes(1);
+        },
+    );
 });

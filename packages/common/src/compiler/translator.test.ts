@@ -16,12 +16,14 @@ import {
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
     type WarehouseCatalog,
 } from '../types/warehouse';
+import { ExploreCompiler } from './exploreCompiler';
 import { warehouseClientMock } from './exploreCompiler.mock';
 import { getExploreParameterDefinitions } from './parameters';
 import {
     attachTypesToModels,
     convertExplores,
     convertTable,
+    iterateExplores,
     type AttachTypesDiagnostics,
 } from './translator';
 import {
@@ -3003,6 +3005,126 @@ describe('granularity_labels overrides', () => {
             expect(dims.created_week.timeIntervalLabel).toBeUndefined();
             expect(explore.granularityLabels).toBeUndefined();
         }
+    });
+});
+
+describe('iterateExplores', () => {
+    const buildStreamingModel = (
+        name: string,
+        meta: DbtModelNode['meta'] = {},
+    ): DbtModelNode => ({
+        ...model,
+        unique_id: `model.pkg.${name}`,
+        name,
+        alias: name,
+        relation_name: `analytics.${name}`,
+        meta,
+    });
+
+    const iterate = (models: DbtModelNode[]) =>
+        iterateExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('pauses compilation until the next explore is consumed', async () => {
+        const compileExplore = vi.mocked(
+            vi.spyOn(ExploreCompiler.prototype, 'compileExplore'),
+        );
+        const iterator = iterate([
+            buildStreamingModel('first'),
+            buildStreamingModel('second'),
+        ]);
+
+        expect(compileExplore).not.toHaveBeenCalled();
+
+        await iterator.next();
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+
+        await Promise.resolve();
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+
+        await iterator.next();
+
+        expect(compileExplore).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not compile unconsumed models after cancellation', async () => {
+        const compileExplore = vi.mocked(
+            vi.spyOn(ExploreCompiler.prototype, 'compileExplore'),
+        );
+        const iterator = iterate([
+            buildStreamingModel('first'),
+            buildStreamingModel('second'),
+            buildStreamingModel('third'),
+        ]);
+
+        await iterator.next();
+        await iterator.return(undefined);
+
+        expect(compileExplore).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves joined, error, and extra explore output order and JSON', async () => {
+        const models = [
+            buildStreamingModel('orders', {
+                joins: [
+                    {
+                        join: 'customers',
+                        sql_on: '${orders.myColumnName} = ${customers.myColumnName}',
+                    },
+                ],
+                explores: {
+                    orders_extra: {},
+                },
+            }),
+            buildStreamingModel('customers'),
+            buildStreamingModel('broken', {
+                joins: [
+                    {
+                        join: 'missing',
+                        sql_on: '${broken.myColumnName} = ${missing.myColumnName}',
+                    },
+                ],
+            }),
+        ];
+
+        const expected = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        const actual: Awaited<ReturnType<typeof convertExplores>> = [];
+        for await (const explore of iterate(models)) {
+            actual.push(explore);
+        }
+
+        expect(actual.map(({ name }) => name)).toEqual([
+            'orders',
+            'orders_extra',
+            'customers',
+            'broken',
+        ]);
+        expect(actual[0]).toMatchObject({
+            name: 'orders',
+            tables: { customers: expect.anything() },
+        });
+        expect(actual[3]).toMatchObject({
+            name: 'broken',
+            errors: expect.any(Array),
+        });
+        expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
     });
 });
 

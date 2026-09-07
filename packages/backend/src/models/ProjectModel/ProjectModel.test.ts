@@ -68,6 +68,15 @@ import {
     updateTableSelectionMock,
 } from './ProjectModel.mock';
 
+const { chunkAsyncRowsByBytesMock } = vi.hoisted(() => ({
+    chunkAsyncRowsByBytesMock: vi.fn(),
+}));
+
+vi.mock('../../utils/chunkRowsByBytes', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../utils/chunkRowsByBytes')>()),
+    chunkAsyncRowsByBytes: chunkAsyncRowsByBytesMock,
+}));
+
 function queryMatcher(
     tableName: string,
     params: AnyType[] = [],
@@ -858,6 +867,389 @@ describe('ProjectModel', () => {
             expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.delete).toHaveLength(1);
             expect(tracker.history.insert).toHaveLength(2);
+        });
+    });
+
+    describe('saveExploreStreamToCache', () => {
+        const oneRowChunks = () => {
+            vi.mocked(chunkAsyncRowsByBytesMock).mockImplementation(
+                async function* singleRowChunks(rows) {
+                    for await (const row of rows) {
+                        yield { rows: [row.row], bytes: row.bytes };
+                    }
+                },
+            );
+        };
+
+        const stream = async function* exploreStream<T>(items: T[]) {
+            for (const item of items) {
+                yield item;
+            }
+        };
+
+        const mockStagedCacheQueries = ({
+            getUserManagedExplores = () => [],
+            getLockedNames,
+            onLock,
+            stageError,
+            swapError,
+        }: {
+            getUserManagedExplores?: () => {
+                explore: { name: string; label?: string };
+            }[];
+            getLockedNames?: () => string[];
+            onLock?: () => void;
+            stageError?: Error;
+            swapError?: Error;
+        } = {}) => {
+            const stagedRows = new Map<
+                string,
+                {
+                    name: string;
+                    cached_explore_uuid: string;
+                    label?: string;
+                }
+            >();
+            const stageExplore = (explore: {
+                name: string;
+                label?: string;
+            }) => {
+                const existing = stagedRows.get(explore.name);
+                stagedRows.set(explore.name, {
+                    name: explore.name,
+                    cached_explore_uuid:
+                        existing?.cached_explore_uuid ??
+                        `${explore.name}-${explore.label}`,
+                    label: explore.label,
+                });
+            };
+            const stageInsert = tracker.on.insert(
+                ({ sql }) =>
+                    sql.includes('"cached_explore_staging"') &&
+                    sql.includes('values'),
+            );
+            if (stageError) {
+                stageInsert.simulateError(stageError);
+            } else {
+                stageInsert.response(({ bindings }) => {
+                    bindings
+                        .filter(
+                            (binding): binding is string =>
+                                typeof binding === 'string' &&
+                                binding.startsWith('{'),
+                        )
+                        .map(
+                            (binding) =>
+                                JSON.parse(binding) as {
+                                    name: string;
+                                    label?: string;
+                                },
+                        )
+                        .forEach(stageExplore);
+                    return [];
+                });
+            }
+            tracker.on
+                .insert(({ sql }) => sql.includes('"cached_explores"'))
+                .response(() => {
+                    onLock?.();
+                    return [];
+                });
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explores"'))
+                .response([{}]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore"'))
+                .response([]);
+            tracker.on
+                .delete(({ sql }) => sql.includes('"cached_explore_staging"'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('"cached_explore_staging"'))
+                .response(() => {
+                    const names =
+                        getLockedNames?.() ?? Array.from(stagedRows.keys());
+                    return names.map((name) => ({ name }));
+                });
+            tracker.on
+                .any(
+                    ({ sql }) =>
+                        sql.startsWith('INSERT INTO') &&
+                        sql.includes('"cached_explore_staging"') &&
+                        sql.includes("explore->>'type'"),
+                )
+                .response(() => {
+                    const managedRows = getUserManagedExplores();
+                    managedRows.forEach(({ explore }) => stageExplore(explore));
+                    return {
+                        rows: managedRows.map(({ explore }) =>
+                            stagedRows.get(explore.name),
+                        ),
+                    };
+                });
+            const promotion = tracker.on.any(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            if (swapError) {
+                promotion.simulateError(swapError);
+            } else {
+                promotion.response(() => ({
+                    rows: Array.from(stagedRows.values()),
+                }));
+            }
+            return { stagedRows };
+        };
+
+        test('fully consumes the generator before taking the transaction lock', async () => {
+            oneRowChunks();
+            let consumed = false;
+            mockStagedCacheQueries({
+                onLock: () => expect(consumed).toBe(true),
+            });
+            async function* observedStream() {
+                yield exploreWithMetricFilters;
+                consumed = true;
+            }
+
+            await model.saveExploreStreamToCache(projectUuid, observedStream());
+
+            expect(consumed).toBe(true);
+        });
+
+        test('locks the project before the exact staged name set and promotion', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await model.saveExploreStreamToCache(
+                projectUuid,
+                stream([exploreWithMetricFilters]),
+            );
+
+            const transactionQueries = tracker.history.transactions[0].queries;
+            const projectLockIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.includes('"cached_explores"') &&
+                    sql.includes('for update'),
+            );
+            const stagedLockIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.includes('"cached_explore_staging"') &&
+                    sql.includes('for update'),
+            );
+            const liveDeleteIndex = transactionQueries.findIndex(({ sql }) =>
+                sql.startsWith('delete from "cached_explore"'),
+            );
+            const promotionIndex = transactionQueries.findIndex(
+                ({ sql }) =>
+                    sql.startsWith('INSERT INTO "cached_explore"') &&
+                    sql.includes('SELECT cached_explore_uuid'),
+            );
+            expect(projectLockIndex).toBeGreaterThanOrEqual(0);
+            expect(stagedLockIndex).toBeGreaterThan(projectLockIndex);
+            expect(liveDeleteIndex).toBeGreaterThan(stagedLockIndex);
+            expect(promotionIndex).toBeGreaterThan(liveDeleteIndex);
+        });
+
+        test('keeps managed overrides, late managed writes, and result order', async () => {
+            oneRowChunks();
+            const managedOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'managed',
+                type: ExploreType.VIRTUAL,
+            };
+            const managedAppend = {
+                ...exploreWithMetricFilters,
+                name: 'managed_append',
+                label: 'append',
+                type: ExploreType.VIRTUAL,
+            };
+            const incomingOverride = {
+                ...exploreWithMetricFilters,
+                name: 'managed_override',
+                label: 'incoming',
+            };
+            const incoming = {
+                ...exploreWithMetricFilters,
+                name: 'incoming',
+                label: 'incoming',
+            };
+            let userManagedExplores: { explore: typeof managedOverride }[] = [];
+            const { stagedRows } = mockStagedCacheQueries({
+                getUserManagedExplores: () => userManagedExplores,
+                onLock: () => {
+                    userManagedExplores = [
+                        { explore: managedOverride },
+                        { explore: managedAppend },
+                    ];
+                },
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([incomingOverride, incoming]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: [
+                    'managed_override-incoming',
+                    'incoming-incoming',
+                    'managed_append-append',
+                ],
+            });
+            expect(stagedRows.get('managed_override')?.label).toBe('managed');
+        });
+
+        test('keeps the last duplicate within and across streamed batches while preserving first-name order', async () => {
+            vi.mocked(chunkAsyncRowsByBytesMock).mockImplementation(
+                async function* twoRowChunks(rows) {
+                    let pending: { row: AnyType; bytes: number }[] = [];
+                    for await (const row of rows) {
+                        pending.push(row);
+                        if (pending.length === 2) {
+                            yield {
+                                rows: pending.map((item) => item.row),
+                                bytes: pending.reduce(
+                                    (total, item) => total + item.bytes,
+                                    0,
+                                ),
+                            };
+                            pending = [];
+                        }
+                    }
+                    if (pending.length > 0) {
+                        yield {
+                            rows: pending.map((item) => item.row),
+                            bytes: pending.reduce(
+                                (total, item) => total + item.bytes,
+                                0,
+                            ),
+                        };
+                    }
+                },
+            );
+            const first = {
+                ...exploreWithMetricFilters,
+                name: 'duplicate',
+                label: 'first',
+            };
+            const second = { ...first, label: 'second' };
+            const other = {
+                ...exploreWithMetricFilters,
+                name: 'other',
+                label: 'other',
+            };
+            const third = { ...first, label: 'third' };
+            const { stagedRows } = mockStagedCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([first, second, other, third]),
+                ),
+            ).resolves.toEqual({
+                cachedExploreUuids: ['duplicate-second', 'other-other'],
+            });
+            expect(stagedRows.get('duplicate')?.label).toBe('third');
+        });
+
+        test('rejects an empty stream', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, stream([])),
+            ).rejects.toThrow('No explores to save');
+        });
+
+        test('propagates source stream failures', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries();
+            async function* failingStream() {
+                yield exploreWithMetricFilters;
+                throw new Error('stream failed');
+            }
+
+            await expect(
+                model.saveExploreStreamToCache(projectUuid, failingStream()),
+            ).rejects.toThrow('stream failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
+            expect(
+                tracker.history.insert.some(({ sql }) =>
+                    sql.includes('"cached_explores"'),
+                ),
+            ).toBe(false);
+            expect(
+                tracker.history.all.some(({ sql }) =>
+                    sql.startsWith('delete from "cached_explore_staging"'),
+                ),
+            ).toBe(true);
+        });
+
+        test('propagates staging insert failures without entering the swap', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({
+                stageError: new Error('stage insert failed'),
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('stage insert failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
+            expect(
+                tracker.history.insert.some(({ sql }) =>
+                    sql.includes('"cached_explores"'),
+                ),
+            ).toBe(false);
+        });
+
+        test('propagates swap failures after deletion', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({
+                swapError: new Error('swap insert failed'),
+            });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('swap insert failed');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(1);
+        });
+
+        test('rejects a changed staged name set before deleting live rows', async () => {
+            oneRowChunks();
+            mockStagedCacheQueries({ getLockedNames: () => [] });
+
+            await expect(
+                model.saveExploreStreamToCache(
+                    projectUuid,
+                    stream([exploreWithMetricFilters]),
+                ),
+            ).rejects.toThrow('Cached explore staging name set mismatch');
+            expect(
+                tracker.history.delete.filter(({ sql }) =>
+                    sql.includes('"cached_explore"'),
+                ),
+            ).toHaveLength(0);
         });
     });
 

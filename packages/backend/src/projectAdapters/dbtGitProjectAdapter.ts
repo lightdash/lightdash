@@ -232,13 +232,13 @@ export class DbtGitProjectAdapter
         );
     }
 
-    public async compileAllExplores(
+    public async prepareExploreStream(
         trackingParams?: TrackingParams,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
     ) {
         await this._refreshRepo();
-        return super.compileAllExplores(
+        return super.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
