@@ -1829,6 +1829,14 @@ export type LightdashConfig = {
     dashboardComments: {
         enabled: boolean;
     };
+    /**
+     * Learn: the training project and its walkthroughs (CS-257). Off by
+     * default; switched on per instance with LIGHTDASH_LEARN_ENABLED=true,
+     * then enabled per org by an admin from the Learn page.
+     */
+    learn: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
@@ -3694,6 +3702,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
+        },
+        learn: {
+            enabled: process.env.LIGHTDASH_LEARN_ENABLED === 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

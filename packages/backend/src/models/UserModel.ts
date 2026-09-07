@@ -1238,6 +1238,9 @@ export class UserModel {
         builder: AbilityBuilder<MemberAbility>,
         trx: Knex = this.database,
     ): Promise<void> {
+        // Learn off for the instance: no trainee scopes, even if a training
+        // project is left over, so switching off also closes the sandbox.
+        if (!this.lightdashConfig.learn.enabled) return;
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,

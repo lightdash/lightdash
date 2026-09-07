@@ -23,6 +23,12 @@ type SeedPlaygroundContentArguments = {
     projectUuid: string;
     user: SessionUser;
     content: PlaygroundContent;
+    /**
+     * Whether the seeded root space is public (inherits the project's
+     * permissions). The playground keeps its private space; the training
+     * project's content must be visible to every role.
+     */
+    publicSpace?: boolean;
     spaceModel: {
         createSpace: (
             ...args: Parameters<SpaceModel['createSpace']>
@@ -130,6 +136,7 @@ export const seedPlaygroundContent = async ({
     projectUuid,
     user,
     content,
+    publicSpace = false,
     spaceModel,
     savedChartModel,
     dashboardModel,
@@ -144,7 +151,7 @@ export const seedPlaygroundContent = async ({
     const space = await spaceModel.createSpace(
         {
             name: content.space.name,
-            inheritParentPermissions: false,
+            inheritParentPermissions: publicSpace,
             parentSpaceUuid: null,
         },
         {

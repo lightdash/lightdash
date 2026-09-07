@@ -1,8 +1,5 @@
-import {
-    type ProjectMemberRole,
-    ProjectType,
-    ScopeGroup,
-} from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { type ProjectMemberRole, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -14,22 +11,14 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconBuilding,
-    IconChartHistogram,
-    IconCompass,
     IconChevronDown,
-    IconDatabase,
     IconHelpCircle,
     IconSearch,
-    IconSend,
-    IconSettings,
-    IconSparkles,
-    IconTelescope,
-    type Icon,
 } from '@tabler/icons-react';
 import { type FC, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
@@ -39,7 +28,6 @@ import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
     focusModules,
-    FOUNDATIONS,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
@@ -51,33 +39,13 @@ import {
     type LearnGroup,
     type LearnModule,
 } from './catalogue';
+import { EnableLearnPanel } from './EnableLearnPanel';
+import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
+import { useEnableLearn } from './useEnableLearn';
 import { useStartWalkthrough } from './useStartWalkthrough';
-
-const GROUP_ICONS: Record<LearnGroup, Icon> = {
-    [FOUNDATIONS]: IconCompass,
-    [ScopeGroup.CONTENT]: IconChartHistogram,
-    [ScopeGroup.SHARING]: IconSend,
-    [ScopeGroup.DATA]: IconDatabase,
-    [ScopeGroup.AI]: IconSparkles,
-    [ScopeGroup.PROJECT_MANAGEMENT]: IconSettings,
-    [ScopeGroup.SPOTLIGHT]: IconTelescope,
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]: IconBuilding,
-};
-
-/** The library's band and glyph colours per group, as on learn.lightdash.com. */
-const GROUP_COLOURS: Record<LearnGroup, { band: string; fg: string }> = {
-    [FOUNDATIONS]: { band: '#f0dbd1', fg: '#b06a4c' },
-    [ScopeGroup.CONTENT]: { band: '#dfe8e2', fg: '#4f7d5d' },
-    [ScopeGroup.SHARING]: { band: '#dfe8e2', fg: '#4f7d5d' },
-    [ScopeGroup.DATA]: { band: '#ece3d1', fg: '#93743a' },
-    [ScopeGroup.AI]: { band: '#e2ddf1', fg: '#6b5bb8' },
-    [ScopeGroup.PROJECT_MANAGEMENT]: { band: '#d9e6e4', fg: '#41756f' },
-    [ScopeGroup.SPOTLIGHT]: { band: '#ece3d1', fg: '#93743a' },
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]: { band: '#dfe1e6', fg: '#5b6478' },
-};
 
 const greeting = () => {
     const hour = new Date().getHours();
@@ -85,12 +53,6 @@ const greeting = () => {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
 };
-
-const groupVars = (group: LearnGroup) =>
-    ({
-        '--mi-band': GROUP_COLOURS[group].band,
-        '--mi-fg': GROUP_COLOURS[group].fg,
-    }) as React.CSSProperties;
 
 type CardState = 'soon' | 'ready' | 'started' | 'done';
 
@@ -207,10 +169,22 @@ const ModuleCard: FC<{
 const LearnPage: FC = () => {
     const navigate = useNavigate();
     const { user } = useApp();
+    const { data: health } = useHealth();
     const { data: projects } = useProjects();
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
     );
+    // Before the org has enabled Learn (CS-257): admins get the button,
+    // everyone else a pointer to an admin.
+    const organizationUuid = user.data?.organizationUuid;
+    const canEnableLearn =
+        !!organizationUuid &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        ) ??
+            false);
+    const enableLearn = useEnableLearn();
     // The library is never shown inside a preview (a training copy): it
     // belongs to the shared training project, so a preview's /learn goes
     // there instead.
@@ -300,6 +274,32 @@ const LearnPage: FC = () => {
             .getElementById(`learn-group-${group}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+
+    // Learn switched off for the instance: the route falls through to the
+    // project's home.
+    if (health && !health.learn.enabled) {
+        return (
+            <Navigate
+                to={
+                    projectRoute
+                        ? `/projects/${projectRoute.project.projectUuid}/home`
+                        : '/projects'
+                }
+                replace
+            />
+        );
+    }
+    if (projects && !trainingProject) {
+        return (
+            <EnableLearnPanel
+                canEnable={canEnableLearn}
+                enabling={enableLearn.isLoading}
+                error={enableLearn.error?.error.message ?? null}
+                onEnable={() => enableLearn.mutate()}
+                catalogue={catalogue}
+            />
+        );
+    }
 
     return (
         <Box className={styles.shell}>

@@ -27,6 +27,9 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
   "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  # The tsoa routes and swagger are committed only by the release workflow, so a
+  # branch that adds an endpoint 404s on it until they are regenerated here.
+  "pnpm -F backend generate-api",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
 ]
 
@@ -73,6 +76,10 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # flag-management API (docs/preview-feature-flags.md). Okteto got this from
 # LIGHTDASH_MODE=pr; LIGHTDASH_MODE=development here, so set it outright.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
+# Learn is off by default everywhere (docs/learn/architecture.md); previews
+# exist to try unreleased work, so switch it on here and let an admin press
+# Enable Learn in the environment.
+LIGHTDASH_LEARN_ENABLED = "true"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
@@ -117,6 +124,11 @@ files = ["packages/backend/src/database/migrations/**"]
 run = "pnpm -F backend migrate"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
 memory = "12gb"
+
+[[tier]]
+name = "api-routes"
+files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
+run = "pnpm -F backend generate-api"   # tsx watch restarts on the regenerated routes.ts
 
 [[tier]]
 name = "app"

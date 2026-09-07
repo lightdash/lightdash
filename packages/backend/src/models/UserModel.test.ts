@@ -103,6 +103,7 @@ const lightdashConfig = {
     },
     license: {},
     customRoles: { enabled: false },
+    learn: { enabled: true },
     rudder: {},
 } as unknown as LightdashConfig;
 

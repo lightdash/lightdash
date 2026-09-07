@@ -14,6 +14,7 @@ import {
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
+import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
@@ -68,6 +69,7 @@ import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectComp
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
+import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
@@ -945,6 +947,40 @@ export class ServiceRepository
                         customDimensions: new Set(),
                         additionalMetrics: new Set(),
                     }),
+                    // Enable Learn (CS-257). Core seeds the space, charts,
+                    // dashboard, pins, comment and categories; EE overrides
+                    // this to add the data app, agent and research run.
+                    provisionTrainingProject: ({ user, projectService }) =>
+                        provisionTrainingProject({
+                            user,
+                            projectService,
+                            learnEnabled:
+                                this.context.lightdashConfig.learn.enabled,
+                            projectModel: this.models.getProjectModel(),
+                            onboardingModel: this.models.getOnboardingModel(),
+                            catalogService: this.getCatalogService(),
+                            analytics: this.context.lightdashAnalytics,
+                            seedTrainingContent: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundContent({
+                                    projectUuid,
+                                    user: seedUser,
+                                    content,
+                                    publicSpace: true,
+                                    spaceModel: this.models.getSpaceModel(),
+                                    savedChartModel:
+                                        this.models.getSavedChartModel(),
+                                    dashboardModel:
+                                        this.models.getDashboardModel(),
+                                    pinnedListModel:
+                                        this.models.getPinnedListModel(),
+                                    commentModel: this.models.getCommentModel(),
+                                    tagsModel: this.models.getTagsModel(),
+                                }),
+                        }),
                 }),
         );
     }

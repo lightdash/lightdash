@@ -1,9 +1,7 @@
 /* The library from learn.lightdash.com, brought in-app: the same shell,
    sidebar, home cards, toolbar and module cards, on this app's neutrals. */
-.shell {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    min-height: 100%;
+.shell,
+.enableShell {
     --lu-accent: #5e4cff;
     --lu-track: light-dark(#e9ecef, #343a46);
     --lu-done-fg: #2f9e44;
@@ -14,6 +12,133 @@
     --lu-ink: light-dark(#111418, #f1f3f5);
     --lu-secondary: light-dark(#495057, #ced4da);
     --lu-muted: light-dark(#868e96, #909aa6);
+}
+
+.shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 100%;
+}
+
+/* The page before an org has enabled Learn (CS-257): one centred column. */
+.enableShell {
+    min-height: 100%;
+    padding: 56px 32px 64px;
+    display: flex;
+    justify-content: center;
+    color: var(--lu-ink);
+}
+
+.enableColumn {
+    width: 100%;
+    max-width: 880px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.enableTitle {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+}
+
+.enableLede {
+    margin: 8px 0 0;
+    max-width: 62ch;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--lu-secondary);
+}
+
+.enableGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+    gap: 20px;
+    align-items: stretch;
+}
+
+@media (max-width: 860px) {
+    .enableGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.enableGroups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: 10px;
+}
+
+.enableGroup {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border: 1px solid var(--lu-border);
+    border-radius: 8px;
+    background: var(--lu-surface);
+}
+
+.enableGroupIcon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--mi-band);
+    color: var(--mi-fg);
+}
+
+.enableGroup h3 {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+.enableGroup p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--lu-muted);
+}
+
+.enableCard {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    border: 1px solid var(--lu-border);
+    border-radius: 10px;
+    background: var(--lu-surface);
+    box-shadow: 0 8px 24px rgba(17, 20, 24, 0.06);
+}
+
+.enableCard h2 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.3;
+}
+
+.enableCard p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--lu-secondary);
+}
+
+.enableCard ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--lu-secondary);
 }
 
 .sidebar {

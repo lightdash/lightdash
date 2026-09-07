@@ -233,6 +233,8 @@ export type {
     AgentSqlScope,
     ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
+    ApiEnableLearnResponse,
+    EnableLearnResults,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
     EnsurePlaygroundProjectRequest,
