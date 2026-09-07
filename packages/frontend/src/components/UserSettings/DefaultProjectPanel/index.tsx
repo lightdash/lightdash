@@ -60,7 +60,13 @@ const DefaultProjectPanel: FC = () => {
                     key={form.values.defaultProjectUuid}
                     label="Project name"
                     data={projects
-                        .filter(({ type }) => type !== ProjectType.PREVIEW)
+                        // Neither previews nor the training playground can
+                        // be the org's landing project.
+                        .filter(
+                            ({ type }) =>
+                                type !== ProjectType.PREVIEW &&
+                                type !== ProjectType.TRAINING,
+                        )
                         .map((project) => ({
                             value: project.projectUuid,
                             label: project.name,

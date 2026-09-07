@@ -4474,6 +4474,22 @@ export class ProjectService extends BaseService {
         }
 
         if (project.type === ProjectType.TRAINING) {
+            // Deleting the playground takes every learner's copy with it and
+            // switches Learn off for the org, so it is an org admin's call
+            // (the same permission Enable Learn needs), not a project
+            // admin's.
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: project.organizationUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'Only an organization admin can delete the training playground',
+                );
+            }
             // The copies exist only as sandboxes of this project; without it
             // they would linger as ordinary previews until they expire.
             const copies = (
