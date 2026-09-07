@@ -138,7 +138,10 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+    }: SubmitSourceQueryArgs): Promise<{
+        queryUuid: string;
+        cacheHit: boolean;
+    }> {
         const sourceQuery = SemanticLayerQuerySource.assertSourceQuery(query);
 
         // Only exploreName/dimensions/metrics are required on the wire; the
@@ -153,6 +156,8 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             tableCalculations: sourceQuery.tableCalculations ?? [],
             additionalMetrics: sourceQuery.additionalMetrics,
             customDimensions: sourceQuery.customDimensions,
+            metricOverrides: sourceQuery.metricOverrides,
+            dimensionOverrides: sourceQuery.dimensionOverrides,
             timezone: sourceQuery.timezone,
         };
 
@@ -167,6 +172,9 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
-        return { queryUuid: results.queryUuid };
+        return {
+            queryUuid: results.queryUuid,
+            cacheHit: results.cacheMetadata.cacheHit,
+        };
     }
 }

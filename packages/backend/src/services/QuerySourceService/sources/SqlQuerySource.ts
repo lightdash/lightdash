@@ -103,7 +103,10 @@ export class SqlQuerySource implements QuerySourceClient {
         userAttributeOverrides,
         invalidateCache,
         pivotConfiguration,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+    }: SubmitSourceQueryArgs): Promise<{
+        queryUuid: string;
+        cacheHit: boolean;
+    }> {
         const sourceQuery = SqlQuerySource.assertSourceQuery(query);
 
         const results = await this.asyncQueryService.executeAsyncSqlQuery({
@@ -118,6 +121,9 @@ export class SqlQuerySource implements QuerySourceClient {
             pivotConfiguration: pivotConfiguration ?? undefined,
         });
 
-        return { queryUuid: results.queryUuid };
+        return {
+            queryUuid: results.queryUuid,
+            cacheHit: results.cacheMetadata.cacheHit,
+        };
     }
 }

@@ -119,6 +119,8 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import { QuerySourceRegistry } from '../QuerySourceService/QuerySourceRegistry';
+import { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { SemanticLayerQuerySource } from '../QuerySourceService/sources/SemanticLayerQuerySource';
 import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
 import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
@@ -278,8 +280,23 @@ const userAttributesModel = {
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
-) =>
-    new AsyncQueryService({
+) => {
+    // The registry is built over the service under test, so a merge's DAG
+    // nodes reach the same mocks a direct call would
+    let querySourceService: QuerySourceService | undefined;
+    const service: AsyncQueryService = new AsyncQueryService({
+        getQuerySourceService: () => {
+            querySourceService ??= new QuerySourceService({
+                projectModel: (service as AnyType).projectModel,
+                queryHistoryModel: service.queryHistoryModel,
+                featureFlagModel: (service as AnyType).featureFlagModel,
+                registry: QuerySourceRegistry.withBuiltInSources({
+                    asyncQueryService: service,
+                    projectService: service,
+                }),
+            });
+            return querySourceService;
+        },
         lightdashConfig,
         analytics: analyticsMock,
         contentDraftModel: {
@@ -440,6 +457,8 @@ const getMockedAsyncQueryService = (
         userOAuthGrantsModel:
             overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
     });
+    return service;
+};
 
 const getJsonlStream = (rows: Record<string, unknown>[]) =>
     Readable.from(rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
@@ -720,6 +739,120 @@ describe('AsyncQueryService', () => {
                 ),
             );
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+
+        test('a supplied plan records its columns, runs on a scoped session and reads no flag', async () => {
+            const featureFlagModel = {
+                get: vi.fn(async () => ({ enabled: false })),
+            } as unknown as FeatureFlagModel;
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'join-uuid' })),
+                    get: vi.fn(async () => referencedQueryHistory),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            const runDuckdbQuery = vi
+                .spyOn(service as AnyType, 'runDuckdbQuery')
+                .mockResolvedValue(undefined);
+            const guard = vi.fn(() => null);
+            const fieldsMap = {
+                a_orders_count: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                    name: 'orders_count',
+                    label: 'Orders',
+                    table: 'a',
+                    tableLabel: 'Query A',
+                    sql: '',
+                    hidden: false,
+                },
+            } as ItemsMap;
+            const originalColumns: ResultColumns = {
+                a_orders_count: {
+                    reference: 'a_orders_count',
+                    type: DimensionType.NUMBER,
+                    label: 'Orders',
+                },
+            };
+            const metricQuery = {
+                exploreName: 'merge',
+                dimensions: [],
+                metrics: ['a_orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            } as unknown as MetricQuery;
+
+            const requestParameters = {
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+            };
+            const submission = await service.executeAsyncDuckdbSourceQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                plan: {
+                    columns: {
+                        mode: 'supplied',
+                        fieldsMap,
+                        usedParameters: { region: 'EU' },
+                        originalColumns,
+                        pivotConfiguration: undefined,
+                        metricQuery,
+                        requestParameters,
+                    },
+                    engine: 'scopedToReferencedResults',
+                    guard,
+                },
+            });
+            await vi.waitFor(() =>
+                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
+            );
+
+            expect(submission.queryUuid).toBe('join-uuid');
+            const flagsRead = (
+                featureFlagModel.get as import('vitest').Mock
+            ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
+            expect(flagsRead).not.toContain(FeatureFlags.ComposeSqlRunner);
+            expect(flagsRead).not.toContain(FeatureFlags.MultiSourceQuery);
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    fields: fieldsMap,
+                    originalColumns,
+                    metricQuery,
+                    requestParameters,
+                    usedParameters: { region: 'EU' },
+                    pivotConfiguration: null,
+                    compiledSql: 'SELECT * FROM orders',
+                }),
+            );
+            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                queryUuid: 'join-uuid',
+                columns: { mode: 'supplied', fieldsMap, originalColumns },
+                engine: { kind: 'scopedToReferencedResults' },
+                references: {
+                    kind: 'queries',
+                    references: { orders: referencedQueryHistory.queryUuid },
+                    guard,
+                },
+            });
+            // The shared session is built for the dialect and to refuse a
+            // missing results storage up front; the run scopes its own
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'results',
+                scope: null,
+            });
         });
 
         test('reads external-source files on the pre-aggregate bucket session', async () => {
@@ -6449,6 +6582,25 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         } as unknown as WarehouseClient;
         const legByUuid = (queryUuid: string) =>
             legHistory(queryUuid, legRowCount);
+        const update = vi.fn();
+        let joinRan = false;
+        // The outcome reporter polls the join row: it lands in a terminal
+        // state only once the tail has either refused it or run the join
+        const mergeHistoryOnceSettled = async () => {
+            const errored = () =>
+                update.mock.calls.some(
+                    ([queryUuid, , patch]) =>
+                        queryUuid === 'merge-query-uuid' &&
+                        patch?.status === QueryHistoryStatus.ERROR,
+                );
+            await vi.waitFor(() => expect(errored() || joinRan).toBe(true));
+            return {
+                ...legHistory('merge-query-uuid', legRowCount),
+                status: errored()
+                    ? QueryHistoryStatus.ERROR
+                    : QueryHistoryStatus.READY,
+            };
+        };
         const service = getMockedAsyncQueryService(config, {
             featureFlagModel: composeFlags,
             composeEngineClient: new ComposeEngineClient({
@@ -6460,9 +6612,11 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 get: vi.fn(async (queryUuid: string) => legByUuid(queryUuid)),
                 pollForQueryCompletion: vi.fn(
                     async ({ queryUuid }: { queryUuid: string }) =>
-                        legByUuid(queryUuid),
+                        queryUuid === 'merge-query-uuid'
+                            ? mergeHistoryOnceSettled()
+                            : legByUuid(queryUuid),
                 ),
-                update: vi.fn(),
+                update,
             } as unknown as QueryHistoryModel,
             resultsStorageClient: {
                 isEnabled: true,
@@ -6478,7 +6632,9 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         ).mockResolvedValue(fieldTypes);
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
-            .mockResolvedValue(undefined);
+            .mockImplementation(async () => {
+                joinRan = true;
+            });
         const trackAccount = vi
             .spyOn(analyticsMock, 'trackAccount')
             .mockImplementation(() => {});
@@ -6488,7 +6644,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             runWarehouseQuery,
             trackAccount,
             create: service.queryHistoryModel.create as import('vitest').Mock,
-            update: service.queryHistoryModel.update as import('vitest').Mock,
+            update,
         };
     };
 
@@ -6567,9 +6723,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             mode: { type: 'interactive' },
         });
 
+    // The outcome reporter polls the join row, so a test that started a merge
+    // waits for its event or the event lands in the next test's spy
+    const drainMergeEvents = (
+        trackAccount: ReturnType<typeof buildService>['trackAccount'],
+        count: number,
+    ) =>
+        vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+
     it('runs the join in supplied mode: no column probe, and the compile-time columns reach execution unchanged', async () => {
-        const { service, streamQuery, runWarehouseQuery, create } =
-            buildService({ config: lightdashConfigMock, legRowCount: 2 });
+        const {
+            service,
+            streamQuery,
+            runWarehouseQuery,
+            create,
+            trackAccount,
+        } = buildService({ config: lightdashConfigMock, legRowCount: 2 });
 
         const outcome = await execute(service);
         if (outcome.outcome !== 'started') {
@@ -6586,7 +6755,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 typedColumns,
                 itemsMap,
                 usedParametersValues: {},
-                legQueryUuidBySourceId,
+                legReferenceBySourceId: legQueryUuidBySourceId,
             }),
         );
         expect(executed.originalColumns?.a_orders_count).toMatchObject({
@@ -6607,6 +6776,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         expect(executed.query).toContain(
             `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.b}.jsonl')`,
         );
+        await drainMergeEvents(trackAccount, 1);
     });
 
     it('tracks the merge once it is ready, with leg cache hits and the merged row count', async () => {
@@ -6686,10 +6856,11 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
     });
 
     it('runs the join when every leg is under the row cap', async () => {
-        const { service, runWarehouseQuery, update } = buildService({
-            config: cappedConfig,
-            legRowCount: SOURCE_ROW_CAP - 1,
-        });
+        const { service, runWarehouseQuery, update, trackAccount } =
+            buildService({
+                config: cappedConfig,
+                legRowCount: SOURCE_ROW_CAP - 1,
+            });
 
         await execute(service);
 
@@ -6702,10 +6873,11 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
             expect.anything(),
         );
+        await drainMergeEvents(trackAccount, 1);
     });
 
     it("compiles every leg with the submission's user attribute overrides, a different query per override", async () => {
-        const { service, executeAsyncQuery, compiledLegs } =
+        const { service, executeAsyncQuery, compiledLegs, trackAccount } =
             buildServiceWithCompiledLegs();
         const submit = (region: string) =>
             service.executeAsyncMergeQuery({
@@ -6739,6 +6911,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             expect(euSql).not.toContain('base');
             expect(usSql).not.toContain('base');
         }
+        await drainMergeEvents(trackAccount, 2);
     });
 });
 
@@ -6758,6 +6931,7 @@ describe('query sources carry the execution context', () => {
         userAttributeOverrides: {},
         invalidateCache: false,
         pivotConfiguration: null,
+        plan: null,
     };
 
     const createSemanticLayerHarness = () => {

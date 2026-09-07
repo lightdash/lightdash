@@ -15,6 +15,7 @@ import {
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type ExecuteAsyncQueryRequestParams,
     type ExternalSourceTableReference,
     type Filters,
     type ItemsMap,
@@ -295,6 +296,15 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     preAggregateExecution: PreAggregateExecutionEngine;
 };
 
+/** Known at compile time, so nothing is probed and nothing overwritten. */
+export type SuppliedDuckdbQueryColumns = {
+    mode: 'supplied';
+    fieldsMap: ItemsMap;
+    usedParameters: ParametersValuesMap | null;
+    originalColumns: ResultColumns;
+    pivotConfiguration: PivotConfiguration | undefined;
+};
+
 /** Where a DuckDB query's output columns come from. */
 export type DuckdbQueryColumns =
     | {
@@ -303,14 +313,7 @@ export type DuckdbQueryColumns =
           limit: number | undefined;
           parameters: ParametersValuesMap;
       }
-    | {
-          /** Known at compile time, so nothing is probed and nothing overwritten. */
-          mode: 'supplied';
-          fieldsMap: ItemsMap;
-          usedParameters: ParametersValuesMap | null;
-          originalColumns: ResultColumns;
-          pivotConfiguration: PivotConfiguration | undefined;
-      };
+    | SuppliedDuckdbQueryColumns;
 
 /**
  * Runs once every referenced query has completed and before anything
@@ -341,6 +344,36 @@ export type DuckdbQueryEngine =
           /** An isolated results session whose credentials reach only the bound result files. */
           kind: 'scopedToReferencedResults';
       };
+
+/**
+ * How a DuckDB source query executes, decided by whoever built it. A public
+ * submission discovers its columns on the shared results session; an
+ * internal caller such as a merge supplies its compile-time columns, a
+ * session scoped to the results it reads, and a guard over those results.
+ *
+ * Supplied columns are recorded on the history row as they are, with the
+ * request that produced them. A supplied column's provenance may name a
+ * node of the same submission instead of a queryUuid; it resolves to that
+ * node's query at submit time, the way a table reference does.
+ */
+export type DuckdbQueryPlan = {
+    columns:
+        | { mode: 'discover' }
+        | (SuppliedDuckdbQueryColumns & {
+              metricQuery: MetricQuery;
+              requestParameters: ExecuteAsyncQueryRequestParams;
+          });
+    engine: DuckdbQueryEngine['kind'];
+    guard: DuckdbQueryReferenceGuard | null;
+};
+
+export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, UUID>;
+    plan: DuckdbQueryPlan;
+};
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
 export type BoundDuckdbQueryReferences = {

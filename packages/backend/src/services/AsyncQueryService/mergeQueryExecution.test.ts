@@ -165,7 +165,7 @@ describe('buildComposeMergeOriginalColumns', () => {
         typedColumns,
         itemsMap,
         usedParametersValues: {},
-        legQueryUuidBySourceId: { orders: 'orders-leg-uuid' },
+        legReferenceBySourceId: { orders: 'orders-leg-uuid' },
     });
 
     test('source-owned columns set provenance to the field in the leg query', () => {
@@ -203,7 +203,7 @@ describe('buildComposeMergeOriginalColumns', () => {
             typedColumns,
             itemsMap,
             usedParametersValues: {},
-            legQueryUuidBySourceId: {},
+            legReferenceBySourceId: {},
         });
         expect(withoutLeg.orders_count.provenance).toEqual({
             fieldId: 'orders_count',

@@ -7,9 +7,11 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { DuckdbQueryPlan } from '../../AsyncQueryService/types';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
+    SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
 
@@ -61,6 +63,37 @@ export class DuckdbQuerySource implements QuerySourceClient {
         return references;
     }
 
+    /** A supplied column's provenance may name a node; it resolves like a table reference. */
+    private static resolvePlanReferences(
+        plan: DuckdbQueryPlan,
+        resolvedReferences: Record<string, string>,
+    ): DuckdbQueryPlan {
+        if (plan.columns.mode !== 'supplied') return plan;
+        const originalColumns = Object.fromEntries(
+            Object.entries(plan.columns.originalColumns).map(
+                ([reference, column]) => {
+                    const sourceQueryUuid = column.provenance?.sourceQueryUuid;
+                    if (sourceQueryUuid === undefined) {
+                        return [reference, column];
+                    }
+                    return [
+                        reference,
+                        {
+                            ...column,
+                            provenance: {
+                                ...column.provenance,
+                                sourceQueryUuid:
+                                    resolvedReferences[sourceQueryUuid] ??
+                                    sourceQueryUuid,
+                            },
+                        },
+                    ];
+                },
+            ),
+        );
+        return { ...plan, columns: { ...plan.columns, originalColumns } };
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async scanSchema(_args: ScanSchemaArgs): Promise<QuerySourceSchema> {
         return {
@@ -80,6 +113,10 @@ export class DuckdbQuerySource implements QuerySourceClient {
      * User attribute overrides have nothing to apply to here: referenced
      * results were produced under them and compose SQL carries no attribute
      * references. A pivot refuses until the join node owns the pivot stage.
+     *
+     * Without a plan the query takes the public compose SQL path, which
+     * carries its own flag and ability gates. With one it goes straight to
+     * the execution tail: the caller that built the plan owns authorization.
      */
     async submitQuery({
         account,
@@ -90,7 +127,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
         parameters,
         invalidateCache,
         pivotConfiguration,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+        plan,
+    }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
         if (pivotConfiguration !== null) {
             throw new ParameterError(
@@ -110,18 +148,28 @@ export class DuckdbQuerySource implements QuerySourceClient {
               )
             : undefined;
 
-        const results =
-            await this.asyncQueryService.executeAsyncComposeSqlQuery({
-                account,
-                projectUuid,
-                sql: sourceQuery.sql,
-                limit: sourceQuery.limit,
-                references,
-                context,
-                parameters,
-                invalidateCache,
-            });
+        const args = {
+            account,
+            projectUuid,
+            sql: sourceQuery.sql,
+            limit: sourceQuery.limit,
+            references,
+            context,
+            parameters,
+            invalidateCache,
+        };
+        const { queryUuid } =
+            plan === null
+                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
+                : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
+                      ...args,
+                      plan: DuckdbQuerySource.resolvePlanReferences(
+                          plan,
+                          resolvedReferences,
+                      ),
+                  });
 
-        return { queryUuid: results.queryUuid };
+        // A DuckDB query always runs: its inputs may be cached, it is not
+        return { queryUuid, cacheHit: false };
     }
 }
