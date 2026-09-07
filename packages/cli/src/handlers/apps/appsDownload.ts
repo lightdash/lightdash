@@ -1,4 +1,5 @@
 import {
+    DATA_APP_VIZ_TEMPLATE,
     getErrorMessage,
     LightdashError,
     ParameterError,
@@ -436,6 +437,12 @@ export const downloadAppsToDir = async (args: {
                 buildStaticAuthoringFiles({
                     appName: code.manifest.name,
                     sdkVersion: cliVersion,
+                    // Downloaded chart types get the viz authoring docs, not
+                    // the app SDK skills a viz must not use.
+                    flavor:
+                        code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                            ? 'chart-type'
+                            : 'app',
                 }),
             );
             // Server-provided deps override the scaffold's

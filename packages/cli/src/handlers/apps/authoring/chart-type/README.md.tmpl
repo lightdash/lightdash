@@ -1,0 +1,19 @@
+# {{APP_NAME}} — Lightdash custom chart type (local copy)
+
+Created or downloaded with the Lightdash CLI. This is a **custom chart type** (a reusable visualization): one chart component that Lightdash hands data and settings to. It runs no query of its own — the same component is reused across many different queries.
+
+## Edit → validate → upload
+1. Edit files under `src/`. The component's contract with Lightdash — the fields it maps and the config options viewers can change — is declared in `lightdash-app.yml` under `vizSchema` and must match what `src/App.jsx` reads (see `.claude/skills/reusable-visualization`).
+2. Run `lightdash apps validate` to check the source and manifest; `lightdash apps validate --build` adds the Cloud-parity Vite production build.
+3. `lightdash upload --chart-types <slug>` (the `slug` from `lightdash-app.yml`) — Lightdash rebuilds and serves it.
+4. Open any explore in Lightdash, run a query, and pick this chart type in the chart type picker to see it against real data.
+
+There is no standalone preview: the component waits for the Lightdash host's data, so `npm run dev` shows a blank page. Upload and verify in the explorer.
+
+## What's read-only
+Root config (`vite.config.js`, `tsconfig.json`, etc.) is read-only reference — the server rebuilds against a trusted template. Build within the template's fixed dependency set (see `package.json`); chart types published to the official registry must stay template-deps-only.
+
+`.npmrc` sets `ignore-scripts=true` so dependencies' lifecycle scripts never run on your machine. Keep it; explicit commands such as `npm run build` still work.
+
+## Publishing to the official registry
+Once it works in your instance, a chart type can be proposed for the official chart registry (`lightdash/lightdash-gallery`): copy this folder under that repo's `charts/<slug>/`, run `node scripts/prepare-chart.mjs charts/<slug>` there (it prunes the local scaffold and shapes the folder for the registry), add real screenshots, and open a PR — see that repo's README.

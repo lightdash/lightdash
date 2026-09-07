@@ -1186,7 +1186,12 @@ const appsProgram = program
     .description('Work with data apps (enterprise)');
 appsProgram
     .command('create <name>')
-    .description('Creates a new data app locally')
+    .description('Creates a new data app or custom chart type locally')
+    .option(
+        '--chart-type',
+        'Create a custom chart type (a reusable visualization the explorer chart type picker offers) instead of a data app',
+        false,
+    )
     .option('--description <text>', 'Set the app description', '')
     .option('--slug <slug>', 'Override the app slug')
     .option(
@@ -1203,12 +1208,16 @@ appsProgram
     .option('--verbose', undefined, false)
     .addHelpText(
         'after',
-        `\n${styles.bold('Example:')}\n  ${styles.title(
+        `\n${styles.bold('Examples:')}\n  ${styles.title(
             '⚡',
         )}️lightdash ${styles.bold(
             'apps create "Revenue explorer"',
         )} ${styles.secondary(
             '-- creates ./lightdash/apps/revenue-explorer',
+        )}\n  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'apps create "Radial gauge" --chart-type',
+        )} ${styles.secondary(
+            '-- creates a custom chart type at ./lightdash/apps/radial-gauge',
         )}\n`,
     )
     .action(createAppHandler);
