@@ -5833,6 +5833,32 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(result).not.toHaveProperty('selectedModelIds');
     });
 
+    it('passes the staged merged manifest to the adapter by reference', async () => {
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_a.orders',
+                name: 'orders',
+                packageName: 'pkg_a',
+            },
+        ]);
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.pkg_b.customers',
+                name: 'customers',
+                packageName: 'pkg_b',
+            },
+        ]);
+        const { projectService, adapter: adapterPromise } =
+            buildMergedAdapterWithService(primaryManifest, sourceManifest);
+        const stageManifest = vi.spyOn(projectService, 'stageMergedManifest');
+
+        const { adapter } = await adapterPromise;
+        const result = await adapter.getDbtManifest();
+
+        expect(stageManifest).toHaveBeenCalledOnce();
+        expect(result.manifest).toBe(stageManifest.mock.calls[0][1]);
+    });
+
     it('preserves an empty selection when every selector matches nothing', async () => {
         const primaryManifest = buildManifest([
             {

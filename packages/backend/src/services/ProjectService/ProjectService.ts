@@ -5261,7 +5261,7 @@ export class ProjectService extends BaseService {
             adapter: await projectAdapterFromConfig(
                 {
                     type: DbtProjectType.MANIFEST,
-                    manifest: JSON.stringify(mergedManifest),
+                    parsedManifest: mergedManifest,
                     hideRefreshButton: true,
                 },
                 shared.warehouseCredentials,
