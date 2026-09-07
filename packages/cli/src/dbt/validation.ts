@@ -5,11 +5,11 @@ import {
     friendlyName,
     InlineError,
     InlineErrorType,
-    ManifestValidator,
     normaliseModelDatabase,
     SupportedDbtAdapter,
     type DbtManifestVersion,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import GlobalState from '../globalState';
 
 type DbtModelsGroupedByState = {

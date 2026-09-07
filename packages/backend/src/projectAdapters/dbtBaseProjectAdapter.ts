@@ -23,7 +23,6 @@ import {
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
     loadProjectContextFile,
-    ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
     NotFoundError,
@@ -34,6 +33,7 @@ import {
     type LightdashProjectConfig,
     type ProjectContextEntry,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';

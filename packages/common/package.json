@@ -12,6 +12,24 @@
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
+    },
+    "./dbt/validation": {
+      "types": "./dist/esm/dbt/validation.d.ts",
+      "require": "./dist/cjs/dbt/validation.js",
+      "import": "./dist/esm/dbt/validation.js",
+      "default": "./dist/esm/dbt/validation.js"
+    },
+    "./src": "./src/index.ts",
+    "./src/*": "./src/*",
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
     "build": "tsc --build ./tsconfig.build.json",

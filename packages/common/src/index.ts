@@ -81,7 +81,8 @@ export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEdito
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
-export * from './dbt/validation';
+// './dbt/validation' is not re-exported: it eagerly imports ~3.6 MB of dbt JSON
+// schemas. Import it from '@lightdash/common/dbt/validation' instead.
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
