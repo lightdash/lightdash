@@ -8,6 +8,9 @@ type OnboardingModelArguments = {
 };
 
 const PLAYGROUND_PROVISIONING_LOCK_NAMESPACE = 19350428;
+// One training copy at a time per learner: parallel requests would each
+// delete the others' copy and leave several live.
+const TRAINING_COPY_LOCK_NAMESPACE = 19350430;
 
 export class OnboardingModel {
     private database: Knex;
@@ -34,6 +37,31 @@ export class OnboardingModel {
                 organization.organization_id,
             ]);
             return callback(trx);
+        });
+    }
+
+    /**
+     * Serialises training copy creation per learner: the copy endpoint
+     * deletes the learner's previous copy before making a new one, so two
+     * requests at once must not interleave.
+     */
+    async runInTrainingCopyLock<T>(
+        userUuid: string,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            const user = await trx('users')
+                .where('user_uuid', userUuid)
+                .select('user_id')
+                .first();
+            if (!user) {
+                throw new NotFoundError('Cannot find user');
+            }
+            await trx.raw('SELECT pg_advisory_xact_lock(?, ?)', [
+                TRAINING_COPY_LOCK_NAMESPACE,
+                user.user_id,
+            ]);
+            return callback();
         });
     }
 

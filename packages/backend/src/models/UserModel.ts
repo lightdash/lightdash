@@ -10,6 +10,7 @@ import {
     CreateUserWithRole,
     ForbiddenError,
     getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
     getUserAvatarUrl,
     InvalidUser,
@@ -1195,12 +1196,16 @@ export class UserModel {
         if (!training) {
             return [];
         }
+        // Only copies the training service made: `copied_from` alone can be
+        // set through the project metadata API on a preview of a real
+        // project, which must never inherit the trainee set.
         const copies = await trx(ProjectTableName)
             .select<
                 { project_uuid: string; created_by_user_uuid: string | null }[]
             >('project_uuid', 'created_by_user_uuid')
             .where('organization_id', organizationId)
             .where('project_type', ProjectType.PREVIEW)
+            .where('provisioning_source', 'training')
             .where('copied_from_project_uuid', training.project_uuid)
             .where('created_by_user_uuid', userUuid);
         return [
@@ -1238,7 +1243,10 @@ export class UserModel {
             userUuid,
             trx,
         );
-        const scopes = getTrainingProjectScopes();
+        // The shared training project is read-only for learners; their own
+        // copy is where the trainee set applies.
+        const viewerScopes = getTrainingProjectViewerScopes();
+        const traineeScopes = getTrainingProjectScopes();
         trainingProjects.forEach((project) => {
             buildAbilityFromScopes(
                 {
@@ -1246,7 +1254,10 @@ export class UserModel {
                     projectType: project.projectType,
                     projectCreatedByUserUuid: project.createdByUserUuid,
                     userUuid,
-                    scopes,
+                    scopes:
+                        project.projectType === ProjectType.TRAINING
+                            ? viewerScopes
+                            : traineeScopes,
                     isEnterprise,
                     permissionsConfig: {
                         pat: this.lightdashConfig.auth.pat,

@@ -215,6 +215,7 @@ import {
     supportsOptionalUserCredentials,
     TablesConfiguration,
     TableSelectionType,
+    TooManyRequestsError,
     UnexpectedServerError,
     UpdateAgentSqlScope,
     UpdateDefaultUserSpaces,
@@ -1053,6 +1054,13 @@ export class ProjectService extends BaseService {
                         upstreamProject.type === ProjectType.TRAINING
                     ) {
                         return true;
+                    }
+                    // Any other preview of the training project would look
+                    // like a training copy without being one.
+                    if (upstreamProject.type === ProjectType.TRAINING) {
+                        throw new ForbiddenError(
+                            'Previews of the training project are made by starting a walkthrough',
+                        );
                     }
                     if (
                         // checks if user has permission to create project from an upstream project on a project level
@@ -4405,6 +4413,24 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User does not have permission to delete project`,
+            );
+        }
+
+        if (project.type === ProjectType.TRAINING) {
+            // The copies exist only as sandboxes of this project; without it
+            // they would linger as ordinary previews until they expire.
+            const copies = (
+                await this.projectModel.getAllByOrganizationUuid(
+                    project.organizationUuid,
+                )
+            ).filter(
+                (candidate) =>
+                    candidate.type === ProjectType.PREVIEW &&
+                    candidate.provisioningSource === 'training' &&
+                    candidate.upstreamProjectUuid === projectUuid,
+            );
+            await Promise.all(
+                copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
             );
         }
 
@@ -10485,6 +10511,18 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        if (data.upstreamProjectUuid) {
+            // Pointing a preview at the training project would dress it up
+            // as a training copy; only the training service makes those.
+            const upstream = await this.projectModel.getSummary(
+                data.upstreamProjectUuid,
+            );
+            if (upstream.type === ProjectType.TRAINING) {
+                throw new ForbiddenError(
+                    'A preview cannot be re-parented to the training project',
+                );
+            }
+        }
 
         await this.projectModel.updateMetadata(projectUuid, data);
     }
@@ -11118,12 +11156,54 @@ export class ProjectService extends BaseService {
             );
         }
 
+        // One copy at a time per learner, and not more often than a person
+        // clicks: a copy is a whole project duplicate, and a loop of them is
+        // the cheapest way to load the instance.
+        return this.onboardingModel.runInTrainingCopyLock(
+            user.userUuid,
+            async () => {
+                const existing = (
+                    await this.projectModel.getAllByOrganizationUuid(
+                        user.organizationUuid,
+                    )
+                ).filter(
+                    (project) =>
+                        project.type === ProjectType.PREVIEW &&
+                        project.provisioningSource === 'training' &&
+                        project.upstreamProjectUuid === trainingProjectUuid &&
+                        project.createdByUserUuid === user.userUuid,
+                );
+                const newest = existing
+                    .map((project) => new Date(project.createdAt).getTime())
+                    .sort((a, b) => b - a)[0];
+                if (
+                    newest !== undefined &&
+                    Date.now() - newest <
+                        ProjectService.TRAINING_COPY_COOLDOWN_MS
+                ) {
+                    throw new TooManyRequestsError(
+                        'A training copy was made moments ago; try again shortly',
+                    );
+                }
+                return this.makeTrainingCopy(user, training);
+            },
+        );
+    }
+
+    private static readonly TRAINING_COPY_COOLDOWN_MS = 15_000;
+
+    private async makeTrainingCopy(
+        user: SessionUser & { organizationUuid: string },
+        training: Awaited<ReturnType<ProjectModel['get']>>,
+    ): Promise<CreateTrainingPreviewResults> {
+        const trainingProjectUuid = training.projectUuid;
         await this.deleteTrainingPreviews(user, trainingProjectUuid);
 
         const creation = await this.createWithoutCompile(
             user,
             {
-                name: `Training copy for ${user.firstName}`.trim(),
+                // No personal data in the name: it lands in analytics.
+                name: 'Training copy',
                 type: ProjectType.PREVIEW,
                 upstreamProjectUuid: trainingProjectUuid,
                 copyContent: true,
@@ -11140,12 +11220,16 @@ export class ProjectService extends BaseService {
         const { projectUuid } = creation.project;
         // Comments are keyed by tile uuid, which a copy would share with the
         // training project; the copy gets its own tiles and its own comments.
-        await this.projectModel.giveTrainingCopyOwnTiles(projectUuid);
+        await this.projectModel.giveTrainingCopyOwnTiles(
+            projectUuid,
+            training.createdByUserUuid,
+        );
         // The seeded research thread becomes the learner's own.
         await this.projectModel.copyDeepResearchForTrainingCopy(
             trainingProjectUuid,
             projectUuid,
             user.userUuid,
+            training.createdByUserUuid,
         );
 
         // The training project's explores are a shipped bundle, never
@@ -11234,14 +11318,35 @@ export class ProjectService extends BaseService {
         const copies = projects.filter(
             (project) =>
                 project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training' &&
                 project.upstreamProjectUuid === trainingProjectUuid &&
                 project.createdByUserUuid === user.userUuid,
         );
         await Promise.all(
-            copies.map((copy) => this.projectModel.delete(copy.projectUuid)),
+            copies.map((copy) => this.deleteTrainingCopy(copy.projectUuid)),
         );
         this.userModel.invalidateSessionUserCache(user.userUuid);
         return { deleted: copies.length };
+    }
+
+    /**
+     * Remove a training copy and the app files it duplicated into the
+     * bucket, which deleting the project rows alone would leave behind.
+     */
+    private async deleteTrainingCopy(copyProjectUuid: string): Promise<void> {
+        try {
+            await this.getAppGenerateService?.()?.deleteProjectAppFiles(
+                copyProjectUuid,
+            );
+        } catch (error) {
+            Sentry.captureException(error);
+            this.logger.warn(
+                `Could not remove the app files of training copy ${copyProjectUuid}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+        await this.projectModel.delete(copyProjectUuid);
     }
 
     /*

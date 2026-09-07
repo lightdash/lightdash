@@ -1057,27 +1057,29 @@ export class ProjectModel {
         sourceProjectUuid: string,
         previewProjectUuid: string,
         learnerUserUuid: string,
+        seedUserUuid: string | null,
     ): Promise<void> {
         await this.database.transaction(async (trx) => {
-            const runs = await trx(AiDeepResearchRunsTableName).where(
-                'project_uuid',
-                sourceProjectUuid,
-            );
+            // Only the seed's runs (made by whoever enabled Learn) travel
+            // into copies; nothing another learner or admin ran afterwards.
+            const runs = await trx(AiDeepResearchRunsTableName)
+                .where('project_uuid', sourceProjectUuid)
+                .where('created_by_user_uuid', seedUserUuid ?? '')
+                .where('status', 'completed');
             // eslint-disable-next-line no-restricted-syntax
             for (const run of runs) {
                 // eslint-disable-next-line no-await-in-loop
                 const sourceAgent = await trx(AiAgentTableName)
                     .where('ai_agent_uuid', run.agent_uuid)
                     .first();
+                if (!sourceAgent) continue; // eslint-disable-line no-continue
                 // eslint-disable-next-line no-await-in-loop
-                const agent = sourceAgent
-                    ? await trx(AiAgentTableName)
-                          .where({
-                              project_uuid: previewProjectUuid,
-                              slug: sourceAgent.slug,
-                          })
-                          .first()
-                    : undefined;
+                const agent = await trx(AiAgentTableName)
+                    .where({
+                        project_uuid: previewProjectUuid,
+                        slug: sourceAgent.slug,
+                    })
+                    .first();
                 if (!agent) continue; // eslint-disable-line no-continue
                 // eslint-disable-next-line no-await-in-loop
                 const thread = await trx(AiThreadTableName)
@@ -1138,6 +1140,8 @@ export class ProjectModel {
                     agent_uuid: agent.ai_agent_uuid,
                     ai_thread_uuid: threadUuid,
                     prompt_uuid: promptUuid,
+                    // A copy is a finished report, never a resumable run.
+                    resume_from_run_uuid: null,
                     budget_snapshot: JSON.stringify(run.budget_snapshot),
                     execution_context_snapshot: JSON.stringify(
                         run.execution_context_snapshot,
@@ -1174,7 +1178,10 @@ export class ProjectModel {
      * uuids, a copy's comments start as clones of the seeded ones and stay
      * its own; they go with the copy's charts when it is removed.
      */
-    async giveTrainingCopyOwnTiles(previewProjectUuid: string): Promise<void> {
+    async giveTrainingCopyOwnTiles(
+        previewProjectUuid: string,
+        seedUserUuid: string | null,
+    ): Promise<void> {
         await this.database.transaction(async (trx) => {
             const versions = await trx(DashboardVersionsTableName)
                 .join(
@@ -1273,8 +1280,11 @@ export class ProjectModel {
                         )
                 ).map((row) => [row.dashboard_tile_uuid, row.uuid]),
             );
+            // Only the seed's comments (made by whoever enabled Learn) come
+            // along; nothing anyone wrote on the shared project afterwards.
             const comments = await trx(DashboardTileCommentsTableName)
                 .whereIn('dashboard_tile_uuid', [...renamed.keys()])
+                .where('user_uuid', seedUserUuid ?? '')
                 .orderBy('created_at', 'asc')
                 .select('*');
             const clonedIds = new Map<string, string>();

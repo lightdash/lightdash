@@ -497,7 +497,7 @@ describe('UserModel', () => {
                     subject('PinnedItems', { projectUuid: 'training-copy' }),
                 ),
             ).toBe(true);
-            // a viewer can pin, save and run SQL on the training project
+            // a viewer can pin, save and run SQL in their own copy
             (
                 [
                     ['manage', 'PinnedItems'],
@@ -510,10 +510,39 @@ describe('UserModel', () => {
                     ability.can(
                         action,
                         subject(subjectName, {
-                            projectUuid: 'training-project',
+                            projectUuid: 'training-copy',
                         }),
                     ),
                 ).toBe(true);
+            });
+            // the shared training project itself is read-only for them:
+            // browsable, so the library and the seed can be opened, but a
+            // write there would be cloned into every other learner's copy
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', { projectUuid: 'training-project' }),
+                ),
+            ).toBe(true);
+            (
+                [
+                    ['manage', 'PinnedItems'],
+                    ['manage', 'SavedChart'],
+                    ['manage', 'SqlRunner'],
+                    ['manage', 'AiAgent'],
+                    ['create', 'DashboardComments'],
+                ] as const
+            ).forEach(([action, subjectName]) => {
+                expect({
+                    action,
+                    subjectName,
+                    can: ability.can(
+                        action,
+                        subject(subjectName, {
+                            projectUuid: 'training-project',
+                        }),
+                    ),
+                }).toEqual({ action, subjectName, can: false });
             });
             // but not on their real project
             expect(

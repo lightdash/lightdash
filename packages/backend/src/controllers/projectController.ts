@@ -1259,7 +1259,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * @summary Create training preview
      * @param projectUuid the training project
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/training-previews')
     @OperationId('CreateTrainingPreview')
@@ -1281,7 +1281,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
      * @summary Delete training previews
      * @param projectUuid the training project
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
     @Delete('{projectUuid}/training-previews')
     @OperationId('DeleteTrainingPreviews')
