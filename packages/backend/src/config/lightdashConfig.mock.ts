@@ -59,6 +59,10 @@ export const lightdashConfigMock: LightdashConfig = {
             privateKeyFile: undefined,
             openIdConnectMetadataEndpoint: undefined,
         },
+        microsoftManagedSignIn: {
+            iosClientId: undefined,
+            androidClientId: undefined,
+        },
         oidc: {
             authMethod: undefined,
             authSigningAlg: undefined,

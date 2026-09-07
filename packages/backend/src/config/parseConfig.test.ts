@@ -51,6 +51,35 @@ describe('mobile login config', () => {
     });
 });
 
+describe('managed sign-in config', () => {
+    it('has no registrations by default', () => {
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: undefined,
+            androidClientId: undefined,
+        });
+    });
+
+    it('reads a registration per platform', () => {
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID = 'ios-id';
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID =
+            'android-id';
+
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: 'ios-id',
+            androidClientId: 'android-id',
+        });
+    });
+
+    it('reads one platform on its own', () => {
+        process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID = 'ios-id';
+
+        expect(parseConfig().auth.microsoftManagedSignIn).toEqual({
+            iosClientId: 'ios-id',
+            androidClientId: undefined,
+        });
+    });
+});
+
 describe('mobile push notification config', () => {
     it('is disabled when APNs credentials are absent', () => {
         expect(parseConfig().mobilePushNotifications).toEqual({

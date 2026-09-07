@@ -2278,6 +2278,11 @@ type AuthOneLoginConfig = {
     loginPath: string;
 };
 
+type AuthMicrosoftManagedSignInConfig = {
+    iosClientId: string | undefined;
+    androidClientId: string | undefined;
+};
+
 type AuthOidcConfig = {
     callbackPath: string;
     loginPath: string;
@@ -2322,6 +2327,7 @@ export type AuthConfig = {
     okta: AuthOktaConfig;
     oneLogin: AuthOneLoginConfig;
     azuread: AuthAzureADConfig;
+    microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
     databricks: AuthDatabricksConfig;
@@ -3170,6 +3176,12 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID
                         ? `https://login.microsoftonline.com/${process.env.AUTH_AZURE_AD_OAUTH_TENANT_ID}/v2.0/.well-known/openid-configuration`
                         : undefined,
+            },
+            microsoftManagedSignIn: {
+                iosClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_IOS_CLIENT_ID,
+                androidClientId:
+                    process.env.AUTH_MICROSOFT_MANAGED_SIGNIN_ANDROID_CLIENT_ID,
             },
             oidc: {
                 callbackPath: '/oauth/redirect/oidc',

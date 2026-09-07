@@ -1,4 +1,4 @@
-import { AnyType } from '@lightdash/common';
+import { AnyType, TOKEN_EXCHANGE_GRANT_TYPE } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { type LightdashConfig } from '../config/parseConfig';
@@ -278,5 +278,69 @@ describe('OAuth2Model mobile refresh token lifetime', () => {
         expect(token && token.client.refreshTokenLifetime).toBe(
             60 * 60 * 24 * 90,
         );
+    });
+});
+
+describe('OAuth2Model.getClient token exchange grant', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database as unknown as Knex, lightdashConfig);
+    let tracker: Tracker;
+
+    const clientRow = (redirectUris: string[]) => ({
+        client_id: 'client-id',
+        client_secret: null,
+        redirect_uris: redirectUris,
+        grants: ['authorization_code', 'refresh_token'],
+        scopes: ['read'],
+        client_name: 'Client',
+    });
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('grants token exchange to a mobile client', async () => {
+        tracker.on
+            .select('oauth2_clients')
+            .responseOnce(clientRow([mobileRedirectUri]));
+
+        const client = await model.getClient('client-id');
+
+        expect(client && client.grants).toEqual([
+            'authorization_code',
+            'refresh_token',
+            TOKEN_EXCHANGE_GRANT_TYPE,
+        ]);
+    });
+
+    it('does not grant token exchange to a non-mobile client', async () => {
+        tracker.on
+            .select('oauth2_clients')
+            .responseOnce(clientRow([cliRedirectUri]));
+
+        const client = await model.getClient('client-id');
+
+        expect(client && client.grants).toEqual([
+            'authorization_code',
+            'refresh_token',
+        ]);
+    });
+
+    it('does not repeat the grant when it is already stored', async () => {
+        tracker.on.select('oauth2_clients').responseOnce({
+            ...clientRow([mobileRedirectUri]),
+            grants: ['refresh_token', TOKEN_EXCHANGE_GRANT_TYPE],
+        });
+
+        const client = await model.getClient('client-id');
+
+        expect(client && client.grants).toEqual([
+            'refresh_token',
+            TOKEN_EXCHANGE_GRANT_TYPE,
+        ]);
     });
 });

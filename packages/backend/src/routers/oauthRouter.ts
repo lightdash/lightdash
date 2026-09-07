@@ -3,6 +3,7 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     getErrorMessage,
+    isManagedSignInError,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -325,11 +326,16 @@ oauthRouter.post('/token', async (req, res, next) => {
 
         // Return 401 for authentication errors, 400 for other errors
         const statusCode =
-            errorMessage.includes('Invalid') ||
-            errorMessage.includes('required')
+            !isManagedSignInError(errorMessage) &&
+            (errorMessage.includes('Invalid') ||
+                errorMessage.includes('required'))
                 ? 401
                 : 400;
-        res.status(statusCode).json({ error: errorMessage });
+        res.status(statusCode).json(
+            error instanceof OAuth2Server.OAuthError
+                ? { error: error.name, error_description: errorMessage }
+                : { error: errorMessage },
+        );
     }
 });
 

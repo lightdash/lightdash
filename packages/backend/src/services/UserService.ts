@@ -12,6 +12,7 @@ import {
     ArgumentsOf,
     assertUnreachable,
     AuthorizationError,
+    AzureAdSsoConfig,
     BigqueryAuthenticationType,
     CompleteUserArgs,
     CreateInviteLink,
@@ -26,6 +27,7 @@ import {
     ForbiddenError,
     getEmailDomain,
     getErrorMessage,
+    getMicrosoftAuthority,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -43,9 +45,13 @@ import {
     LightdashUser,
     LocalIssuerTypes,
     LoginOptionTypes,
+    MANAGED_SIGN_IN_PROVIDER,
+    MANAGED_SIGN_IN_SCOPES,
+    ManagedSignIn,
     MissingConfigError,
     MobileLoginIntent,
     MobileLoginSsoPresentation,
+    MobilePlatform,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
@@ -3940,6 +3946,77 @@ export class UserService extends BaseService {
                 ssoPresentation: { kind: 'neutral' },
                 localEmailAvailable,
             };
+        }
+    }
+
+    private getManagedSignInClientId(
+        platform: MobilePlatform,
+    ): string | undefined {
+        const { microsoftManagedSignIn } = this.lightdashConfig.auth;
+        return platform === 'ios'
+            ? microsoftManagedSignIn.iosClientId
+            : microsoftManagedSignIn.androidClientId;
+    }
+
+    private async findManagedSignInTenantId(
+        email: string | undefined,
+    ): Promise<string | undefined> {
+        const envTenantId = this.lightdashConfig.auth.azuread.oauth2TenantId;
+        if (envTenantId) {
+            return envTenantId;
+        }
+        if (!email) {
+            return undefined;
+        }
+        const { matchingMethods } =
+            await this.getEnabledOrganizationSsoMethodsForEmail(email);
+        const tenantIds = new Set(
+            matchingMethods
+                .filter(
+                    (method) =>
+                        method.provider === OrganizationSsoProvider.AZUREAD,
+                )
+                .map(
+                    (method) =>
+                        (method.config as AzureAdSsoConfig).oauth2TenantId,
+                )
+                .filter((tenantId): tenantId is string => !!tenantId),
+        );
+        if (tenantIds.size !== 1) {
+            return undefined;
+        }
+        const [tenantId] = tenantIds;
+        return tenantId;
+    }
+
+    async getManagedSignIn(
+        platform: MobilePlatform | undefined,
+        email: string | undefined,
+    ): Promise<ManagedSignIn | undefined> {
+        if (!platform) {
+            return undefined;
+        }
+        const clientId = this.getManagedSignInClientId(platform);
+        if (!clientId) {
+            return undefined;
+        }
+        try {
+            const tenantId = await this.findManagedSignInTenantId(email);
+            if (!tenantId) {
+                return undefined;
+            }
+            return {
+                provider: MANAGED_SIGN_IN_PROVIDER,
+                clientId,
+                authority: getMicrosoftAuthority(tenantId),
+                tenantId,
+                scopes: MANAGED_SIGN_IN_SCOPES,
+            };
+        } catch (error) {
+            Logger.warn('Failed to resolve managed sign-in options', {
+                error: error instanceof Error ? error.message : String(error),
+            });
+            return undefined;
         }
     }
 

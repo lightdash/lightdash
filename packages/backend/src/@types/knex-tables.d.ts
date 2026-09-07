@@ -166,6 +166,10 @@ import {
     LinearAppInstallationTableName,
 } from '../database/entities/linearAppInstallation';
 import {
+    ManagedSignInTokenUsesTable,
+    ManagedSignInTokenUsesTableName,
+} from '../database/entities/managedSignInTokenUses';
+import {
     NotificationsTable,
     NotificationsTableName,
 } from '../database/entities/notifications';
@@ -729,6 +733,7 @@ declare module 'knex/types/tables' {
         [LinearAppInstallationTableName]: LinearAppInstallationTable;
         [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [UserOAuthGrantsTableName]: UserOAuthGrantsTable;
+        [ManagedSignInTokenUsesTableName]: ManagedSignInTokenUsesTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
