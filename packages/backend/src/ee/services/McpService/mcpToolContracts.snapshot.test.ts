@@ -175,6 +175,14 @@ const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
 });
 
+const getLatestMcpServerInstructions = (): string => {
+    const instructions = mockMcpServerInstructions.at(-1);
+    if (instructions === undefined) {
+        throw new Error('MCP server instructions were not registered');
+    }
+    return instructions;
+};
+
 describe('MCP tool contracts', () => {
     beforeEach(() => {
         mockRegisteredMcpTools.length = 0;
@@ -230,7 +238,7 @@ describe('MCP tool contracts', () => {
             runMetricQueryEnabled: true,
             filterExpressionsEnabled: false,
         });
-        expect(mockMcpServerInstructions.at(-1)).not.toContain(
+        expect(getLatestMcpServerInstructions()).not.toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
 
@@ -238,10 +246,34 @@ describe('MCP tool contracts', () => {
             runMetricQueryEnabled: true,
             filterExpressionsEnabled: true,
         });
-        expect(mockMcpServerInstructions.at(-1)).toContain(
+        expect(getLatestMcpServerInstructions()).toContain(
             MCP_FILTER_EXPRESSION_GUIDANCE_SECTION,
         );
     });
+
+    it.each([
+        {
+            name: 'structured-filter',
+            filterExpressionsEnabled: false,
+        },
+        {
+            name: 'filter-expression',
+            filterExpressionsEnabled: true,
+        },
+    ])(
+        'matches the $name MCP server instructions snapshot',
+        async ({ filterExpressionsEnabled }) => {
+            const mcpService = makeMcpService();
+
+            await mcpService.createServer({
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+                filterExpressionsEnabled,
+            });
+
+            expect(getLatestMcpServerInstructions()).toMatchSnapshot();
+        },
+    );
 
     it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
