@@ -2,7 +2,9 @@
 
 This folder is a **custom chart type** (a reusable visualization, the `data_app_viz` template) — ONE chart component that receives its data and settings from Lightdash, not a data app. It runs no query, owns no explore, and must not fetch anything itself.
 
-The contract lives in `.claude/skills/reusable-visualization` — read it before editing: the `useVizContext()` hook, the field/option declaration, resolved series colours, and pivoted results.
+Two skills in `.claude/skills/` describe how to edit it:
+- `reusable-visualization` — the contract: the `useVizContext()` hook, the field/option declaration, resolved series colours, pivoted results.
+- `developing-chart-types-locally` — the local workflow: the vizSchema lockstep rule, validate/upload/verify loop, and the path to the official registry.
 
 The one difference from that skill here: the declaration is not emitted as structured output. It lives in this folder's `lightdash-app.yml` under `vizSchema`, and **must stay in lockstep with the component** — every key `src/App.jsx` reads from `fieldMapping` or `options` is declared there, and everything declared there is read. When you change what the component reads, update `vizSchema` in the same edit.
 

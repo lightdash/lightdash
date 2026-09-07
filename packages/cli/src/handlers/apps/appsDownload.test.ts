@@ -688,6 +688,46 @@ describe('downloadAppsToDir', () => {
         ).toBe(true);
     });
 
+    it('gives downloaded chart types the chart-type authoring flavor', async () => {
+        const appsDir = tmpDir();
+        const vizCode = codeFor('my-chart-type');
+        vizCode.manifest.template = 'data_app_viz';
+
+        const outcome = await downloadAppsToDir({
+            appRefs: ['my-chart-type'],
+            projectId: 'project-uuid',
+            appsDir,
+            takenFolders: new Set(),
+            cliVersion: '0.0.0-test',
+            fetchApp: async () => vizCode,
+        });
+
+        expect(outcome.successCount).toBe(1);
+        const skillsDir = path.join(appsDir, 'my-chart-type', '.claude/skills');
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-chart-types-locally/SKILL.md'),
+            ),
+        ).toBe(true);
+        // The app SDK skills would only mislead — a viz must not query.
+        expect(
+            fs.existsSync(path.join(skillsDir, 'lightdash-data-app/SKILL.md')),
+        ).toBe(false);
+        expect(
+            fs.existsSync(
+                path.join(skillsDir, 'developing-data-apps-locally/SKILL.md'),
+            ),
+        ).toBe(false);
+        expect(
+            fs
+                .readFileSync(
+                    path.join(appsDir, 'my-chart-type', 'AGENTS.md'),
+                    'utf8',
+                )
+                .toString(),
+        ).toContain('custom chart type');
+    });
+
     it('skips bundles the skipBundle guard rejects without writing them', async () => {
         const appsDir = tmpDir();
         const vizCode = codeFor('my-chart-type');

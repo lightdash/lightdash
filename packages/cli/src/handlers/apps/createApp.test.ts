@@ -309,12 +309,21 @@ describe('createAppHandler', () => {
             expect.anything(),
         );
 
-        // The viz contract skill ships; the app-only skills do not.
+        // The viz contract + local workflow skills ship; the app-only skills
+        // do not.
         await expect(
             fs.access(
                 path.join(
                     appDir,
                     '.claude/skills/reusable-visualization/SKILL.md',
+                ),
+            ),
+        ).resolves.toBeUndefined();
+        await expect(
+            fs.access(
+                path.join(
+                    appDir,
+                    '.claude/skills/developing-chart-types-locally/SKILL.md',
                 ),
             ),
         ).resolves.toBeUndefined();
