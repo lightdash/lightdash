@@ -55735,6 +55735,14 @@
                         "type": "string",
                         "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
                     },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Formatting overrides for dimensions in this query, keyed by field id."
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Formatting overrides for metrics in this query, keyed by field id."
+                    },
                     "customDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/CustomDimension"
@@ -59952,7 +59960,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.140.2",
+        "version": "2.141.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

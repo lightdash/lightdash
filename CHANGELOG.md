@@ -1,3 +1,10 @@
+# [2.141.0](https://github.com/lightdash/lightdash/compare/2.140.2...2.141.0) (2026-09-07)
+
+
+### Features
+
+* **merge:** submit a merge through the query source DAG ([#28730](https://github.com/lightdash/lightdash/issues/28730)) ([e29f1cc](https://github.com/lightdash/lightdash/commit/e29f1cc6edf57d55424ab00a2db76f1e7e588785))
+
 ## [2.140.2](https://github.com/lightdash/lightdash/compare/2.140.1...2.140.2) (2026-09-07)
 
 

@@ -55578,6 +55578,8 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 pivotConfiguration: { ref: 'PivotConfiguration' },
                 timezone: { dataType: 'string' },
+                dimensionOverrides: { ref: 'DimensionOverrides' },
+                metricOverrides: { ref: 'MetricOverrides' },
                 customDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'CustomDimension' },
