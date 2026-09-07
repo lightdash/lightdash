@@ -160,7 +160,12 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
         const orgUserUuids =
             organizationUsers
-                ?.filter((user) => user.role !== OrganizationMemberRole.MEMBER)
+                ?.filter(
+                    (user) =>
+                        user.role !== OrganizationMemberRole.MEMBER ||
+                        user.roleUuid !== undefined ||
+                        user.hasMultipleRoles === true,
+                )
                 .map((user) => user.userUuid) ?? [];
 
         return [...new Set([...projectUserUuids, ...orgUserUuids])];
