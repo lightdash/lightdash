@@ -251,6 +251,7 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import { getValidatedDashboardSorts } from './dashboardSorts';
+import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -272,7 +273,6 @@ import {
     buildMergeRefusedEvent,
     buildMergeRefusedEventFromErrors,
     describeMergeQueryShape,
-    observeRowCapRefusal,
     resolveComposeMergeOutcome,
     type MergeSubmission,
 } from './mergeQueryTelemetry';
@@ -310,6 +310,7 @@ import {
     type PollingOptions,
     type PreAggregateExecutionEngine,
     type PreAggregationRoute,
+    type QueryHistoryActor,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
     type RunDuckdbQueryArgs,
@@ -3940,11 +3941,9 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    private static getQueryHistoryActor(query: QueryHistory): {
-        userUuid: string;
-        isRegisteredUser: boolean;
-        isServiceAccount: boolean;
-    } {
+    private static getQueryHistoryActor(
+        query: QueryHistory,
+    ): QueryHistoryActor {
         switch (query.createdByActorType) {
             case 'jwt':
                 if (!query.createdByAccount) {
@@ -7263,13 +7262,16 @@ export class AsyncQueryService extends ProjectService {
      * query fails. References must already be authorized
      * (authorizeQueryReferences).
      */
+    /**
+     * References were authorized against the submitting account at submit;
+     * the wait reads them by uuid alone, so a worker with no session can run
+     * it.
+     */
     private async waitForQueryReferences({
-        account,
         projectUuid,
         references,
         labelByTable,
     }: {
-        account: Account;
         projectUuid: string;
         references: Record<string, string>;
         labelByTable: Record<string, string>;
@@ -7280,7 +7282,7 @@ export class AsyncQueryService extends ProjectService {
                     const queryHistory =
                         await this.queryHistoryModel.pollForQueryCompletion({
                             queryUuid,
-                            account,
+                            account: null,
                             projectUuid,
                             timeoutMs:
                                 AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
@@ -7570,46 +7572,202 @@ export class AsyncQueryService extends ProjectService {
             context,
         );
 
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: account.user.id,
-            organizationUuid,
+        // Everything the run needs beyond the row lives in the spec, so the
+        // run rebuilds itself from the row wherever it executes
+        await this.queryHistoryModel.setDuckdbExecution(queryUuid, {
+            references: normalizedReferences ?? {},
+            engine: plan.engine,
+            columns:
+                resolved.columns.mode === 'discover'
+                    ? {
+                          mode: 'discover',
+                          limit: resolved.columns.limit ?? null,
+                          parameters: resolved.columns.parameters,
+                      }
+                    : { mode: 'supplied' },
+            guard: plan.guard,
+            storedCompiledSql: null,
+            referenceLabels: plan.referenceLabels,
+            refusal: null,
         });
 
-        void this.runDuckdbQuery({
-            account,
-            projectUuid,
-            organizationUuid,
-            isPreviewProject:
-                projectSummary.type === ProjectType.PREVIEW ||
-                projectSummary.provisioningSource === 'playground',
-            onboardingFlow,
-            queryUuid,
-            sql: resolved.sql,
-            references: {
-                kind: 'queries',
-                references: normalizedReferences ?? {},
-                guard: plan.guard,
-                labelByTable: plan.referenceLabels,
-            },
-            columns: resolved.columns,
-            storedCompiledSql: null,
-            engine:
-                plan.engine === 'client'
-                    ? { kind: 'client', warehouseClient }
-                    : { kind: 'scopedToReferencedResults' },
-            queryTags,
-            queryCreatedAt,
-            cacheKey,
-            context,
-        }).catch((e) => {
-            this.logger.error(
-                `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
-                    e,
-                )}`,
-            );
-        });
+        if (this.lightdashConfig.natsWorker.enabled) {
+            await this.enqueueDuckdbQuery({
+                queryUuid,
+                projectUuid,
+                account,
+                queryTags,
+                queryCreatedAt,
+                context,
+            });
+        } else {
+            void this.runAsyncDuckdbQueryFromHistory(
+                queryUuid,
+                'main-loop',
+                queryTags,
+            ).catch((e) => {
+                this.logger.error(
+                    `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+            });
+        }
 
         return { queryUuid };
+    }
+
+    /** Hands a DuckDB source query to the worker, as a warehouse query is. */
+    private async enqueueDuckdbQuery({
+        queryUuid,
+        projectUuid,
+        account,
+        queryTags,
+        queryCreatedAt,
+        context,
+    }: {
+        queryUuid: string;
+        projectUuid: string;
+        account: Account;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        context: QueryExecutionContext;
+    }): Promise<void> {
+        try {
+            const { jobId } = await this.natsClient.enqueueDuckdbQuery({
+                queryUuid,
+                queryTags,
+            });
+            this.logger.info(
+                `Enqueued DuckDB source query ${queryUuid} on NATS with job ${jobId}`,
+            );
+            await this.queryHistoryModel.updateStatusToQueued(queryUuid);
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+                context,
+            );
+        } catch (e) {
+            const errorMessage = getErrorMessage(e);
+            this.logger.error(
+                `Failed to enqueue DuckDB source query ${queryUuid} on NATS`,
+                e,
+            );
+            await this.queryHistoryModel.updateStatusToError(
+                queryUuid,
+                projectUuid,
+                `Failed to enqueue DuckDB query: ${errorMessage}`,
+                account,
+            );
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.ERROR,
+                context,
+            );
+            this.trackQueryTerminalStatus(
+                QueryHistoryStatus.ERROR,
+                queryCreatedAt,
+                context,
+            );
+        }
+    }
+
+    /**
+     * Runs a DuckDB source query from its history row alone: the worker's
+     * entry, and the in-process path when there is no worker, so both run
+     * exactly the same rebuild.
+     */
+    public async runAsyncDuckdbQueryFromHistory(
+        queryUuid: string,
+        workerLabel: string,
+        queryTagsOverride?: RunQueryTags,
+    ): Promise<boolean> {
+        const canRun = await this.prepareQueuedQueryForExecution(
+            queryUuid,
+            workerLabel,
+        );
+        if (!canRun) {
+            return false;
+        }
+        const args = await this.buildDuckdbQueryArgsFromHistory(
+            queryUuid,
+            queryTagsOverride,
+        );
+        await this.runDuckdbQuery(args);
+        return true;
+    }
+
+    private async buildDuckdbQueryArgsFromHistory(
+        queryUuid: string,
+        queryTagsOverride?: RunQueryTags,
+    ): Promise<RunDuckdbQueryArgs> {
+        const query = await this.getQueryHistoryFromHistory(queryUuid);
+        const spec = await this.queryHistoryModel.getDuckdbExecution(queryUuid);
+        if (spec === null) {
+            throw new NotFoundError(
+                `DuckDB execution spec not found in query_history for ${queryUuid}`,
+            );
+        }
+        if (!query.projectUuid) {
+            throw new NotFoundError(
+                `Project not found in query_history for ${queryUuid}`,
+            );
+        }
+        const actor = AsyncQueryService.getQueryHistoryActor(query);
+        const onboardingFlow = await this.getOnboardingFlow({
+            userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
+        });
+
+        return {
+            actor,
+            projectUuid: query.projectUuid,
+            organizationUuid: query.organizationUuid,
+            isPreviewProject: await this.isExcludedFromUsage(query.projectUuid),
+            onboardingFlow,
+            queryUuid,
+            sql: query.compiledSql,
+            references: {
+                kind: 'queries',
+                references: spec.references,
+                guard:
+                    spec.guard === null
+                        ? null
+                        : buildMergeRowCapGuard(spec.guard),
+                labelByTable: spec.referenceLabels,
+            },
+            columns:
+                spec.columns.mode === 'discover'
+                    ? {
+                          mode: 'discover',
+                          limit: spec.columns.limit ?? undefined,
+                          parameters: spec.columns.parameters,
+                      }
+                    : {
+                          mode: 'supplied',
+                          fieldsMap: query.fields,
+                          usedParameters: query.usedParameters ?? null,
+                          originalColumns: query.originalColumns ?? {},
+                          pivotConfiguration:
+                              query.pivotConfiguration ?? undefined,
+                      },
+            storedCompiledSql: spec.storedCompiledSql,
+            engine:
+                spec.engine === 'client'
+                    ? {
+                          kind: 'client',
+                          warehouseClient:
+                              this.composeEngineClient.createExecutionWarehouseClient(
+                                  { storage: 'results', scope: null },
+                              ),
+                      }
+                    : { kind: 'scopedToReferencedResults' },
+            queryTags:
+                queryTagsOverride ?? AsyncQueryService.buildQueryTags(query),
+            queryCreatedAt: query.createdAt,
+            cacheKey: query.cacheKey,
+            context: query.context,
+        };
     }
 
     /**
@@ -7920,8 +8078,20 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
 
+        // External SQL always runs in-process: its references are bound to
+        // private file URIs that only this process resolved
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.PENDING,
+            QueryHistoryStatus.EXECUTING,
+            context,
+        );
+        this.prometheusMetrics?.observeQueueWaitDuration(0, context);
         void this.runDuckdbQuery({
-            account,
+            actor: {
+                userUuid: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+            },
             projectUuid,
             organizationUuid,
             isPreviewProject:
@@ -7996,7 +8166,7 @@ export class AsyncQueryService extends ProjectService {
      * them through the standard status lifecycle.
      */
     private async runDuckdbQuery({
-        account,
+        actor,
         projectUuid,
         organizationUuid,
         isPreviewProject,
@@ -8012,9 +8182,14 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         context,
     }: RunDuckdbQueryArgs): Promise<void> {
+        // The row's creator, as the model scopes writes: a worker has no
+        // session, only what the row records
+        const account = {
+            user: { id: actor.userUuid },
+            isRegisteredUser: () => actor.isRegisteredUser,
+        };
         try {
             const bound = await this.bindDuckdbQueryReferences({
-                account,
                 projectUuid,
                 references,
             });
@@ -8044,23 +8219,16 @@ export class AsyncQueryService extends ProjectService {
                 account,
             );
 
-            // Always run in-process with the DuckDB client override: the NATS
-            // pre-aggregate consumer falls back to the project warehouse on
-            // DuckDB errors, which must never happen for SQL written for
-            // DuckDB.
-            this.prometheusMetrics?.trackQueryStateTransition(
-                QueryHistoryStatus.PENDING,
-                QueryHistoryStatus.EXECUTING,
-                context,
-            );
-            this.prometheusMetrics?.observeQueueWaitDuration(0, context);
-
+            // Always with the DuckDB client override, never through the NATS
+            // pre-aggregate consumer, which falls back to the project
+            // warehouse on DuckDB errors: that must never happen for SQL
+            // written for DuckDB.
             await this.runAsyncWarehouseQuery({
-                userUuid: account.user.id,
+                userUuid: actor.userUuid,
                 organizationUuid,
                 isPreviewProject,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
+                isRegisteredUser: actor.isRegisteredUser,
+                isServiceAccount: actor.isServiceAccount,
                 onboardingFlow,
                 projectUuid,
                 queryUuid,
@@ -8088,6 +8256,14 @@ export class AsyncQueryService extends ProjectService {
                 },
                 account,
             );
+            // A refusal is the feature working, and whoever reports the
+            // outcome must tell it from a failure by reading the row alone
+            if (e instanceof DuckdbQueryRefusal) {
+                await this.queryHistoryModel.recordDuckdbRefusal(
+                    queryUuid,
+                    e.refusal,
+                );
+            }
         }
     }
 
@@ -8119,11 +8295,9 @@ export class AsyncQueryService extends ProjectService {
      * so a refusal never costs an execution.
      */
     private async bindDuckdbQueryReferences({
-        account,
         projectUuid,
         references,
     }: {
-        account: Account;
         projectUuid: string;
         references: DuckdbQueryReferences;
     }): Promise<BoundDuckdbQueryReferences> {
@@ -8135,13 +8309,14 @@ export class AsyncQueryService extends ProjectService {
                 };
             case 'queries': {
                 const completed = await this.waitForQueryReferences({
-                    account,
                     projectUuid,
                     references: references.references,
                     labelByTable: references.labelByTable,
                 });
                 const refusal = references.guard?.(completed) ?? null;
-                if (refusal !== null) throw new ParameterError(refusal);
+                if (refusal !== null) {
+                    throw new DuckdbQueryRefusal(refusal, { kind: 'row_cap' });
+                }
                 return this.buildQueryReferenceCtes(completed);
             }
             default:
@@ -8581,9 +8756,6 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
         };
-        const rowCap = observeRowCapRefusal(
-            buildMergeRowCapGuard({ legLabelByReferenceTable, sourceRowCap }),
-        );
         // The join node carries the compile's core and its own pivot; the
         // node composes the pivot stage and terminal wrapper for the engine,
         // so nothing here knows whether the merge is pivoted
@@ -8633,7 +8805,9 @@ export class AsyncQueryService extends ProjectService {
             // A merge calculation is user SQL: it runs on a session that
             // reaches only the leg files it joins
             engine: 'scopedToReferencedResults',
-            guard: rowCap.guard,
+            // Only the legs this merge ran are checked against the cap; a
+            // referenced result's row count is its own query's concern
+            guard: { legLabelByReferenceTable, sourceRowCap },
             referenceLabels: legLabelByReferenceTable,
         };
 
@@ -8694,7 +8868,6 @@ export class AsyncQueryService extends ProjectService {
             queryUuid: join.queryUuid,
             submittedAt,
             legCacheHits,
-            wasRowCapRefused: rowCap.wasRefused,
         }).catch((e) => {
             this.logger.error(
                 `Async compose merge query ${
@@ -8732,14 +8905,12 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         submittedAt,
         legCacheHits,
-        wasRowCapRefused,
     }: {
         account: Account;
         submission: MergeSubmission;
         queryUuid: string;
         submittedAt: Date;
         legCacheHits: boolean[];
-        wasRowCapRefused: () => boolean;
     }): Promise<void> {
         const history = await this.queryHistoryModel.pollForQueryCompletion({
             queryUuid,
@@ -8749,9 +8920,11 @@ export class AsyncQueryService extends ProjectService {
             throwOnError: false,
             timeoutMs: 2 * AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
         });
+        // The run records a refusal on the row, wherever it ran
+        const spec = await this.queryHistoryModel.getDuckdbExecution(queryUuid);
         const outcome = resolveComposeMergeOutcome({
             history,
-            rowCapRefused: wasRowCapRefused(),
+            rowCapRefused: spec?.refusal?.kind === 'row_cap',
         });
         const durationMs = Date.now() - submittedAt.getTime();
         switch (outcome.kind) {

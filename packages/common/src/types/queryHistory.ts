@@ -78,3 +78,34 @@ export type QueryHistory = {
     preAggregateFallbackReason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processingStartedAt: Date | null; // when the NATS worker picked up the job
 };
+
+/**
+ * How a DuckDB source query over other results executes, persisted on its
+ * history row so a worker can rebuild the run from the row alone: which
+ * results it reads, which engine session runs it, whether its columns are
+ * probed or were supplied at submit, and the guard that may refuse it once
+ * its references complete. `refusal` is written by the run when that guard
+ * trips, so whoever reports the outcome can tell a refusal from a failure.
+ */
+export type DuckdbExecutionSpec = {
+    /** Table name -> queryUuid of the result it reads, already resolved. */
+    references: Record<string, string>;
+    engine: 'client' | 'scopedToReferencedResults';
+    columns:
+        | {
+              mode: 'discover';
+              limit: number | null;
+              parameters: ParametersValuesMap;
+          }
+        | { mode: 'supplied' };
+    /** Refuses the run when a referenced leg reached the row cap; labels name the source. */
+    guard: {
+        legLabelByReferenceTable: Record<string, string>;
+        sourceRowCap: number;
+    } | null;
+    /** Persisted instead of the executed SQL when that carries private URIs. */
+    storedCompiledSql: string | null;
+    /** What the user calls each referenced table, for messages that name one. */
+    referenceLabels: Record<string, string>;
+    refusal: { kind: 'row_cap' } | null;
+};

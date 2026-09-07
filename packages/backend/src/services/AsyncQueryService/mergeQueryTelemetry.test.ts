@@ -12,7 +12,6 @@ import {
     buildMergeRefusedEvent,
     buildMergeRefusedEventFromErrors,
     describeMergeQueryShape,
-    observeRowCapRefusal,
     resolveComposeMergeOutcome,
     type MergeSubmission,
 } from './mergeQueryTelemetry';
@@ -161,23 +160,6 @@ describe('buildMergeRefusedEvent', () => {
         expect(
             buildMergeRefusedEventFromErrors({ submission, errors: [] }),
         ).toBeNull();
-    });
-});
-
-describe('observeRowCapRefusal', () => {
-    it('passes the guard result through and remembers a refusal', () => {
-        const observed = observeRowCapRefusal(() => 'Query A hit the cap');
-
-        expect(observed.wasRefused()).toBe(false);
-        expect(observed.guard({})).toBe('Query A hit the cap');
-        expect(observed.wasRefused()).toBe(true);
-    });
-
-    it('stays clear when the guard lets the join proceed', () => {
-        const observed = observeRowCapRefusal(() => null);
-
-        expect(observed.guard({})).toBeNull();
-        expect(observed.wasRefused()).toBe(false);
     });
 });
 

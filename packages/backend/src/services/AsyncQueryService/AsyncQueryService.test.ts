@@ -6,6 +6,7 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     DownloadFileType,
+    DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
     ExternalSourceScope,
@@ -279,6 +280,61 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: vi.fn(async () => ({})),
 };
 
+// A history model that keeps the row submit created and the DuckDB spec set
+// on it, so a run rebuilding itself from the row reads what submit wrote
+const inMemoryDuckdbHistory = ({
+    queryUuid,
+    account,
+    overrides = {},
+}: {
+    queryUuid: string;
+    account: Account;
+    overrides?: Record<string, unknown>;
+}) => {
+    const rows = new Map<string, QueryHistory>();
+    const specs = new Map<string, DuckdbExecutionSpec>();
+    const model = {
+        create: vi.fn(
+            async (
+                _account: Account,
+                args: Parameters<QueryHistoryModel['create']>[1],
+            ) => {
+                rows.set(queryUuid, {
+                    ...args,
+                    queryUuid,
+                    status: QueryHistoryStatus.PENDING,
+                    createdAt: new Date(),
+                    createdByUserUuid: account.user.id,
+                    createdByAccount: null,
+                    createdByActorType: account.authentication.type,
+                } as unknown as QueryHistory);
+                return { queryUuid };
+            },
+        ),
+        getByQueryUuid: vi.fn(async (uuid: string) => rows.get(uuid)),
+        updateStatusToExecuting: vi.fn(async () => 1),
+        updateStatusToQueued: vi.fn(async () => 1),
+        updateStatusToError: vi.fn(async () => 1),
+        setDuckdbExecution: vi.fn(
+            async (uuid: string, spec: DuckdbExecutionSpec) => {
+                specs.set(uuid, spec);
+            },
+        ),
+        getDuckdbExecution: vi.fn(
+            async (uuid: string) => specs.get(uuid) ?? null,
+        ),
+        recordDuckdbRefusal: vi.fn(
+            async (uuid: string, refusal: DuckdbExecutionSpec['refusal']) => {
+                const spec = specs.get(uuid);
+                if (spec) specs.set(uuid, { ...spec, refusal });
+            },
+        ),
+        update: vi.fn(),
+        ...overrides,
+    };
+    return model as unknown as QueryHistoryModel & typeof model;
+};
+
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
@@ -341,6 +397,9 @@ const getMockedAsyncQueryService = (
             })),
             enqueueMaterializationQuery: vi.fn(async () => ({
                 jobId: 'test-nats-materialization-job-id',
+            })),
+            enqueueDuckdbQuery: vi.fn(async () => ({
+                jobId: 'test-nats-duckdb-job-id',
             })),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
@@ -668,14 +727,16 @@ describe('AsyncQueryService', () => {
                     lightdashConfig: lightdashConfigMock,
                     createDuckdbWarehouseClient,
                 }),
-                queryHistoryModel: {
-                    create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
-                    get: vi.fn(async () => referencedQueryHistory),
-                    pollForQueryCompletion: vi.fn(
-                        async () => referencedQueryHistory,
-                    ),
-                    update: vi.fn(),
-                } as unknown as QueryHistoryModel,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'queryUuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                        pollForQueryCompletion: vi.fn(
+                            async () => referencedQueryHistory,
+                        ),
+                    },
+                }),
                 resultsStorageClient: {
                     isEnabled: true,
                     configuration: { bucket: 'mock_bucket' },
@@ -822,10 +883,13 @@ describe('AsyncQueryService', () => {
                         () => warehouseClientMock,
                     ),
                 } as unknown as ComposeEngineClient,
-                queryHistoryModel: {
-                    create: vi.fn(async () => ({ queryUuid: 'join-uuid' })),
-                    get: vi.fn(async () => referencedQueryHistory),
-                } as unknown as QueryHistoryModel,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'join-uuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                    },
+                }),
             } as never);
             const runDuckdbQuery = vi
                 .spyOn(service as AnyType, 'runDuckdbQuery')
@@ -909,15 +973,21 @@ describe('AsyncQueryService', () => {
                 composeEngineClient: {
                     createExecutionWarehouseClient,
                 } as unknown as ComposeEngineClient,
-                queryHistoryModel: {
-                    create: vi.fn(async () => ({ queryUuid: 'join-uuid' })),
-                    get: vi.fn(async () => referencedQueryHistory),
-                } as unknown as QueryHistoryModel,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'join-uuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                    },
+                }),
             } as never);
             const runDuckdbQuery = vi
                 .spyOn(service as AnyType, 'runDuckdbQuery')
                 .mockResolvedValue(undefined);
-            const guard = vi.fn(() => null);
+            const guard = {
+                legLabelByReferenceTable: { orders: 'Query A' },
+                sourceRowCap: 500,
+            };
             const fieldsMap = {
                 a_orders_count: {
                     fieldType: FieldType.METRIC,
@@ -1006,15 +1076,40 @@ describe('AsyncQueryService', () => {
                     compiledSql: 'SELECT * FROM orders ORDER BY 1',
                 }),
             );
+            // The run rebuilds itself from the row and the spec set on it
+            expect(
+                service.queryHistoryModel.setDuckdbExecution,
+            ).toHaveBeenCalledWith('join-uuid', {
+                references: { orders: referencedQueryHistory.queryUuid },
+                engine: 'scopedToReferencedResults',
+                columns: { mode: 'supplied' },
+                guard,
+                storedCompiledSql: null,
+                referenceLabels: {},
+                refusal: null,
+            });
+            expect(
+                service.queryHistoryModel.updateStatusToExecuting,
+            ).toHaveBeenCalledWith('join-uuid');
             expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                actor: {
+                    userUuid: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                },
                 queryUuid: 'join-uuid',
                 sql: 'SELECT * FROM orders ORDER BY 1',
-                columns: { mode: 'supplied', fieldsMap, originalColumns },
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap,
+                    originalColumns,
+                    usedParameters: { region: 'EU' },
+                },
                 engine: { kind: 'scopedToReferencedResults' },
                 references: {
                     kind: 'queries',
                     references: { orders: referencedQueryHistory.queryUuid },
-                    guard,
+                    guard: expect.any(Function),
                     labelByTable: {},
                 },
             });
@@ -6209,6 +6304,7 @@ describe('runDuckdbQuery', () => {
 
     const buildService = () => {
         const pollForQueryCompletion = vi.fn(async () => legHistory(1));
+        const recordDuckdbRefusal = vi.fn();
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             resultsStorageClient: {
                 isEnabled: true,
@@ -6217,6 +6313,7 @@ describe('runDuckdbQuery', () => {
             queryHistoryModel: {
                 update: vi.fn(),
                 pollForQueryCompletion,
+                recordDuckdbRefusal,
             } as unknown as QueryHistoryModel,
         } as never);
         const runWarehouseQuery = vi
@@ -6227,6 +6324,7 @@ describe('runDuckdbQuery', () => {
                 (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
             runWarehouseQuery,
             pollForQueryCompletion,
+            recordDuckdbRefusal,
             update: service.queryHistoryModel.update as import('vitest').Mock,
         };
     };
@@ -6255,7 +6353,11 @@ describe('runDuckdbQuery', () => {
     const baseArgs = (
         overrides: Partial<RunDuckdbQueryArgs>,
     ): RunDuckdbQueryArgs => ({
-        account: buildAccount(),
+        actor: {
+            userUuid: sessionAccount.user.id,
+            isRegisteredUser: true,
+            isServiceAccount: false,
+        },
         projectUuid,
         organizationUuid: projectSummary.organizationUuid,
         isPreviewProject: false,
@@ -6515,9 +6617,10 @@ describe('runDuckdbQuery', () => {
         );
     });
 
-    it('a guard refusal lands as the query error before anything runs', async () => {
+    it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
         const { streamQuery, warehouseClient } = probingClient({});
-        const { run, runWarehouseQuery, update } = buildService();
+        const { run, runWarehouseQuery, update, recordDuckdbRefusal } =
+            buildService();
         const guard = vi.fn(() => 'Orders returned too many rows');
 
         await run(
@@ -6544,6 +6647,9 @@ describe('runDuckdbQuery', () => {
             }),
             expect.anything(),
         );
+        expect(recordDuckdbRefusal).toHaveBeenCalledWith('duckdb-query-uuid', {
+            kind: 'row_cap',
+        });
     });
 });
 
@@ -6826,17 +6932,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 lightdashConfig: config,
                 createDuckdbWarehouseClient: () => warehouseClient,
             }),
-            queryHistoryModel: {
-                create: vi.fn(async () => ({ queryUuid: 'merge-query-uuid' })),
-                get: vi.fn(async (queryUuid: string) => legByUuid(queryUuid)),
-                pollForQueryCompletion: vi.fn(
-                    async ({ queryUuid }: { queryUuid: string }) =>
-                        queryUuid === 'merge-query-uuid'
-                            ? mergeHistoryOnceSettled()
-                            : legByUuid(queryUuid),
-                ),
-                update,
-            } as unknown as QueryHistoryModel,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'merge-query-uuid',
+                account: sessionAccount,
+                overrides: {
+                    get: vi.fn(async (queryUuid: string) =>
+                        legByUuid(queryUuid),
+                    ),
+                    pollForQueryCompletion: vi.fn(
+                        async ({ queryUuid }: { queryUuid: string }) =>
+                            queryUuid === 'merge-query-uuid'
+                                ? mergeHistoryOnceSettled()
+                                : legByUuid(queryUuid),
+                    ),
+                    update,
+                },
+            }),
             resultsStorageClient: {
                 isEnabled: true,
                 configuration: { bucket: 'results-bucket' },
@@ -7743,4 +7854,320 @@ describe('executeAsyncMergeQuery over a result source', () => {
             expect(create).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('DuckDB source queries on the worker', () => {
+    const suppliedPlan = () => ({
+        columns: {
+            mode: 'supplied' as const,
+            compose: () =>
+                ({
+                    getSql: () => 'SELECT * FROM merge_source_0',
+                    getFields: () => ({}),
+                    getUsedParameters: () => ({}),
+                    getMetricQuery: () => ({ exploreName: 'merge' }),
+                }) as unknown as QueryComposer,
+            originalColumns: {},
+            requestParameters: {
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM merge_source_0',
+            },
+        },
+        engine: 'scopedToReferencedResults' as const,
+        guard: null,
+        referenceLabels: {},
+    });
+
+    const referencedQueryHistory = {
+        queryUuid: '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        createdByUserUuid: sessionAccount.user.id,
+        status: QueryHistoryStatus.READY,
+        columns: {},
+        metricQuery: { exploreName: 'orders' },
+    } as unknown as QueryHistory;
+
+    const buildWorkerService = (config: LightdashConfig) => {
+        const service = getMockedAsyncQueryService(config, {
+            composeEngineClient: {
+                createExecutionWarehouseClient: vi.fn(
+                    () => warehouseClientMock,
+                ),
+            } as unknown as ComposeEngineClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'join-uuid',
+                account: sessionAccount,
+                overrides: {
+                    get: vi.fn(async () => referencedQueryHistory),
+                },
+            }),
+        } as never);
+        const runDuckdbQuery = vi
+            .spyOn(service as AnyType, 'runDuckdbQuery')
+            .mockResolvedValue(undefined);
+        return { service, runDuckdbQuery };
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('with the worker on, submit records the spec, hands the row to NATS and runs nothing itself', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+
+        const submission = await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        expect(submission.queryUuid).toBe('join-uuid');
+        const { setDuckdbExecution, updateStatusToQueued } =
+            service.queryHistoryModel as unknown as ReturnType<
+                typeof inMemoryDuckdbHistory
+            >;
+        const enqueue = service.natsClient
+            .enqueueDuckdbQuery as import('vitest').Mock;
+        expect(enqueue).toHaveBeenCalledWith({
+            queryUuid: 'join-uuid',
+            queryTags: expect.objectContaining({
+                user_uuid: sessionAccount.user.id,
+                project_uuid: projectUuid,
+            }),
+        });
+        // The spec is on the row before the worker can pick it up
+        expect(setDuckdbExecution.mock.invocationCallOrder[0]).toBeLessThan(
+            enqueue.mock.invocationCallOrder[0],
+        );
+        expect(updateStatusToQueued).toHaveBeenCalledWith('join-uuid');
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a failed hand-off errors the row instead of leaving it pending', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+        (
+            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
+        ).mockRejectedValueOnce(new Error('NATS is down'));
+
+        await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        expect(
+            service.queryHistoryModel.updateStatusToError,
+        ).toHaveBeenCalledWith(
+            'join-uuid',
+            projectUuid,
+            'Failed to enqueue DuckDB query: NATS is down',
+            sessionAccount,
+        );
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('the worker rebuilds a queued run from the row and its spec alone', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        // What the API process left behind: a queued row and its spec
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'pat',
+            context: QueryExecutionContext.DASHBOARD,
+            compiledSql: 'SELECT * FROM merge_source_0',
+            cacheKey: 'row-cache-key',
+            fields: { a_orders_count: { type: MetricType.COUNT } },
+            originalColumns: {
+                a_orders_count: {
+                    reference: 'a_orders_count',
+                    type: DimensionType.NUMBER,
+                },
+            },
+            usedParameters: { region: 'EU' },
+            pivotConfiguration: null,
+            metricQuery: { exploreName: 'merge' },
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                dashboardUuid: 'dashboard-uuid',
+            },
+        } as unknown as QueryHistory);
+        const guard = {
+            legLabelByReferenceTable: { merge_source_0: 'Query A' },
+            sourceRowCap: 3,
+        };
+        model.getDuckdbExecution.mockResolvedValue({
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            engine: 'scopedToReferencedResults',
+            columns: { mode: 'supplied' },
+            guard,
+            storedCompiledSql: null,
+            referenceLabels: {},
+            refusal: null,
+        });
+
+        const ran = await service.runAsyncDuckdbQueryFromHistory(
+            'join-uuid',
+            'nats-worker-1',
+        );
+
+        expect(ran).toBe(true);
+        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
+        expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
+        const args = runDuckdbQuery.mock.calls[0][0] as RunDuckdbQueryArgs;
+        expect(args).toMatchObject({
+            actor: {
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isServiceAccount: false,
+            },
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            queryUuid: 'join-uuid',
+            sql: 'SELECT * FROM merge_source_0',
+            engine: { kind: 'scopedToReferencedResults' },
+            columns: {
+                mode: 'supplied',
+                fieldsMap: { a_orders_count: { type: MetricType.COUNT } },
+                usedParameters: { region: 'EU' },
+                pivotConfiguration: undefined,
+            },
+            cacheKey: 'row-cache-key',
+            context: QueryExecutionContext.DASHBOARD,
+            queryTags: expect.objectContaining({
+                user_uuid: sessionAccount.user.id,
+                dashboard_uuid: 'dashboard-uuid',
+            }),
+        });
+        // The guard is rebuilt from data and refuses a leg over the cap
+        if (args.references.kind !== 'queries' || !args.references.guard) {
+            throw new Error('Expected a guarded query reference');
+        }
+        const rebuiltGuard = args.references.guard;
+        expect(
+            rebuiltGuard({
+                merge_source_0: {
+                    ...referencedQueryHistory,
+                    totalRowCount: 3,
+                } as QueryHistory,
+            }),
+        ).toContain('Query A');
+        expect(
+            rebuiltGuard({
+                merge_source_0: {
+                    ...referencedQueryHistory,
+                    totalRowCount: 2,
+                } as QueryHistory,
+            }),
+        ).toBeNull();
+    });
+
+    it('a discover run rebuilds its column probe and a results session', async () => {
+        const createExecutionWarehouseClient = vi.fn(() => warehouseClientMock);
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            composeEngineClient: {
+                createExecutionWarehouseClient,
+            } as unknown as ComposeEngineClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'compose-uuid',
+                account: sessionAccount,
+            }),
+        } as never);
+        const runDuckdbQuery = vi
+            .spyOn(service as AnyType, 'runDuckdbQuery')
+            .mockResolvedValue(undefined);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'compose-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            context: QueryExecutionContext.SQL_RUNNER,
+            compiledSql: 'SELECT one FROM orders',
+            cacheKey: 'row-cache-key',
+            fields: {},
+            metricQuery: { exploreName: 'sql_runner' },
+            requestParameters: {
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+            },
+        } as unknown as QueryHistory);
+        model.getDuckdbExecution.mockResolvedValue({
+            references: { orders: referencedQueryHistory.queryUuid },
+            engine: 'client',
+            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
+            guard: null,
+            storedCompiledSql: null,
+            referenceLabels: {},
+            refusal: null,
+        });
+
+        await service.runAsyncDuckdbQueryFromHistory(
+            'compose-uuid',
+            'nats-worker-1',
+        );
+
+        expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+            storage: 'results',
+            scope: null,
+        });
+        expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+            columns: { mode: 'discover', limit: 10, parameters: { p: '1' } },
+            engine: { kind: 'client', warehouseClient: warehouseClientMock },
+            references: {
+                kind: 'queries',
+                references: { orders: referencedQueryHistory.queryUuid },
+                guard: null,
+            },
+        });
+    });
+
+    it('skips a row another worker already took', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            status: QueryHistoryStatus.EXECUTING,
+            createdAt: new Date(),
+        } as unknown as QueryHistory);
+
+        const ran = await service.runAsyncDuckdbQueryFromHistory(
+            'join-uuid',
+            'nats-worker-2',
+        );
+
+        expect(ran).toBe(false);
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+        expect(model.getDuckdbExecution).not.toHaveBeenCalled();
+    });
 });

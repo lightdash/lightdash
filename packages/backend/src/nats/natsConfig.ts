@@ -37,6 +37,8 @@ const OSS_STREAM_CONFIGS: Record<'warehouse', StreamConfig> = {
         streamName: 'WAREHOUSE_QUERY_JOBS',
         subjects: {
             query: 'warehouse.query.jobs',
+            /** DuckDB source queries over other results: merges and compose SQL. */
+            duckdb: 'warehouse.duckdb.jobs',
         },
         durableName: 'worker-warehouse',
     },

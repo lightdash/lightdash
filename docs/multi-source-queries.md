@@ -94,10 +94,13 @@ The statement then runs on an isolated DuckDB session whose storage
 credentials reach exactly those result files, so user SQL cannot read the
 rest of the results bucket; a duckdb query that references nothing is refused
 at submit, since it would have nothing to run on.
-One caveat inherited by design: when compose queries move to NATS workers, a
-waiting query occupies a worker slot; dependency-ordered submission keeps
-queue order aligned with dependency order, and a dedicated consumer is the
-fix if slot starvation ever materializes.
+The run rebuilds itself from the `query_history` row and its
+`duckdb_execution` column, so with the NATS worker on it runs on the worker
+(subject `warehouse.duckdb.jobs`), and in the API process otherwise.
+One caveat inherited by design: on the worker, a waiting query occupies a
+worker slot; dependency-ordered submission keeps queue order aligned with
+dependency order, and a dedicated consumer is the fix if slot starvation ever
+materializes.
 
 ## API
 

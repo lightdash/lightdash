@@ -39,8 +39,14 @@ may name a leg node; the duckdb source resolves it to the leg's queryUuid at
 submit, the way it resolves a table reference. The join's queryUuid is what
 the Explorer pages.
 
-The outcome reporter polls the join row rather than awaiting the in-process
-run, so it stays correct wherever the join executes.
+Submit writes everything the run needs beyond the row itself to the row's
+`duckdb_execution` column: the references, the engine, how columns are found,
+the row-cap guard as data, and whether the run was refused. With the NATS
+worker on, submit then hands the queryUuid to the `warehouse.duckdb.jobs`
+subject and the worker rebuilds the run from the row; with the worker off, the
+API process runs exactly the same rebuild. A refusal by the guard is recorded
+on the row too, so the outcome reporter, which polls the join row rather than
+awaiting any run, tells a refusal from a failure wherever the join executed.
 
 ### Why DuckDB
 
@@ -132,9 +138,10 @@ help it.
 
 **The compose path has no resource governance.** No query timeout (the deadline
 that exists applies only to the playground path), memory limit unset by default,
-no per-org concurrency budget on the shared client, and the join is fired off
-inside the API process behind a wait for its legs. Moving the join to the worker
-(PROD-10993) contains the blast radius but does not supply the budgets.
+and no per-org concurrency budget on the shared client. The join runs on the
+NATS worker where one is configured, which contains the blast radius, but a
+join waiting on its legs holds a worker slot while it waits, and the worker
+supplies no budgets either.
 
 **Two response fields are dead but required.** `requiresCompose` on the
 compiled merge and `sourceLimitExceededSql` on its terminal wrapper are always
@@ -186,5 +193,4 @@ result-source refusal the same way with the referenced query's limit lowered).
 Tracked in Linear under the `merge-queries` label, in the Query & Explore V2
 project. With one execution path in place, what remains is the pivot stage
 moving onto the join node (PROD-10902), consolidating the merge endpoints
-(PROD-10904), running the join on the worker (PROD-10993), and the Explorer
-surface.
+(PROD-10904), and the Explorer surface.

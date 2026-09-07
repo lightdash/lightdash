@@ -32,6 +32,7 @@ type EnqueueResult = Promise<{ jobId: string }>;
 
 export interface INatsClient {
     enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueueDuckdbQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueueMaterializationQuery(payload: AsyncQueryJobPayload): EnqueueResult;
 }
@@ -207,6 +208,12 @@ export class NatsClient implements INatsClient {
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(STREAM_CONFIGS.warehouse.subjects.query, payload);
+    }
+
+    async enqueueDuckdbQuery(
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        return this.enqueue(STREAM_CONFIGS.warehouse.subjects.duckdb, payload);
     }
 
     async enqueuePreAggregateQuery(
