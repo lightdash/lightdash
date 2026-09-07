@@ -21,7 +21,9 @@ import {
     VizIndexType,
     WeekDay,
     type CompiledDimension,
+    type CompiledExploreJoin,
     type CompiledMetric,
+    type CompiledTable,
     type MetricFilterRule,
     type TimestampDomain,
 } from '@lightdash/common';
@@ -2111,6 +2113,213 @@ LIMIT 10`;
                     w.message.includes('missing a primary key definition'),
                 ),
             ).toBe(false);
+        });
+
+        test('Should warn when two independent repeated columns are unnested together', () => {
+            const unnestedTable = (
+                tableName: string,
+                columnPath: string,
+                dimensionName: string,
+            ): CompiledTable => ({
+                ...emptyTable(tableName),
+                sqlTable: `UNNEST("sessions".${columnPath}) AS "${tableName}" WITH OFFSET AS "${tableName}__offset"`,
+                nestedFrom: { parentTable: 'sessions', columnPath },
+                dimensions: {
+                    [dimensionName]: {
+                        type: DimensionType.STRING,
+                        name: dimensionName,
+                        label: dimensionName,
+                        table: tableName,
+                        tableLabel: tableName,
+                        fieldType: FieldType.DIMENSION,
+                        sql: `\${TABLE}.${dimensionName}`,
+                        compiledSql: `"${tableName}".${dimensionName}`,
+                        tablesReferences: [tableName],
+                        hidden: false,
+                    },
+                },
+            });
+            const unnestJoin = (tableName: string): CompiledExploreJoin => ({
+                table: tableName,
+                sqlOn: 'TRUE',
+                compiledSqlOn: 'TRUE',
+                type: 'left',
+                relationship: JoinRelationship.ONE_TO_MANY,
+                tablesReferences: ['sessions'],
+            });
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                    },
+                    sessions__hits: unnestedTable(
+                        'sessions__hits',
+                        'hits',
+                        'hitNumber',
+                    ),
+                    sessions__customDimensions: unnestedTable(
+                        'sessions__customDimensions',
+                        'customDimensions',
+                        'value',
+                    ),
+                },
+                joinedTables: [
+                    unnestJoin('sessions__hits'),
+                    unnestJoin('sessions__customDimensions'),
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: [
+                        'sessions__hits_hitNumber',
+                        'sessions__customDimensions_value',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            const crossProductWarnings = result.warnings.filter((w) =>
+                w.message.includes('are unnested together'),
+            );
+            expect(crossProductWarnings).toHaveLength(1);
+            expect(crossProductWarnings[0].tables).toEqual([
+                'sessions__hits',
+                'sessions__customDimensions',
+            ]);
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(false);
+        });
+
+        test('Should flag a metric on an unnested table as inflated by a deeper unnest without asking for a primary key', () => {
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                    },
+                    sessions__hits: {
+                        ...emptyTable('sessions__hits'),
+                        sqlTable:
+                            'UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions',
+                            columnPath: 'hits',
+                        },
+                        metrics: {
+                            hit_count: {
+                                type: MetricType.COUNT,
+                                name: 'hit_count',
+                                label: 'Hit count',
+                                table: 'sessions__hits',
+                                tableLabel: 'Sessions: Hits',
+                                fieldType: FieldType.METRIC,
+                                sql: '${TABLE}.hitNumber',
+                                compiledSql:
+                                    'COUNT("sessions__hits".hitNumber)',
+                                tablesReferences: ['sessions__hits'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    sessions__hits__product: {
+                        ...emptyTable('sessions__hits__product'),
+                        sqlTable:
+                            'UNNEST("sessions__hits".product) AS "sessions__hits__product" WITH OFFSET AS "sessions__hits__product__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions__hits',
+                            columnPath: 'hits.product',
+                        },
+                        dimensions: {
+                            productSKU: {
+                                type: DimensionType.STRING,
+                                name: 'productSKU',
+                                label: 'Product SKU',
+                                table: 'sessions__hits__product',
+                                tableLabel: 'Sessions: Hits: Product',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.productSKU',
+                                compiledSql:
+                                    '"sessions__hits__product".productSKU',
+                                tablesReferences: ['sessions__hits__product'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'sessions__hits',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions'],
+                    },
+                    {
+                        table: 'sessions__hits__product',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions__hits'],
+                    },
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: ['sessions__hits__product_productSKU'],
+                    metrics: ['sessions__hits_hit_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.warnings.map((w) => w.message)).toEqual([
+                expect.stringContaining(
+                    'Metric **"Hit count"** could be inflated by another unnested repeated column',
+                ),
+            ]);
+            expect(result.warnings[0].fields).toEqual([
+                'sessions__hits_hit_count',
+            ]);
         });
 
         test('Should throw when the referenced dimension table is aggregated in its own CTE', () => {

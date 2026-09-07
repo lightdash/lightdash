@@ -97,6 +97,7 @@ import {
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
     findTablesWithMetricInflation,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getDimensionFromFilterTargetId,
@@ -2924,14 +2925,19 @@ export class MetricQueryBuilder {
             const metricsInCte: CompiledMetric[] = [];
 
             if (table?.primaryKey === undefined) {
-                // We can't handle deduplication if table doesn't have primary key
-                warnings.push({
-                    message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
-                    tables: [tableName],
-                });
+                // Deduplication needs a primary key. An unnested table cannot
+                // declare one, so its metrics only get the inflation notice.
+                if (!table?.nestedFrom) {
+                    warnings.push({
+                        message: `Table **"${tableName}"** is missing a primary key definition. This can prevent data duplication in joins. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        tables: [tableName],
+                    });
+                }
                 metricsFromTable.forEach((metric) => {
                     warnings.push({
-                        message: `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+                        message: table?.nestedFrom
+                            ? `Metric **"${metric.label}"** could be inflated by another unnested repeated column. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`
+                            : `Metric **"${metric.label}"** could be inflated due to table missing primary key definition. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
                         fields: [getItemId(metric)],
                         tables: [metric.table],
                     });
@@ -5458,6 +5464,12 @@ export class MetricQueryBuilder {
             // Log error but don't block code execution
             Logger.error('Error during date-grain table calc detection', e);
         }
+        warnings.push(
+            ...findUnnestCrossProductWarnings({
+                tables: explore.tables,
+                joinedTables: joins.tables,
+            }),
+        );
 
         // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
         const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(

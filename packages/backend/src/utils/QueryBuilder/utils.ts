@@ -1335,3 +1335,52 @@ export const findMetricInflationWarnings = ({
     });
     return warnings;
 };
+
+type FindUnnestCrossProductWarningsProps = {
+    tables: { [tableName: string]: Pick<CompiledTable, 'nestedFrom'> };
+    joinedTables: Set<string>;
+};
+
+const getUnnestAncestors = (
+    tables: FindUnnestCrossProductWarningsProps['tables'],
+    tableName: string,
+    visited: Set<string> = new Set(),
+): string[] => {
+    const parent = tables[tableName]?.nestedFrom?.parentTable;
+    if (parent === undefined || visited.has(parent)) {
+        return [];
+    }
+    return [parent, ...getUnnestAncestors(tables, parent, visited.add(parent))];
+};
+
+/**
+ * Unnested tables that are not on one ancestry chain pair every element of
+ * one array with every element of the other, so the row count multiplies.
+ */
+export const findUnnestCrossProductWarnings = ({
+    tables,
+    joinedTables,
+}: FindUnnestCrossProductWarningsProps): QueryWarning[] => {
+    const unnestedTables = Array.from(joinedTables).filter(
+        (tableName) => tables[tableName]?.nestedFrom !== undefined,
+    );
+    const ancestors = new Set(
+        unnestedTables.flatMap((tableName) =>
+            getUnnestAncestors(tables, tableName),
+        ),
+    );
+    const independentTables = unnestedTables.filter(
+        (tableName) => !ancestors.has(tableName),
+    );
+    if (independentTables.length < 2) {
+        return [];
+    }
+    const quoted = independentTables.map((tableName) => `**"${tableName}"**`);
+    const tableList = `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
+    return [
+        {
+            message: `Repeated columns ${tableList} are unnested together, so each row pairs their elements and metrics can be inflated. [Read more](https://docs.lightdash.com/references/joins#sql-fanouts)`,
+            tables: independentTables,
+        },
+    ];
+};
