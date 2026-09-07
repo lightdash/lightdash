@@ -36,7 +36,10 @@ import {
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
-import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
+import type {
+    QueryComposer,
+    TotalConfiguration,
+} from '../../utils/QueryBuilder/QueryComposer';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -353,18 +356,27 @@ export type DuckdbQueryEngine =
  * internal caller such as a merge supplies its compile-time columns, a
  * session scoped to the results it reads, and a guard over those results.
  *
- * Supplied columns are recorded on the history row as they are, with the
- * request that produced them. A supplied column's provenance may name a
- * node of the same submission instead of a queryUuid; it resolves to that
- * node's query at submit time, the way a table reference does.
+ * Supplied columns come from a composer the node builds over its own SQL,
+ * for the engine's dialect and with the node's own pivot, so the pivot stage
+ * belongs to the node and nothing upstream of it needs to know. The
+ * composer's fields, metric query and parameters are recorded on the history
+ * row as they are, with the request that produced them. A supplied column's
+ * provenance may name a node of the same submission instead of a queryUuid;
+ * it resolves to that node's query at submit time, the way a table
+ * reference does.
  */
 export type DuckdbQueryPlan = {
     columns:
         | { mode: 'discover' }
-        | (SuppliedDuckdbQueryColumns & {
-              metricQuery: MetricQuery;
+        | {
+              mode: 'supplied';
+              compose: (args: {
+                  warehouseClient: WarehouseClient;
+                  pivotConfiguration: PivotConfiguration | undefined;
+              }) => QueryComposer;
+              originalColumns: ResultColumns;
               requestParameters: ExecuteAsyncQueryRequestParams;
-          });
+          };
     engine: DuckdbQueryEngine['kind'];
     guard: DuckdbQueryReferenceGuard | null;
     /** What the user calls each referenced table; empty when nothing names them. */
@@ -376,6 +388,8 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     limit?: number;
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
+    /** The node's own pivot stage; only a supplied plan can compose it. */
+    pivotConfiguration?: PivotConfiguration;
     plan: DuckdbQueryPlan;
 };
 

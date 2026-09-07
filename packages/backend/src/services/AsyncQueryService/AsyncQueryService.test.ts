@@ -741,6 +741,87 @@ describe('AsyncQueryService', () => {
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
 
+        test("a supplied plan composes the node's own pivot stage and records the pivot on the row", async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                composeEngineClient: {
+                    createExecutionWarehouseClient: vi.fn(
+                        () => warehouseClientMock,
+                    ),
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'join-uuid' })),
+                    get: vi.fn(async () => referencedQueryHistory),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            const runDuckdbQuery = vi
+                .spyOn(service as AnyType, 'runDuckdbQuery')
+                .mockResolvedValue(undefined);
+            const pivotConfiguration: PivotConfiguration = {
+                indexColumn: {
+                    reference: 'merge_month',
+                    type: VizIndexType.TIME,
+                },
+                valuesColumns: [
+                    {
+                        reference: 'a_orders_count',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: undefined,
+            };
+            const compose = vi.fn(
+                () =>
+                    ({
+                        getSql: () => 'SELECT pivoted FROM orders',
+                        getFields: () => ({}),
+                        getUsedParameters: () => ({}),
+                        getMetricQuery: () => ({ exploreName: 'merge' }),
+                    }) as unknown as QueryComposer,
+            );
+
+            await service.executeAsyncDuckdbSourceQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                pivotConfiguration,
+                plan: {
+                    columns: {
+                        mode: 'supplied',
+                        compose,
+                        originalColumns: {},
+                        requestParameters: {
+                            context: QueryExecutionContext.EXPLORE,
+                            sql: 'SELECT * FROM orders',
+                        },
+                    },
+                    engine: 'scopedToReferencedResults',
+                    guard: null,
+                },
+            });
+            await vi.waitFor(() =>
+                expect(runDuckdbQuery).toHaveBeenCalledTimes(1),
+            );
+
+            expect(compose).toHaveBeenCalledWith({
+                warehouseClient: warehouseClientMock,
+                pivotConfiguration,
+            });
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    pivotConfiguration,
+                    compiledSql: 'SELECT pivoted FROM orders',
+                }),
+            );
+            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                sql: 'SELECT pivoted FROM orders',
+                columns: { mode: 'supplied', pivotConfiguration },
+            });
+        });
+
         test('a supplied plan records its columns, runs on a scoped session and reads no flag', async () => {
             const featureFlagModel = {
                 get: vi.fn(async () => ({ enabled: false })),
@@ -795,6 +876,14 @@ describe('AsyncQueryService', () => {
                 context: QueryExecutionContext.EXPLORE,
                 sql: 'SELECT * FROM orders',
             };
+            // The plan's composer owns the statement, fields and pivot stage
+            const composer = {
+                getSql: vi.fn(() => 'SELECT * FROM orders ORDER BY 1'),
+                getFields: () => fieldsMap,
+                getUsedParameters: () => ({ region: 'EU' }),
+                getMetricQuery: () => metricQuery,
+            } as unknown as QueryComposer;
+            const compose = vi.fn(() => composer);
             const submission = await service.executeAsyncDuckdbSourceQuery({
                 account: sessionAccount,
                 projectUuid,
@@ -804,11 +893,8 @@ describe('AsyncQueryService', () => {
                 plan: {
                     columns: {
                         mode: 'supplied',
-                        fieldsMap,
-                        usedParameters: { region: 'EU' },
+                        compose,
                         originalColumns,
-                        pivotConfiguration: undefined,
-                        metricQuery,
                         requestParameters,
                     },
                     engine: 'scopedToReferencedResults',
@@ -821,6 +907,13 @@ describe('AsyncQueryService', () => {
             );
 
             expect(submission.queryUuid).toBe('join-uuid');
+            expect(compose).toHaveBeenCalledWith({
+                warehouseClient: warehouseClientMock,
+                pivotConfiguration: undefined,
+            });
+            expect(composer.getSql).toHaveBeenCalledWith({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
             const flagsRead = (
                 featureFlagModel.get as import('vitest').Mock
             ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
@@ -835,11 +928,12 @@ describe('AsyncQueryService', () => {
                     requestParameters,
                     usedParameters: { region: 'EU' },
                     pivotConfiguration: null,
-                    compiledSql: 'SELECT * FROM orders',
+                    compiledSql: 'SELECT * FROM orders ORDER BY 1',
                 }),
             );
             expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
                 queryUuid: 'join-uuid',
+                sql: 'SELECT * FROM orders ORDER BY 1',
                 columns: { mode: 'supplied', fieldsMap, originalColumns },
                 engine: { kind: 'scopedToReferencedResults' },
                 references: {
@@ -6819,7 +6913,7 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         expect(executed.originalColumns).toBe(
             create.mock.calls[0][1].originalColumns,
         );
-        expect(executed.fieldsMap).toBe(outcome.query.fields);
+        expect(executed.fieldsMap).toEqual(outcome.query.fields);
         expect(executed.query).toContain(
             `read_json_auto('s3://results-bucket/${legQueryUuidBySourceId.a}.jsonl')`,
         );

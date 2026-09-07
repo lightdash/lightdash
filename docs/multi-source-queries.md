@@ -45,7 +45,7 @@ There is deliberately no server-side pipeline executor, no pipeline tables and
 no new queue infrastructure. Submitting many queries at once validates them
 (unique node ids, resolvable references, no cycles) and submits every query
 immediately in dependency order, rewriting node-id references to the real
-queryUuids as each fire-and-forget submit returns. The dependency *wait*
+queryUuids as each fire-and-forget submit returns. The dependency _wait_
 happens inside the referencing query: a `duckdb` query's background execution
 blocks (via `QueryHistoryModel.pollForQueryCompletion`, bounded by a 15-minute
 timeout) until every referenced result exists, and fails with the upstream
@@ -74,8 +74,9 @@ than referencing expired results.
   execution context it is handed: `semanticLayer` and `sql` nodes apply all
   of it; `duckdb` and `external` nodes resolve parameters, never serve from a
   cache (so invalidation is trivially honoured), have no attribute-scoped SQL
-  to apply overrides to, and refuse a pivot until the join node owns the
-  pivot stage.
+  to apply overrides to, and refuse a pivot on a public submission, since raw
+  SQL has no fields to pivot on. A `duckdb` node submitted with an execution
+  plan (a merge's join) pivots through the plan's composer.
 - `QuerySourceRegistry.ts` — sources register by `sourceType`; the service
   resolves and lists them. Commercial/self-hosted extensions register
   additional sources at construction time (`ServiceRepository`).
@@ -100,12 +101,12 @@ All endpoints require the `multi-source-query` feature flag (on by default in
 preview environments) and live under
 `/api/v2/projects/{projectUuid}/query-sources`:
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /` | List registered sources |
-| `GET /{sourceType}/schema` | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape |
-| `POST /queries` | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query. Optional `parameters` and `invalidateCache` apply to every query; a query may carry its own `pivotConfiguration` |
-| `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle) |
+| Endpoint                             | Purpose                                                                                                                                                                                  |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /`                              | List registered sources                                                                                                                                                                  |
+| `GET /{sourceType}/schema`           | Scan one source's schema into the standard `{tables: [{reference, columns: [{reference, type}]}]}` shape                                                                                 |
+| `POST /queries`                      | Submit 1..n source queries → immediate `{nodeId, queryUuid}` per query. Optional `parameters` and `invalidateCache` apply to every query; a query may carry its own `pivotConfiguration` |
+| `GET /queries/status?queryUuids=...` | Batch status poll (standard async query lifecycle)                                                                                                                                       |
 
 Individual results are fetched with the existing
 `GET /api/v2/projects/{projectUuid}/query/{queryUuid}` endpoint. Statuses are
@@ -117,21 +118,21 @@ Example body — two parallel sources merged by DuckDB:
 
 ```json
 {
-    "queries": [
-        { "nodeId": "orders", "sourceType": "sql", "sql": "SELECT ..." },
-        {
-            "nodeId": "revenue",
-            "sourceType": "semanticLayer",
-            "exploreName": "payments",
-            "dimensions": ["payments_order_id"],
-            "metrics": ["payments_total_revenue"]
-        },
-        {
-            "sourceType": "duckdb",
-            "sql": "SELECT * FROM orders JOIN revenue ON orders.order_id = revenue.payments_order_id",
-            "references": ["orders", "revenue"]
-        }
-    ]
+  "queries": [
+    { "nodeId": "orders", "sourceType": "sql", "sql": "SELECT ..." },
+    {
+      "nodeId": "revenue",
+      "sourceType": "semanticLayer",
+      "exploreName": "payments",
+      "dimensions": ["payments_order_id"],
+      "metrics": ["payments_total_revenue"]
+    },
+    {
+      "sourceType": "duckdb",
+      "sql": "SELECT * FROM orders JOIN revenue ON orders.order_id = revenue.payments_order_id",
+      "references": ["orders", "revenue"]
+    }
+  ]
 }
 ```
 

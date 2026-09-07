@@ -16,6 +16,7 @@ import { buildAccount } from '../../auth/account/account.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -788,6 +789,67 @@ describe('composer pipelines return the standard results interface', () => {
         );
     });
 
+    it('hands a planned DuckDB node its pivot for the plan to compose, while a public one still refuses it', async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: {
+                reference: 'orders_status',
+                type: VizIndexType.CATEGORY,
+            },
+            valuesColumns: [
+                {
+                    reference: 'orders_total_revenue',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+            ],
+            groupByColumns: undefined,
+            sortBy: undefined,
+        };
+        const joinNode: SourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'joined',
+            sql: 'SELECT * FROM orders',
+            references: { orders: '123e4567-e89b-12d3-a456-426614174000' },
+            pivotConfiguration,
+        };
+        const plan: DuckdbQueryPlan = {
+            columns: {
+                mode: 'supplied',
+                compose: () => ({}) as unknown as QueryComposer,
+                originalColumns: {},
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    sql: 'SELECT * FROM orders',
+                },
+            },
+            engine: 'scopedToReferencedResults',
+            guard: null,
+        };
+
+        await service.submitQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            queries: [joinNode],
+            plans: { joined: plan },
+        });
+        expect(
+            asyncQueryService.executeAsyncDuckdbSourceQuery,
+        ).toHaveBeenCalledWith(expect.objectContaining({ pivotConfiguration }));
+
+        await expect(
+            service.executeSourceQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                queries: [joinNode],
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
     it("resolves a supplied column's provenance from a node id to that node's queryUuid", async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
@@ -799,19 +861,8 @@ describe('composer pipelines return the standard results interface', () => {
         const plan: DuckdbQueryPlan = {
             columns: {
                 mode: 'supplied',
-                fieldsMap: {},
-                usedParameters: null,
+                compose: () => ({}) as unknown as QueryComposer,
                 originalColumns: { orders_total_revenue: column('orders') },
-                pivotConfiguration: undefined,
-                metricQuery: {
-                    exploreName: 'merge',
-                    dimensions: [],
-                    metrics: ['orders_total_revenue'],
-                    filters: {},
-                    sorts: [],
-                    limit: 500,
-                    tableCalculations: [],
-                },
                 requestParameters: {
                     context: QueryExecutionContext.EXPLORE,
                     sql: 'SELECT * FROM orders',

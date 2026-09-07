@@ -156,7 +156,10 @@ export class QuerySourceService extends BaseService {
      * known source types, references either naming a query in the submission
      * or holding a queryUuid of an existing result, and no cycles.
      */
-    private validateQueries(queries: SourceQuery[]): ValidatedQuery[] {
+    private validateQueries(
+        queries: SourceQuery[],
+        plans: Record<string, DuckdbQueryPlan>,
+    ): ValidatedQuery[] {
         if (queries.length === 0) {
             throw new ParameterError('Submit at least one query');
         }
@@ -199,10 +202,12 @@ export class QuerySourceService extends BaseService {
             const source = this.registry.get(query.sourceType);
             // Refused here, before any node is submitted: a refusal inside
             // the submit loop would leave upstream nodes running with no
-            // queryUuid handed back to poll or cancel
+            // queryUuid handed back to poll or cancel. A node with an
+            // execution plan pivots through the plan's composer
             if (
                 query.pivotConfiguration !== undefined &&
-                !source.supportsPivot
+                !source.supportsPivot &&
+                plans[nodeId] === undefined
             ) {
                 throw new ParameterError(
                     `Query "${nodeId}" carries a pivotConfiguration, which ${query.sourceType} queries do not support yet`,
@@ -339,7 +344,7 @@ export class QuerySourceService extends BaseService {
         context: QueryExecutionContext;
         plans: Record<string, DuckdbQueryPlan>;
     }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
-        const ordered = this.validateQueries(queries);
+        const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'

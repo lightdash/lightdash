@@ -7459,6 +7459,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         references,
         parameters,
+        pivotConfiguration,
         plan,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
@@ -7518,13 +7519,14 @@ export class AsyncQueryService extends ProjectService {
             limit,
             references,
             parameters,
+            pivotConfiguration,
             warehouseClient,
         });
 
         // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
-                sql,
+                sql: resolved.sql,
                 references: normalizedReferences ?? null,
                 parameters: resolved.parameters,
             }),
@@ -7537,7 +7539,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
             context,
             fields: resolved.fields,
-            compiledSql: sql,
+            compiledSql: resolved.sql,
             requestParameters: resolved.requestParameters,
             usedParameters: resolved.usedParameters,
             metricQuery: resolved.metricQuery,
@@ -7565,7 +7567,7 @@ export class AsyncQueryService extends ProjectService {
                 projectSummary.provisioningSource === 'playground',
             onboardingFlow,
             queryUuid,
-            sql,
+            sql: resolved.sql,
             references: {
                 kind: 'queries',
                 references: normalizedReferences ?? {},
@@ -7596,8 +7598,10 @@ export class AsyncQueryService extends ProjectService {
     /**
      * What the history row and the run need from a plan. Discovered columns
      * come from a placeholder composer over the raw SQL, which is also where
-     * a missing parameter value refuses before any row is written; supplied
-     * columns were fixed at compile time and are recorded as they are.
+     * a missing parameter value refuses before any row is written. Supplied
+     * columns come from the composer the plan builds, with the node's own
+     * pivot stage composed on it, so the statement that runs is the
+     * composer's and the column limit refuses here, before any row exists.
      */
     private async resolveDuckdbQueryPlan({
         plan,
@@ -7607,6 +7611,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         references,
         parameters,
+        pivotConfiguration,
         warehouseClient,
     }: {
         plan: DuckdbQueryPlan;
@@ -7616,8 +7621,11 @@ export class AsyncQueryService extends ProjectService {
         limit: number | undefined;
         references: ExecuteAsyncDuckdbSourceQueryArgs['references'];
         parameters: ParametersValuesMap | undefined;
+        pivotConfiguration: PivotConfiguration | undefined;
         warehouseClient: WarehouseClient;
     }): Promise<{
+        /** The statement that runs: composed for a supplied plan, raw otherwise. */
+        sql: string;
         columns: DuckdbQueryColumns;
         parameters: ParametersValuesMap;
         fields: ItemsMap;
@@ -7628,17 +7636,30 @@ export class AsyncQueryService extends ProjectService {
         requestParameters: ExecuteAsyncQueryRequestParams;
     }> {
         if (plan.columns.mode === 'supplied') {
-            const { metricQuery, requestParameters, ...columns } = plan.columns;
-            const usedParameters = columns.usedParameters ?? {};
+            const composer = plan.columns.compose({
+                warehouseClient,
+                pivotConfiguration,
+            });
+            const fieldsMap = composer.getFields();
+            const usedParameters = composer.getUsedParameters();
             return {
-                columns,
+                sql: composer.getSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+                }),
+                columns: {
+                    mode: 'supplied',
+                    fieldsMap,
+                    usedParameters,
+                    originalColumns: plan.columns.originalColumns,
+                    pivotConfiguration,
+                },
                 parameters: usedParameters,
-                fields: columns.fieldsMap,
+                fields: fieldsMap,
                 usedParameters,
-                metricQuery,
-                pivotConfiguration: columns.pivotConfiguration ?? null,
-                originalColumns: columns.originalColumns,
-                requestParameters,
+                metricQuery: composer.getMetricQuery(),
+                pivotConfiguration: pivotConfiguration ?? null,
+                originalColumns: plan.columns.originalColumns,
+                requestParameters: plan.columns.requestParameters,
             };
         }
 
@@ -7668,6 +7689,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
         };
         return {
+            sql,
             columns: {
                 mode: 'discover',
                 limit,
@@ -8468,15 +8490,6 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        // Throws MissingConfigError when results storage is not configured:
-        // a merge without an engine is refused, never silently downgraded.
-        // Dialect only: execution runs on a session scoped to the leg files
-        const warehouseClient =
-            this.composeEngineClient.createExecutionWarehouseClient({
-                storage: 'results',
-                scope: null,
-            });
-
         const sourceRowCap = this.lightdashConfig.query.maxLimit;
 
         // Metric sources run whole as semantic-layer nodes (the merged
@@ -8510,25 +8523,6 @@ export class AsyncQueryService extends ProjectService {
                 composeMergeReferenceTable(index),
             ]),
         );
-
-        // The pivot stage and terminal wrapper compile for the compose
-        // engine over the compile's join core
-        const composer = new MergeQueryComposer({
-            coreSql: compiledMerge.coreSql,
-            terminalWrapper: compiledMerge.terminalWrapper,
-            itemsMap: compiledMerge.itemsMap,
-            typedColumns: compiledMerge.typedColumns,
-            columnOrder,
-            limit: mergeQuery.limit,
-            parameterReferences: compiledMerge.parameterReferences,
-            usedParametersValues: compiledMerge.usedParametersValues,
-            warehouseClient,
-            pivotConfiguration,
-        });
-        const sql = composer.getSql({
-            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-        });
-        const fieldsMap = composer.getFields();
 
         // Each reference table binds to a leg node, or to an existing result
         const references = Object.fromEntries(
@@ -8573,21 +8567,35 @@ export class AsyncQueryService extends ProjectService {
         const rowCap = observeRowCapRefusal(
             buildMergeRowCapGuard({ legLabelByReferenceTable, sourceRowCap }),
         );
+        // The join node carries the compile's core and its own pivot; the
+        // node composes the pivot stage and terminal wrapper for the engine,
+        // so nothing here knows whether the merge is pivoted
         const joinNodeId = 'merge';
         const joinNode: DuckdbSourceQuery = {
             sourceType: QuerySourceType.DUCKDB,
             nodeId: joinNodeId,
-            sql,
+            sql: compiledMerge.coreSql,
             references,
+            pivotConfiguration,
         };
         const plan: DuckdbQueryPlan = {
             columns: {
                 mode: 'supplied',
-                fieldsMap,
-                usedParameters: composer.getUsedParameters(),
+                compose: ({ warehouseClient, pivotConfiguration: pivot }) =>
+                    new MergeQueryComposer({
+                        coreSql: compiledMerge.coreSql,
+                        terminalWrapper: compiledMerge.terminalWrapper,
+                        itemsMap: compiledMerge.itemsMap,
+                        typedColumns: compiledMerge.typedColumns,
+                        columnOrder,
+                        limit: mergeQuery.limit,
+                        parameterReferences: compiledMerge.parameterReferences,
+                        usedParametersValues:
+                            compiledMerge.usedParametersValues,
+                        warehouseClient,
+                        pivotConfiguration: pivot,
+                    }),
                 originalColumns,
-                pivotConfiguration,
-                metricQuery: composer.getMetricQuery(),
                 requestParameters,
             },
             // A merge calculation is user SQL: it runs on a session that
@@ -8661,15 +8669,21 @@ export class AsyncQueryService extends ProjectService {
             );
         });
 
+        // The merged result's identity comes from the compile; the node's
+        // composer carries the same items map and parameters
         return {
             queryUuid: join.queryUuid,
             cacheMetadata: { cacheHit: false },
-            metricQuery: composer.getMetricQuery(),
-            fields: fieldsMap,
-            warnings: composer.getWarnings(),
-            parameterReferences: composer.getParameterReferences(),
-            usedParametersValues: composer.getUsedParameters(),
-            resolvedTimezone: composer.getDisplayTimezone(),
+            metricQuery: buildMergeResultMetricQuery({
+                itemsMap: compiledMerge.itemsMap,
+                columnOrder,
+                limit: mergeQuery.limit,
+            }),
+            fields: compiledMerge.itemsMap,
+            warnings: [],
+            parameterReferences: compiledMerge.parameterReferences,
+            usedParametersValues: compiledMerge.usedParametersValues,
+            resolvedTimezone: null,
         };
     }
 
