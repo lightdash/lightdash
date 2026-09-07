@@ -1,0 +1,47 @@
+name: Scope walkthrough checks
+
+# Generation checks for scope walkthroughs (CS-209): every rule the first
+# modules settled by hand, enforced on any change to the frontend markers or
+# the generator. The docs are checked out because step text is cited from
+# them.
+
+on:
+    pull_request:
+        paths:
+            - 'packages/frontend/src/**'
+            - 'scripts/scope-tours/**'
+            - 'scripts/scope-tours/scope-tours.test.ts'
+            - '.github/workflows/scope-tours-check.yml'
+
+permissions:
+    contents: read
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@v4
+            - uses: actions/checkout@v4
+              with:
+                  repository: lightdash/mintlify-docs
+                  path: mintlify-docs
+                  token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
+            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - name: Build common
+              run: pnpm common-build
+            - name: Checker tests
+              run: npx tsx scripts/scope-tours/scope-tours.test.ts
+            - name: Generated tours are up to date
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  pnpm scope-tours:generate
+                  pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts
+                  git diff --exit-code -- packages/frontend/src/features/scopeTours/generated.ts
+            - name: Generation checks
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: pnpm scope-tours:check

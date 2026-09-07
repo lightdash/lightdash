@@ -86,6 +86,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
         ? project?.upstreamProjectUuid
         : undefined;
     const { data: upstreamProject } = useProject(upstreamProjectUuid);
+    // A learner's copy of the training project is not a preview in the
+    // engineering sense: no branch, no upstream to promote to. No banner.
+    const isTrainingCopy =
+        isCurrentProjectPreview &&
+        upstreamProject?.type === ProjectType.TRAINING;
     const { isImpersonating } = useImpersonation();
     const { data: organizationAccess } = useOrganizationAccess();
 
@@ -101,7 +106,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
     const hasBanner =
-        isImpersonating || isCurrentProjectPreview || showTrialWarning;
+        isImpersonating ||
+        (isCurrentProjectPreview && !isTrainingCopy) ||
+        showTrialWarning;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -120,7 +127,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />
-                ) : isCurrentProjectPreview ? (
+                ) : isCurrentProjectPreview && !isTrainingCopy ? (
                     <PreviewBanner
                         expiresAt={project?.expiresAt ?? null}
                         upstreamProject={
