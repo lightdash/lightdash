@@ -232,11 +232,26 @@ describe('provisionTrainingProject', () => {
         );
     });
 
-    it('still provisions when seeding or indexing fails, recording the error types', async () => {
+    it('removes the project when seeding fails, so the admin can enable again', async () => {
         const mocks = buildArguments();
         mocks.seedTrainingContent.mockRejectedValueOnce(
             new TypeError('bad content'),
         );
+        await expect(provisionTrainingProject(mocks.args)).rejects.toThrow(
+            'bad content',
+        );
+        expect(mocks.deleteProject).toHaveBeenCalledWith(projectUuid);
+        expect(mocks.indexCatalog).not.toHaveBeenCalled();
+        expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                event: 'training_project.failed',
+                properties: expect.objectContaining({ errorType: 'TypeError' }),
+            }),
+        );
+    });
+
+    it('still provisions when catalog indexing fails, recording the error type', async () => {
+        const mocks = buildArguments();
         mocks.indexCatalog.mockRejectedValueOnce(new RangeError('no index'));
         await expect(provisionTrainingProject(mocks.args)).resolves.toEqual({
             projectUuid,
@@ -247,7 +262,7 @@ describe('provisionTrainingProject', () => {
             expect.objectContaining({
                 event: 'training_project.provisioned',
                 properties: expect.objectContaining({
-                    contentSeedErrorType: 'TypeError',
+                    contentSeedErrorType: null,
                     catalogIndexErrorType: 'RangeError',
                 }),
             }),

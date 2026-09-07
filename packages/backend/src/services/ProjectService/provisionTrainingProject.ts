@@ -193,7 +193,9 @@ export const provisionTrainingProject = async ({
                     throw error;
                 }
 
-                let contentSeedErrorType: string | null = null;
+                // A half-seeded training project has no repair path (the
+                // seed is not idempotent), so a failed seed removes the
+                // project and the admin enables again.
                 try {
                     await seedTrainingContent({
                         projectUuid,
@@ -201,14 +203,24 @@ export const provisionTrainingProject = async ({
                         content: { ...content, space: { ...TRAINING_SPACE } },
                     });
                 } catch (error) {
-                    Sentry.captureException(error);
                     Logger.error(
                         `Failed to seed training content for project ${projectUuid}: ${describe(
                             error,
                         )}`,
                     );
-                    contentSeedErrorType = getErrorType(error);
+                    await projectModel
+                        .delete(projectUuid)
+                        .catch((cleanupError) => {
+                            Sentry.captureException(cleanupError);
+                            Logger.error(
+                                `Failed to remove unseeded training project ${projectUuid}: ${describe(
+                                    cleanupError,
+                                )}`,
+                            );
+                        });
+                    throw error;
                 }
+                const contentSeedErrorType: string | null = null;
 
                 let catalogIndexErrorType: string | null = null;
                 try {
