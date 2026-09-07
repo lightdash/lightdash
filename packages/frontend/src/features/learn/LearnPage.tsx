@@ -34,6 +34,7 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { START_PARAM } from '../scopeTours/trainingCopy';
+import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
     focusModules,
@@ -150,9 +151,7 @@ const ModuleCard: FC<{
                 <span>
                     {module.minRole && !heldByRole
                         ? `${ROLE_LABELS[module.minRole]} and above`
-                        : module.isEnterprise
-                          ? 'Enterprise'
-                          : ''}
+                        : ''}
                 </span>
             </Box>
             <Box
@@ -226,7 +225,13 @@ const LearnPage: FC = () => {
         }
     }, [projectRoute?.project.type, trainingProject, navigate]);
 
-    const catalogue = useMemo(buildLearnCatalogue, []);
+    // Only modules this instance can run: a walkthrough clicks the real
+    // product, so a feature the instance hides has nothing to click.
+    const { isOpen } = useLearnAvailability();
+    const catalogue = useMemo(
+        () => buildLearnCatalogue().filter(isOpen),
+        [isOpen],
+    );
     const { completed, started, lastStarted } = useLearnProgress();
     const [role, setRole] = useState<ProjectMemberRole>(() =>
         roleFromOrganizationRole(user.data?.role),
