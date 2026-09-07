@@ -170,14 +170,18 @@ export class ManagedSignInService {
         clientId: string,
         context: RejectionContext,
     ): void {
-        Logger.warn('Managed sign-in exchange rejected', {
-            reason: rejection.code,
-            detail: rejection.detail,
-            tid: context.tid,
-            aud: context.aud,
-            clientId,
-            organizationUuid: context.organizationUuid,
-        });
+        const detail = rejection.detail ? ` detail=${rejection.detail}` : '';
+        Logger.warn(
+            `Managed sign-in exchange rejected: reason=${rejection.code}${detail} tid=${context.tid} aud=${context.aud} clientId=${clientId} organizationUuid=${context.organizationUuid}`,
+            {
+                reason: rejection.code,
+                detail: rejection.detail,
+                tid: context.tid,
+                aud: context.aud,
+                clientId,
+                organizationUuid: context.organizationUuid,
+            },
+        );
     }
 
     async exchangeIdToken({

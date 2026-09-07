@@ -494,7 +494,7 @@ describe('ManagedSignInService', () => {
             await exchange(service, token).catch(() => undefined);
 
             expect(warn).toHaveBeenCalledWith(
-                'Managed sign-in exchange rejected',
+                expect.stringContaining('Managed sign-in exchange rejected'),
                 expect.objectContaining({
                     reason: ManagedSignInError.TENANT_NOT_CONFIGURED,
                     tid: OTHER_TENANT_ID,
@@ -503,6 +503,44 @@ describe('ManagedSignInService', () => {
                 }),
             );
             expect(JSON.stringify(warn.mock.calls)).not.toContain(token);
+        });
+
+        it('carries every field in the message, for formatters that drop metadata', async () => {
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const { service } = createService(dedicatedConfig());
+            const token = await signToken({ tid: OTHER_TENANT_ID });
+
+            await exchange(service, token).catch(() => undefined);
+
+            const [message] = warn.mock.calls[0];
+            expect(message).toContain(
+                `reason=${ManagedSignInError.TENANT_NOT_CONFIGURED}`,
+            );
+            expect(message).toContain('detail=');
+            expect(message).toContain(`tid=${OTHER_TENANT_ID}`);
+            expect(message).toContain(`aud=${IOS_CLIENT_ID}`);
+            expect(message).toContain(`clientId=${MOBILE_CLIENT_ID}`);
+            expect(message).toContain('organizationUuid=');
+            expect(message).not.toContain(token);
+        });
+
+        it('omits the detail fragment when there is none', async () => {
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const { service } = createService(dedicatedConfig(), {
+                claimTokenUse: vi.fn(async () => false),
+            });
+
+            await exchange(service, await signToken()).catch(() => undefined);
+
+            const [message] = warn.mock.calls[0];
+            expect(message).toContain(
+                `reason=${ManagedSignInError.TOKEN_REPLAYED}`,
+            );
+            expect(message).toContain('detail=token hash is already recorded');
         });
     });
 });
