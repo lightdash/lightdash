@@ -14,6 +14,7 @@ import {
     IconChevronDown,
     IconHelpCircle,
     IconSearch,
+    IconCircleCheck,
 } from '@tabler/icons-react';
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router';
@@ -102,59 +103,37 @@ const ModuleCard: FC<{
             {module.blurb !== '' && (
                 <p className={styles.desc}>{module.blurb}</p>
             )}
-            <Box className={styles.progressRow}>
-                <span>
-                    {state === 'soon'
-                        ? 'Coming soon'
-                        : state === 'done'
-                          ? 'Complete'
-                          : `${module.stepCount} steps`}
-                </span>
-                <span>
-                    {module.minRole && !heldByRole
-                        ? `${ROLE_LABELS[module.minRole]} and above`
-                        : ''}
-                </span>
+            <Box className={styles.foot}>
+                <Box className={styles.footStatus}>
+                    {state === 'soon' ? (
+                        <span>Coming soon</span>
+                    ) : state === 'done' ? (
+                        <span className={styles.done}>
+                            <MantineIcon icon={IconCircleCheck} size={14} />
+                            Complete
+                        </span>
+                    ) : (
+                        <span>{module.stepCount} steps</span>
+                    )}
+                    {module.minRole && !heldByRole && (
+                        <span>{ROLE_LABELS[module.minRole]} and above</span>
+                    )}
+                </Box>
+                {state !== 'soon' && (
+                    <Button
+                        size="compact-sm"
+                        variant="default"
+                        loading={opening}
+                        onClick={() => onStart(module.scope)}
+                    >
+                        {state === 'done'
+                            ? 'Start again'
+                            : state === 'started'
+                              ? 'Resume'
+                              : 'Start'}
+                    </Button>
+                )}
             </Box>
-            <Box
-                className={styles.segments}
-                role="img"
-                aria-label={
-                    state === 'done'
-                        ? 'Walkthrough complete'
-                        : state === 'started'
-                          ? 'Walkthrough started'
-                          : 'Not started'
-                }
-            >
-                <span
-                    className={`${styles.seg} ${
-                        state === 'started' || state === 'done'
-                            ? styles.segOn
-                            : ''
-                    }`}
-                />
-                <span
-                    className={`${styles.seg} ${styles.segEnd} ${
-                        state === 'done' ? styles.segEndOn : ''
-                    }`}
-                />
-            </Box>
-            {state !== 'soon' && (
-                <Button
-                    className={styles.cta}
-                    size="compact-sm"
-                    variant="default"
-                    loading={opening}
-                    onClick={() => onStart(module.scope)}
-                >
-                    {state === 'done'
-                        ? 'Start again'
-                        : state === 'started'
-                          ? 'Resume'
-                          : 'Start'}
-                </Button>
-            )}
         </Box>
     );
 };

@@ -365,7 +365,7 @@
     border: 1px solid var(--lu-border);
     border-radius: 8px;
     padding: 15px;
-    min-height: 246px;
+    min-height: 240px;
     transition:
         transform 0.12s ease,
         box-shadow 0.12s ease;
@@ -448,6 +448,7 @@
     font-size: 14px;
     line-height: 1.35;
     font-weight: 600;
+    min-height: calc(2 * 1.35em);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -456,6 +457,7 @@
 
 .desc {
     margin: 5px 0 0;
+    min-height: calc(2 * 1.45em);
     font-size: 12px;
     line-height: 1.45;
     color: var(--lu-muted);
@@ -465,48 +467,33 @@
     overflow: hidden;
 }
 
-.progressRow {
-    margin: 12px 0 0;
+/* The foot sits on the card's bottom edge whatever the title and blurb
+   take above it, and both reserve their two lines, so a row of cards lines
+   up: band, title, blurb, then status and button at the same height. */
+.foot {
+    margin-top: auto;
+    padding-top: 14px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 10px;
     font-size: 12px;
     color: var(--lu-muted);
 }
 
-.segments {
-    margin-top: auto;
-    padding-top: 12px;
+.footStatus {
     display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.done {
+    display: inline-flex;
     align-items: center;
-    gap: 3px;
-}
-
-.seg {
-    flex: 1;
-    min-width: 4px;
-    height: 5px;
-    border-radius: 99px;
-    background: var(--lu-track);
-}
-
-.segOn {
-    background: var(--lu-secondary);
-}
-
-.segEnd {
-    flex: 0 0 22px;
-    background: var(--lu-done-border);
-}
-
-.segEndOn {
-    background: var(--lu-done-fg);
-}
-
-.cta {
-    margin: 12px 0 0;
-    align-self: flex-end;
+    gap: 4px;
+    color: var(--lu-done-fg);
+    font-weight: 600;
 }
 
 .empty {
