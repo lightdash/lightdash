@@ -1479,7 +1479,6 @@ export const releaseDbtGitProjectCache = async (
 const invalidateMatchingEntries = async (
     predicate: (identity: DbtGitCacheIdentity) => boolean,
 ) => {
-    if (configuration.maxBytes <= 0) return;
     const cacheLock = await acquireCacheLock();
     if (!cacheLock) return;
     try {
@@ -1525,7 +1524,7 @@ export const invalidateDbtGitProjectCacheSource = async (
     );
 
 export async function maintainDbtGitProjectCache() {
-    if (configuration.maxBytes <= 0) return;
+    const disabled = configuration.maxBytes <= 0;
     const entries = await listOwnedEntries();
     const rootDebris = await listRootDebris();
     const identities = entries.flatMap((entry) =>
@@ -1536,6 +1535,7 @@ export async function maintainDbtGitProjectCache() {
     const checkedIdentities = new Set(identities.map(dbtGitCacheIdentityKey));
     let live: Set<string> | undefined;
     if (
+        !disabled &&
         configuration.livenessCheck &&
         identities.length <= DBT_GIT_CACHE_MAX_ENTRIES
     ) {
@@ -1556,6 +1556,7 @@ export async function maintainDbtGitProjectCache() {
             if (!entry.owned) return undefined;
             if (entry.kind === 'tombstone') return entry;
             if (!entry.metadata) return undefined;
+            if (disabled) return entry;
             const identityKey = dbtGitCacheIdentityKey(entry.metadata.identity);
             return now - entry.metadata.lastUsedAt > configuration.maxAgeMs ||
                 (live !== undefined &&
@@ -1576,10 +1577,13 @@ export async function maintainDbtGitProjectCache() {
                     if (
                         entry.kind === 'entry' &&
                         entry.metadata &&
-                        live !== undefined &&
-                        !live.has(
-                            dbtGitCacheIdentityKey(entry.metadata.identity),
-                        )
+                        (disabled ||
+                            (live !== undefined &&
+                                !live.has(
+                                    dbtGitCacheIdentityKey(
+                                        entry.metadata.identity,
+                                    ),
+                                )))
                     ) {
                         await markPendingDelete(entry.entryDirectory);
                     }
@@ -1601,7 +1605,7 @@ export async function maintainDbtGitProjectCache() {
                 const pending = await pathExists(
                     path.join(entry.entryDirectory, PENDING_DELETE),
                 );
-                let shouldDelete = pending;
+                let shouldDelete = pending || disabled;
                 if (isMetadata(current)) {
                     const identityKey = dbtGitCacheIdentityKey(
                         current.identity,

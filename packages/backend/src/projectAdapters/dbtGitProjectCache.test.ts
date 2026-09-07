@@ -1299,6 +1299,59 @@ describe('dbt git project cache', () => {
         },
     );
 
+    it('expires retained entries and defers active entry deletion when disabled', async () => {
+        const root = await configure();
+        const retained = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(retained!.checkoutDirectory);
+        await releaseDbtGitProjectCache(retained!, 100);
+        const active = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(active!.checkoutDirectory);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 0,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(retained!.entryDirectory)).rejects.toThrow();
+        await expect(
+            fs.access(active!.checkoutDirectory),
+        ).resolves.toBeUndefined();
+        await expect(
+            fs.access(path.join(active!.entryDirectory, 'pending-delete')),
+        ).resolves.toBeUndefined();
+        await releaseDbtGitProjectCache(active!, 100);
+        await expect(fs.access(active!.entryDirectory)).rejects.toThrow();
+    });
+
+    it('invalidates retained entries while disabled', async () => {
+        const root = await configure();
+        const retained = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(retained!.checkoutDirectory);
+        await releaseDbtGitProjectCache(retained!, 100);
+        configureDbtGitProjectCache({
+            root,
+            maxBytes: 0,
+            maxAgeMs: 60_000,
+            livenessCheck: async () => new Set(),
+        });
+
+        await invalidateDbtGitProjectCacheSource('project', 'source-1');
+
+        await expect(fs.access(retained!.entryDirectory)).rejects.toThrow();
+    });
+
     it('warns when a filesystem inspection error is swallowed', async () => {
         await configure();
         const lease = await acquireDbtGitProjectCache(
