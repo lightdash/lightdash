@@ -104,19 +104,27 @@ const ViewSqlChart = () => {
 
     // TODO: remove state sync - this is because the <Header /> component depends on the Redux state
     useEffect(() => {
-        if (chartData) {
+        if (chartData && !chartError) {
             dispatch(setSavedChartData(chartData));
         }
         if (projectUuid) {
             dispatch(setProjectUuid(projectUuid));
         }
-    }, [dispatch, chartData, projectUuid]);
+    }, [dispatch, chartData, chartError, projectUuid]);
 
     const {
         data: projectParameters,
         isLoading: isProjectParametersLoading,
         isError: isProjectParametersError,
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
+
+    if (chartError) {
+        return (
+            <Page title="SQL chart">
+                <ErrorState error={chartError.error} />
+            </Page>
+        );
+    }
 
     return (
         <Page
@@ -231,7 +239,6 @@ const ViewSqlChart = () => {
                         </Group>
                     </Box>
 
-                    {chartError && <ErrorState error={chartError.error} />}
                     {chartResultsError && (
                         <ErrorState error={chartResultsError.error} />
                     )}

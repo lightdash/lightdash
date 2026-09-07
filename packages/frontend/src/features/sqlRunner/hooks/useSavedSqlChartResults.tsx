@@ -113,6 +113,7 @@ export const useSavedSqlChartResults = (
             savedSqlUuid ?? slug,
             embedDashboard ? 'embed' : 'registered',
             embedDashboard ? args.tileUuid : undefined,
+            projectUuid,
         ],
         async () => {
             if (isEmbedDashboardArgs(args)) {
@@ -235,6 +236,7 @@ export const useSavedSqlChartResults = (
         {
             enabled:
                 !!chartQuery.data &&
+                !chartQuery.isError &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
             ...retryConfig,
@@ -244,7 +246,11 @@ export const useSavedSqlChartResults = (
     // Get query uuid for download
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null) => {
-            if (!chartResultsQuery.data || !chartQuery.data) {
+            if (
+                !chartResultsQuery.data ||
+                !chartQuery.data ||
+                chartQuery.isError
+            ) {
                 throw new Error('Chart results query or chart query not found');
             }
 
@@ -295,6 +301,7 @@ export const useSavedSqlChartResults = (
         [
             args,
             chartQuery.data,
+            chartQuery.isError,
             chartResultsQuery.data,
             context,
             projectUuid,

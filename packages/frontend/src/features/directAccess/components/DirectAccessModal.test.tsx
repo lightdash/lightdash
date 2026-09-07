@@ -107,22 +107,27 @@ const mockAssignmentsQuery = (
     } as unknown as ReturnType<typeof useDirectAccessAssignments>);
 };
 
+const modalElement = (
+    resourceType: DirectAccessResourceType = DirectAccessResourceType.DASHBOARD,
+) => (
+    <DirectAccessModal
+        opened
+        onClose={vi.fn()}
+        projectUuid={PROJECT_UUID}
+        resource={{
+            resourceType,
+            resourceUuid: 'resource-uuid',
+            name: 'Revenue dashboard',
+        }}
+    />
+);
+
 const renderModal = (
     resourceType: DirectAccessResourceType = DirectAccessResourceType.DASHBOARD,
 ) =>
-    renderWithProviders(
-        <DirectAccessModal
-            opened
-            onClose={vi.fn()}
-            projectUuid={PROJECT_UUID}
-            resource={{
-                resourceType,
-                resourceUuid: 'resource-uuid',
-                name: 'Revenue dashboard',
-            }}
-        />,
-        { user: { userUuid: SESSION_USER_UUID } },
-    );
+    renderWithProviders(modalElement(resourceType), {
+        user: { userUuid: SESSION_USER_UUID },
+    });
 
 describe('DirectAccessModal', () => {
     beforeEach(() => {
@@ -217,7 +222,7 @@ describe('DirectAccessModal', () => {
             ],
         });
         const user = userEvent.setup();
-        renderModal();
+        const { rerender } = renderModal();
 
         // wait for the session user to resolve so self-detection is active
         await screen.findByText('(you)');
@@ -234,6 +239,68 @@ describe('DirectAccessModal', () => {
             principalType: DirectAccessPrincipalType.USER,
             principalUuid: SESSION_USER_UUID,
         });
+
+        mockAssignmentsQuery({
+            isError: true,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'Policy access removed',
+                    data: {},
+                },
+            },
+        });
+        rerender(modalElement());
+        expect(
+            screen.queryByRole('button', { name: 'Share' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Remove all access' }),
+        ).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Retry' }));
+        mockAssignmentsQuery({ data: [] });
+        rerender(modalElement());
+        expect(
+            screen.getByRole('button', { name: 'Share' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('Could not load access'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('removes pending reset confirmation actions when policy access is lost', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderModal();
+        await user.click(
+            screen.getByRole('button', { name: 'Remove all access' }),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Remove' }),
+        ).toBeInTheDocument();
+        mockAssignmentsQuery({
+            isError: true,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'Policy access removed',
+                    data: {},
+                },
+            },
+        });
+        rerender(modalElement());
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('button', { name: 'Remove' }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByRole('button', { name: 'Done' }),
+        ).toBeInTheDocument();
+        expect(resetMutate).not.toHaveBeenCalled();
     });
 
     it('asks for confirmation before removing all access', async () => {
@@ -312,7 +379,84 @@ describe('DirectAccessModal', () => {
         renderModal();
 
         expect(screen.queryByText('Vera Viewer')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Share' }),
+        ).not.toBeInTheDocument();
     });
+
+    it('keeps focus in the dialog when a focused role disappears and Retry restores the policy', async () => {
+        const user = userEvent.setup();
+        const { rerender } = renderModal();
+        const roleInput = screen.getByRole('textbox', {
+            name: 'Role for Vera Viewer',
+        });
+        roleInput.focus();
+        expect(roleInput).toHaveFocus();
+
+        mockAssignmentsQuery({
+            isError: true,
+            error: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'Policy access removed',
+                    data: {},
+                },
+            },
+        });
+        rerender(modalElement());
+        const retry = screen.getByRole('button', { name: 'Retry' });
+        expect(retry).toHaveFocus();
+        expect(screen.getByRole('dialog')).toContainElement(
+            document.activeElement as HTMLElement,
+        );
+
+        await user.click(retry);
+        mockAssignmentsQuery();
+        rerender(modalElement());
+        const recipientInput = screen.getByRole('textbox', {
+            name: 'Select a user or group to share with',
+        });
+        expect(recipientInput).toHaveFocus();
+        expect(screen.getByRole('dialog')).toContainElement(
+            document.activeElement as HTMLElement,
+        );
+    });
+
+    it.each([403, 404, 500])(
+        'removes mutation controls when refreshing cached policy returns %s',
+        (statusCode) => {
+            mockAssignmentsQuery({
+                isError: true,
+                error: {
+                    status: 'error',
+                    error: {
+                        name: 'ForbiddenError',
+                        statusCode,
+                        message: 'Unable to read policy',
+                        data: {},
+                    },
+                },
+            });
+            renderModal();
+            expect(
+                screen.getByText('Could not load access'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Share' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Remove all access' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('textbox', { name: 'Role for Vera Viewer' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Retry' }),
+            ).toBeInTheDocument();
+        },
+    );
 
     it('shows the error state and retries', async () => {
         mockAssignmentsQuery({

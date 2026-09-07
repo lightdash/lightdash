@@ -846,6 +846,7 @@ const SavedChartsHeader: FC = () => {
                     {showChartActions && (
                         <Menu
                             position="bottom"
+                            returnFocus={!isDirectAccessModalOpen}
                             withArrow
                             width={200}
                             disabled={!unsavedChartVersion.tableName}

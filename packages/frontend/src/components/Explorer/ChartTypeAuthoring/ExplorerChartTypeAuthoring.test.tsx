@@ -570,7 +570,12 @@ describe('ExplorerChartTypeAuthoring', () => {
         document.body.appendChild(sidebarTitle);
         try {
             renderAuthoring();
-            expect(screen.getByRole('heading', { level: 2 })).toHaveFocus();
+            expect(
+                screen.getByRole('heading', {
+                    level: 2,
+                    name: 'Editing chart type · Grouped bars',
+                }),
+            ).toHaveFocus();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Back to chart' }),

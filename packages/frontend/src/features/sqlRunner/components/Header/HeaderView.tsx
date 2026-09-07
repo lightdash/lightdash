@@ -255,7 +255,12 @@ export const HeaderView: FC = () => {
                         {(canManageChart ||
                             canSyncWithGoogleSheets ||
                             contentReview.canRequest) && (
-                            <Menu position="bottom" withArrow width={200}>
+                            <Menu
+                                position="bottom"
+                                returnFocus={!isDirectAccessModalOpen}
+                                withArrow
+                                width={200}
+                            >
                                 <Menu.Target>
                                     <ActionIcon>
                                         <MantineIcon icon={IconDots} />
