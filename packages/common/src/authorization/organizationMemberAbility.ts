@@ -7,9 +7,8 @@ import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
 import { getPermissionsFromAbilityRules } from './abilityPermissions';
 import {
-    EMBED_PERMISSION_SUBJECTS,
-    INTERACTIVE_VIEWER_EMBED_PERMISSIONS,
-    VIEWER_EMBED_PERMISSIONS,
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
 } from './types';
 
@@ -46,8 +45,8 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
-        VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
-            can('view', EMBED_PERMISSION_SUBJECTS[permission], {
+        VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
                 organizationUuid: member.organizationUuid,
             });
         });
@@ -112,8 +111,8 @@ export const applyOrganizationMemberStaticAbilities: Record<
     },
     interactive_viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.viewer(member, { can });
-        INTERACTIVE_VIEWER_EMBED_PERMISSIONS.forEach((permission) => {
-            can('view', EMBED_PERMISSION_SUBJECTS[permission], {
+        INTERACTIVE_VIEWER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
                 organizationUuid: member.organizationUuid,
             });
         });

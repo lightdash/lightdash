@@ -8,11 +8,16 @@ import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import * as scopeRegistry from './scopes';
 import {
-    EMBED_PERMISSION_SUBJECTS,
-    EMBED_PERMISSIONS,
-    type EmbedPermission,
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
+    type CaslSubjectNames,
     type MemberAbility,
 } from './types';
+
+const EMBED_SUBJECTS = [
+    ...VIEWER_EMBED_SUBJECTS,
+    ...INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+];
 
 const embed = {
     projectUuid: PROJECT_EDITOR.projectUuid,
@@ -24,7 +29,7 @@ const embed = {
 const writeActions = { userUuid: 'actor', spaceUuid: 'space' };
 const dashboard = { type: 'dashboard', dashboardUuid: 'dashboard' } as const;
 const customAbility = (
-    permissions: readonly EmbedPermission[],
+    permissions: readonly CaslSubjectNames[],
     context: Pick<ScopeContext, 'organizationUuid' | 'projectUuid'> = {
         projectUuid: embed.projectUuid,
     },
@@ -34,9 +39,7 @@ const customAbility = (
     buildAbilityFromScopes(
         {
             userUuid: 'actor',
-            scopes: permissions.map(
-                (permission) => `view:${EMBED_PERMISSION_SUBJECTS[permission]}`,
-            ),
+            scopes: permissions.map((resource) => `view:${resource}`),
             isEnterprise,
             ...(context.organizationUuid
                 ? { organizationUuid: context.organizationUuid }
@@ -62,8 +65,8 @@ describe('embed scope abilities', () => {
     };
 
     it('exposes actor scopes on the embed ability without granting regular-app access', () => {
-        const ability = projectScopes(customAbility(EMBED_PERMISSIONS));
-        expect(ability.rules).toHaveLength(EMBED_PERMISSIONS.length);
+        const ability = projectScopes(customAbility(EMBED_SUBJECTS));
+        expect(ability.rules).toHaveLength(EMBED_SUBJECTS.length);
         expect(
             ability.can(
                 'view',
@@ -82,13 +85,13 @@ describe('embed scope abilities', () => {
         { organizationUuid: 'another-org' },
     ])('does not import grants from another target: %j', (context) => {
         expect(
-            projectScopes(customAbility(EMBED_PERMISSIONS, context)).rules,
+            projectScopes(customAbility(EMBED_SUBJECTS, context)).rules,
         ).toEqual([]);
     });
 
     it('narrows organization grants to the embed project', () => {
         const ability = projectScopes(
-            customAbility(['canExplore'], {
+            customAbility(['EmbedExplore'], {
                 organizationUuid: embed.organization.organizationUuid,
             }),
         );
@@ -105,7 +108,7 @@ describe('embed scope abilities', () => {
 
     it('ignores actor scopes without writeActions', () => {
         expect(
-            projectScopes(customAbility(EMBED_PERMISSIONS), {
+            projectScopes(customAbility(EMBED_SUBJECTS), {
                 content: dashboard,
             }).rules,
         ).toEqual([]);

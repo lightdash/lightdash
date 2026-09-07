@@ -123,7 +123,7 @@ const userDetails: DbUserDetails = {
     updated_at: new Date('2024-01-01'),
 };
 
-const createUserModel = (): TestableUserModel => {
+const createUserModel = (projectCount = 125): TestableUserModel => {
     const model = new UserModel({
         database: vi.fn() as unknown as Knex,
         lightdashConfig,
@@ -146,18 +146,19 @@ const createUserModel = (): TestableUserModel => {
     }));
     model.applyServiceAccountProjectMemberships = vi.fn(
         async (_userId, userUuid, builder) => {
-            Array.from({ length: 125 }, (_, i) => `project-${i}`).forEach(
-                (projectUuid) => {
-                    projectMemberAbilities[ProjectMemberRole.ADMIN](
-                        {
-                            projectUuid,
-                            role: ProjectMemberRole.ADMIN,
-                            userUuid,
-                        },
-                        builder,
-                    );
-                },
-            );
+            Array.from(
+                { length: projectCount },
+                (_, i) => `project-${i}`,
+            ).forEach((projectUuid) => {
+                projectMemberAbilities[ProjectMemberRole.ADMIN](
+                    {
+                        projectUuid,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid,
+                    },
+                    builder,
+                );
+            });
         },
     );
 
@@ -186,7 +187,6 @@ const expectCollapsedDashboardProjectRule = (
         );
     }
 
-    expect(rules.length).toBeLessThan(100);
     expect(
         (dashboardRule.conditions as Record<string, { $in: string[] }>)
             .projectUuid.$in,
@@ -377,6 +377,11 @@ describe('UserModel', () => {
             await model.generateUserAbilityBuilder(userDetails);
         const ability = abilityBuilder.build();
 
+        const singleProject =
+            await createUserModel(1).generateUserAbilityBuilder(userDetails);
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
         expect(
             ability.can(
@@ -409,6 +414,15 @@ describe('UserModel', () => {
             expect.anything(),
         );
         expect(model.findServiceAccountByUserUuid).not.toHaveBeenCalled();
+        const singleProject = await createUserModel(
+            1,
+        ).generateUserAbilityBuilder({
+            ...userDetails,
+            role_uuid: 'custom-role',
+        });
+        expect(abilityBuilder.rules).toHaveLength(
+            singleProject.abilityBuilder.rules.length,
+        );
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
     });
 

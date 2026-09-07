@@ -622,70 +622,44 @@ export class EmbedService extends BaseService {
         }
         const { isPreview, stickyHeader } = decodedToken.content;
         const ability = this.createAuditedAbility(account);
+        const embedTarget = {
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid,
+        };
         const canExportCsv =
             ability.can(
                 'view',
-                subject('EmbedCsvExport', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
+                subject('EmbedCsvExport', { ...embedTarget }),
             ) || decodedToken.content.canExportCsv;
         const canExportDashboardCsv =
             ability.can(
                 'view',
-                subject('EmbedDashboardCsvExport', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
+                subject('EmbedDashboardCsvExport', { ...embedTarget }),
             ) || decodedToken.content.canExportDashboardCsv;
         const canExportImages =
             ability.can(
                 'view',
-                subject('EmbedImageExport', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
+                subject('EmbedImageExport', { ...embedTarget }),
             ) || decodedToken.content.canExportImages;
         const canExportPagePdf =
             ability.can(
                 'view',
-                subject('EmbedPagePdfExport', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
+                subject('EmbedPagePdfExport', { ...embedTarget }),
             ) || decodedToken.content.canExportPagePdf;
         const canDateZoom =
-            ability.can(
-                'view',
-                subject('EmbedDateZoom', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
-            ) || decodedToken.content.canDateZoom;
+            ability.can('view', subject('EmbedDateZoom', { ...embedTarget })) ||
+            decodedToken.content.canDateZoom;
         const canExplore =
-            ability.can(
-                'view',
-                subject('EmbedExplore', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
-            ) || decodedToken.content.canExplore;
+            ability.can('view', subject('EmbedExplore', { ...embedTarget })) ||
+            decodedToken.content.canExplore;
         const canViewUnderlyingData =
             ability.can(
                 'view',
-                subject('EmbedUnderlyingData', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
+                subject('EmbedUnderlyingData', { ...embedTarget }),
             ) || decodedToken.content.canViewUnderlyingData;
         const canViewDataApps =
-            ability.can(
-                'view',
-                subject('EmbedDataApps', {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid,
-                }),
-            ) || decodedToken.content.canViewDataApps;
+            ability.can('view', subject('EmbedDataApps', { ...embedTarget })) ||
+            decodedToken.content.canViewDataApps;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {

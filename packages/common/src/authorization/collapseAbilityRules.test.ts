@@ -7,8 +7,8 @@ import { getUserAbilityBuilder } from './index';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
 import {
-    EMBED_PERMISSION_SUBJECTS,
-    EMBED_PERMISSIONS,
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
 } from './types';
 
@@ -64,11 +64,11 @@ describe('collapseAbilityRules', () => {
         const original = new Ability(rules);
         const collapsed = new Ability(compacted);
         ['p1', 'p2', 'p3', 'not-granted'].forEach((projectUuid) =>
-            EMBED_PERMISSIONS.forEach((permission) => {
-                const resource = subject(
-                    EMBED_PERMISSION_SUBJECTS[permission],
-                    { projectUuid },
-                );
+            [
+                ...VIEWER_EMBED_SUBJECTS,
+                ...INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+            ].forEach((name) => {
+                const resource = subject(name, { projectUuid });
                 expect(collapsed.can('view', resource)).toBe(
                     original.can('view', resource),
                 );

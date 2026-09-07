@@ -390,9 +390,8 @@ and `allowedFilters` behavior.
    Use standard organization/project conditions. Do not reuse regular-app
    subjects or encode capabilities as modifiers: embed grants must not grant
    regular-app access, and regular-app custom scopes must not implicitly grant
-   embed access. Add new subjects directly to `CaslSubjectNames`, not to the
-   deprecated `EMBED_PERMISSION_SUBJECTS` mapping. That mapping covers only
-   existing JWT options and must not grow.
+   embed access. Add new subjects directly to `CaslSubjectNames`; no JWT-name
+   mapping is needed.
 2. Give system roles sensible defaults in
    `projectMemberAbility.ts`, `organizationMemberAbility.ts`, and
    `roleToScopeMapping.ts`. Keep those files in
@@ -409,7 +408,7 @@ and `allowedFilters` behavior.
    Do not copy the actor's complete rules or grant regular-app scopes. This
    projection supports embed capabilities with standard org/project conditions;
    resource-specific restrictions require explicit enforcement at the resource.
-5. Enforce new capabilities with `account.user.ability.can(...)` on the backend
+5. Enforce new capabilities with `this.createAuditedAbility(account).can(...)` in backend services
    and the existing ability context on the frontend, using the embed target's
    identifiers. The account already serializes these ability rules. Do not add
    JWT flags, separate permission response objects, or frontend token overlays.

@@ -11,54 +11,22 @@ export type AbilityAction =
     | 'update'
     | 'view';
 
-/** @deprecated Existing JWT option names only. Add new capabilities as CASL subjects. */
-export const EMBED_PERMISSIONS = [
-    'dashboardFiltersInteractivity',
-    'canAddFilters',
-    'parameterInteractivity',
-    'canExportCsv',
-    'canExportDashboardCsv',
-    'canExportImages',
-    'canExportPagePdf',
-    'canDateZoom',
-    'canExplore',
-    'canViewUnderlyingData',
-    'canViewDataApps',
-] as const;
+export const VIEWER_EMBED_SUBJECTS = [
+    'EmbedDashboardFilters',
+    'EmbedDashboardFilterAddition',
+    'EmbedDashboardParameters',
+    'EmbedCsvExport',
+    'EmbedDashboardCsvExport',
+    'EmbedImageExport',
+    'EmbedPagePdfExport',
+    'EmbedDateZoom',
+] as const satisfies readonly CaslSubjectNames[];
 
-export type EmbedPermission = (typeof EMBED_PERMISSIONS)[number];
-
-/** @deprecated Fixed compatibility mapping for legacy JWT options. Do not extend. */
-export const EMBED_PERMISSION_SUBJECTS = {
-    dashboardFiltersInteractivity: 'EmbedDashboardFilters',
-    canAddFilters: 'EmbedDashboardFilterAddition',
-    parameterInteractivity: 'EmbedDashboardParameters',
-    canExportCsv: 'EmbedCsvExport',
-    canExportDashboardCsv: 'EmbedDashboardCsvExport',
-    canExportImages: 'EmbedImageExport',
-    canExportPagePdf: 'EmbedPagePdfExport',
-    canDateZoom: 'EmbedDateZoom',
-    canExplore: 'EmbedExplore',
-    canViewUnderlyingData: 'EmbedUnderlyingData',
-    canViewDataApps: 'EmbedDataApps',
-} as const satisfies Record<EmbedPermission, CaslSubjectNames>;
-
-export const VIEWER_EMBED_PERMISSIONS = [
-    'dashboardFiltersInteractivity',
-    'canAddFilters',
-    'parameterInteractivity',
-    'canExportCsv',
-    'canExportDashboardCsv',
-    'canExportImages',
-    'canExportPagePdf',
-    'canDateZoom',
-] as const satisfies readonly EmbedPermission[];
-
-export const INTERACTIVE_VIEWER_EMBED_PERMISSIONS = [
-    'canExplore',
-    'canViewUnderlyingData',
-    'canViewDataApps',
-] as const satisfies readonly EmbedPermission[];
+export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
+    'EmbedExplore',
+    'EmbedUnderlyingData',
+    'EmbedDataApps',
+] as const satisfies readonly CaslSubjectNames[];
 
 interface Project {
     organizationUuid: string;
