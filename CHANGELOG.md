@@ -1,3 +1,10 @@
+## [2.146.1](https://github.com/lightdash/lightdash/compare/2.146.0...2.146.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **bigquery:** surface a rejected refresh token as a reconnect error ([#28621](https://github.com/lightdash/lightdash/issues/28621)) ([e83cc59](https://github.com/lightdash/lightdash/commit/e83cc59003629f0b099f919bef5134417359d1d8))
+
 # [2.146.0](https://github.com/lightdash/lightdash/compare/2.145.0...2.146.0) (2026-09-07)
 
 
