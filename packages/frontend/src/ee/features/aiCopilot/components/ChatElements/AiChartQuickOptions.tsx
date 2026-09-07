@@ -26,7 +26,6 @@ import {
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../../../../../components/common/ChartDownload/chartDownloadUtils';
-import CodeBlock from '../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -73,6 +72,7 @@ import {
     AiChartImageExportModal,
 } from './AiChartImageExport';
 import { AiScheduleDeliveryModal } from './AiScheduleDeliveryModal';
+import { AiSqlModal } from './AiSqlModal';
 
 type Props = {
     projectUuid: string;
@@ -714,19 +714,11 @@ export const AiChartQuickOptions = ({
                 onClose={closeExportImageModal}
             />
             {!!compiledSql && (
-                <MantineModal
+                <AiSqlModal
                     opened={sqlModalOpened}
                     onClose={closeSqlModal}
-                    title="SQL"
-                    icon={IconEye}
-                    size="xl"
-                >
-                    <CodeBlock
-                        code={compiledSql}
-                        language="sql"
-                        withLineNumbers
-                    />
-                </MantineModal>
+                    sql={compiledSql}
+                />
             )}
             <MantineModal
                 opened={verifyModalOpened}
