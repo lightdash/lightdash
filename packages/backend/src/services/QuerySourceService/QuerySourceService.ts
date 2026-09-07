@@ -21,7 +21,15 @@ import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHist
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { QuerySourceRegistry } from './QuerySourceRegistry';
-import type { QuerySourceClient, SourceQueryExecutionContext } from './types';
+import type {
+    QuerySourceClient,
+    SourceQueryExecutionContext,
+    SourceQuerySubmissionResult,
+} from './types';
+
+/** A submission as the server sees it: the public row plus what the run reported. */
+export type InternalSourceQuerySubmission = SourceQuerySubmission &
+    Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
     projectModel: ProjectModel;
@@ -288,7 +296,7 @@ export class QuerySourceService extends BaseService {
         await this.throwIfMultiSourceQueryDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
 
-        return this.submitQueries({
+        const submitted = await this.submitQueries({
             account,
             projectUuid,
             queries,
@@ -298,6 +306,15 @@ export class QuerySourceService extends BaseService {
             invalidateCache,
             plans: {},
         });
+        return {
+            queries: submitted.queries.map(
+                ({ nodeId, sourceType, queryUuid }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid,
+                }),
+            ),
+        };
     }
 
     /**
@@ -321,17 +338,17 @@ export class QuerySourceService extends BaseService {
         queries: SourceQuery[];
         context: QueryExecutionContext;
         plans: Record<string, DuckdbQueryPlan>;
-    }): Promise<ApiExecuteSourceQueriesResults> {
+    }): Promise<{ queries: InternalSourceQuerySubmission[] }> {
         const ordered = this.validateQueries(queries);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
 
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
         const resolvedReferences: Record<string, string> = {};
-        const submissions: SourceQuerySubmission[] = [];
+        const submissions: InternalSourceQuerySubmission[] = [];
         for (const entry of ordered) {
             // eslint-disable-next-line no-await-in-loop -- dependency order: later submits need earlier queryUuids
-            const { queryUuid } = await entry.source.submitQuery({
+            const { queryUuid, cacheHit } = await entry.source.submitQuery({
                 account,
                 projectUuid,
                 context,
@@ -348,6 +365,7 @@ export class QuerySourceService extends BaseService {
                 nodeId: entry.nodeId,
                 sourceType: entry.query.sourceType,
                 queryUuid,
+                cacheHit,
             });
         }
 

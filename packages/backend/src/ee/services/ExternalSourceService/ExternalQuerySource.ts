@@ -135,7 +135,10 @@ export class ExternalQuerySource implements QuerySourceClient {
         parameters,
         invalidateCache,
         pivotConfiguration,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+    }: SubmitSourceQueryArgs): Promise<{
+        queryUuid: string;
+        cacheHit: boolean;
+    }> {
         const sourceQuery = ExternalQuerySource.assertSourceQuery(query);
         if (pivotConfiguration !== null) {
             throw new ParameterError(
@@ -155,6 +158,7 @@ export class ExternalQuerySource implements QuerySourceClient {
                 invalidateCache,
             });
 
-        return { queryUuid: results.queryUuid };
+        // External SQL always runs on the engine; nothing is served from cache
+        return { queryUuid: results.queryUuid, cacheHit: false };
     }
 }

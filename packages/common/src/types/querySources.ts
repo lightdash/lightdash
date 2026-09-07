@@ -8,6 +8,8 @@ import {
 } from './field';
 import {
     type AdditionalMetric,
+    type DimensionOverrides,
+    type MetricOverrides,
     type MetricQueryRequest,
     type SortField,
 } from './metricQuery';
@@ -100,6 +102,10 @@ export type SemanticLayerSourceQuery = {
     additionalMetrics?: AdditionalMetric[];
     /** Ad-hoc dimensions not defined in the explore. */
     customDimensions?: CustomDimension[];
+    /** Formatting overrides for metrics in this query, keyed by field id. */
+    metricOverrides?: MetricOverrides;
+    /** Formatting overrides for dimensions in this query, keyed by field id. */
+    dimensionOverrides?: DimensionOverrides;
     /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
     timezone?: string;
     /**

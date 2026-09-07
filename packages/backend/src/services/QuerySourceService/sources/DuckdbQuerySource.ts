@@ -7,9 +7,11 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { AsyncQueryService } from '../../AsyncQueryService/AsyncQueryService';
+import type { DuckdbQueryPlan } from '../../AsyncQueryService/types';
 import type {
     QuerySourceClient,
     ScanSchemaArgs,
+    SourceQuerySubmissionResult,
     SubmitSourceQueryArgs,
 } from '../types';
 
@@ -61,6 +63,37 @@ export class DuckdbQuerySource implements QuerySourceClient {
         return references;
     }
 
+    /** A supplied column's provenance may name a node; it resolves like a table reference. */
+    private static resolvePlanReferences(
+        plan: DuckdbQueryPlan,
+        resolvedReferences: Record<string, string>,
+    ): DuckdbQueryPlan {
+        if (plan.columns.mode !== 'supplied') return plan;
+        const originalColumns = Object.fromEntries(
+            Object.entries(plan.columns.originalColumns).map(
+                ([reference, column]) => {
+                    const sourceQueryUuid = column.provenance?.sourceQueryUuid;
+                    if (sourceQueryUuid === undefined) {
+                        return [reference, column];
+                    }
+                    return [
+                        reference,
+                        {
+                            ...column,
+                            provenance: {
+                                ...column.provenance,
+                                sourceQueryUuid:
+                                    resolvedReferences[sourceQueryUuid] ??
+                                    sourceQueryUuid,
+                            },
+                        },
+                    ];
+                },
+            ),
+        );
+        return { ...plan, columns: { ...plan.columns, originalColumns } };
+    }
+
     // eslint-disable-next-line class-methods-use-this
     async scanSchema(_args: ScanSchemaArgs): Promise<QuerySourceSchema> {
         return {
@@ -95,7 +128,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         invalidateCache,
         pivotConfiguration,
         plan,
-    }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
+    }: SubmitSourceQueryArgs): Promise<SourceQuerySubmissionResult> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
         if (pivotConfiguration !== null) {
             throw new ParameterError(
@@ -130,9 +163,13 @@ export class DuckdbQuerySource implements QuerySourceClient {
                 ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
-                      plan,
+                      plan: DuckdbQuerySource.resolvePlanReferences(
+                          plan,
+                          resolvedReferences,
+                      ),
                   });
 
-        return { queryUuid };
+        // A DuckDB query always runs: its inputs may be cached, it is not
+        return { queryUuid, cacheHit: false };
     }
 }

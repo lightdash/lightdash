@@ -95,6 +95,7 @@ import {
     QueryExecutionContext,
     QueryHistoryListFilters,
     QueryHistoryStatus,
+    QuerySourceType,
     resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
@@ -123,6 +124,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DuckdbSourceQuery,
     type ExecuteAsyncComposeMergeQueryRequestParams,
     type ExecuteAsyncComposeSqlQueryRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
@@ -245,6 +247,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import {
     exploreHasFilteredAttribute,
@@ -263,6 +266,7 @@ import {
 import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
+    buildMergeLegNode,
     buildMergeRowCapGuard,
     getMergeResultSourceCutShortError,
     getMergeSourceLabels,
@@ -293,7 +297,6 @@ import {
     type DuckdbQueryEngine,
     type DuckdbQueryPlan,
     type DuckdbQueryReferences,
-    type DuckdbSourceQuerySubmission,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -439,6 +442,8 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     persistentDownloadFileService: PersistentDownloadFileService;
     organizationAccessService: OrganizationAccessService;
     composeEngineClient: ComposeEngineClient;
+    /** Lazy: the query source registry is built over this service. */
+    getQuerySourceService: () => QuerySourceService;
     preAggregateStrategy?: PreAggregateStrategy;
     /** EE resolver for external tables; absent in OSS. */
     externalSourceTableResolver?: (
@@ -574,6 +579,8 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly composeEngineClient: ComposeEngineClient;
 
+    private readonly getQuerySourceService: () => QuerySourceService;
+
     protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     private readonly externalSourceTableResolver: AsyncQueryServiceArguments['externalSourceTableResolver'];
@@ -594,6 +601,7 @@ export class AsyncQueryService extends ProjectService {
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.organizationAccessService = args.organizationAccessService;
         this.composeEngineClient = args.composeEngineClient;
+        this.getQuerySourceService = args.getQuerySourceService;
         this.preAggregateStrategy =
             args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
         this.externalSourceTableResolver = args.externalSourceTableResolver;
@@ -7482,7 +7490,7 @@ export class AsyncQueryService extends ProjectService {
         references,
         parameters,
         plan,
-    }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<DuckdbSourceQuerySubmission> {
+    }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -7535,8 +7543,10 @@ export class AsyncQueryService extends ProjectService {
         const resolved = await this.resolveDuckdbQueryPlan({
             plan,
             projectUuid,
+            context,
             sql,
             limit,
+            references,
             parameters,
             warehouseClient,
         });
@@ -7551,14 +7561,6 @@ export class AsyncQueryService extends ProjectService {
             userUuid: null,
         });
 
-        const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams = {
-            sql,
-            limit,
-            context,
-            references,
-            parameters: resolved.parameters,
-        };
-
         const queryCreatedAt = new Date();
         const { queryUuid } = await this.queryHistoryModel.create(account, {
             projectUuid,
@@ -7566,7 +7568,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             fields: resolved.fields,
             compiledSql: sql,
-            requestParameters,
+            requestParameters: resolved.requestParameters,
             usedParameters: resolved.usedParameters,
             metricQuery: resolved.metricQuery,
             cacheKey,
@@ -7584,7 +7586,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
 
-        const settled = this.runDuckdbQuery({
+        void this.runDuckdbQuery({
             account,
             projectUuid,
             organizationUuid,
@@ -7617,7 +7619,7 @@ export class AsyncQueryService extends ProjectService {
             );
         });
 
-        return { queryUuid, queryCreatedAt, settled };
+        return { queryUuid };
     }
 
     /**
@@ -7629,15 +7631,19 @@ export class AsyncQueryService extends ProjectService {
     private async resolveDuckdbQueryPlan({
         plan,
         projectUuid,
+        context,
         sql,
         limit,
+        references,
         parameters,
         warehouseClient,
     }: {
         plan: DuckdbQueryPlan;
         projectUuid: string;
+        context: QueryExecutionContext;
         sql: string;
         limit: number | undefined;
+        references: ExecuteAsyncDuckdbSourceQueryArgs['references'];
         parameters: ParametersValuesMap | undefined;
         warehouseClient: WarehouseClient;
     }): Promise<{
@@ -7648,9 +7654,10 @@ export class AsyncQueryService extends ProjectService {
         metricQuery: MetricQuery;
         pivotConfiguration: PivotConfiguration | null;
         originalColumns: ResultColumns;
+        requestParameters: ExecuteAsyncQueryRequestParams;
     }> {
         if (plan.columns.mode === 'supplied') {
-            const { metricQuery, ...columns } = plan.columns;
+            const { metricQuery, requestParameters, ...columns } = plan.columns;
             const usedParameters = columns.usedParameters ?? {};
             return {
                 columns,
@@ -7660,6 +7667,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 pivotConfiguration: columns.pivotConfiguration ?? null,
                 originalColumns: columns.originalColumns,
+                requestParameters,
             };
         }
 
@@ -7681,6 +7689,13 @@ export class AsyncQueryService extends ProjectService {
         });
         AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
 
+        const requestParameters: ExecuteAsyncComposeSqlQueryRequestParams = {
+            sql,
+            limit,
+            context,
+            references,
+            parameters: combinedParameters,
+        };
         return {
             columns: {
                 mode: 'discover',
@@ -7693,6 +7708,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: placeholderComposer.getMetricQuery(),
             pivotConfiguration: null,
             originalColumns: {},
+            requestParameters,
         };
     }
 
@@ -8688,47 +8704,30 @@ export class AsyncQueryService extends ProjectService {
                 scope: null,
             });
 
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
         const sourceRowCap = this.lightdashConfig.query.maxLimit;
 
-        // Metric sources run whole (the merged statement sorts and limits,
-        // and a side is never silently truncated below the source row cap);
-        // result sources are already materialized and join as they are —
-        // referencing them costs no warehouse query at all.
-        const legs = await Promise.all(
-            mergeQuery.sources.map(async (source) => {
-                if (isMergeResultSource(source)) {
-                    return {
-                        sourceId: source.id,
-                        queryUuid: source.queryUuid,
-                        cacheHit: null,
-                    };
-                }
-                const leg = await this.executeAsyncMetricQuery({
-                    account,
-                    projectUuid,
-                    context,
-                    invalidateCache,
-                    parameters,
-                    userAttributeOverrides,
-                    metricQuery: {
-                        ...source.metricQuery,
-                        sorts: [],
-                        limit: sourceRowCap,
-                    },
-                });
-                return {
-                    sourceId: source.id,
-                    queryUuid: leg.queryUuid,
-                    cacheHit: leg.cacheMetadata.cacheHit,
-                };
+        // Metric sources run whole as semantic-layer nodes (the merged
+        // statement sorts and limits, and a side is never silently truncated
+        // below the source row cap); result sources are already materialized
+        // and the join references them by queryUuid, costing no query at all
+        const metricSources = mergeQuery.sources.filter(isMergeMetricSource);
+        const legNodeIdBySourceId = Object.fromEntries(
+            metricSources.map((source, index) => [source.id, `leg_${index}`]),
+        );
+        const legNodes = metricSources.map((source) =>
+            buildMergeLegNode({
+                nodeId: legNodeIdBySourceId[source.id],
+                metricQuery: source.metricQuery,
+                sourceRowCap,
             }),
         );
-        const legQueryUuidBySourceId = Object.fromEntries(
-            legs.map(({ sourceId, queryUuid }) => [sourceId, queryUuid]),
-        );
-        const legCacheHits = legs.flatMap(({ cacheHit }) =>
-            cacheHit === null ? [] : [cacheHit],
+        const legReferenceBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source) => [
+                source.id,
+                isMergeResultSource(source)
+                    ? source.queryUuid
+                    : legNodeIdBySourceId[source.id],
+            ]),
         );
 
         const fieldTypes = await this.getMergeFieldTypesForQuery(
@@ -8775,19 +8774,12 @@ export class AsyncQueryService extends ProjectService {
         });
         const fieldsMap = composer.getFields();
 
-        // Merge table calculations carry user-authored SQL into the DuckDB
-        // statement, so the same file-access block as raw compose SQL applies
-        try {
-            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
-        } catch (e) {
-            throw new ParameterError(getErrorMessage(e));
-        }
-
+        // Each reference table binds to a leg node, or to an existing result
         const references = Object.fromEntries(
             Object.entries(referenceTableBySourceId).map(
                 ([sourceId, tableName]) => [
                     tableName,
-                    legQueryUuidBySourceId[sourceId],
+                    legReferenceBySourceId[sourceId],
                 ],
             ),
         );
@@ -8806,36 +8798,14 @@ export class AsyncQueryService extends ProjectService {
                     labelBySourceId[source.id],
                 ]),
         );
-        await this.authorizeQueryReferences({
-            account,
-            projectUuid,
-            organizationUuid,
-            references,
-        });
-
         const originalColumns: ResultColumns = buildComposeMergeOriginalColumns(
             {
                 typedColumns: compiledMerge.typedColumns,
                 itemsMap: compiledMerge.itemsMap,
                 usedParametersValues: compiledMerge.usedParametersValues,
-                legQueryUuidBySourceId,
+                legReferenceBySourceId,
             },
         );
-
-        const queryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            ...AsyncQueryService.getSchedulerQueryTags(),
-            organization_uuid: organizationUuid,
-            project_uuid: projectUuid,
-            query_context: context,
-        };
-
-        // Keyed to the user: legs compile under per-user attributes, so the
-        // merged result is per-user too
-        const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
-            sql: JSON.stringify({ mergeSql: sql, references }),
-            userUuid: account.user.id,
-        });
 
         const requestParameters: ExecuteAsyncComposeMergeQueryRequestParams = {
             context,
@@ -8844,31 +8814,66 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
         };
-
-        const queryCreatedAt = new Date();
-        const { queryUuid } = await this.queryHistoryModel.create(account, {
-            projectUuid,
-            organizationUuid,
-            context,
-            fields: fieldsMap,
-            compiledSql: sql,
-            requestParameters,
-            usedParameters: composer.getUsedParameters(),
-            metricQuery: composer.getMetricQuery(),
-            cacheKey,
-            pivotConfiguration: pivotConfiguration ?? null,
-            originalColumns,
-        });
-        this.prometheusMetrics?.trackQueryStateTransition(
-            'new',
-            QueryHistoryStatus.PENDING,
-            context,
+        const rowCap = observeRowCapRefusal(
+            buildMergeRowCapGuard({ legLabelByReferenceTable, sourceRowCap }),
         );
+        const joinNodeId = 'merge';
+        const joinNode: DuckdbSourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: joinNodeId,
+            sql,
+            references,
+        };
+        const plan: DuckdbQueryPlan = {
+            columns: {
+                mode: 'supplied',
+                fieldsMap,
+                usedParameters: composer.getUsedParameters(),
+                originalColumns,
+                pivotConfiguration,
+                metricQuery: composer.getMetricQuery(),
+                requestParameters,
+            },
+            // A merge calculation is user SQL: it runs on a session that
+            // reaches only the leg files it joins
+            engine: 'scopedToReferencedResults',
+            guard: rowCap.guard,
+        };
 
-        const onboardingFlow = await this.getOnboardingFlow({
-            userUuid: account.user.id,
-            organizationUuid,
-        });
+        // The DAG submits the legs, then the join with its references
+        // rewritten to their queryUuids; the join waits for the legs itself
+        const submittedAt = new Date();
+        const { queries } = await traceSpan(
+            {
+                op: 'merge_query.execute',
+                name: 'merge_query.execute.compose',
+                attributes: {
+                    'lightdash.projectUuid': projectUuid,
+                    'lightdash.queryContext': context,
+                    'lightdash.joinType': mergeQuery.joinType,
+                },
+            },
+            () =>
+                this.getQuerySourceService().submitQueries({
+                    account,
+                    projectUuid,
+                    context,
+                    queries: [...legNodes, joinNode],
+                    parameters: parameters ?? {},
+                    userAttributeOverrides: userAttributeOverrides ?? {},
+                    invalidateCache: invalidateCache ?? false,
+                    plans: { [joinNodeId]: plan },
+                }),
+        );
+        const join = queries.find((query) => query.nodeId === joinNodeId);
+        if (!join) {
+            throw new UnexpectedServerError(
+                'The merge join node was not submitted',
+            );
+        }
+        const legCacheHits = queries
+            .filter((query) => query.nodeId !== joinNodeId)
+            .map((query) => query.cacheHit);
 
         const submission: MergeSubmission = {
             organizationUuid,
@@ -8876,73 +8881,23 @@ export class AsyncQueryService extends ProjectService {
             context,
             mergeQuery,
         };
-        const rowCap = observeRowCapRefusal(
-            buildMergeRowCapGuard({ legLabelByReferenceTable, sourceRowCap }),
-        );
-        void traceSpan(
-            {
-                op: 'merge_query.execute',
-                name: 'merge_query.execute.compose',
-                attributes: {
-                    'lightdash.queryUuid': queryUuid,
-                    'lightdash.projectUuid': projectUuid,
-                    'lightdash.queryContext': context,
-                    'lightdash.joinType': mergeQuery.joinType,
-                },
-            },
-            () =>
-                this.runDuckdbQuery({
-                    account,
-                    projectUuid,
-                    organizationUuid,
-                    isPreviewProject:
-                        projectSummary.type === ProjectType.PREVIEW ||
-                        projectSummary.provisioningSource === 'playground',
-                    onboardingFlow,
-                    queryUuid,
-                    sql,
-                    references: {
-                        kind: 'queries',
-                        references,
-                        guard: rowCap.guard,
-                    },
-                    columns: {
-                        mode: 'supplied',
-                        fieldsMap,
-                        usedParameters: composer.getUsedParameters(),
-                        originalColumns,
-                        pivotConfiguration,
-                    },
-                    storedCompiledSql: null,
-                    // A merge calculation is user SQL: it runs on a session
-                    // that reaches only the leg files it joins
-                    engine: { kind: 'scopedToReferencedResults' },
-                    queryTags,
-                    queryCreatedAt,
-                    cacheKey,
-                    context,
-                }),
-        )
-            .then(() =>
-                this.reportComposeMergeOutcome({
-                    account,
-                    submission,
-                    queryUuid,
-                    queryCreatedAt,
-                    legCacheHits,
-                    rowCapRefused: rowCap.wasRefused(),
-                }),
-            )
-            .catch((e) => {
-                this.logger.error(
-                    `Async compose merge query ${queryUuid} failed: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-            });
+        void this.reportComposeMergeOutcome({
+            account,
+            submission,
+            queryUuid: join.queryUuid,
+            submittedAt,
+            legCacheHits,
+            wasRowCapRefused: rowCap.wasRefused,
+        }).catch((e) => {
+            this.logger.error(
+                `Async compose merge query ${
+                    join.queryUuid
+                } outcome was not reported: ${getErrorMessage(e)}`,
+            );
+        });
 
         return {
-            queryUuid,
+            queryUuid: join.queryUuid,
             cacheMetadata: { cacheHit: false },
             metricQuery: composer.getMetricQuery(),
             fields: fieldsMap,
@@ -8953,29 +8908,39 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /** Reads the terminal state the shared tail wrote, once the background run settled. */
+    /**
+     * Reads the join's terminal state once it lands in query history. Polling
+     * rather than awaiting the run keeps this correct wherever the join
+     * executes; the wait covers the legs' own wait plus the join.
+     */
     private async reportComposeMergeOutcome({
         account,
         submission,
         queryUuid,
-        queryCreatedAt,
+        submittedAt,
         legCacheHits,
-        rowCapRefused,
+        wasRowCapRefused,
     }: {
         account: Account;
         submission: MergeSubmission;
         queryUuid: string;
-        queryCreatedAt: Date;
+        submittedAt: Date;
         legCacheHits: boolean[];
-        rowCapRefused: boolean;
+        wasRowCapRefused: () => boolean;
     }): Promise<void> {
-        const history = await this.queryHistoryModel.get(
+        const history = await this.queryHistoryModel.pollForQueryCompletion({
             queryUuid,
-            submission.projectUuid,
             account,
-        );
-        const outcome = resolveComposeMergeOutcome({ history, rowCapRefused });
-        const durationMs = Date.now() - queryCreatedAt.getTime();
+            projectUuid: submission.projectUuid,
+            throwOnCancelled: false,
+            throwOnError: false,
+            timeoutMs: 2 * AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
+        });
+        const outcome = resolveComposeMergeOutcome({
+            history,
+            rowCapRefused: wasRowCapRefused(),
+        });
+        const durationMs = Date.now() - submittedAt.getTime();
         switch (outcome.kind) {
             case 'refused_row_cap':
                 this.analytics.trackAccount(

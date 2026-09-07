@@ -1188,6 +1188,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedSqlModel: models.getSavedSqlModel(),
                     resultsStorageClient: clients.getResultsFileStorageClient(),
                     composeEngineClient: repository.getComposeEngineClient(),
+                    getQuerySourceService: () =>
+                        repository.getQuerySourceService(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:

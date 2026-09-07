@@ -3,13 +3,46 @@ import {
     getResultColumnMetadataFromItem,
     isField,
     isMergeMetricSource,
+    QuerySourceType,
     type ItemsMap,
     type MergeQuery,
     type MergeTypedColumn,
+    type MetricQuery,
     type ParametersValuesMap,
     type ResultColumns,
+    type SemanticLayerSourceQuery,
 } from '@lightdash/common';
 import type { DuckdbQueryReferenceGuard } from './types';
+
+/**
+ * A merge leg as a DAG node: the source's metric query run whole, at the
+ * source row cap with no sorts, since the merged statement sorts and limits
+ * and a side must never be silently truncated below the cap.
+ */
+export const buildMergeLegNode = ({
+    nodeId,
+    metricQuery,
+    sourceRowCap,
+}: {
+    nodeId: string;
+    metricQuery: MetricQuery;
+    sourceRowCap: number;
+}): SemanticLayerSourceQuery => ({
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId,
+    exploreName: metricQuery.exploreName,
+    dimensions: metricQuery.dimensions,
+    metrics: metricQuery.metrics,
+    filters: metricQuery.filters,
+    sorts: [],
+    limit: sourceRowCap,
+    tableCalculations: metricQuery.tableCalculations,
+    additionalMetrics: metricQuery.additionalMetrics,
+    customDimensions: metricQuery.customDimensions,
+    metricOverrides: metricQuery.metricOverrides,
+    dimensionOverrides: metricQuery.dimensionOverrides,
+    timezone: metricQuery.timezone,
+});
 
 /**
  * Builds the pre-pivot original columns of a compose-mode merge: display
@@ -19,17 +52,20 @@ import type { DuckdbQueryReferenceGuard } from './types';
  * can both expose `orders_status`, so a fieldId alone is ambiguous). Join
  * keys are shared by every source, so they keep the merged field's own
  * provenance; table calculations have none.
+ *
+ * A leg reference is its queryUuid, or the id of the DAG node that will
+ * produce it: a node id resolves to the queryUuid when the join submits.
  */
 export const buildComposeMergeOriginalColumns = ({
     typedColumns,
     itemsMap,
     usedParametersValues,
-    legQueryUuidBySourceId,
+    legReferenceBySourceId,
 }: {
     typedColumns: MergeTypedColumn[];
     itemsMap: ItemsMap;
     usedParametersValues: ParametersValuesMap;
-    legQueryUuidBySourceId: Record<string, string>;
+    legReferenceBySourceId: Record<string, string>;
 }): ResultColumns =>
     Object.fromEntries(
         typedColumns.map((column) => {
@@ -40,7 +76,7 @@ export const buildComposeMergeOriginalColumns = ({
             );
             if (column.origin.kind === 'source') {
                 const sourceQueryUuid =
-                    legQueryUuidBySourceId[column.origin.sourceId];
+                    legReferenceBySourceId[column.origin.sourceId];
                 if (sourceQueryUuid) {
                     metadata.provenance = {
                         fieldId: column.origin.sourceFieldId,

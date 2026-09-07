@@ -64,11 +64,19 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
  * register with QuerySourceRegistry; how a source authenticates against its
  * backing system is an implementation detail behind this contract.
  */
+export type SourceQuerySubmissionResult = {
+    queryUuid: string;
+    /** Whether the submission was served from an earlier result rather than run. */
+    cacheHit: boolean;
+};
+
 export interface QuerySourceClient {
     definition: QuerySourceDefinition;
     /** Whether a query of this source may carry a pivotConfiguration. */
     supportsPivot: boolean;
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
-    submitQuery(args: SubmitSourceQueryArgs): Promise<{ queryUuid: string }>;
+    submitQuery(
+        args: SubmitSourceQueryArgs,
+    ): Promise<SourceQuerySubmissionResult>;
 }

@@ -1017,6 +1017,7 @@ export class ServiceRepository
                     resultsStorageClient:
                         this.clients.getResultsFileStorageClient(),
                     composeEngineClient: this.getComposeEngineClient(),
+                    getQuerySourceService: () => this.getQuerySourceService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),

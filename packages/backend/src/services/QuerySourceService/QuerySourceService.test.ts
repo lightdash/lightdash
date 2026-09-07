@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     ForbiddenError,
     ParameterError,
     QueryExecutionContext,
@@ -43,6 +44,7 @@ const createFakeSource = (
         .fn()
         .mockImplementation(async ({ query }: { query: SourceQuery }) => ({
             queryUuid: `${query.nodeId ?? sourceType}-query-uuid`,
+            cacheHit: false,
         })),
 ): QuerySourceClient & { submitQuery: Mock } => ({
     definition: { sourceType, label: sourceType, description: 'fake source' },
@@ -611,14 +613,14 @@ describe('composer pipelines return the standard results interface', () => {
         const asyncQueryService = {
             executeAsyncMetricQuery: vi.fn().mockResolvedValue({
                 queryUuid: 'metric-query-uuid',
+                cacheMetadata: { cacheHit: true },
             }),
             executeAsyncComposeSqlQuery: vi.fn().mockResolvedValue({
                 queryUuid: 'compose-query-uuid',
+                cacheMetadata: { cacheHit: false },
             }),
             executeAsyncDuckdbSourceQuery: vi.fn().mockResolvedValue({
                 queryUuid: 'planned-query-uuid',
-                queryCreatedAt: new Date(),
-                settled: Promise.resolve(),
             }),
         };
         const registry = new QuerySourceRegistry();
@@ -766,6 +768,11 @@ describe('composer pipelines return the standard results interface', () => {
         expect(
             result.queries.find((q) => q.nodeId === 'joined')?.queryUuid,
         ).toEqual('planned-query-uuid');
+        // The leg's cache hit is reported; a DuckDB run never is one
+        expect(result.queries.map((q) => [q.nodeId, q.cacheHit])).toEqual([
+            ['orders', true],
+            ['joined', false],
+        ]);
         expect(
             asyncQueryService.executeAsyncComposeSqlQuery,
         ).not.toHaveBeenCalled();
@@ -777,6 +784,74 @@ describe('composer pipelines return the standard results interface', () => {
                 plan,
             }),
         );
+    });
+
+    it("resolves a supplied column's provenance from a node id to that node's queryUuid", async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+        const column = (sourceQueryUuid: string) => ({
+            reference: 'orders_total_revenue',
+            type: DimensionType.NUMBER,
+            provenance: { fieldId: 'orders_total_revenue', sourceQueryUuid },
+        });
+        const plan: DuckdbQueryPlan = {
+            columns: {
+                mode: 'supplied',
+                fieldsMap: {},
+                usedParameters: null,
+                originalColumns: { orders_total_revenue: column('orders') },
+                pivotConfiguration: undefined,
+                metricQuery: {
+                    exploreName: 'merge',
+                    dimensions: [],
+                    metrics: ['orders_total_revenue'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    sql: 'SELECT * FROM orders',
+                },
+            },
+            engine: 'scopedToReferencedResults',
+            guard: null,
+        };
+
+        await service.submitQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: ['orders_total_revenue'],
+                },
+                {
+                    sourceType: QuerySourceType.DUCKDB,
+                    nodeId: 'joined',
+                    sql: 'SELECT * FROM orders',
+                    references: ['orders'],
+                },
+            ],
+            plans: { joined: plan },
+        });
+
+        const submitted = (
+            asyncQueryService.executeAsyncDuckdbSourceQuery as Mock
+        ).mock.calls[0][0];
+        expect(submitted.plan.columns.originalColumns).toEqual({
+            orders_total_revenue: column('metric-query-uuid'),
+        });
+        // The caller's plan is not mutated
+        expect(
+            plan.columns.mode === 'supplied' && plan.columns.originalColumns,
+        ).toEqual({ orders_total_revenue: column('orders') });
     });
 
     it('hands a DuckDB node its parameters and cache control, and refuses a pivot on it', async () => {

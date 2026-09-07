@@ -80,7 +80,7 @@ describe('ExternalQuerySource', () => {
             },
         });
 
-        expect(result).toEqual({ queryUuid: 'query-1' });
+        expect(result).toEqual({ queryUuid: 'query-1', cacheHit: false });
         expect(executeAsyncExternalSqlQuery).toHaveBeenCalledWith({
             account,
             projectUuid: 'project-1',

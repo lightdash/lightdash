@@ -15,6 +15,7 @@ import {
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type ExecuteAsyncQueryRequestParams,
     type ExternalSourceTableReference,
     type Filters,
     type ItemsMap,
@@ -349,11 +350,19 @@ export type DuckdbQueryEngine =
  * submission discovers its columns on the shared results session; an
  * internal caller such as a merge supplies its compile-time columns, a
  * session scoped to the results it reads, and a guard over those results.
+ *
+ * Supplied columns are recorded on the history row as they are, with the
+ * request that produced them. A supplied column's provenance may name a
+ * node of the same submission instead of a queryUuid; it resolves to that
+ * node's query at submit time, the way a table reference does.
  */
 export type DuckdbQueryPlan = {
     columns:
         | { mode: 'discover' }
-        | (SuppliedDuckdbQueryColumns & { metricQuery: MetricQuery });
+        | (SuppliedDuckdbQueryColumns & {
+              metricQuery: MetricQuery;
+              requestParameters: ExecuteAsyncQueryRequestParams;
+          });
     engine: DuckdbQueryEngine['kind'];
     guard: DuckdbQueryReferenceGuard | null;
 };
@@ -364,13 +373,6 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
     /** Table name -> queryUuid of a previous async query to expose as that table. */
     references?: Record<string, UUID>;
     plan: DuckdbQueryPlan;
-};
-
-export type DuckdbSourceQuerySubmission = {
-    queryUuid: string;
-    queryCreatedAt: Date;
-    /** Resolves once the background execution has settled; never rejects. */
-    settled: Promise<void>;
 };
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
