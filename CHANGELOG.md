@@ -1,3 +1,19 @@
+# [2.149.0](https://github.com/lightdash/lightdash/compare/2.148.2...2.149.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* reject a warehouse location on the primary dbt source update ([#28797](https://github.com/lightdash/lightdash/issues/28797)) ([4a8477c](https://github.com/lightdash/lightdash/commit/4a8477c831687ddfab4db48501d29183211c5987))
+
+
+### Features
+
+* **auth:** exchange a Microsoft ID token for mobile OAuth tokens ([#28694](https://github.com/lightdash/lightdash/issues/28694)) ([be5c97b](https://github.com/lightdash/lightdash/commit/be5c97b8be34ea76e82e3441cd80f1f9fc8210a9))
+* **training:** walkthroughs for Ask AI, agent setup and deep research ([#28792](https://github.com/lightdash/lightdash/issues/28792)) ([d26dcfa](https://github.com/lightdash/lightdash/commit/d26dcfa2d9c5e5ae40ae26f60822f6e58a423993)), closes [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28791](https://github.com/lightdash/lightdash/issues/28791)
+* **training:** walkthroughs for dashboards, comments and categories ([#28791](https://github.com/lightdash/lightdash/issues/28791)) ([e4c6051](https://github.com/lightdash/lightdash/commit/e4c6051980fc9e9efa9236b9f3814162bb37514f)), closes [#28790](https://github.com/lightdash/lightdash/issues/28790)
+* **training:** walkthroughs for table calculations, custom dimensions, SQL runner and virtual views ([#28790](https://github.com/lightdash/lightdash/issues/28790)) ([6a93a70](https://github.com/lightdash/lightdash/commit/6a93a703354162a4a4fa627805a406c48d09d3d3)), closes [#28786](https://github.com/lightdash/lightdash/issues/28786) [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28716](https://github.com/lightdash/lightdash/issues/28716) [#28781](https://github.com/lightdash/lightdash/issues/28781) [#28786](https://github.com/lightdash/lightdash/issues/28786)
+* **training:** walkthroughs for the project homepage and data apps ([#28794](https://github.com/lightdash/lightdash/issues/28794)) ([c602e12](https://github.com/lightdash/lightdash/commit/c602e12dd36d29a7d3f706cc3cf2d702a92ce0bf)), closes [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28792](https://github.com/lightdash/lightdash/issues/28792)
+
 ## [2.148.2](https://github.com/lightdash/lightdash/compare/2.148.1...2.148.2) (2026-09-07)
 
 

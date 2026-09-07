@@ -41644,11 +41644,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedSignInProvider: {
+        dataType: 'refAlias',
+        type: { dataType: 'enum', enums: ['microsoft'], validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedSignIn: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                scopes: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                tenantId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                authority: { dataType: 'string', required: true },
+                clientId: { dataType: 'string', required: true },
+                provider: { ref: 'ManagedSignInProvider', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LoginOptions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                managedSignIn: { ref: 'ManagedSignIn' },
                 localEmailAvailable: { dataType: 'boolean' },
                 ssoPresentation: { ref: 'MobileLoginSsoPresentation' },
                 redirectUri: { dataType: 'string' },
@@ -90101,6 +90133,11 @@ export function RegisterRoutes(app: Router) {
         mobile_login_intent: {
             in: 'query',
             name: 'mobile_login_intent',
+            dataType: 'string',
+        },
+        mobilePlatform: {
+            in: 'query',
+            name: 'mobilePlatform',
             dataType: 'string',
         },
     };

@@ -41549,8 +41549,47 @@
                     }
                 ]
             },
+            "ManagedSignInProvider": {
+                "type": "string",
+                "enum": ["microsoft"],
+                "nullable": false
+            },
+            "ManagedSignIn": {
+                "properties": {
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "tenantId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authority": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/ManagedSignInProvider"
+                    }
+                },
+                "required": [
+                    "scopes",
+                    "tenantId",
+                    "authority",
+                    "clientId",
+                    "provider"
+                ],
+                "type": "object"
+            },
             "LoginOptions": {
                 "properties": {
+                    "managedSignIn": {
+                        "$ref": "#/components/schemas/ManagedSignIn"
+                    },
                     "localEmailAvailable": {
                         "type": "boolean"
                     },
@@ -60038,7 +60077,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.148.2",
+        "version": "2.149.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -77611,6 +77650,14 @@
                     {
                         "in": "query",
                         "name": "mobile_login_intent",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "mobilePlatform",
                         "required": false,
                         "schema": {
                             "type": "string"
