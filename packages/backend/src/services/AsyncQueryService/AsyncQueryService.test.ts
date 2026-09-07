@@ -821,14 +821,16 @@ describe('AsyncQueryService', () => {
                 composeEngineClient: {
                     createExecutionWarehouseClient,
                 } as unknown as ComposeEngineClient,
-                queryHistoryModel: {
-                    create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
-                    get: vi.fn(async () => referencedQueryHistory),
-                    pollForQueryCompletion: vi.fn(
-                        async () => referencedQueryHistory,
-                    ),
-                    update: vi.fn(),
-                } as unknown as QueryHistoryModel,
+                queryHistoryModel: inMemoryDuckdbHistory({
+                    queryUuid: 'queryUuid',
+                    account: sessionAccount,
+                    overrides: {
+                        get: vi.fn(async () => referencedQueryHistory),
+                        pollForQueryCompletion: vi.fn(
+                            async () => referencedQueryHistory,
+                        ),
+                    },
+                }),
                 resultsStorageClient: {
                     isEnabled: true,
                     configuration: { bucket: 'mock_bucket' },
@@ -850,8 +852,8 @@ describe('AsyncQueryService', () => {
             );
 
             // The shared session is built once, for the dialect and to refuse
-            // a missing results storage up front; the run gets its own,
-            // scoped to the one file the query reads
+            // a missing results storage up front; the run, rebuilt from the
+            // row, gets its own, scoped to the one file the query reads
             expect(createExecutionWarehouseClient.mock.calls).toEqual([
                 [{ storage: 'results', scope: null }],
                 [
