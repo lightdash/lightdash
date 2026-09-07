@@ -2,16 +2,20 @@
    sidebar, home cards, toolbar and module cards, on this app's neutrals. */
 .shell,
 .enableShell {
-    --lu-accent: #5e4cff;
-    --lu-track: light-dark(#e9ecef, #343a46);
-    --lu-done-fg: #2f9e44;
+    /* Neutrals come straight from the theme's `ldGray` ramp, which keeps the
+       same role per index in both schemes (0 canvas → 9 text), so no
+       light-dark() pair is needed for them. Only the green "done" pair and
+       the surface differ per scheme. */
+    --lu-accent: var(--mantine-color-ldBrandViolet-6);
+    --lu-track: var(--mantine-color-ldGray-2);
+    --lu-done-fg: light-dark(#2f9e44, #69db7c);
     --lu-done-border: light-dark(#b7e4c0, #2b5e3a);
-    --lu-surface: light-dark(#fff, var(--mantine-color-ldGray-9));
-    --lu-sunken: light-dark(#f8f9fa, var(--mantine-color-ldGray-8));
-    --lu-border: light-dark(#dee2e6, var(--mantine-color-ldGray-7));
-    --lu-ink: light-dark(#111418, #f1f3f5);
-    --lu-secondary: light-dark(#495057, #ced4da);
-    --lu-muted: light-dark(#868e96, #909aa6);
+    --lu-surface: var(--mantine-color-background-0);
+    --lu-sunken: var(--mantine-color-ldGray-1);
+    --lu-border: var(--mantine-color-ldGray-2);
+    --lu-ink: var(--mantine-color-ldGray-9);
+    --lu-secondary: var(--mantine-color-ldGray-7);
+    --lu-muted: var(--mantine-color-ldGray-5);
 }
 
 .shell {
@@ -117,7 +121,8 @@
     border: 1px solid var(--lu-border);
     border-radius: 10px;
     background: var(--lu-surface);
-    box-shadow: 0 8px 24px rgba(17, 20, 24, 0.06);
+    box-shadow: 0 8px 24px
+        light-dark(rgba(17, 20, 24, 0.06), rgba(0, 0, 0, 0.35));
 }
 
 .enableCard h2 {
@@ -368,7 +373,8 @@
 
 .card:hover {
     transform: translateY(-1px);
-    box-shadow: 0 8px 22px rgba(16, 16, 20, 0.08);
+    box-shadow: 0 8px 22px
+        light-dark(rgba(16, 16, 20, 0.08), rgba(0, 0, 0, 0.4));
 }
 
 .cardSoon {
@@ -424,7 +430,7 @@
     width: 190px;
     overflow: hidden;
     border-radius: 7px 0 0 0;
-    border: 1px solid rgba(20, 16, 12, 0.14);
+    border: 1px solid var(--lu-border);
     border-right: 0;
     border-bottom: 0;
     background: #fff;
