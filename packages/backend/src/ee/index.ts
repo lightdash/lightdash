@@ -1118,14 +1118,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                         models.getPinnedListModel(),
                                     commentModel: models.getCommentModel(),
                                     tagsModel: models.getTagsModel(),
-                                    appModel: models.getAppModel(),
-                                    aiAgentModel:
-                                        models.getAiAgentModel<AiAgentModel>(),
-                                    aiDeepResearchRunModel:
-                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
-                                    appFileStore: createPlaygroundAppFileStore(
-                                        lightdashConfig.appRuntime.s3,
-                                    ),
+                                    // The onboarding playground seeds no
+                                    // app, agent or research run; those
+                                    // belong to the training project.
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
