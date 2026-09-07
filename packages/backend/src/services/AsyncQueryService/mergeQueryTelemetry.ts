@@ -14,7 +14,6 @@ import type {
     MergeRefusalKind,
     MergeSourceKind,
 } from '../../analytics/LightdashAnalytics';
-import type { DuckdbQueryReferenceGuard } from './types';
 
 /** What every merge event says about the merge that was submitted. */
 export type MergeSubmission = {
@@ -115,21 +114,6 @@ export const buildMergeExecutedEvent = ({
         joinExecutionTimeMs,
     },
 });
-
-/** A refusal and a join failure both end as the query's error; only the guard knows which. */
-export const observeRowCapRefusal = (
-    guard: DuckdbQueryReferenceGuard,
-): { guard: DuckdbQueryReferenceGuard; wasRefused: () => boolean } => {
-    let refused = false;
-    return {
-        guard: (completed) => {
-            const refusal = guard(completed);
-            if (refusal !== null) refused = true;
-            return refusal;
-        },
-        wasRefused: () => refused,
-    };
-};
 
 export type ComposeMergeOutcome =
     | { kind: 'refused_row_cap' }

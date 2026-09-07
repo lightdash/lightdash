@@ -15,6 +15,7 @@ import {
     type DashboardFilters,
     type DateZoom,
     type DownloadAsyncQueryResultsPayload,
+    type DuckdbExecutionSpec,
     type ExecuteAsyncQueryRequestParams,
     type ExternalSourceTableReference,
     type Filters,
@@ -379,10 +380,19 @@ export type DuckdbQueryPlan = {
               originalColumns: ResultColumns;
               requestParameters: ExecuteAsyncQueryRequestParams;
           };
-    engine: DuckdbQueryEngine['kind'];
-    guard: DuckdbQueryReferenceGuard | null;
+    /** A planned node runs on a session scoped to what it references. */
+    engine: 'scopedToReferencedResults';
+    /** Persisted with the row, so a worker rebuilds the same guard. */
+    guard: DuckdbExecutionSpec['guard'];
     /** What the user calls each referenced table; empty when nothing names them. */
     referenceLabels: Record<string, string>;
+};
+
+/** Who a history row was created by, as a worker sees it without a session. */
+export type QueryHistoryActor = {
+    userUuid: string;
+    isRegisteredUser: boolean;
+    isServiceAccount: boolean;
 };
 
 export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
@@ -402,7 +412,7 @@ export type BoundDuckdbQueryReferences = {
 };
 
 export type RunDuckdbQueryArgs = {
-    account: Account;
+    actor: QueryHistoryActor;
     projectUuid: string;
     organizationUuid: string;
     isPreviewProject: boolean;

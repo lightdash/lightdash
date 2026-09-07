@@ -1,5 +1,6 @@
 import type {
     AuthType,
+    DuckdbExecutionSpec,
     ExecuteAsyncQueryRequestParams,
     ItemsMap,
     MetricQuery,
@@ -51,6 +52,7 @@ export type DbQueryHistory = {
     pre_aggregate_execution: PreAggregateExecutionEngine | null; // engine for pre_aggregate_compiled_sql
     pre_aggregate_fallback_reason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processing_started_at: Date | null; // when the NATS worker picked up the job
+    duckdb_execution: DuckdbExecutionSpec | null; // how a DuckDB source query runs, for the worker to rebuild it
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -86,6 +88,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_execution'
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
+        | 'duckdb_execution'
     >
 >;
 

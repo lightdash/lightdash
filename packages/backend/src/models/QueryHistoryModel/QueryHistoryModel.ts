@@ -1,6 +1,7 @@
 import {
     Account,
     assertUnreachable,
+    DuckdbExecutionSpec,
     ForbiddenError,
     getContextsForTrigger,
     getQueryLanguage,
@@ -232,6 +233,7 @@ export class QueryHistoryModel {
                 pre_aggregate_execution: null,
                 pre_aggregate_fallback_reason: null,
                 processing_started_at: null,
+                duckdb_execution: null,
             })
             .returning('query_uuid');
 
@@ -417,6 +419,64 @@ export class QueryHistoryModel {
         return result ? convertDbQueryHistoryToQueryHistory(result) : undefined;
     }
 
+    /** The execution spec of a DuckDB source query, written once at submit. */
+    async setDuckdbExecution(
+        queryUuid: string,
+        spec: DuckdbExecutionSpec,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .update({ duckdb_execution: spec });
+    }
+
+    async getDuckdbExecution(
+        queryUuid: string,
+    ): Promise<DuckdbExecutionSpec | null> {
+        const row = await this.database(QueryHistoryTableName)
+            .select('duckdb_execution')
+            .where('query_uuid', queryUuid)
+            .first();
+        return row?.duckdb_execution ?? null;
+    }
+
+    /**
+     * Marks a DuckDB source query as refused by its guard: the error status
+     * and the refusal land in one statement, so whoever polls the row never
+     * sees the error without the refusal.
+     */
+    async recordDuckdbRefusal(
+        queryUuid: string,
+        projectUuid: string,
+        refusal: NonNullable<DuckdbExecutionSpec['refusal']>,
+        error: string,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
+    ): Promise<void> {
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+        await this.database.raw(
+            `UPDATE ${QueryHistoryTableName}
+             SET status = ?, error = ?, errored_at = NOW(),
+                 duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)
+             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ?`,
+            [
+                QueryHistoryStatus.ERROR,
+                error,
+                JSON.stringify(refusal),
+                queryUuid,
+                projectUuid,
+                account.user.id,
+            ],
+        );
+    }
+
+    /**
+     * Waits for a query to reach a terminal state. With an account the
+     * lookup is creator-scoped, as fetching results is; without one, as a
+     * worker rebuilding a run, it reads the row by uuid alone.
+     */
     async pollForQueryCompletion({
         queryUuid,
         account,
@@ -428,7 +488,7 @@ export class QueryHistoryModel {
         throwOnError = true,
     }: {
         queryUuid: string;
-        account: Account;
+        account: Account | null;
         projectUuid: string;
         initialBackoffMs?: number;
         maxBackoffMs?: number;
@@ -437,7 +497,10 @@ export class QueryHistoryModel {
         throwOnError?: boolean;
     }): Promise<QueryHistory> {
         const startTime = Date.now();
-        const getQueryHistory = () => this.get(queryUuid, projectUuid, account);
+        const getQueryHistory = () =>
+            account === null
+                ? this.getByQueryUuid(queryUuid)
+                : this.get(queryUuid, projectUuid, account);
 
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
             if (Date.now() - startTime > timeoutMs) {
