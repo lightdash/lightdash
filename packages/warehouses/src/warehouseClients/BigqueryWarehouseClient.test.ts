@@ -4,7 +4,15 @@ import {
     type DatasetsResponse,
     type QueryRowsResponse,
 } from '@google-cloud/bigquery';
-import { DimensionType, type BigqueryProject } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
+    DimensionType,
+    WarehouseConnectionError,
+    WarehouseQueryError,
+    type BigqueryProject,
+    type CreateBigqueryCredentials,
+} from '@lightdash/common';
 import type { Mock, MockInstance } from 'vitest';
 import {
     BigquerySqlBuilder,
@@ -555,5 +563,204 @@ describe('BigquerySqlBuilder temporal literals', () => {
         expect(builder.castToNaiveTimestamp(epoch)).toBe(
             "DATETIME '1970-01-01 00:00:00'",
         );
+    });
+});
+
+describe('BigqueryWarehouseClient Google OAuth token errors', () => {
+    type GaxiosErrorData = {
+        error: string;
+        error_description?: string;
+        error_subtype?: string;
+    };
+
+    const createGaxiosError = (
+        data: GaxiosErrorData,
+        message = data.error,
+        status = 400,
+    ) =>
+        Object.assign(new Error(message), {
+            status,
+            response: { status, data },
+        });
+
+    const invalidGrant = {
+        error: 'invalid_grant',
+        error_description: 'Token has been expired or revoked.',
+        error_subtype: 'invalid_rapt',
+    };
+
+    const userCredentials: CreateBigqueryCredentials = {
+        ...credentials,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'client-id',
+            client_secret: 'client-secret',
+            refresh_token: 'refresh-token',
+        },
+    };
+
+    const serviceAccountCredentials: CreateBigqueryCredentials = {
+        ...credentials,
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: {
+            type: 'service_account',
+            client_email: 'robot@example.iam.gserviceaccount.com',
+            private_key: 'private-key',
+        },
+    };
+
+    const createWarehouseRejectingQueries = (
+        warehouseCredentials: CreateBigqueryCredentials,
+        error: unknown,
+    ) => {
+        const warehouse = new BigqueryWarehouseClient(warehouseCredentials);
+        const createQueryJob = vi.fn<() => Promise<never>>();
+        vi.mocked(createQueryJob).mockRejectedValue(error);
+        warehouse.client.createQueryJob =
+            createQueryJob as unknown as BigQuery['createQueryJob'];
+        return warehouse;
+    };
+
+    const executeAsyncQuery = (warehouse: BigqueryWarehouseClient) =>
+        warehouse.executeAsyncQuery({
+            sql: 'SELECT 1',
+            tags: {},
+        });
+
+    it('translates an invalid_grant rejection of a user keyfile into a BigqueryTokenError', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
+        );
+    });
+
+    it('translates an invalid_grant rejection of a service account keyfile into a connection error', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            serviceAccountCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            WarehouseConnectionError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.not.toThrow(
+            BigqueryTokenError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery credentials (invalid_grant: Token has been expired or revoked.; invalid_rapt).',
+        );
+    });
+
+    it('omits the subtype clause and falls back to invalid_grant alone', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError({ error: 'invalid_grant' }),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'Google rejected the BigQuery refresh token (invalid_grant). Reconnect your BigQuery account in personal settings.',
+        );
+    });
+
+    it('leaves other 400 responses untranslated', async () => {
+        const original = createGaxiosError({
+            error: 'invalid_request',
+            error_description: 'Missing required parameter: refresh_token',
+        });
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            original,
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+    });
+
+    it('detects invalid_grant from the response body, not the error message', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(
+                invalidGrant,
+                'Token has been expired or revoked.',
+            ),
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('leaves a bare invalid_grant error without a response untranslated', async () => {
+        const original = new Error('invalid_grant');
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            original,
+        );
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+    });
+
+    it('still translates structured BigQuery errors', async () => {
+        const warehouse = createWarehouseRejectingQueries(userCredentials, {
+            errors: [
+                {
+                    reason: 'quotaExceeded',
+                    message: 'Query exceeded the daily quota',
+                },
+            ],
+        });
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            WarehouseQueryError,
+        );
+        await expect(executeAsyncQuery(warehouse)).rejects.toThrow(
+            'BigQuery quota exceeded. Query exceeded the daily quota',
+        );
+    });
+
+    it('translates an invalid_grant rejection raised while fetching table metadata', async () => {
+        const warehouse = new BigqueryWarehouseClient(userCredentials);
+        const getMetadata = vi.fn<() => Promise<never>>();
+        vi.mocked(getMetadata).mockRejectedValue(
+            createGaxiosError(invalidGrant),
+        );
+        Dataset.prototype.table = vi.fn(() => ({ getMetadata })) as never;
+
+        await expect(
+            warehouse.getFields('myTable', 'mySchema', 'myDatabase'),
+        ).rejects.toThrow(BigqueryTokenError);
+        await expect(warehouse.getCatalog(config)).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('translates an invalid_grant rejection raised while listing datasets', async () => {
+        const warehouse = new BigqueryWarehouseClient(userCredentials);
+        const getDatasets = vi.fn<() => Promise<never>>();
+        vi.mocked(getDatasets).mockRejectedValue(
+            createGaxiosError(invalidGrant),
+        );
+        warehouse.client.getDatasets =
+            getDatasets as unknown as BigQuery['getDatasets'];
+
+        await expect(warehouse.getAllTables()).rejects.toThrow(
+            BigqueryTokenError,
+        );
+    });
+
+    it('translates an invalid_grant rejection from the connection test', async () => {
+        const warehouse = createWarehouseRejectingQueries(
+            userCredentials,
+            createGaxiosError(invalidGrant),
+        );
+
+        await expect(warehouse.test()).rejects.toThrow(BigqueryTokenError);
     });
 });
