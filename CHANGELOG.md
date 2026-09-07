@@ -1,3 +1,10 @@
+# [2.136.0](https://github.com/lightdash/lightdash/compare/2.135.2...2.136.0) (2026-09-07)
+
+
+### Features
+
+* **dashboard-filters:** search fields from the picker input ([#28724](https://github.com/lightdash/lightdash/issues/28724)) ([966636a](https://github.com/lightdash/lightdash/commit/966636a6beff0943a0e0d1b10a54136dba518778))
+
 ## [2.135.2](https://github.com/lightdash/lightdash/compare/2.135.1...2.135.2) (2026-09-07)
 
 
