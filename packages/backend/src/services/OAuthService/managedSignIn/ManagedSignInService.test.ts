@@ -646,6 +646,52 @@ describe('ManagedSignInService', () => {
         });
     });
 
+    describe('discovery cache eviction', () => {
+        const CACHE_MAX = 50;
+
+        const tenantAt = (index: number) =>
+            `${index.toString(16).padStart(8, '0')}-2222-3333-4444-555555555555`;
+
+        it('evicts the least recently used tenant, not the oldest', async () => {
+            const fetched: string[] = [];
+            const verifier = new MicrosoftTokenVerifier({
+                fetchOpenIdConfiguration: async (tenantId: string) => {
+                    fetched.push(tenantId);
+                    return {
+                        issuer: `https://login.microsoftonline.com/${tenantId}/v2.0`,
+                        jwks_uri: `https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`,
+                    };
+                },
+                createKeySet: () => createLocalJWKSet({ keys: [publicJwk] }),
+            });
+            const warm = (token: string) =>
+                verifier.verify(token, [IOS_CLIENT_ID]).then(
+                    () => undefined,
+                    () => undefined,
+                );
+
+            const first = tenantAt(0);
+            const fillTokens = await Promise.all(
+                Array.from({ length: CACHE_MAX }, (_, index) =>
+                    signToken({ tid: tenantAt(index) }),
+                ),
+            );
+            await fillTokens.reduce(
+                (chain, token) => chain.then(() => warm(token)),
+                Promise.resolve(),
+            );
+
+            await warm(await signToken({ tid: first }));
+            const fetchesAfterTouch = fetched.length;
+
+            await warm(await signToken({ tid: tenantAt(CACHE_MAX) }));
+            expect(fetched.length).toEqual(fetchesAfterTouch + 1);
+
+            await warm(await signToken({ tid: first }));
+            expect(fetched.length).toEqual(fetchesAfterTouch + 1);
+        });
+    });
+
     describe('logging', () => {
         it('logs the rejection context and never the token', async () => {
             const warn = vi
