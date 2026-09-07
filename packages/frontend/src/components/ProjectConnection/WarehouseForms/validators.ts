@@ -15,7 +15,23 @@ import {
 } from '../../../utils/fieldValidators';
 import { type ProjectConnectionForm } from '../types';
 
-type Validator = (value: string) => string | undefined;
+type Validator = (
+    value: string,
+    values: ProjectConnectionForm,
+) => string | undefined;
+
+const sshTunnelEnabled = (values: ProjectConnectionForm) =>
+    (values.warehouse.type === WarehouseTypes.POSTGRES ||
+        values.warehouse.type === WarehouseTypes.REDSHIFT) &&
+    values.warehouse.useSshTunnel === true;
+
+export const SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE =
+    'SSH tunnel is enabled but no public key has been generated. Click "Generate public key" and add it to your SSH host before saving.';
+
+const sshTunnelPublicKeyValidator: Validator = (value, values) =>
+    sshTunnelEnabled(values) && (!value || value.trim() === '')
+        ? SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE
+        : undefined;
 
 export const warehouseValueValidators: Record<
     WarehouseTypes,
@@ -38,12 +54,14 @@ export const warehouseValueValidators: Record<
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
         dbname: hasNoWhiteSpaces('Database name'),
+        sshTunnelPublicKey: sshTunnelPublicKeyValidator,
     },
     [WarehouseTypes.REDSHIFT]: {
         schema: hasNoWhiteSpaces('Schema'),
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
         dbname: hasNoWhiteSpaces('Database name'),
+        sshTunnelPublicKey: sshTunnelPublicKeyValidator,
     },
     [WarehouseTypes.SNOWFLAKE]: {
         schema: hasNoWhiteSpaces('Schema'),
@@ -165,6 +183,7 @@ export const createWarehouseValueValidators: Record<
         user: required('User', hasNoWhiteSpaces),
         password: required('Password'),
         dbname: required('Database name', hasNoWhiteSpaces),
+        sshTunnelPublicKey: sshTunnelPublicKeyValidator,
     },
     [WarehouseTypes.REDSHIFT]: {
         schema: required('Schema', hasNoWhiteSpaces),
@@ -172,6 +191,7 @@ export const createWarehouseValueValidators: Record<
         user: required('User', hasNoWhiteSpaces),
         password: required('Password'),
         dbname: required('Database name', hasNoWhiteSpaces),
+        sshTunnelPublicKey: sshTunnelPublicKeyValidator,
     },
     [WarehouseTypes.SNOWFLAKE]: {
         schema: required('Schema', hasNoWhiteSpaces),

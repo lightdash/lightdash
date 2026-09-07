@@ -31,12 +31,12 @@ export class SshKeyPairModel {
         };
     }
 
-    async get(publicKey: string): Promise<SshKeyPair> {
+    async find(publicKey: string): Promise<SshKeyPair | null> {
         const row = await this.database('ssh_key_pairs')
             .where({ public_key: publicKey })
             .first();
         if (row === undefined) {
-            throw new Error('Public SSH Key not recognised');
+            return null;
         }
         const privateKey = this.encryptionUtil.decrypt(row.private_key);
         return {
