@@ -26,7 +26,7 @@ import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAda
 
 export const projectAdapterFromConfig = async (
     config:
-        | DbtProjectConfig
+        | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
         | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
@@ -73,8 +73,7 @@ export const projectAdapterFromConfig = async (
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
-                ...('parsedManifest' in config &&
-                config.parsedManifest !== undefined
+                ...(config.parsedManifest !== undefined
                     ? { parsedManifest: config.parsedManifest }
                     : { manifest: config.manifest }),
                 dbtProjectDir: manifestOptions?.projectDir,
