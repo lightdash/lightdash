@@ -181,4 +181,21 @@ describe('ExploreCompilationSummary', () => {
             { table: 'orders_override', name: 'order_id', value: true },
         ]);
     });
+
+    it('accepts an error explore whose base table is absent', () => {
+        const summary = new ExploreCompilationSummary();
+        const error = {
+            name: 'broken',
+            label: 'broken',
+            baseTable: 'missing',
+            tables: {
+                present: table('present', {}, {}),
+            },
+            errors: [{ type: 'METADATA_PARSE_ERROR', message: 'broken' }],
+        } as ExploreError;
+
+        expect(() => summary.add(error, true)).not.toThrow();
+        expect(summary.analytics.modelsWithSqlFiltersCount).toBe(0);
+        expect(summary.analytics.modelsWithErrorsCount).toBe(1);
+    });
 });

@@ -105,9 +105,8 @@ export class ExploreCompilationSummary {
         );
 
         if (
-            explore.tables &&
             explore.baseTable &&
-            explore.tables[explore.baseTable].sqlWhere !== undefined
+            explore.tables?.[explore.baseTable]?.sqlWhere !== undefined
         ) {
             this.analytics.modelsWithSqlFiltersCount += 1;
         }
@@ -141,7 +140,7 @@ export class ExploreCompilationSummary {
             ({ requiredAttributes }) => requiredAttributes !== undefined,
         ).length;
         this.analytics.additionalDimensionsCount += Object.values(
-            explore.tables[explore.baseTable].dimensions,
+            explore.tables[explore.baseTable]?.dimensions ?? {},
         ).filter(({ isAdditionalDimension }) => isAdditionalDimension).length;
     }
 
