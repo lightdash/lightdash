@@ -65,6 +65,11 @@ type LeaseOwner = {
     heartbeatAt: number;
 };
 
+type ReclaimClaim = {
+    claimId: string;
+    claimant: LeaseOwner;
+};
+
 type LeaseHeartbeat = {
     timer: NodeJS.Timeout;
     pending: Promise<void>;
@@ -206,6 +211,18 @@ const isLeaseOwner = (value: unknown): value is LeaseOwner => {
         typeof candidate.heartbeatAt === 'number' &&
         Number.isFinite(candidate.heartbeatAt) &&
         candidate.heartbeatAt >= 0
+    );
+};
+
+const isReclaimClaim = (value: unknown): value is ReclaimClaim => {
+    if (!value || typeof value !== 'object') return false;
+    const candidate = value as Partial<ReclaimClaim>;
+    return (
+        typeof candidate.claimId === 'string' &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            candidate.claimId,
+        ) &&
+        isLeaseOwner(candidate.claimant)
     );
 };
 
@@ -504,6 +521,39 @@ const leaseOwnerIsProvablyStale = async (
     );
 };
 
+const removeAgedReclaimClaim = async (claimPath: string): Promise<boolean> => {
+    try {
+        const observedStat: Stats = await fs.lstat(claimPath);
+        const observed = await readJson(claimPath);
+        if (Date.now() - observedStat.mtimeMs <= LEASE_STALE_MS) return false;
+        const currentStat: Stats = await fs.lstat(claimPath);
+        const current = await readJson(claimPath);
+        if (
+            currentStat.dev !== observedStat.dev ||
+            currentStat.ino !== observedStat.ino ||
+            currentStat.mtimeMs !== observedStat.mtimeMs ||
+            currentStat.size !== observedStat.size ||
+            (isReclaimClaim(observed) &&
+                (!isReclaimClaim(current) ||
+                    current.claimId !== observed.claimId ||
+                    current.claimant.leaseId !== observed.claimant.leaseId ||
+                    current.claimant.heartbeatAt !==
+                        observed.claimant.heartbeatAt))
+        ) {
+            return false;
+        }
+        await fs.rm(claimPath, { force: true });
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return true;
+        warnSwallowedFilesystemError(
+            'Failed to inspect stale dbt git cache reclaim claim',
+            error,
+        );
+        return false;
+    }
+};
+
 const claimAndRemoveStaleLease = async (
     leaseDirectory: string,
 ): Promise<boolean> => {
@@ -516,25 +566,32 @@ const claimAndRemoveStaleLease = async (
     }
     const claimPath = path.join(leaseDirectory, RECLAIM_CLAIM);
     const claimId = randomUUID();
-    try {
-        await fs.writeFile(
-            claimPath,
-            JSON.stringify({
-                claimId,
-                claimant: await newLeaseOwner(claimId),
-            }),
-            {
+    const claim = JSON.stringify({
+        claimId,
+        claimant: await newLeaseOwner(claimId),
+    });
+    const tryClaim = async (): Promise<'claimed' | 'exists' | 'failed'> => {
+        try {
+            await fs.writeFile(claimPath, claim, {
                 flag: 'wx',
                 mode: 0o600,
-            },
-        );
-    } catch (error) {
-        warnSwallowedFilesystemError(
-            'Failed to claim stale dbt git cache lease',
-            error,
-        );
-        return false;
+            });
+            return 'claimed';
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'EEXIST')
+                return 'exists';
+            warnSwallowedFilesystemError(
+                'Failed to claim stale dbt git cache lease',
+                error,
+            );
+            return 'failed';
+        }
+    };
+    let claimResult = await tryClaim();
+    if (claimResult === 'exists' && (await removeAgedReclaimClaim(claimPath))) {
+        claimResult = await tryClaim();
     }
+    if (claimResult !== 'claimed') return false;
     try {
         const current = await readJson(path.join(leaseDirectory, LEASE_OWNER));
         if (
@@ -559,11 +616,11 @@ const claimAndRemoveStaleLease = async (
         );
         return false;
     } finally {
-        const claim = await readJson(claimPath);
+        const currentClaim = await readJson(claimPath);
         if (
-            claim &&
-            typeof claim === 'object' &&
-            (claim as { claimId?: unknown }).claimId === claimId
+            currentClaim &&
+            typeof currentClaim === 'object' &&
+            (currentClaim as { claimId?: unknown }).claimId === claimId
         ) {
             await fs.rm(claimPath, { force: true }).catch((error) => {
                 warnSwallowedFilesystemError(

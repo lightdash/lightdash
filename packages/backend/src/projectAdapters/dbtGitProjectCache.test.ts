@@ -767,7 +767,7 @@ describe('dbt git project cache', () => {
         );
     });
 
-    it('protects a stale lease when an orphan reclaim claim exists', async () => {
+    it('protects a stale lease when a fresh orphan reclaim claim exists', async () => {
         const root = await configure();
         const first = await acquireDbtGitProjectCache(
             identity(1),
@@ -796,6 +796,44 @@ describe('dbt git project cache', () => {
             acquireDbtGitProjectCache(identity(1), 'repository'),
         ).resolves.toBeUndefined();
         await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+    });
+
+    it('reclaims a stale lease after an orphan reclaim claim ages', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(staleOwner()),
+        );
+        const claimPath = path.join(leaseDirectory, '.reclaim.json');
+        await fs.writeFile(
+            claimPath,
+            JSON.stringify({
+                claimId: '00000000-0000-4000-8000-000000000002',
+                claimant: staleOwner({
+                    leaseId: '00000000-0000-4000-8000-000000000002',
+                    heartbeatAt: Date.now() + 60 * 60_000,
+                }),
+            }),
+        );
+        const agedAt = new Date(Date.now() - 3 * 60_000);
+        await fs.utimes(claimPath, agedAt, agedAt);
+
+        const reclaimed = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+
+        expect(reclaimed?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reclaimed!, 100);
     });
 
     it('does not reclaim a malformed lease owner', async () => {
