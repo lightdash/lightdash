@@ -575,7 +575,20 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
     return (
         <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Box px="xs" py="lg" data-testid="results-table-container">
+            <Box
+                px="xs"
+                py="lg"
+                data-testid="results-table-container"
+                // Walkthrough result marker for manage:Explore: the rows a
+                // query of one's own returned.
+                data-tour-scope="manage:Explore"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/tables/:tableName"
+                data-tour-label="A query is a table, a metric and a dimension"
+                data-tour-docs="get-started/explore-your-data.mdx#3-run-your-own-query:1"
+                data-tour-return="none"
+                data-tour-resultdocs="explore/explore-view.mdx#the-explore-page:li4"
+            >
                 {showGroupedView ? (
                     // Grouped results view - shows pivoted data with hierarchical headers
                     // Match approximate height of the paginated results table

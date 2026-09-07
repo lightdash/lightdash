@@ -30,3 +30,7 @@ export const tourUrlInCopy = (
  * whatever was changed in it, is gone a moment later either way.
  */
 export const LEAVING_COPY_STATE = { leavingTrainingCopy: true } as const;
+
+export const isLeavingTrainingCopy = (location: { state?: unknown }) =>
+    !!(location.state as { leavingTrainingCopy?: boolean } | null)
+        ?.leavingTrainingCopy;

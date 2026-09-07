@@ -1,5 +1,6 @@
 import {
     isField,
+    isMetric,
     isRawResultRow,
     isResultValue,
     type ConditionalFormattingTextStyle,
@@ -175,6 +176,16 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     displayValue.includes('\n')
                 }
                 onClick={canHaveMenu ? toggleMenu : undefined}
+                // Walkthrough anchor (data-tour-via): a metric cell, whose
+                // menu can open the records behind the number. The name is
+                // computed, so the hint is declared here:
+                //   data-tour-anchor="results-metric-cell" data-tour-hint="Click a number in the results"
+                data-tour-anchor={
+                    canHaveMenu && isField(item) && isMetric(item)
+                        ? 'results-metric-cell'
+                        : undefined
+                }
+                data-tour-hint="Click a number in the results"
                 onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
                 onMouseLeave={
                     canHaveTooltip

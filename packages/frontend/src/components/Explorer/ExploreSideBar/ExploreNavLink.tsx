@@ -3,6 +3,7 @@ import {
     InlineErrorType,
     isSummaryExploreError,
     type SummaryExplore,
+    ExploreType,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -20,6 +21,21 @@ import { getExploreIcon } from '../../../features/externalSources/utils/exploreI
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
+
+/**
+ * Walkthrough result for create:VirtualView: the new table in the explore
+ * list, where the docs say it appears.
+ */
+const virtualViewTourProps = {
+    'data-tour-scope': 'create:VirtualView',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/tables',
+    'data-tour-label': 'The virtual view is a table now',
+    'data-tour-docs': 'semantic-layer/virtual-views.mdx#intro:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs':
+        'semantic-layer/virtual-views.mdx#create-a-virtual-view:p2:1-2',
+};
 
 const getPreAggregateSource = (explore: SummaryExplore) =>
     'preAggregateSource' in explore ? explore.preAggregateSource : undefined;
@@ -89,6 +105,12 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 
     const navLink = (
         <NavLink
+            // Anchor for scope walkthroughs (data-tour-via): a table to open
+            data-tour-anchor="explore-table"
+            data-tour-hint="Open a table"
+            {...(explore.type === ExploreType.VIRTUAL
+                ? virtualViewTourProps
+                : {})}
             role="listitem"
             disabled={isError}
             leftSection={

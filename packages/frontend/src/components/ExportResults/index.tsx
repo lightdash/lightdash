@@ -306,7 +306,19 @@ const ExportResults: FC<ExportResultsProps> = memo(
         ) : null;
 
         return (
-            <Stack gap="md" miw="20rem">
+            <Stack
+                gap="md"
+                miw="20rem"
+                // Walkthrough result marker for manage:ExportCsv: the export
+                // dialog, still open once the file has been sent.
+                data-tour-scope="manage:ExportCsv"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                data-tour-label="A download keeps the table's rows"
+                data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:1"
+                data-tour-return="none"
+                data-tour-resultdocs="explore/share-charts.mdx#choosing-how-many-rows-an-export-contains:p2:1"
+            >
                 {isDialog && (
                     <Stack gap="xs">
                         <Text fz="xs" fw={600} tt="uppercase" c="dimmed">
@@ -470,6 +482,9 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         leftSection={<MantineIcon icon={IconTableExport} />}
                         onClick={() => exportMutation()}
                         data-testid="chart-export-results-button"
+                        // Walkthrough anchor (data-tour-then): the download.
+                        data-tour-anchor="export-download"
+                        data-tour-hint="Click Download"
                         ml="auto"
                     >
                         Download

@@ -12,7 +12,7 @@ import {
     type Filters,
     type SortField,
 } from '@lightdash/common';
-import { Button, Divider, Group, Popover } from '@mantine/core';
+import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -367,15 +367,27 @@ const UnderlyingDataModalContent: FC = () => {
             {error ? (
                 <ErrorState error={error.error} hasMarginTop={false} />
             ) : (
-                <UnderlyingDataResultsTable
-                    isLoading={isInitialLoading}
-                    resultsData={resultsData}
-                    fieldsMap={resultsData?.fields || {}}
-                    hasJoins={joinedTables.length > 0}
-                    sortByUnderlyingValues={sortByUnderlyingValues}
-                    sorts={sorts}
-                    onSortChange={setSorts}
-                />
+                <Box
+                    // Walkthrough result marker for view:UnderlyingData: the
+                    // rows that add up to the number that was clicked.
+                    data-tour-scope="view:UnderlyingData"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                    data-tour-label="Every number is made of records"
+                    data-tour-docs="explore/explore-view.mdx#the-explore-page:li4"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/dashboards/interact.mdx#view-underlying-data:p3:1"
+                >
+                    <UnderlyingDataResultsTable
+                        isLoading={isInitialLoading}
+                        resultsData={resultsData}
+                        fieldsMap={resultsData?.fields || {}}
+                        hasJoins={joinedTables.length > 0}
+                        sortByUnderlyingValues={sortByUnderlyingValues}
+                        sorts={sorts}
+                        onSortChange={setSorts}
+                    />
+                </Box>
             )}
         </MantineModal>
     );
