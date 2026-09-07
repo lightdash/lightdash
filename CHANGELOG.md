@@ -1,3 +1,10 @@
+## [2.148.2](https://github.com/lightdash/lightdash/compare/2.148.1...2.148.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **sdk:** stop the React SDK restyling the host page ([#28571](https://github.com/lightdash/lightdash/issues/28571)) ([eb5ddc9](https://github.com/lightdash/lightdash/commit/eb5ddc9f8d65cbc65e9321c3de976f935cbb9683))
+
 ## [2.148.1](https://github.com/lightdash/lightdash/compare/2.148.0...2.148.1) (2026-09-07)
 
 
