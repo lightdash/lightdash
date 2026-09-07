@@ -141,6 +141,8 @@ export class MicrosoftTokenVerifier {
     private async getDiscovery(tenantId: string): Promise<DiscoveryEntry> {
         const cached = this.discoveryCache.get(tenantId);
         if (cached && this.now() - cached.fetchedAt < DISCOVERY_TTL_MS) {
+            this.discoveryCache.delete(tenantId);
+            this.discoveryCache.set(tenantId, cached);
             return cached;
         }
 
