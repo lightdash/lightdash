@@ -5,6 +5,7 @@ import {
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
     type MapTileBackground,
+    type RegistryChartTypeState,
     type SearchItemType,
     type TableCalculationType,
     type TimeFrames,
@@ -939,6 +940,62 @@ type DashboardWorkbookEvent = {
     };
 };
 
+// Chart type library (registry) funnel. Payloads carry slugs and enums
+// only — never free-text names.
+type ChartTypeLibraryViewedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_VIEWED;
+    properties: {
+        projectUuid: string;
+        chartCount: number;
+    };
+};
+
+type ChartTypeLibraryChartClickedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_CHART_CLICKED;
+    properties: {
+        projectUuid: string;
+        chartSlug: string;
+        channel: 'stable' | 'beta';
+        state: RegistryChartTypeState;
+    };
+};
+
+type ChartTypeLibraryInstallClickedEvent = {
+    name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED;
+    properties: {
+        projectUuid: string;
+        chartSlug: string;
+        action: 'install' | 'upgrade';
+    };
+};
+
+type ChartTypeDetailViewedEvent = {
+    name: EventName.CHART_TYPE_DETAIL_VIEWED;
+    properties: {
+        projectUuid: string;
+        isOfficial: boolean;
+        registrySlug: string | null;
+        hasUpdate: boolean;
+    };
+};
+
+type ChartTypePreviewInExplorerEvent = {
+    name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER;
+    properties: {
+        projectUuid: string;
+        registrySlug: string | null;
+        tableName: string;
+    };
+};
+
+type ChartTypeForkModalOpenedEvent = {
+    name: EventName.CHART_TYPE_FORK_MODAL_OPENED;
+    properties: {
+        projectUuid: string;
+        registrySlug: string | null;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | DashboardWorkbookEvent
@@ -1020,6 +1077,12 @@ export type EventData =
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent
     | DataAppClarifyRoundResolvedEvent
+    | ChartTypeLibraryViewedEvent
+    | ChartTypeLibraryChartClickedEvent
+    | ChartTypeLibraryInstallClickedEvent
+    | ChartTypeDetailViewedEvent
+    | ChartTypePreviewInExplorerEvent
+    | ChartTypeForkModalOpenedEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent

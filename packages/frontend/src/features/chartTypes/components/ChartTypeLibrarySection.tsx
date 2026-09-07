@@ -1,8 +1,10 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Group, Paper, SimpleGrid, Stack, Text } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import ChartTypeLibraryCard from './ChartTypeLibraryCard';
 import ChartTypeLibraryDetailModal from './ChartTypeLibraryDetailModal';
@@ -26,6 +28,41 @@ const ChartTypeLibrarySection: FC<Props> = ({
     const flagEnabled = flagQuery.data?.enabled ?? false;
     const registryQuery = useRegistryChartTypes(projectUuid, flagEnabled);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    const { track } = useTracking();
+
+    const charts = useMemo(
+        () => registryQuery.data?.charts ?? [],
+        [registryQuery.data?.charts],
+    );
+    // Installed chart types (upgradable ones included) live in the installed
+    // tab only, where upgrades are offered; the library lists what there is
+    // to get — new or incompatible.
+    const visibleCharts = useMemo(
+        () =>
+            charts.filter(
+                (chart) =>
+                    chart.state === 'not_installed' ||
+                    chart.state === 'incompatible',
+            ),
+        [charts],
+    );
+    const registryEnabled = registryQuery.data?.registryEnabled === true;
+
+    const hasTrackedView = useRef(false);
+    useEffect(() => {
+        if (hasTrackedView.current || !flagEnabled || !registryEnabled) return;
+        hasTrackedView.current = true;
+        track({
+            name: EventName.CHART_TYPE_LIBRARY_VIEWED,
+            properties: { projectUuid, chartCount: visibleCharts.length },
+        });
+    }, [
+        flagEnabled,
+        registryEnabled,
+        visibleCharts.length,
+        projectUuid,
+        track,
+    ]);
 
     if (!flagEnabled) {
         return null;
@@ -35,14 +72,6 @@ const ChartTypeLibrarySection: FC<Props> = ({
         return null;
     }
 
-    const charts = registryQuery.data?.charts ?? [];
-    // Installed chart types (upgradable ones included) live in the installed
-    // tab only, where upgrades are offered; the library lists what there is
-    // to get — new or incompatible.
-    const visibleCharts = charts.filter(
-        (chart) =>
-            chart.state === 'not_installed' || chart.state === 'incompatible',
-    );
     const allInstalled = charts.length > 0 && visibleCharts.length === 0;
     const selected =
         visibleCharts.find((chart) => chart.slug === selectedSlug) ?? null;
@@ -95,7 +124,18 @@ const ChartTypeLibrarySection: FC<Props> = ({
                         <ChartTypeLibraryCard
                             key={chart.slug}
                             item={chart}
-                            onClick={() => setSelectedSlug(chart.slug)}
+                            onClick={() => {
+                                track({
+                                    name: EventName.CHART_TYPE_LIBRARY_CHART_CLICKED,
+                                    properties: {
+                                        projectUuid,
+                                        chartSlug: chart.slug,
+                                        channel: chart.channel ?? 'stable',
+                                        state: chart.state,
+                                    },
+                                });
+                                setSelectedSlug(chart.slug);
+                            }}
                         />
                     ))}
                 </SimpleGrid>

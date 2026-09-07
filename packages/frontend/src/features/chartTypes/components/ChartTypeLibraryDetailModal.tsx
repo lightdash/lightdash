@@ -20,6 +20,8 @@ import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { registryAssetUrl } from '../utils/registryAssetUrl';
 import ChartTypeBetaBadge from './ChartTypeBetaBadge';
@@ -40,8 +42,17 @@ const ChartTypeLibraryDetailModal: FC<Props> = ({
     const { user } = useApp();
     const publishedAgo = useTimeAgo(item.publishedAt);
     const installMutation = useInstallRegistryChartType();
+    const { track } = useTracking();
 
     const handleInstall = () => {
+        track({
+            name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
+            properties: {
+                projectUuid,
+                chartSlug: item.slug,
+                action: 'install',
+            },
+        });
         installMutation.mutate(
             { projectUuid, chartSlug: item.slug },
             { onSuccess: onClose },

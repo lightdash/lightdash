@@ -6,12 +6,14 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
@@ -46,8 +48,25 @@ const ChartTypeDetailModal: FC<Props> = ({
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const upgradeMutation = useInstallRegistryChartType();
+    const { track } = useTracking();
     const registryUpdate =
         registryEntry?.state === 'update_available' ? registryEntry : null;
+
+    const hasTrackedView = useRef(false);
+    const hasUpdate = registryUpdate !== null;
+    useEffect(() => {
+        if (hasTrackedView.current) return;
+        hasTrackedView.current = true;
+        track({
+            name: EventName.CHART_TYPE_DETAIL_VIEWED,
+            properties: {
+                projectUuid,
+                isOfficial,
+                registrySlug: dataAppViz.registrySlug,
+                hasUpdate,
+            },
+        });
+    }, [projectUuid, isOfficial, dataAppViz.registrySlug, hasUpdate, track]);
     const { latestReadyVersion, oldest, latest, hasOrigin } =
         useAppVersionHistory(projectUuid, dataAppViz.dataAppVizUuid);
 
@@ -103,7 +122,17 @@ const ChartTypeDetailModal: FC<Props> = ({
                             <Button
                                 variant="default"
                                 leftSection={<MantineIcon icon={IconGitFork} />}
-                                onClick={() => setIsForkOpen(true)}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.CHART_TYPE_FORK_MODAL_OPENED,
+                                        properties: {
+                                            projectUuid,
+                                            registrySlug:
+                                                dataAppViz.registrySlug,
+                                        },
+                                    });
+                                    setIsForkOpen(true);
+                                }}
                             >
                                 Fork to customize
                             </Button>
@@ -155,12 +184,21 @@ const ChartTypeDetailModal: FC<Props> = ({
                                         size="xs"
                                         variant="default"
                                         loading={upgradeMutation.isLoading}
-                                        onClick={() =>
+                                        onClick={() => {
+                                            track({
+                                                name: EventName.CHART_TYPE_LIBRARY_INSTALL_CLICKED,
+                                                properties: {
+                                                    projectUuid,
+                                                    chartSlug:
+                                                        registryUpdate.slug,
+                                                    action: 'upgrade',
+                                                },
+                                            });
                                             upgradeMutation.mutate({
                                                 projectUuid,
                                                 chartSlug: registryUpdate.slug,
-                                            })
-                                        }
+                                            });
+                                        }}
                                     >
                                         Upgrade to v{registryUpdate.version}
                                     </Button>
