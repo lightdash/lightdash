@@ -77,8 +77,8 @@ const dashboardModel = {
 
     getOrphanedCharts: vi.fn(async () => []),
 
-    getDashboardOwnedChartUuidsUsingMetric: vi.fn(
-        async (): Promise<string[]> => [],
+    getDashboardOwnedChartsUsingMetric: vi.fn(
+        async (): Promise<{ uuid: string; name: string }[]> => [],
     ),
 
     updateLatestVersionConfig: vi.fn(async () => undefined),
@@ -1724,8 +1724,8 @@ describe('DashboardService', () => {
             dashboardModel.getByIdOrSlug.mockResolvedValue(
                 dashboardWithRegistry as never,
             );
-            dashboardModel.getDashboardOwnedChartUuidsUsingMetric.mockResolvedValue(
-                [affectedChart.uuid],
+            dashboardModel.getDashboardOwnedChartsUsingMetric.mockResolvedValue(
+                [{ uuid: affectedChart.uuid, name: affectedChart.name }],
             );
             savedChartModel.get.mockResolvedValue(affectedChart as never);
         });
@@ -1777,6 +1777,55 @@ describe('DashboardService', () => {
                 dashboardModel.updateLatestVersionConfig,
             ).not.toHaveBeenCalled();
             expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test('delete removes the entry without touching charts', async () => {
+            const result = await service.deleteCustomMetric(
+                user,
+                dashboardUuid,
+                registryMetric.table,
+                registryMetric.name,
+                false,
+            );
+
+            expect(result.customMetrics).toEqual([]);
+            expect(result.affectedCharts).toEqual([
+                { uuid: affectedChart.uuid, name: affectedChart.name },
+            ]);
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ customMetrics: [] }),
+            );
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
+        test('delete dryRun reports affected charts without writing', async () => {
+            const result = await service.deleteCustomMetric(
+                user,
+                dashboardUuid,
+                registryMetric.table,
+                registryMetric.name,
+                true,
+            );
+
+            expect(result.dryRun).toBe(true);
+            expect(
+                dashboardModel.updateLatestVersionConfig,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('delete 404s for a metric not in the registry', async () => {
+            await expect(
+                service.deleteCustomMetric(
+                    user,
+                    dashboardUuid,
+                    'orders',
+                    'unknown_metric',
+                    false,
+                ),
+            ).rejects.toThrowError(NotFoundError);
         });
 
         test('blocks dashboards managed as code', async () => {

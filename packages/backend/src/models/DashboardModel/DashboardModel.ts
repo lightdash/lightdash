@@ -1876,13 +1876,13 @@ export class DashboardModel {
      * given custom metric — the only charts a registry edit may rewrite.
      * Single query so the write-through doesn't fan out over every chart.
      */
-    async getDashboardOwnedChartUuidsUsingMetric(
+    async getDashboardOwnedChartsUsingMetric(
         dashboardUuid: string,
         metricTable: string,
         metricName: string,
-    ): Promise<string[]> {
+    ): Promise<{ uuid: string; name: string }[]> {
         const { rows } = await this.database.raw<{
-            rows: { saved_query_uuid: string }[];
+            rows: { saved_query_uuid: string; name: string }[];
         }>(
             `
             WITH latest_versions AS (
@@ -1895,7 +1895,7 @@ export class DashboardModel {
                     AND sq.deleted_at IS NULL
                 ORDER BY v.saved_query_id, v.created_at DESC
             )
-            SELECT sq.saved_query_uuid
+            SELECT sq.saved_query_uuid, sq.name
             FROM latest_versions lv
             JOIN :chartsTable: sq ON sq.saved_query_id = lv.saved_query_id
             JOIN :metricsTable: m
@@ -1911,7 +1911,10 @@ export class DashboardModel {
                 metricTable,
             },
         );
-        return rows.map((row) => row.saved_query_uuid);
+        return rows.map((row) => ({
+            uuid: row.saved_query_uuid,
+            name: row.name,
+        }));
     }
 
     /**

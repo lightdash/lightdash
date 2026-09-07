@@ -7,6 +7,7 @@ import MantineModal from '../../common/MantineModal';
 
 type Props = {
     opened: boolean;
+    variant?: 'update' | 'delete';
     metricLabel: string;
     affectedCharts: DashboardCustomMetricAffectedChart[];
     isSaving: boolean;
@@ -20,6 +21,7 @@ type Props = {
  */
 const RegistryImpactPreviewModal: FC<Props> = ({
     opened,
+    variant = 'update',
     metricLabel,
     affectedCharts,
     isSaving,
@@ -29,7 +31,11 @@ const RegistryImpactPreviewModal: FC<Props> = ({
     <MantineModal
         opened={opened}
         onClose={onBack}
-        title="Update metric in this dashboard"
+        title={
+            variant === 'delete'
+                ? 'Remove metric from this dashboard'
+                : 'Update metric in this dashboard'
+        }
         icon={IconShare2}
         cancelLabel={false}
         actions={
@@ -37,12 +43,18 @@ const RegistryImpactPreviewModal: FC<Props> = ({
                 <Button variant="default" onClick={onBack} disabled={isSaving}>
                     Back
                 </Button>
-                <Button onClick={onConfirm} loading={isSaving}>
-                    {affectedCharts.length > 0
-                        ? `Update metric and ${affectedCharts.length} chart${
-                              affectedCharts.length === 1 ? '' : 's'
-                          }`
-                        : 'Update metric'}
+                <Button
+                    color={variant === 'delete' ? 'red' : undefined}
+                    onClick={onConfirm}
+                    loading={isSaving}
+                >
+                    {variant === 'delete'
+                        ? 'Remove metric'
+                        : affectedCharts.length > 0
+                          ? `Update metric and ${affectedCharts.length} chart${
+                                affectedCharts.length === 1 ? '' : 's'
+                            }`
+                          : 'Update metric'}
                 </Button>
             </Group>
         }
@@ -57,7 +69,9 @@ const RegistryImpactPreviewModal: FC<Props> = ({
             {affectedCharts.length > 0 ? (
                 <>
                     <Text size="sm">
-                        These charts use it and will be updated:
+                        {variant === 'delete'
+                            ? 'These charts use it and keep their own copy:'
+                            : 'These charts use it and will be updated:'}
                     </Text>
                     <List spacing="xs" size="sm" center>
                         {affectedCharts.map((chart) => (
@@ -77,12 +91,15 @@ const RegistryImpactPreviewModal: FC<Props> = ({
                 </>
             ) : (
                 <Text size="sm" c="dimmed">
-                    No saved charts use it yet — only the shared definition
-                    changes.
+                    {variant === 'delete'
+                        ? 'No saved charts use it — only the shared definition is removed.'
+                        : 'No saved charts use it yet — only the shared definition changes.'}
                 </Text>
             )}
             <Text size="xs" c="dimmed">
-                Charts outside this dashboard are not affected.
+                {variant === 'delete'
+                    ? 'It will no longer be offered when building charts in this dashboard.'
+                    : 'Charts outside this dashboard are not affected.'}
             </Text>
         </Stack>
     </MantineModal>

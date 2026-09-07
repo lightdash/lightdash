@@ -29,3 +29,35 @@ export const useUpdateDashboardCustomMetric = (
         }
         return updateDashboardCustomMetric(dashboardUuid, payload);
     });
+
+type DeleteDashboardCustomMetricArgs = {
+    metricTable: string;
+    metricName: string;
+    dryRun?: boolean;
+};
+
+const deleteDashboardCustomMetric = (
+    dashboardUuid: string,
+    { metricTable, metricName, dryRun }: DeleteDashboardCustomMetricArgs,
+) =>
+    lightdashApi<DashboardCustomMetricUpdateResult>({
+        url: `/dashboards/${dashboardUuid}/custom-metrics/${encodeURIComponent(
+            metricTable,
+        )}/${encodeURIComponent(metricName)}?dryRun=${dryRun ? 'true' : 'false'}`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useDeleteDashboardCustomMetric = (
+    dashboardUuid: string | undefined,
+) =>
+    useMutation<
+        DashboardCustomMetricUpdateResult,
+        ApiError,
+        DeleteDashboardCustomMetricArgs
+    >((args) => {
+        if (!dashboardUuid) {
+            throw new Error('Missing dashboard uuid');
+        }
+        return deleteDashboardCustomMetric(dashboardUuid, args);
+    });

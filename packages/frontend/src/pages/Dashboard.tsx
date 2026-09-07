@@ -852,6 +852,19 @@ const Dashboard: FC = () => {
         [setDashboardCustomMetrics, queryClient],
     );
 
+    const handleRegistryMetricDeleted = useCallback(
+        (metric: AdditionalMetric) => {
+            // Charts are untouched by deletion — only the registry changed.
+            setDashboardCustomMetrics((current) =>
+                current.filter(
+                    (entry) => getItemId(entry) !== getItemId(metric),
+                ),
+            );
+            void queryClient.invalidateQueries(['saved_dashboard_query']);
+        },
+        [setDashboardCustomMetrics, queryClient],
+    );
+
     const handleOpenNewChart = useCallback(() => {
         setIsNewChartOpen(true);
     }, []);
@@ -1210,6 +1223,9 @@ const Dashboard: FC = () => {
                             editChart={chartToEdit}
                             onChartSaved={handleChartEditorSaved}
                             onRegistryMetricEdited={handleRegistryMetricEdited}
+                            onRegistryMetricDeleted={
+                                handleRegistryMetricDeleted
+                            }
                             onClose={() => {
                                 setIsNewChartOpen(false);
                                 setChartToEdit(undefined);
