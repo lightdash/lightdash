@@ -72,6 +72,20 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../features/a
 import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
 
+/**
+ * Walkthrough result for manage:AiAgent: the new agent's page, which
+ * creating it opens.
+ */
+const agentTourProps = {
+    'data-tour-scope': 'manage:AiAgent',
+    'data-tour-step': '1',
+    'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
+    'data-tour-label': 'Your agent is ready to ask',
+    'data-tour-docs': 'agents/set-up-agents.mdx#intro:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'agents/set-up-agents.mdx#data-access:1',
+};
+
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid } = useParams();
     const projectUuid = useProjectUuid();
@@ -368,7 +382,7 @@ const AiAgentNewThreadPage: FC = () => {
                             />
                         </Box>
                         <Group justify="center" gap={4}>
-                            <Title order={4} ta="center">
+                            <Title order={4} ta="center" {...agentTourProps}>
                                 {agent.name}
                             </Title>
                             {agent.instruction && (

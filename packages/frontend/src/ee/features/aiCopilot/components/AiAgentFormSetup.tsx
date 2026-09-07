@@ -383,6 +383,17 @@ export const AiAgentFormSetup = ({
                             label="Name"
                             placeholder="Enter a name for this agent"
                             variant="subtle"
+                            // Typed anchor for scope walkthroughs, read first
+                            // as a look at naming.
+                            data-tour-anchor="agent-name"
+                            data-tour-hint="Name the agent"
+                            data-tour-input="true"
+                            data-tour-suggest="Sales analyst"
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="2"
+                            data-tour-after='[data-tour-anchor="agent-new"]'
+                            data-tour-label="A name your team will recognise"
+                            data-tour-docs="agents/set-up-agents.mdx#name-and-image:1"
                             {...form.getInputProps('name')}
                         />
                         <CommitOnBlurTextarea
@@ -522,6 +533,17 @@ export const AiAgentFormSetup = ({
                             autosize
                             minRows={3}
                             maxRows={8}
+                            // Typed anchor for scope walkthroughs, read first
+                            // as a look at what instructions do.
+                            data-tour-anchor="agent-instructions"
+                            data-tour-hint="Write the instructions"
+                            data-tour-input="true"
+                            data-tour-suggest="You are the analyst for a jaffle shop. Answer questions about customers, orders and payments, and prefer charts over tables."
+                            data-tour-scope="manage:AiAgent"
+                            data-tour-look="3"
+                            data-tour-after='[data-tour-anchor="agent-name"]'
+                            data-tour-label="Instructions shape every answer"
+                            data-tour-docs="agents/set-up-agents.mdx#instructions:1"
                             error={form.errors.instruction}
                             defaultValue={form.values.instruction ?? ''}
                             onCommit={(value) =>

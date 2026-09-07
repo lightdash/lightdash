@@ -30,6 +30,21 @@ type Props = {
     onClose: () => void;
 };
 
+/**
+ * Walkthrough result for create:AiDeepResearch: a finished report, the
+ * seeded one, opened from its run card.
+ */
+const reportTourProps = {
+    'data-tour-scope': 'create:AiDeepResearch',
+    'data-tour-step': '1',
+    'data-tour-route':
+        '/projects/:projectUuid/ai-agents/deep-research/:runUuid',
+    'data-tour-label': 'A report written from verified queries',
+    'data-tour-docs': 'agents/deep-research.mdx#when-to-use-deep-research:1',
+    'data-tour-return': 'none',
+    'data-tour-resultdocs': 'agents/deep-research.mdx#read-the-report:1-2',
+};
+
 export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
     const reportRef = useRef<HTMLElement | null>(null);
     const scrollViewportRef = useRef<HTMLDivElement | null>(null);
@@ -242,7 +257,11 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                                     </Text>
                                     <DeepResearchBetaBadge />
                                 </Group>
-                                <Title order={1} className={styles.reportTitle}>
+                                <Title
+                                    order={1}
+                                    className={styles.reportTitle}
+                                    {...reportTourProps}
+                                >
                                     {parsedReport ? (
                                         <DeepResearchInlineMarkdown
                                             markdown={parsedReport.title}
