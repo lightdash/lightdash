@@ -621,16 +621,71 @@ export class EmbedService extends BaseService {
             throw new ParameterError('JWT content is not of type dashboard');
         }
         const { isPreview, stickyHeader } = decodedToken.content;
-        const {
-            canExportCsv,
-            canExportDashboardCsv,
-            canExportImages,
-            canExportPagePdf,
-            canDateZoom,
-            canExplore,
-            canViewUnderlyingData,
-            canViewDataApps,
-        } = account.embedPermissions;
+        const ability = this.createAuditedAbility(account);
+        const canExportCsv =
+            ability.can(
+                'view',
+                subject('EmbedCsvExport', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canExportCsv;
+        const canExportDashboardCsv =
+            ability.can(
+                'view',
+                subject('EmbedDashboardCsvExport', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canExportDashboardCsv;
+        const canExportImages =
+            ability.can(
+                'view',
+                subject('EmbedImageExport', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canExportImages;
+        const canExportPagePdf =
+            ability.can(
+                'view',
+                subject('EmbedPagePdfExport', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canExportPagePdf;
+        const canDateZoom =
+            ability.can(
+                'view',
+                subject('EmbedDateZoom', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canDateZoom;
+        const canExplore =
+            ability.can(
+                'view',
+                subject('EmbedExplore', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canExplore;
+        const canViewUnderlyingData =
+            ability.can(
+                'view',
+                subject('EmbedUnderlyingData', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canViewUnderlyingData;
+        const canViewDataApps =
+            ability.can(
+                'view',
+                subject('EmbedDataApps', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                }),
+            ) || decodedToken.content.canViewDataApps;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {

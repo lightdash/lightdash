@@ -41,6 +41,7 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { readDataAppVizUuid } from '../../../../../hooks/useDataAppVizVisualizationConfig';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
+import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -105,6 +106,7 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
+    const ability = useAbilityContext();
     const { content, writeActions, embedToken } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
     const location = useLocation();
@@ -497,7 +499,8 @@ export const AiChartQuickOptions = ({
     const hasSaveActions =
         !message.savedQueryUuid && (!merge || !!canonicalMerge);
     const canExploreFromEmbed =
-        content?.type === 'aiAgent' && content.canExplore === true;
+        content?.type === 'aiAgent' &&
+        (content.canExplore === true || ability.can('view', 'EmbedExplore'));
     // The embedded explorer has not been exercised with merge state, so merge
     // artifacts only offer the explore action in the full app.
     const hasExploreAction = merge

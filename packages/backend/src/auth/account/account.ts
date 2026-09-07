@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 // This rule is failing in CI but passes locally
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import {
     Account,
     AccountOrganization,
@@ -13,8 +13,8 @@ import {
     buildAccountHelpers,
     CreateEmbedJwt,
     EmbedContent,
+    FilterInteractivityValues,
     ForbiddenError,
-    getEffectiveEmbedPermissions,
     isDashboardContent,
     isJwtUser,
     MemberAbility,
@@ -98,27 +98,58 @@ export const fromJwt = ({
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
-    const embedPermissions = getEffectiveEmbedPermissions({
-        embedUser: decodedToken,
-        embed,
-        embedWriteUserAbility: embedWriteUser?.ability,
-    });
-
-    applyEmbeddedAbility(
-        decodedToken,
-        content,
-        embed,
-        externalId,
-        builder,
-        embedPermissions,
-    );
     applyEmbedScopeAbilities({
         embedUser: decodedToken,
         embed,
         embedWriteUserAbility: embedWriteUser?.ability,
         builder,
     });
+
+    applyEmbeddedAbility(decodedToken, content, embed, externalId, builder);
     const abilities = builder.build();
+    let filtering = isDashboardContent(decodedToken.content)
+        ? decodedToken.content.dashboardFiltersInteractivity
+        : undefined;
+    let parameters = isDashboardContent(decodedToken.content)
+        ? decodedToken.content.parameterInteractivity
+        : undefined;
+    if (isDashboardContent(decodedToken.content)) {
+        const target = {
+            organizationUuid: embed.organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        };
+        if (
+            abilities.can(
+                'view',
+                subject('EmbedDashboardFilters', { ...target }),
+            )
+        ) {
+            filtering = {
+                ...filtering,
+                enabled: FilterInteractivityValues.all,
+            };
+        }
+        if (
+            abilities.can(
+                'view',
+                subject('EmbedDashboardFilterAddition', { ...target }),
+            )
+        ) {
+            filtering = {
+                ...filtering,
+                enabled: filtering?.enabled ?? false,
+                canAddFilters: true,
+            };
+        }
+        if (
+            abilities.can(
+                'view',
+                subject('EmbedDashboardParameters', { ...target }),
+            )
+        ) {
+            parameters = { enabled: true };
+        }
+    }
 
     return createAccount({
         authentication: {
@@ -130,16 +161,11 @@ export const fromJwt = ({
         embed,
         access: {
             content,
-            filtering: isDashboardContent(decodedToken.content)
-                ? embedPermissions.dashboardFiltersInteractivity
-                : undefined,
-            parameters: isDashboardContent(decodedToken.content)
-                ? embedPermissions.parameterInteractivity
-                : undefined,
+            filtering,
+            parameters,
             controls: userAttributes,
         },
         embedWriteUser,
-        embedPermissions,
         embedWriteContext,
         // Create the fields we're able to set from the JWT
         user: {

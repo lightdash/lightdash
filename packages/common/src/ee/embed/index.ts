@@ -68,21 +68,6 @@ export type ParameterInteractivityOptions = z.infer<
     typeof ParameterInteractivityOptionsSchema
 >;
 
-/** @deprecated Legacy JWT compatibility output. New capabilities use CASL scopes. */
-export type EffectiveEmbedPermissions = Pick<
-    CommonEmbedJwtContent,
-    | 'dashboardFiltersInteractivity'
-    | 'parameterInteractivity'
-    | 'canExportCsv'
-    | 'canExportDashboardCsv'
-    | 'canExportImages'
-    | 'canExportPagePdf'
-    | 'canDateZoom'
-    | 'canExplore'
-    | 'canViewUnderlyingData'
-    | 'canViewDataApps'
->;
-
 /** Legacy capability flags remain supported; new permissions must use embed scopes. */
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:

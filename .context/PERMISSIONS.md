@@ -366,7 +366,7 @@ const isAllowed =
     jwtCapability === true ||
     writeActorAbility.can(
         'view',
-        subject(EMBED_PERMISSION_SUBJECTS[capability], {
+        subject('EmbedExplore', {
             organizationUuid,
             projectUuid,
         }),
@@ -412,11 +412,12 @@ and `allowedFilters` behavior.
 5. Enforce new capabilities with `account.user.ability.can(...)` on the backend
    and the existing ability context on the frontend, using the embed target's
    identifiers. The account already serializes these ability rules. Do not add
-   JWT flags, `EffectiveEmbedPermissions` fields, or frontend token overlays.
-6. Keep `getEffectiveEmbedPermissions` and the existing `EmbedProvider` overlay
-   as deprecated compatibility code for current flag-based consumers only.
-   Their OR behavior, structured filter options, and omitted-field defaults
-   remain unchanged. New scope-only capabilities bypass this adapter entirely.
+   JWT flags, separate permission response objects, or frontend token overlays.
+6. For existing capabilities, add an OR with the corresponding embed scope at
+   the existing flag check. Keep the JWT payload unchanged. Backend dashboard
+   responses retain their existing fields; combine scopes with flags there for
+   existing UI consumers. Structured filters and parameters remain in the
+   existing account access fields. Preserve omitted-field defaults.
 7. Verify three cases: no write actor uses only the JWT; JWT `true` remains
    allowed with an actor; JWT `false` plus a granted actor scope is allowed.
    Also verify at least one system role and one custom role through the embed

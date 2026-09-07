@@ -10,9 +10,5 @@ export const serializeAccount = (account: Account): SerializedAccount => {
             'embedWriteContext' in account
                 ? account.embedWriteContext
                 : undefined,
-        embedPermissions:
-            'embedPermissions' in account
-                ? account.embedPermissions
-                : undefined,
     };
 };

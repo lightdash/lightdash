@@ -112,11 +112,6 @@ describe('account', () => {
                     },
                 });
 
-                expect(result.embedPermissions).toMatchObject({
-                    canExplore: true,
-                    canExportCsv: true,
-                    parameterInteractivity: { enabled: true },
-                });
                 expect(result.access.parameters).toEqual({ enabled: true });
                 expect(
                     result.user.ability.can(
@@ -154,8 +149,8 @@ describe('account', () => {
                 expect(result.user.ability.can('manage', 'Organization')).toBe(
                     false,
                 );
-                expect(serializeAccount(result).embedPermissions).toEqual(
-                    result.embedPermissions,
+                expect(serializeAccount(result)).not.toHaveProperty(
+                    'embedPermissions',
                 );
                 expect(result.authentication.data).toEqual(original);
                 expect(decodedToken).toEqual(original);
