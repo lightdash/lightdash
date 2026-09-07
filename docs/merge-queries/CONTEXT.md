@@ -113,8 +113,7 @@ to one side only without misaligning the join.
 
 ## Related
 
-- `architecture.md` in this directory: execution paths and the current
-  migration.
+- `architecture.md` in this directory: how a merge executes.
 - `docs/multi-source-queries.md`: the composed-query DAG a merge executes as.
 - `docs/external-sources/CONTEXT.md`: the other consumer of the compose engine.
 - `docs/pre-aggregates/CONTEXT.md`: shares the DuckDB engine, different purpose.

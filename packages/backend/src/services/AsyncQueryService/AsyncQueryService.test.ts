@@ -911,11 +911,7 @@ describe('AsyncQueryService', () => {
             vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
                 coreSql: 'SELECT 1',
                 typedColumns: [],
-                terminalWrapper: {
-                    orderBy: [],
-                    limit: null,
-                    sourceLimitExceededSql: null,
-                },
+                terminalWrapper: { orderBy: [], limit: null },
                 errors: [],
                 parameterReferences: [],
                 fieldOrigins: {},

@@ -1,86 +1,81 @@
 # Merge queries: architecture
 
-How a merge executes today, where it is going, and the traps in between.
+How a merge executes, and the traps around it.
 
-**If you are here to change merge execution, read the migration section first.**
-There are two execution paths in the code right now and only one of them has a
-future. Building against the wrong one is the most common mistake in this area.
-
-## Where it is going
+## One execution path
 
 A merge is a composed query: two semantic-layer nodes and one DuckDB join node,
 submitted through `QuerySourceService`. Nothing about merges is special at
 execution time.
 
 ```
-compileMergeQuery          QuerySourceService
+compileMergeQuery          QuerySourceService.submitQueries
   resolve sources     ->     semanticLayer node  ->  leg result
   validate                   semanticLayer node  ->  leg result
   build join SQL             duckdb node (join)  ->  merged result
   build items map
 ```
 
-Merge compilation keeps what it is good at: source resolution, validation, the
-fan-out check, join-key typing and the items map that carries labels and
-formats. It emits node definitions rather than a warehouse statement.
-Validation stays ahead of submission. The DAG is a dumb executor and must not
-become the place refusals are decided.
+Merge compilation (`ProjectService.compileMergeQuery`) keeps what it is good
+at: source resolution, validation, the fan-out check, join-key typing and the
+items map that carries labels and formats. It compiles each metric source to
+the statement that source's leg runs (whole, at the source row cap, unsorted)
+and builds the join in the DuckDB dialect over `merge_source_N` reference
+tables. It returns both: `legs` and `sql` together are the SQL that runs, and
+the SQL card shows them as such. Validation stays ahead of submission. The DAG
+is a dumb executor and must not become the place refusals are decided.
 
-## Where it is today
+Submission (`AsyncQueryService.submitMergeDag`) turns the compile into nodes:
+one `semanticLayer` node per metric source (`buildMergeLegNode`), and one
+`duckdb` node holding the join SQL, whose references map each
+`merge_source_N` to a leg node or, for a result source, straight to that
+result's queryUuid. The join node carries an execution plan: the compile's
+fields map, columns and metric query so nothing is probed, a session scoped to
+the leg files it reads, and the row-cap guard. Provenance on a supplied column
+may name a leg node; the duckdb source resolves it to the leg's queryUuid at
+submit, the way it resolves a table reference. The join's queryUuid is what
+the Explorer pages.
 
-Two paths, chosen per submission in `executeAsyncMergeQueryInternal`:
+The outcome reporter polls the join row rather than awaiting the in-process
+run, so it stays correct wherever the join executes.
 
-- **Warehouse merge**, the original. Both sources compile as CTEs of one
-  statement in the project's dialect and run on the project warehouse.
-  **Being deleted.** Do not extend it, do not add a dialect to it, do not fix
-  bugs in it that the other path does not share.
-- **Compose merge**, behind the `merge-on-compose` flag. Each source runs as an
-  ordinary metric query, and the DuckDB engine joins the materialized results.
-  This is the one with a future.
-
-The compile emits the warehouse statement on **every** run and discards it when
-DuckDB executes, which is why the SQL card can show SQL that never ran.
-
-Both paths generate their join with the same `MergeQueryBuilder` and the same
-key-option derivation, so join semantics agree by construction rather than by
-two implementations kept in step. That is why collapsing to one engine is a
-deletion rather than a rewrite.
-
-### Why DuckDB won
+### Why DuckDB
 
 - One join dialect instead of ten. `FULL OUTER JOIN` is the least portable
-  construct in SQL: Postgres rejects a join condition that is not hash-joinable,
-  so the warehouse path cannot use a null-safe comparison and instead emits a
-  typed sentinel per key type per dialect, because BigQuery and Trino refuse to
-  coalesce a `DATE` key with a `TIMESTAMP` literal. All of that disappears.
+  construct in SQL: Postgres rejects a join condition that is not
+  hash-joinable, so a warehouse merge could not use a null-safe comparison and
+  instead emitted a typed sentinel per key type per dialect, because BigQuery
+  and Trino refuse to coalesce a `DATE` key with a `TIMESTAMP` literal. On
+  DuckDB the join is `IS NOT DISTINCT FROM` and all of that is gone.
 - Legs are ordinary queries, so they cache and appear individually in query
   history.
-- It is the only path that can reach existing results or external sources.
+- It is the only engine that can reach existing results or external sources.
 
-## The five paths to the DuckDB engine
+## The paths to the DuckDB engine
 
 Merge is not the only caller, and this is the map worth having before touching
 any of it.
 
-| Path | What it is | Execution tail | Binds data with |
-| --- | --- | --- | --- |
-| `runAsyncPreAggregateQuery` | Managed pre-aggregates | its own | materialized table |
-| `runExternalSourceQuery` | External-source explores | its own, scoped client | `read_parquet` |
-| `executeAsyncComposeSqlQuery` | Compose SQL runner | `runDuckdbQuery`, discover | `read_json` |
-| `executeAsyncExternalSqlQuery` | External SQL as a DAG node | `runDuckdbQuery`, discover | `read_parquet` |
-| `tryExecuteComposeMergeQuery` | Merge | `runDuckdbQuery`, supplied | `read_json` |
+| Path                           | What it is                 | Execution tail                            | Binds data with    |
+| ------------------------------ | -------------------------- | ----------------------------------------- | ------------------ |
+| `runAsyncPreAggregateQuery`    | Managed pre-aggregates     | its own                                   | materialized table |
+| `runExternalSourceQuery`       | External-source explores   | its own, scoped client                    | `read_parquet`     |
+| `executeAsyncComposeSqlQuery`  | Compose SQL runner (gated) | `executeAsyncDuckdbSourceQuery`, discover | `read_json`        |
+| `executeAsyncExternalSqlQuery` | External SQL as a DAG node | `runDuckdbQuery`, discover                | `read_parquet`     |
+| `submitMergeDag`               | Merge, as a DAG            | `executeAsyncDuckdbSourceQuery`, supplied | `read_json`        |
 
 Two things follow from that table.
 
-**Compose SQL, external SQL and merges share one tail**, `runDuckdbQuery`,
-with two column modes: *discover* probes raw SQL with a one-row query because
-nobody knows its shape ahead of time; *supplied* takes the fields map, columns
-and pivot a merge already produced at compile time, so no probe runs and the
-labels, formats and provenance survive. References are either *bound* (CTEs
-built at submit time, as external SQL does) or *queries* waited on until they
-complete, with a guard between "references complete" and "query builds" that
-carries the merge row-cap refusal. Merge is still the only caller absent from
-`QuerySourceRegistry`; the shared tail is what the DAG work plugs into.
+**Compose SQL and merges share one tail below every flag**,
+`executeAsyncDuckdbSourceQuery`, with the plan deciding two things. Columns
+are either _discovered_, probing raw SQL with a one-row query because nobody
+knows its shape ahead of time, or _supplied_ from a compile, so no probe runs
+and the labels, formats and provenance survive. The engine is either the
+shared results session or one scoped to exactly the result files the query
+reads. References are either _bound_ (CTEs built at submit time, as external
+SQL does) or _queries_ waited on until they complete, with a guard between
+"references complete" and "query builds" that carries the merge row-cap
+refusal.
 
 **Precision is lost in the drivers, not in the file format.** Ingested data is
 written as parquet and carries its own schema. Referenced query results are
@@ -98,10 +93,15 @@ bigints through `JSON.parse`. Those are driver fixes, not merge bugs.
 
 ## Traps
 
-**Do not route the merge join through `executeAsyncComposeSqlQuery`.** It gates
-on the compose SQL flag and requires a broader ability, so a merge would land
-behind three feature flags and a permission it should not need. The join node
-calls the shared execution tail directly, below the flag gate.
+**The public DAG entry is gated; the merge uses the ungated one.**
+`QuerySourceService.executeSourceQueries` applies the multi-source flag and
+the `manage Explore` ability, and a public duckdb node runs through the compose
+SQL runner, which applies the compose SQL flag again. A merge would land behind
+three flags and a permission it should not need. `submitQueries` is the same
+submission without the gates, for callers that have already authorized what
+they submit; it takes an execution plan per duckdb node, and a duckdb node
+with a plan goes straight to `executeAsyncDuckdbSourceQuery`. The public body
+cannot express a plan.
 
 **User attribute overrides are load-bearing.** They were silently dropped on the
 merge path once and fixed as an embed row-level-security risk. The query source
@@ -131,22 +131,27 @@ help it.
 that exists applies only to the playground path), memory limit unset by default,
 no per-org concurrency budget on the shared client, and the join is fired off
 inside the API process behind a wait for its legs. Moving the join to the worker
-contains the blast radius but does not supply the budgets.
+(PROD-10993) contains the blast radius but does not supply the budgets.
+
+**Two response fields are dead but required.** `requiresCompose` on the
+compiled merge and `sourceLimitExceededSql` on its terminal wrapper are always
+false and null. Removing a required response property is an API break, so
+they leave with the legacy merge endpoints (PROD-10904), not before.
 
 ## Correctness properties worth preserving
 
 These exist because getting them wrong produces confident wrong numbers.
 
-- **Sources compile without their own limit or sort.** A limited side would join
-  only its top rows, which looks like real data. The merged statement limits
-  once, for the whole result.
-- **Null keys match each other**, via a typed sentinel plus a separate
-  null-ness equality that keeps the sentinel collision-safe. On DuckDB this
-  reduces to the null-safe operator.
+- **Legs run whole: no sort, and only the source row cap as a limit.** A
+  limited side would join only its top rows, which looks like real data. The
+  merged statement limits once, for the whole result.
+- **Null keys match each other**, through `IS NOT DISTINCT FROM`, under every
+  join type, so toggling full, left and inner never changes what a null key
+  means.
 - **Fan-out is refused before execution**, naming the source and the dimension.
 - **A leg that reaches the row cap is refused before the join**, from the leg's
-  own `query_history` row count. On the compose path the legs run at the cap,
-  so no guard inside the join SQL could ever see past it.
+  own `query_history` row count. The legs run at the cap, so no guard inside
+  the join SQL could ever see past it, and there is none.
 - **A result source cut short at its own limit is refused at compile time**,
   from the referenced query's stored limit and row count. It is checked
   against its own limit only, never the row cap: it was never run at the cap,
@@ -156,16 +161,19 @@ These exist because getting them wrong produces confident wrong numbers.
 
 ## Verification
 
-- `packages/api-tests/tests/mergeQuery.test.ts` is the parity bar and is engine
-  independent by construction: merged values must equal what each source returns
-  on its own, per join type, per warehouse. It runs on the seeded Postgres
-  project plus every warehouse with CI credentials.
+- `packages/api-tests/tests/mergeQuery.test.ts` is the parity bar: merged
+  values must equal what each source returns on its own, per join type, per
+  warehouse, pivoted and unpivoted, through a saved merged chart and a
+  dashboard tile. It runs on the seeded Postgres project plus every warehouse
+  with CI credentials.
 - `packages/backend/src/utils/QueryBuilder/composeMergeSql.test.ts` executes the
   generated join on a real in-memory DuckDB.
+- `packages/backend/src/utils/QueryBuilder/composeMergeFidelity.test.ts` pins
+  value fidelity through the typed read, one case per type, with the known
+  driver losses as expected failures.
 
 Known gaps in that coverage, so you do not assume it is proving more than it is:
-the parity suite compares values numerically, so it cannot catch a formatting
-regression; there is no end-to-end test of merging at all; and a live row-cap
+there is no browser end-to-end test of merging (PROD-10950); and a live row-cap
 trip needs more rows than the seed carries (the refusal itself is proven in
 `AsyncQueryService.test.ts` with the cap lowered through config, and the
 result-source refusal the same way with the referenced query's limit lowered).
@@ -173,6 +181,7 @@ result-source refusal the same way with the referenced query's limit lowered).
 ## Current work
 
 Tracked in Linear under the `merge-queries` label, in the Query & Explore V2
-project. The sequence is: correctness fixes that are independent of the engine,
-then typed results, then the collapse to one execution path, then the Explorer
-surface. The collapse ticket names precisely what gets deleted.
+project. With one execution path in place, what remains is the pivot stage
+moving onto the join node (PROD-10902), consolidating the merge endpoints
+(PROD-10904), running the join on the worker (PROD-10993), and the Explorer
+surface.

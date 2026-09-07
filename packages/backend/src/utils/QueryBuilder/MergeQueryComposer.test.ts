@@ -91,11 +91,7 @@ const parameterMetadata = {
 const compose = () =>
     new MergeQueryComposer({
         coreSql: 'SELECT 1',
-        terminalWrapper: {
-            orderBy: [],
-            limit: null,
-            sourceLimitExceededSql: null,
-        },
+        terminalWrapper: { orderBy: [], limit: null },
         itemsMap,
         typedColumns,
         columnOrder: ['merge_k0', 'a_followers_count'],
@@ -151,11 +147,7 @@ describe('MergeQueryComposer', () => {
     it('wraps the merged statement with the standard pivot stage', () => {
         const composer = new MergeQueryComposer({
             coreSql: 'SELECT 1',
-            terminalWrapper: {
-                orderBy: [],
-                limit: null,
-                sourceLimitExceededSql: null,
-            },
+            terminalWrapper: { orderBy: [], limit: null },
             itemsMap,
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
@@ -183,14 +175,10 @@ describe('MergeQueryComposer', () => {
         expect(composer.compile().query).toEqual('SELECT 1');
     });
 
-    it('keeps source-cap assertions outside the presentation pivot', () => {
+    it('leaves ordering and limiting to the pivot stage once pivoted', () => {
         const composer = new MergeQueryComposer({
             coreSql: 'SELECT 1',
-            terminalWrapper: {
-                orderBy: ['"merge_k0"'],
-                limit: 500,
-                sourceLimitExceededSql: 'FALSE',
-            },
+            terminalWrapper: { orderBy: ['"merge_k0"'], limit: 500 },
             itemsMap,
             typedColumns,
             columnOrder: ['merge_k0', 'merge_k1', 'a_followers_count'],
@@ -211,9 +199,7 @@ describe('MergeQueryComposer', () => {
         });
 
         const sql = composer.getSql({ columnLimit: 100 });
-        expect(sql.indexOf('pivot_query')).toBeLessThan(
-            sql.indexOf('RIGHT JOIN'),
-        );
+        expect(sql).toContain('pivot_query');
         expect(sql).not.toContain('ORDER BY "merge_k0"');
     });
 });

@@ -210,7 +210,6 @@ import {
     buildMergeResultMetricQuery,
     MergeQueryComposer,
 } from '../../utils/QueryBuilder/MergeQueryComposer';
-import { consumeMergeResultMetadata } from '../../utils/QueryBuilder/mergeQueryResults';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
@@ -2677,16 +2676,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
         }
 
-        let internalRowsRemoved = 0;
-        const writeAndTransformRows = async (
-            rows: WarehouseResults['rows'],
-            fields: WarehouseResults['fields'],
-        ) => {
-            const normalized = consumeMergeResultMetadata(rows, fields);
-            internalRowsRemoved += normalized.removedRows;
-            await transformRows(normalized.rows, normalized.fields);
-        };
-
         const warehouseResults = await traceSpan(
             {
                 op: 'db.query',
@@ -2699,7 +2688,7 @@ export class AsyncQueryService extends ProjectService {
                         tags: queryTags,
                         timezone: dataTimezone,
                     },
-                    writeAndTransformRows,
+                    transformRows,
                 ),
         );
 
@@ -2739,10 +2728,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             warehouseResults: {
                 ...warehouseResults,
-                totalRows: Math.max(
-                    0,
-                    warehouseResults.totalRows - internalRowsRemoved,
-                ),
+                totalRows: Math.max(0, warehouseResults.totalRows),
             },
             columns,
             unpivotedColumns,
