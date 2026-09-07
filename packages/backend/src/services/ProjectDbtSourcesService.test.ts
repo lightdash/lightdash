@@ -443,6 +443,27 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
         });
 
+        it('rejects a warehouse location on the primary source', async () => {
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    primarySourceUuid,
+                    {
+                        name: 'core_analytics',
+                        warehouseLocation: {
+                            database: 'analytics',
+                            schema: 'core',
+                        },
+                    },
+                ),
+            ).rejects.toThrow(ParameterError);
+
+            expect(projectModel.updateDbtSourceName).not.toHaveBeenCalled();
+        });
+
         it('rejects the primary source name', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
