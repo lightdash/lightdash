@@ -467,7 +467,28 @@ export const AccessModelToggle: FC<AccessModelToggleProps> = ({
                         }}
                         data={options.map((o) => ({
                             value: o.value,
-                            label: o.title,
+                            label:
+                                o.value === InheritanceType.OWN_ONLY ? (
+                                    // Scope-tour marker: the control that
+                                    // manage:Space unlocks for sharing. Path
+                                    // and follow-up declared here; see
+                                    // scripts/scope-tours/generate.ts.
+                                    <span
+                                        data-tour-scope="manage:Space"
+                                        data-tour-step="2"
+                                        data-tour-route="/projects/:projectUuid/spaces/:spaceUuid"
+                                        data-tour-label="Choose Restricted access"
+                                        data-tour-title="Share a space with the right people"
+                                        data-tour-docs="explore/spaces.mdx#managing-access-to-a-space:p2:2"
+                                        data-tour-interactive="true"
+                                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="space-row"] >> [data-tour-anchor="space-actions"] >> [data-tour-anchor="space-share"]'
+                                        data-tour-then='[data-tour-anchor="modal-confirm"]'
+                                    >
+                                        {o.title}
+                                    </span>
+                                ) : (
+                                    o.title
+                                ),
                         }))}
                     />
                 </Group>

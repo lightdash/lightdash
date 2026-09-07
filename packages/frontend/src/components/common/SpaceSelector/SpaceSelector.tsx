@@ -115,6 +115,10 @@ const SpaceSelector = ({
 
             <Paper w="100%" h={400} className={styles.treeContainer}>
                 <Tree
+                    // Scope-tour anchor on every space node, named by label
+                    // (the hint's {value} is the space name):
+                    //   data-tour-anchor="space-option" data-tour-hint="Choose the {value} space"
+                    nodeTourAnchor="space-option"
                     withRootSelectable={isRootSelectionEnabled}
                     data={fuzzyFilteredSpaces ?? filteredSpaces}
                     value={selectedSpaceUuid}

@@ -404,6 +404,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             disabled={disabled}
                             aria-label="Menu"
                             data-testid={`ResourceViewActionMenu/${item.data.name}`}
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="resource-actions"
+                            data-tour-hint="Open the actions menu on a space"
                         >
                             <IconDots size={16} />
                         </ActionIcon>
@@ -636,6 +639,17 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
+                                    // Scope-tour marker, beside the
+                                    // manage:PinnedItems check above. See
+                                    // scripts/scope-tours/generate.ts.
+                                    data-tour-scope="manage:PinnedItems"
+                                    data-tour-step="2"
+                                    data-tour-route="/projects/:projectUuid/spaces"
+                                    data-tour-label="Click Pin to homepage"
+                                    data-tour-title="Pin content to the homepage"
+                                    data-tour-interactive="true"
+                                    data-tour-docs="explore/homepage.mdx#pin-content:2"
+                                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-spaces"] >> [data-tour-anchor="resource-actions"]'
                                     leftSection={
                                         isPinned ? (
                                             <IconPinnedOff size={18} />

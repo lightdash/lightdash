@@ -24,12 +24,16 @@ jobs:
               with:
                   egress-policy: audit
             - uses: actions/checkout@v4
+            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            # After the setup action: it cleans the workspace, which would remove
+            # a docs checkout made before it.
             - uses: actions/checkout@v4
               with:
                   repository: lightdash/mintlify-docs
                   path: mintlify-docs
                   token: ${{ secrets.MINTLIFY_DOCS_READ_TOKEN || github.token }}
-            - uses: ./.github/workflows/_setup_node_pnpm_cypress
+            - name: Docs checkout is complete
+              run: test -f mintlify-docs/explore/spaces.mdx && ls mintlify-docs | head -20
             - name: Build common
               run: pnpm common-build
             - name: Checker tests

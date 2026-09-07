@@ -37,17 +37,40 @@ const PinnedCollection: FC<{
     if (!contents || contents.length === 0) return null;
 
     return (
-        <Box>
-            <BlockHeader icon={IconPin} title="Pinned" />
-            <Stack gap={8}>
-                {contents.map((content) => (
-                    <ContentCard
-                        key={content.uuid}
-                        content={content}
-                        projectUuid={projectUuid}
-                    />
-                ))}
-            </Stack>
+        <Box
+            // Scope-tour marker: the same pinned surface as PinnedItemsPanel
+            // on the legacy homepage, so both mark step 1 of manage:PinnedItems
+            // (the generator treats agreeing markers as alternates).
+            data-tour-scope="manage:PinnedItems"
+            data-tour-step="1"
+            data-tour-route="/projects/:projectUuid/home"
+            data-tour-label="Pinned content appears on the homepage"
+            data-tour-docs="explore/homepage.mdx#pin-content:1"
+            data-tour-resultdocs="explore/homepage.mdx#pin-content:p2:1"
+        >
+            {/* Inner surface: the same block is the result of view:PinnedItems
+                (reading what was pinned), one scope per element. */}
+            <Box
+                data-tour-scope="view:PinnedItems"
+                data-tour-step="1"
+                data-tour-route="/projects/:projectUuid/home"
+                data-tour-label="Pinned content is where your data team wants you to start"
+                data-tour-docs="explore/search.mdx#browsing-instead-of-searching:1-2"
+                data-tour-return='[data-tour-nav="home"]'
+                data-tour-resultdocs="explore/homepage.mdx#pin-content:1"
+            >
+                <BlockHeader icon={IconPin} title="Pinned" />
+                <Stack gap={8}>
+                    {contents.map((content) => (
+                        <ContentCard
+                            key={content.uuid}
+                            content={content}
+                            projectUuid={projectUuid}
+                            tourAnchor="pinned-item"
+                        />
+                    ))}
+                </Stack>
+            </Box>
         </Box>
     );
 };
