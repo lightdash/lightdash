@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.149.0",
-  "previousVersion": "2.148.2",
-  "releaseDate": "2026-09-07T21:59:49.997Z",
+  "version": "2.149.1",
+  "previousVersion": "2.149.0",
+  "releaseDate": "2026-09-07T22:06:44.380Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260904120000_create_managed_sign_in_token_uses.ts",
-        "edition": "core",
-        "tables": [
-          "managed_sign_in_token_uses"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

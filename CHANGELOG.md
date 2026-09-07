@@ -1,3 +1,10 @@
+## [2.149.1](https://github.com/lightdash/lightdash/compare/2.149.0...2.149.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* pass the parsed merged manifest to the adapter ([#28782](https://github.com/lightdash/lightdash/issues/28782)) ([1470253](https://github.com/lightdash/lightdash/commit/1470253e14f425054c2003afc79f7c1d7934ac21))
+
 # [2.149.0](https://github.com/lightdash/lightdash/compare/2.148.2...2.149.0) (2026-09-07)
 
 
