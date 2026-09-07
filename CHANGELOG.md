@@ -1,3 +1,10 @@
+## [2.140.1](https://github.com/lightdash/lightdash/compare/2.140.0...2.140.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ai:** declare Lightdash-managed keys from infrastructure, attribute data-app usage to the model the CLI ran, track delivery summaries ([#28743](https://github.com/lightdash/lightdash/issues/28743)) ([f29fabb](https://github.com/lightdash/lightdash/commit/f29fabb0f4d90c88bee40d67794ece9326fe8a48))
+
 # [2.140.0](https://github.com/lightdash/lightdash/compare/2.139.0...2.140.0) (2026-09-07)
 
 
