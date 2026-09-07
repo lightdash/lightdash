@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import Logger from '../logging/logger';
 import {
     acquireDbtGitProjectCache,
     configureDbtGitProjectCache,
@@ -22,6 +23,12 @@ vi.mock('fs/promises', async (importOriginal) => {
         rm: vi.fn(actual.rm),
     };
 });
+
+vi.mock('../logging/logger', () => ({
+    default: {
+        warn: vi.fn(),
+    },
+}));
 
 const roots: string[] = [];
 
@@ -62,6 +69,7 @@ const staleOwner = (overrides: Record<string, unknown> = {}) => ({
 });
 
 afterEach(async () => {
+    vi.clearAllMocks();
     await Promise.all(
         roots
             .splice(0)
@@ -638,6 +646,119 @@ describe('dbt git project cache', () => {
             acquireDbtGitProjectCache(identity(1), 'repository'),
         ).resolves.toBeUndefined();
         expect(await entryDirectories(root)).toHaveLength(128);
+    });
+
+    it('reclaims an interrupted tombstone with a missing marker after the grace period', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        await releaseDbtGitProjectCache(lease!, 100);
+        const tombstone = path.join(
+            root,
+            `.tombstone-${lease!.key}-00000000-0000-4000-8000-000000000001`,
+        );
+        await fs.rename(lease!.entryDirectory, tombstone);
+        await fs.rm(path.join(tombstone, '.lightdash-cache-entry.json'));
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(tombstone, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        expect(await tombstoneDirectories(root)).toHaveLength(0);
+        const replacement = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(replacement!.checkoutDirectory);
+        await releaseDbtGitProjectCache(replacement!, 100);
+        const reused = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(reused?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reused!, 100);
+    });
+
+    it('reclaims a metadata-less crashed acquisition after the grace period', async () => {
+        const root = await configure();
+        const seed = await acquireDbtGitProjectCache(identity(1), 'repository');
+        const key = seed!.key;
+        await invalidateOwnedDbtGitCacheLease(seed!);
+        const entryDirectory = path.join(root, key);
+        await fs.mkdir(entryDirectory, { mode: 0o700 });
+        const marker = path.join(entryDirectory, '.lightdash-cache-entry.json');
+        await fs.writeFile(marker, JSON.stringify({ version: 1, key }), {
+            mode: 0o600,
+        });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(marker, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        expect(await entryDirectories(root)).toHaveLength(0);
+    });
+
+    it('reclaims orphaned root marker writes only after the grace period', async () => {
+        const root = await configure();
+        const temporaryPath = path.join(
+            root,
+            '.lightdash-dbt-git-cache.json.00000000-0000-4000-8000-000000000001.tmp',
+        );
+        await fs.writeFile(temporaryPath, '{}', { mode: 0o600 });
+
+        await maintainDbtGitProjectCache();
+        await expect(fs.access(temporaryPath)).resolves.toBeUndefined();
+
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(temporaryPath, stale, stale);
+        await maintainDbtGitProjectCache();
+        await expect(fs.access(temporaryPath)).rejects.toThrow();
+    });
+
+    it('protects an active unowned entry during abandoned object cleanup', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const marker = path.join(
+            lease!.entryDirectory,
+            '.lightdash-cache-entry.json',
+        );
+        await fs.rm(marker);
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(lease!.entryDirectory, stale, stale);
+
+        await maintainDbtGitProjectCache();
+
+        await expect(fs.access(lease!.entryDirectory)).resolves.toBeUndefined();
+        await fs.writeFile(
+            marker,
+            JSON.stringify({ version: 1, key: lease!.key }),
+            { mode: 0o600 },
+        );
+        await releaseDbtGitProjectCache(lease!, 100);
+    });
+
+    it('warns with a reason when corrupt root state declines retention', async () => {
+        const root = await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        await fs.mkdir(path.join(root, '0'.repeat(64)), { mode: 0o700 });
+
+        await releaseDbtGitProjectCache(lease!, 100);
+
+        expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+            'Declined dbt git cache retention',
+            { reason: 'corrupt-root-entry' },
+        );
     });
 
     it('removes missing identities and retains entries on liveness errors', async () => {

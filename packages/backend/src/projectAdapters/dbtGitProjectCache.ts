@@ -21,6 +21,10 @@ const CACHE_LOCK = '.reservation-lock';
 const RECLAIM_CLAIM = '.reclaim.json';
 const CACHE_LOCK_WAIT_MS = 5_000;
 const PUBLICATION_MAX_ATTEMPTS = DBT_GIT_CACHE_MAX_ENTRIES;
+const ABANDONED_ROOT_GRACE_MS = 5 * 60 * 1000;
+const ORPHAN_TEMPORARY_FILE =
+    /^\.lightdash-dbt-git-cache\.json\.[0-9a-f-]{36}\.tmp$/;
+const RETIRED_TEMPORARY_FILE = /^\.retired-[0-9a-f-]{36}\.tmp$/;
 
 export type DbtGitCacheIdentity = {
     projectUuid: string;
@@ -92,6 +96,11 @@ type OwnedEntry = {
     kind: 'entry' | 'tombstone';
     owned: boolean;
     metadata?: EntryMetadata;
+};
+
+type RootDebris = {
+    path: string;
+    stat: Awaited<ReturnType<typeof fs.lstat>>;
 };
 
 const activeLeases = new Map<string, DbtGitCacheLease>();
@@ -341,6 +350,60 @@ const listOwnedEntries = async (): Promise<OwnedEntry[]> => {
         }),
     );
     return entries;
+};
+
+const listRootDebris = async (): Promise<RootDebris[]> => {
+    await ensureRoot();
+    const entries = await fs.readdir(configuration.root, {
+        withFileTypes: true,
+    });
+    return Promise.all(
+        entries
+            .flatMap((entry) =>
+                ORPHAN_TEMPORARY_FILE.test(entry.name) ||
+                RETIRED_TEMPORARY_FILE.test(entry.name)
+                    ? [path.join(configuration.root, entry.name)]
+                    : [],
+            )
+            .map(async (candidatePath) => {
+                const stat = await fs
+                    .lstat(candidatePath)
+                    .catch(() => undefined);
+                return stat ? { path: candidatePath, stat } : undefined;
+            }),
+    ).then((values) =>
+        values.filter((value): value is RootDebris => value !== undefined),
+    );
+};
+
+const isSameFile = (
+    left: Awaited<ReturnType<typeof fs.lstat>>,
+    right: Awaited<ReturnType<typeof fs.lstat>>,
+) =>
+    Number(left.dev) === Number(right.dev) &&
+    Number(left.ino) === Number(right.ino);
+
+const isPrivateRootChild = async (
+    candidatePath: string,
+    expectedStat: Awaited<ReturnType<typeof fs.lstat>>,
+    kind: 'directory' | 'file',
+) => {
+    if (
+        path.dirname(path.resolve(candidatePath)) !==
+        path.resolve(configuration.root)
+    ) {
+        return false;
+    }
+    const currentStat = await fs.lstat(candidatePath).catch(() => undefined);
+    return (
+        currentStat !== undefined &&
+        isSameFile(currentStat, expectedStat) &&
+        !currentStat.isSymbolicLink() &&
+        isPrivateOwnedStat(currentStat) &&
+        (kind === 'directory'
+            ? currentStat.isDirectory()
+            : currentStat.isFile())
+    );
 };
 
 const processStartTime = async (
@@ -698,6 +761,161 @@ const evictFirstAvailableEntry = async (
     return retirement ?? evictFirstAvailableEntry(remaining);
 };
 
+type AbandonedEntry = {
+    entry: OwnedEntry;
+    stat: Awaited<ReturnType<typeof fs.lstat>>;
+};
+
+type ReservedCleanup = {
+    path: string;
+    lease?: DirectoryLease;
+};
+
+const abandonedEntry = async (
+    entry: OwnedEntry,
+    now: number,
+): Promise<AbandonedEntry | undefined> => {
+    if (entry.owned && (entry.kind === 'tombstone' || entry.metadata)) {
+        return undefined;
+    }
+    const stat = await fs.lstat(entry.entryDirectory).catch(() => undefined);
+    if (
+        stat === undefined ||
+        !(await isPrivateRootChild(entry.entryDirectory, stat, 'directory'))
+    ) {
+        return undefined;
+    }
+    const ageStat = entry.owned
+        ? await fs
+              .lstat(path.join(entry.entryDirectory, ENTRY_MARKER))
+              .catch(() => undefined)
+        : stat;
+    if (
+        ageStat === undefined ||
+        now - ageStat.mtimeMs <= ABANDONED_ROOT_GRACE_MS
+    ) {
+        return undefined;
+    }
+    const owner = await readJson(
+        path.join(entry.entryDirectory, LEASE_DIRECTORY, LEASE_OWNER),
+    );
+    if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
+        return undefined;
+    }
+    return { entry, stat };
+};
+
+const reserveAbandonedEntryCleanup = async (
+    candidate: AbandonedEntry,
+): Promise<ReservedCleanup | undefined> => {
+    if (
+        !(await isPrivateRootChild(
+            candidate.entry.entryDirectory,
+            candidate.stat,
+            'directory',
+        ))
+    ) {
+        return undefined;
+    }
+    const owned = await isOwnedEntry(
+        candidate.entry.key,
+        candidate.entry.entryDirectory,
+    );
+    const metadata = owned
+        ? await readJson(path.join(candidate.entry.entryDirectory, METADATA))
+        : undefined;
+    if (
+        owned &&
+        (candidate.entry.kind === 'tombstone' || isMetadata(metadata))
+    ) {
+        return undefined;
+    }
+    const lease = await tryEntryLease(candidate.entry.entryDirectory);
+    if (!lease) {
+        const owner = await readJson(
+            path.join(
+                candidate.entry.entryDirectory,
+                LEASE_DIRECTORY,
+                LEASE_OWNER,
+            ),
+        );
+        if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
+            return undefined;
+        }
+    } else {
+        await stopHeartbeat(lease.heartbeat);
+        const owner = await readJson(path.join(lease.directory, LEASE_OWNER));
+        if (!isLeaseOwner(owner) || owner.leaseId !== lease.leaseId) {
+            await releaseDirectoryLease(lease);
+            return undefined;
+        }
+    }
+    if (
+        !(await isPrivateRootChild(
+            candidate.entry.entryDirectory,
+            candidate.stat,
+            'directory',
+        ))
+    ) {
+        if (lease) await releaseDirectoryLease(lease);
+        return undefined;
+    }
+    const tombstonePath = path.join(
+        configuration.root,
+        `.tombstone-${candidate.entry.key}-${randomUUID()}`,
+    );
+    try {
+        await fs.rename(candidate.entry.entryDirectory, tombstonePath);
+    } catch (error) {
+        if (lease) await releaseDirectoryLease(lease).catch(() => undefined);
+        throw error;
+    }
+    return {
+        path: tombstonePath,
+        lease: lease
+            ? {
+                  ...lease,
+                  directory: path.join(tombstonePath, LEASE_DIRECTORY),
+              }
+            : undefined,
+    };
+};
+
+const reserveRootDebrisCleanup = async (
+    candidate: RootDebris,
+    now: number,
+): Promise<ReservedCleanup | undefined> => {
+    if (
+        now - candidate.stat.mtimeMs <= ABANDONED_ROOT_GRACE_MS ||
+        !(await isPrivateRootChild(candidate.path, candidate.stat, 'file'))
+    ) {
+        return undefined;
+    }
+    const retiredPath = path.join(
+        configuration.root,
+        `.retired-${randomUUID()}.tmp`,
+    );
+    await fs.rename(candidate.path, retiredPath);
+    return { path: retiredPath };
+};
+
+const cleanupReservedRootCandidate = async (cleanup: ReservedCleanup) => {
+    try {
+        await fs.rm(cleanup.path, { recursive: true, force: true });
+    } catch (error) {
+        if (cleanup.lease) {
+            await releaseDirectoryLease(cleanup.lease).catch((releaseError) => {
+                Logger.warn('Failed to release dbt git cache cleanup lease', {
+                    error: releaseError,
+                });
+            });
+        }
+        Logger.warn('Failed to remove abandoned dbt git cache object', {
+            error,
+        });
+    }
+};
+
 export const acquireDbtGitProjectCache = async (
     identity: DbtGitCacheIdentity,
     repositoryIdentity: string,
@@ -796,16 +1014,25 @@ const retainDbtGitProjectCache = async (
     attempt: number,
 ): Promise<void> => {
     if (Date.now() >= deadline || attempt >= PUBLICATION_MAX_ATTEMPTS) {
+        Logger.warn('Declined dbt git cache retention', {
+            reason:
+                attempt >= PUBLICATION_MAX_ATTEMPTS
+                    ? 'publication-attempt-limit'
+                    : 'publication-deadline',
+        });
         await removeWhileLeased(lease);
         return;
     }
     const cacheLock = await acquireCacheLock(deadline);
     if (!cacheLock) {
+        Logger.warn('Declined dbt git cache retention', {
+            reason: 'reservation-lock-timeout',
+        });
         await removeWhileLeased(lease);
         return;
     }
     let cleanup: Promise<boolean> | undefined;
-    let declineRetention = false;
+    let declineRetention: string | undefined;
     try {
         const entries = await listOwnedEntries();
         const corrupt = entries.some(
@@ -813,7 +1040,7 @@ const retainDbtGitProjectCache = async (
                 !entry.owned || (entry.kind === 'entry' && !entry.metadata),
         );
         if (corrupt || entries.length > DBT_GIT_CACHE_MAX_ENTRIES) {
-            declineRetention = true;
+            declineRetention = corrupt ? 'corrupt-root-entry' : 'entry-limit';
         } else {
             const others = entries.filter(
                 (entry) => entry.entryDirectory !== lease.entryDirectory,
@@ -869,7 +1096,7 @@ const retainDbtGitProjectCache = async (
                             (right.metadata?.lastUsedAt ?? 0),
                     );
                 cleanup = (await evictFirstAvailableEntry(candidates))?.cleanup;
-                declineRetention = cleanup === undefined;
+                if (!cleanup) declineRetention = 'capacity-unavailable';
             } else {
                 const current = await readJson(
                     path.join(lease.entryDirectory, METADATA),
@@ -884,7 +1111,11 @@ const retainDbtGitProjectCache = async (
                     !isMetadata(current) ||
                     current.key !== lease.key
                 ) {
-                    declineRetention = true;
+                    declineRetention = lease.invalidated
+                        ? 'invalidated'
+                        : pendingAfterAccounting
+                          ? 'pending-delete'
+                          : 'invalid-metadata';
                 } else {
                     await atomicWriteJson(
                         path.join(lease.entryDirectory, METADATA),
@@ -916,6 +1147,9 @@ const retainDbtGitProjectCache = async (
         await releaseDirectoryLease(cacheLock);
     }
     if (declineRetention) {
+        Logger.warn('Declined dbt git cache retention', {
+            reason: declineRetention,
+        });
         await removeWhileLeased(lease);
         return;
     }
@@ -928,6 +1162,9 @@ const retainDbtGitProjectCache = async (
                 attempt + 1,
             );
         }
+        Logger.warn('Declined dbt git cache retention', {
+            reason: 'cleanup-timeout',
+        });
         await removeWhileLeased(lease);
     }
 };
@@ -942,6 +1179,13 @@ export const releaseDbtGitProjectCache = async (
         .then(() => true)
         .catch(() => false);
     if (lease.invalidated || pending || sizeBytes > configuration.maxBytes) {
+        Logger.warn('Declined dbt git cache retention', {
+            reason: lease.invalidated
+                ? 'invalidated'
+                : pending
+                  ? 'pending-delete'
+                  : 'entry-too-large',
+        });
         await removeWhileLeased(lease);
         return;
     }
@@ -1002,6 +1246,7 @@ export const invalidateDbtGitProjectCacheSource = async (
 
 export async function maintainDbtGitProjectCache() {
     const entries = await listOwnedEntries();
+    const rootDebris = await listRootDebris();
     const identities = entries.flatMap((entry) =>
         entry.kind === 'entry' && entry.owned && entry.metadata
             ? [entry.metadata.identity]
@@ -1020,33 +1265,28 @@ export async function maintainDbtGitProjectCache() {
         }
     }
     const now = Date.now();
+    const abandoned = await Promise.all(
+        entries.map((entry) => abandonedEntry(entry, now)),
+    ).then((values) =>
+        values.filter((entry): entry is AbandonedEntry => !!entry),
+    );
     const candidates = await Promise.all(
         entries.map(async (entry) => {
             if (!entry.owned) return undefined;
             if (entry.kind === 'tombstone') return entry;
-            if (entry.metadata) {
-                const identityKey = dbtGitCacheIdentityKey(
-                    entry.metadata.identity,
-                );
-                return now - entry.metadata.lastUsedAt >
-                    configuration.maxAgeMs ||
-                    (live !== undefined &&
-                        checkedIdentities.has(identityKey) &&
-                        !live.has(identityKey))
-                    ? entry
-                    : undefined;
-            }
-            const markerStat = await fs
-                .lstat(path.join(entry.entryDirectory, ENTRY_MARKER))
-                .catch(() => undefined);
-            return markerStat &&
-                now - markerStat.mtimeMs > configuration.maxAgeMs
+            if (!entry.metadata) return undefined;
+            const identityKey = dbtGitCacheIdentityKey(entry.metadata.identity);
+            return now - entry.metadata.lastUsedAt > configuration.maxAgeMs ||
+                (live !== undefined &&
+                    checkedIdentities.has(identityKey) &&
+                    !live.has(identityKey))
                 ? entry
                 : undefined;
         }),
     ).then((values) => values.filter((entry): entry is OwnedEntry => !!entry));
     const cacheLock = await acquireCacheLock();
     if (!cacheLock) return;
+    const reservedCleanup: ReservedCleanup[] = [];
     try {
         await Promise.all(
             candidates.map(async (entry) => {
@@ -1106,9 +1346,18 @@ export async function maintainDbtGitProjectCache() {
                 }
             }),
         );
+        for (const entry of abandoned) {
+            const cleanup = await reserveAbandonedEntryCleanup(entry);
+            if (cleanup) reservedCleanup.push(cleanup);
+        }
+        for (const debris of rootDebris) {
+            const cleanup = await reserveRootDebrisCleanup(debris, now);
+            if (cleanup) reservedCleanup.push(cleanup);
+        }
     } finally {
         await releaseDirectoryLease(cacheLock);
     }
+    await Promise.all(reservedCleanup.map(cleanupReservedRootCandidate));
 }
 
 export const configureDbtGitProjectCache = (args: {
