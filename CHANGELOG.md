@@ -1,3 +1,11 @@
+# [2.148.0](https://github.com/lightdash/lightdash/compare/2.147.0...2.148.0) (2026-09-07)
+
+
+### Features
+
+* **training:** label the training project as a playground and guard its deletion ([#28789](https://github.com/lightdash/lightdash/issues/28789)) ([bc8b91e](https://github.com/lightdash/lightdash/commit/bc8b91e0c81da838f8d635039433b29b58a117d9))
+* **training:** walkthroughs for charts and exploring ([#28786](https://github.com/lightdash/lightdash/issues/28786)) ([2038b9f](https://github.com/lightdash/lightdash/commit/2038b9f79ea6a27d367d6d6abdf14fa9c02a52fa)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28716](https://github.com/lightdash/lightdash/issues/28716) [#28781](https://github.com/lightdash/lightdash/issues/28781)
+
 # [2.147.0](https://github.com/lightdash/lightdash/compare/2.146.1...2.147.0) (2026-09-07)
 
 
