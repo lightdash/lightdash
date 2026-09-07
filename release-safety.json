@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.149.4",
-  "previousVersion": "2.149.3",
-  "releaseDate": "2026-09-07T22:30:39.478Z",
+  "version": "2.150.0",
+  "previousVersion": "2.149.4",
+  "releaseDate": "2026-09-07T23:40:08.287Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260907190000_create_cached_explore_staging.ts",
-        "edition": "core",
-        "tables": [
-          "cached_explore_staging",
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

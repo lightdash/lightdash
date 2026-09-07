@@ -1,3 +1,10 @@
+# [2.150.0](https://github.com/lightdash/lightdash/compare/2.149.4...2.150.0) (2026-09-07)
+
+
+### Features
+
+* **auth:** link managed sign-in identities within the same tenant ([#28798](https://github.com/lightdash/lightdash/issues/28798)) ([bba15a2](https://github.com/lightdash/lightdash/commit/bba15a213f3e6d17c00703553287f6b2ff42141b))
+
 ## [2.149.4](https://github.com/lightdash/lightdash/compare/2.149.3...2.149.4) (2026-09-07)
 
 
