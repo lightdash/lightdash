@@ -3801,6 +3801,305 @@ describe('UserService', () => {
                 userModel.activateUser as import('vitest').Mock,
             ).toHaveBeenCalledTimes(0);
         });
+        describe('managed Azure identity linking', () => {
+            const tenantId = '11111111-2222-3333-4444-555555555555';
+            const issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
+            const mobileUser = {
+                openId: {
+                    ...openIdUser.openId,
+                    issuer,
+                    issuerType: OpenIdIdentityIssuerType.AZUREAD,
+                    subject: 'mobile-object-id',
+                },
+            };
+            const webIdentity = {
+                ...openIdIdentity,
+                issuer,
+                issuerType: OpenIdIdentityIssuerType.AZUREAD,
+                subject: 'web-pairwise-subject',
+                email: mobileUser.openId.email,
+            };
+            const managedOptions = {
+                managedAzureIdentityLink: {
+                    tenantId,
+                    organizationUuid: sessionUser.organizationUuid!,
+                },
+            };
+            const configWithLinking = (enabled: boolean) => ({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcLinking: enabled,
+                    enableOidcToEmailLinking: false,
+                },
+            });
+
+            test.each([null, sessionUser.organizationUuid!])(
+                'links the same-tenant web identity with linking off and organisation %s',
+                async (organizationUuid) => {
+                    vi.mocked(
+                        openIdIdentityModel.findIdentitiesByEmail,
+                    ).mockResolvedValueOnce([webIdentity]);
+                    const service = createUserService(configWithLinking(false));
+
+                    await expect(
+                        service.loginWithOpenId(
+                            mobileUser,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            {
+                                managedAzureIdentityLink: {
+                                    tenantId,
+                                    organizationUuid,
+                                },
+                            },
+                        ),
+                    ).resolves.toEqual(sessionUser);
+
+                    expect(
+                        vi.mocked(openIdIdentityModel.findIdentitiesByEmail),
+                    ).toHaveBeenCalledWith(mobileUser.openId.email);
+                    expect(
+                        vi.mocked(openIdIdentityModel.createIdentity),
+                    ).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({
+                            userId: sessionUser.userId,
+                            issuer,
+                            issuerType: OpenIdIdentityIssuerType.AZUREAD,
+                            subject: 'mobile-object-id',
+                            email: mobileUser.openId.email,
+                        }),
+                    );
+                    expect(
+                        vi.mocked(userModel.createUser),
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            test.each([
+                [
+                    'another tenant',
+                    {
+                        ...webIdentity,
+                        issuer: 'https://login.microsoftonline.com/99999999-8888-7777-6666-555555555555/v2.0',
+                    },
+                ],
+                [
+                    'another provider',
+                    {
+                        ...webIdentity,
+                        issuerType: OpenIdIdentityIssuerType.GOOGLE,
+                    },
+                ],
+                [
+                    'an issuer without a tenant',
+                    {
+                        ...webIdentity,
+                        issuer: 'https://login.microsoftonline.com',
+                    },
+                ],
+                [
+                    'a common issuer',
+                    {
+                        ...webIdentity,
+                        issuer: 'https://login.microsoftonline.com/common/v2.0',
+                    },
+                ],
+                [
+                    'an issuer on another host',
+                    {
+                        ...webIdentity,
+                        issuer: `https://example.com/${tenantId}/v2.0`,
+                    },
+                ],
+                [
+                    'another email',
+                    { ...webIdentity, email: 'other@example.com' },
+                ],
+            ])(
+                'does not bypass linking for %s',
+                async (_description, identity) => {
+                    vi.mocked(
+                        openIdIdentityModel.findIdentitiesByEmail,
+                    ).mockResolvedValueOnce([identity]);
+                    const service = createUserService(configWithLinking(false));
+
+                    await expect(
+                        service.loginWithOpenId(
+                            mobileUser,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            managedOptions,
+                        ),
+                    ).rejects.toBeInstanceOf(ForbiddenError);
+                    expect(
+                        vi.mocked(openIdIdentityModel.createIdentity),
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            test('does not bypass linking for a user outside the resolved organisation', async () => {
+                vi.mocked(
+                    openIdIdentityModel.findIdentitiesByEmail,
+                ).mockResolvedValueOnce([webIdentity]);
+                const service = createUserService(configWithLinking(false));
+
+                await expect(
+                    service.loginWithOpenId(
+                        mobileUser,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        {
+                            managedAzureIdentityLink: {
+                                tenantId,
+                                organizationUuid: 'another-organisation',
+                            },
+                        },
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    vi.mocked(openIdIdentityModel.createIdentity),
+                ).not.toHaveBeenCalled();
+            });
+
+            test.each([
+                [
+                    'another incoming provider',
+                    {
+                        ...mobileUser.openId,
+                        issuerType: OpenIdIdentityIssuerType.GOOGLE,
+                    },
+                ],
+                [
+                    'another incoming tenant',
+                    {
+                        ...mobileUser.openId,
+                        issuer: 'https://login.microsoftonline.com/99999999-8888-7777-6666-555555555555/v2.0',
+                    },
+                ],
+            ])(
+                'does not bypass linking for %s',
+                async (_description, incomingIdentity) => {
+                    vi.mocked(
+                        openIdIdentityModel.findIdentitiesByEmail,
+                    ).mockResolvedValueOnce([webIdentity]);
+                    const service = createUserService(configWithLinking(false));
+
+                    await expect(
+                        service.loginWithOpenId(
+                            { openId: incomingIdentity },
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            managedOptions,
+                        ),
+                    ).rejects.toBeInstanceOf(ForbiddenError);
+                    expect(
+                        vi.mocked(openIdIdentityModel.createIdentity),
+                    ).not.toHaveBeenCalled();
+                },
+            );
+
+            test('does not link an ambiguous email shared by two users', async () => {
+                vi.mocked(
+                    openIdIdentityModel.findIdentitiesByEmail,
+                ).mockResolvedValueOnce([
+                    webIdentity,
+                    { ...webIdentity, userUuid: 'another-user' },
+                ]);
+                const service = createUserService(configWithLinking(false));
+
+                await expect(
+                    service.loginWithOpenId(
+                        mobileUser,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        managedOptions,
+                    ),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    vi.mocked(openIdIdentityModel.createIdentity),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('does not link a deactivated user', async () => {
+                vi.mocked(
+                    openIdIdentityModel.findIdentitiesByEmail,
+                ).mockResolvedValueOnce([webIdentity]);
+                vi.mocked(
+                    userModel.findSessionUserByUUID,
+                ).mockResolvedValueOnce({ ...sessionUser, isActive: false });
+                const service = createUserService(configWithLinking(false));
+
+                await expect(
+                    service.loginWithOpenId(
+                        mobileUser,
+                        undefined,
+                        undefined,
+                        undefined,
+                        undefined,
+                        managedOptions,
+                    ),
+                ).rejects.toBeInstanceOf(DeactivatedAccountError);
+                expect(
+                    vi.mocked(openIdIdentityModel.createIdentity),
+                ).not.toHaveBeenCalled();
+            });
+
+            test('keeps browser linking disabled without the exchange option', async () => {
+                vi.mocked(
+                    openIdIdentityModel.findIdentitiesByEmail,
+                ).mockResolvedValueOnce([webIdentity]);
+                const service = createUserService(configWithLinking(false));
+
+                await expect(
+                    service.loginWithOpenId(mobileUser, undefined, undefined),
+                ).rejects.toBeInstanceOf(ForbiddenError);
+                expect(
+                    vi.mocked(openIdIdentityModel.createIdentity),
+                ).not.toHaveBeenCalled();
+            });
+
+            test.each([undefined, managedOptions])(
+                'keeps enabled linking for another provider with options %j',
+                async (options) => {
+                    vi.mocked(
+                        openIdIdentityModel.findIdentitiesByEmail,
+                    ).mockResolvedValueOnce([
+                        {
+                            ...webIdentity,
+                            issuerType: OpenIdIdentityIssuerType.GOOGLE,
+                        },
+                    ]);
+                    const service = createUserService(configWithLinking(true));
+
+                    await expect(
+                        service.loginWithOpenId(
+                            mobileUser,
+                            undefined,
+                            undefined,
+                            undefined,
+                            undefined,
+                            options,
+                        ),
+                    ).resolves.toEqual(sessionUser);
+                    expect(
+                        vi.mocked(openIdIdentityModel.createIdentity),
+                    ).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ userId: sessionUser.userId }),
+                    );
+                },
+            );
+        });
         test('should link openid to an existing user that has the same verified email', async () => {
             const service = createUserService({
                 ...lightdashConfigMock,
