@@ -6,7 +6,15 @@ import {
     type UiStringKey,
     type UUID,
 } from '@lightdash/common';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -88,7 +96,22 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     appUuid,
 }) => {
     const embedToken = encodedToken || window.location.hash.replace('#', '');
-    const [isInitialized, setIsInitialized] = useState(false);
+    const params = useParams();
+    const projectUuid = projectUuidFromProps || params.projectUuid;
+
+    // Synced during render, not in an effect: direct embeds strip the token hash
+    // on first render, and the empty prop that follows must not wipe the store.
+    const storedEmbed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    if (
+        embedToken &&
+        (storedEmbed?.token !== embedToken ||
+            storedEmbed?.projectUuid !== projectUuid)
+    ) {
+        setToInMemoryStorage(EMBED_KEY, {
+            projectUuid,
+            token: embedToken,
+        });
+    }
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
@@ -101,10 +124,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
-    const params = useParams();
     const navigate = useNavigate();
-    const projectUuid = projectUuidFromProps || params.projectUuid;
     const location = useLocation();
+    const queryClient = useQueryClient();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
     const tokenFromStorageOrProps = embedToken || embed?.token;
@@ -159,18 +181,16 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         }
     }, [ability, account, isLoading]);
 
-    // There is method to this madness:
-    // When we get an embedded URL, the JWT token is added as a hash to the URL location.
-    // We immediately redirect somewhere else to a URL without the hash. Consequently, if we make
-    // this initialization in a useEffect, we will not have the hash token in the URL by the time
-    // the effect runs.
-    if (!isInitialized) {
-        setToInMemoryStorage(EMBED_KEY, {
-            projectUuid,
-            token: embedToken,
-        });
-        setIsInitialized(true);
-    }
+    // A rotated token can carry different claims, and the account query is not
+    // keyed on the token, so refetch it rather than serve stale abilities.
+    const lastSeenTokenRef = useRef(embedToken);
+    useEffect(() => {
+        if (!embedToken || lastSeenTokenRef.current === embedToken) {
+            return;
+        }
+        lastSeenTokenRef.current = embedToken;
+        void queryClient.invalidateQueries({ queryKey: ['account'] });
+    }, [embedToken, queryClient]);
 
     const value = useMemo(() => {
         return {

@@ -149,17 +149,18 @@ const useEmbedTokenContext = (
     } | null>(null);
 
     useEffect(() => {
-        let isMounted = true;
+        // Flipped by cleanup on unmount and whenever the token prop changes,
+        // so an older token promise resolving late cannot overwrite a newer one.
+        let isCurrent = true;
 
         persistInstanceUrl(instanceUrl);
 
-        const resolveToken = async () =>
-            typeof tokenOrTokenPromise === 'string'
-                ? tokenOrTokenPromise
-                : tokenOrTokenPromise;
-
-        resolveToken()
+        Promise.resolve(tokenOrTokenPromise)
             .then((tokenToDecode) => {
+                if (!isCurrent) {
+                    return;
+                }
+
                 const { payload } = decodeJWT(tokenToDecode);
 
                 if (
@@ -167,12 +168,10 @@ const useEmbedTokenContext = (
                     'content' in payload &&
                     'projectUuid' in payload.content
                 ) {
-                    if (isMounted) {
-                        setTokenContext({
-                            token: tokenToDecode,
-                            projectUuid: payload.content.projectUuid,
-                        });
-                    }
+                    setTokenContext({
+                        token: tokenToDecode,
+                        projectUuid: payload.content.projectUuid,
+                    });
                 } else {
                     throw new Error('Error decoding token');
                 }
@@ -183,7 +182,7 @@ const useEmbedTokenContext = (
             });
 
         return () => {
-            isMounted = false;
+            isCurrent = false;
         };
     }, [instanceUrl, tokenOrTokenPromise]);
 
@@ -599,50 +598,21 @@ const Explore: FC<
     exploreId,
     savedChart,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
@@ -728,42 +698,9 @@ const Chart: FC<ChartProps> = ({
     id,
     isEditMode,
 }) => {
-    const [token, setToken] = useState<string | null>(null);
-    const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
 
-    const handleDecodeToken = (tokenToDecode: string) => {
-        const { payload } = decodeJWT(tokenToDecode);
-
-        if (
-            payload &&
-            'content' in payload &&
-            'projectUuid' in payload.content
-        ) {
-            setToken(tokenToDecode);
-            setProjectUuid(payload.content.projectUuid);
-        } else {
-            throw new Error('Error decoding token');
-        }
-    };
-
-    useEffect(() => {
-        persistInstanceUrl(instanceUrl);
-
-        if (typeof tokenOrTokenPromise === 'string') {
-            handleDecodeToken(tokenOrTokenPromise);
-        } else {
-            tokenOrTokenPromise
-                .then((tokenToDecode) => {
-                    handleDecodeToken(tokenToDecode);
-                })
-                .catch((error) => {
-                    console.error(error);
-                    throw new Error('Error retrieving token');
-                });
-        }
-    }, [instanceUrl, tokenOrTokenPromise]);
-
-    if (!token || !projectUuid) {
+    if (!tokenContext) {
         return null;
     }
 
@@ -778,10 +715,14 @@ const Chart: FC<ChartProps> = ({
     };
 
     return (
-        <SdkProviders projectUuid={projectUuid} styles={styles} theme={theme}>
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
             <EmbedProvider
-                embedToken={token}
-                projectUuid={projectUuid}
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 savedQueryUuid={id}
