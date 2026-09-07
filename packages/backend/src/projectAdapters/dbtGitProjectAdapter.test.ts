@@ -21,7 +21,10 @@ import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mo
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
-import { configureDbtGitProjectCache } from './dbtGitProjectCache';
+import {
+    configureDbtGitProjectCache,
+    type DbtGitCacheLease,
+} from './dbtGitProjectCache';
 import { inspectDbtGitProject } from './dbtGitProjectInspection';
 import * as dbtGitVersion from './dbtGitVersion';
 
@@ -257,16 +260,32 @@ describe('DbtGitProjectAdapter cache', () => {
 
     const serveRemote = async (
         root: string,
-        authentication: { expected: string; received: string[] },
+        authentication: {
+            expected: string;
+            received: string[];
+            blocked?: boolean;
+            closedRequests?: number;
+            onBlocked?: () => void;
+        },
     ) => {
+        const authenticationState = authentication;
         const server = createServer((request, response) => {
             const received = request.headers.authorization ?? '';
-            authentication.received.push(received);
-            if (received !== authentication.expected) {
+            authenticationState.received.push(received);
+            if (received !== authenticationState.expected) {
                 response.writeHead(401, {
                     'WWW-Authenticate': 'Basic realm="git"',
                 });
                 response.end();
+                return;
+            }
+            if (authenticationState.blocked) {
+                authenticationState.onBlocked?.();
+                response.once('close', () => {
+                    authenticationState.closedRequests =
+                        (authenticationState.closedRequests ?? 0) + 1;
+                    authenticationState.blocked = false;
+                });
                 return;
             }
             const requestUrl = new URL(request.url ?? '/', 'http://localhost');
@@ -880,6 +899,52 @@ describe('DbtGitProjectAdapter cache', () => {
         await second.destroy();
     });
 
+    it('retries from a fresh checkout when the lease aborts during dbt deps', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const first = createAdapter(remote);
+        await first.getDbtManifest();
+        const retainedCheckout = first.localRepositoryDir;
+        const retainedEntry = path.dirname(retainedCheckout);
+        await first.destroy();
+        await fs.rm(path.join(retainedEntry, 'deps.json'));
+
+        let notifyStarted: () => void = () => undefined;
+        const started = new Promise<void>((resolve) => {
+            notifyStarted = resolve;
+        });
+        let rejectDeps: (reason: unknown) => void = () => undefined;
+        installDeps.mockImplementationOnce(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectDeps = reject;
+                    notifyStarted();
+                }),
+        );
+        const second = createAdapter(remote);
+        const compile = second.getDbtManifest();
+        await started;
+        const lease = Reflect.get(second, 'cacheLease') as
+            | DbtGitCacheLease
+            | undefined;
+        expect(lease?.reused).toBe(true);
+        lease?.heartbeat?.invalidate('heartbeat-write-timeout');
+        rejectDeps(lease?.signal.reason);
+
+        await expect(compile).resolves.toBeDefined();
+        expect(second.localRepositoryDir).not.toBe(retainedCheckout);
+        expect(second.getCacheOutcome()).toMatchObject({
+            fallbackReason: 'lease-invalidated',
+            retainCheckout: false,
+        });
+        expect(installDeps).toHaveBeenCalledTimes(3);
+        await expect(
+            fs.access(path.join(retainedEntry, 'deps.json')),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
+        await second.destroy();
+    }, 15_000);
+
     it('does not fail compilation when a successful deps marker cannot be written', async () => {
         const { remote } = await createRemote({
             'dbt_project.yml': 'name: test\n',
@@ -1001,6 +1066,60 @@ describe('DbtGitProjectAdapter cache', () => {
         expect(gitConfig).not.toContain('second');
         await second.destroy();
     });
+
+    it('aborts an active cached fetch when the lease is invalidated', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const authentication = {
+            expected: `Basic ${Buffer.from('user:token').toString('base64')}`,
+            received: [] as string[],
+            blocked: false,
+            closedRequests: 0,
+            onBlocked: undefined as (() => void) | undefined,
+        };
+        const cleanUrl = await serveRemote(
+            path.dirname(remote),
+            authentication,
+        );
+        const credentialedUrl = cleanUrl.replace('://', '://user:token@');
+        const first = createAdapter(credentialedUrl);
+        await first.getDbtManifest();
+        const retainedCheckout = first.localRepositoryDir;
+        await first.destroy();
+
+        authentication.received = [];
+        authentication.blocked = true;
+        let notifyBlocked: () => void = () => undefined;
+        const blockedRequest = new Promise<void>((resolve) => {
+            notifyBlocked = resolve;
+        });
+        authentication.onBlocked = notifyBlocked;
+        const second = createAdapter(credentialedUrl);
+        const compile = second.getDbtManifest();
+        await blockedRequest;
+        const lease = Reflect.get(second, 'cacheLease') as
+            | DbtGitCacheLease
+            | undefined;
+        expect(lease?.reused).toBe(true);
+        lease?.heartbeat?.invalidate('heartbeat-write-timeout');
+
+        await expect(compile).resolves.toBeDefined();
+        expect(authentication.closedRequests).toBeGreaterThan(0);
+        expect(second.localRepositoryDir).not.toBe(retainedCheckout);
+        expect(second.getCacheOutcome()).toMatchObject({
+            cloneMode: 'fresh',
+            fallbackReason: 'lease-invalidated',
+            retainCheckout: false,
+        });
+        expect(installDeps).toHaveBeenCalledTimes(2);
+        await second.destroy();
+
+        const third = createAdapter(credentialedUrl);
+        await third.getDbtManifest();
+        expect(third.getFetchMetrics().cloneMode).toBe('fresh');
+        await third.destroy();
+    }, 20_000);
 
     it('reuses checkout and dependencies when an installation token and credential store rotate', async () => {
         const { remote, source } = await createRemote({
