@@ -227,6 +227,7 @@ import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
+import type { CacheHitCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { OrganizationAccessService } from '../OrganizationAccessService/OrganizationAccessService';
@@ -7479,6 +7480,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         plan,
+        invalidateCache,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -7594,6 +7596,8 @@ export class AsyncQueryService extends ProjectService {
             guard: plan.guard,
             storedCompiledSql: null,
             referenceLabels: plan.referenceLabels,
+            invalidateCache: invalidateCache ?? false,
+            cacheHit: false,
             refusal: null,
         });
 
@@ -7757,6 +7761,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             actor,
+            invalidateCache: spec.invalidateCache,
             projectUuid: query.projectUuid,
             organizationUuid: query.organizationUuid,
             isPreviewProject: await this.isExcludedFromUsage(query.projectUuid),
@@ -8119,6 +8124,8 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
             },
+            // Bound references have no results to be served from
+            invalidateCache: true,
             projectUuid,
             organizationUuid,
             isPreviewProject:
@@ -8194,6 +8201,7 @@ export class AsyncQueryService extends ProjectService {
      */
     private async runDuckdbQuery({
         actor,
+        invalidateCache,
         projectUuid,
         organizationUuid,
         isPreviewProject,
@@ -8224,6 +8232,63 @@ export class AsyncQueryService extends ProjectService {
                 engine,
                 bound,
             );
+            // The results a query over other results depends on are the
+            // files it reads, not the rows it referenced: a leg served from
+            // cache mints a new row over the same file, so the file-based key
+            // is what a later run finds
+            const resultsKey =
+                references.kind === 'queries'
+                    ? QueryHistoryModel.getCacheKey(projectUuid, {
+                          sql: JSON.stringify({
+                              sql,
+                              files: bound.resultFileUris,
+                              parameters:
+                                  columns.mode === 'discover'
+                                      ? columns.parameters
+                                      : (columns.usedParameters ?? {}),
+                          }),
+                          userUuid: null,
+                      })
+                    : cacheKey;
+            if (references.kind === 'queries') {
+                const cached = invalidateCache
+                    ? null
+                    : ((await this.cacheService?.findCachedResultsFile(
+                          projectUuid,
+                          resultsKey,
+                          {
+                              userUuid: actor.userUuid,
+                              organizationUuid,
+                              organizationName: undefined,
+                          },
+                      )) ?? null);
+                this.prometheusMetrics?.incrementQueryCacheHit(
+                    cached !== null,
+                    context,
+                    false,
+                );
+                if (cached !== null) {
+                    await this.landDuckdbCacheHit({
+                        actor,
+                        account,
+                        projectUuid,
+                        organizationUuid,
+                        isPreviewProject,
+                        onboardingFlow,
+                        queryUuid,
+                        sql,
+                        columns,
+                        storedCompiledSql,
+                        resultsKey,
+                        cached,
+                        queryTags,
+                        queryCreatedAt,
+                        context,
+                        warehouseType: warehouseClient.credentials.type,
+                    });
+                    return;
+                }
+            }
             const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
                 sql,
                 bound.referenceCtes,
@@ -8242,6 +8307,9 @@ export class AsyncQueryService extends ProjectService {
                     compiled_sql: storedCompiledSql ?? execution.query,
                     fields: execution.fieldsMap,
                     original_columns: execution.originalColumns,
+                    // The results land under the file-based key, so the next
+                    // run over the same files finds them
+                    cache_key: resultsKey,
                 },
                 account,
             );
@@ -8263,7 +8331,7 @@ export class AsyncQueryService extends ProjectService {
                 query: execution.query,
                 fieldsMap: execution.fieldsMap,
                 usedParameters: execution.usedParameters,
-                cacheKey,
+                cacheKey: resultsKey,
                 pivotConfiguration: execution.pivotConfiguration,
                 originalColumns: execution.originalColumns,
                 queryCreatedAt,
@@ -8297,6 +8365,113 @@ export class AsyncQueryService extends ProjectService {
                 account,
             );
         }
+    }
+
+    /** Lands a DuckDB source query on another run's results over the same files. */
+    private async landDuckdbCacheHit({
+        actor,
+        account,
+        projectUuid,
+        organizationUuid,
+        isPreviewProject,
+        onboardingFlow,
+        queryUuid,
+        sql,
+        columns,
+        storedCompiledSql,
+        resultsKey,
+        cached,
+        queryTags,
+        queryCreatedAt,
+        context,
+        warehouseType,
+    }: {
+        actor: QueryHistoryActor;
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        };
+        projectUuid: string;
+        organizationUuid: string;
+        isPreviewProject: boolean;
+        onboardingFlow: RunDuckdbQueryArgs['onboardingFlow'];
+        queryUuid: string;
+        sql: string;
+        columns: DuckdbQueryColumns;
+        storedCompiledSql: string | null;
+        resultsKey: string;
+        cached: CacheHitCacheResult;
+        queryTags: RunQueryTags;
+        queryCreatedAt: Date;
+        context: QueryExecutionContext;
+        warehouseType: WarehouseTypes;
+    }): Promise<void> {
+        // The hit is on the spec before the row turns ready, so whoever polls
+        // the row reads them together
+        await this.queryHistoryModel.markDuckdbCacheHit(queryUuid);
+        await this.queryHistoryModel.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.READY,
+                error: null,
+                cache_key: resultsKey,
+                compiled_sql: storedCompiledSql ?? sql,
+                ...(columns.mode === 'supplied'
+                    ? { fields: columns.fieldsMap }
+                    : {}),
+                total_row_count: cached.totalRowCount,
+                columns: cached.columns,
+                original_columns:
+                    cached.originalColumns ??
+                    (columns.mode === 'supplied'
+                        ? columns.originalColumns
+                        : null),
+                results_file_name: cached.fileName,
+                results_created_at: cached.createdAt,
+                results_updated_at: cached.updatedAt,
+                results_expires_at: cached.expiresAt,
+                pivot_values_columns: cached.pivotValuesColumns,
+                pivot_total_column_count: cached.pivotTotalColumnCount,
+                warehouse_execution_time_ms: 0,
+            },
+            account,
+        );
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.EXECUTING,
+            QueryHistoryStatus.READY,
+            context,
+        );
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.READY,
+            queryCreatedAt,
+            context,
+        );
+        this.analytics.track({
+            ...(actor.isRegisteredUser
+                ? { userId: actor.userUuid }
+                : { anonymousId: 'embed' }),
+            event: 'query.completed',
+            properties: {
+                queryId: queryUuid,
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                isPreviewProject,
+                status: 'success',
+                context,
+                onboardingFlow,
+                exploreName: queryTags.explore_name ?? null,
+                chartId: queryTags.chart_uuid ?? null,
+                dashboardId: queryTags.dashboard_uuid ?? null,
+                cacheHit: true,
+                executionSource: 'pre_aggregate_duckdb',
+                warehouseType,
+                warehouseExecutionTimeMs: 0,
+                totalRowCount: cached.totalRowCount,
+                columnsCount: cached.columns
+                    ? Object.keys(cached.columns).length
+                    : null,
+            },
+        });
     }
 
     /**
@@ -8978,7 +9153,7 @@ export class AsyncQueryService extends ProjectService {
                         queryId: queryUuid,
                         engine: 'compose',
                         status: 'ready',
-                        cacheHit: false,
+                        cacheHit: spec?.cacheHit ?? false,
                         legCacheHits,
                         rowCount: outcome.rowCount,
                         durationMs,

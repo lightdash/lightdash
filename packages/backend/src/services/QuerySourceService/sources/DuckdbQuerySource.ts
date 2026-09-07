@@ -172,7 +172,9 @@ export class DuckdbQuerySource implements QuerySourceClient {
                       ),
                   });
 
-        // A DuckDB query always runs: its inputs may be cached, it is not
+        // Whether the run is served from an earlier one over the same result
+        // files is known only once its references are bound, so submit
+        // cannot report it; the row and the merge event carry it
         return { queryUuid, cacheHit: false };
     }
 }

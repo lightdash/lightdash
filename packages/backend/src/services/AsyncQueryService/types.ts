@@ -413,6 +413,8 @@ export type BoundDuckdbQueryReferences = {
 
 export type RunDuckdbQueryArgs = {
     actor: QueryHistoryActor;
+    /** Skip the lookup by result files and run regardless. */
+    invalidateCache: boolean;
     projectUuid: string;
     organizationUuid: string;
     isPreviewProject: boolean;

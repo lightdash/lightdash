@@ -53,6 +53,15 @@ than leaving it executing. A refusal by the guard is recorded
 on the row too, so the outcome reporter, which polls the join row rather than
 awaiting any run, tells a refusal from a failure wherever the join executed.
 
+The join is served from the results cache by the files it reads, not by the
+rows it referenced: a leg served from cache mints a new history row over the
+same result file, so the row uuids change on every run while the files do
+not. Once the references are bound, the run keys itself on the join's SQL,
+the referenced result files in reference-table order and its parameters,
+looks that key up, and either lands on the earlier run's results or runs and
+stores its own under that key. `invalidateCache` on the merge reaches the
+legs at submit and the join through its persisted spec.
+
 ### Why DuckDB
 
 - One join dialect instead of ten. `FULL OUTER JOIN` is the least portable
