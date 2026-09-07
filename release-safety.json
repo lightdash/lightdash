@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.135.0",
-  "previousVersion": "2.134.2",
-  "releaseDate": "2026-09-07T08:39:16.269Z",
+  "version": "2.135.1",
+  "previousVersion": "2.135.0",
+  "releaseDate": "2026-09-07T09:24:38.170Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -41,11 +41,5 @@
     "minPreviousVersion": "1.111.0",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "write-back-custom-bin-dimensions-flag-removed",
-      "reason": "The graduated WriteBackCustomBinDimensions member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this temporary rollout flag must remove it when upgrading; supported custom-bin write-back is now available without a flag.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }

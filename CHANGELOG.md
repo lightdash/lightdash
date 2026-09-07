@@ -1,3 +1,10 @@
+## [2.135.1](https://github.com/lightdash/lightdash/compare/2.135.0...2.135.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **projects:** reject SSH tunnel saves without a recognised public key ([#28720](https://github.com/lightdash/lightdash/issues/28720)) ([ab65691](https://github.com/lightdash/lightdash/commit/ab65691c8211d68eb4e541dc0ef1f60c547bccb7))
+
 # [2.135.0](https://github.com/lightdash/lightdash/compare/2.134.2...2.135.0) (2026-09-07)
 
 
