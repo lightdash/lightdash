@@ -176,6 +176,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'default',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         setFocusedItemIndex(undefined);
@@ -190,6 +191,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             properties: {
                 type: item.type,
                 id: getSearchResultId(item.item),
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
         // Settings pages always navigate in place, never a new tab.
@@ -208,6 +210,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.GLOBAL_SEARCH_CLOSED,
             properties: {
                 action: 'result_click',
+                verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
 

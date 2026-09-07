@@ -549,6 +549,8 @@ export class SearchService extends BaseService {
                 dashboardTabsResultsCount: filteredResults.dashboardTabs.length,
                 dataAppsResultsCount: filteredResults.dataApps.length,
                 source,
+                verifiedOnly: filters?.verifiedOnly === true,
+                typeFilter: filters?.type ?? null,
             },
         });
 

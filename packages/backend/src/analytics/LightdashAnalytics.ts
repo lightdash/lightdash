@@ -1319,6 +1319,8 @@ type ProjectSearch = BaseTrack & {
         fieldsResultsCount: number;
         dashboardTabsResultsCount: number;
         source: 'omnibar' | 'ai_search_box';
+        verifiedOnly: boolean;
+        typeFilter: string | null;
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {
