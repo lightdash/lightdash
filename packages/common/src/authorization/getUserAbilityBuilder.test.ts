@@ -253,7 +253,26 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                     >
                 ).projectUuid.$in,
             ).toEqual([...projectUuids].sort());
-            expect(ability.rules.length).toBeLessThan(100);
+            const singleProject = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: projectUuids[0],
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid: USER_UUID,
+                        roleUuid: undefined,
+                    },
+                ],
+                permissionsConfig: PERMISSIONS_CONFIG,
+            });
+            expect(ability.rules).toHaveLength(
+                singleProject.builder.rules.length,
+            );
             expect(
                 ability.can(
                     'manage',

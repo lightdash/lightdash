@@ -6,7 +6,7 @@ import { collapseAbilityRules } from './collapseAbilityRules';
 import { getUserAbilityBuilder } from './index';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
-import { type MemberAbility } from './types';
+import { EMBED_PERMISSIONS, type MemberAbility } from './types';
 
 const USER = 'user-1';
 
@@ -43,7 +43,30 @@ describe('collapseAbilityRules', () => {
 
         const collapsed = collapseAbilityRules(raw);
         // 125 projects of identical shape collapse to one project's worth of rules
-        expect(collapsed.length).toBeLessThan(100);
+        expect(collapsed).toHaveLength(
+            collapseAbilityRules(buildRawRules([projects[0]])).length,
+        );
+    });
+
+    it('compacts embed grants without mixing capabilities between projects', () => {
+        const { can, rules } = new AbilityBuilder<MemberAbility>(Ability);
+        can('view', 'Embed', { projectUuid: 'p1', permission: 'canExplore' });
+        can('view', 'Embed', { projectUuid: 'p2', permission: 'canExplore' });
+        can('view', 'Embed', { projectUuid: 'p2', permission: 'canExportCsv' });
+        can('view', 'Embed', { projectUuid: 'p3', permission: 'canExportCsv' });
+
+        const compacted = collapseAbilityRules(rules);
+        expect(compacted).toHaveLength(2);
+        const original = new Ability(rules);
+        const collapsed = new Ability(compacted);
+        ['p1', 'p2', 'p3', 'not-granted'].forEach((projectUuid) =>
+            EMBED_PERMISSIONS.forEach((permission) => {
+                const resource = subject('Embed', { projectUuid, permission });
+                expect(collapsed.can('view', resource)).toBe(
+                    original.can('view', resource),
+                );
+            }),
+        );
     });
 
     it('merges non-projectUuid scalar ids too (e.g. upstreamProjectUuid)', () => {

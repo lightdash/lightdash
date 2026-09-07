@@ -37,7 +37,9 @@ const isScalarString = (value: unknown): value is string =>
  * rules (guarded by a test), so the large-permission-graph case this targets is
  * fully collapsed.
  *
- * Masking ALL scalar-string condition values when grouping is safe because a
+ * Embed rules are partitioned by capability before scalar-string grouping so
+ * independent `permission` values do not prevent per-project compaction.
+ * Masking the remaining scalar-string values when grouping is safe because a
  * single ability is built for one org and one user, so `organizationUuid`,
  * `userUuid`, `createdByUserUuid` and `type` are constants across the rule set —
  * the only scalar that varies is the per-project id. If that ever stops holding
@@ -72,6 +74,9 @@ export const collapseAbilityRules = (rules: MemberRule[]): MemberRule[] => {
             rule.subject,
             rule.fields ?? null,
             shape,
+            // Embed capabilities vary independently of project membership.
+            // Keep each capability in its own group so only project ids merge.
+            rule.subject === 'Embed' ? conditions?.permission : null,
         ]);
         const existing = groups.get(groupKey);
         if (existing) {
