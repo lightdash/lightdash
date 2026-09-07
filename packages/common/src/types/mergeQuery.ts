@@ -618,6 +618,27 @@ export const getMergeSourceTableLabel = (sourceIndex: number): string =>
     `Query ${String.fromCharCode(65 + sourceIndex)}`;
 
 /**
+ * The SQL a compiled merge runs, as one readable text: each leg under a
+ * comment naming its source, then the join. Null when the merge did not
+ * compile.
+ */
+export const getMergeCompiledSqlText = (
+    compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
+): string | null => {
+    if (compiled.sql === null) return null;
+    const legs = compiled.legs.map((leg, index) => {
+        const label = `${getMergeSourceTableLabel(index)} ("${leg.sourceId}")`;
+        return leg.sql === null
+            ? `-- ${label}: existing results, nothing runs`
+            : `-- ${label}: runs on the warehouse\n${leg.sql}`;
+    });
+    return [
+        ...legs,
+        `-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...\n${compiled.sql}`,
+    ].join('\n\n');
+};
+
+/**
  * Where a merged field came from. Carried beside the fields rather than on
  * them, so every `Field` consumer downstream sees an ordinary field and only
  * the code that needs provenance — drilling into a cell, filtering a source —
