@@ -2,6 +2,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
+    UnexpectedGitError,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
@@ -77,6 +78,7 @@ type DependencyMarker = {
 };
 
 const DEPENDENCY_MARKER_VERSION = 1;
+const CACHE_FETCH_REF = 'refs/lightdash/cache';
 const PACKAGE_CONFIG_FILES = [
     'packages.yml',
     'dependencies.yml',
@@ -84,6 +86,13 @@ const PACKAGE_CONFIG_FILES = [
     'dbt_project.yml',
 ] as const;
 
+export const assertValidGitBranch = (branch: string): void => {
+    if (branch.startsWith('-')) {
+        throw new UnexpectedGitError(
+            'Git branch names must not begin with an option prefix',
+        );
+    }
+};
 const withoutCredentials = (
     remoteRepositoryUrl: string,
     repository: string,
@@ -382,11 +391,7 @@ export class DbtGitProjectAdapter
         cacheIdentity,
         credential,
     }: DbtGitProjectAdapterArgs) {
-        if (gitBranch.startsWith('-')) {
-            throw new UnexpectedGitError(
-                'Git branch names must not begin with an option prefix',
-            );
-        }
+        assertValidGitBranch(gitBranch);
         const cleanRemoteRepositoryUrl = withoutCredentials(
             remoteRepositoryUrl,
             repository,
@@ -855,21 +860,26 @@ export class DbtGitProjectAdapter
 
     private async reuseCheckout() {
         const startedAt = Date.now();
-        await this.git()
-            .cwd(this.localRepositoryDir)
-            .fetch(this.cleanRemoteRepositoryUrl, this.branch, {
-                '--depth': 1,
-                '--no-tags': null,
-                '--progress': null,
-            });
-        await this.git()
-            .cwd(this.localRepositoryDir)
-            .reset(['--hard', 'FETCH_HEAD']);
-        await this.cleanReusedCheckout();
         await fspromises.rm(
             path.join(this.localRepositoryDir, '.git', 'FETCH_HEAD'),
             { force: true },
         );
+        await this.git()
+            .cwd(this.localRepositoryDir)
+            .fetch(
+                this.cleanRemoteRepositoryUrl,
+                `+${this.branch}:${CACHE_FETCH_REF}`,
+                {
+                    '--depth': 1,
+                    '--no-tags': null,
+                    '--no-write-fetch-head': null,
+                    '--progress': null,
+                },
+            );
+        await this.git()
+            .cwd(this.localRepositoryDir)
+            .reset(['--hard', CACHE_FETCH_REF]);
+        await this.cleanReusedCheckout();
         await fspromises.rm(
             path.join(this.localRepositoryDir, '.git', 'logs'),
             { recursive: true, force: true },

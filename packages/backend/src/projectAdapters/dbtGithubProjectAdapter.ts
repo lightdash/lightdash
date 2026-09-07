@@ -13,7 +13,10 @@ import {
 } from '../dbt/gitCredentials';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
-import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import {
+    assertValidGitBranch,
+    DbtGitProjectAdapter,
+} from './dbtGitProjectAdapter';
 import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 
 type DbtGithubProjectAdapterArgs = {
@@ -60,6 +63,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         if (!isValid) {
             throw new Error(error);
         }
+        assertValidGitBranch(githubBranch);
 
         const githubHost = hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
         const gitCredentialFiles = createGithubGitCredentialFiles({

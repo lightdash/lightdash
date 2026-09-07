@@ -758,7 +758,29 @@ describe('DbtGitProjectAdapter cache', () => {
             'utf8',
         );
         expect(gitConfig).not.toMatch(/https?:\/\/[^\s/@]+:[^\s/@]*@/);
+        await expect(
+            fs.access(
+                path.join(second.localRepositoryDir, '.git', 'FETCH_HEAD'),
+            ),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
         await second.destroy();
+    });
+
+    it('rejects option-like branches before running Git or dbt', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+
+        expect(() =>
+            createAdapter(
+                remote,
+                'source',
+                undefined,
+                undefined,
+                '--upload-pack=side-effect',
+            ),
+        ).toThrow(UnexpectedGitError);
+        expect(installDeps).not.toHaveBeenCalled();
     });
 
     it('fetches a retained checkout with the current credentials', async () => {
