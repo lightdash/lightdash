@@ -1,3 +1,10 @@
+## [2.136.1](https://github.com/lightdash/lightdash/compare/2.136.0...2.136.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **explorer:** tolerate saved filter groups with no items array ([#28726](https://github.com/lightdash/lightdash/issues/28726)) ([c212cd2](https://github.com/lightdash/lightdash/commit/c212cd2ceea2f167814ab0917a26873ce2f06eb8))
+
 # [2.136.0](https://github.com/lightdash/lightdash/compare/2.135.2...2.136.0) (2026-09-07)
 
 
