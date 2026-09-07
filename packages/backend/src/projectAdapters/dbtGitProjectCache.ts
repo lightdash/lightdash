@@ -18,11 +18,13 @@ const ENTRY_MARKER = '.lightdash-cache-entry.json';
 const METADATA = 'metadata.json';
 const LEASE_DIRECTORY = 'lease';
 const LEASE_OWNER = 'owner.json';
+const LEASE_HEARTBEAT_PREFIX = '.heartbeat-';
 const PENDING_DELETE = 'pending-delete';
 const CACHE_LOCK = '.reservation-lock';
 const RECLAIM_CLAIM = '.reclaim.json';
 const CACHE_LOCK_WAIT_MS = 5_000;
 const ADMISSION_TOTAL_WAIT_MS = 3_000;
+const HEARTBEAT_WRITE_TIMEOUT_MS = 30_000;
 const TOMBSTONE_CLEANUP_WAIT_MS = 3_000;
 const RETENTION_TOTAL_WAIT_MS = 3_000;
 const PUBLICATION_MAX_ATTEMPTS = DBT_GIT_CACHE_MAX_ENTRIES;
@@ -75,6 +77,9 @@ type LeaseHeartbeat = {
     timer: NodeJS.Timeout;
     pending: Promise<void>;
     stopped: boolean;
+    abortController: AbortController;
+    invalidate: (reason: string) => void;
+    onInvalidated?: () => void;
     schedule: () => void;
 };
 
@@ -97,6 +102,7 @@ export type DbtGitCacheLease = {
     reused: boolean;
     invalidated: boolean;
     closed: boolean;
+    signal: AbortSignal;
     retained?: boolean;
     retentionReason?: string;
     heartbeat?: LeaseHeartbeat;
@@ -284,6 +290,61 @@ const atomicWriteJson = async (filePath: string, value: unknown) => {
         await fs.rm(temporaryPath, { force: true }).catch((cleanupError) => {
             warnSwallowedFilesystemError(
                 'Failed to remove dbt git cache temporary file',
+                cleanupError,
+            );
+        });
+        throw error;
+    }
+};
+
+const leaseHeartbeatPath = (leaseDirectory: string, leaseId: string) =>
+    path.join(leaseDirectory, `${LEASE_HEARTBEAT_PREFIX}${leaseId}.json`);
+
+const readLeaseOwner = async (leaseDirectory: string) => {
+    const owner = await readJson(path.join(leaseDirectory, LEASE_OWNER));
+    if (!isLeaseOwner(owner)) return owner;
+    const heartbeat = await readJson(
+        leaseHeartbeatPath(leaseDirectory, owner.leaseId),
+    );
+    if (
+        isLeaseOwner(heartbeat) &&
+        heartbeat.leaseId === owner.leaseId &&
+        heartbeat.hostname === owner.hostname &&
+        heartbeat.pid === owner.pid &&
+        heartbeat.processStartTime === owner.processStartTime &&
+        heartbeat.heartbeatAt >= owner.heartbeatAt
+    ) {
+        return heartbeat;
+    }
+    return owner;
+};
+
+const writeLeaseHeartbeat = async (
+    leaseDirectory: string,
+    owner: LeaseOwner,
+    shouldStop: () => boolean,
+): Promise<boolean> => {
+    const heartbeatPath = leaseHeartbeatPath(leaseDirectory, owner.leaseId);
+    const temporaryPath = `${heartbeatPath}.${randomUUID()}.tmp`;
+    try {
+        await fs.writeFile(temporaryPath, JSON.stringify(owner), {
+            mode: 0o600,
+        });
+        const current = await readJson(path.join(leaseDirectory, LEASE_OWNER));
+        if (
+            shouldStop() ||
+            !isLeaseOwner(current) ||
+            current.leaseId !== owner.leaseId
+        ) {
+            await fs.rm(temporaryPath, { force: true });
+            return false;
+        }
+        await fs.rename(temporaryPath, heartbeatPath);
+        return true;
+    } catch (error) {
+        await fs.rm(temporaryPath, { force: true }).catch((cleanupError) => {
+            warnSwallowedFilesystemError(
+                'Failed to remove dbt git cache heartbeat temporary file',
                 cleanupError,
             );
         });
@@ -558,7 +619,7 @@ const removeAgedReclaimClaim = async (claimPath: string): Promise<boolean> => {
 const claimAndRemoveStaleLease = async (
     leaseDirectory: string,
 ): Promise<boolean> => {
-    const observed = await readJson(path.join(leaseDirectory, LEASE_OWNER));
+    const observed = await readLeaseOwner(leaseDirectory);
     if (
         !isLeaseOwner(observed) ||
         !(await leaseOwnerIsProvablyStale(observed))
@@ -594,7 +655,7 @@ const claimAndRemoveStaleLease = async (
     }
     if (claimResult !== 'claimed') return false;
     try {
-        const current = await readJson(path.join(leaseDirectory, LEASE_OWNER));
+        const current = await readLeaseOwner(leaseDirectory);
         if (
             !isLeaseOwner(current) ||
             current.leaseId !== observed.leaseId ||
@@ -653,29 +714,104 @@ const tryCreateDirectoryLease = async (
     }
     const leaseId = randomUUID();
     const ownerPath = path.join(leaseDirectory, LEASE_OWNER);
-    const writeHeartbeat = async () =>
-        atomicWriteJson(ownerPath, await newLeaseOwner(leaseId));
+    const owner = await newLeaseOwner(leaseId);
     try {
-        await writeHeartbeat();
+        await atomicWriteJson(ownerPath, owner);
     } catch (error) {
         await fs.rm(leaseDirectory, { recursive: true, force: true });
         throw error;
     }
     let heartbeat: LeaseHeartbeat | undefined;
     if (withHeartbeat) {
+        const abortController = new AbortController();
         const state = {
             pending: Promise.resolve(),
             stopped: false,
+            abortController,
+            invalidate: (_reason: string) => undefined,
             schedule: () => undefined,
         } as Omit<LeaseHeartbeat, 'timer'>;
+        state.invalidate = (reason: string) => {
+            if (abortController.signal.aborted) return;
+            state.stopped = true;
+            clearInterval((state as LeaseHeartbeat).timer);
+            abortController.abort();
+            state.onInvalidated?.();
+            Logger.warn('Invalidated dbt git cache lease heartbeat', {
+                reason,
+            });
+        };
         state.schedule = () => {
             if (state.stopped) return;
             state.pending = state.pending
                 .then(async () => {
                     if (state.stopped) return;
-                    const current = await readJson(ownerPath);
-                    if (isLeaseOwner(current) && current.leaseId === leaseId) {
-                        await writeHeartbeat();
+                    const attempt = async (): Promise<
+                        'written' | 'ownership-lost'
+                    > => {
+                        const current = await readJson(ownerPath);
+                        if (
+                            !isLeaseOwner(current) ||
+                            current.leaseId !== leaseId
+                        ) {
+                            return 'ownership-lost';
+                        }
+                        const written = await writeLeaseHeartbeat(
+                            leaseDirectory,
+                            {
+                                ...owner,
+                                heartbeatAt: Date.now(),
+                            },
+                            () =>
+                                state.stopped || abortController.signal.aborted,
+                        );
+                        if (!written) return 'ownership-lost';
+                        const currentAfterWrite = await readJson(ownerPath);
+                        return isLeaseOwner(currentAfterWrite) &&
+                            currentAfterWrite.leaseId === leaseId
+                            ? 'written'
+                            : 'ownership-lost';
+                    };
+                    const attemptPromise = attempt();
+                    const result = await new Promise<
+                        'written' | 'ownership-lost' | 'timeout'
+                    >((resolve, reject) => {
+                        let settled = false;
+                        const timeout: { timer?: NodeJS.Timeout } = {};
+                        const finish = (
+                            value: 'written' | 'ownership-lost' | 'timeout',
+                        ) => {
+                            if (settled) return;
+                            settled = true;
+                            if (timeout.timer) clearTimeout(timeout.timer);
+                            resolve(value);
+                        };
+                        timeout.timer = setTimeout(
+                            () => finish('timeout'),
+                            HEARTBEAT_WRITE_TIMEOUT_MS,
+                        );
+                        timeout.timer.unref();
+                        void attemptPromise.then(finish).catch((error) => {
+                            if (settled) {
+                                warnSwallowedFilesystemError(
+                                    'Failed to finish timed out dbt git cache heartbeat',
+                                    error,
+                                );
+                                return;
+                            }
+                            settled = true;
+                            if (timeout.timer) clearTimeout(timeout.timer);
+                            reject(error);
+                        });
+                    });
+                    if (result === 'timeout') {
+                        if (!state.stopped) {
+                            state.invalidate('heartbeat-write-timeout');
+                        }
+                        return;
+                    }
+                    if (result === 'ownership-lost' && !state.stopped) {
+                        state.invalidate('lease-ownership-lost');
                     }
                 })
                 .catch((error) => {
@@ -683,6 +819,9 @@ const tryCreateDirectoryLease = async (
                         'Failed to update dbt git cache lease heartbeat',
                         error,
                     );
+                    if (!state.stopped) {
+                        state.invalidate('heartbeat-write-error');
+                    }
                 });
         };
         const timer = setInterval(state.schedule, 30_000);
@@ -706,7 +845,7 @@ const stopHeartbeat = async (heartbeat: LeaseHeartbeat | undefined) => {
 
 const releaseDirectoryLease = async (lease: DirectoryLease) => {
     await stopHeartbeat(lease.heartbeat);
-    const value = await readJson(path.join(lease.directory, LEASE_OWNER));
+    const value = await readLeaseOwner(lease.directory);
     if (isLeaseOwner(value) && value.leaseId === lease.leaseId) {
         await fs.rm(lease.directory, { recursive: true, force: true });
     }
@@ -739,8 +878,8 @@ const acquireCacheLock = async (
 };
 
 const leaseOwnsEntry = async (lease: DbtGitCacheLease): Promise<boolean> => {
-    const value = await readJson(
-        path.join(lease.entryDirectory, LEASE_DIRECTORY, LEASE_OWNER),
+    const value = await readLeaseOwner(
+        path.join(lease.entryDirectory, LEASE_DIRECTORY),
     );
     return isLeaseOwner(value) && value.leaseId === lease.leaseId;
 };
@@ -855,17 +994,29 @@ const toPublicLease = (
     entryDirectory: string,
     lease: DirectoryLease,
     reused: boolean,
-): DbtGitCacheLease => ({
-    key,
-    entryDirectory,
-    checkoutDirectory: path.join(entryDirectory, 'checkout'),
-    depsMarkerPath: path.join(entryDirectory, 'deps.json'),
-    leaseId: lease.leaseId,
-    heartbeat: lease.heartbeat,
-    reused,
-    invalidated: false,
-    closed: false,
-});
+): DbtGitCacheLease => {
+    const abortController =
+        lease.heartbeat?.abortController ?? new AbortController();
+    const publicLease: DbtGitCacheLease = {
+        key,
+        entryDirectory,
+        checkoutDirectory: path.join(entryDirectory, 'checkout'),
+        depsMarkerPath: path.join(entryDirectory, 'deps.json'),
+        leaseId: lease.leaseId,
+        heartbeat: lease.heartbeat,
+        reused,
+        invalidated: abortController.signal.aborted,
+        closed: false,
+        signal: abortController.signal,
+    };
+    const heartbeat = lease.heartbeat;
+    if (heartbeat) {
+        heartbeat.onInvalidated = () => {
+            publicLease.invalidated = true;
+        };
+    }
+    return publicLease;
+};
 
 const markPendingDelete = async (entryDirectory: string) => {
     try {
@@ -955,8 +1106,8 @@ const abandonedEntry = async (
     ) {
         return undefined;
     }
-    const owner = await readJson(
-        path.join(entry.entryDirectory, LEASE_DIRECTORY, LEASE_OWNER),
+    const owner = await readLeaseOwner(
+        path.join(entry.entryDirectory, LEASE_DIRECTORY),
     );
     if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
         return undefined;
@@ -991,12 +1142,8 @@ const reserveAbandonedEntryCleanup = async (
     }
     const lease = await tryEntryLease(candidate.entry.entryDirectory);
     if (!lease) {
-        const owner = await readJson(
-            path.join(
-                candidate.entry.entryDirectory,
-                LEASE_DIRECTORY,
-                LEASE_OWNER,
-            ),
+        const owner = await readLeaseOwner(
+            path.join(candidate.entry.entryDirectory, LEASE_DIRECTORY),
         );
         if (isLeaseOwner(owner) && !(await leaseOwnerIsProvablyStale(owner))) {
             return undefined;
@@ -1329,12 +1476,8 @@ const retainDbtGitProjectCache = async (
                     return entry.metadata.sizeBytes;
                 }
                 if (activeLeases.has(entry.key)) return 0;
-                const owner = await readJson(
-                    path.join(
-                        entry.entryDirectory,
-                        LEASE_DIRECTORY,
-                        LEASE_OWNER,
-                    ),
+                const owner = await readLeaseOwner(
+                    path.join(entry.entryDirectory, LEASE_DIRECTORY),
                 );
                 const actualStartTime = isLeaseOwner(owner)
                     ? await processStartTime(owner.pid)

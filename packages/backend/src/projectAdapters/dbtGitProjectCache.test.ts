@@ -423,9 +423,9 @@ describe('dbt git project cache', () => {
             if (
                 pauseHeartbeat &&
                 typeof newPath === 'string' &&
-                newPath.endsWith('/lease/owner.json') &&
+                path.basename(newPath).startsWith('.heartbeat-') &&
                 typeof oldPath === 'string' &&
-                oldPath.includes('/lease/owner.json.')
+                path.basename(oldPath).startsWith('.heartbeat-')
             ) {
                 pauseHeartbeat = false;
                 startHeartbeat();
@@ -444,6 +444,8 @@ describe('dbt git project cache', () => {
             expect(released).toBe(false);
             finishHeartbeat();
             await release;
+            expect(lease?.invalidated).toBe(false);
+            expect(lease?.signal.aborted).toBe(false);
             const replacement = await acquireDbtGitProjectCache(
                 identity(1),
                 'repository',
@@ -461,6 +463,160 @@ describe('dbt git project cache', () => {
         } finally {
             finishHeartbeat();
             rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('aborts an invalidated lease after heartbeat ownership loss', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        expect(lease?.signal.aborted).toBe(false);
+        await fs.mkdir(lease!.checkoutDirectory);
+        const ownerPath = path.join(
+            lease!.entryDirectory,
+            'lease',
+            'owner.json',
+        );
+        const currentOwner = JSON.parse(await fs.readFile(ownerPath, 'utf8'));
+        const replacementOwner = staleOwner({
+            leaseId: '00000000-0000-4000-8000-000000000002',
+            pid: process.pid,
+            processStartTime: currentOwner.processStartTime,
+            heartbeatAt: Date.now(),
+        });
+        await fs.writeFile(ownerPath, JSON.stringify(replacementOwner));
+
+        lease!.heartbeat?.schedule();
+
+        await expect.poll(() => lease!.signal.aborted).toBe(true);
+        expect(lease?.invalidated).toBe(true);
+        await releaseDbtGitProjectCache(lease!, 100);
+        expect(JSON.parse(await fs.readFile(ownerPath, 'utf8'))).toEqual(
+            replacementOwner,
+        );
+    });
+
+    it('times out a heartbeat write without overwriting a replacement owner', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        let startHeartbeat: () => void = () => undefined;
+        let finishHeartbeat: () => void = () => undefined;
+        const heartbeatStarted = new Promise<void>((resolve) => {
+            startHeartbeat = resolve;
+        });
+        const heartbeatFinished = new Promise<void>((resolve) => {
+            finishHeartbeat = resolve;
+        });
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (
+                typeof newPath === 'string' &&
+                path.basename(newPath).startsWith('.heartbeat-')
+            ) {
+                startHeartbeat();
+                await heartbeatFinished;
+            }
+            return actualFs.rename(oldPath, newPath);
+        });
+        vi.useFakeTimers();
+        try {
+            lease!.heartbeat?.schedule();
+            await heartbeatStarted;
+            const ownerPath = path.join(
+                lease!.entryDirectory,
+                'lease',
+                'owner.json',
+            );
+            const currentOwner = JSON.parse(
+                await actualFs.readFile(ownerPath, 'utf8'),
+            );
+            const replacementOwner = staleOwner({
+                leaseId: '00000000-0000-4000-8000-000000000002',
+                pid: process.pid,
+                processStartTime: currentOwner.processStartTime,
+                heartbeatAt: Date.now(),
+            });
+            await actualFs.writeFile(
+                ownerPath,
+                JSON.stringify(replacementOwner),
+            );
+
+            await vi.advanceTimersByTimeAsync(30_001);
+
+            expect(lease?.invalidated).toBe(true);
+            expect(lease?.signal.aborted).toBe(true);
+            await expect(
+                releaseDbtGitProjectCache(lease!, 100),
+            ).resolves.toBeUndefined();
+            finishHeartbeat();
+            await vi.advanceTimersByTimeAsync(0);
+            expect(
+                JSON.parse(await actualFs.readFile(ownerPath, 'utf8')),
+            ).toEqual(replacementOwner);
+        } finally {
+            finishHeartbeat();
+            vi.useRealTimers();
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
+    it('times out a heartbeat owner read without blocking lease release', async () => {
+        await configure();
+        const lease = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(lease!.checkoutDirectory);
+        const ownerPath = path.join(
+            lease!.entryDirectory,
+            'lease',
+            'owner.json',
+        );
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        let startRead: () => void = () => undefined;
+        let finishRead: () => void = () => undefined;
+        const readStarted = new Promise<void>((resolve) => {
+            startRead = resolve;
+        });
+        const readFinished = new Promise<void>((resolve) => {
+            finishRead = resolve;
+        });
+        let pauseRead = true;
+        readFile.mockImplementation(async (...args) => {
+            if (pauseRead && args[0] === ownerPath) {
+                pauseRead = false;
+                startRead();
+                await readFinished;
+            }
+            return actualFs.readFile(...args);
+        });
+        vi.useFakeTimers();
+        try {
+            lease!.heartbeat?.schedule();
+            await readStarted;
+
+            await vi.advanceTimersByTimeAsync(30_001);
+
+            expect(lease?.invalidated).toBe(true);
+            expect(lease?.signal.aborted).toBe(true);
+            await expect(
+                releaseDbtGitProjectCache(lease!, 100),
+            ).resolves.toBeUndefined();
+        } finally {
+            finishRead();
+            await vi.advanceTimersByTimeAsync(0);
+            vi.useRealTimers();
+            readFile.mockImplementation(actualFs.readFile);
         }
     });
 
