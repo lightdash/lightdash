@@ -216,6 +216,12 @@ export class ManagedSignInService {
                     undefined,
                     undefined,
                     { ip, userAgent },
+                    {
+                        managedAzureIdentityLink: {
+                            tenantId: claims.tid,
+                            organizationUuid: organizationUuid ?? null,
+                        },
+                    },
                 );
             } catch (error) {
                 throw new ManagedSignInRejection(

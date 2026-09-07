@@ -194,7 +194,7 @@ describe('ManagedSignInService', () => {
     });
 
     describe('happy path', () => {
-        it('signs the user in through the browser sign-in rules', async () => {
+        it('passes the validated dedicated tenant for managed identity linking', async () => {
             const { service, loginWithOpenId } =
                 createService(dedicatedConfig());
 
@@ -217,6 +217,12 @@ describe('ManagedSignInService', () => {
                 undefined,
                 undefined,
                 { ip: undefined, userAgent: undefined },
+                {
+                    managedAzureIdentityLink: {
+                        tenantId: TENANT_ID,
+                        organizationUuid: null,
+                    },
+                },
             );
         });
 
@@ -394,7 +400,8 @@ describe('ManagedSignInService', () => {
 
     describe('organization resolution', () => {
         it('rejects a tenant that is not the configured one', async () => {
-            const { service } = createService(dedicatedConfig());
+            const { service, loginWithOpenId } =
+                createService(dedicatedConfig());
 
             await expectRejection(
                 exchange(
@@ -405,13 +412,14 @@ describe('ManagedSignInService', () => {
                 ),
                 ManagedSignInError.TENANT_NOT_CONFIGURED,
             );
+            expect(vi.mocked(loginWithOpenId)).not.toHaveBeenCalled();
         });
 
         it('resolves the single organization that claims the tenant', async () => {
-            const { service, organizationSsoModel } = createService(
-                configWith(),
-                { azureMethods: [azureMethod(TENANT_ID)] },
-            );
+            const { service, organizationSsoModel, loginWithOpenId } =
+                createService(configWith(), {
+                    azureMethods: [azureMethod(TENANT_ID)],
+                });
 
             await expect(exchange(service, await signToken())).resolves.toEqual(
                 sessionUser,
@@ -419,6 +427,19 @@ describe('ManagedSignInService', () => {
             expect(
                 organizationSsoModel.findEnabledAzureAdMethodsByTenantId,
             ).toHaveBeenCalledWith(TENANT_ID);
+            expect(vi.mocked(loginWithOpenId)).toHaveBeenCalledWith(
+                expect.any(Object),
+                undefined,
+                undefined,
+                undefined,
+                { ip: undefined, userAgent: undefined },
+                {
+                    managedAzureIdentityLink: {
+                        tenantId: TENANT_ID,
+                        organizationUuid: ORGANIZATION_UUID,
+                    },
+                },
+            );
         });
 
         it('rejects a tenant no organization claims', async () => {

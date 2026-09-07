@@ -28,6 +28,7 @@ import {
     getEmailDomain,
     getErrorMessage,
     getMicrosoftAuthority,
+    getMicrosoftIssuer,
     getUserAvatarUrl,
     hasInviteCode,
     hasProperty,
@@ -200,6 +201,10 @@ export type AuthAuditContext = {
 type LoginWithOpenIdOptions = {
     isLinkFlow?: boolean;
     emailVerified?: boolean;
+    managedAzureIdentityLink?: {
+        tenantId: string;
+        organizationUuid: string | null;
+    };
 };
 
 const emitAuthAuditEvent = ({
@@ -1213,11 +1218,35 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
+                const managedAzureIdentityLink =
+                    options?.managedAzureIdentityLink;
+                const canLinkManagedAzureIdentity =
+                    managedAzureIdentityLink !== undefined &&
+                    openIdUser.openId.issuerType ===
+                        OpenIdIdentityIssuerType.AZUREAD &&
+                    openIdUser.openId.issuer ===
+                        getMicrosoftIssuer(managedAzureIdentityLink.tenantId) &&
+                    !!sessionUser.organizationUuid &&
+                    (managedAzureIdentityLink.organizationUuid === null ||
+                        sessionUser.organizationUuid ===
+                            managedAzureIdentityLink.organizationUuid) &&
+                    identities.some(
+                        (identity) =>
+                            identity.issuerType ===
+                                OpenIdIdentityIssuerType.AZUREAD &&
+                            identity.issuer === openIdUser.openId.issuer &&
+                            identity.email === openIdUser.openId.email,
+                    );
+
+                if (canLinkManagedAzureIdentity && !sessionUser.isActive) {
+                    throw new DeactivatedAccountError();
+                }
 
                 if (
-                    await this.isOidcLinkingEnabledForOrg(
+                    canLinkManagedAzureIdentity ||
+                    (await this.isOidcLinkingEnabledForOrg(
                         sessionUser.organizationUuid,
-                    )
+                    ))
                 ) {
                     this.logger.info(
                         `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,

@@ -200,9 +200,9 @@ encrypted and the tenant id cannot be a SQL predicate
 ## User matching
 
 The exchange builds an OpenID user and calls
-`UserService.loginWithOpenId`, so browser sign-in and managed sign-in share one
-rule set. Just-in-time creation, allowed email domains and organisation
-membership follow the same rules.
+`UserService.loginWithOpenId`. Just-in-time creation, allowed email domains
+and organisation membership follow the browser sign-in rules. The exchange
+also passes an explicit option for same-tenant Azure identity linking.
 
 | Field | Value |
 |---|---|
@@ -213,23 +213,36 @@ membership follow the same rules.
 
 ### Identity linking
 
-Because `sub` is pairwise, the lookup by issuer and subject misses for anyone
-who already signed in through the browser. `loginWithOpenId` then finds the
-existing user by email and reaches its identity-collision guard
-(`packages/backend/src/services/UserService.ts:1307`).
+Entra assigns a different `sub` to each client registration. Browser sign-in
+stores that subject. Managed sign-in uses `oid`, so its first identity lookup
+can miss an existing web identity.
 
-That guard only links a new identity when OIDC linking is enabled, through
-`AUTH_ENABLE_OIDC_LINKING` or the per-organisation toggle
-(`UserService.ts:1023`). Linking is off by default.
+The exchange links the new identity to the existing user when all these
+conditions hold:
 
-**So on a default instance, the first managed sign-in fails for every user who
-has already signed in on the web**, with `user_not_allowed`. Browser sign-in
-never hits this branch, because it always uses the same registration. This is
-open as SPK-1909 Q8.
+- The validated token's `tid` matches the configured Azure tenant. A dedicated
+  instance uses its environment config. A shared instance resolves exactly
+  one enabled organisation from `tid`.
+- The token's email matches an existing Azure identity's email.
+- The stored identity has issuer type `azuread` and issuer
+  `https://login.microsoftonline.com/<tid>/v2.0` for that same tenant.
+- The matching identities belong to one active user with an organisation.
+  On shared instances, that organisation must be the resolved organisation.
 
-When linking is enabled, the mobile identity is added as a second
-`openid_identities` row against the same user. Later managed sign-ins match on
-issuer and subject and never reach the guard again.
+This rule does not require `AUTH_ENABLE_OIDC_LINKING` or the organisation's
+linking toggle. It applies only to the managed exchange. Browser sign-in and
+all other email-linking paths keep their existing toggle rules.
+
+The identity row has no tenant field. The check uses an exact tenant-specific
+issuer URL, as stored by the standard Azure browser strategy. It does not infer
+a tenant from an email domain or the current server config. Host-only issuers,
+`common` issuers and other issuer formats do not qualify for this exception.
+
+The row has no object-ID field either. Storing browser `oid` would need a
+migration, so browser identities keep their current shape.
+
+The mobile identity becomes a second `openid_identities` row for the same
+user. Later managed sign-ins match that row by issuer and subject.
 
 ## Error codes
 
@@ -243,7 +256,7 @@ one of these (`packages/common/src/types/managedSignIn.ts:45`).
 | `token_expired` | The token is outside its time window. | `exp` has passed, or `iat` is older than five minutes. |
 | `token_replayed` | The token was already exchanged. | A retry with the same token. |
 | `email_unverified` | The token carries no usable email. | The `email` claim is missing. |
-| `user_not_allowed` | Microsoft authenticated the person; Lightdash refused them. | Identity linking is off, the org refuses just-in-time creation, or the user's org does not match the tenant's org. |
+| `user_not_allowed` | Microsoft authenticated the person; Lightdash refused them. | No eligible identity link exists, the org refuses just-in-time creation, or the user's org does not match the tenant's org. |
 | `organisation_required` | The person signed in but belongs to no organisation. | Just-in-time creation made a user with no organisation. They need an invite, or an allowed email domain that joins them to one. |
 
 "Consent missing" and "policy not satisfied" never reach the server. They
@@ -290,20 +303,6 @@ platform's client id is set and the server can name a Microsoft tenant. A
 dedicated instance therefore needs the platform client id plus the existing
 `AUTH_AZURE_AD_OAUTH_TENANT_ID`. A shared instance needs the platform client id
 plus one organisation with an enabled Azure SSO config naming the tenant.
-
-### Rollout prerequisite: identity linking
-
-**On an instance that already has Microsoft users, turn on OIDC linking before
-you enable managed sign-in.** Set `AUTH_ENABLE_OIDC_LINKING=true`, or the
-per-organisation toggle.
-
-Without it, the first managed sign-in fails with `user_not_allowed` for every
-person who has already signed in through the browser. The mobile registration
-is a different Entra client, so its subject can never match the identity row
-browser sign-in stored, and the email path that would join them is off by
-default.
-
-A person who has never signed in on the web is unaffected.
 
 Neither variable replaces the web registration. Browser sign-in keeps using
 `AUTH_AZURE_AD_OAUTH_*` or the per-organisation config.
@@ -376,12 +375,8 @@ today is described above; these may change it.
 
 Q6, Q7, Q8 and Q9 are settled and built as described above: the server sends
 only non-reserved scopes, an organisation-less user is rejected with
-`organisation_required`, the linking prerequisite is documented rather than
-coded around, and the five-minute freshness rule stands.
-
-One follow-up remains open: treating the web and mobile registrations as one
-trust inside the exchange, so an existing web user does not need the linking
-prerequisite. See the rollout note above.
+`organisation_required`, the exchange links matching Azure identities from
+the same tenant, and the five-minute freshness rule stands.
 
 Related: registration shape and vocabulary on
 [SPK-1905](https://linear.app/lightdash/issue/SPK-1905), the security review on
