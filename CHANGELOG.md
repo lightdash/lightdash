@@ -1,3 +1,10 @@
+# [2.146.0](https://github.com/lightdash/lightdash/compare/2.145.0...2.146.0) (2026-09-07)
+
+
+### Features
+
+* **training:** walkthroughs for pinning and spaces ([#28781](https://github.com/lightdash/lightdash/issues/28781)) ([c790d7b](https://github.com/lightdash/lightdash/commit/c790d7bdb6d50d05251ffd4a8b23665ae5f1af77)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+
 # [2.145.0](https://github.com/lightdash/lightdash/compare/2.144.0...2.145.0) (2026-09-07)
 
 
