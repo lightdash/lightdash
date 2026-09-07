@@ -1,4 +1,5 @@
 import {
+    DbtError,
     DEFAULT_SPOTLIGHT_CONFIG,
     SupportedDbtVersions,
     type WarehouseClient,
@@ -135,7 +136,7 @@ describe('DbtManifestProjectAdapter', () => {
         },
     );
 
-    it('should throw error when manifest is invalid JSON', async () => {
+    it('throws the manifest validation error for malformed JSON', async () => {
         const invalidManifestAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,
             cachedWarehouse: {
@@ -146,9 +147,12 @@ describe('DbtManifestProjectAdapter', () => {
             manifest: 'invalid json',
         });
 
-        await expect(
-            invalidManifestAdapter.dbtClient.getDbtManifest(),
-        ).rejects.toThrow();
+        const result = invalidManifestAdapter.dbtClient.getDbtManifest();
+
+        await expect(result).rejects.toBeInstanceOf(DbtError);
+        await expect(result).rejects.toThrow(
+            'Cannot read response from dbt, manifest.json not valid',
+        );
     });
 
     it('should throw error when manifest is missing required fields', async () => {

@@ -39,11 +39,18 @@ class ManifestDbtClient implements DbtClient {
                 'Missing manifest on manifest project adapter',
             );
         }
+        let manifestValue: unknown = parsedManifest;
+        if (parsedManifest === undefined) {
+            try {
+                manifestValue = JSON.parse(manifest);
+            } catch {
+                throw new DbtError(
+                    'Cannot read response from dbt, manifest.json not valid',
+                );
+            }
+        }
         const rawManifest = {
-            manifest:
-                parsedManifest !== undefined
-                    ? parsedManifest
-                    : JSON.parse(manifest),
+            manifest: manifestValue,
             ...(this.selectedModelIds !== undefined
                 ? { selectedModelIds: this.selectedModelIds }
                 : {}),
