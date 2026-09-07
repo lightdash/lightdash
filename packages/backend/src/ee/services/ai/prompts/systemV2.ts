@@ -16,18 +16,18 @@ import {
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
+import {
+    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    FILTER_EXPRESSION_GUIDANCE_SECTION,
+    STRUCTURED_FILTER_GUIDANCE_SECTION,
+    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+} from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
-import {
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-    FILTER_EXPRESSION_GUIDANCE_SECTION,
-    STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
-} from './systemV2FilterGuidance';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     REPO_FS_SECTION,

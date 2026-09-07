@@ -553,6 +553,7 @@ export class McpService extends BaseService {
             this.mcpServer = this.buildMcpServer({
                 runSqlEnabled: false,
                 runMetricQueryEnabled: true,
+                filterExpressionsEnabled: false,
             });
             this.setupHandlers();
         } catch (error) {
@@ -564,6 +565,7 @@ export class McpService extends BaseService {
     private buildMcpServer(args: {
         runSqlEnabled: boolean;
         runMetricQueryEnabled: boolean;
+        filterExpressionsEnabled: boolean;
     }): McpServer {
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
@@ -592,6 +594,7 @@ export class McpService extends BaseService {
                     instructions: getMcpAnalystPrompt({
                         runSqlEnabled: args.runSqlEnabled,
                         runMetricQueryEnabled: args.runMetricQueryEnabled,
+                        filterExpressionsEnabled: args.filterExpressionsEnabled,
                     }),
                 },
             ),
@@ -3647,6 +3650,7 @@ export class McpService extends BaseService {
                 const promptText = getMcpAnalystPrompt({
                     runSqlEnabled: options.runSqlEnabled,
                     runMetricQueryEnabled: options.runMetricQueryEnabled,
+                    filterExpressionsEnabled: options.filterExpressionsEnabled,
                 });
 
                 return {
@@ -4051,6 +4055,8 @@ export class McpService extends BaseService {
         const newServer = this.buildMcpServer({
             runSqlEnabled: options?.runSqlEnabled ?? false,
             runMetricQueryEnabled: options?.runMetricQueryEnabled ?? false,
+            filterExpressionsEnabled:
+                options?.filterExpressionsEnabled ?? false,
         });
 
         // Temporarily swap the server to register handlers on the new instance.
