@@ -395,6 +395,7 @@ export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/previewDeployWorkflow';
 export * from './utils/projectMemberRole';
+export * from './utils/promises';
 export * from './utils/sanitizeHtml';
 export * from './utils/scheduler';
 export * from './utils/searchParams';

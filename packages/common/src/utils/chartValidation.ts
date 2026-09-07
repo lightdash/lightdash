@@ -171,3 +171,13 @@ export function getUnusedTableCalculations(
 
     return { unusedTableCalculations };
 }
+
+/**
+ * Checks if a chart has unused table calculations that may cause incorrect results.
+ * This is a convenience wrapper around getUnusedTableCalculations.
+ */
+export function hasUnusedTableCalculations(
+    input: UnusedTableCalculationsInput,
+): boolean {
+    return getUnusedTableCalculations(input).unusedTableCalculations.length > 0;
+}
