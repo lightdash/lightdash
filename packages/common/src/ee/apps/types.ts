@@ -1113,6 +1113,7 @@ export const getEffectiveOptionValues = (
 // copy. `schema` is null until a version generates one.
 export type DataAppViz = {
     dataAppVizUuid: string;
+    slug: string;
     name: string;
     description: string;
     projectUuid: string;

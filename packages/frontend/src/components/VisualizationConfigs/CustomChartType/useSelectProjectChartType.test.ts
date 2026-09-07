@@ -65,6 +65,7 @@ const itemsMap = {
 
 const dataAppViz = {
     dataAppVizUuid: 'viz-uuid',
+    slug: 'grouped-bars',
     name: 'Grouped bars',
     description: 'Groups a metric by a series dimension',
     projectUuid: 'project-uuid',

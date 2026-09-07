@@ -139,6 +139,7 @@ const rows = [{ orders_status: { value: { raw: 'new', formatted: 'New' } } }];
 
 const dataAppViz = {
     dataAppVizUuid: 'viz-1',
+    slug: 'grouped-bars',
     name: 'Grouped bars',
     description: '',
     projectUuid: 'project-1',
