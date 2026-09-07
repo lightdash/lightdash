@@ -13,7 +13,7 @@
  *   npx tsx build-sandbox.ts
  */
 import { Template } from 'e2b';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -27,23 +27,9 @@ if (fs.existsSync('.env')) {
     }
 }
 
-// Build and pack @lightdash/query-sdk so it can be installed in the sandbox
-console.log('Building @lightdash/query-sdk...');
-const sdkDir = path.resolve('../../packages/query-sdk');
-execSync(`pnpm -C ${sdkDir} build`, { stdio: 'inherit' });
-
-console.log('Packing @lightdash/query-sdk...');
-execSync(`pnpm -C ${sdkDir} pack --pack-destination ${process.cwd()}`, {
+execFileSync('bash', [path.resolve('pack-query-sdk.sh')], {
     stdio: 'inherit',
 });
-// Rename to a fixed name so the Dockerfile COPY is deterministic
-const tarballs = fs.readdirSync('.').filter((f) => f.startsWith('lightdash-query-sdk-') && f.endsWith('.tgz'));
-if (tarballs.length !== 1) {
-    console.error('Expected exactly one query-sdk tarball, found:', tarballs);
-    process.exit(1);
-}
-fs.renameSync(tarballs[0], 'lightdash-query-sdk.tgz');
-console.log('');
 
 const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 
@@ -78,16 +64,12 @@ async function main() {
 
         const skipCache = process.argv.includes('--no-cache');
 
-        const info = await Template.buildInBackground(
-            template,
-            buildTarget,
-            {
-                cpuCount: 2,
-                memoryMB: 2048,
-                ...(extraTags.length ? { tags: extraTags } : {}),
-                ...(skipCache ? { skipCache: true } : {}),
-            },
-        );
+        const info = await Template.buildInBackground(template, buildTarget, {
+            cpuCount: 2,
+            memoryMB: 2048,
+            ...(extraTags.length ? { tags: extraTags } : {}),
+            ...(skipCache ? { skipCache: true } : {}),
+        });
 
         console.log(`Template: ${info.name}`);
         console.log(`Template ID: ${info.templateId}`);
