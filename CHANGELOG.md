@@ -1,3 +1,10 @@
+## [2.149.3](https://github.com/lightdash/lightdash/compare/2.149.2...2.149.3) (2026-09-07)
+
+
+### Bug Fixes
+
+* **auth:** keep the most used tenant in the managed sign-in discovery cache ([#28799](https://github.com/lightdash/lightdash/issues/28799)) ([fecd153](https://github.com/lightdash/lightdash/commit/fecd15393a7fdf11697fe5edeeb736880765c87c))
+
 ## [2.149.2](https://github.com/lightdash/lightdash/compare/2.149.1...2.149.2) (2026-09-07)
 
 
