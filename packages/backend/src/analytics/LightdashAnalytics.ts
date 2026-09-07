@@ -3686,6 +3686,18 @@ export type ExternalSourceIngestFailedEvent = BaseTrack & {
     };
 };
 
+export type DashboardOwnerAssignedEvent = BaseTrack & {
+    event: 'dashboard.owner_assigned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        dashboardId: string;
+        ownerUserUuid: string | null;
+        previousOwnerUserUuid: string | null;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -3965,6 +3977,7 @@ type TypedEvent =
     | ContentReviewNotificationSentEvent
     | SchedulerOwnershipReassignedEvent
     | DashboardOwnershipReassignedEvent
+    | DashboardOwnerAssignedEvent
     | ContentDraftSavedEvent
     | ContentDraftWrittenBackEvent
     | ContentDraftDismissedEvent
