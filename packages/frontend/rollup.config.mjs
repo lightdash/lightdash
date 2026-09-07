@@ -11,6 +11,7 @@ import esbuild from 'rollup-plugin-esbuild';
 import nodePolyfills from 'rollup-plugin-polyfill-node';
 import postcss from 'rollup-plugin-postcss';
 import { fileURLToPath } from 'url';
+import { scopeDocumentRules } from './sdk/styles/postcss.cjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
@@ -129,6 +130,9 @@ const mainBuild = {
         postcss({
             extract: false,
             inject: true,
+            // The SDK ships the app's stylesheets into customer pages; rewrite
+            // html/body/`*`/element selectors onto the SDK's own containers.
+            plugins: [scopeDocumentRules],
             // `modules: true` would hash classNames in every CSS file, which
             // breaks Mantine's global styles (its components expect literal
             // class names like .mantine-Button-root). Use autoModules so

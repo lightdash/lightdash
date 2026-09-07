@@ -23,6 +23,7 @@ import { Box, Checkbox, Group, Stack, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
@@ -70,7 +71,8 @@ type DraggablePortalHandlerProps = {
 const DraggablePortalHandler: FC<
     React.PropsWithChildren<DraggablePortalHandlerProps>
 > = ({ children, snapshot }) => {
-    if (snapshot.isDragging) return createPortal(children, document.body);
+    const portalTarget = usePortalTarget();
+    if (snapshot.isDragging) return createPortal(children, portalTarget);
     return <>{children}</>;
 };
 
