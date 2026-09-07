@@ -80,7 +80,7 @@ import type { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { projectUuid } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { SpaceModel } from '../../models/SpaceModel';
@@ -324,6 +324,10 @@ const inMemoryDuckdbHistory = ({
         getDuckdbExecution: vi.fn(
             async (uuid: string) => specs.get(uuid) ?? null,
         ),
+        markDuckdbCacheHit: vi.fn(async (uuid: string) => {
+            const spec = specs.get(uuid);
+            if (spec) specs.set(uuid, { ...spec, cacheHit: true });
+        }),
         recordDuckdbRefusal: vi.fn(
             async (
                 uuid: string,
@@ -1093,6 +1097,8 @@ describe('AsyncQueryService', () => {
                 guard,
                 storedCompiledSql: null,
                 referenceLabels: {},
+                invalidateCache: false,
+                cacheHit: false,
                 refusal: null,
             });
             expect(
@@ -6309,9 +6315,11 @@ describe('runDuckdbQuery', () => {
         runDuckdbQuery: (args: RunDuckdbQueryArgs) => Promise<void>;
     };
 
-    const buildService = () => {
+    const buildService = (cached: CacheHitCacheResult | null = null) => {
         const pollForQueryCompletion = vi.fn(async () => legHistory(1));
         const recordDuckdbRefusal = vi.fn();
+        const markDuckdbCacheHit = vi.fn();
+        const findCachedResultsFile = vi.fn(async () => cached);
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             resultsStorageClient: {
                 isEnabled: true,
@@ -6321,7 +6329,9 @@ describe('runDuckdbQuery', () => {
                 update: vi.fn(),
                 pollForQueryCompletion,
                 recordDuckdbRefusal,
+                markDuckdbCacheHit,
             } as unknown as QueryHistoryModel,
+            cacheService: { findCachedResultsFile } as unknown as ICacheService,
         } as never);
         const runWarehouseQuery = vi
             .spyOn(service, 'runAsyncWarehouseQuery')
@@ -6332,8 +6342,34 @@ describe('runDuckdbQuery', () => {
             runWarehouseQuery,
             pollForQueryCompletion,
             recordDuckdbRefusal,
+            markDuckdbCacheHit,
+            findCachedResultsFile,
             update: service.queryHistoryModel.update as import('vitest').Mock,
         };
+    };
+
+    const fileKey = (files: string[]) =>
+        QueryHistoryModel.getCacheKey(projectUuid, {
+            sql: JSON.stringify({
+                sql: 'SELECT 1 AS one',
+                files,
+                parameters: {},
+            }),
+            userUuid: null,
+        });
+
+    const cachedResults: CacheHitCacheResult = {
+        cacheHit: true,
+        cacheKey: 'cached-key',
+        fileName: 'cached-results.jsonl',
+        createdAt: new Date('2026-09-07T10:00:00Z'),
+        updatedAt: new Date('2026-09-07T10:00:00Z'),
+        expiresAt: new Date('2026-09-08T10:00:00Z'),
+        totalRowCount: 26,
+        columns: { one: { reference: 'one', type: DimensionType.NUMBER } },
+        originalColumns: null,
+        pivotValuesColumns: null,
+        pivotTotalColumnCount: null,
     };
 
     const probingClient = (fields: Record<string, { type: DimensionType }>) => {
@@ -6365,6 +6401,7 @@ describe('runDuckdbQuery', () => {
             isRegisteredUser: true,
             isServiceAccount: false,
         },
+        invalidateCache: false,
         projectUuid,
         organizationUuid: projectSummary.organizationUuid,
         isPreviewProject: false,
@@ -6412,6 +6449,7 @@ describe('runDuckdbQuery', () => {
                 compiled_sql: executed.query,
                 fields: executed.fieldsMap,
                 original_columns: executed.originalColumns,
+                cache_key: 'cache-key',
             },
             expect.anything(),
         );
@@ -6495,6 +6533,8 @@ describe('runDuckdbQuery', () => {
                 compiled_sql: executed.query,
                 fields: fieldsMap,
                 original_columns: originalColumns,
+                // Keyed on the leg file it read, for the next run to find
+                cache_key: expect.any(String),
             },
             expect.anything(),
         );
@@ -6622,6 +6662,108 @@ describe('runDuckdbQuery', () => {
             }),
             expect.anything(),
         );
+    });
+
+    it('a run over the same result files is served from the earlier run without touching DuckDB', async () => {
+        const { streamQuery, warehouseClient } = probingClient({});
+        const {
+            run,
+            runWarehouseQuery,
+            findCachedResultsFile,
+            markDuckdbCacheHit,
+            update,
+        } = buildService(cachedResults);
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        // Keyed on the file the leg row points at, not the leg row itself
+        expect(findCachedResultsFile).toHaveBeenCalledWith(
+            projectUuid,
+            fileKey(['s3://results-bucket/leg-results.jsonl']),
+            expect.objectContaining({ userUuid: sessionAccount.user.id }),
+        );
+        expect(streamQuery).not.toHaveBeenCalled();
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(markDuckdbCacheHit).toHaveBeenCalledWith('duckdb-query-uuid');
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.READY,
+                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
+                results_file_name: 'cached-results.jsonl',
+                total_row_count: 26,
+                warehouse_execution_time_ms: 0,
+            }),
+            expect.anything(),
+        );
+    });
+
+    it('a run that finds nothing lands its results under the file-based key for the next one', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, update } = buildService(null);
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                cache_key: fileKey(['s3://results-bucket/leg-results.jsonl']),
+            }),
+            expect.anything(),
+        );
+        expect(runWarehouseQuery.mock.calls[0][0].cacheKey).toBe(
+            fileKey(['s3://results-bucket/leg-results.jsonl']),
+        );
+    });
+
+    it('invalidating the cache runs regardless of an earlier run over the same files', async () => {
+        const { streamQuery, warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { run, runWarehouseQuery, findCachedResultsFile } =
+            buildService(cachedResults);
+
+        await run(
+            baseArgs({
+                invalidateCache: true,
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { orders: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+
+        expect(findCachedResultsFile).not.toHaveBeenCalled();
+        expect(streamQuery).toHaveBeenCalledTimes(1);
+        expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
     });
 
     it('a guard refusal lands as the query error and is recorded on the row before anything runs', async () => {
@@ -8050,6 +8192,8 @@ describe('DuckDB source queries on the worker', () => {
             guard,
             storedCompiledSql: null,
             referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
             refusal: null,
         });
 
@@ -8152,6 +8296,8 @@ describe('DuckDB source queries on the worker', () => {
             guard: null,
             storedCompiledSql: null,
             referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
             refusal: null,
         });
 
@@ -8243,6 +8389,8 @@ describe('DuckDB source queries on the worker', () => {
             guard: null,
             storedCompiledSql: null,
             referenceLabels: {},
+            invalidateCache: false,
+            cacheHit: false,
             refusal: null,
         };
         const { queueTimeoutMs } = lightdashConfigMock.natsWorker;

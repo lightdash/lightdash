@@ -86,6 +86,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'original_columns'
         | 'pre_aggregate_compiled_sql'
         | 'pre_aggregate_execution'
+        | 'cache_key'
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'

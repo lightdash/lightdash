@@ -108,5 +108,9 @@ export type DuckdbExecutionSpec = {
     storedCompiledSql: string | null;
     /** What the user calls each referenced table, for messages that name one. */
     referenceLabels: Record<string, string>;
+    /** The submitter asked for fresh results: no lookup by the result files. */
+    invalidateCache: boolean;
+    /** Set when the run was served from another run over the same result files. */
+    cacheHit: boolean;
     refusal: { kind: 'row_cap' } | null;
 };

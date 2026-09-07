@@ -439,6 +439,16 @@ export class QueryHistoryModel {
         return row?.duckdb_execution ?? null;
     }
 
+    /** Records that a DuckDB source query was served from another run's results. */
+    async markDuckdbCacheHit(queryUuid: string): Promise<void> {
+        await this.database.raw(
+            `UPDATE ${QueryHistoryTableName}
+             SET duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{cacheHit}', 'true'::jsonb)
+             WHERE query_uuid = ?`,
+            [queryUuid],
+        );
+    }
+
     /**
      * Marks a DuckDB source query as refused by its guard: the error status
      * and the refusal land in one statement, so whoever polls the row never
