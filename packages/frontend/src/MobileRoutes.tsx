@@ -24,6 +24,7 @@ import {
     useParams,
     type RouteObject,
 } from 'react-router';
+import AUTH_ROUTES from './AuthRoutes';
 import AppRoute from './components/AppRoute';
 import MantineIcon from './components/common/MantineIcon';
 import RouterNavLink from './components/common/RouterNavLink';
@@ -198,11 +199,6 @@ export const MobileNavBar: FC = () => {
 
 const routesNotSupportedInMobile = [
     '/register',
-    '/recover-password',
-    '/reset-password/:code',
-    '/invite/:inviteCode',
-    '/verify-email',
-    '/join-organization',
     '/createProject/:method?',
     '/createProjectSettings/:projectUuid',
     '/get-started',
@@ -222,16 +218,7 @@ const FALLBACK_ROUTE: RouteObject = {
 };
 
 const PUBLIC_ROUTES: RouteObject[] = [
-    {
-        path: '/auth/popup/:status',
-        lazy: async () => {
-            const AuthPopupResult = await loadLazyRouteDefault(
-                './pages/AuthPopupResult',
-                () => import('./pages/AuthPopupResult'),
-            );
-            return { Component: AuthPopupResult };
-        },
-    },
+    ...AUTH_ROUTES,
     {
         path: '/login',
         lazy: async () => {
