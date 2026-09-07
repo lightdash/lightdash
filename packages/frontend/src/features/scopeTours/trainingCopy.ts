@@ -30,6 +30,3 @@ export const tourUrlInCopy = (
  * whatever was changed in it, is gone a moment later either way.
  */
 export const LEAVING_COPY_STATE = { leavingTrainingCopy: true } as const;
-
-/** The library starts this module on arrival (the completion dialog's Next). */
-export const START_PARAM = 'start';

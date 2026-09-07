@@ -15,15 +15,13 @@ import {
     IconHelpCircle,
     IconSearch,
 } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router';
+import { type FC, useEffect, useMemo, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
-import { SCOPE_TOURS } from '../scopeTours/generated';
-import { START_PARAM } from '../scopeTours/trainingCopy';
 import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
@@ -249,25 +247,6 @@ const LearnPage: FC = () => {
     const { start, opening } = useStartWalkthrough(
         trainingProject?.projectUuid,
     );
-    // Arriving with ?start=<scope> (the completion dialog's Next) goes
-    // straight into that module, once, the way its Start button would.
-    const [searchParams, setSearchParams] = useSearchParams();
-    const startOnArrival = searchParams.get(START_PARAM);
-    // Once only: a second copy request would remove the copy being opened.
-    const startedOnArrivalRef = useRef(false);
-    useEffect(() => {
-        if (!startOnArrival || !trainingProject) return;
-        if (startedOnArrivalRef.current) return;
-        startedOnArrivalRef.current = true;
-        setSearchParams(
-            (params) => {
-                params.delete(START_PARAM);
-                return params;
-            },
-            { replace: true },
-        );
-        if (SCOPE_TOURS[startOnArrival]) start(startOnArrival);
-    }, [startOnArrival, trainingProject, start, setSearchParams]);
     const jumpTo = (group: LearnGroup) => {
         setActiveGroup(group);
         document
