@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'crypto';
+import type { Stats } from 'fs';
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -101,7 +102,7 @@ type OwnedEntry = {
 
 type RootDebris = {
     path: string;
-    stat: Awaited<ReturnType<typeof fs.lstat>>;
+    stat: Stats;
 };
 
 const activeLeases = new Map<string, DbtGitCacheLease>();
@@ -233,7 +234,7 @@ const atomicWriteJson = async (filePath: string, value: unknown) => {
     }
 };
 
-const isPrivateOwnedStat = (stat: Awaited<ReturnType<typeof fs.lstat>>) =>
+const isPrivateOwnedStat = (stat: Stats) =>
     Number(stat.uid) === process.getuid?.() && Number(stat.mode) % 0o100 === 0;
 
 const ensureRoot = async () => {
@@ -251,7 +252,7 @@ const ensureRoot = async () => {
         throw new Error('Invalid dbt git cache root path');
     }
     const markerPath = path.join(configuration.root, ROOT_MARKER);
-    let markerStat: Awaited<ReturnType<typeof fs.lstat>>;
+    let markerStat: Stats;
     try {
         markerStat = await fs.lstat(markerPath);
     } catch (error) {
@@ -377,16 +378,13 @@ const listRootDebris = async (): Promise<RootDebris[]> => {
     );
 };
 
-const isSameFile = (
-    left: Awaited<ReturnType<typeof fs.lstat>>,
-    right: Awaited<ReturnType<typeof fs.lstat>>,
-) =>
+const isSameFile = (left: Stats, right: Stats) =>
     Number(left.dev) === Number(right.dev) &&
     Number(left.ino) === Number(right.ino);
 
 const isPrivateRootChild = async (
     candidatePath: string,
-    expectedStat: Awaited<ReturnType<typeof fs.lstat>>,
+    expectedStat: Stats,
     kind: 'directory' | 'file',
 ) => {
     if (
@@ -766,7 +764,7 @@ const evictFirstAvailableEntry = async (
 
 type AbandonedEntry = {
     entry: OwnedEntry;
-    stat: Awaited<ReturnType<typeof fs.lstat>>;
+    stat: Stats;
 };
 
 type ReservedCleanup = {
