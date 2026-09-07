@@ -8242,6 +8242,7 @@ describe('DuckDB source queries on the worker', () => {
             columns: { mode: 'supplied' as const },
             guard: null,
             storedCompiledSql: null,
+            referenceLabels: {},
             refusal: null,
         };
         const { queueTimeoutMs } = lightdashConfigMock.natsWorker;
