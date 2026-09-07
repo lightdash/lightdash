@@ -30,6 +30,9 @@ import ChartTypeBuilder from './ChartTypeBuilder';
 vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'p1',
+}));
 vi.mock('../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: vi.fn(),
 }));

@@ -80,6 +80,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
 }));
+vi.mock('../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mocks.embedToken.current }),
 }));

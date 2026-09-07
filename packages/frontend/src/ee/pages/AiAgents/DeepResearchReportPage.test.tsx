@@ -21,6 +21,10 @@ vi.mock('../../features/aiCopilot/hooks/useDeepResearch', () => ({
     useDeepResearchReport,
 }));
 
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
+}));
+
 vi.mock(
     '../../features/aiCopilot/components/DeepResearch/DeepResearchReport',
     () => ({

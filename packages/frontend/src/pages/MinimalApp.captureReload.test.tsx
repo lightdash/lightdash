@@ -22,6 +22,9 @@ vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid', appUuid: 'app-uuid' }),
     useSearchParams: () => [mocks.searchParams, vi.fn()],
 }));
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
 
 vi.mock('../features/apps/AppIframePreview', () => ({
     default: mocks.iframePreview,
