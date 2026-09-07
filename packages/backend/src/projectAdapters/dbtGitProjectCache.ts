@@ -22,6 +22,8 @@ const PENDING_DELETE = 'pending-delete';
 const CACHE_LOCK = '.reservation-lock';
 const RECLAIM_CLAIM = '.reclaim.json';
 const CACHE_LOCK_WAIT_MS = 5_000;
+const TOMBSTONE_CLEANUP_WAIT_MS = 30_000;
+const RETENTION_TOTAL_WAIT_MS = 60_000;
 const PUBLICATION_MAX_ATTEMPTS = DBT_GIT_CACHE_MAX_ENTRIES;
 const ABANDONED_ROOT_GRACE_MS = 5 * 60 * 1000;
 const ORPHAN_TEMPORARY_FILE =
@@ -917,6 +919,105 @@ const cleanupReservedRootCandidate = async (cleanup: ReservedCleanup) => {
     }
 };
 
+const acquireNewDbtGitProjectCache = async (
+    identity: DbtGitCacheIdentity,
+    repositoryIdentity: string,
+    key: string,
+    entryDirectory: string,
+    totalDeadline: number,
+    attempt: number,
+): Promise<DbtGitCacheLease | undefined> => {
+    if (Date.now() >= totalDeadline || attempt >= PUBLICATION_MAX_ATTEMPTS) {
+        return undefined;
+    }
+    const cacheLock = await acquireCacheLock(
+        Math.min(totalDeadline, Date.now() + CACHE_LOCK_WAIT_MS),
+    );
+    if (!cacheLock) return undefined;
+    let cleanup: Promise<boolean> | undefined;
+    try {
+        const entries = await listOwnedEntries();
+        if (entries.length >= DBT_GIT_CACHE_MAX_ENTRIES) {
+            const candidates = entries
+                .filter(
+                    (entry) =>
+                        entry.kind === 'entry' &&
+                        entry.owned &&
+                        entry.metadata?.state === 'retained',
+                )
+                .sort(
+                    (left, right) =>
+                        (left.metadata?.lastUsedAt ?? 0) -
+                        (right.metadata?.lastUsedAt ?? 0),
+                );
+            cleanup = (await evictFirstAvailableEntry(candidates))?.cleanup;
+            if (!cleanup) return undefined;
+        } else {
+            try {
+                await fs.mkdir(entryDirectory, { mode: 0o700 });
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+                    return undefined;
+                }
+                throw error;
+            }
+            try {
+                await atomicWriteJson(path.join(entryDirectory, ENTRY_MARKER), {
+                    version: CACHE_VERSION,
+                    key,
+                });
+                await atomicWriteJson(path.join(entryDirectory, METADATA), {
+                    version: CACHE_VERSION,
+                    key,
+                    identity,
+                    repositoryIdentity,
+                    state: 'active',
+                    sizeBytes: 0,
+                    lastUsedAt: Date.now(),
+                } satisfies EntryMetadata);
+                const acquired = await tryEntryLease(entryDirectory);
+                if (!acquired) {
+                    await fs.rm(entryDirectory, {
+                        recursive: true,
+                        force: true,
+                    });
+                    return undefined;
+                }
+                const lease = toPublicLease(
+                    key,
+                    entryDirectory,
+                    acquired,
+                    false,
+                );
+                activeLeases.set(key, lease);
+                return lease;
+            } catch (error) {
+                await fs.rm(entryDirectory, { recursive: true, force: true });
+                throw error;
+            }
+        }
+    } finally {
+        await releaseDirectoryLease(cacheLock);
+    }
+    if (
+        cleanup &&
+        (await waitForTombstoneCleanup(
+            cleanup,
+            Math.min(totalDeadline, Date.now() + TOMBSTONE_CLEANUP_WAIT_MS),
+        ))
+    ) {
+        return acquireNewDbtGitProjectCache(
+            identity,
+            repositoryIdentity,
+            key,
+            entryDirectory,
+            totalDeadline,
+            attempt + 1,
+        );
+    }
+    return undefined;
+};
+
 export const acquireDbtGitProjectCache = async (
     identity: DbtGitCacheIdentity,
     repositoryIdentity: string,
@@ -958,47 +1059,14 @@ export const acquireDbtGitProjectCache = async (
             throw error;
         }
     }
-    const cacheLock = await acquireCacheLock();
-    if (!cacheLock) return undefined;
-    try {
-        const entries = await listOwnedEntries();
-        if (entries.length >= DBT_GIT_CACHE_MAX_ENTRIES) return undefined;
-        try {
-            await fs.mkdir(entryDirectory, { mode: 0o700 });
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'EEXIST')
-                return undefined;
-            throw error;
-        }
-        try {
-            await atomicWriteJson(path.join(entryDirectory, ENTRY_MARKER), {
-                version: CACHE_VERSION,
-                key,
-            });
-            await atomicWriteJson(path.join(entryDirectory, METADATA), {
-                version: CACHE_VERSION,
-                key,
-                identity,
-                repositoryIdentity,
-                state: 'active',
-                sizeBytes: 0,
-                lastUsedAt: Date.now(),
-            } satisfies EntryMetadata);
-            const acquired = await tryEntryLease(entryDirectory);
-            if (!acquired) {
-                await fs.rm(entryDirectory, { recursive: true, force: true });
-                return undefined;
-            }
-            const lease = toPublicLease(key, entryDirectory, acquired, false);
-            activeLeases.set(key, lease);
-            return lease;
-        } catch (error) {
-            await fs.rm(entryDirectory, { recursive: true, force: true });
-            throw error;
-        }
-    } finally {
-        await releaseDirectoryLease(cacheLock);
-    }
+    return acquireNewDbtGitProjectCache(
+        identity,
+        repositoryIdentity,
+        key,
+        entryDirectory,
+        Date.now() + RETENTION_TOTAL_WAIT_MS,
+        0,
+    );
 };
 
 export const invalidateOwnedDbtGitCacheLease = async (
@@ -1011,10 +1079,10 @@ export const invalidateOwnedDbtGitCacheLease = async (
 const retainDbtGitProjectCache = async (
     lease: DbtGitCacheLease,
     sizeBytes: number,
-    deadline: number,
+    totalDeadline: number,
     attempt: number,
 ): Promise<void> => {
-    if (Date.now() >= deadline || attempt >= PUBLICATION_MAX_ATTEMPTS) {
+    if (Date.now() >= totalDeadline || attempt >= PUBLICATION_MAX_ATTEMPTS) {
         Logger.warn('Declined dbt git cache retention', {
             reason:
                 attempt >= PUBLICATION_MAX_ATTEMPTS
@@ -1024,7 +1092,9 @@ const retainDbtGitProjectCache = async (
         await removeWhileLeased(lease);
         return;
     }
-    const cacheLock = await acquireCacheLock(deadline);
+    const cacheLock = await acquireCacheLock(
+        Math.min(totalDeadline, Date.now() + CACHE_LOCK_WAIT_MS),
+    );
     if (!cacheLock) {
         Logger.warn('Declined dbt git cache retention', {
             reason: 'reservation-lock-timeout',
@@ -1155,11 +1225,16 @@ const retainDbtGitProjectCache = async (
         return;
     }
     if (cleanup) {
-        if (await waitForTombstoneCleanup(cleanup, deadline)) {
+        if (
+            await waitForTombstoneCleanup(
+                cleanup,
+                Math.min(totalDeadline, Date.now() + TOMBSTONE_CLEANUP_WAIT_MS),
+            )
+        ) {
             return retainDbtGitProjectCache(
                 lease,
                 sizeBytes,
-                deadline,
+                totalDeadline,
                 attempt + 1,
             );
         }
@@ -1193,7 +1268,7 @@ export const releaseDbtGitProjectCache = async (
     await retainDbtGitProjectCache(
         lease,
         sizeBytes,
-        Date.now() + CACHE_LOCK_WAIT_MS,
+        Date.now() + RETENTION_TOTAL_WAIT_MS,
         0,
     );
 };
