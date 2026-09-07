@@ -1,5 +1,228 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`MCP tool contracts > matches the 'filter-expression' MCP server instructions snapshot 1`] = `
+"# Lightdash MCP Tools — Usage Guidelines
+
+## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
+3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+
+## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
+
+### Explore Selection
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
+- If still ambiguous, ask the user which data source they want — do NOT guess
+
+### When to Use run_sql vs run_metric_query
+- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
+- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
+- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+- Use the SQL dialect appropriate for the connected warehouse
+
+### Filter Expressions
+
+For \`run_metric_query\`, set \`queryConfig.filters\` to null when no query filters are needed. Otherwise, \`dimensions\`, \`metrics\`, and \`tableCalculations\` are independent string expressions or null.
+
+- A non-null category contains one raw string expression.
+- Choose the category from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics and custom metrics belong in \`metrics\`.
+- A field used only to restrict rows stays in its filter expression. Do not add it to \`queryConfig.dimensions\` unless the user asked to group by or display it: extra selected dimensions change aggregation and table-calculation grain.
+- Table calculations belong only in \`tableCalculations\`.
+- Each category is flat and uses AND or OR, never both.
+- The three categories combine implicitly with AND.
+- Aggregation custom metric filters are flat AND expressions.
+- Omit \`search_field_values.filters\` for an unscoped search. When present, it is one flat dimension expression string and is AND-only.
+- The tool schema is authoritative for where each string is placed.
+
+Raw placement examples:
+- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- metrics: orders_total_order_amount greaterThan=100
+- tableCalculations: rank lessThanOrEqual=10
+
+- Join flat rules with AND or OR. Do not mix both connectors in one expression.
+- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
+- Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
+
+### string
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`startsWith=<value>[,<value>...] [1+ values]\`
+- \`endsWith=<value>[,<value>...] [1+ values]\`
+- \`include=<value>[,<value>...] [1+ values]\`
+- \`doesNotInclude=<value>[,<value>...] [1+ values]\`
+
+### number
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- \`notInBetween=<first value>,<second value> [2 values]\`
+
+### date
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value>[,<value>...] [1+ values]\`
+- \`notEquals=<value>[,<value>...] [1+ values]\`
+- \`lessThan=<value> [1 value]\`
+- \`lessThanOrEqual=<value> [1 value]\`
+- \`greaterThan=<value> [1 value]\`
+- \`greaterThanOrEqual=<value> [1 value]\`
+- \`inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]\`
+- \`inTheCurrent=<unit> [1 unit]\`
+- \`notInTheCurrent=<unit> [1 unit]\`
+- \`inBetween=<first value>,<second value> [2 values]\`
+- Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+
+### boolean
+Grammar: <field> <operator form>
+- \`isNull [0 values]\`
+- \`notNull [0 values]\`
+- \`equals=<value> [1 value]\`
+- \`notEquals=<value> [1 value]\`
+
+### Time Filtering
+- If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
+- Use the \`inThePast\` operator for relative windows
+- Date fields from joined tables work identically in filters
+
+### Field Usage
+- Never mix fields from different explores in a single query
+- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
+- When similar field names exist in base and joined tables, match to the query's semantic level
+
+### Pagination
+- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
+
+### Visualization
+- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
+- For time series: use \`line\` with \`xAxisType: 'time'\`
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
+- For single values or detailed data: use \`table\`
+- Always provide axis labels
+
+### Table Calculations
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
+
+### Custom Metrics
+- Use when the explore lacks a needed aggregation
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
+- Reference using the pattern \`table_metricname\`
+"
+`;
+
+exports[`MCP tool contracts > matches the 'structured-filter' MCP server instructions snapshot 1`] = `
+"# Lightdash MCP Tools — Usage Guidelines
+
+## Query Building Workflow
+
+For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL is requested without enough warehouse schema, ask for the missing table or column identifiers; \`grep_fields\` and \`get_metadata\` only discover modeled Lightdash Explores.
+
+0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool. When agent-specific scope is useful, call \`route_agent\` with that project UUID and pass its returned \`agentUuid\` to subsequent scoped tools. If routing is unavailable or full project scope is desired, omit \`agentUuid\`; use \`set_agent\` to select an agent manually
+1. **Search fields first**: Use \`grep_fields\` with 1–5 high-signal keyword patterns to discover the relevant explore and field IDs
+   - Search with business terms and synonyms, not long natural-language phrases
+   - Use \`|\` to OR synonyms (for example \`revenue|sales\`) and spaces or \`.*\` to require terms together (for example \`order.*status\`)
+   - Pass several patterns in one call so you can compare the different angles of the request together
+   - Pick the single explore whose fields answer the question at the right grain; if several still fit, ask the user which data source they mean
+2. **Get metadata**: Use \`get_metadata\` for the explores and fields you selected from \`grep_fields\`
+   - Batch all needed explores and fields in one call
+   - Use it to confirm joined tables, required filters, filter types, case-sensitivity, and field-level hints before building the query
+   - Never invent field IDs; only use exact values returned by \`grep_fields\` / \`get_metadata\`
+3. **Search field values**: Use \`search_field_values\` to discover valid filter values for a dimension
+4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
+5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
+6. **Render charts**: If the user wants a chart, call \`render_chart\` with the \`queryUuid\` returned when \`run_metric_query\` completes, or with the \`queryUuid\` returned by \`get_query_result\` after polling that metric query to completion
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards, charts, and Data Apps
+
+## Critical Rules
+
+### Tool Catalogue
+- \`run_metric_query\` is registered for this session. If it is not in your catalogue, your client cached an outdated tool list — say so and ask the user to reconnect the connector; never substitute \`run_sql\` for it
+
+### Explore Selection
+- When the user's query contains a domain word matching an explore name, prefer that explore if \`grep_fields\` also surfaces relevant fields there
+- When multiple explores surface plausible fields, choose the one whose dimensions and metrics match the user's intended grain
+- If still ambiguous, ask the user which data source they want — do NOT guess
+
+### When to Use run_sql vs run_metric_query
+- **Prefer \`run_metric_query\`** for standard analysis — it leverages the semantic layer and ensures consistent metric definitions
+- **Use \`run_sql\`** only for ad-hoc queries, cross-table joins not modeled in explores, or when the user explicitly requests raw SQL
+- \`run_sql\` defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
+- Use the SQL dialect appropriate for the connected warehouse
+
+### Time Filtering
+- If the user mentions ANY time period, you MUST add a date filter — do not rely on sort + limit
+- Use the \`inThePast\` operator for relative windows
+- Date fields from joined tables work identically in filters
+
+### Field Usage
+- Never mix fields from different explores in a single query
+- Any field used for sorting MUST be included in dimensions, metrics, or table calculations
+- When similar field names exist in base and joined tables, match to the query's semantic level
+
+### Pagination
+- Page parameters must be numbers (e.g., \`1\`) — never use \`NaN\` or \`"null"\`
+
+### Visualization
+- \`run_metric_query\` returns metric-query data; \`run_sql\` returns SQL data; \`render_chart\` renders visuals for completed metric queries
+- Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel
+- For time series: use \`line\` with \`xAxisType: 'time'\`
+- For categorical comparisons: use \`bar\` or \`horizontal_bar\`
+- For single values or detailed data: use \`table\`
+- Always provide axis labels
+
+### Table Calculations
+Author table calculations as type \`formula\` (the field's schema documents the syntax). Use them for:
+- Arithmetic across metrics: \`metric_a + metric_b\`, ratios \`metric_a / metric_b\`
+- Aggregating already-aggregated metrics (e.g., average of monthly totals): \`AVG(metric)\`
+- Row comparisons: % of total \`m / SUM(m)\`, period-over-period \`(m - LAG(m, ORDER BY date)) / LAG(m, ORDER BY date)\`, rankings \`RANK(...)\`, running totals \`RUNNING_TOTAL(m, ORDER BY date)\`, trailing 3-period average \`MOVING_AVG(m, 2, ORDER BY date)\`
+- "Top N per group" patterns: \`ROW_NUMBER(PARTITION BY group, ORDER BY m DESC)\`, then filter
+
+### Custom Metrics
+- Use when the explore lacks a needed aggregation
+- Always confirm the metric doesn't already exist via \`grep_fields\` / \`get_metadata\` first
+- Reference using the pattern \`table_metricname\`
+"
+`;
+
 exports[`MCP tool contracts > matches the current MCP tool and prompt contract snapshot 1`] = `
 {
   "prompts": [

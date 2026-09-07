@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -232,6 +233,28 @@ describe('AI agent tool contracts', () => {
     it('matches the shared agent tool definition names snapshot', () => {
         expect(sharedAgentToolDefinitionNames).toMatchSnapshot();
     });
+
+    it.each([
+        {
+            name: 'structured-filter',
+            enableFilterExpressions: false,
+        },
+        {
+            name: 'filter-expression',
+            enableFilterExpressions: true,
+        },
+    ])(
+        'matches the $name Agent system prompt snapshot',
+        ({ enableFilterExpressions }) => {
+            expect(
+                getSystemPromptV2({
+                    availableExplores: [],
+                    date: '2026-08-27',
+                    enableFilterExpressions,
+                }).content,
+            ).toMatchSnapshot();
+        },
+    );
 
     it('matches the current agent tool contract snapshot', () => {
         const agentTools = makeAgentTools();
