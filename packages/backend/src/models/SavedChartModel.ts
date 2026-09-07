@@ -529,13 +529,17 @@ export const createSavedChart = async (
             return await db.transaction(async (trx) => {
                 await acquireProjectSlugLock(trx, projectUuid, slug);
 
+                let deletedOwnerUuid: string | undefined;
                 if (forceSlug) {
-                    const existingUuid = await resolveForcedChartSlug(
+                    const owner = await getSavedChartSlugOwner(
                         trx,
                         projectUuid,
                         slug,
                     );
-                    if (existingUuid) return existingUuid;
+                    if (owner && !owner.deleted_at) {
+                        return owner.saved_query_uuid;
+                    }
+                    deletedOwnerUuid = owner?.saved_query_uuid;
                 }
 
                 let chart: InsertChart;
@@ -607,9 +611,29 @@ export const createSavedChart = async (
                         space_id: space.space_id,
                     };
                 }
-                const [newSavedChart] = await trx(SavedChartsTableName)
-                    .insert(chart)
-                    .returning('*');
+                // An exact slug owned by a deleted chart is the same content
+                // as code identity, so it comes back where the upload puts it.
+                const [newSavedChart] = deletedOwnerUuid
+                    ? await trx(SavedChartsTableName)
+                          .update({
+                              name: chart.name,
+                              description: chart.description,
+                              last_version_chart_kind:
+                                  chart.last_version_chart_kind,
+                              last_version_updated_by_user_uuid:
+                                  chart.last_version_updated_by_user_uuid,
+                              last_version_updated_at: new Date(),
+                              color_palette_uuid: chart.color_palette_uuid,
+                              space_id: chart.space_id,
+                              dashboard_uuid: chart.dashboard_uuid,
+                              deleted_at: null,
+                              deleted_by_user_uuid: null,
+                          })
+                          .where('saved_query_uuid', deletedOwnerUuid)
+                          .returning('*')
+                    : await trx(SavedChartsTableName)
+                          .insert(chart)
+                          .returning('*');
                 await createSavedChartVersion(
                     trx,
                     newSavedChart.saved_query_id,

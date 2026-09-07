@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    ConflictError,
     ContentReviewContentType,
     ContentType,
     CreateDashboard,
@@ -148,6 +147,11 @@ export type GetChartTileQuery = Pick<
 type DashboardModelArguments = {
     database: Knex;
     contentVerificationModel?: ContentVerificationModel;
+};
+
+type DeletedDashboardSlugOwner = {
+    dashboard_uuid: string;
+    deleted_by_user_uuid: string | null;
 };
 
 export class DashboardModel {
@@ -1445,6 +1449,51 @@ export class DashboardModel {
         );
     }
 
+    // An exact slug owned by a deleted dashboard is the same content as code
+    // identity, so it comes back in the requested space with the new content.
+    private static async reviveDeletedDashboard(
+        trx: Knex.Transaction,
+        deletedDashboard: DeletedDashboardSlugOwner,
+        spaceId: number,
+        dashboard: CreateDashboard & { slug: string },
+        user: Pick<SessionUser, 'userUuid'>,
+    ): Promise<string> {
+        const [revived] = await trx(DashboardsTableName)
+            .update({
+                name: dashboard.name,
+                description: dashboard.description,
+                space_id: spaceId,
+                owner_user_uuid: dashboard.ownerUserUuid ?? null,
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('dashboard_uuid', deletedDashboard.dashboard_uuid)
+            .returning(['dashboard_id', 'dashboard_uuid']);
+
+        // Dashboard charts cascade-deleted with it come back too
+        if (deletedDashboard.deleted_by_user_uuid) {
+            await trx(SavedChartsTableName)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                })
+                .where('dashboard_uuid', deletedDashboard.dashboard_uuid)
+                .whereNull('space_id')
+                .where(
+                    'deleted_by_user_uuid',
+                    deletedDashboard.deleted_by_user_uuid,
+                );
+        }
+
+        await DashboardModel.createVersion(trx, revived.dashboard_id, {
+            ...dashboard,
+            tabs: dashboard.tabs || [],
+            updatedByUser: user,
+        });
+
+        return revived.dashboard_uuid;
+    }
+
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
@@ -1454,6 +1503,7 @@ export class DashboardModel {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
 
+            let deletedOwner: DeletedDashboardSlugOwner | undefined;
             if (dashboard.forceSlug) {
                 const existing = await trx(DashboardsTableName)
                     .where(`${DashboardsTableName}.project_uuid`, projectUuid)
@@ -1461,16 +1511,13 @@ export class DashboardModel {
                     .select(
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${DashboardsTableName}.deleted_at`,
+                        `${DashboardsTableName}.deleted_by_user_uuid`,
                     )
                     .first();
-                if (existing?.deleted_at) {
-                    throw new ConflictError(
-                        `Dashboard slug "${dashboard.slug}" is already used by a deleted dashboard`,
-                    );
-                }
-                if (existing) {
+                if (existing && !existing.deleted_at) {
                     return existing.dashboard_uuid;
                 }
+                deletedOwner = existing;
             }
 
             const [space] = await trx(SpaceTableName)
@@ -1485,6 +1532,16 @@ export class DashboardModel {
                 .limit(1);
             if (!space) {
                 throw new NotFoundError('Space not found');
+            }
+
+            if (deletedOwner) {
+                return DashboardModel.reviveDeletedDashboard(
+                    trx,
+                    deletedOwner,
+                    space.space_id,
+                    dashboard,
+                    user,
+                );
             }
 
             const [newDashboard] = await trx(DashboardsTableName)

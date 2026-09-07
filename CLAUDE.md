@@ -389,6 +389,8 @@ Slugs are unique per project and resource type for charts, dashboards, SQL Runne
 
 Use `generateUniqueSlugScopedToProject()` (`packages/backend/src/utils/SlugUtils.ts`) for normal creation. It derives the base with `generateSlug()`, probes exact indexed candidates, and appends `-1`, `-2`, and so on for conflicts. Explicit slugs used by content-as-code and promotion must be inserted exactly; same-project conflicts return an actionable conflict or resolve the intended active upsert, never overwrite another resource.
 
+Content-as-code upserts address content by exact slug, so a soft-deleted chart or dashboard that owns the slug is revived in place with the uploaded content instead of blocking the upload. Space paths are not database-constrained: one active space and any number of deleted spaces may share a path, and restoring a deleted space is rejected while an active space holds its path.
+
 UUIDs remain the canonical internal identity. Use them for foreign keys, durable relationships, and references without an explicit project scope. Slugs are appropriate for project-scoped URLs and portable content-as-code selectors.
 
 `getLtreePathFromSlug` is lossy: hyphens and underscores map to the same ltree label. Space hierarchy and access logic must use `parent_space_uuid`; path-based resolution must reject ambiguity rather than selecting an arbitrary row.

@@ -1996,7 +1996,8 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [space.path])
             .andWhereNot('space_uuid', spaceUuid)
-            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`);
 
         return ancestors.map((ancestor) => ancestor.space_uuid);
     }
@@ -2123,15 +2124,13 @@ export class SpaceModel {
             `space:${path ?? baseSlug}`,
         );
         if (path !== undefined) {
+            // Deleted spaces keep their path for restore but must not block
+            // new content at that location; restore() rejects the clash.
             const existing = await trx(SpaceTableName)
                 .where('project_id', project.project_id)
                 .where('path', path)
+                .whereNull('deleted_at')
                 .first();
-            if (existing?.deleted_at) {
-                throw new ConflictError(
-                    `Space path "${path}" is already used by a deleted space`,
-                );
-            }
             if (existing) {
                 return SpaceModel.convertCreatedSpace(existing, projectUuid);
             }
@@ -2186,17 +2185,35 @@ export class SpaceModel {
     }
 
     async restore(spaceUuid: string): Promise<void> {
-        const updateCount = await this.database(SpaceTableName)
-            .update({
-                deleted_at: null,
-                deleted_by_user_uuid: null,
-            })
-            .where('space_uuid', spaceUuid)
-            .whereNotNull('deleted_at');
+        await this.database.transaction(async (trx) => {
+            const deletedSpace = await trx(SpaceTableName)
+                .select('project_id', 'path', 'name')
+                .where('space_uuid', spaceUuid)
+                .whereNotNull('deleted_at')
+                .first();
+            if (!deletedSpace) {
+                throw new NotFoundError('Deleted space not found');
+            }
 
-        if (updateCount !== 1) {
-            throw new NotFoundError('Deleted space not found');
-        }
+            const activeSpaceAtPath = await trx(SpaceTableName)
+                .select('name')
+                .where('project_id', deletedSpace.project_id)
+                .where('path', deletedSpace.path)
+                .whereNull('deleted_at')
+                .first();
+            if (activeSpaceAtPath) {
+                throw new ConflictError(
+                    `Cannot restore space "${deletedSpace.name}" because the space "${activeSpaceAtPath.name}" now exists at the same location. Delete or move that space first.`,
+                );
+            }
+
+            await trx(SpaceTableName)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                })
+                .where('space_uuid', spaceUuid);
+        });
     }
 
     async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {
