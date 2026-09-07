@@ -29,7 +29,14 @@ describe('getOpenRouterModel', () => {
         expect(routingBlock()).toEqual({
             data_collection: 'deny',
             require_parameters: true,
+            sort: 'latency',
         });
+    });
+
+    test('sends the configured provider sort', () => {
+        getOpenRouterModel({ ...baseConfig, sortOrder: 'throughput' });
+
+        expect(routingBlock()).toMatchObject({ sort: 'throughput' });
     });
 
     test('pins upstream providers with an `only` filter', () => {
