@@ -274,7 +274,18 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                         pos="absolute"
                     />
                 </Popover.Target>
-                <Popover.Dropdown p={0}>
+                <Popover.Dropdown
+                    p={0}
+                    // Walkthrough result marker for manage:Tags: the metric's
+                    // categories, with the one just added.
+                    data-tour-scope="manage:Tags"
+                    data-tour-step="1"
+                    data-tour-route="/projects/:projectUuid/metrics"
+                    data-tour-label="Categories group metrics for everyone"
+                    data-tour-docs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:1"
+                    data-tour-return="none"
+                    data-tour-resultdocs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:2"
+                >
                     <Stack px="sm" pt="sm" gap="xs">
                         <PillTagsInput
                             value={categoryNames}

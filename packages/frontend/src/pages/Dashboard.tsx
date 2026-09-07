@@ -53,6 +53,7 @@ import {
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -768,6 +769,7 @@ const Dashboard: FC = () => {
     const blocker = useBlocker(({ nextLocation }) => {
         if (
             isEditMode &&
+            !isLeavingTrainingCopy(nextLocation) &&
             (haveTilesChanged ||
                 haveFiltersChanged ||
                 haveTabsChanged ||

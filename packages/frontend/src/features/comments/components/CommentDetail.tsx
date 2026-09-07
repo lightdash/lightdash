@@ -80,7 +80,11 @@ export const CommentDetail: FC<Props> = ({
                             <CommentTimestamp timestamp={comment.createdAt} />
                         </Group>
 
-                        <Group gap="two" opacity={hovered ? 1 : 0}>
+                        <Group
+                            gap="two"
+                            opacity={hovered ? 1 : 0}
+                            className={styles.actions}
+                        >
                             {canReply && onReply && (
                                 <Tooltip
                                     label="Reply"
@@ -104,7 +108,13 @@ export const CommentDetail: FC<Props> = ({
                                     zIndex={getDefaultZIndex('popover') + 1}
                                 >
                                     <Menu.Target>
-                                        <ActionIcon size="xs">
+                                        <ActionIcon
+                                            size="xs"
+                                            // Walkthrough anchor
+                                            // (data-tour-via).
+                                            data-tour-anchor="comment-actions"
+                                            data-tour-hint="Open the comment's menu"
+                                        >
                                             <MantineIcon
                                                 icon={IconDotsVertical}
                                             />
@@ -125,6 +135,17 @@ export const CommentDetail: FC<Props> = ({
                                                     />
                                                 }
                                                 onClick={() => onResolve()}
+                                                // Walkthrough action for
+                                                // manage:DashboardComments.
+                                                // See scripts/scope-tours.
+                                                data-tour-scope="manage:DashboardComments"
+                                                data-tour-step="2"
+                                                data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                                                data-tour-label="Click Resolve"
+                                                data-tour-title="Resolve a comment thread"
+                                                data-tour-interactive="true"
+                                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"] >> [data-tour-anchor="tile-comments"] >> [data-tour-anchor="comment-actions"]'
+                                                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:li3:1"
                                             >
                                                 Resolve
                                             </Menu.Item>

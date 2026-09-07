@@ -8,6 +8,7 @@ import {
     type Dashboard,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     getDefaultZIndex,
     Group,
@@ -269,15 +270,24 @@ const AddChartTilesModal: FC<Props> = ({
                         isInitialLoading ||
                         form.values.savedChartsUuids.length === 0
                     }
+                    data-tour-anchor="add-charts-submit"
+                    data-tour-hint="Click Add"
                 >
                     Add
                 </Button>
             }
         >
-            <form id="add-saved-charts-to-dashboard" onSubmit={handleSubmit}>
+            {/* Room for the open chart list, so it never covers Add. */}
+            <form
+                id="add-saved-charts-to-dashboard"
+                onSubmit={handleSubmit}
+                style={{ minHeight: 360 }}
+            >
                 <MultiSelectCombobox
                     radius="md"
                     maw={550}
+                    data-tour-anchor="chart-picker"
+                    data-tour-hint="Open the chart list"
                     id="saved-charts"
                     label={`Select the charts you want to add to this dashboard`}
                     options={filteredSavedCharts}
@@ -344,15 +354,23 @@ const AddChartTilesModal: FC<Props> = ({
                             (item) => item.value === option.value,
                         );
                         return (
-                            <SelectItem
-                                label={option.label}
-                                chartKind={
-                                    chart?.chartKind ?? ChartKind.VERTICAL_BAR
-                                }
-                                tooltipLabel={chart?.tooltipLabel}
-                                disabled={option.disabled}
-                                selected={selected}
-                            />
+                            <Box
+                                // Walkthrough anchor, one chart by name.
+                                data-tour-anchor="chart-option"
+                                data-tour-hint="Choose {value}"
+                                data-tour-value={option.label}
+                            >
+                                <SelectItem
+                                    label={option.label}
+                                    chartKind={
+                                        chart?.chartKind ??
+                                        ChartKind.VERTICAL_BAR
+                                    }
+                                    tooltipLabel={chart?.tooltipLabel}
+                                    disabled={option.disabled}
+                                    selected={selected}
+                                />
+                            </Box>
                         );
                     }}
                     onValueRemove={(chartUuid) => {
