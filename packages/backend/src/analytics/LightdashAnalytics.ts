@@ -2717,6 +2717,9 @@ export type AiAgentCreatedEvent = BaseTrack & {
         agentName: string;
         tagsCount: number;
         integrationsCount: number;
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
         autoProvisioned?: boolean;
     };
 };
@@ -2732,6 +2735,30 @@ export type AiAgentThreadDeletedEvent = BaseTrack & {
         threadId: string;
         memoriesDeleted: number;
         deletedVia: 'admin' | 'owner';
+    };
+};
+
+export type AiAgentThreadPinnedEvent = BaseTrack & {
+    event: 'ai_agent.thread_pinned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        pinned: boolean;
+    };
+};
+
+export type AiAgentThreadRenamedEvent = BaseTrack & {
+    event: 'ai_agent.thread_renamed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        titleLength: number;
     };
 };
 
@@ -2791,6 +2818,9 @@ export type AiAgentUpdatedEvent = BaseTrack & {
         agentName: string | undefined;
         tagsCount: number;
         integrationsCount: number;
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
     };
 };
 
@@ -2877,8 +2907,11 @@ export type AiAgentResponseStreamed = BaseTrack & {
         usageTokensCount: number;
         stepsCount: number;
         model: string;
+        modelProvider: string | null;
         finishReason: string;
         stepCapReached: boolean;
+        timeToFirstTokenMs: number | null;
+        durationMs: number;
     };
 };
 
@@ -3867,6 +3900,8 @@ type TypedEvent =
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent
+    | AiAgentThreadPinnedEvent
+    | AiAgentThreadRenamedEvent
     | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent

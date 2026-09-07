@@ -1009,6 +1009,20 @@ export class AiAgentService extends BaseService {
 
     private readonly mobilePushNotificationService: AiAgentServiceDependencies['mobilePushNotificationService'];
 
+    private static getModelConfigAnalyticsProperties(
+        modelConfig: AiAgentModelConfig | null | undefined,
+    ): {
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
+    } {
+        return {
+            modelProvider: modelConfig?.modelProvider ?? null,
+            modelName: modelConfig?.modelName ?? null,
+            reasoningEnabled: modelConfig?.reasoning ?? null,
+        };
+    }
+
     private static getPinnedContextAnalyticsProperties(
         context: AiPromptContextInput | undefined,
     ): Pick<
@@ -3484,7 +3498,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        return thread;
+        return { thread, agent, organizationUuid };
     }
 
     async updateAgentThreadTitle(
@@ -3505,7 +3519,7 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        await this.getManagedThread(user, {
+        const { agent, organizationUuid } = await this.getManagedThread(user, {
             agentUuid,
             threadUuid,
             action: 'rename',
@@ -3514,6 +3528,17 @@ export class AiAgentService extends BaseService {
         await this.aiAgentModel.updateThreadTitle({
             threadUuid,
             title: trimmedTitle,
+        });
+        this.analytics.track({
+            event: 'ai_agent.thread_renamed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                threadId: threadUuid,
+                titleLength: trimmedTitle.length,
+            },
         });
     }
 
@@ -3525,13 +3550,24 @@ export class AiAgentService extends BaseService {
             pinned,
         }: { agentUuid: string; threadUuid: string; pinned: boolean },
     ): Promise<void> {
-        await this.getManagedThread(user, {
+        const { agent, organizationUuid } = await this.getManagedThread(user, {
             agentUuid,
             threadUuid,
             action: pinned ? 'pin' : 'unpin',
         });
 
         await this.aiAgentModel.setThreadPinned({ threadUuid, pinned });
+        this.analytics.track({
+            event: 'ai_agent.thread_pinned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                agentId: agentUuid,
+                threadId: threadUuid,
+                pinned,
+            },
+        });
     }
 
     async deleteAgentThread(
@@ -4131,6 +4167,9 @@ export class AiAgentService extends BaseService {
                 agentName: agent.name,
                 tagsCount: agent.tags?.length ?? 0,
                 integrationsCount: agent.integrations?.length ?? 0,
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    agent.modelConfig,
+                ),
                 ...(options?.autoProvisioned ? { autoProvisioned: true } : {}),
             },
         });
@@ -5842,6 +5881,9 @@ export class AiAgentService extends BaseService {
                 agentName: body.name,
                 tagsCount: updatedAgent.tags?.length ?? 0,
                 integrationsCount: updatedAgent.integrations?.length ?? 0,
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    updatedAgent.modelConfig,
+                ),
             },
         });
 

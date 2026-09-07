@@ -2334,12 +2334,18 @@ export const streamAgentResponse = async ({
                         agentName: args.agentSettings.name,
                         usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
-                        model:
+                        model: modelName,
+                        modelProvider:
                             typeof args.model === 'string'
-                                ? args.model
-                                : args.model.modelId,
+                                ? null
+                                : args.model.provider,
                         finishReason,
                         stepCapReached,
+                        timeToFirstTokenMs:
+                            firstChunkTime === null
+                                ? null
+                                : firstChunkTime - startTime,
+                        durationMs: Date.now() - startTime,
                     },
                 });
                 logger(
