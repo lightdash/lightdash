@@ -46901,7 +46901,7 @@
                     "sourceLimitExceededSql": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Boolean SQL expression that is true when a source exceeded its cap."
+                        "deprecated": true
                     },
                     "limit": {
                         "type": "number",
@@ -46918,7 +46918,7 @@
                 },
                 "required": ["sourceLimitExceededSql", "limit", "orderBy"],
                 "type": "object",
-                "description": "The terminal stage of a merged statement, owned by the run path: sort,\nlimit, and truncation detection. Kept as data rather than SQL text so the\nrun path can attach it above whatever it stacked on the core (for example a\ndate spine), and so the composable core stays clean under `SELECT *`."
+                "description": "The terminal stage of a merged statement, owned by the run path: sort and\nlimit. Kept as data rather than SQL text so the run path can attach it\nabove whatever it stacked on the core (for example a pivot), and so the\ncomposable core stays clean under `SELECT *`."
             },
             "Record_string.Record_string.string__": {
                 "properties": {},
@@ -59982,7 +59982,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.142.0",
+        "version": "2.143.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

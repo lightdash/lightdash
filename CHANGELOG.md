@@ -1,3 +1,10 @@
+# [2.143.0](https://github.com/lightdash/lightdash/compare/2.142.0...2.143.0) (2026-09-07)
+
+
+### Features
+
+* **merge:** show the legs and the join as the SQL that runs ([#28732](https://github.com/lightdash/lightdash/issues/28732)) ([a6e4e18](https://github.com/lightdash/lightdash/commit/a6e4e18f14f9a517bf83d93d5c78038089da35ef)), closes [#fbe9e2](https://github.com/lightdash/lightdash/issues/fbe9e2) [#b0532](https://github.com/lightdash/lightdash/issues/b0532) [#7a3a1](https://github.com/lightdash/lightdash/issues/7a3a1)
+
 # [2.142.0](https://github.com/lightdash/lightdash/compare/2.141.0...2.142.0) (2026-09-07)
 
 
