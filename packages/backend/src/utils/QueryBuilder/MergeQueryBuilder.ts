@@ -1,11 +1,8 @@
 import {
     assertUnreachable,
     DimensionType,
-    MERGE_ROW_PRESENT_COLUMN,
-    MERGE_TRUNCATED_COLUMN,
     mergeCalculationReferencePattern,
     MergeJoinType,
-    SupportedDbtAdapter,
     type MergeFieldMeta,
     type MergeFieldTypes,
     type MergeJoinKeyPart,
@@ -29,103 +26,38 @@ type MergeIrNode = {
 };
 
 /**
- * Attaches the terminal stage — truncation detection, sort, limit — over a
- * statement. The run path owns when this happens, so anything that changes
- * the row set (a date spine, say) can stack on the core first.
+ * Attaches the terminal stage — sort, limit — over a statement. The run path
+ * owns when this happens, so anything that changes the row set (a pivot,
+ * say) can stack on the core first.
  */
 export const applyMergeTerminalWrapper = (
     sql: string,
-    wrapper: MergeTerminalWrapper,
-): string => {
-    const wrapped =
-        wrapper.sourceLimitExceededSql === null
-            ? sql
-            : [
-                  `SELECT merge_guard_data.*,`,
-                  `       merge_guard.${MERGE_TRUNCATED_COLUMN}`,
-                  `FROM (`,
-                  `    SELECT merge_data.*, TRUE AS ${MERGE_ROW_PRESENT_COLUMN}`,
-                  `    FROM (`,
-                  sql,
-                  `    ) AS merge_data`,
-                  `) AS merge_guard_data`,
-                  `RIGHT JOIN (`,
-                  `    SELECT ${wrapper.sourceLimitExceededSql} AS ${MERGE_TRUNCATED_COLUMN}`,
-                  `) AS merge_guard ON TRUE`,
-              ].join('\n');
-    return applyLimitToSqlQuery({
+    wrapper: Pick<MergeTerminalWrapper, 'orderBy' | 'limit'>,
+): string =>
+    applyLimitToSqlQuery({
         sqlQuery: [
-            wrapped,
+            sql,
             ...(wrapper.orderBy.length > 0
                 ? [`ORDER BY ${wrapper.orderBy.join(', ')}`]
                 : []),
         ].join('\n'),
         limit: wrapper.limit ?? undefined,
     });
-};
 
 /**
- * The null placeholder literal for one join key, per dialect and key type.
- * Temporal keys must match the key's own type: warehouses like BigQuery and
- * Trino refuse to COALESCE a DATE or DATETIME key with a TIMESTAMP literal.
- */
-export const getMergeNullPlaceholder = (
-    meta: MergeFieldMeta,
-    warehouseSqlBuilder: WarehouseSqlBuilder,
-): string => {
-    const epoch = new Date(0);
-    switch (meta.type) {
-        case DimensionType.NUMBER:
-            return '0';
-        case DimensionType.BOOLEAN:
-            return 'FALSE';
-        case DimensionType.STRING: {
-            const quoteChar = warehouseSqlBuilder.getStringQuoteChar();
-            return `${quoteChar}${quoteChar}`;
-        }
-        case DimensionType.DATE:
-            return warehouseSqlBuilder.castToDate(epoch);
-        case DimensionType.TIMESTAMP:
-            return meta.timestampDomain === 'naive'
-                ? warehouseSqlBuilder.castToNaiveTimestamp(epoch)
-                : warehouseSqlBuilder.castToTimestamp(epoch);
-        default:
-            return assertUnreachable(meta.type, 'Unknown join key type');
-    }
-};
-
-/**
- * Dialect-dependent join-key SQL options for a merge: a typed null
- * placeholder per key so null keys match each other, and which keys need a
- * string cast before coalescing. One derivation for every dialect a merge
- * compiles to — the warehouse statement and the compose join must agree on
- * what a null key means.
+ * Join-key SQL options for a merge: which keys are modeled as strings and
+ * need a cast before coalescing, so a physically numeric column on one side
+ * is comparable with a string on the other.
  */
 export const getMergeJoinKeySqlOptions = (
     joinKey: MergeJoinKeyPart[],
     fieldTypes: MergeFieldTypes,
-    warehouseSqlBuilder: WarehouseSqlBuilder,
-): {
-    nullPlaceholderByKeyName: Record<string, string>;
-    stringJoinKeyNames: string[];
-} => {
+): { stringJoinKeyNames: string[] } => {
     const metaFor = (part: MergeJoinKeyPart): MergeFieldMeta | undefined =>
         Object.entries(part.fieldIdBySourceId)
             .map(([sourceId, fieldId]) => fieldTypes[sourceId]?.[fieldId])
             .find((candidate) => candidate !== undefined);
     return {
-        nullPlaceholderByKeyName: Object.fromEntries(
-            joinKey.flatMap((part) => {
-                const meta = metaFor(part);
-                if (meta === undefined) return [];
-                return [
-                    [
-                        part.name,
-                        getMergeNullPlaceholder(meta, warehouseSqlBuilder),
-                    ],
-                ];
-            }),
-        ),
         stringJoinKeyNames: joinKey.flatMap((part) =>
             metaFor(part)?.type === DimensionType.STRING ? [part.name] : [],
         ),
@@ -155,8 +87,9 @@ export type MergeQuerySourceSql = {
 };
 
 /**
- * Compiles several aggregated queries into a single warehouse statement: one
- * CTE per source, joined on a shared key.
+ * Compiles several aggregated queries into one DuckDB statement: one CTE
+ * per source, joined on a shared key. Null keys match each other: the join
+ * compares with IS NOT DISTINCT FROM.
  *
  * It assumes every source is already unique on the join key. That is the
  * caller's job (`validateMergeQuery` in common), because a source that still
@@ -177,13 +110,9 @@ export class MergeQueryBuilder {
     /** CTE identifier per source, positionally aligned with `sources`. */
     private readonly cteNames: string[];
 
-    private readonly nullPlaceholderByKeyName: Record<string, string>;
-
     private readonly stringJoinKeyNames: Set<string>;
 
     private readonly tableCalculations: MergeTableCalculation[];
-
-    private readonly sourceRowCap: number | undefined;
 
     private readonly sorts: MergeSort[];
 
@@ -194,9 +123,7 @@ export class MergeQueryBuilder {
         warehouseSqlBuilder,
         limit,
         tableCalculations,
-        nullPlaceholderByKeyName,
         stringJoinKeyNames,
-        sourceRowCap,
         sorts,
     }: {
         sources: MergeQuerySourceSql[];
@@ -206,21 +133,10 @@ export class MergeQueryBuilder {
         limit?: number;
         /** Calculations over the merged result. */
         tableCalculations?: MergeTableCalculation[];
-        /**
-         * Most rows a single query may contribute. Reaching it is reported
-         * rather than silently trimmed — a join over a trimmed side returns
-         * numbers that look complete and are not.
-         */
-        sourceRowCap?: number;
         /** Sort the merged result. Defaults to the join key when omitted. */
         sorts?: MergeSort[];
-        /**
-         * Placeholder SQL literal per join key name. Supplying one makes null
-         * keys match each other; omitting it leaves them unmatched.
-         */
-        nullPlaceholderByKeyName?: Record<string, string>;
-        /** Keys modeled as strings. Cast source values before coalescing so a
-         * physically numeric column is compatible with the string sentinel. */
+        /** Keys modeled as strings. Cast source values before comparing so a
+         * physically numeric column is comparable with a string. */
         stringJoinKeyNames?: string[];
     }) {
         this.sources = sources;
@@ -228,10 +144,8 @@ export class MergeQueryBuilder {
         this.joinType = joinType;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.limit = limit;
-        this.nullPlaceholderByKeyName = nullPlaceholderByKeyName ?? {};
         this.stringJoinKeyNames = new Set(stringJoinKeyNames ?? []);
         this.tableCalculations = tableCalculations ?? [];
-        this.sourceRowCap = sourceRowCap;
         this.sorts = sorts ?? [];
         // Index-prefixed so two source ids that differ only in punctuation
         // cannot collapse to the same identifier.
@@ -336,32 +250,9 @@ export class MergeQueryBuilder {
         keyName: string,
     ): string {
         const column = this.joinKeyColumnFor(sourceIndex, keyName);
-        if (!this.stringJoinKeyNames.has(keyName)) return column;
-
-        const adapter = this.warehouseSqlBuilder.getAdapterType();
-        const stringType = (() => {
-            switch (adapter) {
-                case SupportedDbtAdapter.BIGQUERY:
-                case SupportedDbtAdapter.DATABRICKS:
-                case SupportedDbtAdapter.SPARK:
-                    return 'STRING';
-                case SupportedDbtAdapter.CLICKHOUSE:
-                    return 'String';
-                case SupportedDbtAdapter.POSTGRES:
-                case SupportedDbtAdapter.REDSHIFT:
-                case SupportedDbtAdapter.SNOWFLAKE:
-                case SupportedDbtAdapter.DUCKDB:
-                case SupportedDbtAdapter.TRINO:
-                case SupportedDbtAdapter.ATHENA:
-                    return 'VARCHAR';
-                default:
-                    return assertUnreachable(
-                        adapter,
-                        'Unknown warehouse adapter',
-                    );
-            }
-        })();
-        return `CAST(${column} AS ${stringType})`;
+        return this.stringJoinKeyNames.has(keyName)
+            ? `CAST(${column} AS VARCHAR)`
+            : column;
     }
 
     private getJoinKeyword(): string {
@@ -384,16 +275,9 @@ export class MergeQueryBuilder {
      * Join condition for source `sourceIndex` against everything already
      * joined. Under a FULL join an earlier source's key can be null on rows it
      * did not contribute, so the comparison is against the coalesce of all
-     * preceding sources rather than against the first one.
-     *
-     * Plain equality, deliberately, rather than the warehouse's null-safe
-     * helper the pivot and period-over-period joins use: Postgres rejects a
-     * FULL OUTER JOIN whose condition is not merge- or hash-joinable, which
-     * both `(a = b OR (a IS NULL AND b IS NULL))` and `IS NOT DISTINCT FROM`
-     * are. Using it only for LEFT and INNER would silently change what a null
-     * key means when the user toggles the include mode. Callers that want null
-     * keys to match supply a typed placeholder; the separate null-ness
-     * equality keeps that sentinel collision-safe and hash-joinable.
+     * preceding sources rather than against the first one. Null-safe, so a
+     * null key on both sides is one merged row rather than two unmatched
+     * ones, whichever join type the user picks.
      */
     private getJoinCondition(sourceIndex: number): string {
         return this.joinKeyNames
@@ -411,37 +295,16 @@ export class MergeQueryBuilder {
                     sourceIndex,
                     keyName,
                 );
-                const placeholder = this.nullPlaceholderByKeyName[keyName];
-                if (placeholder === undefined) {
-                    return `${left} = ${right}`;
-                }
-                // Two plain equalities, so the condition stays hash-joinable
-                // and Postgres accepts it under a FULL JOIN. The null-ness
-                // term is what makes the placeholder safe: a real value that
-                // happens to equal it can never pair with a null, because
-                // their null-ness differs.
-                return `(${left} IS NULL) = (${right} IS NULL) AND COALESCE(${left}, ${placeholder}) = COALESCE(${right}, ${placeholder})`;
+                return `${left} IS NOT DISTINCT FROM ${right}`;
             })
             .join(' AND ');
-    }
-
-    /**
-     * One row past the cap, so hitting it is detectable rather than
-     * indistinguishable from a query that happens to end there.
-     */
-    private capped(sql: string): string {
-        return this.sourceRowCap === undefined
-            ? sql
-            : `SELECT * FROM (\n${sql}\n) AS capped LIMIT ${
-                  this.sourceRowCap + 1
-              }`;
     }
 
     /** Lowers the sources to IR nodes. Sources depend on nothing. */
     private lowerToIr(): MergeIrNode[] {
         return this.sources.map((source) => ({
             id: source.id,
-            sql: this.capped(source.sql),
+            sql: source.sql,
             dependsOn: [],
         }));
     }
@@ -523,9 +386,9 @@ export class MergeQueryBuilder {
 
     /**
      * The composable core: a self-contained single-statement SELECT with no
-     * ORDER BY, no LIMIT and no guard column — clean under `SELECT *`, so it
-     * can back a virtual view and be queried further. Per-source row caps
-     * stay inside; everything terminal lives in the wrapper.
+     * ORDER BY and no LIMIT — clean under `SELECT *`, so it can back a
+     * virtual view and be queried further. Everything terminal lives in the
+     * wrapper.
      */
     toCoreSql(outputAliasByColumn?: Record<string, string>): string {
         const sourceNodes = this.lowerToIr();
@@ -539,38 +402,18 @@ export class MergeQueryBuilder {
     }
 
     /**
-     * The terminal stage the run path attaches over the core: sort, limit,
-     * truncation detection. The truncation probe re-embeds the capped sources
-     * as scalar counts so it is self-contained — it works above a date spine
-     * as well as directly above the core. Counting a capped source costs at
-     * most cap+1 rows, though a non-materialising engine re-runs the source
-     * lineage for it; the single-scan addendum pattern is the precedent if
-     * that ever needs gating.
+     * The terminal stage the run path attaches over the core: sort and limit.
+     * Ordered outside the calculation wrapper, so a sort can name a
+     * calculated column and so the ordering is not left inside a subquery,
+     * where the engine is free to discard it.
      */
     buildTerminalWrapper(
         outputAliasByColumn?: Record<string, string>,
     ): MergeTerminalWrapper {
-        const sourceLimitExceededSql =
-            this.sourceRowCap === undefined
-                ? null
-                : `(${this.sources
-                      .map(
-                          (source, index) =>
-                              `(SELECT COUNT(*) FROM (\n${this.capped(
-                                  source.sql,
-                              )}\n) AS merge_guard_${index}) > ${
-                                  this.sourceRowCap
-                              }`,
-                      )
-                      .join(' OR ')})`;
-
-        // Ordered outside the calculation wrapper, so a sort can name a
-        // calculated column and so the ordering is not left inside a subquery,
-        // where a warehouse is free to discard it.
         return {
             orderBy: this.getOrderBy(outputAliasByColumn),
             limit: this.limit ?? null,
-            sourceLimitExceededSql,
+            sourceLimitExceededSql: null,
         };
     }
 
@@ -612,10 +455,7 @@ export class MergeQueryBuilder {
         ].join('\n');
     }
 
-    /**
-     * Columns the core returns, in the order it returns them. The truncation
-     * guard is not among them: it belongs to the terminal wrapper.
-     */
+    /** Columns the core returns, in the order it returns them. */
     private outputColumns(): string[] {
         const columns = this.getColumns();
         return [

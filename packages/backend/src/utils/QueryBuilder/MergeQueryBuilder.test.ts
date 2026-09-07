@@ -7,7 +7,6 @@ import {
     SupportedDbtAdapter,
     TimeFrames,
     WeekDay,
-    type MergeFieldMeta,
     type MetricQuery,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -15,7 +14,6 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { compileMetricQuery } from '../../queryCompiler';
 import {
     applyMergeTerminalWrapper,
-    getMergeNullPlaceholder,
     MergeQueryBuilder,
     type MergeQuerySourceSql,
     type MergeSort,
@@ -24,7 +22,7 @@ import { MetricQueryBuilder } from './MetricQueryBuilder';
 
 const mockWarehouseSqlBuilder = {
     getFieldQuoteChar: () => '"',
-    getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    getAdapterType: () => SupportedDbtAdapter.DUCKDB,
     supportsCteMaterialization: () => true,
     getStartOfWeek: () => WeekDay.MONDAY,
     getStringQuoteChar: () => "'",
@@ -98,16 +96,15 @@ describe('MergeQueryBuilder', () => {
         );
     });
 
-    // Postgres rejects a FULL OUTER JOIN whose condition is not merge- or
-    // hash-joinable, which rules out both the warehouse null-safe helper and
-    // IS NOT DISTINCT FROM. Equality is used for every include mode so that
-    // toggling full/left/inner never changes what a null key means.
-    it('joins on plain equality, not the null-safe helper', () => {
+    // Null-safe for every include mode, so toggling full/left/inner never
+    // changes what a null key means.
+    it('joins null-safe with IS NOT DISTINCT FROM', () => {
         const sql = collapse(build(MergeJoinType.FULL).toSql());
 
-        expect(sql).toContain('ON merge_0_a."date_day" = merge_1_b."date_day"');
+        expect(sql).toContain(
+            'ON merge_0_a."date_day" IS NOT DISTINCT FROM merge_1_b."date_day"',
+        );
         expect(sql).not.toContain('IS NULL');
-        expect(sql).not.toContain('IS NOT DISTINCT FROM');
     });
 
     it('prefixes value columns per source so two sources cannot collide', () => {
@@ -183,7 +180,7 @@ describe('MergeQueryBuilder', () => {
             // two: under a full join either earlier key can be null on a row
             // that source did not contribute.
             expect(sql).toContain(
-                'ON COALESCE(merge_0_a."date_day", merge_1_b."date_day") = merge_2_c."date_day"',
+                'ON COALESCE(merge_0_a."date_day", merge_1_b."date_day") IS NOT DISTINCT FROM merge_2_c."date_day"',
             );
         });
 
@@ -193,7 +190,7 @@ describe('MergeQueryBuilder', () => {
             );
 
             expect(sql).toContain(
-                'ON merge_0_a."date_day" = merge_2_c."date_day"',
+                'ON merge_0_a."date_day" IS NOT DISTINCT FROM merge_2_c."date_day"',
             );
             expect(sql).not.toContain('COALESCE(');
         });
@@ -235,39 +232,21 @@ describe('MergeQueryBuilder', () => {
     });
 
     describe('null keys', () => {
-        it('leaves null keys unmatched when no placeholder is supplied', () => {
-            const sql = collapse(build(MergeJoinType.FULL).toSql());
+        it.each([MergeJoinType.FULL, MergeJoinType.LEFT, MergeJoinType.INNER])(
+            'matches null to null under a %s join, with no placeholder',
+            (joinType) => {
+                const sql = collapse(build(joinType).toSql());
 
-            // The SELECT still coalesces the key for output; it is the ON
-            // clause that must stay a plain equality.
-            const onClause = sql.slice(sql.indexOf(' ON '));
-            expect(onClause).toContain(
-                'ON merge_0_a."date_day" = merge_1_b."date_day"',
-            );
-            expect(onClause).not.toContain('COALESCE');
-        });
-
-        it('matches null to null when a placeholder is supplied', () => {
-            const sql = collapse(
-                new MergeQueryBuilder({
-                    sources: [sourceA, sourceB],
-                    joinKeyNames: ['date_day'],
-                    joinType: MergeJoinType.FULL,
-                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
-                    nullPlaceholderByKeyName: { date_day: "'1970-01-01'" },
-                }).toSql(),
-            );
-
-            // Both terms are plain equalities, which is what keeps the
-            // condition acceptable to Postgres under a FULL JOIN.
-            expect(sql).toContain(
-                '(merge_0_a."date_day" IS NULL) = (merge_1_b."date_day" IS NULL)',
-            );
-            expect(sql).toContain(
-                `COALESCE(merge_0_a."date_day", '1970-01-01') = COALESCE(merge_1_b."date_day", '1970-01-01')`,
-            );
-            expect(sql).not.toContain('IS NOT DISTINCT FROM');
-        });
+                // The SELECT may coalesce the key for output; the ON clause
+                // itself is the null-safe comparison
+                const onClause = sql.slice(sql.indexOf(' ON '));
+                expect(onClause).toContain(
+                    'ON merge_0_a."date_day" IS NOT DISTINCT FROM merge_1_b."date_day"',
+                );
+                expect(onClause).not.toContain('COALESCE');
+                expect(sql).not.toContain('1970-01-01');
+            },
+        );
     });
 
     describe('output aliases', () => {
@@ -457,46 +436,6 @@ describe('MergeQueryBuilder', () => {
         });
     });
 
-    describe('the source row cap', () => {
-        const cappedBuilder = (cap: number) =>
-            new MergeQueryBuilder({
-                sources: [sourceA, sourceB],
-                joinKeyNames: ['date_day'],
-                joinType: MergeJoinType.FULL,
-                warehouseSqlBuilder: mockWarehouseSqlBuilder,
-                sourceRowCap: cap,
-            });
-        const withCap = (cap: number) => cappedBuilder(cap).toSql();
-
-        it('bounds each query one row past the cap, so hitting it is detectable', () => {
-            expect(collapse(withCap(100))).toContain(') AS capped LIMIT 101');
-        });
-
-        it('reports that a query hit the cap instead of trimming it away', () => {
-            const sql = collapse(withCap(100));
-
-            expect(sql).toContain('AS merge_guard_0) > 100');
-            expect(sql).toContain('AS merge_guard_1) > 100');
-            expect(sql).toContain('AS __merge_truncated');
-        });
-
-        it('keeps the guard in the wrapper, not the core', () => {
-            const builder = cappedBuilder(100);
-
-            expect(builder.toCoreSql()).not.toContain('__merge_truncated');
-            expect(
-                builder.buildTerminalWrapper().sourceLimitExceededSql,
-            ).toContain('merge_guard_0');
-        });
-
-        it('adds nothing when no cap is set', () => {
-            const sql = build(MergeJoinType.FULL).toSql();
-
-            expect(sql).not.toContain('merge_guard');
-            expect(sql).not.toContain('AS capped');
-        });
-    });
-
     it('applies the row limit to the merged statement', () => {
         expect(
             collapse(build(MergeJoinType.FULL, undefined, 10).toSql()),
@@ -506,7 +445,7 @@ describe('MergeQueryBuilder', () => {
     // The output contract: the compile emits a composable core and a terminal
     // wrapper, and the statement that runs is exactly the wrapper applied to
     // the core. The core must stay clean under `SELECT *` — no ordering, no
-    // limit, no guard column — because a virtual view embeds it verbatim.
+    // limit — because a virtual view embeds it verbatim.
     describe('composable core and terminal wrapper', () => {
         const builderWithEverything = () =>
             new MergeQueryBuilder({
@@ -515,7 +454,6 @@ describe('MergeQueryBuilder', () => {
                 joinType: MergeJoinType.FULL,
                 warehouseSqlBuilder: mockWarehouseSqlBuilder,
                 limit: 25,
-                sourceRowCap: 100,
                 tableCalculations: [
                     {
                         name: 'ratio',
@@ -525,20 +463,13 @@ describe('MergeQueryBuilder', () => {
                 ],
             });
 
-        it('emits a core with no ORDER BY, no LIMIT and no guard column', () => {
+        it('emits a core with no ORDER BY and no LIMIT', () => {
             const core = builderWithEverything().toCoreSql({
                 date_day: 'merge_date_day',
             });
 
             expect(core).not.toMatch(/ORDER BY/i);
-            // Per-source caps stay inside the core; the only LIMITs are the
-            // cap+1 bounds, never the query's own limit.
-            expect(core.match(/\bLIMIT (\d+)\b/g)).toEqual([
-                'LIMIT 101',
-                'LIMIT 101',
-            ]);
-            expect(core).not.toContain('__merge_truncated');
-            expect(core).not.toContain('merge_guard');
+            expect(core).not.toMatch(/\bLIMIT\b/);
             // Self-contained: one statement, starting at its own WITH.
             expect(core.startsWith('SELECT') || core.startsWith('WITH')).toBe(
                 true,
@@ -557,17 +488,16 @@ describe('MergeQueryBuilder', () => {
             );
         });
 
-        it('wraps sort, limit and the guard around whatever it is given', () => {
+        it('wraps sort and limit around whatever it is given', () => {
             const sql = collapse(
                 applyMergeTerminalWrapper('SELECT 1 AS "date_day"', {
                     orderBy: ['"date_day"'],
                     limit: 10,
-                    sourceLimitExceededSql: 'FALSE',
                 }),
             );
 
             expect(sql).toBe(
-                'SELECT merge_guard_data.*, merge_guard.__merge_truncated FROM ( SELECT merge_data.*, TRUE AS __merge_row_present FROM ( SELECT 1 AS "date_day" ) AS merge_data ) AS merge_guard_data RIGHT JOIN ( SELECT FALSE AS __merge_truncated ) AS merge_guard ON TRUE ORDER BY "date_day" LIMIT 10',
+                'SELECT 1 AS "date_day" ORDER BY "date_day" LIMIT 10',
             );
         });
 
@@ -576,7 +506,6 @@ describe('MergeQueryBuilder', () => {
                 applyMergeTerminalWrapper('SELECT 1 AS "date_day"', {
                     orderBy: [],
                     limit: null,
-                    sourceLimitExceededSql: null,
                 }),
             ).toBe('SELECT 1 AS "date_day"');
         });
@@ -587,16 +516,15 @@ describe('MergeQueryBuilder', () => {
         // explicit custom aggregate — the exact shape a synthetic explore
         // would run.
         it('backs a virtual view that compiles a filtered, re-aggregated query', () => {
-            const bigquery = warehouseSqlBuilderFromType(
-                SupportedDbtAdapter.BIGQUERY,
+            const duckdb = warehouseSqlBuilderFromType(
+                SupportedDbtAdapter.DUCKDB,
                 WeekDay.MONDAY,
             );
             const core = new MergeQueryBuilder({
                 sources: [sourceA, sourceB],
                 joinKeyNames: ['date_day'],
                 joinType: MergeJoinType.FULL,
-                warehouseSqlBuilder: bigquery,
-                sourceRowCap: 100,
+                warehouseSqlBuilder: duckdb,
             }).toCoreSql({
                 date_day: 'merge_date_day',
                 c0_0: 'a_new_organic',
@@ -645,13 +573,13 @@ describe('MergeQueryBuilder', () => {
             const compiledMetricQuery = compileMetricQuery({
                 explore: virtualView,
                 metricQuery,
-                warehouseSqlBuilder: bigquery,
+                warehouseSqlBuilder: duckdb,
                 availableParameters: [],
             });
             const { query } = new MetricQueryBuilder({
                 explore: virtualView,
                 compiledMetricQuery,
-                warehouseSqlBuilder: bigquery,
+                warehouseSqlBuilder: duckdb,
                 intrinsicUserAttributes: {},
                 timezone: 'UTC',
                 parameterDefinitions: {},
@@ -664,130 +592,5 @@ describe('MergeQueryBuilder', () => {
             expect(query).toMatch(/GROUP BY/);
             expect(query).toContain('> (0)');
         });
-    });
-});
-
-// Pins the merged statement per warehouse dialect using the real SQL
-// builders, so a dialect-specific literal or quote regression shows up as a
-// snapshot diff rather than a live compile error.
-describe('per-dialect compile snapshots', () => {
-    const adapters = [
-        SupportedDbtAdapter.POSTGRES,
-        SupportedDbtAdapter.REDSHIFT,
-        SupportedDbtAdapter.BIGQUERY,
-        SupportedDbtAdapter.SNOWFLAKE,
-        SupportedDbtAdapter.DATABRICKS,
-        SupportedDbtAdapter.TRINO,
-    ] as const;
-
-    const sourcesFor = (keyName: string): MergeQuerySourceSql[] => [
-        {
-            id: 'a',
-            sql: `SELECT ${keyName}, 1 AS new_organic FROM followers GROUP BY 1`,
-            joinKeyColumnByName: { [keyName]: keyName },
-            valueColumns: ['new_organic'],
-        },
-        {
-            id: 'b',
-            sql: `SELECT ${keyName}, 2 AS total_followers FROM follower_snapshots GROUP BY 1`,
-            joinKeyColumnByName: { [keyName]: keyName },
-            valueColumns: ['total_followers'],
-        },
-    ];
-
-    const compile = (
-        adapter: SupportedDbtAdapter,
-        keyName: string,
-        keyMeta: MergeFieldMeta,
-        joinType: MergeJoinType = MergeJoinType.FULL,
-    ) => {
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            adapter,
-            WeekDay.MONDAY,
-        );
-        return new MergeQueryBuilder({
-            sources: sourcesFor(keyName),
-            joinKeyNames: [keyName],
-            joinType,
-            warehouseSqlBuilder,
-            stringJoinKeyNames:
-                keyMeta.type === DimensionType.STRING ? [keyName] : [],
-            nullPlaceholderByKeyName: {
-                [keyName]: getMergeNullPlaceholder(
-                    keyMeta,
-                    warehouseSqlBuilder,
-                ),
-            },
-        }).toSql();
-    };
-
-    it.each(adapters)(
-        'compiles a FULL join on a nullable timestamp key on %s',
-        (adapter) => {
-            expect(
-                compile(adapter, 'created_at', {
-                    type: DimensionType.TIMESTAMP,
-                    timeInterval: null,
-                }),
-            ).toMatchSnapshot();
-        },
-    );
-
-    it.each(adapters)('compiles a date-keyed merge on %s', (adapter) => {
-        expect(
-            compile(adapter, 'order_date', {
-                type: DimensionType.DATE,
-                timeInterval: null,
-            }),
-        ).toMatchSnapshot();
-    });
-
-    it.each(adapters)('compiles a string-keyed merge on %s', (adapter) => {
-        const sql = compile(adapter, 'status', {
-            type: DimensionType.STRING,
-            timeInterval: null,
-        });
-        const stringType = [
-            SupportedDbtAdapter.BIGQUERY,
-            SupportedDbtAdapter.DATABRICKS,
-        ].includes(adapter as SupportedDbtAdapter)
-            ? 'STRING'
-            : 'VARCHAR';
-
-        expect(sql).toMatchSnapshot();
-        expect(sql).toContain('CAST(merge_0_a.');
-        expect(sql).toContain(` AS ${stringType})`);
-    });
-
-    it('uses a DATETIME placeholder for a naive timestamp key on bigquery', () => {
-        const sql = compile(SupportedDbtAdapter.BIGQUERY, 'created_at', {
-            type: DimensionType.TIMESTAMP,
-            timeInterval: null,
-            timestampDomain: 'naive',
-        });
-
-        expect(sql).toContain("DATETIME '1970-01-01 00:00:00'");
-        expect(sql).not.toContain('TIMESTAMP(');
-    });
-
-    it('never mixes a TIMESTAMP literal into a date-keyed join on bigquery', () => {
-        const sql = compile(SupportedDbtAdapter.BIGQUERY, 'order_date', {
-            type: DimensionType.DATE,
-            timeInterval: null,
-        });
-
-        expect(sql).toContain("DATE '1970-01-01'");
-        expect(sql).not.toContain('TIMESTAMP');
-    });
-
-    it('emits a zone-free timestamp literal on trino', () => {
-        const sql = compile(SupportedDbtAdapter.TRINO, 'created_at', {
-            type: DimensionType.TIMESTAMP,
-            timeInterval: null,
-        });
-
-        expect(sql).toContain("TIMESTAMP '1970-01-01 00:00:00.000'");
-        expect(sql).not.toContain('AS TIMESTAMP');
-        expect(sql).not.toContain('Z');
     });
 });

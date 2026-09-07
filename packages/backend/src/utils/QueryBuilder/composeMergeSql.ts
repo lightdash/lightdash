@@ -81,8 +81,10 @@ export const createComposeMergeQueryBuilder = (
         valueColumns: source.valueColumns,
     }));
 
-    const { nullPlaceholderByKeyName, stringJoinKeyNames } =
-        getMergeJoinKeySqlOptions(joinKey, fieldTypes, warehouseSqlBuilder);
+    const { stringJoinKeyNames } = getMergeJoinKeySqlOptions(
+        joinKey,
+        fieldTypes,
+    );
 
     const builder = new MergeQueryBuilder({
         sources: builderSources,
@@ -91,7 +93,6 @@ export const createComposeMergeQueryBuilder = (
         warehouseSqlBuilder,
         limit,
         tableCalculations,
-        nullPlaceholderByKeyName,
         stringJoinKeyNames,
     });
 

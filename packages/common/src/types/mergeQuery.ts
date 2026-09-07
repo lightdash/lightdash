@@ -530,16 +530,21 @@ export type MergeTypedColumn = {
 };
 
 /**
- * The terminal stage of a merged statement, owned by the run path: sort,
- * limit, and truncation detection. Kept as data rather than SQL text so the
- * run path can attach it above whatever it stacked on the core (for example a
- * date spine), and so the composable core stays clean under `SELECT *`.
+ * The terminal stage of a merged statement, owned by the run path: sort and
+ * limit. Kept as data rather than SQL text so the run path can attach it
+ * above whatever it stacked on the core (for example a pivot), and so the
+ * composable core stays clean under `SELECT *`.
  */
 export type MergeTerminalWrapper = {
     /** ORDER BY terms in output-alias space, already quoted for the dialect. */
     orderBy: string[];
     limit: number | null;
-    /** Boolean SQL expression that is true when a source exceeded its cap. */
+    /**
+     * @deprecated Always null: a source reaching its row cap is refused from
+     * the leg's own row count, never detected in SQL. Stays on the response
+     * until the legacy merge endpoints are retired, because removing a
+     * required response property is an API break.
+     */
     sourceLimitExceededSql: string | null;
 };
 
@@ -607,16 +612,6 @@ export type ApiCompiledMergeQueryResults = {
     requiresCompose: boolean;
     errors: MergeQueryError[];
 };
-
-/**
- * Column the merged statement carries to report that a query produced more
- * rows than the merge is willing to join. It is a guard, not data: the caller
- * refuses the result rather than showing a partial join.
- */
-export const MERGE_TRUNCATED_COLUMN = '__merge_truncated';
-
-/** Internal marker that distinguishes the empty-result guard row from data. */
-export const MERGE_ROW_PRESENT_COLUMN = '__merge_row_present';
 
 /** Label for the pseudo-table a source's merged fields belong to. */
 export const getMergeSourceTableLabel = (sourceIndex: number): string =>

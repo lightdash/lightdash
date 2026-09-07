@@ -2,8 +2,6 @@ import { DuckDBInstance } from '@duckdb/node-api';
 import {
     DimensionType,
     FieldType,
-    MERGE_ROW_PRESENT_COLUMN,
-    MERGE_TRUNCATED_COLUMN,
     MergeJoinType,
     MetricType,
     SupportedDbtAdapter,
@@ -193,12 +191,11 @@ describe('buildComposeMergeSql', () => {
         expect(sql).toContain('SELECT * FROM "merge_source_1"');
     });
 
-    test('joins with the shared null-safe semantics and typed placeholder', () => {
+    test('joins null-safe, so null keys match each other without a placeholder', () => {
         const sql = toSql(build());
         expect(sql).toContain('FULL OUTER JOIN');
-        expect(sql).toContain('IS NULL) = (');
-        // The DATE-typed placeholder from the shared key-option derivation
-        expect(sql).toContain('1970-01-01');
+        expect(sql).toContain('IS NOT DISTINCT FROM');
+        expect(sql).not.toContain('1970-01-01');
     });
 
     // The sources are legs that already ran at the row cap, so a guard here
@@ -206,8 +203,7 @@ describe('buildComposeMergeSql', () => {
     // instead (getMergeRowCapError).
     test('carries no in-SQL row cap guard', () => {
         const sql = toSql(build());
-        expect(sql).not.toContain(MERGE_TRUNCATED_COLUMN);
-        expect(sql).not.toContain(MERGE_ROW_PRESENT_COLUMN);
+        expect(sql).not.toContain('__merge');
         expect(sql).not.toContain('COUNT(*)');
     });
 
