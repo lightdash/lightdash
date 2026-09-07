@@ -9,6 +9,7 @@ import {
     ApiChartListResponse,
     ApiChartSummaryListResponse,
     ApiCreateTagResponse,
+    ApiCreateTrainingPreviewResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardAsCodeUpsertResponse,
     ApiDataTimezonePreview,
@@ -1249,6 +1250,51 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Make (or remake) the caller's own throwaway copy of the training
+     * project for a walkthrough. The copy starts from the seeded state and
+     * expires on its own.
+     * @summary Create training preview
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/training-previews')
+    @OperationId('CreateTrainingPreview')
+    async createTrainingPreview(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateTrainingPreviewResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .createTrainingPreview(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Remove the caller's own copies of the training project, once a
+     * walkthrough is finished or abandoned.
+     * @summary Delete training previews
+     * @param projectUuid the training project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/training-previews')
+    @OperationId('DeleteTrainingPreviews')
+    async deleteTrainingPreviews(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteTrainingPreviews(toSessionUser(req.account), projectUuid);
+        return { status: 'ok', results: undefined };
     }
 
     /**

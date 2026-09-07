@@ -4085,6 +4085,7 @@ export class AiAgentService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await this.assertAgentStaysInsideTraining(body.projectUuid, body);
 
         if (body.threadRetentionHours != null) {
             await this.validateThreadRetentionUpdate(
@@ -4194,6 +4195,49 @@ export class AiAgentService extends BaseService {
 
             this.logger.warn(
                 `Failed to provision default AI agent for project ${projectUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * A training project, or a learner's copy of it, is a sandbox every org
+     * member can act in. Agents there must not reach outside it: no Slack
+     * channels and no MCP servers (which would post every colleague's
+     * prompts to an arbitrary host), and no moving an agent into another
+     * project.
+     */
+    private async assertAgentStaysInsideTraining(
+        projectUuid: string,
+        body: { integrations?: unknown[]; mcpServerUuids?: unknown[] },
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const isTraining =
+            project.type === ProjectType.TRAINING ||
+            (project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training');
+        if (!isTraining) return;
+        if (body.integrations?.length || body.mcpServerUuids?.length) {
+            throw new ForbiddenError(
+                'Agents in the training project cannot use integrations or MCP servers',
+            );
+        }
+    }
+
+    /**
+     * Reads (listing servers and tools) stay open in the training project so
+     * the agent pages render; only adding or connecting a server is refused.
+     */
+    private async assertMcpServersNotInTraining(
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            project.type === ProjectType.TRAINING ||
+            (project.type === ProjectType.PREVIEW &&
+                project.provisioningSource === 'training')
+        ) {
+            throw new ForbiddenError(
+                'MCP servers cannot be added to the training project',
             );
         }
     }
@@ -4833,6 +4877,7 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageMcpServers(user, projectUuid, {
             mcpServerName: body.name,
         });
+        await this.assertMcpServersNotInTraining(projectUuid);
 
         const name = body.name.trim();
         if (!name) {
@@ -5024,6 +5069,7 @@ export class AiAgentService extends BaseService {
         body: ApiUpdateAiMcpServerCredentialBody,
     ): Promise<AiMcpServer> {
         await this.assertCanManageMcpServers(user, projectUuid);
+        await this.assertMcpServersNotInTraining(projectUuid);
 
         const server = await this.getProjectMcpServerOrThrow(
             projectUuid,
@@ -5277,6 +5323,7 @@ export class AiAgentService extends BaseService {
         personalAccessToken: string,
         credentialScope: AiMcpCredentialScope,
     ) {
+        await this.assertMcpServersNotInTraining(projectUuid);
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -5361,6 +5408,7 @@ export class AiAgentService extends BaseService {
         }
 
         await this.assertCanManageMcpServers(user, projectUuid);
+        await this.assertMcpServersNotInTraining(projectUuid);
         // manage:GitIntegration so a project-level agent manager cannot
         // leverage an org-wide installation they don't control.
         const auditedAbility = this.createAuditedAbility(user);
@@ -5506,6 +5554,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             await this.assertCanManageMcpServers(user, projectUuid);
+            await this.assertMcpServersNotInTraining(projectUuid);
         } else {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
@@ -5676,6 +5725,7 @@ export class AiAgentService extends BaseService {
                 );
             }
             await this.assertCanManageMcpServers(user, projectUuid);
+            await this.assertMcpServersNotInTraining(projectUuid);
         } else {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
@@ -5705,6 +5755,33 @@ export class AiAgentService extends BaseService {
     ) {
         const { organizationUuid, agent } =
             await this.getManageableAgentOrThrow(user, agentUuid);
+
+        // Moving an agent needs the same right on the project it lands in;
+        // managing it where it is says nothing about the destination.
+        if (body.projectUuid && body.projectUuid !== agent.projectUuid) {
+            const destination = await this.projectModel.getSummary(
+                body.projectUuid,
+            );
+            if (
+                destination.organizationUuid !== organizationUuid ||
+                this.createAuditedAbility(user).cannot(
+                    'manage',
+                    subject('AiAgent', {
+                        organizationUuid,
+                        projectUuid: body.projectUuid,
+                        metadata: { agentUuid, agentName: agent.name },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You cannot move an agent into that project',
+                );
+            }
+        }
+        await this.assertAgentStaysInsideTraining(
+            body.projectUuid ?? agent.projectUuid,
+            body,
+        );
 
         const nextEnableDataAccess =
             body.enableDataAccess ?? agent.enableDataAccess;

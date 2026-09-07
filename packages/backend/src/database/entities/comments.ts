@@ -24,7 +24,9 @@ type DbDashboardTileCommentsInsert = Pick<
     | 'saved_chart_uuid'
     | 'mentions'
     | 'text_html'
->;
+> &
+    // A clone (a training copy's comment) keeps the original's state.
+    Partial<Pick<DbDashboardTileComments, 'resolved' | 'created_at'>>;
 
 type DbDashboardTileCommentsUpdate = Pick<DbDashboardTileComments, 'resolved'>;
 

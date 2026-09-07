@@ -75,9 +75,18 @@ import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
+import { DashboardTileCommentsTableName } from '../../database/entities/comments';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
+    DashboardTileChartTableName,
+    DashboardTileDataAppsTableName,
+    DashboardTileHeadingsTableName,
+    DashboardTileLoomsTableName,
+    DashboardTileMarkdownsTableName,
+    DashboardTileSqlChartTableName,
+    DashboardTilesTableName,
+    DashboardVersionsTableName,
     DashboardViewsTableName,
     DbDashboard,
     DbDashboardTabs,
@@ -94,7 +103,12 @@ import {
     DbOrganization,
     OrganizationTableName,
 } from '../../database/entities/organizations';
-import { PinnedListTableName } from '../../database/entities/pinnedList';
+import {
+    PinnedChartTableName,
+    PinnedDashboardTableName,
+    PinnedListTableName,
+    PinnedSpaceTableName,
+} from '../../database/entities/pinnedList';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
@@ -130,8 +144,14 @@ import {
     SpaceTableName,
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
+import { TagsTableName } from '../../database/entities/tags';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { WarehouseCredentialTableName } from '../../database/entities/warehouseCredentials';
+import {
+    AiPromptTableName,
+    AiThreadTableName,
+    AiWebAppThreadTableName,
+} from '../../ee/database/entities/ai';
 import {
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTableName,
@@ -141,6 +161,10 @@ import {
     AiAgentUserAccessTableName,
     type DbAiAgent,
 } from '../../ee/database/entities/aiAgent';
+import {
+    AiDeepResearchEventsTableName,
+    AiDeepResearchRunsTableName,
+} from '../../ee/database/entities/aiDeepResearch';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
@@ -1021,6 +1045,271 @@ export class ProjectModel {
             projectUuid: r.project_uuid,
             organizationUuid: r.organization_uuid,
         }));
+    }
+
+    /**
+     * Give a training copy the seeded deep research, as the learner's own:
+     * a run lives in a thread, and a thread belongs to the person who asked,
+     * so the copy's thread, prompt and run are owned by the learner (the
+     * source's stay with the seed user). The copy's agent is found by slug.
+     */
+    async copyDeepResearchForTrainingCopy(
+        sourceProjectUuid: string,
+        previewProjectUuid: string,
+        learnerUserUuid: string,
+        seedUserUuid: string | null,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // Only the seed's runs (made by whoever enabled Learn) travel
+            // into copies; nothing another learner or admin ran afterwards.
+            const runs = await trx(AiDeepResearchRunsTableName)
+                .where('project_uuid', sourceProjectUuid)
+                .where('created_by_user_uuid', seedUserUuid ?? '')
+                .where('status', 'completed');
+            // eslint-disable-next-line no-restricted-syntax
+            for (const run of runs) {
+                // eslint-disable-next-line no-await-in-loop
+                const sourceAgent = await trx(AiAgentTableName)
+                    .where('ai_agent_uuid', run.agent_uuid)
+                    .first();
+                if (!sourceAgent) continue; // eslint-disable-line no-continue
+                // eslint-disable-next-line no-await-in-loop
+                const agent = await trx(AiAgentTableName)
+                    .where({
+                        project_uuid: previewProjectUuid,
+                        slug: sourceAgent.slug,
+                    })
+                    .first();
+                if (!agent) continue; // eslint-disable-line no-continue
+                // eslint-disable-next-line no-await-in-loop
+                const thread = await trx(AiThreadTableName)
+                    .where('ai_thread_uuid', run.ai_thread_uuid)
+                    .first();
+                // eslint-disable-next-line no-await-in-loop
+                const prompt = await trx(AiPromptTableName)
+                    .where('ai_prompt_uuid', run.prompt_uuid)
+                    .first();
+                if (!thread || !prompt) continue; // eslint-disable-line no-continue
+                const runUuid = uuidv4();
+                // eslint-disable-next-line no-await-in-loop
+                const [{ ai_thread_uuid: threadUuid }] = await trx(
+                    AiThreadTableName,
+                )
+                    .insert({
+                        organization_uuid: thread.organization_uuid,
+                        project_uuid: previewProjectUuid,
+                        created_from: thread.created_from,
+                        agent_uuid: agent.ai_agent_uuid,
+                    })
+                    .returning('ai_thread_uuid');
+                // eslint-disable-next-line no-await-in-loop
+                await trx(AiThreadTableName)
+                    .where('ai_thread_uuid', threadUuid)
+                    .update({
+                        title: thread.title,
+                        title_generated_at: thread.title_generated_at,
+                    });
+                // eslint-disable-next-line no-await-in-loop
+                await trx(AiWebAppThreadTableName).insert({
+                    ai_thread_uuid: threadUuid,
+                    user_uuid: learnerUserUuid,
+                });
+                // eslint-disable-next-line no-await-in-loop
+                const [{ ai_prompt_uuid: promptUuid }] = await trx(
+                    AiPromptTableName,
+                )
+                    .insert({
+                        ai_thread_uuid: threadUuid,
+                        created_by_user_uuid: learnerUserUuid,
+                        prompt: prompt.prompt,
+                        execution_mode: prompt.execution_mode,
+                    })
+                    .returning('ai_prompt_uuid');
+                const {
+                    ai_deep_research_run_uuid: _sourceRunUuid,
+                    created_at: _createdAt,
+                    updated_at: _updatedAt,
+                    ...runColumns
+                } = run;
+                // eslint-disable-next-line no-await-in-loop
+                await trx(AiDeepResearchRunsTableName).insert({
+                    ...runColumns,
+                    ai_deep_research_run_uuid: runUuid,
+                    project_uuid: previewProjectUuid,
+                    created_by_user_uuid: learnerUserUuid,
+                    agent_uuid: agent.ai_agent_uuid,
+                    ai_thread_uuid: threadUuid,
+                    prompt_uuid: promptUuid,
+                    // A copy is a finished report, never a resumable run.
+                    resume_from_run_uuid: null,
+                    budget_snapshot: JSON.stringify(run.budget_snapshot),
+                    execution_context_snapshot: JSON.stringify(
+                        run.execution_context_snapshot,
+                    ),
+                });
+                // eslint-disable-next-line no-await-in-loop
+                const events = await trx(AiDeepResearchEventsTableName)
+                    .where(
+                        'ai_deep_research_run_uuid',
+                        run.ai_deep_research_run_uuid,
+                    )
+                    .orderBy('created_at', 'asc');
+                if (events.length > 0) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await trx(AiDeepResearchEventsTableName).insert(
+                        events.map((event) => ({
+                            ai_deep_research_run_uuid: runUuid,
+                            event_type: event.event_type,
+                            payload: JSON.stringify(event.payload),
+                            created_at: event.created_at,
+                        })),
+                    );
+                }
+            }
+        });
+    }
+
+    /**
+     * Give a training copy its own dashboard tile uuids, and its own copies
+     * of the comments on those tiles. A preview normally keeps the source's
+     * tile uuids, and tile comments are keyed by tile uuid alone, so a
+     * comment posted or resolved in one learner's copy would show in the
+     * shared training project and in every other copy. With their own
+     * uuids, a copy's comments start as clones of the seeded ones and stay
+     * its own; they go with the copy's charts when it is removed.
+     */
+    async giveTrainingCopyOwnTiles(
+        previewProjectUuid: string,
+        seedUserUuid: string | null,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const versions = await trx(DashboardVersionsTableName)
+                .join(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_id`,
+                    `${DashboardVersionsTableName}.dashboard_id`,
+                )
+                .join(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .join(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
+                .select<{ dashboard_version_id: number; config: unknown }[]>(
+                    `${DashboardVersionsTableName}.dashboard_version_id`,
+                    `${DashboardVersionsTableName}.config`,
+                );
+            if (versions.length === 0) return;
+            const versionIds = versions.map((v) => v.dashboard_version_id);
+            const tiles = await trx(DashboardTilesTableName)
+                .whereIn('dashboard_version_id', versionIds)
+                .select('*');
+            const renamed = new Map<string, string>();
+            const childTables = [
+                DashboardTileChartTableName,
+                DashboardTileSqlChartTableName,
+                DashboardTileMarkdownsTableName,
+                DashboardTileLoomsTableName,
+                DashboardTileHeadingsTableName,
+                DashboardTileDataAppsTableName,
+            ];
+            // Child rows reference the tile by (version, uuid) without ON
+            // UPDATE, so the tile is re-inserted under the new uuid, the
+            // children moved across, and the old row removed last.
+            await tiles.reduce(async (previous, tile) => {
+                await previous;
+                const to = renamed.get(tile.dashboard_tile_uuid) ?? uuidv4();
+                renamed.set(tile.dashboard_tile_uuid, to);
+                await trx(DashboardTilesTableName).insert({
+                    ...tile,
+                    dashboard_tile_uuid: to,
+                });
+                await childTables.reduce(async (prev, table) => {
+                    await prev;
+                    await trx(table)
+                        .where({
+                            dashboard_version_id: tile.dashboard_version_id,
+                            dashboard_tile_uuid: tile.dashboard_tile_uuid,
+                        })
+                        .update({ dashboard_tile_uuid: to });
+                }, Promise.resolve());
+                await trx(DashboardTilesTableName)
+                    .where({
+                        dashboard_version_id: tile.dashboard_version_id,
+                        dashboard_tile_uuid: tile.dashboard_tile_uuid,
+                    })
+                    .delete();
+            }, Promise.resolve());
+            // Filters and date zoom target tiles by uuid inside the
+            // version's config; rewrite those references in place.
+            await versions.reduce(async (previous, version) => {
+                await previous;
+                if (!version.config) return;
+                let text = JSON.stringify(version.config);
+                renamed.forEach((to, from) => {
+                    text = text.split(from).join(to);
+                });
+                await trx(DashboardVersionsTableName)
+                    .where('dashboard_version_id', version.dashboard_version_id)
+                    .update({ config: JSON.parse(text) });
+            }, Promise.resolve());
+            // The copy's own comments: clones of the seeded ones, attached
+            // to the copy's charts so they are removed with the copy.
+            const chartOfTile = new Map<string, string>(
+                (
+                    await trx(DashboardTileChartTableName)
+                        .join(
+                            SavedChartsTableName,
+                            `${SavedChartsTableName}.saved_query_id`,
+                            `${DashboardTileChartTableName}.saved_chart_id`,
+                        )
+                        .whereIn(
+                            `${DashboardTileChartTableName}.dashboard_version_id`,
+                            versionIds,
+                        )
+                        .select<
+                            { dashboard_tile_uuid: string; uuid: string }[]
+                        >(
+                            `${DashboardTileChartTableName}.dashboard_tile_uuid`,
+                            `${SavedChartsTableName}.saved_query_uuid as uuid`,
+                        )
+                ).map((row) => [row.dashboard_tile_uuid, row.uuid]),
+            );
+            // Only the seed's comments (made by whoever enabled Learn) come
+            // along; nothing anyone wrote on the shared project afterwards.
+            const comments = await trx(DashboardTileCommentsTableName)
+                .whereIn('dashboard_tile_uuid', [...renamed.keys()])
+                .where('user_uuid', seedUserUuid ?? '')
+                .orderBy('created_at', 'asc')
+                .select('*');
+            const clonedIds = new Map<string, string>();
+            await comments.reduce(async (previous, comment) => {
+                await previous;
+                const to = renamed.get(comment.dashboard_tile_uuid);
+                if (!to) return;
+                const [clone] = await trx(DashboardTileCommentsTableName)
+                    .insert({
+                        text: comment.text,
+                        text_html: comment.text_html,
+                        dashboard_tile_uuid: to,
+                        reply_to: comment.reply_to
+                            ? (clonedIds.get(comment.reply_to) ?? null)
+                            : null,
+                        user_uuid: comment.user_uuid,
+                        saved_chart_uuid: chartOfTile.get(to) ?? null,
+                        mentions: comment.mentions,
+                        resolved: comment.resolved,
+                        created_at: comment.created_at,
+                    })
+                    .returning('comment_id');
+                clonedIds.set(comment.comment_id, clone.comment_id);
+            }, Promise.resolve());
+        });
     }
 
     async delete(
@@ -4447,6 +4736,116 @@ export class ProjectModel {
                 Logger.debug(
                     `Skipping AI agent content copy: AI agent tables do not exist (likely non-EE instance)`,
                 );
+            }
+
+            // Categories (tags) belong to the project, not to content; copy
+            // them so the preview's catalog carries the same ones once it
+            // is indexed. Assignments are rebuilt by that index.
+            const tags = await trx(TagsTableName).where(
+                'project_uuid',
+                projectUuid,
+            );
+            Logger.info(`Copying ${tags.length} tags on ${previewProjectUuid}`);
+            if (tags.length > 0) {
+                await trx(TagsTableName).insert(
+                    tags.map(({ tag_uuid, created_at, ...tag }) => ({
+                        ...tag,
+                        project_uuid: previewProjectUuid,
+                    })),
+                );
+            }
+
+            // Pinned items: the preview's homepage shows what the project
+            // pins, mapped onto the copied dashboards, charts and spaces.
+            const [pinnedList] = await trx(PinnedListTableName).where(
+                'project_uuid',
+                projectUuid,
+            );
+            if (pinnedList) {
+                const [existingPreviewList] = await trx(
+                    PinnedListTableName,
+                ).where('project_uuid', previewProjectUuid);
+                const previewList =
+                    existingPreviewList ??
+                    (
+                        await trx(PinnedListTableName)
+                            .insert({ project_uuid: previewProjectUuid })
+                            .returning('*')
+                    )[0];
+                const pinnedDashboards = await trx(
+                    PinnedDashboardTableName,
+                ).where('pinned_list_uuid', pinnedList.pinned_list_uuid);
+                const pinnedCharts = await trx(PinnedChartTableName).where(
+                    'pinned_list_uuid',
+                    pinnedList.pinned_list_uuid,
+                );
+                const pinnedSpaces = await trx(PinnedSpaceTableName).where(
+                    'pinned_list_uuid',
+                    pinnedList.pinned_list_uuid,
+                );
+                Logger.info(
+                    `Copying ${
+                        pinnedDashboards.length +
+                        pinnedCharts.length +
+                        pinnedSpaces.length
+                    } pinned items on ${previewProjectUuid}`,
+                );
+                const dashboardInserts = pinnedDashboards.flatMap((pin) => {
+                    const mapped = dashboardMapping.find(
+                        (m) => m.uuid === pin.dashboard_uuid,
+                    );
+                    return mapped
+                        ? [
+                              {
+                                  pinned_list_uuid:
+                                      previewList.pinned_list_uuid,
+                                  dashboard_uuid: mapped.newUuid,
+                                  order: pin.order,
+                              },
+                          ]
+                        : [];
+                });
+                if (dashboardInserts.length > 0) {
+                    await trx(PinnedDashboardTableName).insert(
+                        dashboardInserts,
+                    );
+                }
+                const chartInserts = pinnedCharts.flatMap((pin) => {
+                    const mapped = chartUuidMapping.find(
+                        (m) => m.sourceChartUuid === pin.saved_chart_uuid,
+                    );
+                    return mapped
+                        ? [
+                              {
+                                  pinned_list_uuid:
+                                      previewList.pinned_list_uuid,
+                                  saved_chart_uuid: mapped.previewChartUuid,
+                                  order: pin.order,
+                              },
+                          ]
+                        : [];
+                });
+                if (chartInserts.length > 0) {
+                    await trx(PinnedChartTableName).insert(chartInserts);
+                }
+                const spaceInserts = pinnedSpaces.flatMap((pin) => {
+                    const mapped = spaceMapping.find(
+                        (m) => m.uuid === pin.space_uuid,
+                    );
+                    return mapped
+                        ? [
+                              {
+                                  pinned_list_uuid:
+                                      previewList.pinned_list_uuid,
+                                  space_uuid: mapped.newUuid,
+                                  order: pin.order,
+                              },
+                          ]
+                        : [];
+                });
+                if (spaceInserts.length > 0) {
+                    await trx(PinnedSpaceTableName).insert(spaceInserts);
+                }
             }
 
             const contentMapping: PreviewContentMapping = {

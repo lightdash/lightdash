@@ -231,10 +231,12 @@ export {
 } from './types/projects';
 export type {
     AgentSqlScope,
+    ApiCreateTrainingPreviewResponse,
     ApiEnsurePlaygroundProjectResponse,
     ApiGetProjectGroupAccesses,
     ApiProjectResponse,
     EnsurePlaygroundProjectRequest,
+    CreateTrainingPreviewResults,
     EnsurePlaygroundProjectResults,
     PlaygroundProjectTrigger,
     AthenaCredentials,

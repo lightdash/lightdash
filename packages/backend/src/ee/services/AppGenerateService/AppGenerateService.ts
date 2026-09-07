@@ -9626,6 +9626,19 @@ export class AppGenerateService extends BaseService {
      * uploads, version source tarballs, built dist tarballs, and per-version
      * assets.
      */
+    /**
+     * Remove the stored files of every app in a project. Deleting a project
+     * only removes rows; a training copy is deleted after each walkthrough,
+     * so its duplicated app files would otherwise pile up in the bucket.
+     */
+    async deleteProjectAppFiles(projectUuid: string): Promise<number> {
+        const apps = await this.appModel.listAppsByProject(projectUuid);
+        await Promise.all(
+            apps.map((app) => this.deleteAppS3Prefix(app.app_id)),
+        );
+        return apps.length;
+    }
+
     private async deleteAppS3Prefix(appUuid: string): Promise<void> {
         const { client, bucket } = this.getS3Client();
         const prefix = `apps/${appUuid}/`;

@@ -9,6 +9,8 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
+    getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
     getUserAvatarUrl,
     InvalidUser,
@@ -1153,10 +1155,117 @@ export class UserModel {
             );
         }
 
+        await this.applyTrainingProjectAbilities(
+            user.organization_id,
+            user.user_uuid,
+            isEnterprise,
+            abilityBuilder,
+            trx,
+        );
+
         return {
             abilityBuilder,
             lightdashUser,
         };
+    }
+
+    /**
+     * The organization's training project, if one has been provisioned, plus
+     * this user's own preview copies of it (made for walkthroughs). Other
+     * users' copies are not included.
+     */
+    private async getTrainingProjects(
+        organizationId: number,
+        userUuid: string,
+        trx: Knex = this.database,
+    ): Promise<
+        {
+            projectUuid: string;
+            projectType: ProjectType;
+            createdByUserUuid: string | null;
+        }[]
+    > {
+        const training = await trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.TRAINING)
+            .first();
+        if (!training) {
+            return [];
+        }
+        // Only copies the training service made: `copied_from` alone can be
+        // set through the project metadata API on a preview of a real
+        // project, which must never inherit the trainee set.
+        const copies = await trx(ProjectTableName)
+            .select<
+                { project_uuid: string; created_by_user_uuid: string | null }[]
+            >('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.PREVIEW)
+            .where('provisioning_source', 'training')
+            .where('copied_from_project_uuid', training.project_uuid)
+            .where('created_by_user_uuid', userUuid);
+        return [
+            {
+                projectUuid: training.project_uuid,
+                projectType: ProjectType.TRAINING,
+                createdByUserUuid: training.created_by_user_uuid,
+            },
+            ...copies.map((copy) => ({
+                projectUuid: copy.project_uuid,
+                projectType: ProjectType.PREVIEW,
+                createdByUserUuid: copy.created_by_user_uuid,
+            })),
+        ];
+    }
+
+    /**
+     * The trainee layer: every member of an organization, whatever their org
+     * role, gets `getTrainingProjectScopes()` on the org's training project
+     * (`projects.project_type = 'TRAINING'`) and on their own preview copies
+     * of it. No membership rows are involved,
+     * so new joiners are covered and admins grant nothing. Resolved by the
+     * user's own organization so no one gets the layer on another org's
+     * training project. Human users only; service accounts never get it.
+     */
+    private async applyTrainingProjectAbilities(
+        organizationId: number,
+        userUuid: string,
+        isEnterprise: boolean,
+        builder: AbilityBuilder<MemberAbility>,
+        trx: Knex = this.database,
+    ): Promise<void> {
+        const trainingProjects = await this.getTrainingProjects(
+            organizationId,
+            userUuid,
+            trx,
+        );
+        // The shared training project is read-only for learners; their own
+        // copy is where the trainee set applies.
+        const viewerScopes = getTrainingProjectViewerScopes();
+        const traineeScopes = getTrainingProjectScopes();
+        trainingProjects.forEach((project) => {
+            buildAbilityFromScopes(
+                {
+                    projectUuid: project.projectUuid,
+                    projectType: project.projectType,
+                    projectCreatedByUserUuid: project.createdByUserUuid,
+                    userUuid,
+                    scopes:
+                        project.projectType === ProjectType.TRAINING
+                            ? viewerScopes
+                            : traineeScopes,
+                    isEnterprise,
+                    permissionsConfig: {
+                        pat: this.lightdashConfig.auth.pat,
+                    },
+                },
+                builder,
+            );
+        });
     }
 
     /**
