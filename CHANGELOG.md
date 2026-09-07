@@ -1,3 +1,17 @@
+# [2.147.0](https://github.com/lightdash/lightdash/compare/2.146.1...2.147.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** Learn cards drop the progress bar and keep one footer height ([#28788](https://github.com/lightdash/lightdash/issues/28788)) ([e09d236](https://github.com/lightdash/lightdash/commit/e09d236a17dc8448980a8de42d68839b0046d5a3)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **frontend:** Learn page neutrals in dark mode ([#28784](https://github.com/lightdash/lightdash/issues/28784)) ([095b6d6](https://github.com/lightdash/lightdash/commit/095b6d6d484eabf2fc77d9d595e874df809f5ea9)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* **frontend:** Next on the completion dialog opens the next module directly ([#28785](https://github.com/lightdash/lightdash/issues/28785)) ([ab6dbef](https://github.com/lightdash/lightdash/commit/ab6dbef520e692f1766c7e1d6b4a37954c8d61cb)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **frontend:** walkthroughs return to the project Learn was opened from ([#28787](https://github.com/lightdash/lightdash/issues/28787)) ([3311b69](https://github.com/lightdash/lightdash/commit/3311b69c583176c47aecd8c7e4d241fad4a2e0a6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [2.146.1](https://github.com/lightdash/lightdash/compare/2.146.0...2.146.1) (2026-09-07)
 
 
