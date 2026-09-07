@@ -22,8 +22,9 @@ const PENDING_DELETE = 'pending-delete';
 const CACHE_LOCK = '.reservation-lock';
 const RECLAIM_CLAIM = '.reclaim.json';
 const CACHE_LOCK_WAIT_MS = 5_000;
-const TOMBSTONE_CLEANUP_WAIT_MS = 30_000;
-const RETENTION_TOTAL_WAIT_MS = 60_000;
+const ADMISSION_TOTAL_WAIT_MS = 3_000;
+const TOMBSTONE_CLEANUP_WAIT_MS = 3_000;
+const RETENTION_TOTAL_WAIT_MS = 3_000;
 const PUBLICATION_MAX_ATTEMPTS = DBT_GIT_CACHE_MAX_ENTRIES;
 const ABANDONED_ROOT_GRACE_MS = 5 * 60 * 1000;
 const ORPHAN_TEMPORARY_FILE =
@@ -1102,7 +1103,7 @@ const acquireNewDbtGitProjectCache = async (
         Math.min(totalDeadline, Date.now() + CACHE_LOCK_WAIT_MS),
     );
     if (!cacheLock) {
-        onMiss?.('lock-timeout');
+        onMiss?.('admission-timeout');
         return undefined;
     }
     let cleanup: Promise<boolean> | undefined;
@@ -1196,7 +1197,7 @@ const acquireNewDbtGitProjectCache = async (
             onMiss,
         );
     }
-    onMiss?.('cleanup-timeout');
+    onMiss?.('admission-timeout');
     return undefined;
 };
 
@@ -1259,7 +1260,7 @@ export const acquireDbtGitProjectCache = async (
         repositoryIdentity,
         key,
         entryDirectory,
-        Date.now() + RETENTION_TOTAL_WAIT_MS,
+        Date.now() + ADMISSION_TOTAL_WAIT_MS,
         0,
         onMiss,
     );

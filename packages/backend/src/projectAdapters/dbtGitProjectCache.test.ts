@@ -590,7 +590,7 @@ describe('dbt git project cache', () => {
         }
     });
 
-    it('uses an independent cleanup wait after the lock budget is consumed', async () => {
+    it('does not extend the retention deadline after accounting consumes it', async () => {
         await configure({ maxBytes: 150 });
         const first = await acquireDbtGitProjectCache(
             identity(1),
@@ -648,15 +648,19 @@ describe('dbt git project cache', () => {
             await new Promise<void>((resolve) => {
                 setTimeout(resolve, 100);
             });
-            expect(released).toBe(false);
+            expect(released).toBe(true);
+            expect(second).toMatchObject({
+                retained: false,
+                retentionReason: 'cleanup-timeout',
+            });
             finishCleanup();
             await release;
-            const reused = await acquireDbtGitProjectCache(
+            const replacement = await acquireDbtGitProjectCache(
                 identity(2),
                 'repository-2',
             );
-            expect(reused?.reused).toBe(true);
-            await releaseDbtGitProjectCache(reused!, 100);
+            expect(replacement?.reused).toBe(false);
+            await invalidateOwnedDbtGitCacheLease(replacement!);
         } finally {
             finishCleanup();
             now.mockRestore();
@@ -950,7 +954,7 @@ describe('dbt git project cache', () => {
         expect(await entryDirectories(root)).toHaveLength(128);
     });
 
-    it('reports a reservation lock timeout', async () => {
+    it('reports an admission timeout while waiting for the reservation lock', async () => {
         const root = await configure();
         const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
         await fs.mkdir(seed!.checkoutDirectory);
@@ -979,7 +983,7 @@ describe('dbt git project cache', () => {
                     args[0] === path.join(reservationLock, 'owner.json')
                 ) {
                     clock.advanced = true;
-                    clock.now += 6_000;
+                    clock.now += 4_000;
                 }
                 return actualFs.readFile(...args);
             },
@@ -988,7 +992,7 @@ describe('dbt git project cache', () => {
             await expect(
                 acquireDbtGitProjectCache(identity(1), 'repository', onMiss),
             ).resolves.toBeUndefined();
-            expect(onMiss).toHaveBeenCalledWith('lock-timeout');
+            expect(onMiss).toHaveBeenCalledExactlyOnceWith('admission-timeout');
         } finally {
             now.mockRestore();
             readFile.mockImplementation(actualFs.readFile);
@@ -1077,6 +1081,130 @@ describe('dbt git project cache', () => {
         await expect(fs.access(leases[1].entryDirectory)).rejects.toThrow();
         await releaseDbtGitProjectCache(active!, 1);
         await invalidateOwnedDbtGitCacheLease(admitted!);
+    });
+
+    it('falls back after the admission cleanup budget without late publication', async () => {
+        const root = await configure();
+        const leases = await retainEntries(128);
+        const oldestMetadataPath = path.join(
+            leases[0].entryDirectory,
+            'metadata.json',
+        );
+        const oldestMetadata = JSON.parse(
+            await fs.readFile(oldestMetadataPath, 'utf8'),
+        );
+        await fs.writeFile(
+            oldestMetadataPath,
+            JSON.stringify({
+                ...oldestMetadata,
+                lastUsedAt: Date.now() - 30_000,
+            }),
+        );
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                path.basename(target).startsWith(`.tombstone-${leases[0].key}-`)
+            ) {
+                clock.now += 3_001;
+                startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            const onMiss = vi.fn();
+            const admission = acquireDbtGitProjectCache(
+                identity(128),
+                'repository-128',
+                onMiss,
+            );
+            await cleanupStarted;
+
+            await expect(admission).resolves.toBeUndefined();
+            expect(onMiss).toHaveBeenCalledExactlyOnceWith('admission-timeout');
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            expect(await entryDirectories(root)).toHaveLength(127);
+
+            const retry = await acquireDbtGitProjectCache(
+                identity(128),
+                'repository-128',
+            );
+            expect(retry?.reused).toBe(false);
+            await invalidateOwnedDbtGitCacheLease(retry!);
+        } finally {
+            finishCleanup();
+            now.mockRestore();
+            rm.mockImplementation(actualFs.rm);
+        }
+    });
+
+    it('caps retention cleanup waits at the retention budget', async () => {
+        const root = await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rm = vi.mocked(fs.rm);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        let startCleanup: () => void = () => undefined;
+        let finishCleanup: () => void = () => undefined;
+        const cleanupStarted = new Promise<void>((resolve) => {
+            startCleanup = resolve;
+        });
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                path.basename(target).startsWith(`.tombstone-${first!.key}-`)
+            ) {
+                clock.now += 3_001;
+                startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
+        try {
+            const release = releaseDbtGitProjectCache(second!, 100);
+            await cleanupStarted;
+
+            await release;
+            expect(second).toMatchObject({
+                retained: false,
+                retentionReason: 'cleanup-timeout',
+            });
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+        } finally {
+            finishCleanup();
+            now.mockRestore();
+            rm.mockImplementation(actualFs.rm);
+        }
     });
 
     it('reclaims an interrupted tombstone with a missing marker after the grace period', async () => {
