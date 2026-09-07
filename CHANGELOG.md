@@ -1,3 +1,26 @@
+# [2.137.0](https://github.com/lightdash/lightdash/compare/2.136.3...2.137.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ai-agents:** format SQL previews and fix horizontal scrolling ([#28728](https://github.com/lightdash/lightdash/issues/28728)) ([1b36d3d](https://github.com/lightdash/lightdash/commit/1b36d3d0f66c449e5e7d1fd864cf63145caf01d1))
+* compile DuckDB date names with supported functions ([#28708](https://github.com/lightdash/lightdash/issues/28708)) ([89cbf02](https://github.com/lightdash/lightdash/commit/89cbf02c9f3f795b9b1882da4ec976f69d4fa763))
+* **dashboard:** exclude registry metrics shadowed by real explore fields ([#28748](https://github.com/lightdash/lightdash/issues/28748)) ([b5d7c80](https://github.com/lightdash/lightdash/commit/b5d7c8091dd4cd425adae10522ff966aabb936c7))
+* **direct-access:** reduce shared content lookup overhead ([#28727](https://github.com/lightdash/lightdash/issues/28727)) ([05173a6](https://github.com/lightdash/lightdash/commit/05173a614b3b63c53e1b2d636444b8cf69bac294))
+* remove duplicate js-yaml lockfile entries ([#28756](https://github.com/lightdash/lightdash/issues/28756)) ([2ad2a7a](https://github.com/lightdash/lightdash/commit/2ad2a7a43d7ca24e6e068f767e6a1ff5b5fadcbc)), closes [#28486](https://github.com/lightdash/lightdash/issues/28486) [#28486](https://github.com/lightdash/lightdash/issues/28486)
+* upgrade js-yaml 4.3.0→4.3.2 (security) ([#28486](https://github.com/lightdash/lightdash/issues/28486)) ([23994ea](https://github.com/lightdash/lightdash/commit/23994eafbdcf47eb79bef5ad0982e74a4090a4b3))
+* upgrade js-yaml 4.3.1→4.3.2 (security) ([#28488](https://github.com/lightdash/lightdash/issues/28488)) ([86e7499](https://github.com/lightdash/lightdash/commit/86e7499abd4e08565726f9408f6ae0a22c975535))
+
+
+### Features
+
+* **direct-access:** add portable access blocks to content-as-code exports ([#28300](https://github.com/lightdash/lightdash/issues/28300)) ([e4a8a23](https://github.com/lightdash/lightdash/commit/e4a8a232511b03e511a8e4dbbecae00cf16f8841))
+
+
+### Performance Improvements
+
+* **common:** keep dbt manifest schemas out of the barrel ([#28745](https://github.com/lightdash/lightdash/issues/28745)) ([fd0e94f](https://github.com/lightdash/lightdash/commit/fd0e94f0ea1028a12134fd49ff78c65088b633de))
+
 ## [2.136.3](https://github.com/lightdash/lightdash/compare/2.136.2...2.136.3) (2026-09-07)
 
 

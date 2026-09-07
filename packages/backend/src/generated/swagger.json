@@ -4491,6 +4491,55 @@
                 "required": ["verifiedAt", "verifiedBy"],
                 "type": "object"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor", "admin"],
+                "type": "string"
+            },
+            "ContentAsCodeDirectAccessUser": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Primary email of a human organization member."
+                    }
+                },
+                "required": ["role", "email"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccessGroup": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Exact, case-sensitive organization group name."
+                    }
+                },
+                "required": ["role", "name"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccess": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessGroup"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessUser"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["groups", "users"],
+                "type": "object",
+                "description": "Portable direct user/group grants on a single resource. Mirrors the space\naccess block: principals are identified by organization email or group name,\nnever by internal identifiers. Inherited and effective roles are never part\nof this shape — it reflects stored direct policy only.\n\nOn upload: omission leaves the resource's existing direct policy unchanged;\na present block (including empty `users` and `groups`) atomically replaces\nthe whole policy."
+            },
             "ChartAsCode": {
                 "allOf": [
                     {
@@ -4498,6 +4547,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -4601,10 +4654,6 @@
             },
             "ContentAsCodeType.SPACE": {
                 "enum": ["space"],
-                "type": "string"
-            },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor", "admin"],
                 "type": "string"
             },
             "SpaceAsCodeUserAccess": {
@@ -5493,6 +5542,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -6279,6 +6332,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "downloadedAt": {
                                 "type": "string",
                                 "format": "date-time"
@@ -9353,6 +9410,10 @@
                         ],
                         "nullable": true,
                         "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
                     }
                 },
                 "required": [
@@ -9413,6 +9474,10 @@
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "sql": {
                         "type": "string"
@@ -9537,6 +9602,10 @@
                         ],
                         "nullable": true,
                         "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "tabs": {
                         "items": {
@@ -20241,6 +20310,9 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -59880,7 +59952,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.136.3",
+        "version": "2.137.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
