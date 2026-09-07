@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ConflictError,
     OrganizationMemberRole,
     type PossibleAbilities,
     type SessionUser,
@@ -362,5 +363,70 @@ describe('SavedChartService direct-grant write parity', () => {
                 }),
             }),
         );
+    });
+
+    it('rolls back a chart version using the authorized ownership snapshot', async () => {
+        await service.rollback(
+            grantOnlyEditor,
+            ownedChart.uuid,
+            'version-uuid',
+        );
+        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+            ownedChart.uuid,
+            ownedChart,
+            grantOnlyEditor,
+            undefined,
+            {
+                projectUuid: ownedChart.projectUuid,
+                dashboardUuid: OWNING_DASHBOARD,
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
+    });
+
+    it('rejects a metadata ownership conflict using the authorized snapshot without emitting success', async () => {
+        savedChartModel.update.mockRejectedValueOnce(
+            new ConflictError('Chart location changed'),
+        );
+        const update = { name: 'Rejected rename' };
+
+        await expect(
+            service.update(grantOnlyEditor, ownedChart.uuid, update),
+        ).rejects.toThrow(ConflictError);
+
+        expect(savedChartModel.update).toHaveBeenCalledWith(
+            ownedChart.uuid,
+            update,
+            {
+                projectUuid: ownedChart.projectUuid,
+                dashboardUuid: OWNING_DASHBOARD,
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
+        expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+
+    it('propagates a rollback ownership conflict without using the later owner or emitting success', async () => {
+        const movedChart = { ...ownedChart, dashboardUuid: 'other-dashboard' };
+        savedChartModel.get.mockResolvedValue(movedChart);
+        savedChartModel.createVersion.mockRejectedValueOnce(
+            new ConflictError('Chart location changed'),
+        );
+        await expect(
+            service.rollback(grantOnlyEditor, ownedChart.uuid, 'version-uuid'),
+        ).rejects.toThrow(ConflictError);
+        expect(savedChartModel.createVersion).toHaveBeenCalledWith(
+            ownedChart.uuid,
+            movedChart,
+            grantOnlyEditor,
+            undefined,
+            {
+                projectUuid: ownedChart.projectUuid,
+                dashboardUuid: OWNING_DASHBOARD,
+                spaceUuid: PRIVATE_SPACE,
+            },
+        );
+        expect(analyticsMock.track).not.toHaveBeenCalled();
     });
 });

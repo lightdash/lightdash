@@ -151,6 +151,12 @@ const getSavedChartPivotConfig = (
     };
 };
 
+type SavedChartLocation = {
+    projectUuid: string;
+    dashboardUuid: string | null;
+    spaceUuid: string;
+};
+
 const createSavedChartVersionFields = async (
     trx: Knex,
     data: CreateDbSavedChartVersionField[],
@@ -1081,14 +1087,25 @@ export class SavedChartModel {
         data: CreateSavedChartVersion,
         user: SessionUser | undefined,
         tx?: Knex,
+        expectedLocation?: SavedChartLocation,
     ): Promise<SavedChartDAO> {
         const doWork = async (trx: Knex) => {
-            const [savedChart] = await trx(SavedChartsTableName)
-                .select(['saved_query_id'])
-                .where('saved_query_uuid', savedChartUuid)
-                .whereNull('deleted_at');
+            const chartQuery = this.getChartMutationQuery(
+                trx,
+                savedChartUuid,
+                expectedLocation,
+            ).select(['saved_query_id']);
+            if (expectedLocation) {
+                chartQuery.forUpdate();
+            }
+            const [savedChart] = await chartQuery;
 
             if (!savedChart) {
+                if (expectedLocation) {
+                    throw new ConflictError(
+                        'Chart location changed. Reload the chart and try again.',
+                    );
+                }
                 throw new NotFoundError('Saved chart not found');
             }
 
@@ -1119,10 +1136,37 @@ export class SavedChartModel {
         return this.get(savedChartUuid);
     }
 
+    private getChartMutationQuery(
+        database: Knex,
+        savedChartUuid: string,
+        expectedLocation?: SavedChartLocation,
+    ) {
+        const query = database(SavedChartsTableName)
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at');
+        if (!expectedLocation) {
+            return query;
+        }
+
+        query
+            .where('project_uuid', expectedLocation.projectUuid)
+            .where('dashboard_uuid', expectedLocation.dashboardUuid);
+        if (expectedLocation.dashboardUuid !== null) {
+            return query.whereNull('space_id');
+        }
+        return query.where(
+            'space_id',
+            database(SpaceTableName)
+                .select('space_id')
+                .where('space_uuid', expectedLocation.spaceUuid),
+        );
+    }
+
     private async updateChart(
         database: Knex,
         savedChartUuid: string,
         data: UpdateSavedChart,
+        expectedLocation?: SavedChartLocation,
     ): Promise<void> {
         const savedChart = await database(SavedChartsTableName)
             .select(`${SavedChartsTableName}.project_uuid`)
@@ -1154,24 +1198,36 @@ export class SavedChartModel {
             targetSpaceId = space.space_id;
         }
 
-        await database(SavedChartsTableName)
-            .update({
-                name: data.name,
-                description: data.description,
-                project_uuid: savedChart.project_uuid,
-                space_id: targetSpaceId,
-                dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
-                color_palette_uuid: data.colorPaletteUuid,
-            })
-            .where('saved_query_uuid', savedChartUuid)
-            .whereNull('deleted_at');
+        const updatedRows = await this.getChartMutationQuery(
+            database,
+            savedChartUuid,
+            expectedLocation,
+        ).update({
+            name: data.name,
+            description: data.description,
+            project_uuid: savedChart.project_uuid,
+            space_id: targetSpaceId,
+            dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
+            color_palette_uuid: data.colorPaletteUuid,
+        });
+        if (expectedLocation && updatedRows !== 1) {
+            throw new ConflictError(
+                'Chart location changed. Reload the chart and try again.',
+            );
+        }
     }
 
     async update(
         savedChartUuid: string,
         data: UpdateSavedChart,
+        expectedLocation?: SavedChartLocation,
     ): Promise<SavedChartDAO> {
-        await this.updateChart(this.database, savedChartUuid, data);
+        await this.updateChart(
+            this.database,
+            savedChartUuid,
+            data,
+            expectedLocation,
+        );
         return this.get(savedChartUuid);
     }
 

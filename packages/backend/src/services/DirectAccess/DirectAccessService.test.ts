@@ -1,9 +1,12 @@
+import { subject } from '@casl/ability';
 import {
     defineUserAbility,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
     ForbiddenError,
+    getUserAbilityBuilder,
     OrganizationMemberRole,
+    ProjectMemberRole,
     SpaceMemberRole,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -30,6 +33,11 @@ const OTHER_USER_UUID = 'aaaaaaaa-0000-0000-0000-000000000007';
 const buildAccount = (
     role: OrganizationMemberRole,
     userUuid: string = USER_UUID,
+    abilityOptions: {
+        projectProfiles?: Parameters<typeof defineUserAbility>[1];
+        roleUuid?: string;
+        customRoleScopes?: Parameters<typeof defineUserAbility>[2];
+    } = {},
 ): RegisteredAccount =>
     ({
         authentication: { type: 'session' },
@@ -41,15 +49,21 @@ const buildAccount = (
             lastName: 'User',
             email: 'test@example.com',
             role,
-            ability: defineUserAbility(
-                {
+            ability: getUserAbilityBuilder({
+                user: {
                     role,
                     organizationUuid: ORGANIZATION_UUID,
                     userUuid,
-                    roleUuid: undefined,
+                    roleUuid: abilityOptions.roleUuid,
                 },
-                [],
-            ),
+                projectProfiles: abilityOptions.projectProfiles ?? [],
+                customRoleScopes: abilityOptions.customRoleScopes,
+                customRolesEnabled: true,
+                isEnterprise: true,
+                permissionsConfig: {
+                    pat: { enabled: false, allowedOrgRoles: [] },
+                },
+            }).builder.build(),
         },
         isAnonymousUser: () => false,
         isServiceAccount: () => false,
@@ -315,6 +329,208 @@ describe('DirectAccessService', () => {
                 APP_UUID,
             ),
         ).resolves.toEqual([]);
+    });
+
+    describe('personal app policy authority', () => {
+        it.each([SpaceMemberRole.VIEWER, SpaceMemberRole.EDITOR])(
+            'denies policy reads and writes to a noncreator with direct %s access',
+            async (role) => {
+                const { service, directAccessModel } = buildService({
+                    location: personalAppLocation,
+                    context: spaceContext([
+                        { userUuid: OTHER_USER_UUID, role },
+                    ]),
+                });
+                const account = buildAccount(
+                    OrganizationMemberRole.INTERACTIVE_VIEWER,
+                    OTHER_USER_UUID,
+                );
+                const resourceArgs = [
+                    account,
+                    PROJECT_UUID,
+                    DirectAccessResourceType.APP,
+                    APP_UUID,
+                ] as const;
+                const principal = {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: USER_UUID,
+                };
+
+                const { ability } = account.user;
+                expect(
+                    ability.can(
+                        'manage',
+                        subject('DataApp', {
+                            ...spaceContext([
+                                { userUuid: OTHER_USER_UUID, role },
+                            ]),
+                            createdByUserUuid: USER_UUID,
+                        }),
+                    ),
+                ).toBe(role === SpaceMemberRole.EDITOR);
+
+                await expect
+                    .soft(service.listAssignments(...resourceArgs))
+                    .rejects.toThrowError(ForbiddenError);
+                await expect
+                    .soft(
+                        service.upsertAssignment(
+                            ...resourceArgs,
+                            principal,
+                            SpaceMemberRole.ADMIN,
+                        ),
+                    )
+                    .rejects.toThrowError(ForbiddenError);
+                await expect
+                    .soft(service.revokeAssignment(...resourceArgs, principal))
+                    .rejects.toThrowError(ForbiddenError);
+                await expect
+                    .soft(service.resetAssignments(...resourceArgs))
+                    .rejects.toThrowError(ForbiddenError);
+                await expect
+                    .soft(service.replacePolicy(...resourceArgs, []))
+                    .rejects.toThrowError(ForbiddenError);
+                expect
+                    .soft(directAccessModel.listAssignments)
+                    .not.toHaveBeenCalled();
+                expect
+                    .soft(directAccessModel.upsertAccess)
+                    .not.toHaveBeenCalled();
+                expect
+                    .soft(directAccessModel.revokeAccess)
+                    .not.toHaveBeenCalled();
+                expect
+                    .soft(directAccessModel.resetAccess)
+                    .not.toHaveBeenCalled();
+                expect
+                    .soft(directAccessModel.replacePolicy)
+                    .not.toHaveBeenCalled();
+            },
+        );
+
+        it.each([
+            {
+                name: 'direct Admin',
+                account: buildAccount(
+                    OrganizationMemberRole.INTERACTIVE_VIEWER,
+                    OTHER_USER_UUID,
+                ),
+                access: [
+                    { userUuid: OTHER_USER_UUID, role: SpaceMemberRole.ADMIN },
+                ],
+            },
+            {
+                name: 'creator',
+                account: buildAccount(
+                    OrganizationMemberRole.INTERACTIVE_VIEWER,
+                ),
+                access: [],
+            },
+            {
+                name: 'organization Admin',
+                account: buildAccount(
+                    OrganizationMemberRole.ADMIN,
+                    OTHER_USER_UUID,
+                ),
+                access: [],
+            },
+            {
+                name: 'custom role with explicit app management',
+                account: buildAccount(
+                    OrganizationMemberRole.MEMBER,
+                    OTHER_USER_UUID,
+                    {
+                        roleUuid: 'app-manager-role',
+                        customRoleScopes: {
+                            'app-manager-role': ['manage:DataApp'],
+                        },
+                    },
+                ),
+                access: [],
+            },
+            {
+                name: 'project Admin',
+                account: buildAccount(
+                    OrganizationMemberRole.MEMBER,
+                    OTHER_USER_UUID,
+                    {
+                        projectProfiles: [
+                            {
+                                projectUuid: PROJECT_UUID,
+                                userUuid: OTHER_USER_UUID,
+                                role: ProjectMemberRole.ADMIN,
+                                roleUuid: undefined,
+                            },
+                        ],
+                    },
+                ),
+                access: [],
+            },
+        ])(
+            'preserves policy reads and writes for the $name',
+            async ({ account, access }) => {
+                const { service, directAccessModel } = buildService({
+                    location: personalAppLocation,
+                    context: spaceContext(access),
+                });
+                await expect(
+                    service.listAssignments(
+                        account,
+                        PROJECT_UUID,
+                        DirectAccessResourceType.APP,
+                        APP_UUID,
+                    ),
+                ).resolves.toEqual([]);
+                await expect(
+                    service.upsertAssignment(
+                        account,
+                        PROJECT_UUID,
+                        DirectAccessResourceType.APP,
+                        APP_UUID,
+                        {
+                            type: DirectAccessPrincipalType.USER,
+                            uuid: USER_UUID,
+                        },
+                        SpaceMemberRole.VIEWER,
+                    ),
+                ).resolves.toBeUndefined();
+                expect(directAccessModel.upsertAccess).toHaveBeenCalledOnce();
+            },
+        );
+
+        it('does not let a direct Admin grant exceed custom-role capabilities', async () => {
+            const { service, directAccessModel } = buildService({
+                location: personalAppLocation,
+                context: spaceContext([
+                    { userUuid: OTHER_USER_UUID, role: SpaceMemberRole.ADMIN },
+                ]),
+            });
+            const account = buildAccount(
+                OrganizationMemberRole.MEMBER,
+                OTHER_USER_UUID,
+                {
+                    roleUuid: 'restricted-role',
+                    customRoleScopes: { 'restricted-role': ['view:Project'] },
+                },
+            );
+            await expect(
+                service.listAssignments(
+                    account,
+                    PROJECT_UUID,
+                    DirectAccessResourceType.APP,
+                    APP_UUID,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            await expect(
+                service.resetAssignments(
+                    account,
+                    PROJECT_UUID,
+                    DirectAccessResourceType.APP,
+                    APP_UUID,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(directAccessModel.resetAccess).not.toHaveBeenCalled();
+        });
     });
 
     it('audits committed upserts and skips no-op revokes', async () => {

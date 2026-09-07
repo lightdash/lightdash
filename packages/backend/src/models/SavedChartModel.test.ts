@@ -775,6 +775,75 @@ describe('update', () => {
         tracker.reset();
     });
 
+    test('rejects an update when the authorized chart location no longer matches', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(0);
+        const getChart = vi
+            .spyOn(model, 'get')
+            .mockResolvedValue(chartSummary as never);
+
+        await expect(
+            model.update(
+                'chart-uuid',
+                { name: 'Changed name' },
+                {
+                    projectUuid: 'project-uuid',
+                    dashboardUuid: 'authorized-dashboard',
+                    spaceUuid: 'authorized-space',
+                },
+            ),
+        ).rejects.toThrow('Chart location changed');
+        expect(getChart).not.toHaveBeenCalled();
+    });
+
+    test('checks dashboard ownership in the update that acquires the row lock', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+
+        await model.update(
+            'chart-uuid',
+            { name: 'Changed name' },
+            {
+                projectUuid: 'project-uuid',
+                dashboardUuid: 'authorized-dashboard',
+                spaceUuid: 'authorized-space',
+            },
+        );
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.sql).toMatch(/"dashboard_uuid" = \$\d+/);
+        expect(updateQuery.sql).toContain('"space_id" is null');
+        expect(updateQuery.bindings).toContain('authorized-dashboard');
+    });
+
+    test('checks the authorized space when updating a standalone chart', async () => {
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ project_uuid: 'project-uuid' }]);
+        tracker.on.update(SavedChartsTableName).responseOnce(1);
+        vi.spyOn(model, 'get').mockResolvedValue(chartSummary as never);
+
+        await model.update(
+            'chart-uuid',
+            { name: 'Changed name' },
+            {
+                projectUuid: 'project-uuid',
+                dashboardUuid: null,
+                spaceUuid: 'authorized-space',
+            },
+        );
+
+        const [updateQuery] = tracker.history.update;
+        expect(updateQuery.sql).toContain('"dashboard_uuid" is null');
+        expect(updateQuery.sql).toContain('"space_id" = (select');
+        expect(updateQuery.bindings).toContain('authorized-space');
+    });
+
     test('preserves dashboard linkage on name-only updates while writing the resolved project', async () => {
         const chartUuid = '11111111-1111-4111-8111-111111111111';
         const projectUuid = '22222222-2222-4222-8222-222222222222';
