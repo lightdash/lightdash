@@ -1135,6 +1135,19 @@ export type ConvertExploresOptions = {
     postProcessors?: ExplorePostProcessor[];
 };
 
+const MODELS_PER_EVENT_LOOP_YIELD = 200;
+
+// setImmediate has no timer clamp but exists only on Node; this package is
+// bundled for the browser too.
+const yieldToEventLoop = (): Promise<void> =>
+    new Promise((resolve) => {
+        if (typeof setImmediate === 'function') {
+            setImmediate(resolve);
+        } else {
+            setTimeout(resolve, 0);
+        }
+    });
+
 export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
@@ -1223,7 +1236,8 @@ export const convertExplores = async (
     );
     const tables: Table[] = [];
     const exploreErrors: ExploreError[] = [];
-    resolvedModels.forEach((model) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [modelIndex, model] of resolvedModels.entries()) {
         // Config block takes priority, then meta block
         const meta = merge({}, model.meta, model.config?.meta);
 
@@ -1289,7 +1303,12 @@ export const convertExplores = async (
             };
             exploreErrors.push(exploreError);
         }
-    });
+
+        if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await yieldToEventLoop();
+        }
+    }
     const tableLookup: Record<string, Table> = {};
     tables.forEach((table) => {
         tableLookup[table.name] = table;
@@ -1306,7 +1325,8 @@ export const convertExplores = async (
         allowPartialCompilation,
     });
     const explores: (Explore | ExploreError)[] = [];
-    validModels.forEach((model) => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [modelIndex, model] of validModels.entries()) {
         // Config block takes priority, then meta block
         const meta = merge({}, model.meta, model.config?.meta);
 
@@ -1545,7 +1565,12 @@ export const convertExplores = async (
         }, successfulExplores);
 
         explores.push(...compileErrors, ...postProcessedExplores);
-    });
+
+        if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
+            // eslint-disable-next-line no-await-in-loop
+            await yieldToEventLoop();
+        }
+    }
 
     return [...explores, ...exploreErrors];
 };
