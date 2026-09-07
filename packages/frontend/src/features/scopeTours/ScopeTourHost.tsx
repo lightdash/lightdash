@@ -72,7 +72,7 @@ const writeStoredTour = (tour: StoredTour | null) => {
  */
 const renderDocsText = (text: string) =>
     text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g).map((part, index) => {
-        const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        const link = part.match(/^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/);
         if (link) {
             return (
                 <Anchor
@@ -153,7 +153,6 @@ const ScopeTourHost: FC = () => {
     }, [activeScope, projectUuid]);
 
     const requested = searchParams.get(TOUR_PARAM);
-    const inCopy = searchParams.get(COPY_PARAM) === '1';
     const requestedFrom: ReturnTo =
         searchParams.get(FROM_PARAM) === 'learn' ? 'learn' : 'home';
     // Tours run only in the training project or a learner's copy of it.
@@ -291,7 +290,12 @@ const ScopeTourHost: FC = () => {
             }
             return;
         }
-        if (project.type === ProjectType.TRAINING && !inCopy) {
+        // A tour only ever runs in the learner's own copy; being on the
+        // shared training project means one has to be made first. The
+        // `copy` parameter is informational: a link cannot claim to be a
+        // copy, since anything written on the shared project would be
+        // cloned into every other learner's copy.
+        if (project.type === ProjectType.TRAINING) {
             if (!copyRequestedRef.current) {
                 copyRequestedRef.current = true;
                 startInFreshCopy({
@@ -320,7 +324,6 @@ const ScopeTourHost: FC = () => {
         setSearchParams(next, { replace: true });
     }, [
         requested,
-        inCopy,
         project,
         projects,
         trainingProject,
