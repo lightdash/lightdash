@@ -1,6 +1,6 @@
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
-import { AiSqlModal } from './AiSqlModal';
+import { AiSqlModal } from '../ee/features/aiCopilot/components/ChatElements/AiSqlModal';
 
 const meta = {
     component: AiSqlModal,
