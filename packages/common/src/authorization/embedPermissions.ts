@@ -1,11 +1,14 @@
-import { subject } from '@casl/ability';
+import { subject, type AbilityBuilder } from '@casl/ability';
 import {
     FilterInteractivityValues,
     type CreateEmbedJwt,
     type EffectiveEmbedPermissions,
 } from '../ee';
 import type { OssEmbed } from '../types/auth';
+import { ScopeGroup } from '../types/scopes';
 import assertUnreachable from '../utils/assertUnreachable';
+import { parseScope } from './parseScopes';
+import { getScopes } from './scopes';
 import {
     EMBED_PERMISSION_SUBJECTS,
     type EmbedPermission,
@@ -17,6 +20,42 @@ type EmbedPermissionContext = {
     embedWriteUserAbility?: MemberAbility;
 };
 
+/** Project only embed capabilities, never the actor's regular-app abilities. */
+export const applyEmbedScopeAbilities = ({
+    embedUser,
+    embed,
+    embedWriteUserAbility,
+    builder,
+}: EmbedPermissionContext & {
+    embedUser: CreateEmbedJwt;
+    builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
+}): void => {
+    if (!embedUser.writeActions || !embedWriteUserAbility) return;
+
+    const target = {
+        organizationUuid: embed.organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    };
+
+    getScopes({ isEnterprise: true })
+        .filter((scope) => scope.group === ScopeGroup.EMBED)
+        .forEach((scope) => {
+            const [action, resource] = parseScope(scope.name);
+            if (
+                embedWriteUserAbility.can(
+                    action,
+                    subject(resource, { ...target }),
+                )
+            ) {
+                builder.can(action, resource, target);
+            }
+        });
+};
+
+/**
+ * @deprecated Compatibility adapter for existing JWT options and flag consumers.
+ * New capabilities use the embed account's CASL ability, not this mapping.
+ */
 export const getEffectiveEmbedPermissions = ({
     embedUser,
     embed,

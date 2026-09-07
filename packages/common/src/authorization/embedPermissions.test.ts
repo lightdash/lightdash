@@ -4,13 +4,17 @@ import {
     type CreateEmbedJwt,
     type EffectiveEmbedPermissions,
 } from '../ee';
-import { type ScopeContext } from '../types/scopes';
-import { getEffectiveEmbedPermissions } from './embedPermissions';
+import { ScopeGroup, type ScopeContext } from '../types/scopes';
+import {
+    applyEmbedScopeAbilities,
+    getEffectiveEmbedPermissions,
+} from './embedPermissions';
 import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { ORGANIZATION_EDITOR } from './organizationMemberAbility.mock';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
+import * as scopeRegistry from './scopes';
 import {
     EMBED_PERMISSION_SUBJECTS,
     EMBED_PERMISSIONS,
@@ -65,6 +69,115 @@ const valueFor = (
             return permissions[permission];
     }
 };
+
+describe('embed scope abilities', () => {
+    const projectScopes = (
+        actor: MemberAbility,
+        embedUser: CreateEmbedJwt = { content: dashboard, writeActions },
+    ) => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        applyEmbedScopeAbilities({
+            embedUser,
+            embed,
+            embedWriteUserAbility: actor,
+            builder,
+        });
+        return builder.build();
+    };
+
+    it('exposes actor scopes on the embed ability without granting regular-app access', () => {
+        const ability = projectScopes(customAbility(EMBED_PERMISSIONS));
+        expect(ability.rules).toHaveLength(EMBED_PERMISSIONS.length);
+        expect(
+            ability.can(
+                'view',
+                subject('EmbedExplore', {
+                    projectUuid: embed.projectUuid,
+                    organizationUuid: embed.organization.organizationUuid,
+                }),
+            ),
+        ).toBe(true);
+        expect(ability.can('view', 'Explore')).toBe(false);
+        expect(ability.can('manage', 'Organization')).toBe(false);
+    });
+
+    it.each([
+        { projectUuid: 'another-project' },
+        { organizationUuid: 'another-org' },
+    ])('does not import grants from another target: %j', (context) => {
+        expect(
+            projectScopes(customAbility(EMBED_PERMISSIONS, context)).rules,
+        ).toEqual([]);
+    });
+
+    it('narrows organization grants to the embed project', () => {
+        const ability = projectScopes(
+            customAbility(['canExplore'], {
+                organizationUuid: embed.organization.organizationUuid,
+            }),
+        );
+        expect(
+            ability.can(
+                'view',
+                subject('EmbedExplore', {
+                    organizationUuid: embed.organization.organizationUuid,
+                    projectUuid: 'another-project',
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('ignores actor scopes without writeActions', () => {
+        expect(
+            projectScopes(customAbility(EMBED_PERMISSIONS), {
+                content: dashboard,
+            }).rules,
+        ).toEqual([]);
+    });
+
+    it('does not grant scopes for an unresolved write actor', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        applyEmbedScopeAbilities({
+            embedUser: { content: dashboard, writeActions },
+            embed,
+            builder,
+        });
+        expect(builder.rules).toEqual([]);
+    });
+
+    it('discovers a new action from the scope registry without a JWT mapping', () => {
+        const scopes = scopeRegistry.getScopes({ isEnterprise: true });
+        const registry = vi.spyOn(scopeRegistry, 'getScopes').mockReturnValue([
+            ...scopes,
+            {
+                name: 'manage:EmbedExplore',
+                description: 'Scope-only capability',
+                isEnterprise: true,
+                group: ScopeGroup.EMBED,
+                dependencies: [],
+                getConditions: () => [{ projectUuid: embed.projectUuid }],
+            },
+        ]);
+        try {
+            const actor = new AbilityBuilder<MemberAbility>(Ability);
+            actor.can('manage', 'EmbedExplore', {
+                projectUuid: embed.projectUuid,
+            });
+            const ability = projectScopes(actor.build());
+            expect(
+                ability.can(
+                    'manage',
+                    subject('EmbedExplore', {
+                        projectUuid: embed.projectUuid,
+                        organizationUuid: embed.organization.organizationUuid,
+                    }),
+                ),
+            ).toBe(true);
+        } finally {
+            registry.mockRestore();
+        }
+    });
+});
 
 describe('effective embed permissions', () => {
     it('builds independent embed subjects using only standard project conditions', () => {

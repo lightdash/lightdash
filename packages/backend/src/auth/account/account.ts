@@ -8,6 +8,7 @@ import {
     AnonymousAccount,
     ApiKeyAccount,
     applyEmbeddedAbility,
+    applyEmbedScopeAbilities,
     assertRegisteredAccount,
     buildAccountHelpers,
     CreateEmbedJwt,
@@ -111,6 +112,12 @@ export const fromJwt = ({
         builder,
         embedPermissions,
     );
+    applyEmbedScopeAbilities({
+        embedUser: decodedToken,
+        embed,
+        embedWriteUserAbility: embedWriteUser?.ability,
+        builder,
+    });
     const abilities = builder.build();
 
     return createAccount({

@@ -390,8 +390,9 @@ and `allowedFilters` behavior.
    Use standard organization/project conditions. Do not reuse regular-app
    subjects or encode capabilities as modifiers: embed grants must not grant
    regular-app access, and regular-app custom scopes must not implicitly grant
-   embed access. For compatibility with an existing JWT option, add its mapping
-   to `EMBED_PERMISSION_SUBJECTS`; new capabilities should not add JWT booleans.
+   embed access. Add new subjects directly to `CaslSubjectNames`, not to the
+   deprecated `EMBED_PERMISSION_SUBJECTS` mapping. That mapping covers only
+   existing JWT options and must not grow.
 2. Give system roles sensible defaults in
    `projectMemberAbility.ts`, `organizationMemberAbility.ts`, and
    `roleToScopeMapping.ts`. Keep those files in
@@ -401,14 +402,22 @@ and `allowedFilters` behavior.
 3. Leave custom roles explicit. The new scope becomes independently editable
    in the custom-role UI and is not automatically granted to existing custom
    roles.
-4. Resolve JWT compatibility and actor scopes in
-   `getEffectiveEmbedPermissions` (`authorization/embedPermissions.ts`). Use the
-   resolved permissions everywhere abilities, backend responses, or frontend
-   visibility are derived; do not re-read raw JWT flags downstream.
-5. Carry effective permissions on the anonymous embed account and overlay them
-   in `EmbedProvider` because some embedded frontend actions read the decoded
-   token through embed context.
-6. Verify three cases: no write actor uses only the JWT; JWT `true` remains
+4. `applyEmbedScopeAbilities` automatically discovers registered `ScopeGroup.EMBED`
+   scopes. It checks the resolved write actor against the target embed's org and
+   project, and grants only those capabilities on the anonymous account's CASL
+   ability, scoped to that target. No per-capability bridge entry is needed.
+   Do not copy the actor's complete rules or grant regular-app scopes. This
+   projection supports embed capabilities with standard org/project conditions;
+   resource-specific restrictions require explicit enforcement at the resource.
+5. Enforce new capabilities with `account.user.ability.can(...)` on the backend
+   and the existing ability context on the frontend, using the embed target's
+   identifiers. The account already serializes these ability rules. Do not add
+   JWT flags, `EffectiveEmbedPermissions` fields, or frontend token overlays.
+6. Keep `getEffectiveEmbedPermissions` and the existing `EmbedProvider` overlay
+   as deprecated compatibility code for current flag-based consumers only.
+   Their OR behavior, structured filter options, and omitted-field defaults
+   remain unchanged. New scope-only capabilities bypass this adapter entirely.
+7. Verify three cases: no write actor uses only the JWT; JWT `true` remains
    allowed with an actor; JWT `false` plus a granted actor scope is allowed.
    Also verify at least one system role and one custom role through the embed
    UI.

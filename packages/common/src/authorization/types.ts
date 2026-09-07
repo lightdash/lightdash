@@ -11,6 +11,7 @@ export type AbilityAction =
     | 'update'
     | 'view';
 
+/** @deprecated Existing JWT option names only. Add new capabilities as CASL subjects. */
 export const EMBED_PERMISSIONS = [
     'dashboardFiltersInteractivity',
     'canAddFilters',
@@ -27,7 +28,7 @@ export const EMBED_PERMISSIONS = [
 
 export type EmbedPermission = (typeof EMBED_PERMISSIONS)[number];
 
-/** Maps legacy JWT options to independent embed-only capability subjects. */
+/** @deprecated Fixed compatibility mapping for legacy JWT options. Do not extend. */
 export const EMBED_PERMISSION_SUBJECTS = {
     dashboardFiltersInteractivity: 'EmbedDashboardFilters',
     canAddFilters: 'EmbedDashboardFilterAddition',
@@ -40,9 +41,7 @@ export const EMBED_PERMISSION_SUBJECTS = {
     canExplore: 'EmbedExplore',
     canViewUnderlyingData: 'EmbedUnderlyingData',
     canViewDataApps: 'EmbedDataApps',
-} as const satisfies Record<EmbedPermission, string>;
-
-type EmbedSubject = (typeof EMBED_PERMISSION_SUBJECTS)[EmbedPermission];
+} as const satisfies Record<EmbedPermission, CaslSubjectNames>;
 
 export const VIEWER_EMBED_PERMISSIONS = [
     'dashboardFiltersInteractivity',
@@ -91,7 +90,17 @@ export type CaslSubjectNames =
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'
-    | EmbedSubject
+    | 'EmbedDashboardFilters'
+    | 'EmbedDashboardFilterAddition'
+    | 'EmbedDashboardParameters'
+    | 'EmbedCsvExport'
+    | 'EmbedDashboardCsvExport'
+    | 'EmbedImageExport'
+    | 'EmbedPagePdfExport'
+    | 'EmbedDateZoom'
+    | 'EmbedExplore'
+    | 'EmbedUnderlyingData'
+    | 'EmbedDataApps'
     | 'Explore'
     | 'ExternalConnection'
     | 'ExternalSource'

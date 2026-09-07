@@ -121,6 +121,19 @@ describe('account', () => {
                 expect(
                     result.user.ability.can(
                         'view',
+                        subject('EmbedExplore', {
+                            projectUuid: mockEmbed.projectUuid,
+                            organizationUuid:
+                                mockEmbed.organization.organizationUuid,
+                        }),
+                    ),
+                ).toBe(true);
+                expect(serializeAccount(result)).toMatchObject({
+                    user: { abilityRules: result.user.ability.rules },
+                });
+                expect(
+                    result.user.ability.can(
+                        'view',
                         subject('Explore', {
                             projectUuid: mockEmbed.projectUuid,
                             organizationUuid:
