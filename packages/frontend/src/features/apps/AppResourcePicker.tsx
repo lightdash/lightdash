@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    ContentType,
     type ChartContent,
     type AiModelOption,
     type AppVersionExternalConnectionResource,
@@ -57,8 +58,8 @@ import MantineModal from '../../components/common/MantineModal';
 import { ModelSelector } from '../../components/common/ModelSelector/ModelSelector';
 import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
 import { getChartIcon } from '../../components/common/ResourceIcon/utils';
-import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
+import { useInfiniteContent } from '../../hooks/useContent';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useApp from '../../providers/App/useApp';
@@ -776,16 +777,31 @@ const DashboardPickerView: FC<{
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
-    const { data: dashboards, isInitialLoading } = useDashboards(projectUuid, {
-        enabled,
-    });
+    const {
+        data: dashboardPages,
+        isInitialLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteContent(
+        {
+            projectUuids: projectUuid ? [projectUuid] : [],
+            contentTypes: [ContentType.DASHBOARD],
+            page: 1,
+            pageSize: 25,
+            search: debouncedSearch,
+        },
+        { keepPreviousData: true, enabled: enabled && !!projectUuid },
+    );
 
-    const filteredDashboards = useMemo(() => {
-        if (!dashboards) return [];
-        const term = debouncedSearch.toLowerCase();
-        if (!term) return dashboards;
-        return dashboards.filter((d) => d.name.toLowerCase().includes(term));
-    }, [dashboards, debouncedSearch]);
+    const allDashboards = useMemo(
+        () =>
+            uniqBy(
+                dashboardPages?.pages.flatMap((page) => page.data) ?? [],
+                'uuid',
+            ),
+        [dashboardPages?.pages],
+    );
 
     const handleToggle = useCallback(
         (dashboard: { uuid: string; name: string }) => {
@@ -816,7 +832,9 @@ const DashboardPickerView: FC<{
                     placeholder="Search or paste a link..."
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     rightSection={
-                        isResolvingLink ? <Loader size={14} /> : undefined
+                        (isFetching && !isInitialLoading) || isResolvingLink ? (
+                            <Loader size={14} />
+                        ) : undefined
                     }
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.currentTarget.value)}
@@ -829,44 +847,60 @@ const DashboardPickerView: FC<{
                     <Group justify="center" p="sm">
                         <Loader size="sm" />
                     </Group>
-                ) : filteredDashboards.length === 0 ? (
+                ) : allDashboards.length === 0 ? (
                     <Text size="xs" c="dimmed" ta="center" p="sm">
                         No dashboards found
                     </Text>
                 ) : (
-                    filteredDashboards.map((dashboard) => {
-                        const isSelected =
-                            selectedDashboard?.uuid === dashboard.uuid;
-                        return (
-                            <Box
-                                key={dashboard.uuid}
-                                className={`${classes.chartItem} ${
-                                    isSelected ? classes.chartItemSelected : ''
-                                }`}
-                                onClick={() => handleToggle(dashboard)}
-                            >
-                                <IconBox
-                                    icon={IconLayoutDashboard}
-                                    color="green.6"
-                                />
-                                <Text size="xs" fw={500} truncate flex={1}>
-                                    {dashboard.name}
-                                </Text>
-                                {isSelected && (
-                                    <Box
-                                        className={
-                                            classes.chartItemSelectedIcon
-                                        }
-                                    >
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                        />
-                                    </Box>
-                                )}
+                    <>
+                        {allDashboards.map((dashboard) => {
+                            const isSelected =
+                                selectedDashboard?.uuid === dashboard.uuid;
+                            return (
+                                <Box
+                                    key={dashboard.uuid}
+                                    className={`${classes.chartItem} ${
+                                        isSelected
+                                            ? classes.chartItemSelected
+                                            : ''
+                                    }`}
+                                    onClick={() => handleToggle(dashboard)}
+                                >
+                                    <IconBox
+                                        icon={IconLayoutDashboard}
+                                        color="green.6"
+                                    />
+                                    <Text size="xs" fw={500} truncate flex={1}>
+                                        {dashboard.name}
+                                    </Text>
+                                    {isSelected && (
+                                        <Box
+                                            className={
+                                                classes.chartItemSelectedIcon
+                                            }
+                                        >
+                                            <MantineIcon
+                                                icon={IconCheck}
+                                                size={14}
+                                            />
+                                        </Box>
+                                    )}
+                                </Box>
+                            );
+                        })}
+                        {hasNextPage && (
+                            <Box ta="center" py={4}>
+                                <Button
+                                    variant="subtle"
+                                    size="xs"
+                                    onClick={() => void fetchNextPage()}
+                                    loading={isFetching}
+                                >
+                                    Load more
+                                </Button>
                             </Box>
-                        );
-                    })
+                        )}
+                    </>
                 )}
             </ScrollArea.Autosize>
             <Box className={classes.attachPickerFooter}>

@@ -28,6 +28,7 @@ import {
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_CODEX_MODEL,
+    DirectAccessResourceType,
     extractDataAppDataReferences,
     extractLockfilePackages,
     FeatureFlags,
@@ -2123,37 +2124,71 @@ export class AppGenerateService extends BaseService {
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
-        emitAiUsage(
-            getAiCallTelemetry({
-                functionId: 'appClaudeGeneration',
-                feature: 'data-app',
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                userUuid: payload.userUuid,
-                model,
-                provider,
-                keyManagement,
-                extra: {
-                    appUuid: payload.appUuid,
-                    appVersion: payload.version,
+        const emit = (
+            resolvedModel: string,
+            tokens: Pick<
+                ClaudeGenerationUsage,
+                | 'inputTokens'
+                | 'outputTokens'
+                | 'cacheReadInputTokens'
+                | 'cacheCreationInputTokens'
+            >,
+        ) =>
+            emitAiUsage(
+                getAiCallTelemetry({
+                    functionId: 'appClaudeGeneration',
+                    feature: 'data-app',
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    model: resolvedModel,
+                    provider,
+                    keyManagement,
+                    extra: {
+                        appUuid: payload.appUuid,
+                        appVersion: payload.version,
+                        codingAgentModel: model,
+                    },
+                }),
+                {
+                    // input_tokens is inclusive of cache reads and writes; the
+                    // warehouse derives the uncached share by subtraction.
+                    inputTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens,
+                    outputTokens: tokens.outputTokens,
+                    cacheReadTokens: tokens.cacheReadInputTokens,
+                    cacheWriteTokens: tokens.cacheCreationInputTokens,
+                    reasoningTokens: null,
+                    totalTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens +
+                        tokens.outputTokens,
                 },
-            }),
-            {
-                inputTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens,
-                outputTokens: usage.outputTokens,
-                cacheReadTokens: usage.cacheReadInputTokens,
-                cacheWriteTokens: usage.cacheCreationInputTokens,
-                reasoningTokens: null,
-                totalTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens +
-                    usage.outputTokens,
-            },
+            );
+
+        // The run is launched with a tier alias (`opus`, `sonnet`) that the
+        // CLI resolves to a concrete model, and subagents can run on another
+        // model again. Anthropic bills by the concrete model, so when the CLI
+        // reports the per-model split, emit one usage event per model it
+        // actually called; the alias is kept in `extra.codingAgentModel`.
+        const perModel = Object.entries(usage.modelUsage ?? {}).filter(
+            ([, tokens]) =>
+                tokens.inputTokens +
+                    tokens.outputTokens +
+                    tokens.cacheReadInputTokens +
+                    tokens.cacheCreationInputTokens >
+                0,
         );
+        if (perModel.length > 0) {
+            perModel.forEach(([resolvedModel, tokens]) =>
+                emit(resolvedModel, tokens),
+            );
+            return;
+        }
+        emit(model, usage);
     }
 
     /**
@@ -2220,11 +2255,18 @@ export class AppGenerateService extends BaseService {
                 generationUsage.numTurns > 0 ||
                 generationUsage.costUsd > 0)
         ) {
+            const claudeProvider = telemetry.claudeProvider ?? 'anthropic';
             AppGenerateService.emitDataAppAiUsage(
                 payload,
                 codingAgentModel,
-                telemetry.claudeProvider ?? 'anthropic',
-                telemetry.keyManagement ?? 'lightdash-managed',
+                claudeProvider,
+                // Fall back to the instance rule rather than assuming the key
+                // is Lightdash's: on self-hosted installs it never is.
+                telemetry.keyManagement ??
+                    resolveKeyManagement(
+                        this.lightdashConfig.ai.copilot,
+                        claudeProvider,
+                    ),
                 generationUsage,
             );
             await this.recordGenerationUsage(payload, generationUsage);
@@ -7932,6 +7974,7 @@ export class AppGenerateService extends BaseService {
                 appUuid: newAppUuid,
                 duplicatedFromAppUuid: sourceApp.app_id,
                 duplicatedFromVersion: sourceVersion.version,
+                duplicatedFromRegistrySlug: sourceApp.registry_slug,
             },
         });
 
@@ -9446,6 +9489,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: softDeleteEnabled,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -9538,6 +9582,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: false,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -10989,6 +11034,28 @@ export class AppGenerateService extends BaseService {
                 ? await this.spaceModel.getSpaceSummary(app.space_uuid)
                 : null;
 
+        // Direct grants ride along only for callers who could manage the
+        // app's sharing anyway — code download itself is view-gated, and a
+        // viewer must not learn who the app is shared with.
+        const canManageAppPolicy = await this.assertCanManageApp(
+            user,
+            app,
+            'not used',
+        ).then(
+            () => true,
+            () => false,
+        );
+        const appAccess = canManageAppPolicy
+            ? (
+                  await this.coderService.getPortableDirectAccessByUuid(
+                      user,
+                      app.organization_uuid,
+                      DirectAccessResourceType.APP,
+                      [app.app_id],
+                  )
+              ).get(app.app_id)
+            : undefined;
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -11015,6 +11082,7 @@ export class AppGenerateService extends BaseService {
                       ),
                   }
                 : {}),
+            ...(appAccess ? { access: appAccess } : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -11375,6 +11443,22 @@ export class AppGenerateService extends BaseService {
             );
         const warnings = [...linkWarnings];
 
+        // Access block preflight also runs up front: unresolvable or
+        // ambiguous principals reject the bundle before anything is written.
+        // Guarded like manifestLinks so pre-field bundles never touch the
+        // direct-access seam at all.
+        const directAccessAssignments =
+            code.manifest.access !== undefined
+                ? await this.coderService.prepareDirectAccessReplace({
+                      user,
+                      organizationUuid,
+                      access: code.manifest.access,
+                      contentLabel: `App ${
+                          code.manifest.slug ?? code.manifest.name
+                      }`,
+                  })
+                : null;
+
         // Validate the round-tripped viz schema up front and fail loud: the
         // build-from-source pipeline has no generation run to re-emit it, so
         // silently dropping a bad one would unlist the viz from the picker.
@@ -11645,6 +11729,17 @@ export class AppGenerateService extends BaseService {
                         resolvedLinks,
                     );
                 }
+                // An unchanged bundle still reconciles its declared policy —
+                // same contract as links and metadata above.
+                if (directAccessAssignments !== null) {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                        directAccessAssignments,
+                    );
+                }
                 this.analytics.track({
                     event: 'data_app.uploaded',
                     userId: user.userUuid,
@@ -11846,6 +11941,18 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.replaceAppLinks(
                 newAppUuid,
                 resolvedLinks,
+            );
+        }
+
+        // Same reconciliation contract for the direct policy: present
+        // (including empty) → atomic replacement; absent → untouched.
+        if (directAccessAssignments !== null) {
+            await this.coderService.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.APP,
+                newAppUuid,
+                directAccessAssignments,
             );
         }
 

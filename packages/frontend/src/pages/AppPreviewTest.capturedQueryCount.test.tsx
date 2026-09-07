@@ -68,6 +68,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
     }),
 }));
 
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
+
 vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
     default: () => ({
         enabled: false,

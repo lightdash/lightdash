@@ -23,6 +23,9 @@ export function getUnpivotedColumns(
                 acc[key] = {
                     reference: key,
                     type: value.type,
+                    ...(value.numericKind
+                        ? { numericKind: value.numericKind }
+                        : {}),
                     ...getResultColumnMetadataFromItem(
                         itemsMap?.[key],
                         key,

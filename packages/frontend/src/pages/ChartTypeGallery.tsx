@@ -28,6 +28,7 @@ import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDet
 import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGalleryCard';
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
+import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -55,6 +56,7 @@ const ChartTypeGallery = () => {
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [deleteUuid, setDeleteUuid] = useState<string | null>(null);
+    const [previewUuid, setPreviewUuid] = useState<string | null>(null);
 
     const {
         data,
@@ -251,6 +253,11 @@ const ChartTypeGallery = () => {
                                                         viz.dataAppVizUuid,
                                                     )
                                                 }
+                                                onPreview={() =>
+                                                    setPreviewUuid(
+                                                        viz.dataAppVizUuid,
+                                                    )
+                                                }
                                                 onDelete={() =>
                                                     setDeleteUuid(
                                                         viz.dataAppVizUuid,
@@ -291,7 +298,15 @@ const ChartTypeGallery = () => {
                     dataAppViz={selected}
                     registryEntry={registryEntryFor(selected)}
                     onClose={() => setSelectedUuid(null)}
+                    onPreview={() => setPreviewUuid(selected.dataAppVizUuid)}
                     onDelete={() => setDeleteUuid(selected.dataAppVizUuid)}
+                />
+            )}
+            {previewUuid !== null && (
+                <ChartTypePreviewTableModal
+                    projectUuid={projectUuid}
+                    dataAppVizUuid={previewUuid}
+                    onClose={() => setPreviewUuid(null)}
                 />
             )}
             {toDelete && (

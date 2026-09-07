@@ -1410,6 +1410,7 @@ export class ServiceRepository
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     userModel: this.models.getUserModel(),
+                    directAccessService: this.getDirectAccessService(),
                 }),
         );
     }

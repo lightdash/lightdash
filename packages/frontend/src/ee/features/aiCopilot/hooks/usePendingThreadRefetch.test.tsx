@@ -50,6 +50,7 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
         createdFrom: 'web_app',
         title: null,
         titleGeneratedAt: null,
+        pinnedAt: null,
         liveStatus: null,
         firstMessage: { uuid: 'message-1', message: 'Question' },
         user: { uuid: 'user-1', name: 'User' },

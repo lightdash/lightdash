@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
 import { Button, Group, Text, ActionIcon, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -11,12 +10,12 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 import DocumentationHelpButton from '../../../../DocumentationHelpButton';
+import { getCustomDimensionsForWriteBack } from '../../../WriteBackModal/writeBackSupport';
 import { TreeSection, type SectionHeaderItem } from './types';
 
 interface VirtualSectionHeaderProps {
@@ -46,13 +45,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
         [additionalMetrics],
     );
 
-    // Feature flag for bin dimensions write-back
-    const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
-        FeatureFlags.WriteBackCustomBinDimensions,
-    );
-    const isWriteBackCustomBinDimensionsEnabled =
-        writeBackCustomBinDimensionsFlag?.enabled ?? false;
-
     const canManageCustomFields = user.data?.ability?.can(
         'manage',
         subject('CustomFields', {
@@ -61,19 +53,14 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
         }),
     );
 
-    const customDimensionsToWriteBack = useMemo(() => {
-        if (!allCustomDimensions) return [];
-        const baseList = isWriteBackCustomBinDimensionsEnabled
-            ? allCustomDimensions
-            : allCustomDimensions.filter(isCustomSqlDimension);
-        return canManageCustomFields
-            ? baseList
-            : baseList.filter((dim) => !isCustomSqlDimension(dim));
-    }, [
-        allCustomDimensions,
-        isWriteBackCustomBinDimensionsEnabled,
-        canManageCustomFields,
-    ]);
+    const customDimensionsToWriteBack = useMemo(
+        () =>
+            getCustomDimensionsForWriteBack(
+                allCustomDimensions,
+                !!canManageCustomFields,
+            ),
+        [allCustomDimensions, canManageCustomFields],
+    );
 
     const handleAddCustomDimension = useCallback(() => {
         dispatch(

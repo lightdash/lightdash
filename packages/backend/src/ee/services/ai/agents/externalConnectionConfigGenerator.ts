@@ -231,6 +231,9 @@ export const normalizeProposal = (
         apiKeyName: isApiKey ? normalizeString(raw.apiKeyName) : null,
         apiKeyLocation: isApiKey ? (raw.apiKeyLocation ?? 'header') : null,
         oauthScopes,
+        oauthTokenUrl: null,
+        oauthClientId: null,
+        oauthClientAuthMethod: null,
         customHeaders: normalizeCustomHeaders(raw.customHeaders),
         allowedMethods: normalizeMethods(
             raw.allowedMethods,
@@ -263,6 +266,9 @@ const toValidatableConfig = (
     apiKeyName: proposal.apiKeyName,
     apiKeyLocation: proposal.apiKeyLocation,
     oauthScopes: proposal.oauthScopes,
+    oauthTokenUrl: proposal.oauthTokenUrl,
+    oauthClientId: proposal.oauthClientId,
+    oauthClientAuthMethod: proposal.oauthClientAuthMethod,
     customHeaders: proposal.customHeaders,
 });
 

@@ -4491,6 +4491,55 @@
                 "required": ["verifiedAt", "verifiedBy"],
                 "type": "object"
             },
+            "SpaceMemberRole": {
+                "enum": ["viewer", "editor", "admin"],
+                "type": "string"
+            },
+            "ContentAsCodeDirectAccessUser": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "email": {
+                        "type": "string",
+                        "description": "Primary email of a human organization member."
+                    }
+                },
+                "required": ["role", "email"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccessGroup": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/SpaceMemberRole"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Exact, case-sensitive organization group name."
+                    }
+                },
+                "required": ["role", "name"],
+                "type": "object"
+            },
+            "ContentAsCodeDirectAccess": {
+                "properties": {
+                    "groups": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessGroup"
+                        },
+                        "type": "array"
+                    },
+                    "users": {
+                        "items": {
+                            "$ref": "#/components/schemas/ContentAsCodeDirectAccessUser"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["groups", "users"],
+                "type": "object",
+                "description": "Portable direct user/group grants on a single resource. Mirrors the space\naccess block: principals are identified by organization email or group name,\nnever by internal identifiers. Inherited and effective roles are never part\nof this shape — it reflects stored direct policy only.\n\nOn upload: omission leaves the resource's existing direct policy unchanged;\na present block (including empty `users` and `groups`) atomically replaces\nthe whole policy."
+            },
             "ChartAsCode": {
                 "allOf": [
                     {
@@ -4498,6 +4547,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -4601,10 +4654,6 @@
             },
             "ContentAsCodeType.SPACE": {
                 "enum": ["space"],
-                "type": "string"
-            },
-            "SpaceMemberRole": {
-                "enum": ["viewer", "editor", "admin"],
                 "type": "string"
             },
             "SpaceAsCodeUserAccess": {
@@ -5493,6 +5542,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -6279,6 +6332,10 @@
                     },
                     {
                         "properties": {
+                            "access": {
+                                "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                                "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                            },
                             "downloadedAt": {
                                 "type": "string",
                                 "format": "date-time"
@@ -6356,6 +6413,48 @@
                 "enum": ["virtual_view"],
                 "type": "string"
             },
+            "ResultNumericKind": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["integer"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "scale": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["decimal"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["scale", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["float"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    }
+                ],
+                "description": "How a NUMBER column is represented at the source, so a typed read binds it without loss."
+            },
             "ResultColumnProvenance": {
                 "properties": {
                     "sourceQueryUuid": {
@@ -6399,6 +6498,10 @@
                     "label": {
                         "type": "string",
                         "description": "Display label. Absent ⇒ consumers fall back to the reference."
+                    },
+                    "numericKind": {
+                        "$ref": "#/components/schemas/ResultNumericKind",
+                        "description": "NUMBER columns only, when the driver reports it. Absent ⇒ unknown, read as DOUBLE."
                     },
                     "type": {
                         "$ref": "#/components/schemas/DimensionType"
@@ -7536,7 +7639,8 @@
                     "none",
                     "api_key",
                     "bearer_token",
-                    "google_service_account"
+                    "google_service_account",
+                    "oauth_client_credentials"
                 ]
             },
             "ExternalConnectionMethod": {
@@ -7547,6 +7651,10 @@
                 "type": "string",
                 "enum": ["header", "query"]
             },
+            "OAuthClientAuthMethod": {
+                "type": "string",
+                "enum": ["basic", "body"]
+            },
             "ExternalConnectionAsCode": {
                 "properties": {
                     "customHeaders": {
@@ -7556,6 +7664,25 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with documents from older servers."
                     },
                     "oauthScopes": {
                         "items": {
@@ -9283,6 +9410,10 @@
                         ],
                         "nullable": true,
                         "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
                     }
                 },
                 "required": [
@@ -9343,6 +9474,10 @@
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "sql": {
                         "type": "string"
@@ -9467,6 +9602,10 @@
                         ],
                         "nullable": true,
                         "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess",
+                        "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
                     },
                     "tabs": {
                         "items": {
@@ -13458,6 +13597,25 @@
                         ],
                         "nullable": true
                     },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional for compatibility with older servers during rolling upgrades."
+                    },
                     "oauthScopes": {
                         "items": {
                             "type": "string"
@@ -13601,6 +13759,22 @@
                                 "$ref": "#/components/schemas/Record_string.string_"
                             }
                         ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
                         "nullable": true
                     },
                     "oauthScopes": {
@@ -13877,6 +14051,22 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "oauthTokenUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "customHeaders": {
                         "allOf": [
                             {
@@ -14075,6 +14265,22 @@
                                 "$ref": "#/components/schemas/Record_string.string_"
                             }
                         ],
+                        "nullable": true
+                    },
+                    "oauthClientAuthMethod": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OAuthClientAuthMethod"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "oauthClientId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "oauthTokenUrl": {
+                        "type": "string",
                         "nullable": true
                     },
                     "oauthScopes": {
@@ -17870,6 +18076,14 @@
             "ItemsMap": {
                 "$ref": "#/components/schemas/Record_string.Field-or-TableCalculation-or-CustomDimension-or-Metric_"
             },
+            "Record_string.DashboardFilters_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/DashboardFilters"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "ApiExecuteAsyncDashboardChartQueryResults": {
                 "allOf": [
                     {
@@ -17879,6 +18093,10 @@
                         "properties": {
                             "dateZoomApplied": {
                                 "type": "boolean"
+                            },
+                            "appliedDashboardFiltersBySourceId": {
+                                "$ref": "#/components/schemas/Record_string.DashboardFilters_",
+                                "description": "For a merged chart, the applied filters keyed by the merge source\nthey were pushed into (source ids match `fieldOrigins`). Absent on\nordinary tiles."
                             },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
@@ -20092,6 +20310,9 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "access": {
+                        "$ref": "#/components/schemas/ContentAsCodeDirectAccess"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -23076,6 +23297,10 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "pinnedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "titleGeneratedAt": {
                         "type": "string",
                         "nullable": true
@@ -23101,6 +23326,7 @@
                     "liveStatus",
                     "user",
                     "firstMessage",
+                    "pinnedAt",
                     "titleGeneratedAt",
                     "title",
                     "createdFrom",
@@ -24365,6 +24591,10 @@
                         "required": ["message", "uuid"],
                         "type": "object"
                     },
+                    "pinnedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "titleGeneratedAt": {
                         "type": "string",
                         "nullable": true
@@ -24390,6 +24620,7 @@
                     "liveStatus",
                     "user",
                     "firstMessage",
+                    "pinnedAt",
                     "titleGeneratedAt",
                     "title",
                     "createdFrom",
@@ -27042,6 +27273,15 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadUpdateRequest": {
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["title"],
                 "type": "object"
             },
             "AiAgentThreadPullRequest": {
@@ -52067,6 +52307,26 @@
                 "required": ["enabled"],
                 "type": "object"
             },
+            "ApiCustomDimensionWriteBackPreview": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "yaml": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["yaml"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiGitFileContent": {
                 "properties": {
                     "filePath": {
@@ -59692,7 +59952,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.127.0",
+        "version": "2.140.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -68169,6 +68429,180 @@
                 },
                 "description": "Permanently delete an AI agent thread and everything derived from it.\nAvailable to the thread owner and to agent admins.",
                 "summary": "Delete AI agent thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rename a thread. Only the thread owner or a project admin may do this.",
+                "summary": "Update AI agent thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiAiAgentThreadUpdateRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/pin": {
+            "post": {
+                "operationId": "pinAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Pin a thread to the top of the sidebar.",
+                "summary": "Pin AI agent thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "unpinAgentThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Unpin a thread.",
+                "summary": "Unpin AI agent thread",
                 "security": [],
                 "parameters": [
                     {
@@ -89879,6 +90313,70 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-dimensions/preview": {
+            "post": {
+                "operationId": "PreviewPullRequestForCustomDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCustomDimensionWriteBackPreview"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview custom dimensions using the project's dbt model and warehouse dialect",
+                "summary": "Preview custom dimension YAML",
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "quoteChar": {
+                                        "type": "string",
+                                        "enum": ["\"", "'"]
+                                    },
+                                    "customDimensions": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/CustomDimension"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["customDimensions"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-dimensions": {
             "post": {
                 "operationId": "CreatePullRequestForCustomDimensions",
@@ -91656,6 +92154,84 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuidOrSlug}/custom-metrics/{metricTable}/{metricName}": {
+            "delete": {
+                "operationId": "deleteDashboardCustomMetric",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateDashboardCustomMetricResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove a custom metric from the dashboard registry. Charts keep their\nlocal snapshots — the metric just stops being offered to new charts.\nWith `dryRun` it only reports the charts still using it.",
+                "summary": "Delete dashboard custom metric",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "uuid or slug for the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    },
+                    {
+                        "description": "table of the registry metric to remove",
+                        "in": "path",
+                        "name": "metricTable",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "name of the registry metric to remove",
+                        "in": "path",
+                        "name": "metricName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "report affected charts without writing",
+                        "in": "query",
+                        "name": "dryRun",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "description": "project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/dashboards/{dashboardUuidOrSlug}/history": {

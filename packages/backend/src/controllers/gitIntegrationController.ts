@@ -1,11 +1,13 @@
 import {
     AdditionalMetric,
+    ApiCustomDimensionWriteBackPreview,
     ApiErrorPayload,
     ApiGitFileContent,
     assertRegisteredAccount,
     CustomDimension,
     ForbiddenError,
     PullRequestCreated,
+    UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -78,6 +80,42 @@ export class GitIntegrationController extends BaseController {
                         type: 'customMetrics',
                         fields: body.customMetrics,
                     },
+                ),
+        };
+    }
+
+    /**
+     * Preview custom dimensions using the project's dbt model and warehouse dialect
+     * @summary Preview custom dimension YAML
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/pull-requests/custom-dimensions/preview')
+    @OperationId('PreviewPullRequestForCustomDimensions')
+    async PreviewPullRequestForCustomDimensions(
+        @Path() projectUuid: UUID,
+        @Body()
+        body: {
+            customDimensions: CustomDimension[];
+            quoteChar?: `"` | `'`;
+        },
+        @Request() req: express.Request,
+    ): Promise<ApiCustomDimensionWriteBackPreview> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getGitIntegrationService()
+                .previewCustomDimensions(
+                    req.account,
+                    projectUuid,
+                    body.customDimensions,
+                    body.quoteChar || '"',
                 ),
         };
     }

@@ -364,6 +364,7 @@ import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
+import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -1547,14 +1548,12 @@ export class ProjectService extends BaseService {
                 args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
             args.warehouseConnection.useSshTunnel
         ) {
-            const publicKey = args.warehouseConnection.sshTunnelPublicKey || '';
-            const { privateKey } = await this.sshKeyPairModel.get(publicKey);
             return {
                 ...args,
-                warehouseConnection: {
-                    ...args.warehouseConnection,
-                    sshTunnelPrivateKey: privateKey,
-                },
+                warehouseConnection: await resolveSshTunnelPrivateKey(
+                    this.sshKeyPairModel,
+                    args.warehouseConnection,
+                ),
             };
         }
 
@@ -5844,6 +5843,8 @@ export class ProjectService extends BaseService {
                             explore: null,
                         };
                     } catch (e) {
+                        // Access denial surfaces as the same 403 that fetching the results would
+                        if (e instanceof ForbiddenError) throw e;
                         resolutionErrors.push({
                             kind: MergeQueryErrorKind.RESULT_SOURCE_UNAVAILABLE,
                             sourceId: source.id,
@@ -5965,6 +5966,24 @@ export class ProjectService extends BaseService {
                 requiresCompose,
                 errors,
             };
+        }
+
+        // Merge calculations are user SQL, so they pass the custom SQL gate;
+        // each source's own calculations are gated by that source's compile
+        if (mergeQuery.tableCalculations.length > 0) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            await this.assertCustomSqlAuthorizedForQuery({
+                account,
+                projectUuid,
+                organizationUuid,
+                exploreName: resolvedSources[0].metricQuery.exploreName,
+                metricQuery: {
+                    tableCalculations: mergeQuery.tableCalculations,
+                    customDimensions: [],
+                    additionalMetrics: [],
+                },
+            });
         }
 
         const warehouseCredentials =

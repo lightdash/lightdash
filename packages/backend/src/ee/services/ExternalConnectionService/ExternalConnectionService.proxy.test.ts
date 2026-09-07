@@ -133,6 +133,10 @@ function buildService(opts: {
             .fn()
             .mockResolvedValue(opts.googleToken ?? 'test-access-token'),
     };
+    const oauthClientCredentialsTokenProvider = {
+        getAccessToken: vi.fn().mockResolvedValue('test-oauth-access-token'),
+        invalidateAccessToken: vi.fn(),
+    };
     const appModel = {
         getApp: vi.fn().mockResolvedValue(baseApp()),
         findApp: vi
@@ -159,6 +163,7 @@ function buildService(opts: {
         spacePermissionService,
         analytics,
         googleTokenProvider,
+        oauthClientCredentialsTokenProvider,
     } as never);
 
     // Force the CASL view decision deterministically.
@@ -176,6 +181,7 @@ function buildService(opts: {
         appModel,
         analytics,
         googleTokenProvider,
+        oauthClientCredentialsTokenProvider,
     };
 }
 
@@ -633,6 +639,128 @@ describe('ExternalConnectionService.proxyFetch', () => {
             }),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    const OAUTH_CONNECTION = baseConnection({
+        type: 'oauth_client_credentials',
+        oauthTokenUrl: 'https://auth.example.com/oauth/token',
+        oauthClientId: 'client-1',
+        oauthClientAuthMethod: 'basic',
+        oauthScopes: ['read:data'],
+    });
+
+    it('mints and injects an OAuth client-credentials access token', async () => {
+        const { service, oauthClientCredentialsTokenProvider } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+
+        expect(
+            oauthClientCredentialsTokenProvider.getAccessToken,
+        ).toHaveBeenCalledWith(
+            {
+                tokenUrl: 'https://auth.example.com/oauth/token',
+                clientId: 'client-1',
+                clientAuthMethod: 'basic',
+                scopes: ['read:data'],
+            },
+            'client-secret',
+        );
+        expect(mockSecureFetch.mock.calls[0][1].headers!.Authorization).toBe(
+            'Bearer test-oauth-access-token',
+        );
+    });
+
+    it('redacts an OAuth access token echoed by the resource server', async () => {
+        mockSecureFetch.mockResolvedValue({
+            status: 200,
+            contentType: 'application/json',
+            headers: {},
+            bodyText:
+                '{"authenticated":true,"token":"test-oauth-access-token"}',
+            truncated: false,
+        });
+        const { service } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({
+            body: { authenticated: true, token: '[REDACTED]' },
+        });
+    });
+
+    it('refreshes a rejected OAuth token and retries the resource request once', async () => {
+        const authorizations: Array<string | undefined> = [];
+        mockSecureFetch.mockImplementation(async (_url, options) => {
+            authorizations.push(options.headers?.Authorization);
+            return {
+                status: authorizations.length === 1 ? 401 : 200,
+                contentType: 'application/json',
+                headers: {},
+                bodyText: '{}',
+                truncated: false,
+            };
+        });
+        const { service, oauthClientCredentialsTokenProvider } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+        oauthClientCredentialsTokenProvider.getAccessToken
+            .mockResolvedValueOnce('expired-token')
+            .mockResolvedValueOnce('fresh-token');
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({ status: 200 });
+
+        expect(authorizations).toEqual([
+            'Bearer expired-token',
+            'Bearer fresh-token',
+        ]);
+        expect(
+            oauthClientCredentialsTokenProvider.invalidateAccessToken,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ clientId: 'client-1' }),
+            'client-secret',
+            'expired-token',
+        );
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry a persistent OAuth 401 more than once', async () => {
+        mockSecureFetch.mockResolvedValue({
+            status: 401,
+            contentType: 'application/json',
+            headers: {},
+            bodyText: '{}',
+            truncated: false,
+        });
+        const { service } = buildService({
+            connection: OAUTH_CONNECTION,
+            secret: 'client-secret',
+        });
+
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                path: '/v1/x',
+            }),
+        ).resolves.toMatchObject({ status: 401 });
+        expect(mockSecureFetch).toHaveBeenCalledTimes(2);
     });
 
     it('sends the connection custom headers alongside the injected auth', async () => {

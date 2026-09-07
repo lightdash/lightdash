@@ -2365,12 +2365,12 @@ export class DashboardService
      * snapshot references it, atomically. `dryRun` reports the affected
      * charts without writing (the impact preview).
      */
-    async updateCustomMetric(
+    /** Auth + verified-content + content-as-code guards shared by registry mutations */
+    private async getRegistryMutationTarget(
         user: SessionUser,
         dashboardUuidOrSlug: UuidOrSlug,
-        payload: UpdateDashboardCustomMetric,
         options?: { projectUuid?: string },
-    ): Promise<DashboardCustomMetricUpdateResult> {
+    ): Promise<DashboardDAO> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid: options?.projectUuid },
@@ -2405,13 +2405,28 @@ export class DashboardService
             organizationUuid: dashboard.organizationUuid,
         });
 
-        // The write-through mutates published content and chart versions
+        // Registry mutations write published content and chart versions
         // directly, which the content-as-code draft lifecycle can't represent.
         if ((await this.resolveDraftBase(dashboard)) !== null) {
             throw new ParameterError(
                 'Shared metrics cannot be edited on a dashboard managed as code. Publish or discard its draft workflow first.',
             );
         }
+
+        return dashboard;
+    }
+
+    async updateCustomMetric(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        payload: UpdateDashboardCustomMetric,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardCustomMetricUpdateResult> {
+        const dashboard = await this.getRegistryMutationTarget(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
 
         const { metric, dryRun = false } = payload;
         const registry = dashboard.config?.customMetrics ?? [];
@@ -2429,16 +2444,14 @@ export class DashboardService
 
         // One query finds the affected charts; full chart data is fetched
         // only for those, since each needs a rewritten version anyway.
-        const affectedChartUuids =
-            await this.dashboardModel.getDashboardOwnedChartUuidsUsingMetric(
+        const affectedCharts =
+            await this.dashboardModel.getDashboardOwnedChartsUsingMetric(
                 dashboard.uuid,
                 metric.table,
                 metric.name,
             );
         const affected = await Promise.all(
-            affectedChartUuids.map((chartUuid) =>
-                this.savedChartModel.get(chartUuid),
-            ),
+            affectedCharts.map((chart) => this.savedChartModel.get(chart.uuid)),
         );
 
         const updatedRegistry = [
@@ -2446,11 +2459,6 @@ export class DashboardService
             metric,
             ...registry.slice(existingIndex + 1),
         ];
-        const affectedCharts = affected.map((chart) => ({
-            uuid: chart.uuid,
-            name: chart.name,
-        }));
-
         if (!dryRun) {
             await this.savedChartModel.transaction(async (tx) => {
                 await this.dashboardModel.updateLatestVersionConfig(
@@ -2486,6 +2494,58 @@ export class DashboardService
                     ),
                 );
             });
+        }
+
+        return { customMetrics: updatedRegistry, affectedCharts, dryRun };
+    }
+
+    /**
+     * Removes a metric from the registry. Delete = un-share: charts keep
+     * their local snapshots untouched, the metric just stops being offered.
+     * `dryRun` reports the charts still using it (the impact preview).
+     */
+    async deleteCustomMetric(
+        user: SessionUser,
+        dashboardUuidOrSlug: UuidOrSlug,
+        metricTable: string,
+        metricName: string,
+        dryRun: boolean,
+        options?: { projectUuid?: string },
+    ): Promise<DashboardCustomMetricUpdateResult> {
+        const dashboard = await this.getRegistryMutationTarget(
+            user,
+            dashboardUuidOrSlug,
+            options,
+        );
+
+        const registry = dashboard.config?.customMetrics ?? [];
+        const metricId = getItemId({ table: metricTable, name: metricName });
+        const updatedRegistry = registry.filter(
+            (entry) => getItemId(entry) !== metricId,
+        );
+        if (updatedRegistry.length === registry.length) {
+            throw new NotFoundError(
+                `Custom metric "${metricName}" is not in this dashboard's registry`,
+            );
+        }
+
+        // Preview only needs names — the single lookup query carries them.
+        const affectedCharts =
+            await this.dashboardModel.getDashboardOwnedChartsUsingMetric(
+                dashboard.uuid,
+                metricTable,
+                metricName,
+            );
+
+        if (!dryRun) {
+            await this.dashboardModel.updateLatestVersionConfig(
+                dashboard.uuid,
+                {
+                    isDateZoomDisabled: false,
+                    ...dashboard.config,
+                    customMetrics: updatedRegistry,
+                },
+            );
         }
 
         return { customMetrics: updatedRegistry, affectedCharts, dryRun };

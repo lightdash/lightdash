@@ -86,7 +86,7 @@ describe('ContentReviewRequestDetailView', () => {
     it('lists what will move and approves with the verify default', async () => {
         renderView();
 
-        expect(screen.getByText('What will move')).toBeInTheDocument();
+        expect(screen.getByText('Also moves 1 chart')).toBeInTheDocument();
         expect(screen.getByText('Revenue')).toBeInTheDocument();
         expect(screen.getByLabelText('Verify on approve')).toBeChecked();
 
@@ -144,7 +144,8 @@ describe('ContentReviewRequestDetailView', () => {
         expect(
             screen.queryByRole('button', { name: 'Approve and move' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText(/Rejected by Bob K/)).toBeInTheDocument();
+        expect(screen.getByText('Bob K')).toBeInTheDocument();
+        expect(screen.getByText('rejected this request')).toBeInTheDocument();
         expect(screen.getByText('Not yet')).toBeInTheDocument();
     });
 });

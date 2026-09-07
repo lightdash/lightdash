@@ -85,10 +85,10 @@ export class SavedSqlAccessModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .whereIn(
+            .whereRaw('?? = ANY(?::uuid[])', [
                 `${SavedSqlUserAccessTableName}.saved_sql_uuid`,
                 uniqueUuids,
-            )
+            ])
             .where(`${SavedSqlUserAccessTableName}.user_uuid`, userUuid)
             .where(
                 `${OrganizationTableName}.organization_uuid`,
@@ -154,10 +154,10 @@ export class SavedSqlAccessModel {
                             );
                         },
                     )
-                    .whereIn(
+                    .whereRaw('?? = ANY(?::uuid[])', [
                         `${SavedSqlGroupAccessTableName}.saved_sql_uuid`,
                         uniqueUuids,
-                    )
+                    ])
                     .where(`${UserTableName}.user_uuid`, userUuid)
                     .where(
                         `${OrganizationTableName}.organization_uuid`,

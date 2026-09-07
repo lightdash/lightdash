@@ -69,7 +69,7 @@ const getTerminalRequestErrorMessage = (
     }
 
     if (errors.some((error) => error?.error.statusCode === 404)) {
-        return 'This custom chart type could not be found. It may have been deleted.';
+        return 'The chart type this chart was based on has been removed.';
     }
 
     return undefined;

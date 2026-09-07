@@ -298,7 +298,7 @@ export const lightdashConfigMock: LightdashConfig = {
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',
-            selfManagedProviders: [],
+            lightdashManagedProviders: [],
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
@@ -388,7 +388,7 @@ export const lightdashConfigMock: LightdashConfig = {
         sessionTimeoutMs: 300000,
     },
     aiWriteback: {
-        anthropicApiKey: null,
+        legacyAnthropicApiKey: null,
         codingAgentMaxRepoSizeMb: 500,
     },
     mcp: {

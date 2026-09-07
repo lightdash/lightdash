@@ -82,14 +82,19 @@ complete, with a guard between "references complete" and "query builds" that
 carries the merge row-cap refusal. Merge is still the only caller absent from
 `QuerySourceRegistry`; the shared tail is what the DAG work plugs into.
 
-**Parquet versus JSONL is the entire fidelity story.** Ingested data is written
-as parquet and carries its own schema. Referenced query results are written as
-JSONL and must be re-typed on the way back in through a five-value map in
-`duckdbSqlTables.ts`. Every measured fidelity defect lives on the JSONL side:
-integers above 2^53 come back wrong, ISO offsets are discarded rather than
-converted, Trino named-zone timestamps error on read, and an uncastable value
-hard-errors the query with a raw engine message. This caps merges, the compose
-SQL runner and the DAG equally. It is not a merge bug.
+**Precision is lost in the drivers, not in the file format.** Ingested data is
+written as parquet and carries its own schema. Referenced query results are
+written as JSONL, which carries whatever digits the driver serialised; the
+parquet writer re-types through the same five-value map, so switching formats
+would have changed nothing. Referenced results are bound with a typed read
+(`getJsonlReferenceSelect` in `duckdbSqlTables.ts`): every column is read as
+text and cast in SQL, NUMBER by the per-column numeric kind the driver reports
+(`integer`, `decimal(scale)`, `float`), timestamps as instants unless naive,
+and an uncastable value refuses naming the column. Postgres and DuckDB report
+a kind; a column without one binds as DOUBLE. What that read cannot recover is
+what the driver already rounded: Postgres NUMERIC through `parseFloat`,
+BigQuery through `Number(toFixed)`, Snowflake without `fetchAsString`, Trino
+bigints through `JSON.parse`. Those are driver fixes, not merge bugs.
 
 ## Traps
 

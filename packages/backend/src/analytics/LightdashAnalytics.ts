@@ -1936,6 +1936,21 @@ export type DataAppDuplicatedEvent = BaseTrack & {
         appUuid: string;
         duplicatedFromAppUuid: string;
         duplicatedFromVersion: number;
+        // Non-null = fork of a registry-installed official chart type.
+        duplicatedFromRegistrySlug: string | null;
+    };
+};
+
+export type DataAppDeletedEvent = BaseTrack & {
+    event: 'data_app.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        softDelete: boolean;
+        // Non-null = uninstall of a registry-installed official chart type.
+        registrySlug: string | null;
     };
 };
 
@@ -2049,6 +2064,7 @@ export type DataAppEvent =
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
+    | DataAppDeletedEvent
     | DataAppPromotedEvent
     | DataAppDownloadedEvent
     | DataAppUploadedEvent

@@ -143,6 +143,11 @@ const isMetricCompatibleWithExplore = (
 ): boolean => {
     const table = explore.tables[metric.table];
     if (!table) return false;
+    // Shadowed by a real field with the same id (e.g. after write-back was
+    // merged into dbt): offering it would duplicate the field id.
+    if (table.metrics[metric.name] || table.dimensions[metric.name]) {
+        return false;
+    }
     if (
         metric.baseDimensionName &&
         !table.dimensions[metric.baseDimensionName]

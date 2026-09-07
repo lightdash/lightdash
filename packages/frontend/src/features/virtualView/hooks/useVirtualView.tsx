@@ -39,6 +39,7 @@ export const useCreateVirtualView = ({
 }: {
     projectUuid: string;
 }) => {
+    const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiCreateVirtualView['results'],
@@ -48,7 +49,8 @@ export const useCreateVirtualView = ({
         } & CreateVirtualViewPayload
     >({
         mutationFn: createVirtualView,
-        onSuccess: (data) => {
+        onSuccess: async (data) => {
+            await queryClient.invalidateQueries({ queryKey: ['tables'] });
             showToastSuccess({
                 title: 'Success! Virtual view created',
                 action: {

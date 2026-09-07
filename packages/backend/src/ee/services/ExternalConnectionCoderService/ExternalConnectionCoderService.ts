@@ -74,6 +74,13 @@ const toExternalConnectionAsCode = (
     oauthScopes: connection.oauthScopes?.length
         ? [...connection.oauthScopes].sort()
         : null,
+    ...(connection.type === 'oauth_client_credentials'
+        ? {
+              oauthTokenUrl: connection.oauthTokenUrl ?? null,
+              oauthClientId: connection.oauthClientId ?? null,
+              oauthClientAuthMethod: connection.oauthClientAuthMethod ?? null,
+          }
+        : {}),
     customHeaders: sortHeaders(connection.customHeaders),
 });
 
@@ -97,6 +104,9 @@ const getComparableConnection = (document: ExternalConnectionAsCode) => ({
     oauthScopes: document.oauthScopes?.length
         ? [...document.oauthScopes].sort()
         : null,
+    oauthTokenUrl: document.oauthTokenUrl ?? null,
+    oauthClientId: document.oauthClientId ?? null,
+    oauthClientAuthMethod: document.oauthClientAuthMethod ?? null,
     customHeaders: sortHeaders(document.customHeaders),
 });
 
@@ -309,6 +319,9 @@ export class ExternalConnectionCoderService extends BaseService {
                 apiKeyName: connection.apiKeyName,
                 apiKeyLocation: connection.apiKeyLocation,
                 oauthScopes: connection.oauthScopes,
+                oauthTokenUrl: connection.oauthTokenUrl,
+                oauthClientId: connection.oauthClientId,
+                oauthClientAuthMethod: connection.oauthClientAuthMethod,
                 customHeaders: connection.customHeaders,
                 ...(secret !== undefined ? { secret } : {}),
             };
@@ -369,6 +382,9 @@ export class ExternalConnectionCoderService extends BaseService {
             apiKeyName: connection.apiKeyName,
             apiKeyLocation: connection.apiKeyLocation,
             oauthScopes: connection.oauthScopes,
+            oauthTokenUrl: connection.oauthTokenUrl,
+            oauthClientId: connection.oauthClientId,
+            oauthClientAuthMethod: connection.oauthClientAuthMethod,
             customHeaders: connection.customHeaders,
             ...(secret !== undefined ? { secret } : {}),
         };

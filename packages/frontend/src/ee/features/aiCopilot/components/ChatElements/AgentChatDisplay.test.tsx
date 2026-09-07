@@ -106,6 +106,7 @@ const thread: AiAgentThread = {
     createdFrom: 'web_app',
     title: 'Deep research chronology',
     titleGeneratedAt: null,
+    pinnedAt: null,
     liveStatus: null,
     firstMessage: {
         uuid: 'deep-research-prompt',

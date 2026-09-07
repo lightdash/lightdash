@@ -23,6 +23,7 @@ import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAg
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import AppColorSchemeScope from './AppColorSchemeScope';
 import classes from './AutopilotNavButton.module.css';
 
 const resumeSettings = async (projectUuid: string, schedule: string) =>
@@ -199,15 +200,17 @@ export const AutopilotNavButton = ({ projectUuid }: Props) => {
                         </button>
                     </div>
                 </HoverCard.Dropdown>
-                <ManagedAgentSetupModal
-                    projectUuid={projectUuid}
-                    opened={setupOpen}
-                    onClose={() => setSetupOpen(false)}
-                    onEnabled={() => {
-                        setSetupOpen(false);
-                        goToAutopilot();
-                    }}
-                />
+                <AppColorSchemeScope>
+                    <ManagedAgentSetupModal
+                        projectUuid={projectUuid}
+                        opened={setupOpen}
+                        onClose={() => setSetupOpen(false)}
+                        onEnabled={() => {
+                            setSetupOpen(false);
+                            goToAutopilot();
+                        }}
+                    />
+                </AppColorSchemeScope>
             </HoverCard>
         );
     }

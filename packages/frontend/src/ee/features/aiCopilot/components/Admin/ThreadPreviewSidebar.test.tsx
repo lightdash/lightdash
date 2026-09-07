@@ -119,6 +119,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
             createdFrom: 'web_app',
             title: 'Dense review thread',
             titleGeneratedAt: null,
+            pinnedAt: null,
             firstMessage: {
                 uuid: 'prompt-1',
                 message: 'What does active user mean?',

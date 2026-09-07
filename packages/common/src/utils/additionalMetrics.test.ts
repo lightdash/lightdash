@@ -383,6 +383,20 @@ describe('getCompatibleDashboardMetrics', () => {
         expect(result.map((m) => m.name)).toEqual(['custom_metric']);
     });
 
+    it('excludes metrics shadowed by a real explore field with the same id', () => {
+        const result = getCompatibleDashboardMetrics(
+            [
+                // Shadowed by the explore metric orders.total_amount
+                metric({ name: 'total_amount' }),
+                // Shadowed by the explore dimension orders.amount
+                metric({ name: 'amount' }),
+                metric({ name: 'not_shadowed' }),
+            ],
+            explore,
+        );
+        expect(result.map((m) => m.name)).toEqual(['not_shadowed']);
+    });
+
     it('requires every distinctKeys field to exist', () => {
         const result = getCompatibleDashboardMetrics(
             [

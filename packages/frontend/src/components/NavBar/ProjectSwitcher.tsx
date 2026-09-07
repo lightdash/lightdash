@@ -43,6 +43,7 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import MantineIcon from '../common/MantineIcon';
+import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
 
@@ -862,11 +863,13 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             </Menu>
 
             {isCreatePreviewOpen && (
-                <CreatePreviewModal
-                    isOpened={isCreatePreviewOpen}
-                    onClose={() => setIsCreatePreview(false)}
-                    preselectedProjectUuid={drilledProjectUuid ?? undefined}
-                />
+                <AppColorSchemeScope>
+                    <CreatePreviewModal
+                        isOpened={isCreatePreviewOpen}
+                        onClose={() => setIsCreatePreview(false)}
+                        preselectedProjectUuid={drilledProjectUuid ?? undefined}
+                    />
+                </AppColorSchemeScope>
             )}
         </>
     );

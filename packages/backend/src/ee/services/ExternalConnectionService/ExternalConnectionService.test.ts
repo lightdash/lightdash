@@ -193,6 +193,10 @@ function buildService(opts: {
         googleTokenProvider: {
             getAccessToken: vi.fn().mockResolvedValue('test-access-token'),
         } as never,
+        oauthClientCredentialsTokenProvider: {
+            getAccessToken: vi.fn().mockResolvedValue('test-oauth-token'),
+            invalidateAccessToken: vi.fn(),
+        } as never,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
     });
     return { service, model, orgAiCopilotConfigResolver };
@@ -445,6 +449,17 @@ describe('ExternalConnectionService.update type switches', () => {
         oauthScopes: null,
         hasSecret: true,
     };
+    const oauthConnection: ExternalConnection = {
+        ...connection,
+        type: 'oauth_client_credentials',
+        oauthScopes: ['read:data'],
+        oauthTokenUrl: 'https://auth.example.com/oauth/token',
+        oauthClientId: 'client-1',
+        oauthClientAuthMethod: 'basic',
+        apiKeyName: null,
+        apiKeyLocation: null,
+        hasSecret: true,
+    };
     const keyfile = JSON.stringify({
         type: 'service_account',
         client_email: 'sa@proj.iam.gserviceaccount.com',
@@ -528,6 +543,55 @@ describe('ExternalConnectionService.update type switches', () => {
             }),
         ).rejects.toThrow(ParameterError);
         expect(model.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            field: 'token URL',
+            patch: {
+                oauthTokenUrl: 'https://other.example.com/oauth/token',
+            },
+        },
+        { field: 'client ID', patch: { oauthClientId: 'client-2' } },
+    ])(
+        'rejects changing the OAuth $field without a new secret',
+        async ({ patch }) => {
+            const { service, model } = buildService({
+                connection: oauthConnection,
+            });
+            mockAbility(service, true);
+
+            await expect(
+                service.update(
+                    adminAccount,
+                    projectUuid,
+                    connectionUuid,
+                    patch,
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(model.update).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps the OAuth secret when scopes or auth method change', async () => {
+        const { service, model } = buildService({
+            connection: oauthConnection,
+        });
+        mockAbility(service, true);
+
+        await service.update(adminAccount, projectUuid, connectionUuid, {
+            oauthScopes: ['read:other'],
+            oauthClientAuthMethod: 'body',
+        });
+
+        expect(model.update).toHaveBeenCalledWith(
+            connectionUuid,
+            expect.anything(),
+            expect.objectContaining({
+                oauthScopes: ['read:other'],
+                oauthClientAuthMethod: 'body',
+            }),
+        );
     });
 
     it('keeps the stored secret for a normalized-equivalent origin', async () => {

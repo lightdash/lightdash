@@ -149,6 +149,51 @@ export class DashboardController extends BaseController {
     }
 
     /**
+     * Remove a custom metric from the dashboard registry. Charts keep their
+     * local snapshots — the metric just stops being offered to new charts.
+     * With `dryRun` it only reports the charts still using it.
+     * @summary Delete dashboard custom metric
+     * @param dashboardUuidOrSlug uuid or slug for the dashboard
+     * @param metricTable table of the registry metric to remove
+     * @param metricName name of the registry metric to remove
+     * @param dryRun report affected charts without writing
+     * @param projectUuid project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/custom-metrics/{metricTable}/{metricName}')
+    @OperationId('deleteDashboardCustomMetric')
+    async deleteDashboardCustomMetric(
+        @Path() dashboardUuidOrSlug: UuidOrSlug,
+        @Path() metricTable: string,
+        @Path() metricName: string,
+        @Request() req: express.Request,
+        @Query() dryRun?: boolean,
+        @Query() projectUuid?: UUID,
+    ): Promise<ApiUpdateDashboardCustomMetricResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .deleteCustomMetric(
+                    toSessionUser(req.account),
+                    dashboardUuidOrSlug,
+                    metricTable,
+                    metricName,
+                    dryRun ?? false,
+                    { projectUuid },
+                ),
+        };
+    }
+
+    /**
      * Get dashboard version history
      * @summary Get dashboard history
      * @param dashboardUuidOrSlug uuid or slug for the dashboard

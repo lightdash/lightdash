@@ -1,4 +1,4 @@
-import { type ExternalConnection } from '@lightdash/common';
+import { ContentType, type ExternalConnection } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -8,6 +8,33 @@ import {
     ConnectionPickerView,
     SelectedQuerySection,
 } from './AppResourcePicker';
+
+const contentMocks = vi.hoisted(() => ({
+    fetchNextPage: vi.fn(),
+    useInfiniteContent: vi.fn(() => ({
+        data: {
+            pages: [
+                {
+                    data: [
+                        {
+                            contentType: 'dashboard',
+                            uuid: 'dashboard-1',
+                            name: 'Revenue dashboard',
+                        },
+                    ],
+                },
+            ],
+        },
+        isInitialLoading: false,
+        isFetching: false,
+        hasNextPage: true,
+        fetchNextPage: contentMocks.fetchNextPage,
+    })),
+}));
+
+vi.mock('../../hooks/useContent', () => ({
+    useInfiniteContent: contentMocks.useInfiniteContent,
+}));
 
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
@@ -81,6 +108,46 @@ const baseChart = {
     includeSampleData: false,
     linkLive: false,
 };
+
+it('loads the next page of dashboards from content search', () => {
+    contentMocks.fetchNextPage.mockClear();
+    contentMocks.useInfiniteContent.mockClear();
+
+    render(
+        <MantineProvider env="test">
+            <AttachButton
+                selectedCharts={[]}
+                onSelectChart={() => undefined}
+                onDeselectChart={() => undefined}
+                selectedDashboard={null}
+                onSelectDashboard={() => undefined}
+                onDeselectDashboard={() => undefined}
+                selectedConnections={[]}
+                onSelectConnection={() => undefined}
+                onDeselectConnection={() => undefined}
+                onAddFiles={() => undefined}
+                disabled={false}
+                filesDisabled={false}
+            />
+        </MantineProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach resources' }));
+    fireEvent.click(screen.getByRole('button', { name: /Dashboard/ }));
+
+    expect(screen.getByText('Revenue dashboard')).toBeInTheDocument();
+    expect(contentMocks.useInfiniteContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+            projectUuids: ['project-1'],
+            contentTypes: [ContentType.DASHBOARD],
+            pageSize: 25,
+        }),
+        expect.objectContaining({ enabled: true }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(contentMocks.fetchNextPage).toHaveBeenCalledOnce();
+});
 
 it('calls onToggleLink when the Link live button is clicked', () => {
     const onToggleLink = vi.fn();

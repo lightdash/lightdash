@@ -10,7 +10,7 @@ const getStatusProps = (
 ): { color: string; label: string } => {
     switch (status) {
         case ContentReviewRequestStatus.PENDING:
-            return { color: 'yellow', label: 'Pending' };
+            return { color: 'yellow', label: 'Waiting for review' };
         case ContentReviewRequestStatus.APPROVED:
             return { color: 'green', label: 'Approved' };
         case ContentReviewRequestStatus.REJECTED:

@@ -41,9 +41,19 @@ vi.mock('../src/components/MonacoEditor', () => ({
     useMonaco: () => null,
 }));
 
-vi.mock('../src/ee/pages/EmbedChart', () => ({
-    default: () => <div data-testid="embed-chart-view" />,
-}));
+vi.mock('../src/ee/pages/EmbedChart', async () => {
+    const { default: useEmbed } =
+        await import('../src/ee/providers/Embed/useEmbed');
+
+    return {
+        default: function MockEmbedChart() {
+            const { embedToken } = useEmbed();
+            return (
+                <div data-testid="embed-chart-view" data-token={embedToken} />
+            );
+        },
+    };
+});
 
 vi.mock('../src/ee/pages/EmbedExplore', () => ({
     default: ({
@@ -200,7 +210,21 @@ vi.mock('../src/pages/MetricsCatalog', async () => {
     };
 });
 
+vi.mock('../src/hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
+
 import { FilterOperator } from '@lightdash/common';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
+import { lightdashApi } from '../src/api';
+import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
+import { EMBED_KEY, type InMemoryEmbed } from '../src/ee/providers/Embed/types';
+import {
+    clearInMemoryStorage,
+    getFromInMemoryStorage,
+} from '../src/utils/inMemoryStorage';
 import {
     AiAgent,
     Chart,
@@ -630,6 +654,7 @@ describe('SDK API client', () => {
                 createdFrom: 'web_app',
                 title: 'Revenue check',
                 titleGeneratedAt: null,
+                pinnedAt: null,
                 firstMessage: {
                     uuid: 'test-message-uuid',
                     message: 'How is revenue looking?',
@@ -675,5 +700,127 @@ describe('SDK API client', () => {
                 signal: undefined,
             },
         );
+    });
+});
+
+describe('SDK token rotation', () => {
+    const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const payload =
+        'eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0';
+    const tokenA = `${header}.${payload}.signature-a`;
+    const tokenB = `${header}.${payload}.signature-b`;
+    const instanceUrl = 'http://localhost:3000';
+    const originalLocation = window.location;
+    const storedToken = () =>
+        getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token;
+
+    beforeEach(() => {
+        clearInMemoryStorage();
+        window.location = {
+            ...window.location,
+            pathname: '/test',
+            search: '',
+            hash: '',
+        };
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        window.location = originalLocation;
+    });
+
+    it('sends the rotated token on the next request without remounting', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ status: 'ok', results: {} }), {
+                status: 200,
+            }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { rerender, getByTestId } = render(
+            <Dashboard token={tokenA} instanceUrl={instanceUrl} filters={[]} />,
+        );
+        await waitFor(() => expect(storedToken()).toBe(tokenA));
+        const mountedDashboard = getByTestId('embed-dashboard');
+
+        rerender(
+            <Dashboard token={tokenB} instanceUrl={instanceUrl} filters={[]} />,
+        );
+        await waitFor(() => expect(storedToken()).toBe(tokenB));
+
+        expect(getByTestId('embed-dashboard')).toBe(mountedDashboard);
+
+        await lightdashApi({ url: '/anything', method: 'GET' });
+        const [, requestInit] = fetchMock.mock.calls[0];
+        expect(requestInit.headers['lightdash-embed-token']).toBe(tokenB);
+    });
+
+    it('ignores an older token promise that resolves after a newer one', async () => {
+        let resolveTokenA: (token: string) => void = () => {};
+        const slowTokenA = new Promise<string>((resolve) => {
+            resolveTokenA = resolve;
+        });
+
+        const { rerender, getByTestId } = render(
+            <Chart token={slowTokenA} instanceUrl={instanceUrl} id="chart" />,
+        );
+        rerender(
+            <Chart
+                token={Promise.resolve(tokenB)}
+                instanceUrl={instanceUrl}
+                id="chart"
+            />,
+        );
+        await waitFor(() =>
+            expect(getByTestId('embed-chart-view').dataset.token).toBe(tokenB),
+        );
+
+        await act(async () => {
+            resolveTokenA(tokenA);
+            await slowTokenA;
+        });
+
+        expect(getByTestId('embed-chart-view').dataset.token).toBe(tokenB);
+        expect(storedToken()).toBe(tokenB);
+    });
+
+    const renderProvider = (
+        queryClient: QueryClient,
+        embedToken: string | undefined,
+    ) => (
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter>
+                <EmbedProvider embedToken={embedToken} projectUuid="p1">
+                    <div />
+                </EmbedProvider>
+            </MemoryRouter>
+        </QueryClientProvider>
+    );
+
+    it('refetches the account when the token changes, not on mount', async () => {
+        const queryClient = new QueryClient();
+        const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+        const { rerender } = render(renderProvider(queryClient, tokenA));
+        expect(invalidate).not.toHaveBeenCalled();
+
+        rerender(renderProvider(queryClient, tokenB));
+        await waitFor(() =>
+            expect(invalidate).toHaveBeenCalledWith({ queryKey: ['account'] }),
+        );
+        expect(invalidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the direct-mode token after the hash is stripped from the URL', () => {
+        const queryClient = new QueryClient();
+        window.location = { ...window.location, hash: `#${tokenA}` };
+
+        const { rerender } = render(renderProvider(queryClient, undefined));
+        expect(storedToken()).toBe(tokenA);
+
+        window.location = { ...window.location, hash: '' };
+        rerender(renderProvider(queryClient, undefined));
+
+        expect(storedToken()).toBe(tokenA);
     });
 });

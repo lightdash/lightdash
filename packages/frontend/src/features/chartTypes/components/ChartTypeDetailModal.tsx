@@ -7,7 +7,7 @@ import {
 import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
 import { IconFilePencil, IconGitFork, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -29,6 +29,7 @@ type Props = {
     /** This chart type's registry entry, when it is a registry install */
     registryEntry: RegistryChartTypeListItem | null;
     onClose: () => void;
+    onPreview: () => void;
     onDelete: () => void;
 };
 
@@ -37,9 +38,9 @@ const ChartTypeDetailModal: FC<Props> = ({
     dataAppViz,
     registryEntry,
     onClose,
+    onPreview,
     onDelete,
 }) => {
-    const navigate = useNavigate();
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(projectUuid);
     const isOfficial = isOfficialChartType(dataAppViz);
@@ -121,11 +122,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         </Button>
                     )
                 }
-                onConfirm={() =>
-                    navigate(
-                        `/projects/${projectUuid}/tables?dataAppVizUuid=${dataAppViz.dataAppVizUuid}`,
-                    )
-                }
+                onConfirm={onPreview}
                 confirmLabel="Preview in explorer"
             >
                 <Stack gap="md">

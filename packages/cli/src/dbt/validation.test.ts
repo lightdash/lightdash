@@ -1,9 +1,9 @@
 import {
     DbtManifestVersion,
     InlineErrorType,
-    ManifestValidator,
     type DbtRawModelNode,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
 import { validateDbtModel } from './validation';
 
 const makeModel = (name: string): DbtRawModelNode =>

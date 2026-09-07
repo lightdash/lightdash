@@ -1,3 +1,233 @@
+## [2.140.2](https://github.com/lightdash/lightdash/compare/2.140.1...2.140.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** include custom org roles in space share picker ([#28766](https://github.com/lightdash/lightdash/issues/28766)) ([6138c88](https://github.com/lightdash/lightdash/commit/6138c886b9e690412810cc0d31f8d6e17964449a))
+
+## [2.140.1](https://github.com/lightdash/lightdash/compare/2.140.0...2.140.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ai:** declare Lightdash-managed keys from infrastructure, attribute data-app usage to the model the CLI ran, track delivery summaries ([#28743](https://github.com/lightdash/lightdash/issues/28743)) ([f29fabb](https://github.com/lightdash/lightdash/commit/f29fabb0f4d90c88bee40d67794ece9326fe8a48))
+
+# [2.140.0](https://github.com/lightdash/lightdash/compare/2.139.0...2.140.0) (2026-09-07)
+
+
+### Features
+
+* **dashboard:** confirm before discarding unsaved chart edits in the modal ([#28747](https://github.com/lightdash/lightdash/issues/28747)) ([ac278fe](https://github.com/lightdash/lightdash/commit/ac278fe36d09ab530eb51cbe9a567b928061af5f)), closes [#28740](https://github.com/lightdash/lightdash/issues/28740)
+* **dashboard:** delete registry custom metrics with an impact preview ([#28740](https://github.com/lightdash/lightdash/issues/28740)) ([d9e1875](https://github.com/lightdash/lightdash/commit/d9e1875df90c36861cffd41049a532792fa1359d))
+
+# [2.139.0](https://github.com/lightdash/lightdash/compare/2.138.0...2.139.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **sdk:** follow the token prop when rotating embed tokens ([#28761](https://github.com/lightdash/lightdash/issues/28761)) ([8f4ee39](https://github.com/lightdash/lightdash/commit/8f4ee3946b71e5527c8847781f98b227f752a6bc))
+
+
+### Features
+
+* **direct-access:** import portable access blocks atomically ([#28301](https://github.com/lightdash/lightdash/issues/28301)) ([3d03608](https://github.com/lightdash/lightdash/commit/3d03608efeac3b48884da60c1373ac73e5a6c362))
+
+# [2.138.0](https://github.com/lightdash/lightdash/compare/2.137.0...2.138.0) (2026-09-07)
+
+
+### Features
+
+* attribute data app uninstall and fork events to registry source ([#28751](https://github.com/lightdash/lightdash/issues/28751)) ([58cba98](https://github.com/lightdash/lightdash/commit/58cba9800f203ef000c56ced3c54b8847983fd8e))
+
+# [2.137.0](https://github.com/lightdash/lightdash/compare/2.136.3...2.137.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **ai-agents:** format SQL previews and fix horizontal scrolling ([#28728](https://github.com/lightdash/lightdash/issues/28728)) ([1b36d3d](https://github.com/lightdash/lightdash/commit/1b36d3d0f66c449e5e7d1fd864cf63145caf01d1))
+* compile DuckDB date names with supported functions ([#28708](https://github.com/lightdash/lightdash/issues/28708)) ([89cbf02](https://github.com/lightdash/lightdash/commit/89cbf02c9f3f795b9b1882da4ec976f69d4fa763))
+* **dashboard:** exclude registry metrics shadowed by real explore fields ([#28748](https://github.com/lightdash/lightdash/issues/28748)) ([b5d7c80](https://github.com/lightdash/lightdash/commit/b5d7c8091dd4cd425adae10522ff966aabb936c7))
+* **direct-access:** reduce shared content lookup overhead ([#28727](https://github.com/lightdash/lightdash/issues/28727)) ([05173a6](https://github.com/lightdash/lightdash/commit/05173a614b3b63c53e1b2d636444b8cf69bac294))
+* remove duplicate js-yaml lockfile entries ([#28756](https://github.com/lightdash/lightdash/issues/28756)) ([2ad2a7a](https://github.com/lightdash/lightdash/commit/2ad2a7a43d7ca24e6e068f767e6a1ff5b5fadcbc)), closes [#28486](https://github.com/lightdash/lightdash/issues/28486) [#28486](https://github.com/lightdash/lightdash/issues/28486)
+* upgrade js-yaml 4.3.0→4.3.2 (security) ([#28486](https://github.com/lightdash/lightdash/issues/28486)) ([23994ea](https://github.com/lightdash/lightdash/commit/23994eafbdcf47eb79bef5ad0982e74a4090a4b3))
+* upgrade js-yaml 4.3.1→4.3.2 (security) ([#28488](https://github.com/lightdash/lightdash/issues/28488)) ([86e7499](https://github.com/lightdash/lightdash/commit/86e7499abd4e08565726f9408f6ae0a22c975535))
+
+
+### Features
+
+* **direct-access:** add portable access blocks to content-as-code exports ([#28300](https://github.com/lightdash/lightdash/issues/28300)) ([e4a8a23](https://github.com/lightdash/lightdash/commit/e4a8a232511b03e511a8e4dbbecae00cf16f8841))
+
+
+### Performance Improvements
+
+* **common:** keep dbt manifest schemas out of the barrel ([#28745](https://github.com/lightdash/lightdash/issues/28745)) ([fd0e94f](https://github.com/lightdash/lightdash/commit/fd0e94f0ea1028a12134fd49ff78c65088b633de))
+
+## [2.136.3](https://github.com/lightdash/lightdash/compare/2.136.2...2.136.3) (2026-09-07)
+
+
+### Bug Fixes
+
+* refresh explores after creating virtual views ([#28707](https://github.com/lightdash/lightdash/issues/28707)) ([9f15ed2](https://github.com/lightdash/lightdash/commit/9f15ed29c2d7065b7c6353ee537b7e6963da18ef))
+
+## [2.136.2](https://github.com/lightdash/lightdash/compare/2.136.1...2.136.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** cut dev-server work off the first-paint path ([#28696](https://github.com/lightdash/lightdash/issues/28696)) ([25d0842](https://github.com/lightdash/lightdash/commit/25d08421bec420bb6df47f295a1934bf801da445))
+
+## [2.136.1](https://github.com/lightdash/lightdash/compare/2.136.0...2.136.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **explorer:** tolerate saved filter groups with no items array ([#28726](https://github.com/lightdash/lightdash/issues/28726)) ([c212cd2](https://github.com/lightdash/lightdash/commit/c212cd2ceea2f167814ab0917a26873ce2f06eb8))
+
+# [2.136.0](https://github.com/lightdash/lightdash/compare/2.135.2...2.136.0) (2026-09-07)
+
+
+### Features
+
+* **dashboard-filters:** search fields from the picker input ([#28724](https://github.com/lightdash/lightdash/issues/28724)) ([966636a](https://github.com/lightdash/lightdash/commit/966636a6beff0943a0e0d1b10a54136dba518778))
+
+## [2.135.2](https://github.com/lightdash/lightdash/compare/2.135.1...2.135.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** replace the share redirect history entry ([#28722](https://github.com/lightdash/lightdash/issues/28722)) ([d5bbe35](https://github.com/lightdash/lightdash/commit/d5bbe35bde8dfcb763b78aa20e73c0ab5ed17a29)), closes [#28622](https://github.com/lightdash/lightdash/issues/28622)
+* **frontend:** resolve project slugs in useProjectUuid outside ProjectRoute ([#28721](https://github.com/lightdash/lightdash/issues/28721)) ([2de5305](https://github.com/lightdash/lightdash/commit/2de530512f73e74169ae19431dc98e3a5b342e2f))
+
+## [2.135.1](https://github.com/lightdash/lightdash/compare/2.135.0...2.135.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **projects:** reject SSH tunnel saves without a recognised public key ([#28720](https://github.com/lightdash/lightdash/issues/28720)) ([ab65691](https://github.com/lightdash/lightdash/commit/ab65691c8211d68eb4e541dc0ef1f60c547bccb7))
+
+# [2.135.0](https://github.com/lightdash/lightdash/compare/2.134.2...2.135.0) (2026-09-07)
+
+
+### Features
+
+* **explorer:** graduate custom bin write-back ([#28700](https://github.com/lightdash/lightdash/issues/28700)) ([b1e4417](https://github.com/lightdash/lightdash/commit/b1e44171721f23fdb793101574e7e23cd376e3b5))
+
+## [2.134.2](https://github.com/lightdash/lightdash/compare/2.134.1...2.134.2) (2026-09-06)
+
+
+### Bug Fixes
+
+* **frontend:** format move dialog content types ([#28706](https://github.com/lightdash/lightdash/issues/28706)) ([3d38d6c](https://github.com/lightdash/lightdash/commit/3d38d6c76bce5026453fadd388eec1b2c9f62438))
+
+## [2.134.1](https://github.com/lightdash/lightdash/compare/2.134.0...2.134.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **compose:** bind referenced results with a typed read so values keep their precision ([#28691](https://github.com/lightdash/lightdash/issues/28691)) ([ba540ee](https://github.com/lightdash/lightdash/commit/ba540eeca2bc7424deabc7f89d1b9ce776ae2572))
+
+# [2.134.0](https://github.com/lightdash/lightdash/compare/2.133.2...2.134.0) (2026-09-04)
+
+
+### Features
+
+* **review-requests:** rework the request page as a request thread ([#28695](https://github.com/lightdash/lightdash/issues/28695)) ([49c58ad](https://github.com/lightdash/lightdash/commit/49c58ad12d2296d89c84496634aa20d29053d0fe))
+
+## [2.133.2](https://github.com/lightdash/lightdash/compare/2.133.1...2.133.2) (2026-09-04)
+
+
+### Bug Fixes
+
+* **dashboards:** show per-source filters and restore the merge from a merged tile ([#28688](https://github.com/lightdash/lightdash/issues/28688)) ([0f3bc13](https://github.com/lightdash/lightdash/commit/0f3bc137e463acf9960ea4a21b33c8b597588305))
+* **data-apps:** paginate dashboard selector ([#28693](https://github.com/lightdash/lightdash/issues/28693)) ([c85d87c](https://github.com/lightdash/lightdash/commit/c85d87c3598f3d61740d4c67ca97afb1226fdb13))
+* **merge:** authorize merge table calculation SQL, register the v1 routes and scope the engine session ([#28689](https://github.com/lightdash/lightdash/issues/28689)) ([abb3182](https://github.com/lightdash/lightdash/commit/abb3182f7a2f4a26d62bc32a20e374574f879cdf))
+* recently viewed no longer times out for users with large view history ([#28684](https://github.com/lightdash/lightdash/issues/28684)) ([b1f26af](https://github.com/lightdash/lightdash/commit/b1f26afcbeb2f2f4f3c94eb0a22246dc6b8b90df))
+
+## [2.133.1](https://github.com/lightdash/lightdash/compare/2.133.0...2.133.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **table-calculation:** guard tiptap editor effects against a destroyed instance ([#28690](https://github.com/lightdash/lightdash/issues/28690)) ([e9fc239](https://github.com/lightdash/lightdash/commit/e9fc239d8d3ca742c87a54c7e1ee2613ec25bbde)), closes [#28651](https://github.com/lightdash/lightdash/issues/28651)
+
+# [2.133.0](https://github.com/lightdash/lightdash/compare/2.132.0...2.133.0) (2026-09-04)
+
+
+### Features
+
+* **ai-agents:** pin threads to the top of the sidebar ([#28681](https://github.com/lightdash/lightdash/issues/28681)) ([c403b77](https://github.com/lightdash/lightdash/commit/c403b7792e513967984cd2be96bb7a115f2d5a12))
+
+# [2.132.0](https://github.com/lightdash/lightdash/compare/2.131.0...2.132.0) (2026-09-04)
+
+
+### Features
+
+* **ai-agents:** rename threads from the sidebar ([#28680](https://github.com/lightdash/lightdash/issues/28680)) ([fa986f6](https://github.com/lightdash/lightdash/commit/fa986f626a565ae658594dd18f38eda90276b308))
+
+# [2.131.0](https://github.com/lightdash/lightdash/compare/2.130.0...2.131.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **dashboards:** render merged fields on a chart tile ([#28687](https://github.com/lightdash/lightdash/issues/28687)) ([8dff081](https://github.com/lightdash/lightdash/commit/8dff08154d1974569f9997d91fe3d15fee5d1630))
+
+
+### Features
+
+* **dashboard:** add organizationUuid to workbook telemetry events ([#28685](https://github.com/lightdash/lightdash/issues/28685)) ([16285d8](https://github.com/lightdash/lightdash/commit/16285d8b0f8c3454ba89f664d5eb58989a6827e7))
+
+# [2.130.0](https://github.com/lightdash/lightdash/compare/2.129.0...2.130.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **warehouses:** retry databricks operations while the SQL warehouse starts ([#28654](https://github.com/lightdash/lightdash/issues/28654)) ([ee61147](https://github.com/lightdash/lightdash/commit/ee611476d609f93d451e0ad5c3bf8c4adaac111f))
+
+
+### Features
+
+* **data-apps:** support OAuth client credentials ([#28674](https://github.com/lightdash/lightdash/issues/28674)) ([0682304](https://github.com/lightdash/lightdash/commit/0682304a6a8aeca7e56a81df5a1470ff7f317ca7))
+
+# [2.129.0](https://github.com/lightdash/lightdash/compare/2.128.1...2.129.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **dashboards:** run merged charts as merges on dashboard tiles and deliveries ([#28677](https://github.com/lightdash/lightdash/issues/28677)) ([6abf320](https://github.com/lightdash/lightdash/commit/6abf3208cc725c294615bdc16d15ab7b4681a740))
+* **explorer:** show an empty state, not a spinner, when a merge is refused ([#28672](https://github.com/lightdash/lightdash/issues/28672)) ([523a824](https://github.com/lightdash/lightdash/commit/523a824c033b42321db6f81452d67932c334090e))
+* find matching dashboards before joining tiles in global search ([#28673](https://github.com/lightdash/lightdash/issues/28673)) ([493c652](https://github.com/lightdash/lightdash/commit/493c6522ece528fb025f144cb6384070dff0e34c))
+* **merge:** surface a forbidden result source as forbidden, not unavailable ([#28659](https://github.com/lightdash/lightdash/issues/28659)) ([923f18e](https://github.com/lightdash/lightdash/commit/923f18e506cf9d7b428d0afb00e006bfc65f8620))
+
+
+### Features
+
+* **chart-registry:** preview in explorer picks a table and opens with config ([#28671](https://github.com/lightdash/lightdash/issues/28671)) ([eebff26](https://github.com/lightdash/lightdash/commit/eebff2632fb24d63bee6f7d21c86ed4a7dd5efe2))
+
+## [2.128.1](https://github.com/lightdash/lightdash/compare/2.128.0...2.128.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **chart-registry:** honest uninstall copy — saved charts are kept, not deleted ([#28667](https://github.com/lightdash/lightdash/issues/28667)) ([6367788](https://github.com/lightdash/lightdash/commit/636778859d2b55324423ba3f5935786f3874ac98))
+* **data-apps:** preserve method chip contrast in dark mode ([#28676](https://github.com/lightdash/lightdash/issues/28676)) ([b13d497](https://github.com/lightdash/lightdash/commit/b13d49716df62cb1a4f9362b56c61a20b0d653ab))
+* **navbar:** re-anchor navbar modals to the app color scheme ([#28678](https://github.com/lightdash/lightdash/issues/28678)) ([9478fb7](https://github.com/lightdash/lightdash/commit/9478fb740265375d5bcf13ea219bb277a75bdfc5))
+
+# [2.128.0](https://github.com/lightdash/lightdash/compare/2.127.0...2.128.0) (2026-09-04)
+
+
+### Bug Fixes
+
+* **migrations:** move ai_prompt response_timing migration to the EE dir ([#28670](https://github.com/lightdash/lightdash/issues/28670)) ([3b26e3c](https://github.com/lightdash/lightdash/commit/3b26e3cc5e025eabc99adf3359063655447c257e)), closes [#28668](https://github.com/lightdash/lightdash/issues/28668)
+
+
+### Features
+
+* **chart-registry:** 'Built by Lightdash' badge replaces 'Official' ([#28664](https://github.com/lightdash/lightdash/issues/28664)) ([b11b242](https://github.com/lightdash/lightdash/commit/b11b242987a8c97417eea9fc23a1452936d95054)), closes [#28661](https://github.com/lightdash/lightdash/issues/28661)
+* **chart-registry:** offer registry upgrades from the installed tab ([#28661](https://github.com/lightdash/lightdash/issues/28661)) ([8902dde](https://github.com/lightdash/lightdash/commit/8902dde589dc2be856e06c22291e027e4279791d)), closes [#28660](https://github.com/lightdash/lightdash/issues/28660) [#28653](https://github.com/lightdash/lightdash/issues/28653)
+* **chart-registry:** show the registry version for installed official chart types ([#28665](https://github.com/lightdash/lightdash/issues/28665)) ([2cd0fac](https://github.com/lightdash/lightdash/commit/2cd0faca7aa9c977195062d9d8fd726ebafaa7ea)), closes [#28664](https://github.com/lightdash/lightdash/issues/28664)
+* **chart-registry:** typed field breakdown in the installed detail modal ([#28666](https://github.com/lightdash/lightdash/issues/28666)) ([d5768ac](https://github.com/lightdash/lightdash/commit/d5768aca5e3c9d5deb3676b6f4c8b098f7f9b385)), closes [#28665](https://github.com/lightdash/lightdash/issues/28665)
+* **dashboard:** track custom metric creation and reuse ([#28663](https://github.com/lightdash/lightdash/issues/28663)) ([60cc1ed](https://github.com/lightdash/lightdash/commit/60cc1eddf09b0da8a53c5d0d8539812edb31431e))
+
 # [2.127.0](https://github.com/lightdash/lightdash/compare/2.126.0...2.127.0) (2026-09-04)
 
 

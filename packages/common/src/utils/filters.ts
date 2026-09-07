@@ -99,13 +99,16 @@ const getFilterGroupExpression = (
         ? FilterGroupOperator.and
         : FilterGroupOperator.or;
     const groupItems = isAndFilterGroup(group) ? group.and : group.or;
-    const items = groupItems.flatMap<FilterRule | FilterExpression>((item) => {
-        if (isFilterGroup(item)) {
-            const expression = getFilterGroupExpression(item, includeRule);
-            return expression ? [expression] : [];
-        }
-        return includeRule(item) ? [item] : [];
-    });
+    // Persisted groups can lack their items array; treat them as empty
+    const items = (groupItems ?? []).flatMap<FilterRule | FilterExpression>(
+        (item) => {
+            if (isFilterGroup(item)) {
+                const expression = getFilterGroupExpression(item, includeRule);
+                return expression ? [expression] : [];
+            }
+            return includeRule(item) ? [item] : [];
+        },
+    );
 
     return items.length > 0 ? { operator, items } : undefined;
 };

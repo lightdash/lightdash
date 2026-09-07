@@ -2,6 +2,7 @@ import {
     DuckDBInstance,
     DuckDBTypeId,
     version as duckdbVersion,
+    type DuckDBType,
 } from '@duckdb/node-api';
 import {
     AnyType,
@@ -25,6 +26,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseQueryPhase,
 } from '@lightdash/common';
@@ -41,7 +43,7 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 type DuckdbStreamResult = {
     columnCount: number;
     columnNames: () => string[];
-    columnTypeId: (columnIndex: number) => number;
+    columnType: (columnIndex: number) => DuckDBType;
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
@@ -104,8 +106,8 @@ export type DuckdbS3SessionConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
-    /** Limit this DuckDB secret to one trusted S3 URI or prefix. */
-    scope?: string;
+    /** Limit this DuckDB secret to trusted S3 URIs or prefixes. */
+    scope?: string[];
     /** PEM bundle httpfs verifies HTTPS object storage with. */
     caCertFile?: string;
 };
@@ -190,6 +192,29 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
             return DimensionType.NUMBER;
         default:
             return DimensionType.STRING;
+    }
+};
+
+const getNumericKindFromType = (type: DuckDBType): ResultNumericKind | null => {
+    switch (type.typeId) {
+        case DuckDBTypeId.TINYINT:
+        case DuckDBTypeId.SMALLINT:
+        case DuckDBTypeId.INTEGER:
+        case DuckDBTypeId.BIGINT:
+        case DuckDBTypeId.HUGEINT:
+        case DuckDBTypeId.UTINYINT:
+        case DuckDBTypeId.USMALLINT:
+        case DuckDBTypeId.UINTEGER:
+        case DuckDBTypeId.UBIGINT:
+        case DuckDBTypeId.UHUGEINT:
+            return { kind: 'integer' };
+        case DuckDBTypeId.FLOAT:
+        case DuckDBTypeId.DOUBLE:
+            return { kind: 'float' };
+        case DuckDBTypeId.DECIMAL:
+            return { kind: 'decimal', scale: type.scale };
+        default:
+            return null;
     }
 };
 
@@ -1350,7 +1375,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             ? `SECRET '${escape(s3Config.secretKey)}',`
             : '';
         const scopeClause = s3Config.scope
-            ? `SCOPE '${escape(s3Config.scope)}',`
+            ? `SCOPE (${s3Config.scope
+                  .map((uri) => `'${escape(uri)}'`)
+                  .join(', ')}),`
             : '';
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
@@ -2065,8 +2092,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const columnNames = result.columnNames();
         const fields: WarehouseResults['fields'] = {};
         for (let i = 0; i < result.columnCount; i += 1) {
+            const columnType = result.columnType(i);
+            const numericKind = getNumericKindFromType(columnType);
             fields[columnNames[i]] = {
-                type: mapFieldTypeFromTypeId(result.columnTypeId(i)),
+                type: mapFieldTypeFromTypeId(columnType.typeId),
+                ...(numericKind ? { numericKind } : {}),
             };
         }
         return fields;

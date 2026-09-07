@@ -388,41 +388,49 @@ export class ProjectHomepageModel {
                     }>;
                 }>(
                     `
-            -- MATERIALIZED keeps the planner from flattening this back into a
-            -- scan of every view on the project's charts.
-            WITH user_chart_views AS MATERIALIZED (
-                SELECT user_uuid, chart_uuid, context, timestamp
+            -- Opening a dashboard records a view for every tile on it, which
+            -- would bury the dashboard the user actually opened. Tiles are
+            -- tagged where we can, but several code paths write untagged rows,
+            -- so chart views that land in the moments around one of this
+            -- user's dashboard views are dropped too. That check is done with a
+            -- window over the user's merged view stream rather than an
+            -- anti-join: a range predicate cannot be hashed, so the anti-join
+            -- degraded to every chart view × every dashboard view.
+            WITH user_views AS (
+                SELECT 'chart' AS kind, chart_uuid AS content_uuid, context, timestamp
                 FROM analytics_chart_views
                 WHERE user_uuid = :userUuid
                   AND timestamp > now() - make_interval(days => :windowDays)
+                UNION ALL
+                SELECT 'dashboard' AS kind, dashboard_uuid AS content_uuid, context, timestamp
+                FROM analytics_dashboard_views
+                WHERE user_uuid = :userUuid
+                  AND timestamp > now() - make_interval(days => :windowDays) - interval '15 seconds'
+            ),
+            shadowed_chart_views AS (
+                SELECT kind, content_uuid, context, timestamp,
+                       count(*) FILTER (WHERE kind = 'dashboard') OVER (
+                           ORDER BY timestamp
+                           RANGE BETWEEN interval '15 seconds' PRECEDING
+                                     AND interval '2 seconds' FOLLOWING
+                       ) AS nearby_dashboard_views
+                FROM user_views
             )
             SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
             FROM (
                 SELECT 'chart' AS content_type,
-                       acv.chart_uuid AS content_uuid,
+                       acv.content_uuid,
                        acv.timestamp AS viewed_at
-                FROM user_chart_views acv
-                JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
+                FROM shadowed_chart_views acv
+                JOIN saved_queries sq ON sq.saved_query_uuid = acv.content_uuid
                 JOIN spaces s ON s.space_id = sq.space_id
                 JOIN projects p ON p.project_id = s.project_id
-                WHERE p.project_uuid = :projectUuid
+                WHERE acv.kind = 'chart'
+                  AND p.project_uuid = :projectUuid
                   AND sq.deleted_at IS NULL
                   AND s.deleted_at IS NULL
-                  -- Opening a dashboard records a view for every tile on it,
-                  -- which would bury the dashboard the user actually opened.
-                  -- Tiles are tagged where we can, but several code paths
-                  -- write untagged rows, so also drop chart views that land
-                  -- in the moments around one of this user's dashboard views.
-                  -- Keep the range on tile_dv.timestamp: that is what lets a
-                  -- (user_uuid, timestamp) index serve this lookup.
                   AND (acv.context ->> 'source') IS DISTINCT FROM 'dashboard'
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM analytics_dashboard_views tile_dv
-                      WHERE tile_dv.user_uuid = acv.user_uuid
-                        AND tile_dv.timestamp BETWEEN acv.timestamp - interval '15 seconds'
-                                                  AND acv.timestamp + interval '2 seconds'
-                  )
+                  AND acv.nearby_dashboard_views = 0
                 UNION ALL
                 SELECT 'dashboard' AS content_type,
                        adv.dashboard_uuid AS content_uuid,

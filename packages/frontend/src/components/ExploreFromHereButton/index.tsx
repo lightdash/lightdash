@@ -7,8 +7,8 @@ import {
     selectSavedChart,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
@@ -16,15 +16,10 @@ import MantineIcon from '../common/MantineIcon';
 const ExploreFromHereButton = () => {
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
-    const exploreFromHereUrl = useMemo(() => {
-        if (savedChart) {
-            return getExplorerUrlFromCreateSavedChartVersion(
-                savedChart.projectUuid,
-                savedChart,
-                true,
-            );
-        }
-    }, [savedChart]);
+    const exploreFromHereUrl = useMemo(
+        () => (savedChart ? getExploreFromHereUrl(savedChart) : undefined),
+        [savedChart],
+    );
 
     const { user } = useApp();
     const navigate = useNavigate();

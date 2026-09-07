@@ -502,6 +502,27 @@ describe('TimeFrames', () => {
         });
     });
 
+    describe('getSqlForDatePartName - DuckDB', () => {
+        const col = '${TABLE}.created';
+        const dt = DimensionType.DATE;
+
+        test.each([
+            [TimeFrames.DAY_OF_WEEK_NAME, `strftime(${col}, '%A')`],
+            [TimeFrames.MONTH_NAME, `strftime(${col}, '%B')`],
+            [TimeFrames.QUARTER_NAME, `'Q' || quarter(${col})`],
+        ])('%s uses DuckDB-supported SQL', (timeFrame, expected) => {
+            expect(
+                timeFrameConfigs[timeFrame].getSql(
+                    SupportedDbtAdapter.DUCKDB,
+                    timeFrame,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(expected);
+        });
+    });
+
     describe('getSqlForDatePartName - ClickHouse', () => {
         const col = '${TABLE}.created';
         const dt = DimensionType.DATE;

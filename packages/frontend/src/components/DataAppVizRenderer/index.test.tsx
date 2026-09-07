@@ -80,6 +80,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-router', () => ({
     useParams: () => ({ projectUuid: 'project-uuid' }),
 }));
+vi.mock('../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mocks.embedToken.current }),
 }));
@@ -358,12 +361,12 @@ describe('DataAppVizRenderer', () => {
         [
             'metadata',
             404,
-            'This custom chart type could not be found. It may have been deleted.',
+            'The chart type this chart was based on has been removed.',
         ],
         [
             'token',
             404,
-            'This custom chart type could not be found. It may have been deleted.',
+            'The chart type this chart was based on has been removed.',
         ],
     ])(
         'maps a %s HTTP %s response to its explicit state',

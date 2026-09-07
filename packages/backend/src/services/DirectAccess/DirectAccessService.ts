@@ -27,6 +27,7 @@ import {
 } from '../SpaceService/SpacePermissionService';
 import {
     auditDirectAccessMutation,
+    auditDirectAccessReplace,
     auditDirectAccessReset,
 } from './directAccessAudit';
 import { type DirectAccessFeatureGate } from './DirectAccessFeatureGate';
@@ -42,6 +43,14 @@ type DirectAccessServiceArguments = {
 };
 
 export type SharedWithMeUuids = Record<DirectAccessResourceType, UUID[]>;
+
+type SharedWithMeAccess = {
+    uuidsByType: SharedWithMeUuids;
+    rolesByType: Record<
+        DirectAccessResourceType,
+        Record<UUID, SpaceMemberRole[]>
+    >;
+};
 
 /**
  * One administration seam for direct access across every registered resource
@@ -159,23 +168,39 @@ export class DirectAccessService extends BaseService {
         );
     }
 
+    async findSharedWithMeUuids(
+        user: { userUuid: UUID; organizationUuid: UUID },
+        projectUuids: UUID[],
+    ): Promise<SharedWithMeUuids> {
+        const access = await this.findSharedWithMeAccess(user, projectUuids);
+        return access.uuidsByType;
+    }
+
     /**
-     * Resources of every type that are directly granted to the user or their
+     * Resources and roles of every type directly granted to the user or their
      * groups, deduplicated and restricted to the given projects. Candidates
      * from the grant tables are validated through each type's read model, so
      * inert grants (lost membership, inactive granted groups, deleted or
      * ineligible resources) never surface. Feature off means no results —
      * grant rows are preserved but stay invisible.
      */
-    async findSharedWithMeUuids(
+    async findSharedWithMeAccess(
         user: { userUuid: UUID; organizationUuid: UUID },
         projectUuids: UUID[],
-    ): Promise<SharedWithMeUuids> {
-        const empty: SharedWithMeUuids = {
-            [DirectAccessResourceType.DASHBOARD]: [],
-            [DirectAccessResourceType.CHART]: [],
-            [DirectAccessResourceType.SQL_CHART]: [],
-            [DirectAccessResourceType.APP]: [],
+    ): Promise<SharedWithMeAccess> {
+        const empty: SharedWithMeAccess = {
+            uuidsByType: {
+                [DirectAccessResourceType.DASHBOARD]: [],
+                [DirectAccessResourceType.CHART]: [],
+                [DirectAccessResourceType.SQL_CHART]: [],
+                [DirectAccessResourceType.APP]: [],
+            },
+            rolesByType: {
+                [DirectAccessResourceType.DASHBOARD]: {},
+                [DirectAccessResourceType.CHART]: {},
+                [DirectAccessResourceType.SQL_CHART]: {},
+                [DirectAccessResourceType.APP]: {},
+            },
         };
         if (projectUuids.length === 0) {
             return empty;
@@ -196,22 +221,39 @@ export class DirectAccessService extends BaseService {
                         user.userUuid,
                     );
                 if (candidates.length === 0) {
-                    return [resourceType, []] as const;
+                    return [resourceType, {}] as const;
                 }
                 const access = await this.getGrantReadModel(
                     resourceType,
                 ).getUserAccess(candidates, user.userUuid, {
                     organizationUuid: user.organizationUuid,
                 });
-                const uuids = Object.entries(access)
-                    .filter(([, grant]) =>
-                        allowedProjects.has(grant.projectUuid),
-                    )
-                    .map(([resourceUuid]) => resourceUuid);
-                return [resourceType, uuids] as const;
+                const roles = Object.fromEntries(
+                    Object.entries(access)
+                        .filter(([, grant]) =>
+                            allowedProjects.has(grant.projectUuid),
+                        )
+                        .map(([resourceUuid, grant]) => [
+                            resourceUuid,
+                            [
+                                ...(grant.userRole ? [grant.userRole] : []),
+                                ...grant.groupRoles,
+                            ],
+                        ]),
+                );
+                return [resourceType, roles] as const;
             }),
         );
-        return Object.fromEntries(entries) as SharedWithMeUuids;
+        return entries.reduce<SharedWithMeAccess>(
+            (result, [resourceType, roles]) => ({
+                uuidsByType: {
+                    ...result.uuidsByType,
+                    [resourceType]: Object.keys(roles),
+                },
+                rolesByType: { ...result.rolesByType, [resourceType]: roles },
+            }),
+            empty,
+        );
     }
 
     private static toAccessTarget(
@@ -326,6 +368,33 @@ export class DirectAccessService extends BaseService {
         };
     }
 
+    /**
+     * Batch policy read for content-as-code export. The caller owns
+     * authorization (the export endpoints gate on ContentAsCode view, the
+     * same permission that already exports space access blocks) and must pass
+     * uuids located within the given project. Feature off returns no
+     * policies, so exports written while sharing is disabled simply omit
+     * access blocks instead of failing.
+     */
+    async listPoliciesForExport(
+        user: { userUuid: UUID; organizationUuid: UUID },
+        resourceType: DirectAccessResourceType,
+        resourceUuids: UUID[],
+    ): Promise<Record<string, DirectAccessAssignment[]>> {
+        if (resourceUuids.length === 0) {
+            return {};
+        }
+        const enabled =
+            await this.directAccessFeatureGate.isEnabledForUser(user);
+        if (!enabled) {
+            return {};
+        }
+        return this.directAccessModel.listAssignmentsForResources({
+            resourceType,
+            resourceUuids,
+        });
+    }
+
     async listAssignments(
         account: RegisteredAccount,
         projectUuid: UUID,
@@ -402,6 +471,54 @@ export class DirectAccessService extends BaseService {
             resourceType,
             resourceUuid,
             principal: DirectAccessService.toAuditPrincipal(principal),
+            result,
+        });
+    }
+
+    /**
+     * Fail-closed feature check for callers that must validate before their
+     * own writes (content-as-code preflight): a file with an access block is
+     * rejected up front when sharing is disabled, instead of importing the
+     * content and then failing the policy step halfway.
+     */
+    async assertEnabled(account: RegisteredAccount): Promise<void> {
+        await this.directAccessFeatureGate.assertEnabled(account);
+    }
+
+    /**
+     * Atomically replace a resource's whole direct policy. Backs the
+     * content-as-code import: authorization and locking are identical to the
+     * single-assignment mutations, and any invalid principal aborts the
+     * transaction with the previous policy intact.
+     */
+    async replacePolicy(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: UUID,
+        assignments: {
+            principal: DirectAccessPrincipalRef;
+            role: SpaceMemberRole;
+        }[],
+    ): Promise<void> {
+        const { organizationUuid } = await this.authorizeManage(
+            account,
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+        const result = await this.directAccessModel.replacePolicy({
+            resourceType,
+            resourceUuid,
+            organizationUuid,
+            grantedByUserUuid: account.user.userUuid,
+            assignments,
+        });
+        auditDirectAccessReplace({
+            actor: createActorFromAccount(account),
+            context: {},
+            resourceType,
+            resourceUuid,
             result,
         });
     }

@@ -41,6 +41,9 @@ export type ExternalConnectionFormValues = {
     apiKeyName: string;
     apiKeyLocation: 'header' | 'query';
     oauthScopes: string[];
+    oauthTokenUrl: string;
+    oauthClientId: string;
+    oauthClientAuthMethod: 'basic' | 'body';
     customHeaders: CustomHeaderRow[];
     allowedMethods: ExternalConnectionMethod[];
     pathMode: PathMode;
@@ -117,17 +120,65 @@ export const ExternalConnectionForm: FC<Props> = ({
                         value: 'google_service_account',
                         label: 'Google service account',
                     },
+                    {
+                        value: 'oauth_client_credentials',
+                        label: 'OAuth 2.0 client credentials',
+                    },
                 ]}
                 {...form.getInputProps('type')}
             />
 
-            {type !== 'none' && type !== 'google_service_account' && (
+            {(type === 'api_key' || type === 'bearer_token') && (
                 <PasswordInput
                     label={type === 'api_key' ? 'API key' : 'Bearer token'}
                     placeholder={secretPlaceholder}
                     disabled={disabled}
                     {...form.getInputProps('secret')}
                 />
+            )}
+
+            {type === 'oauth_client_credentials' && (
+                <>
+                    <TextInput
+                        required
+                        label="Token URL"
+                        description="The OAuth server endpoint used to obtain access tokens"
+                        placeholder="https://api.example.com/oauth/token"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthTokenUrl')}
+                    />
+                    <TextInput
+                        required
+                        label="Client ID"
+                        placeholder="Your OAuth client ID"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthClientId')}
+                    />
+                    <PasswordInput
+                        label="Client secret"
+                        placeholder={secretPlaceholder}
+                        disabled={disabled}
+                        {...form.getInputProps('secret')}
+                    />
+                    <Select
+                        required
+                        allowDeselect={false}
+                        label="Send client credentials as"
+                        data={[
+                            { value: 'basic', label: 'Authorization header' },
+                            { value: 'body', label: 'Request body' },
+                        ]}
+                        disabled={disabled}
+                        {...form.getInputProps('oauthClientAuthMethod')}
+                    />
+                    <TagsInput
+                        label="OAuth scopes (optional)"
+                        description="Sent as a space-separated token request parameter"
+                        placeholder="Add a scope"
+                        disabled={disabled}
+                        {...form.getInputProps('oauthScopes')}
+                    />
+                </>
             )}
 
             {type === 'google_service_account' && (

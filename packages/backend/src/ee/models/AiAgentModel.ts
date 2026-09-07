@@ -411,6 +411,7 @@ type AiThreadSummaryRow = Pick<
     | 'created_from'
     | 'title'
     | 'title_generated_at'
+    | 'pinned_at'
 > &
     Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
         user_uuid: DbUser['user_uuid'] | null;
@@ -3024,6 +3025,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.created_from`,
                 `${AiThreadTableName}.title`,
                 `${AiThreadTableName}.title_generated_at`,
+                `${AiThreadTableName}.pinned_at`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -3051,6 +3053,7 @@ export class AiAgentModel {
             createdFrom: row.created_from,
             title: row.title,
             titleGeneratedAt: row.title_generated_at?.toString() ?? null,
+            pinnedAt: row.pinned_at?.toString() ?? null,
             firstMessage: {
                 uuid: row.ai_prompt_uuid,
                 message: row.prompt,
@@ -3411,7 +3414,16 @@ export class AiAgentModel {
     > {
         const query = this.buildThreadSummaryQuery(organizationUuid)
             .andWhere(`${AiThreadTableName}.project_uuid`, projectUuid)
-            .andWhere(`${UserTableName}.user_uuid`, userUuid);
+            .andWhere(`${UserTableName}.user_uuid`, userUuid)
+            .clearOrder()
+            .orderBy([
+                {
+                    column: `${AiThreadTableName}.pinned_at`,
+                    order: 'desc',
+                    nulls: 'last',
+                },
+                { column: `${AiThreadTableName}.created_at`, order: 'desc' },
+            ]);
 
         if (agentUuids) {
             void query.whereIn(`${AiThreadTableName}.agent_uuid`, agentUuids);
@@ -8754,6 +8766,18 @@ export class AiAgentModel {
                 title,
                 title_generated_at: new Date(),
             });
+    }
+
+    async setThreadPinned({
+        threadUuid,
+        pinned,
+    }: {
+        threadUuid: string;
+        pinned: boolean;
+    }): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where('ai_thread_uuid', threadUuid)
+            .update({ pinned_at: pinned ? new Date() : null });
     }
 
     async appendInstruction(data: {

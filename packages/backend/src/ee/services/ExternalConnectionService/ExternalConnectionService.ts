@@ -30,7 +30,10 @@ import { toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
-import { normalizeCredentialUrlOrigin } from '../../../utils/credentialDestination';
+import {
+    normalizeCredentialUrlHref,
+    normalizeCredentialUrlOrigin,
+} from '../../../utils/credentialDestination';
 import {
     secureFetch,
     SecureFetchError,
@@ -52,6 +55,10 @@ import {
 } from './externalConnectionConfigValidation';
 import { type GoogleServiceAccountTokenProvider } from './GoogleServiceAccountTokenProvider';
 import {
+    type OAuthClientCredentialsConfig,
+    type OAuthClientCredentialsTokenProvider,
+} from './OAuthClientCredentialsTokenProvider';
+import {
     assertSafeApiKeyHeaderName,
     buildOutboundUrl,
     computeMinuteWindow,
@@ -67,6 +74,7 @@ type ExternalConnectionServiceArguments = {
     appModel: AppModel;
     spacePermissionService: SpacePermissionService;
     googleTokenProvider: GoogleServiceAccountTokenProvider;
+    oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
@@ -81,6 +89,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly googleTokenProvider: GoogleServiceAccountTokenProvider;
 
+    private readonly oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
+
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
@@ -94,6 +104,8 @@ export class ExternalConnectionService extends BaseService {
         this.appModel = args.appModel;
         this.spacePermissionService = args.spacePermissionService;
         this.googleTokenProvider = args.googleTokenProvider;
+        this.oauthClientCredentialsTokenProvider =
+            args.oauthClientCredentialsTokenProvider;
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
     }
 
@@ -360,9 +372,21 @@ export class ExternalConnectionService extends BaseService {
             data.origin !== undefined &&
             normalizeCredentialUrlOrigin(data.origin) !==
                 normalizeCredentialUrlOrigin(existing.origin);
+        const keepsOAuthClientCredentialsType =
+            existing.type === 'oauth_client_credentials' &&
+            resultingType === 'oauth_client_credentials';
+        const oauthTokenUrlChanged =
+            keepsOAuthClientCredentialsType &&
+            data.oauthTokenUrl !== undefined &&
+            normalizeCredentialUrlHref(data.oauthTokenUrl ?? '') !==
+                normalizeCredentialUrlHref(existing.oauthTokenUrl ?? '');
+        const oauthClientIdChanged =
+            keepsOAuthClientCredentialsType &&
+            data.oauthClientId !== undefined &&
+            data.oauthClientId !== existing.oauthClientId;
 
-        // A stored secret is valid only for its current auth type and origin.
-        // Changing either requires the caller to supply a new one.
+        // A stored secret is valid only for its current auth type and credential
+        // destinations. Changing one requires the caller to supply a new one.
         let hasSecretAfter: boolean;
         if (data.secret === null) {
             hasSecretAfter = false;
@@ -370,7 +394,11 @@ export class ExternalConnectionService extends BaseService {
             hasSecretAfter = true;
         } else {
             hasSecretAfter =
-                !typeChanged && !originChanged && existing.hasSecret;
+                !typeChanged &&
+                !originChanged &&
+                !oauthTokenUrlChanged &&
+                !oauthClientIdChanged &&
+                existing.hasSecret;
         }
 
         // Type-specific fields never carry across auth type changes and are
@@ -395,9 +423,25 @@ export class ExternalConnectionService extends BaseService {
             existing.apiKeyLocation,
         );
         const oauthScopes = resolveTypeField(
-            resultingType === 'google_service_account',
+            resultingType === 'google_service_account' ||
+                resultingType === 'oauth_client_credentials',
             data.oauthScopes,
             existing.oauthScopes,
+        );
+        const oauthTokenUrl = resolveTypeField(
+            resultingType === 'oauth_client_credentials',
+            data.oauthTokenUrl,
+            existing.oauthTokenUrl,
+        );
+        const oauthClientId = resolveTypeField(
+            resultingType === 'oauth_client_credentials',
+            data.oauthClientId,
+            existing.oauthClientId,
+        );
+        const oauthClientAuthMethod = resolveTypeField(
+            resultingType === 'oauth_client_credentials',
+            data.oauthClientAuthMethod,
+            existing.oauthClientAuthMethod,
         );
 
         const resolved: ExternalConnection = {
@@ -430,6 +474,9 @@ export class ExternalConnectionService extends BaseService {
             apiKeyName,
             apiKeyLocation,
             oauthScopes,
+            oauthTokenUrl,
+            oauthClientId,
+            oauthClientAuthMethod,
             customHeaders:
                 data.customHeaders !== undefined
                     ? data.customHeaders
@@ -472,6 +519,9 @@ export class ExternalConnectionService extends BaseService {
                 apiKeyName: resolved.apiKeyName,
                 apiKeyLocation: resolved.apiKeyLocation,
                 oauthScopes: resolved.oauthScopes,
+                oauthTokenUrl: resolved.oauthTokenUrl,
+                oauthClientId: resolved.oauthClientId,
+                oauthClientAuthMethod: resolved.oauthClientAuthMethod,
             },
         );
         this.analytics.track({
@@ -815,6 +865,7 @@ export class ExternalConnectionService extends BaseService {
         // Start from the app's query; add api_key-in-query if configured.
         const query: Record<string, string> = { ...(req.query ?? {}) };
         const headers: Record<string, string> = {};
+        let oauthAccessToken: string | null = null;
 
         // Admin-configured static headers (e.g. anthropic-version), applied
         // BEFORE auth and Content-Type so proxy-set headers always win.
@@ -884,6 +935,32 @@ export class ExternalConnectionService extends BaseService {
                 );
             }
             headers.Authorization = `Bearer ${accessToken}`;
+        } else if (connection.type === 'oauth_client_credentials') {
+            if (
+                !secret ||
+                !connection.oauthTokenUrl ||
+                !connection.oauthClientId ||
+                !connection.oauthClientAuthMethod
+            ) {
+                throw new ParameterError(
+                    'Connection is missing its OAuth client credentials configuration',
+                );
+            }
+            try {
+                oauthAccessToken =
+                    await this.oauthClientCredentialsTokenProvider.getAccessToken(
+                        {
+                            tokenUrl: connection.oauthTokenUrl,
+                            clientId: connection.oauthClientId,
+                            clientAuthMethod: connection.oauthClientAuthMethod,
+                            scopes: connection.oauthScopes ?? [],
+                        },
+                        secret,
+                    );
+                headers.Authorization = `Bearer ${oauthAccessToken}`;
+            } catch {
+                throw new ParameterError('Failed to obtain OAuth access token');
+            }
         }
         // type === 'none' → no auth injected.
 
@@ -925,9 +1002,8 @@ export class ExternalConnectionService extends BaseService {
         }
 
         // Delegate to the SSRF-hardened fetch.
-        let fetched;
-        try {
-            fetched = await secureFetch(url, {
+        const fetchResource = () =>
+            secureFetch(url, {
                 method: req.method,
                 body,
                 headers,
@@ -935,6 +1011,42 @@ export class ExternalConnectionService extends BaseService {
                 maxResponseBytes: connection.responseMaxBytes,
                 allowedContentTypes: connection.allowedContentTypes,
             });
+
+        let fetched;
+        try {
+            fetched = await fetchResource();
+
+            // A resource server can revoke a cached token before its advertised
+            // expiry. Refresh and replay once; never loop on persistent 401s.
+            if (
+                fetched.status === 401 &&
+                connection.type === 'oauth_client_credentials' &&
+                secret &&
+                connection.oauthTokenUrl &&
+                connection.oauthClientId &&
+                connection.oauthClientAuthMethod
+            ) {
+                const oauthConfig: OAuthClientCredentialsConfig = {
+                    tokenUrl: connection.oauthTokenUrl,
+                    clientId: connection.oauthClientId,
+                    clientAuthMethod: connection.oauthClientAuthMethod,
+                    scopes: connection.oauthScopes ?? [],
+                };
+                if (oauthAccessToken) {
+                    this.oauthClientCredentialsTokenProvider.invalidateAccessToken(
+                        oauthConfig,
+                        secret,
+                        oauthAccessToken,
+                    );
+                }
+                oauthAccessToken =
+                    await this.oauthClientCredentialsTokenProvider.getAccessToken(
+                        oauthConfig,
+                        secret,
+                    );
+                headers.Authorization = `Bearer ${oauthAccessToken}`;
+                fetched = await fetchResource();
+            }
         } catch (error) {
             // SecureFetchError propagates: the caller decides how much detail
             // to expose (runtime proxy: reason only; admin test tool: message).
@@ -952,12 +1064,17 @@ export class ExternalConnectionService extends BaseService {
             .toLowerCase();
         const isJson =
             mediaType === 'application/json' || mediaType.endsWith('+json');
-        let parsedBody: unknown = fetched.bodyText;
+        // An upstream can echo request headers. Remove the exact minted token
+        // before any response reaches an app, browser, or saved test sample.
+        const safeBodyText = oauthAccessToken
+            ? fetched.bodyText.split(oauthAccessToken).join('[REDACTED]')
+            : fetched.bodyText;
+        let parsedBody: unknown = safeBodyText;
         if (isJson) {
             try {
-                parsedBody = JSON.parse(fetched.bodyText);
+                parsedBody = JSON.parse(safeBodyText);
             } catch {
-                parsedBody = fetched.bodyText; // fall back to raw string
+                parsedBody = safeBodyText; // fall back to raw string
             }
         }
 
@@ -1351,6 +1468,9 @@ export class ExternalConnectionService extends BaseService {
             apiKeyName: data.apiKeyName ?? null,
             apiKeyLocation: data.apiKeyLocation ?? null,
             oauthScopes: data.oauthScopes ?? null,
+            oauthTokenUrl: data.oauthTokenUrl ?? null,
+            oauthClientId: data.oauthClientId ?? null,
+            oauthClientAuthMethod: data.oauthClientAuthMethod ?? null,
             customHeaders: data.customHeaders ?? null,
             hasSecret: Boolean(data.secret),
             createdByUserUuid: null,

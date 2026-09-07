@@ -5360,6 +5360,112 @@ describe('ProjectService', () => {
                 }),
             );
         });
+
+        describe('merge calculation SQL authorization', () => {
+            const withAbility = (
+                rules: ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            ) =>
+                ({
+                    ...sessionAccount,
+                    user: {
+                        ...sessionAccount.user,
+                        ability: new Ability<PossibleAbilities>(rules),
+                    },
+                }) as typeof sessionAccount;
+            const viewer = withAbility([
+                { subject: 'Project', action: 'view' },
+                { subject: 'Explore', action: 'view' },
+                { subject: 'Space', action: 'view' },
+            ]);
+            const author = withAbility([
+                { subject: 'Project', action: 'view' },
+                { subject: 'Explore', action: 'view' },
+                { subject: 'Space', action: 'view' },
+                { subject: 'CustomSqlTableCalculations', action: 'manage' },
+            ]);
+            const subqueryCalculation = {
+                name: 'leak',
+                displayName: 'Leak',
+                sql: '${a.a_met1} + (SELECT count(*) FROM information_schema.tables)',
+            };
+
+            test('refuses a viewer merge calculation with the custom SQL gate error', async () => {
+                await expect(
+                    service.compileMergeQuery({
+                        account: viewer,
+                        projectUuid,
+                        mergeQuery: mergeQuery({
+                            tableCalculations: [subqueryCalculation],
+                        }),
+                    }),
+                ).rejects.toThrow(ForbiddenError);
+            });
+
+            test('compiles the same calculation for an account allowed to author custom SQL', async () => {
+                const result = await service.compileMergeQuery({
+                    account: author,
+                    projectUuid,
+                    mergeQuery: mergeQuery({
+                        tableCalculations: [subqueryCalculation],
+                    }),
+                });
+
+                expect(result.errors).toEqual([]);
+                expect(result.sql).toContain('information_schema.tables');
+            });
+
+            test('a viewer merge without calculations still compiles', async () => {
+                const result = await service.compileMergeQuery({
+                    account: viewer,
+                    projectUuid,
+                    mergeQuery: mergeQuery(),
+                });
+
+                expect(result.errors).toEqual([]);
+                expect(result.sql).not.toBeNull();
+            });
+
+            test('gates only the merge-level calculations; source calculations are gated by their own compile', async () => {
+                const gate = vi.spyOn(
+                    service as unknown as {
+                        assertCustomSqlAuthorizedForQuery: (args: {
+                            metricQuery: {
+                                tableCalculations: { name: string }[];
+                            };
+                        }) => Promise<void>;
+                    },
+                    'assertCustomSqlAuthorizedForQuery',
+                );
+                const sourceCalculation = {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '${a.met1} * 2',
+                };
+
+                await service.compileMergeQuery({
+                    account: author,
+                    projectUuid,
+                    mergeQuery: mergeQuery({
+                        sources: [
+                            source('a', [sourceCalculation]),
+                            source('b'),
+                        ],
+                        tableCalculations: [subqueryCalculation],
+                    }),
+                });
+
+                const gatedCalculations = gate.mock.calls.map(([args]) =>
+                    args.metricQuery.tableCalculations.map((tc) => tc.name),
+                );
+                expect(gatedCalculations).toContainEqual(['leak']);
+                expect(gatedCalculations).toContainEqual(['ratio']);
+                expect(gatedCalculations).not.toContainEqual(['ratio', 'leak']);
+                expect(gatedCalculations).not.toContainEqual(['leak', 'ratio']);
+                gate.mockRestore();
+            });
+        });
     });
 });
 

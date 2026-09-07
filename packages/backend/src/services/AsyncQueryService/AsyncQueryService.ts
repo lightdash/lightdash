@@ -134,7 +134,9 @@ import {
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
     type ExternalSourceTableReference,
+    type Filters,
     type MergeQueryChart,
+    type MergeQueryExecutionMode,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -147,6 +149,7 @@ import {
     type ResultColumns,
     type RunQueryTags,
     type SavedChartDAO,
+    type SavedMergeQuery,
     type SessionUser,
     type SpaceSummaryBase,
     type UserAttributeValueMap,
@@ -192,7 +195,7 @@ import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
-    getJsonlSqlTable,
+    getJsonlReferenceSelect,
     quoteDuckdbIdentifier,
 } from '../../utils/duckdb/duckdbSqlTables';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
@@ -252,6 +255,12 @@ import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
+    applyDashboardFiltersToMergeQuery,
+    applyFilterOverridesToMergeQuery,
+    formatRefusedMergeDashboardFilters,
+    type MergeSourceExplores,
+} from './mergeDashboardFilters';
+import {
     applyMergeExportLimit,
     buildComposeMergeOriginalColumns,
     buildMergeRowCapGuard,
@@ -277,9 +286,11 @@ import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    type BoundDuckdbQueryReferences,
     type CommonAsyncQueryArgs,
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
+    type DuckdbQueryEngine,
     type DuckdbQueryReferences,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
@@ -5697,6 +5708,7 @@ export class AsyncQueryService extends ProjectService {
         pivotResults,
         filterOverrides,
         dashboardFilters,
+        userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
@@ -5818,41 +5830,20 @@ export class AsyncQueryService extends ProjectService {
         };
 
         if (savedChart.merge) {
-            const mergeQuery = buildMergeQueryFromSaved(
-                metricQuery,
-                savedChart.merge,
-            );
-            const combinedParameters = {
-                ...savedChartParameters,
-                ...parameters,
-            };
-            const outcome = await this.executeAsyncMergeQuery({
+            return this.executeAsyncSavedMergeQuery({
                 account,
                 projectUuid,
-                mergeQuery,
+                savedChart,
+                merge: savedChart.merge,
                 context,
                 invalidateCache,
-                parameters: combinedParameters,
-                mode:
-                    limit === undefined
-                        ? { type: 'interactive' }
-                        : { type: 'export', limit },
-                chart: pivotResults
-                    ? {
-                          chartConfig: savedChart.chartConfig,
-                          pivotConfig: savedChart.pivotConfig,
-                      }
-                    : undefined,
+                limit,
+                parameters,
+                pivotResults,
+                filterOverrides,
+                dashboardFilters,
+                userAttributeOverrides,
             });
-            if (outcome.outcome === 'refused') {
-                throw new ParameterError(
-                    `This saved merge cannot be run: ${outcome.errors
-                        .map((error) => error.message)
-                        .join(' ')}`,
-                    { errors: outcome.errors },
-                );
-            }
-            return outcome.query;
         }
 
         const { maxLimit, csvCellsLimit } =
@@ -6199,6 +6190,271 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** Explores of every metric source, so filters can be resolved per side. */
+    private async getMergeSourceExplores({
+        account,
+        projectUuid,
+        organizationUuid,
+        mergeQuery,
+        preloadedExploresByName,
+    }: {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        mergeQuery: MergeQuery;
+        preloadedExploresByName: Record<string, Explore>;
+    }): Promise<MergeSourceExplores> {
+        const entries = await Promise.all(
+            mergeQuery.sources
+                .filter(isMergeMetricSource)
+                .map(
+                    async (source): Promise<[string, Explore]> => [
+                        source.id,
+                        preloadedExploresByName[
+                            source.metricQuery.exploreName
+                        ] ??
+                            (await this.getExplore(
+                                account,
+                                projectUuid,
+                                source.metricQuery.exploreName,
+                                organizationUuid,
+                            )),
+                    ],
+                ),
+        );
+        return Object.fromEntries(entries);
+    }
+
+    private static getSavedMergeExecutionMode(
+        limit: number | null | undefined,
+    ): MergeQueryExecutionMode {
+        return limit === undefined
+            ? { type: 'interactive' }
+            : { type: 'export', limit };
+    }
+
+    private static getSavedMergeChart(
+        savedChart: SavedChartDAO,
+        pivotResults: boolean | undefined,
+    ): MergeQueryChart | undefined {
+        return pivotResults
+            ? {
+                  chartConfig: savedChart.chartConfig,
+                  pivotConfig: savedChart.pivotConfig,
+              }
+            : undefined;
+    }
+
+    private static assertSavedMergeStarted(
+        outcome: ApiExecuteAsyncMergeQueryResults,
+    ): ApiExecuteAsyncMetricQueryResults {
+        if (outcome.outcome === 'refused') {
+            throw new ParameterError(
+                `This saved merge cannot be run: ${outcome.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+                { errors: outcome.errors },
+            );
+        }
+        return outcome.query;
+    }
+
+    /**
+     * A saved chart's merge on its own page or as a chart delivery. Filter
+     * overrides and data-app dashboard filters reach every source that has
+     * the field, so the join stays aligned.
+     */
+    private async executeAsyncSavedMergeQuery({
+        account,
+        projectUuid,
+        savedChart,
+        merge,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        filterOverrides,
+        dashboardFilters,
+        userAttributeOverrides,
+    }: Pick<
+        ExecuteAsyncSavedChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'context'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'pivotResults'
+        | 'filterOverrides'
+        | 'dashboardFilters'
+        | 'userAttributeOverrides'
+    > & {
+        savedChart: SavedChartDAO;
+        merge: SavedMergeQuery;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const baseMergeQuery = buildMergeQueryFromSaved(
+            savedChart.metricQuery,
+            merge,
+        );
+        const exploreBySourceId = await this.getMergeSourceExplores({
+            account,
+            projectUuid,
+            organizationUuid: savedChart.organizationUuid,
+            mergeQuery: baseMergeQuery,
+            preloadedExploresByName: {},
+        });
+        const withOverrides = filterOverrides
+            ? applyFilterOverridesToMergeQuery({
+                  mergeQuery: baseMergeQuery,
+                  filterOverrides,
+                  exploreBySourceId,
+              })
+            : baseMergeQuery;
+        const { mergeQuery, refusedDashboardFilters } = dashboardFilters
+            ? applyDashboardFiltersToMergeQuery({
+                  tileUuid: null,
+                  mergeQuery: withOverrides,
+                  dashboardFilters,
+                  exploreBySourceId,
+              })
+            : { mergeQuery: withOverrides, refusedDashboardFilters: [] };
+        if (refusedDashboardFilters.length > 0) {
+            throw new ParameterError(
+                formatRefusedMergeDashboardFilters(refusedDashboardFilters),
+            );
+        }
+        const outcome = await this.executeAsyncMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            context,
+            invalidateCache,
+            parameters: { ...savedChart.parameters, ...parameters },
+            userAttributeOverrides,
+            mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
+            chart: AsyncQueryService.getSavedMergeChart(
+                savedChart,
+                pivotResults,
+            ),
+        });
+        return AsyncQueryService.assertSavedMergeStarted(outcome);
+    }
+
+    /**
+     * A merged chart on a dashboard tile: the tile's dashboard filters are
+     * pushed into each source before the join. Dashboard sorts and date zoom
+     * have no merge-level input yet, so they are left unapplied rather than
+     * applied to one side only.
+     */
+    private async executeAsyncDashboardMergeQuery({
+        account,
+        projectUuid,
+        savedChart,
+        merge,
+        primaryExplore,
+        tileUuid,
+        dashboardUuid,
+        dashboardFilters,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        userAttributeOverrides,
+    }: Pick<
+        ExecuteAsyncDashboardChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'tileUuid'
+        | 'dashboardUuid'
+        | 'dashboardFilters'
+        | 'context'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'pivotResults'
+        | 'userAttributeOverrides'
+    > & {
+        savedChart: SavedChartDAO;
+        merge: SavedMergeQuery;
+        primaryExplore: Explore;
+    }): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
+        const baseMergeQuery = buildMergeQueryFromSaved(
+            savedChart.metricQuery,
+            merge,
+        );
+        const exploreBySourceId = await this.getMergeSourceExplores({
+            account,
+            projectUuid,
+            organizationUuid: savedChart.organizationUuid,
+            mergeQuery: baseMergeQuery,
+            preloadedExploresByName: { [primaryExplore.name]: primaryExplore },
+        });
+        const {
+            mergeQuery,
+            appliedDashboardFilters,
+            appliedDashboardFiltersBySourceId,
+            refusedDashboardFilters,
+        } = applyDashboardFiltersToMergeQuery({
+            tileUuid,
+            mergeQuery: baseMergeQuery,
+            dashboardFilters,
+            exploreBySourceId,
+        });
+        if (refusedDashboardFilters.length > 0) {
+            throw new ParameterError(
+                formatRefusedMergeDashboardFilters(refusedDashboardFilters),
+            );
+        }
+        const rawDashboardParameters =
+            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            );
+        const outcome = await this.executeAsyncMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            context,
+            invalidateCache,
+            parameters: {
+                ...savedChart.parameters,
+                ...convertDashboardParametersToValuesMap(
+                    rawDashboardParameters,
+                ),
+                ...parameters,
+            },
+            userAttributeOverrides,
+            mode: AsyncQueryService.getSavedMergeExecutionMode(limit),
+            chart: AsyncQueryService.getSavedMergeChart(
+                savedChart,
+                pivotResults,
+            ),
+        });
+        const {
+            queryUuid,
+            cacheMetadata,
+            metricQuery,
+            fields,
+            parameterReferences,
+            usedParametersValues,
+            resolvedTimezone,
+        } = AsyncQueryService.assertSavedMergeStarted(outcome);
+        return {
+            queryUuid,
+            cacheMetadata,
+            metricQuery,
+            fields,
+            parameterReferences,
+            usedParametersValues,
+            resolvedTimezone,
+            appliedDashboardFilters,
+            appliedDashboardFiltersBySourceId,
+            dateZoomApplied: false,
+        };
+    }
+
     async executeAsyncDashboardChartQuery({
         account,
         projectUuid,
@@ -6217,6 +6473,7 @@ export class AsyncQueryService extends ProjectService {
         sessionTimezone,
         preloadedSavedChart,
         preloadedProjectParameters,
+        userAttributeOverrides,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -6288,6 +6545,25 @@ export class AsyncQueryService extends ProjectService {
                     error: e,
                 }),
             );
+
+        if (savedChart.merge) {
+            return this.executeAsyncDashboardMergeQuery({
+                account,
+                projectUuid,
+                savedChart,
+                merge: savedChart.merge,
+                primaryExplore: explore,
+                tileUuid,
+                dashboardUuid: resolvedDashboardUuid,
+                dashboardFilters,
+                context,
+                invalidateCache,
+                limit,
+                parameters,
+                pivotResults,
+                userAttributeOverrides,
+            });
+        }
 
         const { metricQuery: metricQueryWithFilters, appliedDashboardFilters } =
             applyDashboardFiltersForTile({
@@ -7051,12 +7327,13 @@ export class AsyncQueryService extends ProjectService {
     /**
      * Builds one CTE per completed reference so the user SQL can select from
      * semantically-named tables: {"orders": "<queryUuid>"} exposes that
-     * query's results as `orders`.
+     * query's results as `orders`. Also returns the result file each CTE
+     * reads, which is the whole of what a scoped session may reach.
      */
     private buildQueryReferenceCtes(
         queryHistoryByTableName: Record<string, QueryHistory>,
-    ): string[] {
-        return Object.entries(queryHistoryByTableName).map(
+    ): BoundDuckdbQueryReferences {
+        const bound = Object.entries(queryHistoryByTableName).map(
             ([tableName, queryHistory]) => {
                 if (
                     queryHistory.resultsExpiresAt &&
@@ -7082,16 +7359,22 @@ export class AsyncQueryService extends ProjectService {
                 const key = S3ResultsFileStorageClient.sanitizeFileExtension(
                     queryHistory.resultsFileName,
                 );
-                const table = getJsonlSqlTable(
-                    `s3://${bucket}/${key}`,
+                const resultFileUri = `s3://${bucket}/${key}`;
+                const select = getJsonlReferenceSelect(
+                    resultFileUri,
                     queryHistory.columns,
                 );
 
-                return `${quoteDuckdbIdentifier(
-                    tableName,
-                )} AS (SELECT * FROM ${table})`;
+                return {
+                    referenceCte: `${quoteDuckdbIdentifier(tableName)} AS (${select})`,
+                    resultFileUri,
+                };
             },
         );
+        return {
+            referenceCtes: bound.map(({ referenceCte }) => referenceCte),
+            resultFileUris: bound.map(({ resultFileUri }) => resultFileUri),
+        };
     }
 
     /**
@@ -7182,6 +7465,7 @@ export class AsyncQueryService extends ProjectService {
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'results',
+                scope: null,
             });
 
         const combinedParameters = await this.combineParameters(
@@ -7280,7 +7564,7 @@ export class AsyncQueryService extends ProjectService {
                 parameters: combinedParameters,
             },
             storedCompiledSql: null,
-            warehouseClient,
+            engine: { kind: 'client', warehouseClient },
             queryTags,
             queryCreatedAt,
             cacheKey,
@@ -7518,7 +7802,7 @@ export class AsyncQueryService extends ProjectService {
             },
             // Only persist the user SQL; resolved SQL contains private URIs.
             storedCompiledSql: sql,
-            warehouseClient,
+            engine: { kind: 'client', warehouseClient },
             queryTags,
             queryCreatedAt,
             cacheKey,
@@ -7586,21 +7870,25 @@ export class AsyncQueryService extends ProjectService {
         references,
         columns,
         storedCompiledSql,
-        warehouseClient,
+        engine,
         queryTags,
         queryCreatedAt,
         cacheKey,
         context,
     }: RunDuckdbQueryArgs): Promise<void> {
         try {
-            const referenceCtes = await this.bindDuckdbQueryReferences({
+            const bound = await this.bindDuckdbQueryReferences({
                 account,
                 projectUuid,
                 references,
             });
+            const warehouseClient = this.resolveDuckdbQueryEngine(
+                engine,
+                bound,
+            );
             const resolvedSql = AsyncQueryService.wrapSqlWithReferenceCtes(
                 sql,
-                referenceCtes,
+                bound.referenceCtes,
             );
             const execution = await this.resolveDuckdbQueryColumns({
                 resolvedSql,
@@ -7668,6 +7956,28 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * The session a DuckDB query runs on. A scoped session is built only
+     * once the references are bound, because the result files it may reach
+     * are not known before the referenced queries complete.
+     */
+    private resolveDuckdbQueryEngine(
+        engine: DuckdbQueryEngine,
+        bound: BoundDuckdbQueryReferences,
+    ): WarehouseClient {
+        switch (engine.kind) {
+            case 'client':
+                return engine.warehouseClient;
+            case 'scopedToReferencedResults':
+                return this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'results',
+                    scope: bound.resultFileUris,
+                });
+            default:
+                return assertUnreachable(engine, 'Unknown DuckDB query engine');
+        }
+    }
+
+    /**
      * Resolves a query's references to the CTEs that expose them. Referenced
      * queries are waited on, then the guard runs before anything is built,
      * so a refusal never costs an execution.
@@ -7680,10 +7990,13 @@ export class AsyncQueryService extends ProjectService {
         account: Account;
         projectUuid: string;
         references: DuckdbQueryReferences;
-    }): Promise<string[]> {
+    }): Promise<BoundDuckdbQueryReferences> {
         switch (references.kind) {
             case 'bound':
-                return references.referenceCtes;
+                return {
+                    referenceCtes: references.referenceCtes,
+                    resultFileUris: [],
+                };
             case 'queries': {
                 const completed = await this.waitForQueryReferences({
                     account,
@@ -8257,10 +8570,12 @@ export class AsyncQueryService extends ProjectService {
         if (!enabled) return null;
 
         // Throws MissingConfigError when results storage is not configured:
-        // a merge without an engine is refused, never silently downgraded
+        // a merge without an engine is refused, never silently downgraded.
+        // Dialect only: execution runs on a session scoped to the leg files
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'results',
+                scope: null,
             });
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -8489,7 +8804,9 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                     },
                     storedCompiledSql: null,
-                    warehouseClient,
+                    // A merge calculation is user SQL: it runs on a session
+                    // that reaches only the leg files it joins
+                    engine: { kind: 'scopedToReferencedResults' },
                     queryTags,
                     queryCreatedAt,
                     cacheKey,

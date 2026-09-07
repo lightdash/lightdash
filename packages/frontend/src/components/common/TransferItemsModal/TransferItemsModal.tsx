@@ -147,7 +147,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
 
     return (
         <MantineModal
-            title={title ?? `Move ${getItemsText(items).type}`}
+            title={
+                title ?? `Move ${getItemsText(items).type.replace(/_/g, ' ')}`
+            }
             opened={opened}
             onClose={onClose}
             icon={IconFolderShare}

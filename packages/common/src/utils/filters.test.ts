@@ -129,6 +129,24 @@ describe('getFilterExpression', () => {
             items: [includedRule],
         });
     });
+
+    test('treats a persisted group without an items array as empty', () => {
+        // Stored chart JSON can carry a group with no `and`/`or` array
+        const persistedGroup = (json: string): FilterGroup => JSON.parse(json);
+        const metricRule = rule('metric');
+        const filters: Filters = {
+            dimensions: persistedGroup('{"id":"dimensions"}'),
+            metrics: {
+                id: 'metrics',
+                and: [metricRule, persistedGroup('{"id":"nested","or":null}')],
+            },
+        };
+
+        expect(getFilterExpression(filters)).toEqual({
+            operator: FilterGroupOperator.and,
+            items: [metricRule],
+        });
+    });
 });
 
 describe('addDashboardFiltersToMetricQuery', () => {

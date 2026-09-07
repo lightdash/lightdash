@@ -155,7 +155,7 @@ export const AiPromptEditor: FC<Props> = ({
 
     // Clear editor when shouldClear changes to true
     useEffect(() => {
-        if (shouldClear && editor) {
+        if (shouldClear && editor && !editor.isDestroyed) {
             editor.commands.clearContent();
             onCleared?.();
         }
@@ -163,7 +163,7 @@ export const AiPromptEditor: FC<Props> = ({
 
     // Update suggestions when fields change
     useEffect(() => {
-        if (editor && fieldSuggestions.length > 0) {
+        if (editor && !editor.isDestroyed && fieldSuggestions.length > 0) {
             // Update the mention extension's suggestion config
             editor.extensionManager.extensions.forEach((ext) => {
                 if (ext.name === 'mention') {

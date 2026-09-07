@@ -8,6 +8,7 @@ import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
+import { TokenRotationExamplePage } from './TokenRotationExamplePage';
 
 export type ExampleDefinition = {
     component: ComponentType<{ embedConfig: EmbedConfigState }>;
@@ -94,6 +95,16 @@ export const examples: ExampleDefinition[] = [
             'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
         sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
         component: ThemeExamplePage,
+    },
+    {
+        slug: 'token-rotation',
+        path: '/examples/token-rotation',
+        title: 'Token rotation demo',
+        description:
+            'Swap the token prop at runtime and watch which token each SDK request carries, without remounting.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/TokenRotationExamplePage.tsx',
+        component: TokenRotationExamplePage,
     },
     // Future examples:
     // {

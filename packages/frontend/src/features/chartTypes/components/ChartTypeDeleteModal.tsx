@@ -32,9 +32,11 @@ const ChartTypeDeleteModal: FC<Props> = ({
     // app delete either way.
     const isOfficial = isOfficialChartType(dataAppViz);
 
+    // Saved charts built on the chart type are never deleted with it — they
+    // keep existing and show an error until the chart type is restored.
     const description = softDeleteEnabled
-        ? `This chart type will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
-        : 'This chart type and all of its versions will be permanently deleted, including any built artifacts in storage.';
+        ? `Saved charts built on this chart type are kept, but they'll show an error until it is restored. The chart type moves to Recently deleted and is permanently removed after ${retentionDays} days.`
+        : "Saved charts built on this chart type are kept, but they'll show an error. The chart type and all of its versions will be permanently deleted, including any built artifacts in storage.";
 
     return (
         <MantineModal

@@ -343,6 +343,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
+    pinnedAt: string | null;
     firstMessage: {
         uuid: string;
         message: string;
@@ -899,6 +900,12 @@ export type ApiAiAgentThreadGenerateTitleResponse = {
     results: {
         title: string;
     };
+};
+
+export const AI_AGENT_THREAD_TITLE_MAX_LENGTH = 200;
+
+export type ApiAiAgentThreadUpdateRequest = {
+    title: string;
 };
 
 export type ApiAiAgentThreadMessageViz = {

@@ -33,6 +33,10 @@ const normalizeUrl = (value: string): URL | undefined => {
 export const normalizeCredentialUrlOrigin = (value: string): string =>
     normalizeUrl(value)?.origin.toLowerCase() ?? value.trim().toLowerCase();
 
+/** Normalize a complete credential destination, including its path and query. */
+export const normalizeCredentialUrlHref = (value: string): string =>
+    normalizeUrl(value)?.href ?? value.trim();
+
 const normalizeCredentialBaseUrl = (value: string | undefined): string => {
     if (!value?.trim()) {
         return '';

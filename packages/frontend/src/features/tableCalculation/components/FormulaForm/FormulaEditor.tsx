@@ -349,7 +349,8 @@ export const FormulaEditor: FC<Props> = ({
     }, [editor, editorRef]);
 
     useEffect(() => {
-        if (!editor || initialContent === undefined) return;
+        if (!editor || editor.isDestroyed || initialContent === undefined)
+            return;
         if (editor.getText() === initialContent) return;
         editor.commands.setContent(
             buildInitialContent(initialContent, fieldSuggestions),
@@ -358,7 +359,7 @@ export const FormulaEditor: FC<Props> = ({
     }, [editor, initialContent, fieldSuggestions]);
 
     useEffect(() => {
-        if (editor && fieldSuggestions.length > 0) {
+        if (editor && !editor.isDestroyed && fieldSuggestions.length > 0) {
             editor.extensionManager.extensions.forEach((ext) => {
                 if (ext.name === 'mention') {
                     ext.options.suggestion =

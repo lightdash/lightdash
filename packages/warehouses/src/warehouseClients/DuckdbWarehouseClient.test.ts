@@ -98,7 +98,7 @@ const getMockStreamResult = (
     return {
         columnCount: columnNames.length,
         columnNames: () => columnNames,
-        columnTypeId: (i: number) => columnTypeIds[i] ?? 0,
+        columnType: (i: number) => ({ typeId: columnTypeIds[i] ?? 0 }),
         // eslint-disable-next-line object-shorthand, func-names, no-restricted-syntax
         yieldRowObjectJson: async function* () {
             // eslint-disable-next-line no-restricted-syntax
@@ -255,7 +255,10 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.rows).toEqual(rows);
         expect(result.fields).toEqual({
             customer_name: { type: DimensionType.STRING },
-            order_count: { type: DimensionType.NUMBER },
+            order_count: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
             last_order_at: { type: DimensionType.TIMESTAMP },
         });
     });
@@ -281,12 +284,14 @@ describe('DuckdbWarehouseClient', () => {
         );
 
         expect(streamCallback).toHaveBeenCalledTimes(2);
-        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, {
-            id: { type: DimensionType.NUMBER },
-        });
-        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, {
-            id: { type: DimensionType.NUMBER },
-        });
+        const idField = {
+            id: {
+                type: DimensionType.NUMBER,
+                numericKind: { kind: 'integer' },
+            },
+        };
+        expect(streamCallback).toHaveBeenNthCalledWith(1, chunk1, idField);
+        expect(streamCallback).toHaveBeenNthCalledWith(2, chunk2, idField);
         expect(result.totalRows).toBe(3);
     });
 
@@ -572,7 +577,7 @@ describe('DuckdbWarehouseClient', () => {
                 return {
                     columnCount: 1,
                     columnNames: () => ['val'],
-                    columnTypeId: () => DUCKDB_TYPE_IDS.INTEGER,
+                    columnType: () => ({ typeId: DUCKDB_TYPE_IDS.INTEGER }),
                     yieldRowObjectJson: () => iterator,
                 };
             });
@@ -905,8 +910,10 @@ describe('DuckdbWarehouseClient', () => {
                 runMock,
             ),
         );
-        const scope =
-            's3://bucket/external-sources/project/source/table/v1.parquet';
+        const scope = [
+            's3://bucket/external-sources/project/source/table/v1.parquet',
+            's3://bucket/external-sources/project/source/table/v2.parquet',
+        ];
         const client = DuckdbWarehouseClient.createForPreAggregate({
             type: 'duckdb_s3',
             s3Config: {
@@ -924,7 +931,7 @@ describe('DuckdbWarehouseClient', () => {
             .find((sql) =>
                 sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
             );
-        expect(secretSql).toContain(`SCOPE '${scope}'`);
+        expect(secretSql).toContain(`SCOPE ('${scope[0]}', '${scope[1]}')`);
     });
 
     it('caps isolated S3 queries per organization', async () => {
@@ -950,7 +957,7 @@ describe('DuckdbWarehouseClient', () => {
                         endpoint: 's3.amazonaws.com',
                         forcePathStyle: false,
                         useSsl: true,
-                        scope: 's3://bucket/external-sources/object.parquet',
+                        scope: ['s3://bucket/external-sources/object.parquet'],
                     },
                 },
                 {

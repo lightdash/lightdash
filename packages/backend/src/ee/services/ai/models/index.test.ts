@@ -177,8 +177,11 @@ describe('getModel', () => {
         expect(wrapLanguageModel).not.toHaveBeenCalled();
     });
 
-    it('stamps lightdash-managed when the resolved provider is not BYO', () => {
-        const { keyManagement } = getModel(copilotConfigWithStreaming(true));
+    it('stamps lightdash-managed when the resolved provider is declared Lightdash-managed and not BYO', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
+        });
         expect(keyManagement).toBe('lightdash-managed');
     });
 
@@ -193,6 +196,7 @@ describe('getModel', () => {
     it('stamps lightdash-managed when a different provider is BYO', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
             byoProviders: ['anthropic'],
         });
         expect(keyManagement).toBe('lightdash-managed');
@@ -357,20 +361,37 @@ describe('getModel', () => {
         expect(model.modelId).toBe('jp.anthropic.claude-opus-5');
     });
 
-    it('stamps self-managed when the resolved provider is instance self-managed', () => {
+    it('stamps lightdash-managed only when Lightdash infrastructure declared the provider', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
-            selfManagedProviders: ['openai'],
+            lightdashManagedProviders: ['openai'],
+        });
+        expect(keyManagement).toBe('lightdash-managed');
+    });
+
+    it('stamps self-managed when the resolved provider is not declared as Lightdash-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['anthropic'],
         });
         expect(keyManagement).toBe('self-managed');
     });
 
-    it('stamps lightdash-managed when a different provider is instance self-managed', () => {
+    it('stamps self-managed by default (self-hosted, or a dedicated instance on a customer key)', () => {
         const { keyManagement } = getModel({
             ...copilotConfigWithStreaming(true),
-            selfManagedProviders: ['anthropic'],
+            lightdashManagedProviders: [],
         });
-        expect(keyManagement).toBe('lightdash-managed');
+        expect(keyManagement).toBe('self-managed');
+    });
+
+    it('stamps self-managed for an org UI key even when the instance key is Lightdash-managed', () => {
+        const { keyManagement } = getModel({
+            ...copilotConfigWithStreaming(true),
+            lightdashManagedProviders: ['openai'],
+            byoProviders: ['openai'],
+        });
+        expect(keyManagement).toBe('self-managed');
     });
 
     it('wraps the model with simulateStreamingMiddleware when the provider does not support streaming', () => {

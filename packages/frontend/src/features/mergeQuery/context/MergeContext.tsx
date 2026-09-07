@@ -61,6 +61,12 @@ export const MergeProvider: FC<
             parseMergeState(searchParams.get(MERGE_URL_PARAM)) ??
             (savedMerge ? restoreSavedMerge(savedMerge) : null),
     );
+    // A restored merge the rules refuse never runs, so nothing may wait on it.
+    const [restoredRunRefused, setRestoredRunRefused] = useState(false);
+    const refuseRestoredRun = useCallback(
+        () => setRestoredRunRefused(true),
+        [],
+    );
 
     const [focus, setFocus] = useState<MergeFocus>(
         restored?.focus ?? {
@@ -492,7 +498,8 @@ export const MergeProvider: FC<
         () => ({
             isMerging,
             readOnly,
-            wasRestored: restored !== null,
+            wasRestored: restored !== null && !restoredRunRefused,
+            refuseRestoredRun,
             run,
             getDownloadQueryUuid,
             isRunning: runState.isRunning,
@@ -521,6 +528,8 @@ export const MergeProvider: FC<
             isMerging,
             readOnly,
             restored,
+            restoredRunRefused,
+            refuseRestoredRun,
             run,
             getDownloadQueryUuid,
             runState.isRunning,

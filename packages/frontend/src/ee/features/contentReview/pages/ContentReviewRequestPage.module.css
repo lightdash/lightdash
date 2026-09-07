@@ -1,19 +1,28 @@
-.spaceChip {
-    min-width: 0;
-    padding: 4px var(--mantine-spacing-sm);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-body);
+.page {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
 }
 
 .list {
     margin: 0 calc(var(--mantine-spacing-sm) * -1);
 }
 
-.note {
-    white-space: pre-wrap;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border-left: 3px solid var(--mantine-color-default-border);
-    background-color: var(--mantine-color-ldGray-0);
-    border-radius: 0 var(--mantine-radius-md) var(--mantine-radius-md) 0;
+.backLink {
+    align-self: flex-start;
+}
+
+.footer {
+    padding-top: var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.inlineToggle {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+}
+
+.inlineToggle:hover {
+    text-decoration: underline;
 }

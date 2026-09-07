@@ -45,6 +45,8 @@ import {
     DashboardTileTarget,
     DashboardTileTypes,
     DimensionType,
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     Explore,
     ExploreType,
     ForbiddenError,
@@ -89,10 +91,13 @@ import {
     UpdatedByUser,
     validateEmail,
     VirtualViewAsCode,
+    type ContentAsCodeDirectAccess,
     type ContentAsCodeProjectSettings,
     type ContentAsCodeSettingsStamp,
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
+    type DirectAccessAssignment,
+    type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
@@ -101,7 +106,7 @@ import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { getAccountApiAccessContext } from '../../auth/account';
+import { fromSession, getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
@@ -126,6 +131,7 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
+import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -199,6 +205,7 @@ type CoderServiceArguments = {
     groupsModel: GroupsModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     userModel: UserModel;
+    directAccessService: DirectAccessService;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -271,6 +278,8 @@ export class CoderService extends BaseService {
         return getChartContentAsCodePermissionChecks(nextChart, currentChart);
     }
 
+    directAccessService: DirectAccessService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -294,6 +303,7 @@ export class CoderService extends BaseService {
         groupsModel,
         organizationMemberProfileModel,
         userModel,
+        directAccessService,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -317,6 +327,7 @@ export class CoderService extends BaseService {
         this.contentVerificationModel = contentVerificationModel;
         this.projectService = projectService;
         this.groupsModel = groupsModel;
+        this.directAccessService = directAccessService;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.virtualViewCoder = new VirtualViewCoder({
@@ -975,10 +986,23 @@ export class CoderService extends BaseService {
         }
     }
 
-    private async validateSpaceAccessPrincipals(
+    /**
+     * Resolve portable as-code principals (organization email / group name) to
+     * concrete uuids, rejecting anything that is missing or ambiguous. Shared
+     * by space access blocks and resource direct-access blocks — the identity
+     * rules are the same, only the error prefix differs.
+     */
+    private async resolveAsCodeAccessPrincipals(
         organizationUuid: string,
-        access: NonNullable<SpaceAsCode['access']>,
-    ): Promise<void> {
+        access: {
+            users: { email: string; role: SpaceMemberRole }[];
+            groups: { name: string; role: SpaceMemberRole }[];
+        },
+        errorPrefix: string = '',
+    ): Promise<{
+        users: { userUuid: string; role: SpaceMemberRole }[];
+        groups: { groupUuid: string; role: SpaceMemberRole }[];
+    }> {
         const members =
             await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
                 organizationUuid,
@@ -992,43 +1016,41 @@ export class CoderService extends BaseService {
             },
             new Map(),
         );
-        access.users.forEach(({ email }) => {
-            const matches = membersByEmail.get(email) ?? [];
+        const resolvedUsers = access.users.map(({ email, role }) => {
+            const matches = membersByEmail.get(email.toLowerCase()) ?? [];
             if (matches.length === 0) {
                 throw new ParameterError(
-                    `User ${email} is not a member of this organization`,
+                    `${errorPrefix}User ${email} is not a member of this organization`,
                 );
             }
             if (matches.length > 1) {
                 throw new ParameterError(
-                    `User email ${email} is ambiguous in this organization`,
+                    `${errorPrefix}User email ${email} is ambiguous in this organization`,
                 );
             }
+            return { userUuid: matches[0].userUuid, role };
         });
 
-        const groupMatches = await Promise.all(
-            access.groups.map(async ({ name }) => ({
-                name,
-                matches: (
-                    await this.groupsModel.find({
-                        organizationUuid,
-                        name,
-                    })
-                ).data,
-            })),
+        const resolvedGroups = await Promise.all(
+            access.groups.map(async ({ name, role }) => {
+                const matches = (
+                    await this.groupsModel.find({ organizationUuid, name })
+                ).data;
+                if (matches.length === 0) {
+                    throw new ParameterError(
+                        `${errorPrefix}Group ${name} does not exist in this organization`,
+                    );
+                }
+                if (matches.length > 1) {
+                    throw new ParameterError(
+                        `${errorPrefix}Group name ${name} is ambiguous in this organization`,
+                    );
+                }
+                return { groupUuid: matches[0].uuid, role };
+            }),
         );
-        groupMatches.forEach(({ name, matches }) => {
-            if (matches.length === 0) {
-                throw new ParameterError(
-                    `Group ${name} does not exist in this organization`,
-                );
-            }
-            if (matches.length > 1) {
-                throw new ParameterError(
-                    `Group name ${name} is ambiguous in this organization`,
-                );
-            }
-        });
+
+        return { users: resolvedUsers, groups: resolvedGroups };
     }
 
     private async hasNonPortableDirectSpaceAccess(
@@ -1079,6 +1101,276 @@ export class CoderService extends BaseService {
             }),
         );
         return portableGroups.some((portable) => !portable);
+    }
+
+    /**
+     * Portable access blocks for one resource type, keyed by resource uuid.
+     * Mirrors the space export rules: principals are identified by unique
+     * organization email or unique group name, and a policy containing any
+     * principal without a portable identity is omitted entirely — a file
+     * never half-represents a policy. Resources without direct assignments
+     * get no entry, so their files carry no access block and an upload of
+     * that file leaves the target environment's policy untouched.
+     *
+     * Public because the data-app bundle export (AppGenerateService) shares
+     * it — app manifests carry the same portable access block.
+     */
+    async getPortableDirectAccessByUuid(
+        user: SessionUser,
+        organizationUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuids: string[],
+    ): Promise<Map<string, ContentAsCodeDirectAccess>> {
+        const policies = await this.directAccessService.listPoliciesForExport(
+            { userUuid: user.userUuid, organizationUuid },
+            resourceType,
+            resourceUuids,
+        );
+        const assignmentsByUuid = Object.entries(policies);
+        if (assignmentsByUuid.length === 0) {
+            return new Map();
+        }
+
+        const allAssignments = assignmentsByUuid.flatMap(
+            ([, assignments]) => assignments,
+        );
+        const userEmails = [
+            ...new Set(
+                allAssignments.flatMap(({ principal }) =>
+                    principal.type === DirectAccessPrincipalType.USER &&
+                    principal.email !== null
+                        ? [principal.email.toLowerCase()]
+                        : [],
+                ),
+            ),
+        ];
+        const members =
+            await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
+                organizationUuid,
+                userEmails,
+            );
+        const membersByUuid = new Map(
+            members.map((member) => [member.userUuid, member]),
+        );
+        const memberEmailCounts = members.reduce<Map<string, number>>(
+            (counts, member) => {
+                const email = member.email.toLowerCase();
+                counts.set(email, (counts.get(email) ?? 0) + 1);
+                return counts;
+            },
+            new Map(),
+        );
+
+        const uniqueGroups = [
+            ...new Map(
+                allAssignments.flatMap(({ principal }) =>
+                    principal.type === DirectAccessPrincipalType.GROUP
+                        ? [[principal.groupUuid, principal] as const]
+                        : [],
+                ),
+            ).values(),
+        ];
+        const portableGroupUuids = new Set(
+            (
+                await Promise.all(
+                    uniqueGroups.map(async (group) => {
+                        const matches = (
+                            await this.groupsModel.find({
+                                organizationUuid,
+                                name: group.name,
+                            })
+                        ).data;
+                        return matches.length === 1 &&
+                            matches[0].uuid === group.groupUuid
+                            ? group.groupUuid
+                            : null;
+                    }),
+                )
+            ).filter((groupUuid): groupUuid is string => groupUuid !== null),
+        );
+
+        const isPortable = (assignment: DirectAccessAssignment): boolean => {
+            const { principal } = assignment;
+            if (principal.type === DirectAccessPrincipalType.USER) {
+                if (principal.email === null) return false;
+                const normalizedEmail = principal.email.toLowerCase();
+                const member = membersByUuid.get(principal.userUuid);
+                return (
+                    member !== undefined &&
+                    member.email.toLowerCase() === normalizedEmail &&
+                    memberEmailCounts.get(normalizedEmail) === 1
+                );
+            }
+            return portableGroupUuids.has(principal.groupUuid);
+        };
+
+        return assignmentsByUuid.reduce<Map<string, ContentAsCodeDirectAccess>>(
+            (map, [resourceUuid, assignments]) => {
+                if (
+                    assignments.length === 0 ||
+                    !assignments.every(isPortable)
+                ) {
+                    return map;
+                }
+                const users = assignments.flatMap(({ principal, role }) =>
+                    principal.type === DirectAccessPrincipalType.USER
+                        ? [{ email: principal.email!.toLowerCase(), role }]
+                        : [],
+                );
+                const groups = assignments.flatMap(({ principal, role }) =>
+                    principal.type === DirectAccessPrincipalType.GROUP
+                        ? [{ name: principal.name, role }]
+                        : [],
+                );
+                map.set(resourceUuid, {
+                    users: users.sort((left, right) =>
+                        left.email.localeCompare(right.email),
+                    ),
+                    groups: groups.sort((left, right) =>
+                        left.name.localeCompare(right.name),
+                    ),
+                });
+                return map;
+            },
+            new Map(),
+        );
+    }
+
+    /**
+     * Preflight for an as-code access block: shape and role validation,
+     * duplicate rejection, and portable-identity resolution to concrete
+     * principal refs — all before any content write, so a bad block fails
+     * the upload with the target environment fully untouched. Returns null
+     * when the block is absent (existing policy preserved on upload).
+     *
+     * Public because the data-app bundle import (AppGenerateService) shares
+     * it.
+     */
+    async prepareDirectAccessReplace({
+        user,
+        organizationUuid,
+        access,
+        contentLabel,
+    }: {
+        user: SessionUser;
+        organizationUuid: string;
+        access: ContentAsCodeDirectAccess | undefined;
+        contentLabel: string;
+    }): Promise<
+        | {
+              principal: DirectAccessPrincipalRef;
+              role: SpaceMemberRole;
+          }[]
+        | null
+    > {
+        if (access === undefined) {
+            return null;
+        }
+        // Fail closed before any write: with sharing disabled the policy
+        // could never be applied, and importing the content first would
+        // leave the upload half-done.
+        await this.directAccessService.assertEnabled(fromSession(user));
+
+        if (!Array.isArray(access.users) || !Array.isArray(access.groups)) {
+            throw new ParameterError(
+                `${contentLabel} access users and groups must be arrays`,
+            );
+        }
+        const validRoles = new Set<string>(Object.values(SpaceMemberRole));
+        access.users.forEach(({ email, role }) => {
+            if (typeof email !== 'string' || email.trim() === '') {
+                throw new ParameterError(
+                    `${contentLabel} access contains a user without an email`,
+                );
+            }
+            if (!validRoles.has(role)) {
+                throw new ParameterError(
+                    `${contentLabel} access user ${email} has an invalid role`,
+                );
+            }
+        });
+        access.groups.forEach(({ name, role }) => {
+            if (typeof name !== 'string' || name.trim() === '') {
+                throw new ParameterError(
+                    `${contentLabel} access contains a group without a name`,
+                );
+            }
+            if (!validRoles.has(role)) {
+                throw new ParameterError(
+                    `${contentLabel} access group ${name} has an invalid role`,
+                );
+            }
+        });
+
+        const normalizedUsers = access.users.map(({ email, role }) => ({
+            email: email.trim().toLowerCase(),
+            role,
+        }));
+        const userEmails = normalizedUsers.map(({ email }) => email);
+        if (new Set(userEmails).size !== userEmails.length) {
+            throw new ParameterError(
+                `${contentLabel} access contains duplicate user emails`,
+            );
+        }
+        const groupNames = access.groups.map(({ name }) => name);
+        if (new Set(groupNames).size !== groupNames.length) {
+            throw new ParameterError(
+                `${contentLabel} access contains duplicate group names`,
+            );
+        }
+
+        const resolved = await this.resolveAsCodeAccessPrincipals(
+            organizationUuid,
+            { users: normalizedUsers, groups: access.groups },
+            `${contentLabel} access: `,
+        );
+
+        return [
+            ...resolved.users.map(({ userUuid, role }) => ({
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: userUuid,
+                },
+                role,
+            })),
+            ...resolved.groups.map(({ groupUuid, role }) => ({
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: groupUuid,
+                },
+                role,
+            })),
+        ];
+    }
+
+    /**
+     * Apply a preflighted access block to a resource that now exists:
+     * authorization, atomic replacement, and audit all run inside
+     * DirectAccessService.replacePolicy. No-op for null (block absent).
+     * An empty array clears the policy.
+     *
+     * Public because the data-app bundle import (AppGenerateService) shares
+     * it.
+     */
+    async applyDirectAccessPolicy(
+        user: SessionUser,
+        projectUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: string,
+        assignments:
+            | { principal: DirectAccessPrincipalRef; role: SpaceMemberRole }[]
+            | null,
+    ): Promise<void> {
+        if (assignments === null) {
+            return;
+        }
+        await this.directAccessService.replacePolicy(
+            fromSession(user),
+            projectUuid,
+            resourceType,
+            resourceUuid,
+            assignments,
+        );
     }
 
     async upsertSpace(
@@ -1279,7 +1571,7 @@ export class CoderService extends BaseService {
                 : [];
 
         if (desiredSpace.access) {
-            await this.validateSpaceAccessPrincipals(
+            await this.resolveAsCodeAccessPrincipals(
                 project.organizationUuid,
                 desiredSpace.access,
             );
@@ -2057,6 +2349,7 @@ export class CoderService extends BaseService {
             dashboardIds,
             offset,
             languageMap,
+            { includeAccess: true },
         );
     }
 
@@ -2097,6 +2390,10 @@ export class CoderService extends BaseService {
         dashboardIds: string[] | undefined,
         offset?: number,
         languageMap?: boolean,
+        // Access blocks are export-only: the AI/MCP read path enforces
+        // per-item view access, which is not enough to see who a resource
+        // is shared with.
+        { includeAccess = false }: { includeAccess?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2183,10 +2480,29 @@ export class CoderService extends BaseService {
             ),
         );
 
+        const dashboardAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.DASHBOARD,
+                  dashboardsWithAccess.map((dashboard) => dashboard.uuid),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
+        const dashboardsWithPolicies = transformedDashboards.map(
+            (dashboard, index) => {
+                const access = dashboardAccessByUuid.get(
+                    dashboardsWithAccess[index].uuid,
+                );
+                return access === undefined
+                    ? dashboard
+                    : { ...dashboard, access };
+            },
+        );
+
         return {
-            dashboards: transformedDashboards,
+            dashboards: dashboardsWithPolicies,
             languageMap: languageMap
-                ? transformedDashboards.map((dashboard) => {
+                ? dashboardsWithPolicies.map((dashboard) => {
                       try {
                           return new DashboardAsCodeInternalization().getLanguageMap(
                               dashboard,
@@ -2367,6 +2683,7 @@ export class CoderService extends BaseService {
             chartIds,
             offset,
             languageMap,
+            { includeAccess: true },
         );
     }
 
@@ -2386,6 +2703,10 @@ export class CoderService extends BaseService {
         chartIds?: string[],
         offset?: number,
         languageMap?: boolean,
+        // Access blocks are export-only: the AI/MCP read path enforces
+        // per-item view access, which is not enough to see who a resource
+        // is shared with.
+        { includeAccess = false }: { includeAccess?: boolean } = {},
     ): Promise<ApiChartAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2491,6 +2812,23 @@ export class CoderService extends BaseService {
             dataAppVizSlugByUuid,
         );
 
+        // Dashboard-owned chart definitions are not grantable, so only
+        // independently saved charts can carry an access block.
+        const chartAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.CHART,
+                  charts.flatMap((chart) =>
+                      chart.dashboardUuid ? [] : [chart.uuid],
+                  ),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
+        const chartsWithPolicies = transformedCharts.map((chart, index) => {
+            const access = chartAccessByUuid.get(charts[index].uuid);
+            return access === undefined ? chart : { ...chart, access };
+        });
+
         const missingIds = CoderService.getMissingIds(
             chartIds,
             charts,
@@ -2498,9 +2836,9 @@ export class CoderService extends BaseService {
         );
 
         return {
-            charts: transformedCharts,
+            charts: chartsWithPolicies,
             languageMap: languageMap
-                ? transformedCharts.map((chart) => {
+                ? chartsWithPolicies.map((chart) => {
                       try {
                           return new ChartAsCodeInternalization().getLanguageMap(
                               chart,
@@ -2698,6 +3036,28 @@ export class CoderService extends BaseService {
             ),
         );
 
+        // getSqlCharts is the export path itself (gated above), so access
+        // blocks always ride along. Dashboard-owned SQL charts never reach
+        // this listing (the space join excludes them) and are not grantable.
+        const sqlChartAccessByUuid = await this.getPortableDirectAccessByUuid(
+            user,
+            project.organizationUuid,
+            DirectAccessResourceType.SQL_CHART,
+            paginatedSqlChartRows.flatMap((row) =>
+                row.space_uuid ? [row.saved_sql_uuid] : [],
+            ),
+        );
+        const sqlChartsWithPolicies = transformedSqlCharts.map(
+            (sqlChart, index) => {
+                const access = sqlChartAccessByUuid.get(
+                    paginatedSqlChartRows[index].saved_sql_uuid,
+                );
+                return access === undefined
+                    ? sqlChart
+                    : { ...sqlChart, access };
+            },
+        );
+
         // Calculate missing IDs
         const foundSlugs = new Set(sqlChartRows.map((c) => c.slug));
         const missingIds = chartIds
@@ -2705,7 +3065,7 @@ export class CoderService extends BaseService {
             : [];
 
         return {
-            sqlCharts: transformedSqlCharts,
+            sqlCharts: sqlChartsWithPolicies,
             missingIds,
             spaces: CoderService.transformSpaces(
                 sqlChartSpaces.filter((s) =>
@@ -3381,6 +3741,23 @@ export class CoderService extends BaseService {
             },
         };
 
+        // Access block preflight runs before any write; dashboard-owned
+        // chart definitions are not grantable and reject one outright.
+        if (
+            chartAsCode.access !== undefined &&
+            chartAsCode.dashboardSlug !== undefined
+        ) {
+            throw new ParameterError(
+                `Chart ${slug} is saved in a dashboard and cannot carry an access block`,
+            );
+        }
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: chartAsCode.access,
+            contentLabel: `Chart ${slug}`,
+        });
+
         // Create mode treats the requested slug as a base for a new unique
         // slug instead of updating content that already owns it.
         const existingCharts = shouldUpdateExistingContent
@@ -3560,6 +3937,14 @@ export class CoderService extends BaseService {
                 );
             }
 
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.CHART,
+                newChart.uuid,
+                directAccessAssignments,
+            );
+
             console.info(
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
@@ -3719,6 +4104,14 @@ export class CoderService extends BaseService {
             );
         }
 
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.CHART,
+            chart.uuid,
+            directAccessAssignments,
+        );
+
         console.info(
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
@@ -3831,6 +4224,14 @@ export class CoderService extends BaseService {
             ...sqlChartAsCode,
             updatedAt: sqlChartAsCode.updatedAt ?? new Date(),
         };
+
+        // Access block preflight runs before any write.
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: sqlChartAsCode.access,
+            contentLabel: `SQL chart ${slug}`,
+        });
 
         const sqlChartRows = await this.savedSqlModel.find({
             slugs: [slug],
@@ -3947,6 +4348,13 @@ export class CoderService extends BaseService {
                     : [],
                 dashboards: [],
             };
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.SQL_CHART,
+                savedSqlUuid,
+                directAccessAssignments,
+            );
             return promotionChanges;
         }
 
@@ -3996,6 +4404,13 @@ export class CoderService extends BaseService {
                 : [],
             dashboards: [],
         };
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.SQL_CHART,
+            existingSqlChart.saved_sql_uuid,
+            directAccessAssignments,
+        );
         return promotionChanges;
     }
 
@@ -4503,6 +4918,14 @@ export class CoderService extends BaseService {
             },
         };
 
+        // Access block preflight runs before any write.
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: dashboardAsCode.access,
+            contentLabel: `Dashboard ${slug}`,
+        });
+
         // Create mode treats the requested slug as a base for a new unique
         // slug instead of updating content that already owns it.
         const [dashboardSummary] = shouldUpdateExistingContent
@@ -4621,6 +5044,14 @@ export class CoderService extends BaseService {
                     options.filePath,
                 );
             }
+
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.DASHBOARD,
+                newDashboard.uuid,
+                directAccessAssignments,
+            );
 
             return withTileWarnings(
                 {
@@ -4786,6 +5217,14 @@ export class CoderService extends BaseService {
                 options.filePath,
             );
         }
+
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.DASHBOARD,
+            dashboard.uuid,
+            directAccessAssignments,
+        );
 
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,

@@ -46,6 +46,9 @@ const makeDbConnection = (overrides: Record<string, unknown> = {}) => ({
     api_key_name: null,
     api_key_location: null,
     oauth_scopes: null,
+    oauth_token_url: null,
+    oauth_client_id: null,
+    oauth_client_auth_method: null,
     created_by_user_uuid: USER_UUID,
     updated_by_user_uuid: USER_UUID,
     created_at: new Date('2026-01-01T00:00:00Z'),
@@ -322,10 +325,15 @@ describe('ExternalConnectionModel', () => {
     });
 
     describe('copyConnectionsToProject', () => {
-        it('carries the source slug onto the cloned connection', async () => {
+        it('carries portable OAuth config onto the cloned connection', async () => {
             tracker.on.select(ExternalConnectionsTableName).responseOnce([
                 makeDbConnection({
+                    type: 'oauth_client_credentials',
                     allow_data_app_builder_linking: true,
+                    oauth_scopes: ['read:data'],
+                    oauth_token_url: 'https://auth.example.com/oauth/token',
+                    oauth_client_id: 'client-1',
+                    oauth_client_auth_method: 'basic',
                 }),
             ]);
             tracker.on
@@ -351,6 +359,14 @@ describe('ExternalConnectionModel', () => {
             );
             expect(cloneInsert?.bindings).toContain('acme-api');
             expect(cloneInsert?.bindings).toContain(true);
+            expect(cloneInsert?.bindings).toContain(
+                'https://auth.example.com/oauth/token',
+            );
+            expect(cloneInsert?.bindings).toContain('client-1');
+            expect(cloneInsert?.bindings).toContain('basic');
+            expect(cloneInsert?.bindings).toContain(
+                JSON.stringify(['read:data']),
+            );
         });
     });
 
@@ -521,6 +537,28 @@ describe('ExternalConnectionModel', () => {
 
             await model.update(CONNECTION_UUID, USER_UUID, {
                 origin: 'https://attacker.example.com',
+            });
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete[0].sql).toContain(
+                ExternalConnectionSecretsTableName,
+            );
+        });
+
+        it('deletes the stored secret when an OAuth credential destination changes without a replacement', async () => {
+            tracker.on.select(ExternalConnectionsTableName).response([
+                makeDbConnection({
+                    type: 'oauth_client_credentials',
+                    oauth_token_url: 'https://auth.example.com/oauth/token',
+                    oauth_client_id: 'client-1',
+                    oauth_client_auth_method: 'basic',
+                }),
+            ]);
+            tracker.on.update(ExternalConnectionsTableName).response(1);
+            tracker.on.delete(ExternalConnectionSecretsTableName).response(1);
+
+            await model.update(CONNECTION_UUID, USER_UUID, {
+                oauthTokenUrl: 'https://other.example.com/oauth/token',
             });
 
             expect(tracker.history.delete).toHaveLength(1);

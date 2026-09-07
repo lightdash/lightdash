@@ -1,9 +1,13 @@
 import {
+    BinType,
+    CustomDimensionType,
     DbtProjectType,
+    GroupValueMatchType,
     NotFoundError,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromSession } from '../../auth/account';
 import {
     createBranch,
     createPullRequest,
@@ -161,6 +165,99 @@ describe('GitIntegrationService', () => {
         });
     });
 
+    describe('previewCustomDimensions', () => {
+        it('rejects invalid YAML quote characters before reading project files', async () => {
+            await expect(
+                service.previewCustomDimensions(
+                    fromSession(
+                        { ...user, organizationUuid: 'organizationUuid' },
+                        'session-cookie',
+                    ),
+                    'projectUuid',
+                    [CUSTOM_DIMENSION],
+                    ';',
+                ),
+            ).rejects.toThrow(
+                'YAML quote character must be either a single or double quote',
+            );
+            expect(getFileContent).not.toHaveBeenCalled();
+        });
+
+        it('uses the model SQL and project warehouse dialect without placeholders', async () => {
+            vi.mocked(getFileContent).mockResolvedValueOnce({
+                content: `version: 2
+models:
+  - name: table_a
+    columns:
+      - name: dim_a
+        meta:
+          dimension:
+            sql: \${TABLE}.dim_a * 2`,
+                sha: 'sha',
+            });
+
+            const result = await service.previewCustomDimensions(
+                fromSession(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'session-cookie',
+                ),
+                'projectUuid',
+                [
+                    {
+                        id: 'amount_range',
+                        name: 'Amount range',
+                        table: 'table_a',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table_a_dim_a',
+                        binType: BinType.FIXED_WIDTH,
+                        binWidth: 10,
+                    },
+                    {
+                        id: 'custom_range',
+                        name: 'Custom range',
+                        table: 'table_a',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table_a_dim_a',
+                        binType: BinType.CUSTOM_RANGE,
+                        customRange: [
+                            { from: undefined, to: 10 },
+                            { from: 10, to: undefined },
+                        ],
+                    },
+                    {
+                        id: 'custom_group',
+                        name: 'Custom group',
+                        table: 'table_a',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table_a_dim_a',
+                        binType: BinType.CUSTOM_GROUP,
+                        customGroups: [
+                            {
+                                name: 'High',
+                                values: [
+                                    {
+                                        matchType: GroupValueMatchType.EXACT,
+                                        value: '20',
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+                '"',
+            );
+
+            expect(result.yaml).toContain('${TABLE}.dim_a * 2');
+            expect(result.yaml).toContain("|| ' - ' ||");
+            expect(result.yaml).toContain('custom_range:');
+            expect(result.yaml).toContain('custom_group:');
+            expect(result.yaml).not.toContain('${reference_column}');
+            expect(getFileContent).toHaveBeenCalledWith(
+                expect.objectContaining({ branch: 'main' }),
+            );
+        });
+    });
+
     describe('createPullRequest', () => {
         const writebackUser = {
             ...user,
@@ -174,6 +271,54 @@ describe('GitIntegrationService', () => {
                 type: DbtProjectType.GITHUB,
             },
         };
+
+        it('refuses fixed-number bins before creating a branch', async () => {
+            await expect(
+                service.createPullRequest(writebackUser, 'projectUuid', "'", {
+                    type: 'customDimensions',
+                    fields: [
+                        {
+                            id: 'amount_range',
+                            name: 'Amount range',
+                            table: 'table_a',
+                            type: CustomDimensionType.BIN,
+                            dimensionId: 'table_a_dim_a',
+                            binType: BinType.FIXED_NUMBER,
+                            binNumber: 5,
+                        },
+                    ],
+                }),
+            ).rejects.toThrow(
+                'Fixed-number bins cannot be written back because they require a dbt model CTE',
+            );
+
+            expect(createBranch).not.toHaveBeenCalled();
+        });
+
+        it('keeps saved-chart bin replacement disabled to preserve ordering', async () => {
+            await service.createPullRequest(writebackUser, 'projectUuid', "'", {
+                type: 'customDimensions',
+                fields: [
+                    {
+                        id: 'amount_range',
+                        name: 'Amount range',
+                        table: 'table_a',
+                        type: CustomDimensionType.BIN,
+                        dimensionId: 'table_a_dim_a',
+                        binType: BinType.FIXED_WIDTH,
+                        binWidth: 10,
+                    },
+                ],
+            });
+
+            expect(createPullRequest).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    body: expect.stringContaining(
+                        'Existing saved charts keep their custom bin dimensions',
+                    ),
+                }),
+            );
+        });
 
         it('refuses write-back for an explore from an additional source without calling Git', async () => {
             PROJECT_DBT_SOURCES_MODEL.getSources.mockResolvedValueOnce([
