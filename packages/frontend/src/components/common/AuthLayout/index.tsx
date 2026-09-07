@@ -5,7 +5,6 @@ import LightdashLogo from '../../LightdashLogo/LightdashLogo';
 import PageSpinner from '../../PageSpinner';
 import { DocumentTitle } from '../DocumentTitle';
 import MantineIcon from '../MantineIcon';
-import Page from '../Page/Page';
 import classes from './AuthLayout.module.css';
 import LightdashMark from './LightdashMark';
 import { useAuthLayoutVariant } from './useAuthLayoutVariant';
@@ -49,26 +48,30 @@ const AuthLayout: FC<PropsWithChildren<Props>> = ({
 
     if (!isNewLayout) {
         return (
-            <Page title={pageTitle} withCenteredContent withNavbar={false}>
-                <Stack w={400} mt="4xl">
-                    <Box mx="auto" my="lg">
-                        <LightdashLogo />
-                    </Box>
-                    {withLegacyCard ? (
-                        <Card id={cardId} p="xl" radius="md">
-                            {legacyTitle && (
-                                <Title order={3} ta="center" mb="md">
-                                    {legacyTitle}
-                                </Title>
-                            )}
-                            {children}
-                        </Card>
-                    ) : (
-                        children
-                    )}
-                    {footer}
-                </Stack>
-            </Page>
+            <>
+                <DocumentTitle title={pageTitle} />
+
+                <Box className={classes.legacyRoot}>
+                    <Stack className={classes.legacyContent}>
+                        <Box mx="auto" my="lg">
+                            <LightdashLogo />
+                        </Box>
+                        {withLegacyCard ? (
+                            <Card id={cardId} p="xl" radius="md">
+                                {legacyTitle && (
+                                    <Title order={3} ta="center" mb="md">
+                                        {legacyTitle}
+                                    </Title>
+                                )}
+                                {children}
+                            </Card>
+                        ) : (
+                            children
+                        )}
+                        {footer}
+                    </Stack>
+                </Box>
+            </>
         );
     }
 
