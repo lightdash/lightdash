@@ -290,6 +290,14 @@ export const TRAINING_PROJECT_EXCLUDED_SCOPES: readonly string[] = [
     'create:Project@preview',
     'create:DataApp@preview',
     'manage:DataApp@preview',
+    // Other people's data: every learner's threads, the usage analytics of
+    // colleagues, and agent knowledge documents. A learner reads and manages
+    // their own threads (`@self`) only.
+    'view:AiAgentThread',
+    'manage:AiAgentThread',
+    'view:AiAgentDocument',
+    'manage:AiAgentDocument',
+    'view:Analytics',
 ];
 
 /**
@@ -304,6 +312,29 @@ export const getTrainingProjectScopes = (): string[] =>
             !isOrganizationOnlyScope(scope) &&
             !TRAINING_PROJECT_EXCLUDED_SCOPES.includes(scope),
     );
+
+/**
+ * What every org member holds on the shared training project itself: a
+ * viewer's project scopes, so the seed can be browsed and the library opened
+ * but nothing written. Writing happens in the learner's own copy, which gets
+ * `getTrainingProjectScopes()`; a shared project anyone could write to would
+ * leak every learner's edits into everyone else's copies.
+ */
+/**
+ * Read-only views of the seeded Enterprise content a plain viewer would not
+ * have, so learners can look at the shared project's data app and agent
+ * before practising on their own copy. Still nothing written.
+ */
+const TRAINING_PROJECT_VIEWER_EXTRA_SCOPES = ['view:DataApp', 'view:AiAgent'];
+
+export const getTrainingProjectViewerScopes = (): string[] => [
+    ...getAllScopesForRole(ProjectMemberRole.VIEWER).filter(
+        (scope) =>
+            !isOrganizationOnlyScope(scope) &&
+            !TRAINING_PROJECT_EXCLUDED_SCOPES.includes(scope),
+    ),
+    ...TRAINING_PROJECT_VIEWER_EXTRA_SCOPES,
+];
 
 /**
  * Gets only the non-enterprise scopes for a role (filters out enterprise-only features)

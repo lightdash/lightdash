@@ -9,6 +9,7 @@ import {
     getAllScopesForRole,
     getNonEnterpriseScopesForRole,
     getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
     isSystemRole,
     TRAINING_PROJECT_EXCLUDED_SCOPES,
 } from './roleToScopeMapping';
@@ -57,6 +58,34 @@ describe('roleToScopeMapping', () => {
             TRAINING_PROJECT_EXCLUDED_SCOPES.forEach((scope) =>
                 expect(known.has(scope)).toBe(true),
             );
+        });
+
+        it("never grants other people's threads, documents or analytics", () => {
+            [
+                'view:AiAgentThread',
+                'manage:AiAgentThread',
+                'view:AiAgentDocument',
+                'manage:AiAgentDocument',
+                'view:Analytics',
+            ].forEach((scope) => expect(trainee).not.toContain(scope));
+            expect(trainee).toContain('view:AiAgentThread@self');
+            expect(trainee).toContain('manage:AiAgentThread@self');
+        });
+
+        it("the shared training project gets a viewer's project scopes only", () => {
+            const shared = getTrainingProjectViewerScopes();
+            shared.forEach((scope) => expect(trainee).toContain(scope));
+            expect(shared).toContain('view:Project');
+            expect(shared).toContain('view:SavedChart');
+            expect(shared).toContain('view:DataApp');
+            expect(shared).toContain('view:AiAgent');
+            [
+                'manage:SavedChart',
+                'manage:SqlRunner',
+                'manage:AiAgent',
+                'create:DashboardComments',
+                'manage:Space',
+            ].forEach((scope) => expect(shared).not.toContain(scope));
         });
 
         it('keeps the controls training depends on', () => {
