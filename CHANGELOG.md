@@ -1,3 +1,10 @@
+# [2.138.0](https://github.com/lightdash/lightdash/compare/2.137.0...2.138.0) (2026-09-07)
+
+
+### Features
+
+* attribute data app uninstall and fork events to registry source ([#28751](https://github.com/lightdash/lightdash/issues/28751)) ([58cba98](https://github.com/lightdash/lightdash/commit/58cba9800f203ef000c56ced3c54b8847983fd8e))
+
 # [2.137.0](https://github.com/lightdash/lightdash/compare/2.136.3...2.137.0) (2026-09-07)
 
 
