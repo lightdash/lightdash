@@ -70,16 +70,17 @@ describe('account', () => {
             'uses %s scopes consistently in authorization and the serialized UI account',
             (actorField) => {
                 const actorBuilder = new AbilityBuilder<MemberAbility>(Ability);
-                actorBuilder.can('view', 'Embed', {
-                    projectUuid: mockEmbed.projectUuid,
-                    permission: {
-                        $in: [
-                            'canExplore',
-                            'canExportCsv',
-                            'parameterInteractivity',
-                        ],
+                actorBuilder.can(
+                    'view',
+                    [
+                        'EmbedExplore',
+                        'EmbedCsvExport',
+                        'EmbedDashboardParameters',
+                    ],
+                    {
+                        projectUuid: mockEmbed.projectUuid,
                     },
-                });
+                );
                 const decodedToken: CreateEmbedJwt = {
                     content: {
                         type: 'dashboard',

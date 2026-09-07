@@ -27,6 +27,23 @@ export const EMBED_PERMISSIONS = [
 
 export type EmbedPermission = (typeof EMBED_PERMISSIONS)[number];
 
+/** Maps legacy JWT options to independent embed-only capability subjects. */
+export const EMBED_PERMISSION_SUBJECTS = {
+    dashboardFiltersInteractivity: 'EmbedDashboardFilters',
+    canAddFilters: 'EmbedDashboardFilterAddition',
+    parameterInteractivity: 'EmbedDashboardParameters',
+    canExportCsv: 'EmbedCsvExport',
+    canExportDashboardCsv: 'EmbedDashboardCsvExport',
+    canExportImages: 'EmbedImageExport',
+    canExportPagePdf: 'EmbedPagePdfExport',
+    canDateZoom: 'EmbedDateZoom',
+    canExplore: 'EmbedExplore',
+    canViewUnderlyingData: 'EmbedUnderlyingData',
+    canViewDataApps: 'EmbedDataApps',
+} as const satisfies Record<EmbedPermission, string>;
+
+type EmbedSubject = (typeof EMBED_PERMISSION_SUBJECTS)[EmbedPermission];
+
 export const VIEWER_EMBED_PERMISSIONS = [
     'dashboardFiltersInteractivity',
     'canAddFilters',
@@ -74,7 +91,7 @@ export type CaslSubjectNames =
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'
-    | 'Embed'
+    | EmbedSubject
     | 'Explore'
     | 'ExternalConnection'
     | 'ExternalSource'

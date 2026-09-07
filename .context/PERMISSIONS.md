@@ -98,7 +98,7 @@ CASL is the underlying authorization library. Lightdash builds CASL abilities fr
 **CaslSubjectNames** (~35 subject types):
 ```
 AiAgent, AiAgentThread, Analytics, ChangeCsvResults, CompileProject,
-ContentAsCode, CustomSql, Dashboard, DashboardComments, Embed, Explore, ExportCsv, GoogleSheets,
+ContentAsCode, CustomSql, Dashboard, DashboardComments, EmbedCsvExport, EmbedExplore, Explore, ExportCsv, GoogleSheets,
 Group, InviteLink, Job, JobStatus, MetricsTree, Organization,
 OrganizationMemberProfile, OrganizationWarehouseCredentials,
 PersonalAccessToken, PinnedItems, Project, SavedChart, ScheduledDeliveries,
@@ -333,17 +333,16 @@ flags remain supported for backward compatibility, but they are planned for
 deprecation. **Prefer adding a CASL scope for every new embedded capability; do
 not add another JWT boolean flag.**
 
-Embed scopes use `view:Embed@<capability>`, for example
-`view:Embed@canExplore`. The modifier is also stored on the CASL subject as the
-`permission` condition:
+Embed scopes use independent capability subjects, for example
+`view:EmbedExplore` and `view:EmbedCsvExport`. They use the standard organization
+or project condition, without capability modifiers or special parser behavior:
 
 ```typescript
 ability.can(
     'view',
-    subject('Embed', {
+    subject('EmbedExplore', {
         organizationUuid,
         projectUuid,
-        permission: 'canExplore',
     }),
 );
 ```
@@ -367,10 +366,9 @@ const isAllowed =
     jwtCapability === true ||
     writeActorAbility.can(
         'view',
-        subject('Embed', {
+        subject(EMBED_PERMISSION_SUBJECTS[capability], {
             organizationUuid,
             projectUuid,
-            permission: capability,
         }),
     );
 ```
@@ -387,9 +385,13 @@ and `allowedFilters` behavior.
 
 #### Implementation checklist for embed capabilities
 
-1. Add the capability to `EmbedPermission` and define its
-   `view:Embed@<capability>` scope in
+1. Define an independent `Embed...` CASL subject and its `view:Embed...` scope in
    `packages/common/src/authorization/scopes.ts` under `ScopeGroup.EMBED`.
+   Use standard organization/project conditions. Do not reuse regular-app
+   subjects or encode capabilities as modifiers: embed grants must not grant
+   regular-app access, and regular-app custom scopes must not implicitly grant
+   embed access. For compatibility with an existing JWT option, add its mapping
+   to `EMBED_PERMISSION_SUBJECTS`; new capabilities should not add JWT booleans.
 2. Give system roles sensible defaults in
    `projectMemberAbility.ts`, `organizationMemberAbility.ts`, and
    `roleToScopeMapping.ts`. Keep those files in

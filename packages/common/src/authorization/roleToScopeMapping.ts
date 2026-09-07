@@ -38,14 +38,14 @@ const BASE_ROLE_SCOPES = {
         'view:OrganizationDesign',
 
         // Embedded analytics controls
-        'view:Embed@dashboardFiltersInteractivity',
-        'view:Embed@canAddFilters',
-        'view:Embed@parameterInteractivity',
-        'view:Embed@canExportCsv',
-        'view:Embed@canExportDashboardCsv',
-        'view:Embed@canExportImages',
-        'view:Embed@canExportPagePdf',
-        'view:Embed@canDateZoom',
+        'view:EmbedDashboardFilters',
+        'view:EmbedDashboardFilterAddition',
+        'view:EmbedDashboardParameters',
+        'view:EmbedCsvExport',
+        'view:EmbedDashboardCsvExport',
+        'view:EmbedImageExport',
+        'view:EmbedPagePdfExport',
+        'view:EmbedDateZoom',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -84,9 +84,9 @@ const BASE_ROLE_SCOPES = {
         'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
 
         // Embedded analytics controls
-        'view:Embed@canExplore',
-        'view:Embed@canViewUnderlyingData',
-        'view:Embed@canViewDataApps',
+        'view:EmbedExplore',
+        'view:EmbedUnderlyingData',
+        'view:EmbedDataApps',
     ],
 
     [ProjectMemberRole.EDITOR]: [

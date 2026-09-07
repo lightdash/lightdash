@@ -1,4 +1,4 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import {
     FilterInteractivityValues,
     type CreateEmbedJwt,
@@ -12,6 +12,7 @@ import { projectMemberAbilities } from './projectMemberAbility';
 import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import {
+    EMBED_PERMISSION_SUBJECTS,
     EMBED_PERMISSIONS,
     type EmbedPermission,
     type MemberAbility,
@@ -37,7 +38,9 @@ const customAbility = (
     buildAbilityFromScopes(
         {
             userUuid: 'actor',
-            scopes: permissions.map((permission) => `view:Embed@${permission}`),
+            scopes: permissions.map(
+                (permission) => `view:${EMBED_PERMISSION_SUBJECTS[permission]}`,
+            ),
             isEnterprise,
             ...(context.organizationUuid
                 ? { organizationUuid: context.organizationUuid }
@@ -64,6 +67,62 @@ const valueFor = (
 };
 
 describe('effective embed permissions', () => {
+    it('builds independent embed subjects using only standard project conditions', () => {
+        const ability = customAbility(EMBED_PERMISSIONS);
+        expect(ability.rules).toHaveLength(EMBED_PERMISSIONS.length);
+        EMBED_PERMISSIONS.forEach((permission) => {
+            expect(ability.rules).toContainEqual({
+                action: 'view',
+                subject: EMBED_PERMISSION_SUBJECTS[permission],
+                conditions: { projectUuid: embed.projectUuid },
+            });
+        });
+    });
+
+    it('does not grant regular-app permissions through embed capability scopes', () => {
+        const ability = customAbility(EMBED_PERMISSIONS);
+        [
+            'Explore',
+            'ExportCsv',
+            'UnderlyingData',
+            'Dashboard',
+            'SavedChart',
+            'DataApp',
+        ].forEach((name) => {
+            const resource = subject(name, {
+                projectUuid: embed.projectUuid,
+                organizationUuid: embed.organization.organizationUuid,
+            });
+            expect(ability.can('view', resource)).toBe(false);
+            expect(ability.can('manage', resource)).toBe(false);
+        });
+    });
+
+    it('does not infer embed capabilities from regular-app custom scopes', () => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        buildAbilityFromScopes(
+            {
+                userUuid: 'actor',
+                projectUuid: embed.projectUuid,
+                scopes: [
+                    'manage:Explore',
+                    'manage:ExportCsv',
+                    'view:UnderlyingData',
+                ],
+                isEnterprise: true,
+            },
+            builder,
+        );
+        const result = getEffectiveEmbedPermissions({
+            embedUser: { content: dashboard, writeActions },
+            embed,
+            embedWriteUserAbility: builder.build(),
+        });
+        EMBED_PERMISSIONS.forEach((permission) =>
+            expect(valueFor(result, permission)).toBeUndefined(),
+        );
+    });
+
     it.each([undefined, false, true])(
         'preserves legacy direct flags set to %s without an actor',
         (flag) => {

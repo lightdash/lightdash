@@ -1,7 +1,6 @@
 import {
     type AbilityAction,
     type CaslSubjectNames,
-    type EmbedPermission,
 } from '../authorization/types';
 import { type ProjectType } from './projects';
 import { type RoleLevel } from './roles';
@@ -57,13 +56,7 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer =
-    | 'self'
-    | 'public'
-    | 'assigned'
-    | 'space'
-    | 'preview'
-    | EmbedPermission;
+export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**

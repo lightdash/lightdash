@@ -6,7 +6,11 @@ import {
 } from '../ee';
 import type { OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
-import type { EmbedPermission, MemberAbility } from './types';
+import {
+    EMBED_PERMISSION_SUBJECTS,
+    type EmbedPermission,
+    type MemberAbility,
+} from './types';
 
 type EmbedPermissionContext = {
     embed: Pick<OssEmbed, 'organization' | 'projectUuid'>;
@@ -25,10 +29,9 @@ export const getEffectiveEmbedPermissions = ({
         !!embedUser.writeActions &&
         embedWriteUserAbility?.can(
             'view',
-            subject('Embed', {
+            subject(EMBED_PERMISSION_SUBJECTS[permission], {
                 organizationUuid: embed.organization.organizationUuid,
                 projectUuid: embed.projectUuid,
-                permission,
             }),
         ) === true;
     const isGranted = (
