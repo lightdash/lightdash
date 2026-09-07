@@ -1,3 +1,10 @@
+## [2.149.2](https://github.com/lightdash/lightdash/compare/2.149.1...2.149.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** truncate a long invited email on the invite page ([#28800](https://github.com/lightdash/lightdash/issues/28800)) ([8db96cb](https://github.com/lightdash/lightdash/commit/8db96cb089d6c729cfcc80924fdb4d513188dc4c))
+
 ## [2.149.1](https://github.com/lightdash/lightdash/compare/2.149.0...2.149.1) (2026-09-07)
 
 
