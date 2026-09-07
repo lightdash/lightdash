@@ -46,9 +46,9 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         analytics,
         cacheIdentity,
     }: DbtGitlabProjectAdapterArgs) {
-        const remoteRepositoryUrl = `https://lightdash:${gitlabPersonalAccessToken}@${
-            hostDomain || DEFAULT_GITLAB_HOST_DOMAIN
-        }/${gitlabRepository}.git`;
+        const remoteRepositoryUrl = `https://lightdash:${encodeURIComponent(
+            gitlabPersonalAccessToken,
+        )}@${hostDomain || DEFAULT_GITLAB_HOST_DOMAIN}/${gitlabRepository}.git`;
         super({
             warehouseClient,
             gitBranch: gitlabBranch,
@@ -64,6 +64,7 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             selector,
             analytics,
             cacheIdentity,
+            credential: { token: gitlabPersonalAccessToken },
         });
     }
 }

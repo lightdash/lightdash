@@ -281,6 +281,8 @@ describe('DbtGitProjectAdapter cache', () => {
         remote: string,
         sourceUuid = 'source',
         gitConfigGlobalPath?: string,
+        credential?: { token: string; installationId?: string },
+        gitBranch = 'main',
     ) =>
         new DbtGitProjectAdapter({
             warehouseClient: warehouseClientMock,
@@ -288,7 +290,7 @@ describe('DbtGitProjectAdapter cache', () => {
                 ? remote
                 : pathToFileURL(remote).href,
             repository: 'test/repository',
-            gitBranch: 'main',
+            gitBranch,
             projectDirectorySubPath: '.',
             warehouseCredentials: {
                 type: WarehouseTypes.POSTGRES,
@@ -308,6 +310,7 @@ describe('DbtGitProjectAdapter cache', () => {
             },
             dbtVersion: SupportedDbtVersions.V1_7,
             gitConfigGlobalPath,
+            credential,
             cacheIdentity: {
                 projectUuid: 'project',
                 sourceUuid,
@@ -667,6 +670,107 @@ describe('DbtGitProjectAdapter cache', () => {
         );
         expect(gitConfig).not.toContain('first');
         expect(gitConfig).not.toContain('second');
+        await second.destroy();
+    });
+
+    it('reuses checkout and dependencies when an installation token and credential store rotate', async () => {
+        const { remote, source } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const authentication = {
+            expected: `Basic ${Buffer.from('user:first').toString('base64')}`,
+            received: [] as string[],
+        };
+        const cleanUrl = await serveRemote(
+            path.dirname(remote),
+            authentication,
+        );
+        const credentialConfig = async (token: string) => {
+            const directory = await fs.mkdtemp(
+                path.join(os.tmpdir(), 'dbt-git-credentials-test-'),
+            );
+            temporaryDirectories.push(directory);
+            const configPath = path.join(directory, 'gitconfig');
+            const credentialsPath = path.join(directory, 'credentials');
+            await fs.writeFile(
+                configPath,
+                `[credential]\nhelper = store --file=${credentialsPath}\n`,
+            );
+            await fs.writeFile(
+                credentialsPath,
+                `https://user:${token}@example.com\n`,
+            );
+            return configPath;
+        };
+        const first = createAdapter(
+            cleanUrl.replace('://', '://user:first@'),
+            'source',
+            await credentialConfig('first'),
+            { token: 'first', installationId: 'installation' },
+        );
+        await first.getDbtManifest();
+        await first.destroy();
+        await commitRemote(source, {
+            'models/value.sql': 'select 2\n',
+        });
+        authentication.expected = `Basic ${Buffer.from('user:second').toString(
+            'base64',
+        )}`;
+        authentication.received = [];
+        const second = createAdapter(
+            cleanUrl.replace('://', '://user:second@'),
+            'source',
+            await credentialConfig('second'),
+            { token: 'second', installationId: 'installation' },
+        );
+        await second.getDbtManifest();
+
+        expect(second.getFetchMetrics()).toMatchObject({
+            cloneMode: 'reused',
+            depsMode: 'reused',
+        });
+        expect(installDeps).toHaveBeenCalledTimes(1);
+        expect(authentication.received).toContain(authentication.expected);
+        await second.destroy();
+    });
+
+    it('invalidates dependencies when a long-lived token rotates', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const authentication = {
+            expected: `Basic ${Buffer.from('user:first').toString('base64')}`,
+            received: [] as string[],
+        };
+        const cleanUrl = await serveRemote(
+            path.dirname(remote),
+            authentication,
+        );
+        const first = createAdapter(
+            cleanUrl.replace('://', '://user:first@'),
+            'source',
+            undefined,
+            { token: 'first' },
+        );
+        await first.getDbtManifest();
+        await first.destroy();
+        authentication.expected = `Basic ${Buffer.from('user:second').toString(
+            'base64',
+        )}`;
+        authentication.received = [];
+        const second = createAdapter(
+            cleanUrl.replace('://', '://user:second@'),
+            'source',
+            undefined,
+            { token: 'second' },
+        );
+        await second.getDbtManifest();
+
+        expect(second.getFetchMetrics()).toMatchObject({
+            cloneMode: 'reused',
+            depsMode: 'fresh',
+        });
+        expect(installDeps).toHaveBeenCalledTimes(2);
         await second.destroy();
     });
 

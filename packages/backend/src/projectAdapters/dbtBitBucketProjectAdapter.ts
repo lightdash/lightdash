@@ -48,7 +48,9 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
     }: Args) {
-        const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
+        const remoteRepositoryUrl = `https://${encodeURIComponent(
+            username,
+        )}:${encodeURIComponent(personalAccessToken)}@${
             hostDomain || DEFAULT_BITBUCKET_HOST_DOMAIN
         }/${repository}.git`;
         super({
@@ -66,6 +68,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             cachedWarehouse,
             dbtVersion,
             selector,
+            credential: { token: personalAccessToken },
         });
     }
 }

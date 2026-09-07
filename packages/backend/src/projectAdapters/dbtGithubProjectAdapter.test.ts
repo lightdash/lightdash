@@ -39,4 +39,38 @@ describe('DbtGithubProjectAdapter', () => {
 
         await adapter.destroy();
     });
+
+    it('percent-encodes repository URL credentials', async () => {
+        const token = 'ghp_token/?#@:%';
+        const adapter = new DbtGithubProjectAdapter({
+            warehouseClient: warehouseClientMock,
+            githubPersonalAccessToken: token,
+            githubRepository: 'org/repo',
+            githubBranch: 'main',
+            projectDirectorySubPath: '/',
+            warehouseCredentials: {
+                type: WarehouseTypes.POSTGRES,
+                host: 'localhost',
+                port: 5432,
+                user: 'postgres',
+                password: 'password',
+                dbname: 'postgres',
+                schema: 'public',
+            } as CreateWarehouseCredentials,
+            targetName: undefined,
+            environment: undefined,
+            environmentVariableAllowlist: [],
+            cachedWarehouse: {
+                warehouseCatalog: {},
+                onWarehouseCatalogChange: vi.fn(),
+            },
+            dbtVersion: SupportedDbtVersions.V1_7,
+        });
+
+        expect(adapter.remoteRepositoryUrl).toBe(
+            'https://lightdash:ghp_token%2F%3F%23%40%3A%25@github.com/org/repo.git',
+        );
+
+        await adapter.destroy();
+    });
 });

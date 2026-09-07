@@ -47,7 +47,9 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         selector,
         cacheIdentity,
     }: Args) {
-        const remoteRepositoryUrl = `https://${personalAccessToken}@dev.azure.com/${organization}/${project}/_git/${repository}`;
+        const remoteRepositoryUrl = `https://${encodeURIComponent(
+            personalAccessToken,
+        )}@dev.azure.com/${organization}/${project}/_git/${repository}`;
         super({
             analytics,
             warehouseClient,
@@ -63,6 +65,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             cacheIdentity,
+            credential: { token: personalAccessToken },
         });
     }
 }

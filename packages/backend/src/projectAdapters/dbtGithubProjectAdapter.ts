@@ -67,7 +67,9 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             token: githubPersonalAccessToken,
         });
         const remoteRepositoryUrl = githubPersonalAccessToken
-            ? `https://lightdash:${githubPersonalAccessToken}@${githubHost}/${githubRepository}.git`
+            ? `https://lightdash:${encodeURIComponent(
+                  githubPersonalAccessToken,
+              )}@${githubHost}/${githubRepository}.git`
             : `https://${githubHost}/${githubRepository}.git`;
         super({
             warehouseClient,
@@ -88,6 +90,10 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
                 ? 'If a dependency is a private GitHub repository, ensure it is included in the same GitHub App installation as this project.'
                 : undefined,
             cacheIdentity,
+            credential: {
+                token: githubPersonalAccessToken,
+                installationId: githubInstallationId,
+            },
         });
         this.gitCredentialFiles = gitCredentialFiles;
     }

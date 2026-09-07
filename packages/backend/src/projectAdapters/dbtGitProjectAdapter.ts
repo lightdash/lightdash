@@ -48,6 +48,10 @@ export type DbtGitProjectAdapterArgs = {
     gitConfigGlobalPath?: string;
     dbtDepsErrorHint?: string;
     cacheIdentity?: DbtGitCacheIdentity;
+    credential?: {
+        token: string;
+        installationId?: string;
+    };
 };
 
 export type DbtGitFetchMetrics = {
@@ -101,6 +105,13 @@ const withoutCredentials = (
     } catch (error) {
         return gitErrorHandler(error, repository);
     }
+};
+
+const decodedUrlCredentials = (remoteRepositoryUrl: string): string[] => {
+    const parsed = new URL(remoteRepositoryUrl);
+    return [parsed.username, parsed.password]
+        .filter((value) => value !== '')
+        .map((value) => decodeURIComponent(value));
 };
 
 const isContainedRelativePath = (value: string): boolean => {
@@ -324,6 +335,10 @@ export class DbtGitProjectAdapter
 
     private readonly cacheIdentity: DbtGitCacheIdentity | undefined;
 
+    private readonly credential:
+        | { token: string; installationId?: string }
+        | undefined;
+
     private readonly temporaryRepositoryDirectories = new Set<string>();
 
     private cacheLease: DbtGitCacheLease | undefined;
@@ -356,11 +371,35 @@ export class DbtGitProjectAdapter
         gitConfigGlobalPath,
         dbtDepsErrorHint,
         cacheIdentity,
+        credential,
     }: DbtGitProjectAdapterArgs) {
+        if (gitBranch.startsWith('-')) {
+            throw new UnexpectedGitError(
+                'Git branch names must not begin with an option prefix',
+            );
+        }
         const cleanRemoteRepositoryUrl = withoutCredentials(
             remoteRepositoryUrl,
             repository,
         );
+        let credentialMatchesUrl = true;
+        if (credential) {
+            try {
+                const urlCredentials =
+                    decodedUrlCredentials(remoteRepositoryUrl);
+                credentialMatchesUrl =
+                    credential.token === ''
+                        ? urlCredentials.length === 0
+                        : urlCredentials.includes(credential.token);
+            } catch {
+                credentialMatchesUrl = false;
+            }
+            if (!credentialMatchesUrl) {
+                Logger.warn(
+                    'Git credential URL validation failed; checkout cache disabled',
+                );
+            }
+        }
         const localRepositoryDir = fs.mkdtempSync(
             path.join(os.tmpdir(), 'git_'),
         );
@@ -386,11 +425,14 @@ export class DbtGitProjectAdapter
         this.localRepositoryDir = localRepositoryDir;
         this.temporaryRepositoryDirectories.add(localRepositoryDir);
         this.remoteRepositoryUrl = remoteRepositoryUrl;
+        this.credential = credential;
         this.cleanRemoteRepositoryUrl = cleanRemoteRepositoryUrl;
         this.branch = gitBranch;
         this.repository = repository;
         this.cacheIdentity =
-            cacheIdentity && isContainedRelativePath(projectDirectorySubPath)
+            credentialMatchesUrl &&
+            cacheIdentity &&
+            isContainedRelativePath(projectDirectorySubPath)
                 ? cacheIdentity
                 : undefined;
         const parsedRemote = new URL(this.cleanRemoteRepositoryUrl);
@@ -580,20 +622,48 @@ export class DbtGitProjectAdapter
             });
             delete effectiveEnvironment.DBT_TARGET_PATH;
             delete effectiveEnvironment.GIT_CONFIG_GLOBAL;
-            const credentialHash = createHash('sha256')
-                .update(this.remoteRepositoryUrl)
+            const parsedRemote = new URL(this.remoteRepositoryUrl);
+            const parsedUsername = parsedRemote.username
+                ? decodeURIComponent(parsedRemote.username)
+                : '';
+            const explicitCredentialIdentity = this.credential
+                ? {
+                      scheme: parsedRemote.protocol,
+                      host: parsedRemote.host,
+                      username:
+                          parsedUsername === this.credential.token
+                              ? ''
+                              : parsedUsername,
+                      installationId: this.credential.installationId ?? null,
+                      tokenHash:
+                          this.credential.token &&
+                          !this.credential.installationId
+                              ? createHash('sha256')
+                                    .update(this.credential.token)
+                                    .digest('hex')
+                              : null,
+                  }
+                : undefined;
+            const credentialHashBuilder = createHash('sha256')
                 .update(
-                    await directoryContentDigest(client.dbtProfilesDirectory),
+                    explicitCredentialIdentity
+                        ? JSON.stringify(explicitCredentialIdentity)
+                        : this.remoteRepositoryUrl,
                 )
                 .update(
+                    await directoryContentDigest(client.dbtProfilesDirectory),
+                );
+            if (!explicitCredentialIdentity) {
+                credentialHashBuilder.update(
                     client.gitConfigGlobalPath
                         ? await directoryContentDigest(
                               path.dirname(client.gitConfigGlobalPath),
                               true,
                           )
                         : '',
-                )
-                .digest('hex');
+                );
+            }
+            const credentialHash = credentialHashBuilder.digest('hex');
             const inputs = {
                 files: files.map((file, index) => ({
                     name: PACKAGE_CONFIG_FILES[index],
