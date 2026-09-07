@@ -1,3 +1,23 @@
+# [2.144.0](https://github.com/lightdash/lightdash/compare/2.143.0...2.144.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **compose:** run compose SQL on a session scoped to the results it references ([#28736](https://github.com/lightdash/lightdash/issues/28736)) ([1266721](https://github.com/lightdash/lightdash/commit/1266721c8a844de3a605a993923330a18d23af50))
+* **direct-access:** enforce current API authority ([#28769](https://github.com/lightdash/lightdash/issues/28769)) ([577c0fa](https://github.com/lightdash/lightdash/commit/577c0fa747cb50f3275d7d132fb546a0519626ab))
+* **direct-access:** refresh sharing controls and dialog focus ([#28776](https://github.com/lightdash/lightdash/issues/28776)) ([f5a9eb7](https://github.com/lightdash/lightdash/commit/f5a9eb798cc73956a0897b9817d16bbf44a90991)), closes [#28769](https://github.com/lightdash/lightdash/issues/28769)
+
+
+### Features
+
+* **analytics:** track content-as-code drafts and write-back ([#28770](https://github.com/lightdash/lightdash/issues/28770)) ([60e7dd5](https://github.com/lightdash/lightdash/commit/60e7dd59b3e4a94320d125e4b46fda56d590878e))
+* **analytics:** track the external source lifecycle ([#28771](https://github.com/lightdash/lightdash/issues/28771)) ([f41ce11](https://github.com/lightdash/lightdash/commit/f41ce111ad195607d8653f6d098439e42fa0fb9d))
+* **backend:** trainee permission layer, training copies and their endpoints ([#28711](https://github.com/lightdash/lightdash/issues/28711)) ([0ae3755](https://github.com/lightdash/lightdash/commit/0ae3755f2975eb3592498727b1501257fe1bf606)), closes [#28710](https://github.com/lightdash/lightdash/issues/28710) [#28712](https://github.com/lightdash/lightdash/issues/28712) [#28713](https://github.com/lightdash/lightdash/issues/28713) [#28714](https://github.com/lightdash/lightdash/issues/28714) [#28715](https://github.com/lightdash/lightdash/issues/28715) [#28716](https://github.com/lightdash/lightdash/issues/28716)
+* **common:** TRAINING project type and the trainee scope set ([#28710](https://github.com/lightdash/lightdash/issues/28710)) ([842ae0b](https://github.com/lightdash/lightdash/commit/842ae0b603c95dd5446a1886b4d82df991d3ba29))
+* **merge-queries:** run DuckDB source queries on the NATS worker ([#28744](https://github.com/lightdash/lightdash/issues/28744)) ([9208ccc](https://github.com/lightdash/lightdash/commit/9208cccc58c46fa4fe941c5412e1c91b82b4b234)), closes [#28736](https://github.com/lightdash/lightdash/issues/28736) [#28739](https://github.com/lightdash/lightdash/issues/28739) [#28730](https://github.com/lightdash/lightdash/issues/28730)
+* **merge-queries:** serve a DuckDB source query from the results cache by the files it reads ([#28760](https://github.com/lightdash/lightdash/issues/28760)) ([c51e978](https://github.com/lightdash/lightdash/commit/c51e97870768ee6010462b9fe2415e5a411a7f74)), closes [#28744](https://github.com/lightdash/lightdash/issues/28744) [#28731](https://github.com/lightdash/lightdash/issues/28731)
+* **merge:** pivot a merge on the join node ([#28739](https://github.com/lightdash/lightdash/issues/28739)) ([7043158](https://github.com/lightdash/lightdash/commit/704315891e1290b64300b6ed0df001f523a2d4da)), closes [#28732](https://github.com/lightdash/lightdash/issues/28732)
+
 # [2.143.0](https://github.com/lightdash/lightdash/compare/2.142.0...2.143.0) (2026-09-07)
 
 

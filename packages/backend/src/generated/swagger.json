@@ -40960,7 +40960,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ProjectType": {
-                "enum": ["DEFAULT", "PREVIEW"],
+                "enum": ["DEFAULT", "PREVIEW", "TRAINING"],
                 "type": "string"
             },
             "UserWarehouseCredentialsProject": {
@@ -47851,6 +47851,35 @@
                     }
                 },
                 "required": ["compileJobUuid", "projectUuid"],
+                "type": "object"
+            },
+            "CreateTrainingPreviewResults": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "projectUuid"],
+                "type": "object",
+                "description": "A learner's own throwaway copy of the training project, made for one walkthrough."
+            },
+            "ApiCreateTrainingPreviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/CreateTrainingPreviewResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "UpstreamFieldChangeKind": {
@@ -55892,7 +55921,7 @@
                 "properties": {
                     "pivotConfiguration": {
                         "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer and sql nodes; duckdb and external nodes refuse it until\nthe join node owns the pivot stage."
+                        "description": "Pivots this node's result the way a pivoted chart does. Refused on\nthis endpoint: raw SQL has no fields to pivot on. A duckdb node\nsubmitted inside the server with an execution plan, such as a merge's\njoin, pivots through that plan."
                     },
                     "references": {
                         "anyOf": [
@@ -55906,7 +55935,7 @@
                                 "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
                             }
                         ],
-                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}."
+                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
                     },
                     "limit": {
                         "type": "number",
@@ -59982,7 +60011,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.143.0",
+        "version": "2.144.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -85010,6 +85039,88 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/training-previews": {
+            "post": {
+                "operationId": "CreateTrainingPreview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateTrainingPreviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Make (or remake) the caller's own throwaway copy of the training\nproject for a walkthrough. The copy starts from the seeded state and\nexpires on its own.",
+                "summary": "Create training preview",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the training project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "DeleteTrainingPreviews",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the caller's own copies of the training project, once a\nwalkthrough is finished or abandoned.",
+                "summary": "Delete training previews",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the training project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/upstreamDiff": {
