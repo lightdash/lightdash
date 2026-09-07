@@ -3,7 +3,7 @@ import {
     getScopes,
     getTrainingProjectScopes,
     ProjectMemberRole,
-    type ScopeGroup,
+    ScopeGroup,
 } from '@lightdash/common';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 
@@ -12,14 +12,35 @@ import { SCOPE_TOURS } from '../scopeTours/generated';
  * taught in the same format, and the first section of the library. Every
  * other group is the scope registry's own.
  */
-const FOUNDATIONS = 'foundations' as const;
+export const FOUNDATIONS = 'foundations' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
+
+/**
+ * What an instance must have for a module's walkthrough to find its controls:
+ * an Enterprise licence, or one of the product's own feature switches on top
+ * of it. The library leaves a closed module out (see availability.ts).
+ */
+export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents';
+
+const SUBJECT_GATES: Record<string, LearnGate> = {
+    DataApp: 'dataApps',
+    AiAgent: 'aiAgents',
+    AiAgentThread: 'aiAgents',
+    AiDeepResearch: 'aiAgents',
+};
+
+export const gateFor = (scope: {
+    name: string;
+    isEnterprise: boolean;
+}): LearnGate | null =>
+    SUBJECT_GATES[scope.name.split(':')[1]] ??
+    (scope.isEnterprise ? 'enterprise' : null);
 
 export type LearnModule = {
     scope: string;
     title: string;
     group: LearnGroup;
-    isEnterprise: boolean;
+    gate: LearnGate | null;
     /** The lowest project role that holds the scope; null if none does. */
     minRole: ProjectMemberRole | null;
     available: boolean;
@@ -27,13 +48,57 @@ export type LearnModule = {
     stepCount: number;
 };
 
-const ROLE_ORDER: ProjectMemberRole[] = [
+export const ROLE_ORDER: ProjectMemberRole[] = [
     ProjectMemberRole.VIEWER,
     ProjectMemberRole.INTERACTIVE_VIEWER,
     ProjectMemberRole.EDITOR,
     ProjectMemberRole.DEVELOPER,
     ProjectMemberRole.ADMIN,
 ];
+
+export const ROLE_LABELS: Record<ProjectMemberRole, string> = {
+    [ProjectMemberRole.VIEWER]: 'Viewer',
+    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive viewer',
+    [ProjectMemberRole.EDITOR]: 'Editor',
+    [ProjectMemberRole.DEVELOPER]: 'Developer',
+    [ProjectMemberRole.ADMIN]: 'Admin',
+};
+
+export const GROUP_ORDER: LearnGroup[] = [
+    FOUNDATIONS,
+    ScopeGroup.CONTENT,
+    ScopeGroup.SHARING,
+    ScopeGroup.DATA,
+    ScopeGroup.AI,
+    ScopeGroup.PROJECT_MANAGEMENT,
+    ScopeGroup.SPOTLIGHT,
+    ScopeGroup.ORGANIZATION_MANAGEMENT,
+];
+
+/** The library's one-line purpose per group, as on learn.lightdash.com. */
+export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'Become a knowledgeable Lightdash user',
+    [ScopeGroup.CONTENT]: 'Create and maintain charts, dashboards, and spaces',
+    [ScopeGroup.SHARING]: 'Send, schedule, and discuss trusted answers',
+    [ScopeGroup.DATA]:
+        'Shape, inspect, and extend the data available in Lightdash',
+    [ScopeGroup.AI]: 'Ask better questions and manage AI-powered workflows',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'Keep project access and delivery healthy',
+    [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]:
+        'Administer people, roles, and organisation settings',
+};
+
+export const GROUP_LABELS: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'Foundations',
+    [ScopeGroup.CONTENT]: 'Content',
+    [ScopeGroup.SHARING]: 'Sharing',
+    [ScopeGroup.DATA]: 'Data',
+    [ScopeGroup.AI]: 'AI',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'Project management',
+    [ScopeGroup.SPOTLIGHT]: 'Spotlight',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'Organization',
+};
 
 const stripBold = (text: string) => text.replace(/\*\*/g, '');
 
@@ -97,7 +162,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                         minRole === ProjectMemberRole.VIEWER
                             ? FOUNDATIONS
                             : scope.group,
-                    isEnterprise: scope.isEnterprise,
+                    gate: gateFor(scope),
                     minRole,
                     available: tour !== undefined,
                     blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
@@ -113,7 +178,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
 };
 
 /** Available first, then modules the role holds, then by title. */
-const sortForRole = (
+export const sortForRole = (
     role: ProjectMemberRole,
     modules: LearnModule[],
 ): LearnModule[] =>
@@ -146,7 +211,10 @@ export const focusModules = (
 };
 
 /** Whether a role holds a module's scope (its rank is at or above the minimum). */
-const roleHolds = (role: ProjectMemberRole, module: LearnModule): boolean =>
+export const roleHolds = (
+    role: ProjectMemberRole,
+    module: LearnModule,
+): boolean =>
     module.minRole !== null &&
     ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(module.minRole);
 

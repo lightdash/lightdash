@@ -46,6 +46,15 @@ export const markScopeCompleted = (scope: string) =>
         );
     });
 
+export const markScopeStarted = (scope: string) =>
+    write(() => {
+        localStorage.setItem(
+            STARTED_KEY,
+            JSON.stringify([...new Set([...readList(STARTED_KEY), scope])]),
+        );
+        localStorage.setItem(LAST_KEY, scope);
+    });
+
 export const useLearnProgress = () => {
     const [state, setState] = useState(() => ({
         completed: readList(COMPLETED_KEY),

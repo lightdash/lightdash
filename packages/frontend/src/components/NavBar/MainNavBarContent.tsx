@@ -1,6 +1,7 @@
 import { ActionIcon, Box, Button, Group } from '@mantine/core';
 import { lazy, Suspense, type FC } from 'react';
 import { Link } from 'react-router';
+import { LearnLink } from '../../features/learn/LearnLink';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -95,7 +96,12 @@ export const MainNavBarContent: FC<Props> = ({
                     <SettingsMenu />
 
                     {!isLoadingActiveProject && activeProjectUuid && (
-                        <NotificationsMenu projectUuid={activeProjectUuid} />
+                        <>
+                            <LearnLink projectUuid={activeProjectUuid} />
+                            <NotificationsMenu
+                                projectUuid={activeProjectUuid}
+                            />
+                        </>
                     )}
 
                     <HelpMenu />
