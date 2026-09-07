@@ -30,7 +30,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         sourceType: QuerySourceType.DUCKDB,
         label: 'DuckDB compose',
         description:
-            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on.',
+            'DuckDB SQL over other query results. References expose results as named tables: an array of node ids (each a table named by its node id) or a {tableName: nodeIdOrQueryUuid} map. A referenced result keeps the column names of the query that produced it — field ids for semanticLayer queries, SELECT output names for sql queries. References to still-running queries are waited on. At least one reference is required: the query runs on a session that can reach only the results it references.',
     };
 
     readonly supportsPivot = false;

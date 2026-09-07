@@ -153,7 +153,9 @@ export type DuckdbSourceQuery = {
      * table named by its node id — ["orders", "revenue"] lets the SQL run
      * SELECT * FROM orders JOIN revenue. Map form for aliasing or existing
      * results: {tableName: nodeIdOrQueryUuid}, e.g. {"o": "orders", "prev":
-     * "<queryUuid>"}.
+     * "<queryUuid>"}. Required at execution: the query runs on a session
+     * that can reach only these results, so one that references nothing is
+     * refused.
      */
     references?:
         | QueryNodeId[]
