@@ -122,6 +122,7 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
+        warehouseCatalogCacheMaxAgeMs: 24 * 60 * 60 * 1000,
     },
     dashboard: {
         maxTilesPerTab: 50,

@@ -1550,6 +1550,7 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        warehouseCatalogCacheMaxAgeMs: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -3311,6 +3312,10 @@ export const parseConfig = (): LightdashConfig => {
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),
+            warehouseCatalogCacheMaxAgeMs:
+                getIntegerFromEnvironmentVariable(
+                    'WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS',
+                ) ?? 24 * 60 * 60 * 1000,
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

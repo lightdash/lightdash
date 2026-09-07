@@ -43,6 +43,7 @@ import { ProjectMergedManifestsTableName } from '../../database/entities/project
 import {
     CachedExploresTableName,
     CachedExploreTableName,
+    CachedWarehouseTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -114,6 +115,87 @@ describe('ProjectModel', () => {
         const project = await model.get(projectUuid);
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
+    });
+    test('should save and read a fresh warehouse catalog snapshot', async () => {
+        const fetchedAt = new Date('2026-09-07T18:00:00.000Z');
+        const warehouseCatalog = {
+            analytics: {
+                public: {
+                    orders: { order_id: DimensionType.NUMBER },
+                },
+            },
+        };
+        const missingTables = [
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'missing_orders',
+            },
+        ];
+        const row = {
+            project_uuid: projectUuid,
+            warehouse: warehouseCatalog,
+            fetched_at: fetchedAt,
+            missing_tables: missingTables,
+        };
+        tracker.on
+            .insert(({ sql }) => sql.includes(CachedWarehouseTableName))
+            .response([row]);
+        tracker.on
+            .select(queryMatcher(CachedWarehouseTableName, [projectUuid, 1]))
+            .response([row]);
+
+        await expect(
+            model.saveWarehouseToCache(projectUuid, {
+                warehouseCatalog,
+                fetchedAt,
+                missingTables,
+            }),
+        ).resolves.toEqual(row);
+        await expect(model.getWarehouseFromCache(projectUuid)).resolves.toEqual(
+            {
+                warehouseCatalog,
+                fetchedAt,
+                missingTables,
+                manualRefreshRequested: false,
+            },
+        );
+    });
+    test('should read the manual warehouse catalog refresh marker without known misses', async () => {
+        tracker.on
+            .select(queryMatcher(CachedWarehouseTableName, [projectUuid, 1]))
+            .response([
+                {
+                    warehouse: {},
+                    fetched_at: null,
+                    missing_tables: { refreshReason: 'manual' },
+                },
+            ]);
+
+        await expect(model.getWarehouseFromCache(projectUuid)).resolves.toEqual(
+            {
+                warehouseCatalog: {},
+                fetchedAt: null,
+                missingTables: null,
+                manualRefreshRequested: true,
+            },
+        );
+    });
+    test('should mark the warehouse catalog for manual refresh without requiring an existing snapshot', async () => {
+        tracker.on
+            .insert(({ sql }) => sql.includes(CachedWarehouseTableName))
+            .response([]);
+
+        await expect(
+            model.invalidateWarehouseCacheForManualRefresh(projectUuid),
+        ).resolves.toBeUndefined();
+        expect(tracker.history.insert).toHaveLength(1);
+        expect(tracker.history.insert[0].sql).toContain(
+            'on conflict ("project_uuid") do update set "missing_tables"',
+        );
+        expect(tracker.history.insert[0].bindings).toContainEqual({
+            refreshReason: 'manual',
+        });
     });
     test('should get the primary dbt source identity', async () => {
         tracker.on

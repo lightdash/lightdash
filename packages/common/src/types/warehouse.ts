@@ -113,6 +113,12 @@ export type WarehouseCatalog = {
     };
 };
 
+export type WarehouseCatalogTable = {
+    database: string;
+    schema: string;
+    table: string;
+};
+
 export const getCatalogTimestampDomain = (
     catalog: WarehouseCatalog,
     database: string,

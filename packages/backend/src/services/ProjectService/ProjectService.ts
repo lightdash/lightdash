@@ -4929,7 +4929,7 @@ export class ProjectService extends BaseService {
                 'Warehouse credentials must be provided to connect to your dbt project',
             );
         }
-        const cachedWarehouseCatalog =
+        const cachedWarehouseCache =
             await this.projectModel.getWarehouseFromCache(projectUuid);
 
         if (
@@ -5084,11 +5084,17 @@ export class ProjectService extends BaseService {
         );
 
         const cachedWarehouse: CachedWarehouse = {
-            warehouseCatalog: cachedWarehouseCatalog,
-            onWarehouseCatalogChange: async (warehouseCatalog) => {
+            warehouseCatalog: cachedWarehouseCache?.warehouseCatalog,
+            warehouseCatalogFetchedAt: cachedWarehouseCache?.fetchedAt,
+            missingWarehouseTables: cachedWarehouseCache?.missingTables,
+            manualWarehouseCatalogRefresh:
+                cachedWarehouseCache?.manualRefreshRequested,
+            warehouseCatalogMaxAgeMs:
+                this.lightdashConfig.dbt.warehouseCatalogCacheMaxAgeMs,
+            onWarehouseCatalogChange: async (cache) => {
                 await this.projectModel.saveWarehouseToCache(
                     projectUuid,
-                    warehouseCatalog,
+                    cache,
                 );
             },
         };
@@ -9962,6 +9968,7 @@ export class ProjectService extends BaseService {
     async populateWarehouseTablesCache(
         user: SessionUser,
         projectUuid: string,
+        invalidateCompileCatalog = true,
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -9985,31 +9992,38 @@ export class ProjectService extends BaseService {
             projectUuid,
             credentials,
         );
+        try {
+            const warehouseTables = await warehouseClient.getAllTables();
 
-        const warehouseTables = await warehouseClient.getAllTables();
-
-        const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
-            warehouseTables.map((t) => ({
-                ...t,
-                partition_column: t.partitionColumn || null,
-            })),
-        );
-
-        if (credentials.userWarehouseCredentialsUuid) {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
-                credentials.userWarehouseCredentialsUuid,
-                warehouseTables,
+            const catalog = WarehouseAvailableTablesModel.toWarehouseCatalog(
+                warehouseTables.map((t) => ({
+                    ...t,
+                    partition_column: t.partitionColumn || null,
+                })),
             );
-        } else {
-            await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
-                projectUuid,
-                warehouseTables,
-            );
+
+            if (credentials.userWarehouseCredentialsUuid) {
+                await this.warehouseAvailableTablesModel.createAvailableTablesForUserWarehouseCredentials(
+                    credentials.userWarehouseCredentialsUuid,
+                    warehouseTables,
+                );
+            } else {
+                await this.warehouseAvailableTablesModel.createAvailableTablesForProjectWarehouseCredentials(
+                    projectUuid,
+                    warehouseTables,
+                );
+            }
+
+            if (invalidateCompileCatalog) {
+                await this.projectModel.invalidateWarehouseCacheForManualRefresh(
+                    projectUuid,
+                );
+            }
+
+            return catalog;
+        } finally {
+            await sshTunnel.disconnect();
         }
-
-        await sshTunnel.disconnect();
-
-        return catalog;
     }
 
     async getWarehouseTables(
@@ -10053,6 +10067,7 @@ export class ProjectService extends BaseService {
             catalog = await this.populateWarehouseTablesCache(
                 user,
                 projectUuid,
+                false,
             );
         }
 

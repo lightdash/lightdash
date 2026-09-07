@@ -5,6 +5,7 @@ import {
     ExploreError,
     LightdashProjectConfig,
     ProjectContextEntry,
+    type WarehouseCatalogTable,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
@@ -87,5 +88,13 @@ export interface DbtClient {
 
 export type CachedWarehouse = {
     warehouseCatalog: WarehouseCatalog | undefined;
-    onWarehouseCatalogChange: (warehouseCatalog: WarehouseCatalog) => void;
+    warehouseCatalogFetchedAt?: Date | null;
+    missingWarehouseTables?: WarehouseCatalogTable[] | null;
+    manualWarehouseCatalogRefresh?: boolean;
+    warehouseCatalogMaxAgeMs?: number;
+    onWarehouseCatalogChange: (cache: {
+        warehouseCatalog: WarehouseCatalog;
+        fetchedAt: Date;
+        missingTables: WarehouseCatalogTable[];
+    }) => void | Promise<void>;
 };
