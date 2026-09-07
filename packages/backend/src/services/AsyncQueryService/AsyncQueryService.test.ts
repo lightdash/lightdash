@@ -722,6 +722,113 @@ describe('AsyncQueryService', () => {
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
 
+        test('a supplied plan records its columns, runs on a scoped session and reads no flag', async () => {
+            const featureFlagModel = {
+                get: vi.fn(async () => ({ enabled: false })),
+            } as unknown as FeatureFlagModel;
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'join-uuid' })),
+                    get: vi.fn(async () => referencedQueryHistory),
+                } as unknown as QueryHistoryModel,
+            } as never);
+            const runDuckdbQuery = vi
+                .spyOn(service as AnyType, 'runDuckdbQuery')
+                .mockResolvedValue(undefined);
+            const guard = vi.fn(() => null);
+            const fieldsMap = {
+                a_orders_count: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                    name: 'orders_count',
+                    label: 'Orders',
+                    table: 'a',
+                    tableLabel: 'Query A',
+                    sql: '',
+                    hidden: false,
+                },
+            } as ItemsMap;
+            const originalColumns: ResultColumns = {
+                a_orders_count: {
+                    reference: 'a_orders_count',
+                    type: DimensionType.NUMBER,
+                    label: 'Orders',
+                },
+            };
+            const metricQuery = {
+                exploreName: 'merge',
+                dimensions: [],
+                metrics: ['a_orders_count'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            } as unknown as MetricQuery;
+
+            const submission = await service.executeAsyncDuckdbSourceQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                sql: 'SELECT * FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+                plan: {
+                    columns: {
+                        mode: 'supplied',
+                        fieldsMap,
+                        usedParameters: { region: 'EU' },
+                        originalColumns,
+                        pivotConfiguration: undefined,
+                        metricQuery,
+                    },
+                    engine: 'scopedToReferencedResults',
+                    guard,
+                },
+            });
+            await submission.settled;
+
+            expect(submission.queryUuid).toBe('join-uuid');
+            const flagsRead = (
+                featureFlagModel.get as import('vitest').Mock
+            ).mock.calls.map(([{ featureFlagId }]) => featureFlagId);
+            expect(flagsRead).not.toContain(FeatureFlags.ComposeSqlRunner);
+            expect(flagsRead).not.toContain(FeatureFlags.MultiSourceQuery);
+            expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
+                sessionAccount,
+                expect.objectContaining({
+                    fields: fieldsMap,
+                    originalColumns,
+                    metricQuery,
+                    usedParameters: { region: 'EU' },
+                    pivotConfiguration: null,
+                    compiledSql: 'SELECT * FROM orders',
+                }),
+            );
+            expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
+            expect(runDuckdbQuery.mock.calls[0][0]).toMatchObject({
+                queryUuid: 'join-uuid',
+                columns: { mode: 'supplied', fieldsMap, originalColumns },
+                engine: { kind: 'scopedToReferencedResults' },
+                references: {
+                    kind: 'queries',
+                    references: { orders: referencedQueryHistory.queryUuid },
+                    guard,
+                },
+            });
+            // The shared session is built for the dialect and to refuse a
+            // missing results storage up front; the run scopes its own
+            expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                storage: 'results',
+                scope: null,
+            });
+        });
+
         test('reads external-source files on the pre-aggregate bucket session', async () => {
             const createExecutionWarehouseClient = vi.fn(
                 () => warehouseClientMock,
@@ -6758,6 +6865,7 @@ describe('query sources carry the execution context', () => {
         userAttributeOverrides: {},
         invalidateCache: false,
         pivotConfiguration: null,
+        plan: null,
     };
 
     const createSemanticLayerHarness = () => {

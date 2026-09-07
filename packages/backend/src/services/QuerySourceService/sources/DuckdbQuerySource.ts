@@ -80,6 +80,10 @@ export class DuckdbQuerySource implements QuerySourceClient {
      * User attribute overrides have nothing to apply to here: referenced
      * results were produced under them and compose SQL carries no attribute
      * references. A pivot refuses until the join node owns the pivot stage.
+     *
+     * Without a plan the query takes the public compose SQL path, which
+     * carries its own flag and ability gates. With one it goes straight to
+     * the execution tail: the caller that built the plan owns authorization.
      */
     async submitQuery({
         account,
@@ -90,6 +94,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         parameters,
         invalidateCache,
         pivotConfiguration,
+        plan,
     }: SubmitSourceQueryArgs): Promise<{ queryUuid: string }> {
         const sourceQuery = DuckdbQuerySource.assertSourceQuery(query);
         if (pivotConfiguration !== null) {
@@ -110,18 +115,24 @@ export class DuckdbQuerySource implements QuerySourceClient {
               )
             : undefined;
 
-        const results =
-            await this.asyncQueryService.executeAsyncComposeSqlQuery({
-                account,
-                projectUuid,
-                sql: sourceQuery.sql,
-                limit: sourceQuery.limit,
-                references,
-                context,
-                parameters,
-                invalidateCache,
-            });
+        const args = {
+            account,
+            projectUuid,
+            sql: sourceQuery.sql,
+            limit: sourceQuery.limit,
+            references,
+            context,
+            parameters,
+            invalidateCache,
+        };
+        const { queryUuid } =
+            plan === null
+                ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
+                : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
+                      ...args,
+                      plan,
+                  });
 
-        return { queryUuid: results.queryUuid };
+        return { queryUuid };
     }
 }

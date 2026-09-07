@@ -295,6 +295,15 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     preAggregateExecution: PreAggregateExecutionEngine;
 };
 
+/** Known at compile time, so nothing is probed and nothing overwritten. */
+export type SuppliedDuckdbQueryColumns = {
+    mode: 'supplied';
+    fieldsMap: ItemsMap;
+    usedParameters: ParametersValuesMap | null;
+    originalColumns: ResultColumns;
+    pivotConfiguration: PivotConfiguration | undefined;
+};
+
 /** Where a DuckDB query's output columns come from. */
 export type DuckdbQueryColumns =
     | {
@@ -303,14 +312,7 @@ export type DuckdbQueryColumns =
           limit: number | undefined;
           parameters: ParametersValuesMap;
       }
-    | {
-          /** Known at compile time, so nothing is probed and nothing overwritten. */
-          mode: 'supplied';
-          fieldsMap: ItemsMap;
-          usedParameters: ParametersValuesMap | null;
-          originalColumns: ResultColumns;
-          pivotConfiguration: PivotConfiguration | undefined;
-      };
+    | SuppliedDuckdbQueryColumns;
 
 /**
  * Runs once every referenced query has completed and before anything
@@ -341,6 +343,35 @@ export type DuckdbQueryEngine =
           /** An isolated results session whose credentials reach only the bound result files. */
           kind: 'scopedToReferencedResults';
       };
+
+/**
+ * How a DuckDB source query executes, decided by whoever built it. A public
+ * submission discovers its columns on the shared results session; an
+ * internal caller such as a merge supplies its compile-time columns, a
+ * session scoped to the results it reads, and a guard over those results.
+ */
+export type DuckdbQueryPlan = {
+    columns:
+        | { mode: 'discover' }
+        | (SuppliedDuckdbQueryColumns & { metricQuery: MetricQuery });
+    engine: DuckdbQueryEngine['kind'];
+    guard: DuckdbQueryReferenceGuard | null;
+};
+
+export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
+    sql: string;
+    limit?: number;
+    /** Table name -> queryUuid of a previous async query to expose as that table. */
+    references?: Record<string, UUID>;
+    plan: DuckdbQueryPlan;
+};
+
+export type DuckdbSourceQuerySubmission = {
+    queryUuid: string;
+    queryCreatedAt: Date;
+    /** Resolves once the background execution has settled; never rejects. */
+    settled: Promise<void>;
+};
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
 export type BoundDuckdbQueryReferences = {

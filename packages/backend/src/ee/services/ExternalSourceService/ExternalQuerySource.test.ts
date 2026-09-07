@@ -22,6 +22,7 @@ const submitArgs = {
     userAttributeOverrides: {},
     invalidateCache: false,
     pivotConfiguration: null,
+    plan: null,
 };
 
 describe('ExternalQuerySource', () => {

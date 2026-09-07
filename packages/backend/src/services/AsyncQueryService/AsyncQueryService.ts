@@ -291,10 +291,13 @@ import {
     type DownloadAsyncQueryResultsArgs,
     type DuckdbQueryColumns,
     type DuckdbQueryEngine,
+    type DuckdbQueryPlan,
     type DuckdbQueryReferences,
+    type DuckdbSourceQuerySubmission,
     type ExecuteAsyncComposeSqlQueryArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
+    type ExecuteAsyncDuckdbSourceQueryArgs,
     type ExecuteAsyncExternalSqlQueryArgs,
     type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMergeQueryArgs,
@@ -7439,6 +7442,52 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const { queryUuid } = await this.executeAsyncDuckdbSourceQuery({
+            account,
+            projectUuid,
+            sql,
+            context,
+            limit,
+            references,
+            parameters,
+            plan: {
+                columns: { mode: 'discover' },
+                engine: 'client',
+                guard: null,
+            },
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            parameterReferences: [],
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        };
+    }
+
+    /**
+     * The execution tail every DuckDB query over other results shares,
+     * below any feature flag or ability gate: the caller has authorized the
+     * submission. The plan decides whether columns are probed or supplied
+     * and which engine session runs the statement; the statement itself is
+     * still checked for file access and its references for read access.
+     */
+    async executeAsyncDuckdbSourceQuery({
+        account,
+        projectUuid,
+        sql,
+        context,
+        limit,
+        references,
+        parameters,
+        plan,
+    }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<DuckdbSourceQuerySubmission> {
+        assertIsAccountWithOrg(account);
+
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
         // Blocks read_parquet/read_json/... and file table paths in the raw
         // user SQL; the only file reads in the executed SQL are the reference
         // CTEs injected below after authorizing them.
@@ -7461,18 +7510,15 @@ export class AsyncQueryService extends ProjectService {
             });
         }
 
-        // Throws MissingConfigError when results storage is not configured
+        // Throws MissingConfigError when results storage is not configured:
+        // a query without an engine is refused here, never in the background.
+        // A scoped plan still needs the dialect, and its own session is
+        // built once the referenced result files are known.
         const warehouseClient =
             this.composeEngineClient.createExecutionWarehouseClient({
                 storage: 'results',
                 scope: null,
             });
-
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            undefined,
-            parameters,
-        );
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -7484,28 +7530,23 @@ export class AsyncQueryService extends ProjectService {
 
         // The row is created before references are resolved so the queryUuid
         // returns immediately even when referenced queries are still running;
-        // compiled sql, fields and columns are filled in by the background
-        // phase once referenced results exist.
-        const placeholderComposer = new SqlQueryComposer({
-            userSql: sql,
-            columns: [],
-            warehouseClient,
-            pivotConfiguration: undefined,
+        // a discover plan has the background phase fill in compiled sql,
+        // fields and columns once referenced results exist.
+        const resolved = await this.resolveDuckdbQueryPlan({
+            plan,
+            projectUuid,
+            sql,
             limit,
-            parameters: combinedParameters,
-            dashboardFilters: undefined,
-            tileUuid: undefined,
-            dashboardSorts: undefined,
+            parameters,
+            warehouseClient,
         });
-
-        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
 
         // Parameter values change the executed SQL without changing its text
         const cacheKey = QueryHistoryModel.getCacheKey(projectUuid, {
             sql: JSON.stringify({
                 sql,
                 references: normalizedReferences ?? null,
-                parameters: combinedParameters,
+                parameters: resolved.parameters,
             }),
             userUuid: null,
         });
@@ -7515,7 +7556,7 @@ export class AsyncQueryService extends ProjectService {
             limit,
             context,
             references,
-            parameters: combinedParameters,
+            parameters: resolved.parameters,
         };
 
         const queryCreatedAt = new Date();
@@ -7523,14 +7564,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid,
             context,
-            fields: {},
+            fields: resolved.fields,
             compiledSql: sql,
             requestParameters,
-            usedParameters: placeholderComposer.getUsedParameters(),
-            metricQuery: placeholderComposer.getMetricQuery(),
+            usedParameters: resolved.usedParameters,
+            metricQuery: resolved.metricQuery,
             cacheKey,
-            pivotConfiguration: null,
-            originalColumns: {},
+            pivotConfiguration: resolved.pivotConfiguration,
+            originalColumns: resolved.originalColumns,
         });
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',
@@ -7543,7 +7584,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
 
-        void this.runDuckdbQuery({
+        const settled = this.runDuckdbQuery({
             account,
             projectUuid,
             organizationUuid,
@@ -7556,33 +7597,102 @@ export class AsyncQueryService extends ProjectService {
             references: {
                 kind: 'queries',
                 references: normalizedReferences ?? {},
-                guard: null,
+                guard: plan.guard,
             },
-            columns: {
-                mode: 'discover',
-                limit,
-                parameters: combinedParameters,
-            },
+            columns: resolved.columns,
             storedCompiledSql: null,
-            engine: { kind: 'client', warehouseClient },
+            engine:
+                plan.engine === 'client'
+                    ? { kind: 'client', warehouseClient }
+                    : { kind: 'scopedToReferencedResults' },
             queryTags,
             queryCreatedAt,
             cacheKey,
             context,
         }).catch((e) => {
             this.logger.error(
-                `Async compose SQL query ${queryUuid} failed: ${getErrorMessage(
+                `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
                     e,
                 )}`,
             );
         });
 
+        return { queryUuid, queryCreatedAt, settled };
+    }
+
+    /**
+     * What the history row and the run need from a plan. Discovered columns
+     * come from a placeholder composer over the raw SQL, which is also where
+     * a missing parameter value refuses before any row is written; supplied
+     * columns were fixed at compile time and are recorded as they are.
+     */
+    private async resolveDuckdbQueryPlan({
+        plan,
+        projectUuid,
+        sql,
+        limit,
+        parameters,
+        warehouseClient,
+    }: {
+        plan: DuckdbQueryPlan;
+        projectUuid: string;
+        sql: string;
+        limit: number | undefined;
+        parameters: ParametersValuesMap | undefined;
+        warehouseClient: WarehouseClient;
+    }): Promise<{
+        columns: DuckdbQueryColumns;
+        parameters: ParametersValuesMap;
+        fields: ItemsMap;
+        usedParameters: ParametersValuesMap;
+        metricQuery: MetricQuery;
+        pivotConfiguration: PivotConfiguration | null;
+        originalColumns: ResultColumns;
+    }> {
+        if (plan.columns.mode === 'supplied') {
+            const { metricQuery, ...columns } = plan.columns;
+            const usedParameters = columns.usedParameters ?? {};
+            return {
+                columns,
+                parameters: usedParameters,
+                fields: columns.fieldsMap,
+                usedParameters,
+                metricQuery,
+                pivotConfiguration: columns.pivotConfiguration ?? null,
+                originalColumns: columns.originalColumns,
+            };
+        }
+
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameters,
+        );
+        const placeholderComposer = new SqlQueryComposer({
+            userSql: sql,
+            columns: [],
+            warehouseClient,
+            pivotConfiguration: undefined,
+            limit,
+            parameters: combinedParameters,
+            dashboardFilters: undefined,
+            tileUuid: undefined,
+            dashboardSorts: undefined,
+        });
+        AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
+
         return {
-            queryUuid,
-            cacheMetadata: { cacheHit: false },
-            parameterReferences: [],
-            usedParametersValues: {},
-            resolvedTimezone: null,
+            columns: {
+                mode: 'discover',
+                limit,
+                parameters: combinedParameters,
+            },
+            parameters: combinedParameters,
+            fields: {},
+            usedParameters: placeholderComposer.getUsedParameters(),
+            metricQuery: placeholderComposer.getMetricQuery(),
+            pivotConfiguration: null,
+            originalColumns: {},
         };
     }
 

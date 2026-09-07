@@ -8,6 +8,7 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
+import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 
 export type ScanSchemaArgs = {
     account: Account;
@@ -43,6 +44,12 @@ export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
     resolvedReferences: Record<string, string>;
     /** The node's own pivot, lifted off the query so every source reads one place. */
     pivotConfiguration: PivotConfiguration | null;
+    /**
+     * How a duckdb node executes. Null is the public plan: the gated compose
+     * SQL path, columns discovered, shared results session. Only internal
+     * submissions carry a plan; the public endpoint cannot express one.
+     */
+    plan: DuckdbQueryPlan | null;
 };
 
 /**
