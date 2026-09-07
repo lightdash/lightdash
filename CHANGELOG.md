@@ -1,3 +1,10 @@
+## [2.148.1](https://github.com/lightdash/lightdash/compare/2.148.0...2.148.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** make the invite activation page work on a phone ([#28755](https://github.com/lightdash/lightdash/issues/28755)) ([83d1498](https://github.com/lightdash/lightdash/commit/83d14987cfb593315a8e2489a24816dc0feb98ef))
+
 # [2.148.0](https://github.com/lightdash/lightdash/compare/2.147.0...2.148.0) (2026-09-07)
 
 
