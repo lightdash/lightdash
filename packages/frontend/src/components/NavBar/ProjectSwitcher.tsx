@@ -467,6 +467,7 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
             const visiblePreviews = (projects ?? []).filter((project) => {
                 switch (project.type) {
                     case ProjectType.DEFAULT:
+                    case ProjectType.TRAINING:
                         return false;
                     case ProjectType.PREVIEW:
                         return (
