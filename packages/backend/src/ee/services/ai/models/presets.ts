@@ -435,6 +435,30 @@ const OPENROUTER_MODEL_METADATA: Record<
         contextWindowTokens: 1_310_720,
         supportsReasoning: false,
     },
+    'z-ai/glm-5.3': {
+        displayName: 'GLM 5.3',
+        description:
+            'Large reasoning model for complex engineering and long-horizon agent tasks',
+        groupLabel: 'Z.ai',
+        contextWindowTokens: 1_310_720,
+        supportsReasoning: false,
+    },
+    'qwen/qwen3.8-flash': {
+        displayName: 'Qwen3.8 Flash',
+        description:
+            'Fast multimodal reasoning model for agentic workflows and chart analysis',
+        groupLabel: 'Qwen',
+        contextWindowTokens: 1_000_000,
+        supportsReasoning: false,
+    },
+    'openai/gpt-oss-120b': {
+        displayName: 'GPT-OSS 120B',
+        description:
+            'Open-weight MoE reasoning model; served by fast-inference upstreams',
+        groupLabel: 'OpenAI (open weights)',
+        contextWindowTokens: 131_072,
+        supportsReasoning: false,
+    },
 };
 
 export function openRouterPreset(modelName: string): ModelPreset<'openrouter'> {
