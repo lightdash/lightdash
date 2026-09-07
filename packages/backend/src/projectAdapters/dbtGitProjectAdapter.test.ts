@@ -15,11 +15,13 @@ import path from 'path';
 import simpleGit, { GitError } from 'simple-git';
 import { pathToFileURL } from 'url';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import Logger from '../logging/logger';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
 import { configureDbtGitProjectCache } from './dbtGitProjectCache';
+import { inspectDbtGitProject } from './dbtGitProjectInspection';
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
@@ -152,6 +154,49 @@ describe('Git explore compilation', () => {
         },
     );
 });
+describe('inspectDbtGitProject', () => {
+    it('finds nested credentials and accounts for every filesystem entry', async () => {
+        const root = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'dbt-git-inspection-test-'),
+        );
+        const nested = path.join(root, 'dbt_packages', 'dependency');
+        const gitDirectory = path.join(nested, '.git');
+        const objectsDirectory = path.join(gitDirectory, 'objects');
+        const paths = [
+            root,
+            path.join(root, 'dbt_packages'),
+            nested,
+            gitDirectory,
+            objectsDirectory,
+            path.join(gitDirectory, 'config'),
+            path.join(objectsDirectory, 'object'),
+            path.join(root, 'model.sql'),
+        ];
+        try {
+            await fs.mkdir(objectsDirectory, { recursive: true });
+            await fs.writeFile(
+                path.join(gitDirectory, 'config'),
+                'url = https://user:secret@example.com/repo.git\n',
+            );
+            await fs.writeFile(path.join(objectsDirectory, 'object'), 'data');
+            await fs.writeFile(path.join(root, 'model.sql'), 'select 1\n');
+            const expectedSize = (
+                await Promise.all(paths.map((entry) => fs.lstat(entry)))
+            ).reduce((total, stat) => total + stat.size, 0);
+
+            const inspection = await inspectDbtGitProject(root);
+
+            expect(inspection).toMatchObject({
+                containsCredentials: true,
+                sizeBytes: expectedSize,
+            });
+            expect(inspection.durationMs).toBeGreaterThanOrEqual(0);
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('DbtGitProjectAdapter cache', () => {
     const temporaryDirectories: string[] = [];
     const servers: Server[] = [];
@@ -384,6 +429,43 @@ describe('DbtGitProjectAdapter cache', () => {
         await second.destroy();
     });
 
+    it('reports one cache outcome with the actual inspection duration', async () => {
+        const cacheOutcomes: unknown[] = [];
+        const info = vi
+            .spyOn(Logger, 'info')
+            .mockImplementation((message: unknown, ...metadata: unknown[]) => {
+                if (message === 'dbt.git.cache.outcome') {
+                    cacheOutcomes.push(metadata[0]);
+                }
+                return Logger;
+            });
+        try {
+            const { remote } = await createRemote({
+                'dbt_project.yml': 'name: test\n',
+            });
+            const adapter = createAdapter(remote);
+            await adapter.getDbtManifest();
+            await adapter.destroy();
+
+            const outcome = adapter.getCacheOutcome();
+            expect(outcome).toMatchObject({
+                cloneMode: 'fresh',
+                depsMode: 'fresh',
+                missReason: 'cold',
+                retainCheckout: true,
+                eligible: true,
+                retained: true,
+            });
+            expect(outcome.inspectionDurationMs).toBeGreaterThanOrEqual(0);
+            expect(outcome.cleanupDurationMs).toBeGreaterThanOrEqual(
+                outcome.inspectionDurationMs,
+            );
+            expect(cacheOutcomes).toEqual([outcome]);
+        } finally {
+            info.mockRestore();
+        }
+    });
+
     it('sanitizes malformed credential-bearing repository URLs', () => {
         expect(() => createAdapter('https://user:secret@[invalid')).toThrow(
             UnexpectedGitError,
@@ -393,6 +475,21 @@ describe('DbtGitProjectAdapter cache', () => {
         } catch (error) {
             expect(JSON.stringify(error)).not.toContain('secret');
         }
+    });
+
+    it('disables the cache when supplied credentials do not match the URL split', async () => {
+        const adapter = createAdapter(
+            'https://abc/def@dev.azure.com/org/project/_git/repository',
+            'source',
+            undefined,
+            { token: 'abc/def' },
+        );
+
+        expect(adapter.getCacheOutcome().missReason).toBe(
+            'credential-url-mismatch',
+        );
+        expect(path.dirname(adapter.localRepositoryDir)).toBe(os.tmpdir());
+        await adapter.destroy();
     });
 
     it('invalidates deps reuse when an allowlisted value changes', async () => {
@@ -950,6 +1047,62 @@ describe('DbtGitProjectAdapter cache', () => {
         await second.destroy();
     });
 
+    it('sanitizes a credentialed cached refresh error before warning', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const authentication = {
+            expected: `Basic ${Buffer.from('user:secret-token').toString(
+                'base64',
+            )}`,
+            received: [] as string[],
+        };
+        const cleanUrl = await serveRemote(
+            path.dirname(remote),
+            authentication,
+        );
+        const credentialedUrl = cleanUrl.replace(
+            '://',
+            '://user:secret-token@',
+        );
+        const first = createAdapter(credentialedUrl, 'source', undefined, {
+            token: 'secret-token',
+        });
+        await first.getDbtManifest();
+        const retainedCheckout = first.localRepositoryDir;
+        await first.destroy();
+        await fs.rm(path.join(retainedCheckout, '.git'), {
+            recursive: true,
+            force: true,
+        });
+        const refreshWarnings: unknown[] = [];
+        const warn = vi
+            .spyOn(Logger, 'warn')
+            .mockImplementation((message: unknown, ...metadata: unknown[]) => {
+                if (
+                    message ===
+                    'Cached Git checkout refresh failed; using a fresh clone'
+                ) {
+                    refreshWarnings.push(metadata[0]);
+                }
+                return Logger;
+            });
+        try {
+            const second = createAdapter(credentialedUrl, 'source', undefined, {
+                token: 'secret-token',
+            });
+            await second.getDbtManifest();
+            expect(refreshWarnings).toHaveLength(1);
+            expect(JSON.stringify(refreshWarnings)).not.toContain(
+                'secret-token',
+            );
+            expect(JSON.stringify(refreshWarnings)).not.toContain('task');
+            await second.destroy();
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it('falls back to a fresh clone when retained metadata is corrupt', async () => {
         const { remote } = await createRemote({
             'dbt_project.yml': 'name: test\n',
@@ -988,15 +1141,36 @@ describe('DbtGitProjectAdapter cache', () => {
     });
 
     it('propagates a failed fresh clone after cache fallback', async () => {
-        const missingRemote = path.join(
-            os.tmpdir(),
-            `missing-dbt-git-${Date.now()}.git`,
-        );
-        const adapter = createAdapter(missingRemote);
-        await expect(adapter.getDbtManifest()).rejects.toBeInstanceOf(
-            UnexpectedGitError,
-        );
-        await adapter.destroy();
+        const cacheOutcomes: unknown[] = [];
+        const info = vi
+            .spyOn(Logger, 'info')
+            .mockImplementation((message: unknown, ...metadata: unknown[]) => {
+                if (message === 'dbt.git.cache.outcome') {
+                    cacheOutcomes.push(metadata[0]);
+                }
+                return Logger;
+            });
+        try {
+            const missingRemote = path.join(
+                os.tmpdir(),
+                `missing-dbt-git-${Date.now()}.git`,
+            );
+            const adapter = createAdapter(missingRemote);
+            await expect(adapter.getDbtManifest()).rejects.toBeInstanceOf(
+                UnexpectedGitError,
+            );
+            await adapter.destroy();
+
+            expect(adapter.getCacheOutcome()).toMatchObject({
+                missReason: 'cold',
+                fallbackReason: 'cache-clone-failed',
+                eligible: null,
+                retained: false,
+            });
+            expect(cacheOutcomes).toHaveLength(1);
+        } finally {
+            info.mockRestore();
+        }
     });
 
     it('uses a fresh checkout while another adapter owns the cache lease', async () => {

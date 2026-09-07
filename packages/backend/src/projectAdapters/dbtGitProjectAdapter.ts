@@ -1,6 +1,7 @@
 import {
     CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    getErrorMessage,
     SupportedDbtVersions,
     UnexpectedGitError,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import * as fspromises from 'fs/promises';
 import * as yaml from 'js-yaml';
 import os from 'os';
 import * as path from 'path';
+import { performance } from 'perf_hooks';
 import simpleGit, { SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { DbtCliClient } from '../dbt/dbtCliClient';
@@ -29,6 +31,7 @@ import {
     invalidateOwnedDbtGitCacheLease,
     releaseDbtGitProjectCache,
 } from './dbtGitProjectCache';
+import { inspectDbtGitProject } from './dbtGitProjectInspection';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
 
@@ -62,6 +65,20 @@ export type DbtGitFetchMetrics = {
     depsDurationMs: number;
 };
 
+export type DbtGitCacheOutcome = {
+    cloneMode: 'fresh' | 'reused';
+    depsMode: 'fresh' | 'reused';
+    missReason: string | null;
+    fallbackReason: string | null;
+    retainCheckout: boolean;
+    eligible: boolean | null;
+    eligibilityReason: string | null;
+    inspectionDurationMs: number;
+    cleanupDurationMs: number;
+    retained: boolean | null;
+    retentionReason: string | null;
+};
+
 type DependencyLayout = {
     eligible: boolean;
     installDirectory: string;
@@ -85,6 +102,33 @@ const PACKAGE_CONFIG_FILES = [
     'package-lock.yml',
     'dbt_project.yml',
 ] as const;
+
+const stripTokensFromUrls = (raw: string) => {
+    const pattern = /\/\/(.*)@/g;
+    return raw.replace(pattern, '//*****@');
+};
+
+const sanitizedError = (error: unknown, sensitiveValues: string[]) => {
+    const source =
+        error instanceof Error ? error.message : getErrorMessage(error);
+    const message = sensitiveValues
+        .filter(Boolean)
+        .flatMap((value) => [value, encodeURIComponent(value)])
+        .reduce(
+            (result, value) => result.replaceAll(value, '*****'),
+            stripTokensFromUrls(source),
+        );
+    return {
+        name: error instanceof Error ? error.name : 'UnknownError',
+        message,
+        ...((error as NodeJS.ErrnoException | undefined)?.code
+            ? { code: (error as NodeJS.ErrnoException).code }
+            : {}),
+    };
+};
+
+const isMissingFileError = (error: unknown): boolean =>
+    (error as NodeJS.ErrnoException).code === 'ENOENT';
 
 export const assertValidGitBranch = (branch: string): void => {
     if (branch.startsWith('-')) {
@@ -142,10 +186,10 @@ const readRegularFile = async (
             content: await fspromises.readFile(filePath, 'utf8'),
         };
     } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        if (isMissingFileError(error)) {
             return { safe: true, content: null };
         }
-        return { safe: false, content: null };
+        throw error;
     }
 };
 
@@ -174,103 +218,6 @@ const literalGitCleanExclusion = (
 };
 
 const FILESYSTEM_BATCH_SIZE = 32;
-
-const directorySize = async (directory: string): Promise<number> => {
-    let total = 0;
-    const pending = [directory];
-    const processBatch = async (): Promise<void> => {
-        const batch = pending.splice(0, FILESYSTEM_BATCH_SIZE);
-        if (batch.length === 0) return;
-        const results = await Promise.all(
-            batch.map(async (candidate) => {
-                const stat = await fspromises.lstat(candidate);
-                const children =
-                    stat.isDirectory() && !stat.isSymbolicLink()
-                        ? await fspromises.readdir(candidate)
-                        : [];
-                return { candidate, children, size: stat.size };
-            }),
-        );
-        results.forEach(({ candidate, children, size }) => {
-            total += size;
-            pending.push(
-                ...children.map((child) => path.join(candidate, child)),
-            );
-        });
-        await processBatch();
-    };
-    await processBatch();
-    return total;
-};
-
-const gitMetadataContainsCredentials = async (
-    root: string,
-): Promise<boolean> => {
-    const found: string[] = [];
-    const pending = [{ directory: root, gitMetadata: false }];
-    const scanBatch = async (): Promise<void> => {
-        const batch = pending.splice(0, FILESYSTEM_BATCH_SIZE);
-        if (batch.length === 0) return;
-        const results = await Promise.all(
-            batch.map(async (item) => ({
-                ...item,
-                entries: await fspromises.readdir(item.directory, {
-                    withFileTypes: true,
-                }),
-            })),
-        );
-        results.forEach(({ directory, entries, gitMetadata }) => {
-            entries.forEach((entry) => {
-                const candidate = path.join(directory, entry.name);
-                if (gitMetadata) {
-                    if (entry.name !== 'objects' && entry.name !== 'index') {
-                        if (entry.isDirectory()) {
-                            pending.push({
-                                directory: candidate,
-                                gitMetadata: true,
-                            });
-                        } else if (entry.isFile()) {
-                            found.push(candidate);
-                        } else {
-                            throw new Error('Unsupported Git metadata');
-                        }
-                    }
-                } else if (entry.name === '.git') {
-                    if (entry.isDirectory() && !entry.isSymbolicLink()) {
-                        pending.push({
-                            directory: candidate,
-                            gitMetadata: true,
-                        });
-                    } else {
-                        throw new Error('Git indirection is not cacheable');
-                    }
-                } else if (entry.isDirectory() && !entry.isSymbolicLink()) {
-                    pending.push({
-                        directory: candidate,
-                        gitMetadata: false,
-                    });
-                }
-            });
-        });
-        await scanBatch();
-    };
-    await scanBatch();
-    const remaining = [...found];
-    const inspectBatch = async (): Promise<boolean> => {
-        const batch = remaining.splice(0, FILESYSTEM_BATCH_SIZE);
-        if (batch.length === 0) return false;
-        const matches = await Promise.all(
-            batch.map(async (file) => {
-                const stat = await fspromises.lstat(file);
-                if (stat.size > 1024 * 1024) return true;
-                const content = await fspromises.readFile(file, 'utf8');
-                return /https?:\/\/[^\s/@]+(?::[^\s/@]*)?@/i.test(content);
-            }),
-        );
-        return matches.some(Boolean) || inspectBatch();
-    };
-    return inspectBatch();
-};
 
 const directoryContentDigest = async (
     directory: string,
@@ -363,7 +310,27 @@ export class DbtGitProjectAdapter
 
     private refreshed = false;
 
+    private refreshAttempted = false;
+
     private retainCheckout = true;
+
+    private readonly sensitiveValues: string[];
+
+    private cacheOutcome: DbtGitCacheOutcome = {
+        cloneMode: 'fresh',
+        depsMode: 'fresh',
+        missReason: null,
+        fallbackReason: null,
+        retainCheckout: true,
+        eligible: null,
+        eligibilityReason: null,
+        inspectionDurationMs: 0,
+        cleanupDurationMs: 0,
+        retained: null,
+        retentionReason: null,
+    };
+
+    private cacheOutcomeLogged = false;
 
     private fetchMetrics: DbtGitFetchMetrics = {
         cloneMode: 'fresh',
@@ -440,6 +407,15 @@ export class DbtGitProjectAdapter
         this.temporaryRepositoryDirectories.add(localRepositoryDir);
         this.remoteRepositoryUrl = remoteRepositoryUrl;
         this.credential = credential;
+        this.sensitiveValues = credential
+            ? [credential.token]
+            : (() => {
+                  try {
+                      return decodedUrlCredentials(remoteRepositoryUrl);
+                  } catch {
+                      return [];
+                  }
+              })();
         this.cleanRemoteRepositoryUrl = cleanRemoteRepositoryUrl;
         this.branch = gitBranch;
         this.repository = repository;
@@ -449,6 +425,13 @@ export class DbtGitProjectAdapter
             isContainedRelativePath(projectDirectorySubPath)
                 ? cacheIdentity
                 : undefined;
+        if (!credentialMatchesUrl) {
+            this.cacheOutcome.missReason = 'credential-url-mismatch';
+        } else if (!cacheIdentity) {
+            this.cacheOutcome.missReason = 'cache-identity-unavailable';
+        } else if (!isContainedRelativePath(projectDirectorySubPath)) {
+            this.cacheOutcome.missReason = 'project-subpath-ineligible';
+        }
         const parsedRemote = new URL(this.cleanRemoteRepositoryUrl);
         this.repositoryIdentity = JSON.stringify({
             authority: parsedRemote.host,
@@ -465,6 +448,21 @@ export class DbtGitProjectAdapter
 
     getFetchMetrics(): DbtGitFetchMetrics {
         return { ...this.fetchMetrics };
+    }
+
+    getCacheOutcome(): DbtGitCacheOutcome {
+        return {
+            ...this.cacheOutcome,
+            cloneMode: this.fetchMetrics.cloneMode,
+            depsMode: this.fetchMetrics.depsMode,
+            retainCheckout: this.retainCheckout,
+        };
+    }
+
+    private warnSwallowedError(message: string, error: unknown) {
+        Logger.warn(message, {
+            error: sanitizedError(error, this.sensitiveValues),
+        });
     }
 
     private git() {
@@ -506,6 +504,8 @@ export class DbtGitProjectAdapter
 
     private async dependencyLayout(): Promise<DependencyLayout> {
         if (!this.dbtProjectDir) {
+            this.cacheOutcome.eligible = false;
+            this.cacheOutcome.eligibilityReason = 'project-directory-missing';
             return {
                 eligible: false,
                 installDirectory: '',
@@ -705,6 +705,8 @@ export class DbtGitProjectAdapter
                     }),
                 )
                 .digest('hex');
+            this.cacheOutcome.eligible = true;
+            this.cacheOutcome.eligibilityReason = null;
             return {
                 eligible: true,
                 installDirectory,
@@ -712,7 +714,16 @@ export class DbtGitProjectAdapter
                 hash,
                 inputHash,
             };
-        } catch {
+        } catch (error) {
+            this.cacheOutcome.eligible = false;
+            this.cacheOutcome.eligibilityReason = sanitizedError(
+                error,
+                this.sensitiveValues,
+            ).message;
+            this.warnSwallowedError(
+                'Dbt Git dependency layout is not cacheable',
+                error,
+            );
             return {
                 eligible: false,
                 installDirectory: '',
@@ -727,10 +738,7 @@ export class DbtGitProjectAdapter
         const startedAt = Date.now();
         const before = await this.dependencyLayout();
         if (this.cacheLease?.reused && before.eligible) {
-            const marker = await fspromises
-                .readFile(this.cacheLease.depsMarkerPath, 'utf8')
-                .then((value) => JSON.parse(value) as DependencyMarker)
-                .catch(() => undefined);
+            const marker = await this.readDependencyMarker();
             const packageDirectoryExists = before.hasDeclaredPackages
                 ? await fspromises
                       .lstat(before.installDirectory)
@@ -738,7 +746,15 @@ export class DbtGitProjectAdapter
                           (stat) =>
                               stat.isDirectory() && !stat.isSymbolicLink(),
                       )
-                      .catch(() => false)
+                      .catch((error) => {
+                          if (!isMissingFileError(error)) {
+                              this.warnSwallowedError(
+                                  'Failed to inspect cached dbt package directory',
+                                  error,
+                              );
+                          }
+                          return false;
+                      })
                 : true;
             if (
                 marker?.version === DEPENDENCY_MARKER_VERSION &&
@@ -755,8 +771,12 @@ export class DbtGitProjectAdapter
         if (this.cacheLease) {
             await fspromises
                 .rm(this.cacheLease.depsMarkerPath, { force: true })
-                .catch(() => {
+                .catch((error) => {
                     this.retainCheckout = false;
+                    this.warnSwallowedError(
+                        'Failed to remove dbt dependency cache marker',
+                        error,
+                    );
                 });
         }
         try {
@@ -783,11 +803,37 @@ export class DbtGitProjectAdapter
                     temporaryPath,
                     this.cacheLease.depsMarkerPath,
                 );
-            } catch {
+            } catch (error) {
                 this.retainCheckout = false;
+                this.warnSwallowedError(
+                    'Failed to write dbt dependency cache marker',
+                    error,
+                );
             }
         } else if (!after.eligible) {
             this.retainCheckout = false;
+        }
+    }
+
+    private async readDependencyMarker(): Promise<
+        DependencyMarker | undefined
+    > {
+        if (!this.cacheLease) return undefined;
+        try {
+            return JSON.parse(
+                await fspromises.readFile(
+                    this.cacheLease.depsMarkerPath,
+                    'utf8',
+                ),
+            ) as DependencyMarker;
+        } catch (error) {
+            if (!isMissingFileError(error)) {
+                this.warnSwallowedError(
+                    'Failed to read dbt dependency cache marker',
+                    error,
+                );
+            }
+            return undefined;
         }
     }
 
@@ -796,12 +842,7 @@ export class DbtGitProjectAdapter
         if (!layout.eligible) {
             throw new Error('Unsafe cached dependency layout');
         }
-        const marker = this.cacheLease
-            ? await fspromises
-                  .readFile(this.cacheLease.depsMarkerPath, 'utf8')
-                  .then((value) => JSON.parse(value) as DependencyMarker)
-                  .catch(() => undefined)
-            : undefined;
+        const marker = await this.readDependencyMarker();
         const exclusions =
             marker?.inputHash === layout.inputHash
                 ? [
@@ -835,6 +876,7 @@ export class DbtGitProjectAdapter
 
     private async cloneFresh() {
         const startedAt = Date.now();
+        let cloned = false;
         try {
             await this.git().clone(
                 this.cleanRemoteRepositoryUrl,
@@ -851,10 +893,16 @@ export class DbtGitProjectAdapter
                 .cwd(this.localRepositoryDir)
                 .remote(['set-url', 'origin', this.cleanRemoteRepositoryUrl]);
             this.fetchMetrics.cloneMode = 'fresh';
+            cloned = true;
         } catch (error) {
             gitErrorHandler(error, this.repository);
         } finally {
             this.fetchMetrics.cloneDurationMs = Date.now() - startedAt;
+            if (cloned) {
+                Logger.info(
+                    `Git clone completed in ${this.fetchMetrics.cloneDurationMs}ms`,
+                );
+            }
         }
     }
 
@@ -886,13 +934,23 @@ export class DbtGitProjectAdapter
         );
         this.fetchMetrics.cloneMode = 'reused';
         this.fetchMetrics.cloneDurationMs = Date.now() - startedAt;
+        Logger.info(
+            `Git fetch completed in ${this.fetchMetrics.cloneDurationMs}ms`,
+        );
     }
 
     private async useFreshAfterCacheFailure() {
         if (this.cacheLease) {
-            await invalidateOwnedDbtGitCacheLease(this.cacheLease).catch(
-                () => undefined,
-            );
+            const lease = this.cacheLease;
+            await invalidateOwnedDbtGitCacheLease(lease).catch((error) => {
+                this.warnSwallowedError(
+                    'Failed to invalidate dbt Git cache checkout',
+                    error,
+                );
+            });
+            this.cacheOutcome.retained = lease.retained ?? false;
+            this.cacheOutcome.retentionReason =
+                lease.retentionReason ?? 'invalidated';
             this.cacheLease = undefined;
         }
         const temporaryDirectory = await fspromises.mkdtemp(
@@ -906,26 +964,48 @@ export class DbtGitProjectAdapter
 
     private async refreshRepo() {
         if (this.refreshed) return;
+        this.refreshAttempted = true;
         const initialDirectory = this.localRepositoryDir;
         if (this.cacheIdentity) {
-            this.cacheLease = await acquireDbtGitProjectCache(
-                this.cacheIdentity,
-                this.repositoryIdentity,
-            ).catch(() => undefined);
+            try {
+                this.cacheLease = await acquireDbtGitProjectCache(
+                    this.cacheIdentity,
+                    this.repositoryIdentity,
+                    (reason) => {
+                        this.cacheOutcome.missReason = reason;
+                    },
+                );
+                if (this.cacheLease && !this.cacheLease.reused) {
+                    this.cacheOutcome.missReason = 'cold';
+                }
+            } catch (error) {
+                this.cacheOutcome.missReason = 'acquire-error';
+                this.warnSwallowedError(
+                    'Failed to acquire dbt Git checkout cache',
+                    error,
+                );
+            }
         }
         if (this.cacheLease) {
             await this.removeTemporaryRepositoryDirectory(
                 initialDirectory,
-            ).catch(() => undefined);
+            ).catch((error) => {
+                this.warnSwallowedError(
+                    'Failed to remove temporary dbt Git checkout',
+                    error,
+                );
+            });
             this.setRepositoryDirectory(this.cacheLease.checkoutDirectory);
             if (this.cacheLease.reused) {
                 try {
                     await this.reuseCheckout();
                     this.refreshed = true;
                     return;
-                } catch {
-                    Logger.debug(
-                        'Cached git checkout refresh failed; using a fresh clone',
+                } catch (error) {
+                    this.cacheOutcome.fallbackReason = 'refresh-failed';
+                    this.warnSwallowedError(
+                        'Cached Git checkout refresh failed; using a fresh clone',
+                        error,
                     );
                     await this.useFreshAfterCacheFailure();
                     return;
@@ -935,9 +1015,11 @@ export class DbtGitProjectAdapter
                 await this.cloneFresh();
                 this.refreshed = true;
                 return;
-            } catch {
-                Logger.debug(
-                    'Cached git checkout clone failed; using a fresh clone',
+            } catch (error) {
+                this.cacheOutcome.fallbackReason = 'cache-clone-failed';
+                this.warnSwallowedError(
+                    'Cached Git checkout clone failed; using a fresh clone',
+                    error,
                 );
                 await this.useFreshAfterCacheFailure();
                 return;
@@ -947,11 +1029,8 @@ export class DbtGitProjectAdapter
         this.refreshed = true;
     }
 
-    private async containsRetainedCredentials(): Promise<boolean> {
-        return gitMetadataContainsCredentials(this.localRepositoryDir);
-    }
-
     async destroy(): Promise<void> {
+        const cleanupStartedAt = performance.now();
         Logger.debug('Destroy git project adapter');
         let cleanupError: unknown;
         try {
@@ -960,44 +1039,91 @@ export class DbtGitProjectAdapter
             cleanupError = error;
         } finally {
             if (this.cacheLease) {
+                const lease = this.cacheLease;
                 try {
-                    if (
-                        !this.retainCheckout ||
-                        (await this.containsRetainedCredentials().catch(
-                            () => true,
-                        ))
-                    ) {
-                        await invalidateOwnedDbtGitCacheLease(this.cacheLease);
+                    if (!this.retainCheckout) {
+                        await invalidateOwnedDbtGitCacheLease(lease);
                     } else {
-                        const sizeBytes = await directorySize(
-                            this.cacheLease.entryDirectory,
-                        );
-                        await releaseDbtGitProjectCache(
-                            this.cacheLease,
-                            sizeBytes,
-                        );
+                        let inspection:
+                            | Awaited<ReturnType<typeof inspectDbtGitProject>>
+                            | undefined;
+                        try {
+                            inspection = await inspectDbtGitProject(
+                                lease.entryDirectory,
+                            );
+                            this.cacheOutcome.inspectionDurationMs =
+                                inspection.durationMs;
+                        } catch (error) {
+                            this.cacheOutcome.retentionReason =
+                                'inspection-failed';
+                            this.warnSwallowedError(
+                                'Failed to inspect dbt Git checkout cache',
+                                error,
+                            );
+                        }
+                        if (!inspection || inspection.containsCredentials) {
+                            this.retainCheckout = false;
+                            if (inspection?.containsCredentials) {
+                                this.cacheOutcome.retentionReason =
+                                    'credential-metadata';
+                            }
+                            await invalidateOwnedDbtGitCacheLease(lease);
+                        } else {
+                            await releaseDbtGitProjectCache(
+                                lease,
+                                inspection.sizeBytes,
+                            );
+                        }
                     }
+                    this.cacheOutcome.retained = lease.retained ?? false;
+                    this.cacheOutcome.retentionReason ??=
+                        lease.retentionReason ?? null;
                 } catch (error) {
-                    await invalidateOwnedDbtGitCacheLease(
-                        this.cacheLease,
-                    ).catch(() => undefined);
-                    Logger.warn('Failed to retain dbt git checkout cache', {
+                    await invalidateOwnedDbtGitCacheLease(lease).catch(
+                        (invalidationError) => {
+                            this.warnSwallowedError(
+                                'Failed to invalidate unretained dbt Git checkout cache',
+                                invalidationError,
+                            );
+                        },
+                    );
+                    this.cacheOutcome.retained = false;
+                    this.cacheOutcome.retentionReason ??=
+                        lease.retentionReason ?? 'retention-error';
+                    this.warnSwallowedError(
+                        'Failed to retain dbt Git checkout cache',
                         error,
-                    });
+                    );
                 }
                 this.cacheLease = undefined;
             } else {
                 await this.removeTemporaryRepositoryDirectory(
                     this.localRepositoryDir,
-                ).catch(() => undefined);
+                ).catch((error) => {
+                    this.warnSwallowedError(
+                        'Failed to remove temporary dbt Git checkout',
+                        error,
+                    );
+                });
             }
             await Promise.all(
                 [...this.temporaryRepositoryDirectories].map((directory) =>
                     this.removeTemporaryRepositoryDirectory(directory).catch(
-                        () => undefined,
+                        (error) => {
+                            this.warnSwallowedError(
+                                'Failed to remove temporary dbt Git checkout',
+                                error,
+                            );
+                        },
                     ),
                 ),
             );
+            this.cacheOutcome.cleanupDurationMs =
+                performance.now() - cleanupStartedAt;
+            if (this.refreshAttempted && !this.cacheOutcomeLogged) {
+                Logger.info('dbt.git.cache.outcome', this.getCacheOutcome());
+                this.cacheOutcomeLogged = true;
+            }
         }
         if (cleanupError) throw cleanupError;
     }
