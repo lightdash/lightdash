@@ -995,6 +995,11 @@ export class ProjectService extends BaseService {
                     },
                 );
 
+            case ProjectType.TRAINING:
+                throw new ForbiddenError(
+                    'Training projects are created by the training provisioner only.',
+                );
+
             case ProjectType.PREVIEW: {
                 let upstreamProject: Awaited<
                     ReturnType<ProjectModel['get']>

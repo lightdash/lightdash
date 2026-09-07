@@ -8,16 +8,99 @@ import { PROJECT_EDITOR } from './projectMemberAbility.mock';
 import {
     getAllScopesForRole,
     getNonEnterpriseScopesForRole,
+    getTrainingProjectScopes,
+    getTrainingProjectViewerScopes,
     isSystemRole,
+    TRAINING_PROJECT_EXCLUDED_SCOPES,
 } from './roleToScopeMapping';
 import {
     debugRoleScopeMapping,
     validateRoleInheritance,
 } from './roleToScopeMapping.testUtils';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
+import { getOrganizationOnlyScopes, getScopes } from './scopes';
 import { type MemberAbility } from './types';
 
 describe('roleToScopeMapping', () => {
+    describe('getTrainingProjectScopes', () => {
+        const trainee = getTrainingProjectScopes();
+        const admin = getAllScopesForRole(ProjectMemberRole.ADMIN);
+
+        it('is a subset of the project admin scope set', () => {
+            trainee.forEach((scope) => expect(admin).toContain(scope));
+        });
+
+        it('contains no organization-only scope', () => {
+            const orgOnly = new Set<string>(getOrganizationOnlyScopes());
+            trainee.forEach((scope) => expect(orgOnly.has(scope)).toBe(false));
+        });
+
+        it('omits every excluded scope', () => {
+            TRAINING_PROJECT_EXCLUDED_SCOPES.forEach((scope) =>
+                expect(trainee).not.toContain(scope),
+            );
+        });
+
+        it('grants every other admin scope, so admin-set changes are caught', () => {
+            const orgOnly = new Set<string>(getOrganizationOnlyScopes());
+            const expected = admin.filter(
+                (scope) =>
+                    !orgOnly.has(scope) &&
+                    !TRAINING_PROJECT_EXCLUDED_SCOPES.includes(scope),
+            );
+            expect(new Set(trainee)).toEqual(new Set(expected));
+        });
+
+        it('only excludes scopes that exist in the vocabulary', () => {
+            const known = new Set<string>(
+                getScopes({ isEnterprise: true }).map((scope) => scope.name),
+            );
+            TRAINING_PROJECT_EXCLUDED_SCOPES.forEach((scope) =>
+                expect(known.has(scope)).toBe(true),
+            );
+        });
+
+        it("never grants other people's threads, documents or analytics", () => {
+            [
+                'view:AiAgentThread',
+                'manage:AiAgentThread',
+                'view:AiAgentDocument',
+                'manage:AiAgentDocument',
+                'view:Analytics',
+            ].forEach((scope) => expect(trainee).not.toContain(scope));
+            expect(trainee).toContain('view:AiAgentThread@self');
+            expect(trainee).toContain('manage:AiAgentThread@self');
+        });
+
+        it("the shared training project gets a viewer's project scopes only", () => {
+            const shared = getTrainingProjectViewerScopes();
+            shared.forEach((scope) => expect(trainee).toContain(scope));
+            expect(shared).toContain('view:Project');
+            expect(shared).toContain('view:SavedChart');
+            expect(shared).toContain('view:DataApp');
+            expect(shared).toContain('view:AiAgent');
+            [
+                'manage:SavedChart',
+                'manage:SqlRunner',
+                'manage:AiAgent',
+                'create:DashboardComments',
+                'manage:Space',
+            ].forEach((scope) => expect(shared).not.toContain(scope));
+        });
+
+        it('keeps the controls training depends on', () => {
+            [
+                'manage:PinnedItems',
+                'manage:SavedChart',
+                'manage:Dashboard',
+                'manage:Space',
+                'manage:SqlRunner',
+                'manage:Validation',
+                'manage:DataApp',
+            ].forEach((scope) => expect(trainee).toContain(scope));
+        });
+    });
+
     describe('isSystemRole', () => {
         it('should return true for valid system role "developer"', () => {
             expect(isSystemRole('developer')).toBe(true);
