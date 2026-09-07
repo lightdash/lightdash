@@ -20,6 +20,7 @@ import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
+import { readLearnOrigin } from '../learn/origin';
 import { markScopeCompleted, markScopeStarted } from '../learn/progress';
 import { SCOPE_TOURS } from './generated';
 import {
@@ -202,6 +203,16 @@ const ScopeTourHost: FC = () => {
         project?.type === ProjectType.PREVIEW
             ? (project.upstreamProjectUuid ?? null)
             : null;
+    // Where the learner goes when the copy is put away: the project the
+    // library was opened from (its library, or its home), if it is still
+    // theirs, else the training project. The library renders on any
+    // project route, so returning there keeps them in their own project.
+    const origin = readLearnOrigin();
+    const returnProject =
+        origin &&
+        projects?.some((candidate) => candidate.projectUuid === origin)
+            ? origin
+            : upstream;
     // Leave the copy before it is removed, and only remove it once the
     // learner's page has changed: the page being left is addressed by the
     // copy's slug, and it stays mounted until the next page has loaded. If
@@ -226,14 +237,14 @@ const ScopeTourHost: FC = () => {
             return;
         }
         void leaveCopy(
-            `/projects/${upstream}/${returnTo === 'learn' ? 'learn' : 'home'}`,
+            `/projects/${returnProject}/${returnTo === 'learn' ? 'learn' : 'home'}`,
             upstream,
         );
     };
     const handleBackToLibrary = () => {
         if (!upstream) return;
         setFinishedScope(null);
-        void leaveCopy(`/projects/${upstream}/learn`, upstream);
+        void leaveCopy(`/projects/${returnProject}/learn`, upstream);
     };
     // One copy per tour start. `isLoading` is not set synchronously, and the
     // effect below re-runs as its inputs settle, so a ref does the gating; a
