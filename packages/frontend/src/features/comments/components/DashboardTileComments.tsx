@@ -206,9 +206,12 @@ export const DashboardTileComments: FC<
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
                 data-tour-label="A comment lives on the tile it is about"
-                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:p2:1"
+                data-tour-docs="explore/dashboards/interact.mdx#comment-on-a-tile:1"
                 data-tour-return="none"
-                data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:p4:1"
+                // The closing step describes what the learner sees next (the
+                // icon with its count), not mentions: the suggested comment
+                // cannot mention anyone, since who exists differs per org.
+                data-tour-resultdocs="explore/dashboards/interact.mdx#comment-on-a-tile:2"
             >
                 <Stack
                     id="comments-stack"
