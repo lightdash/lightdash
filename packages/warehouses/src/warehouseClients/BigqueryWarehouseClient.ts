@@ -201,15 +201,16 @@ const mapFieldType = (type: string | undefined): DimensionType => {
     }
 };
 
-// NUMERIC is (38, 9) unless declared; BIGNUMERIC exceeds what a DuckDB decimal holds unless its scale is declared
+// NUMERIC is (38, 9) unless declared; BIGNUMERIC fits a DuckDB decimal only when its declared precision does
 export const getBigqueryNumericKind = (field: {
     type?: string;
+    precision?: string;
     scale?: string;
 }): ResultNumericKind | null => {
-    const declaredScale =
-        field.scale !== undefined && field.scale !== ''
-            ? Number(field.scale)
-            : null;
+    const declared = (value: string | undefined): number | null =>
+        value !== undefined && value !== '' ? Number(value) : null;
+    const declaredScale = declared(field.scale);
+    const declaredPrecision = declared(field.precision);
     switch (field.type) {
         case BigqueryFieldType.INTEGER:
         case BigqueryFieldType.INT64:
@@ -220,7 +221,9 @@ export const getBigqueryNumericKind = (field: {
         case BigqueryFieldType.NUMERIC:
             return { kind: 'decimal', scale: declaredScale ?? 9 };
         case BigqueryFieldType.BIGNUMERIC:
-            return declaredScale !== null && declaredScale <= 18
+            return declaredScale !== null &&
+                declaredPrecision !== null &&
+                declaredPrecision <= 38
                 ? { kind: 'decimal', scale: declaredScale }
                 : null;
         default:

@@ -57,13 +57,24 @@ describe('numeric kinds reported by warehouse drivers', () => {
             });
         });
 
-        it('reads BIGNUMERIC only with a declared scale a DuckDB decimal can hold', () => {
+        it('reads BIGNUMERIC only when its declared precision fits a DuckDB decimal', () => {
             expect(
-                getBigqueryNumericKind({ type: 'BIGNUMERIC', scale: '4' }),
+                getBigqueryNumericKind({
+                    type: 'BIGNUMERIC',
+                    precision: '30',
+                    scale: '4',
+                }),
             ).toEqual({ kind: 'decimal', scale: 4 });
             expect(getBigqueryNumericKind({ type: 'BIGNUMERIC' })).toBeNull();
             expect(
-                getBigqueryNumericKind({ type: 'BIGNUMERIC', scale: '38' }),
+                getBigqueryNumericKind({ type: 'BIGNUMERIC', scale: '4' }),
+            ).toBeNull();
+            expect(
+                getBigqueryNumericKind({
+                    type: 'BIGNUMERIC',
+                    precision: '60',
+                    scale: '4',
+                }),
             ).toBeNull();
             expect(getBigqueryNumericKind({ type: 'STRING' })).toBeNull();
         });
@@ -145,7 +156,7 @@ describe('numeric kinds reported by warehouse drivers', () => {
             ).toEqual({ kind: 'float' });
         });
 
-        it('reads the scale of Decimal(P, S) and DecimalN(S)', () => {
+        it('reads the scale of Decimal(P, S), the spelling the server sends for every decimal', () => {
             expect(getClickhouseNumericKind('Decimal(18, 4)')).toEqual({
                 kind: 'decimal',
                 scale: 4,
@@ -153,14 +164,14 @@ describe('numeric kinds reported by warehouse drivers', () => {
             expect(getClickhouseNumericKind('Nullable(Decimal(10,2))')).toEqual(
                 { kind: 'decimal', scale: 2 },
             );
-            expect(getClickhouseNumericKind('Decimal64(3)')).toEqual({
+            expect(getClickhouseNumericKind('Decimal(38, 10)')).toEqual({
                 kind: 'decimal',
-                scale: 3,
+                scale: 10,
             });
         });
 
-        it('reports nothing for Decimal256 or other types', () => {
-            expect(getClickhouseNumericKind('Decimal256(10)')).toBeNull();
+        it('reports nothing for a decimal wider than 38 digits or for other types', () => {
+            expect(getClickhouseNumericKind('Decimal(76, 10)')).toBeNull();
             expect(getClickhouseNumericKind('String')).toBeNull();
         });
     });

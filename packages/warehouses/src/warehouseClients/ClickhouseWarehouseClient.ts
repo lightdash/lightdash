@@ -100,7 +100,7 @@ export const getClickhouseTimestampDomain = (
     }
 };
 
-// Decimal(P, S) and DecimalN(S) carry their scale in the type string; Decimal256 exceeds a DuckDB decimal
+// The server names every decimal Decimal(P, S); one wider than 38 digits exceeds a DuckDB decimal
 export const getClickhouseNumericKind = (
     type: ClickhouseTypes | string,
 ): ResultNumericKind | null => {
@@ -119,14 +119,12 @@ export const getClickhouseNumericKind = (
         case ClickhouseTypes.FLOAT64:
             return { kind: 'float' };
         case ClickhouseTypes.DECIMAL: {
-            const scale = type.match(/Decimal\(\s*\d+\s*,\s*(\d+)\s*\)/);
-            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
-        }
-        case ClickhouseTypes.DECIMAL32:
-        case ClickhouseTypes.DECIMAL64:
-        case ClickhouseTypes.DECIMAL128: {
-            const scale = type.match(/Decimal\d+\(\s*(\d+)\s*\)/);
-            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
+            const params = type.match(/Decimal\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
+            if (!params) return null;
+            const [, precision, scale] = params;
+            return Number(precision) <= 38
+                ? { kind: 'decimal', scale: Number(scale) }
+                : null;
         }
         default:
             return null;
