@@ -14,6 +14,7 @@ import {
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 
 type DbtGithubProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -31,6 +32,7 @@ type DbtGithubProjectAdapterArgs = {
     dbtVersion: SupportedDbtVersions;
     selector?: string;
     analytics?: LightdashAnalytics;
+    cacheIdentity?: DbtGitCacheIdentity;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -52,6 +54,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         analytics,
+        cacheIdentity,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -84,6 +87,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
             dbtDepsErrorHint: githubInstallationId
                 ? 'If a dependency is a private GitHub repository, ensure it is included in the same GitHub App installation as this project.'
                 : undefined,
+            cacheIdentity,
         });
         this.gitCredentialFiles = gitCredentialFiles;
     }

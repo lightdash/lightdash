@@ -12,7 +12,12 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
+import { invalidateDbtGitProjectCacheSource } from '../projectAdapters/dbtGitProjectCache';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
+
+vi.mock('../projectAdapters/dbtGitProjectCache', () => ({
+    invalidateDbtGitProjectCacheSource: vi.fn(async () => undefined),
+}));
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
@@ -781,6 +786,9 @@ describe('ProjectDbtSourcesService', () => {
             ).rejects.toThrow(ForbiddenError);
 
             expect(projectDbtSourcesModel.deleteSource).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(invalidateDbtGitProjectCacheSource),
+            ).not.toHaveBeenCalled();
         });
 
         it('deletes a source belonging to the project', async () => {
@@ -799,6 +807,60 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.deleteSource).toHaveBeenCalledWith(
                 sourceUuid,
             );
+            expect(
+                vi.mocked(invalidateDbtGitProjectCacheSource),
+            ).toHaveBeenCalledWith(projectUuid, sourceUuid);
+            expect(
+                vi.mocked(projectDbtSourcesModel.deleteSource).mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(
+                vi.mocked(invalidateDbtGitProjectCacheSource).mock
+                    .invocationCallOrder[0],
+            );
+        });
+
+        it('keeps the cached checkout when the database delete fails', async () => {
+            vi.mocked(projectDbtSourcesModel.getSource).mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+            });
+            vi.mocked(
+                projectDbtSourcesModel.deleteSource,
+            ).mockRejectedValueOnce(new Error('delete failed'));
+
+            await expect(
+                getService().deleteProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                ),
+            ).rejects.toThrow('delete failed');
+
+            expect(
+                vi.mocked(invalidateDbtGitProjectCacheSource),
+            ).not.toHaveBeenCalled();
+        });
+
+        it('keeps a successful source delete successful when local cache cleanup fails', async () => {
+            vi.mocked(projectDbtSourcesModel.getSource).mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+            });
+            vi.mocked(invalidateDbtGitProjectCacheSource).mockRejectedValueOnce(
+                new Error('cache unavailable'),
+            );
+
+            await expect(
+                getService().deleteProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                ),
+            ).resolves.toBeUndefined();
+
+            expect(
+                vi.mocked(projectDbtSourcesModel.deleteSource),
+            ).toHaveBeenCalledWith(sourceUuid);
         });
     });
 });

@@ -17,6 +17,7 @@ import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
+import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import {
     DbtManifestProjectAdapter,
@@ -37,6 +38,7 @@ export const projectAdapterFromConfig = async (
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
     manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
+    cacheIdentity?: DbtGitCacheIdentity,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -142,6 +144,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                cacheIdentity,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -160,6 +163,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                cacheIdentity,
             });
         case DbtProjectType.BITBUCKET:
             if (config.semanticLayer === 'lightdash') {
@@ -191,6 +195,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                cacheIdentity,
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -210,6 +215,7 @@ export const projectAdapterFromConfig = async (
                 dbtVersion,
 
                 selector: config.selector,
+                cacheIdentity,
             });
         default:
             const never: never = config;

@@ -97,6 +97,11 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import {
+    configureDbtGitProjectCache,
+    invalidateDbtGitProjectCacheProject,
+    type DbtGitCacheIdentity,
+} from '../../projectAdapters/dbtGitProjectCache';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { ProjectAdapter } from '../../types';
@@ -208,6 +213,14 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     warehouseClientFromCredentials: vi.fn(() => warehouseClientMock),
 }));
 
+vi.mock('../../projectAdapters/dbtGitProjectCache', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('../../projectAdapters/dbtGitProjectCache')
+    >()),
+    configureDbtGitProjectCache: vi.fn(),
+    invalidateDbtGitProjectCacheProject: vi.fn(async () => undefined),
+}));
+
 const projectModel = {
     runInAnalyticsProvisioningLock: vi.fn(
         async (_org: string, callback: () => Promise<unknown>) => callback(),
@@ -220,6 +233,9 @@ const projectModel = {
         dbtSourceUuid: 'primary-source-uuid',
         dbtSourceName: 'dbt_project',
     })),
+    getDbtSourceIdentityRows: vi.fn<ProjectModel['getDbtSourceIdentityRows']>(
+        async () => [],
+    ),
     getTablesConfiguration: vi.fn(async () => tablesConfiguration),
     updateTablesConfiguration: vi.fn(),
     getExploreFromCache: vi.fn(async () => validExplore),
@@ -886,6 +902,127 @@ describe('ProjectService', () => {
             expect(
                 localAnalytics.assertLocalAnalyticsProjectEnabled,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Git cache identity liveness', () => {
+        const getSourceIdentityRows =
+            vi.fn<ProjectDbtSourcesModel['getSourceIdentityRows']>();
+
+        const getLivenessCheck = () => {
+            getMockedProjectService(lightdashConfigMock, {
+                projectDbtSourcesModel: {
+                    getSourceIdentityRows,
+                } as unknown as ProjectDbtSourcesModel,
+            });
+            const configured = vi
+                .mocked(configureDbtGitProjectCache)
+                .mock.calls.at(-1)?.[0];
+            if (!configured) throw new Error('Git cache is not configured');
+            return configured.livenessCheck;
+        };
+
+        it('requires the exact primary identity or the null-identity fallback and the exact additional project pair', async () => {
+            vi.mocked(
+                projectModel.getDbtSourceIdentityRows,
+            ).mockResolvedValueOnce([
+                { projectUuid: 'current', dbtSourceUuid: 'primary-current' },
+                { projectUuid: 'legacy', dbtSourceUuid: null },
+                { projectUuid: 'changed', dbtSourceUuid: 'primary-new' },
+            ]);
+            vi.mocked(getSourceIdentityRows).mockResolvedValueOnce([
+                {
+                    projectUuid: 'current',
+                    projectDbtSourceUuid: 'additional-current',
+                },
+                {
+                    projectUuid: 'other',
+                    projectDbtSourceUuid: 'additional-moved',
+                },
+            ]);
+            const identities: DbtGitCacheIdentity[] = [
+                {
+                    projectUuid: 'current',
+                    sourceUuid: 'primary-current',
+                    sourceType: 'primary',
+                },
+                {
+                    projectUuid: 'legacy',
+                    sourceUuid: 'legacy',
+                    sourceType: 'primary',
+                },
+                {
+                    projectUuid: 'changed',
+                    sourceUuid: 'changed',
+                    sourceType: 'primary',
+                },
+                {
+                    projectUuid: 'missing',
+                    sourceUuid: 'primary-missing',
+                    sourceType: 'primary',
+                },
+                {
+                    projectUuid: 'current',
+                    sourceUuid: 'additional-current',
+                    sourceType: 'additional',
+                },
+                {
+                    projectUuid: 'current',
+                    sourceUuid: 'additional-moved',
+                    sourceType: 'additional',
+                },
+                {
+                    projectUuid: 'current',
+                    sourceUuid: 'additional-missing',
+                    sourceType: 'additional',
+                },
+            ];
+
+            const live = await getLivenessCheck()([
+                ...identities,
+                identities[0],
+                identities[4],
+            ]);
+
+            expect(live).toEqual(
+                new Set([
+                    'primary:current:primary-current',
+                    'primary:legacy:legacy',
+                    'additional:current:additional-current',
+                ]),
+            );
+            expect(
+                vi.mocked(projectModel.getDbtSourceIdentityRows),
+            ).toHaveBeenCalledExactlyOnceWith([
+                'current',
+                'legacy',
+                'changed',
+                'missing',
+            ]);
+            expect(
+                vi.mocked(getSourceIdentityRows),
+            ).toHaveBeenCalledExactlyOnceWith([
+                'additional-current',
+                'additional-moved',
+                'additional-missing',
+            ]);
+        });
+
+        it('rejects an uncertain lookup instead of returning a partial live set', async () => {
+            vi.mocked(
+                projectModel.getDbtSourceIdentityRows,
+            ).mockRejectedValueOnce(new Error('database unavailable'));
+            vi.mocked(getSourceIdentityRows).mockResolvedValueOnce([]);
+
+            await expect(
+                getLivenessCheck()([
+                    {
+                        projectUuid: 'current',
+                        sourceUuid: 'primary-current',
+                        sourceType: 'primary',
+                    },
+                ]),
+            ).rejects.toThrow('database unavailable');
         });
     });
 
@@ -2423,6 +2560,56 @@ describe('ProjectService', () => {
         expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
             projectModel.delete.mock.invocationCallOrder[0],
         );
+        expect(
+            vi.mocked(invalidateDbtGitProjectCacheProject),
+        ).toHaveBeenCalledWith(projectUuid);
+        expect(projectModel.delete.mock.invocationCallOrder[0]).toBeLessThan(
+            vi.mocked(invalidateDbtGitProjectCacheProject).mock
+                .invocationCallOrder[0],
+        );
+    });
+
+    test('keeps the Git cache when the project delete fails', async () => {
+        vi.mocked(projectModel.delete).mockRejectedValueOnce(
+            new Error('delete failed'),
+        );
+        const deletingUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+            ]),
+        };
+
+        await expect(service.delete(projectUuid, deletingUser)).rejects.toThrow(
+            'delete failed',
+        );
+
+        expect(
+            vi.mocked(invalidateDbtGitProjectCacheProject),
+        ).not.toHaveBeenCalled();
+    });
+
+    test('keeps a successful project delete successful when local cache cleanup fails', async () => {
+        vi.mocked(invalidateDbtGitProjectCacheProject).mockRejectedValueOnce(
+            new Error('cache unavailable'),
+        );
+        const deletingUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+            ]),
+        };
+
+        await expect(
+            service.delete(projectUuid, deletingUser),
+        ).resolves.toBeUndefined();
+
+        expect(vi.mocked(projectModel.delete)).toHaveBeenCalledWith(
+            projectUuid,
+        );
+        expect(
+            vi.mocked(invalidateDbtGitProjectCacheProject),
+        ).toHaveBeenCalledWith(projectUuid);
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
@@ -6843,6 +7030,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             expect.objectContaining({
                 warehouseCredentials: primary.warehouseCredentials,
             }),
+            {
+                projectUuid: 'project-uuid',
+                sourceUuid: 'source-b-uuid',
+                sourceType: 'additional',
+            },
         );
     });
 
@@ -6851,16 +7043,29 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             lightdashConfigMock,
         ) as unknown as ProjectServiceInternals;
         vi.mocked(warehouseClientFromCredentials).mockClear();
+        const factory = vi.spyOn(
+            projectAdapterModule,
+            'projectAdapterFromConfig',
+        );
+        const cacheIdentity = {
+            projectUuid: 'project-uuid',
+            sourceUuid: 'source-b-uuid',
+            sourceType: 'additional',
+        } as const;
 
         await projectService.buildSourceAdapter(
             { type: DbtProjectType.NONE },
             { database: null, schema: 'source_schema' },
             'org-uuid',
             primary,
+            cacheIdentity,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
             expect.objectContaining({ schema: 'source_schema' }),
+        );
+        expect(vi.mocked(factory).mock.calls.at(-1)?.[7]).toEqual(
+            cacheIdentity,
         );
     });
 

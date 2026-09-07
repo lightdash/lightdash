@@ -122,6 +122,8 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
+        gitCacheMaxBytes: 2 * 1024 * 1024 * 1024,
+        gitCacheMaxAgeMs: 24 * 60 * 60 * 1000,
     },
     dashboard: {
         maxTilesPerTab: 50,

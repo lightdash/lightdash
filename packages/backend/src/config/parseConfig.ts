@@ -1550,6 +1550,8 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        gitCacheMaxBytes: number;
+        gitCacheMaxAgeMs: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -3311,6 +3313,12 @@ export const parseConfig = (): LightdashConfig => {
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),
+            gitCacheMaxBytes:
+                getIntegerFromEnvironmentVariable('DBT_GIT_CACHE_MAX_BYTES') ??
+                2 * 1024 * 1024 * 1024,
+            gitCacheMaxAgeMs:
+                getIntegerFromEnvironmentVariable('DBT_GIT_CACHE_MAX_AGE_MS') ??
+                24 * 60 * 60 * 1000,
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

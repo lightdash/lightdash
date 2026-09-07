@@ -501,6 +501,22 @@ export class ProjectModel {
         };
     }
 
+    async getDbtSourceIdentityRows(projectUuids: string[]): Promise<
+        Array<{
+            projectUuid: string;
+            dbtSourceUuid: string | null;
+        }>
+    > {
+        if (projectUuids.length === 0) return [];
+        const rows = await this.database(ProjectTableName)
+            .select('project_uuid', 'dbt_source_uuid')
+            .whereIn('project_uuid', projectUuids);
+        return rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            dbtSourceUuid: row.dbt_source_uuid,
+        }));
+    }
+
     async updateDbtSourceName(
         projectUuid: string,
         dbtSourceName: string,

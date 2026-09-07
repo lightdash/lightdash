@@ -26,6 +26,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import { invalidateDbtGitProjectCacheSource } from '../projectAdapters/dbtGitProjectCache';
 import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
 import { BaseService } from './BaseService';
 
@@ -450,6 +451,10 @@ export class ProjectDbtSourcesService extends BaseService {
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         await this.projectDbtSourcesModel.deleteSource(projectDbtSourceUuid);
+        await invalidateDbtGitProjectCacheSource(
+            projectUuid,
+            projectDbtSourceUuid,
+        ).catch(() => undefined);
         this.analytics.track({
             event: 'dbt_source_removed',
             userId: account.user?.id,
