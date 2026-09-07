@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    assertUnreachable,
     ProjectType,
     WarehouseTypes,
     type OrganizationProject,
@@ -64,12 +63,10 @@ import {
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 import { ProjectDeleteInBulkModal } from '../DeleteProjectPanel/ProjectDeleteInBulkModal';
 import classes from './ProjectManagementPanel.module.css';
-
-enum ProjectTypeFilter {
-    ALL = 'all',
-    DEFAULT = 'default',
-    PREVIEW = 'preview',
-}
+import {
+    matchesProjectTypeFilter,
+    ProjectTypeFilter,
+} from './projectTypeFilter';
 
 const WAREHOUSE_LABELS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
@@ -196,27 +193,45 @@ const ProjectManagementPanel: FC = () => {
         }));
     }, [projects]);
 
+    // Deleting the org's training playground takes every learner's copy
+    // with it, so it is offered to org admins only (the same permission
+    // Enable Learn needs); other projects follow the delete ability alone.
+    const canDeleteProject = useCallback(
+        (project: OrganizationProject) => {
+            if (!user.data) return false;
+            const canDelete = user.data.ability.can(
+                'delete',
+                subject('Project', {
+                    type: project.type,
+                    projectUuid: project.projectUuid,
+                    organizationUuid: user.data.organizationUuid,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
+            );
+            if (project.type !== ProjectType.TRAINING) return canDelete;
+            return (
+                canDelete &&
+                user.data.ability.can(
+                    'manage',
+                    subject('Organization', {
+                        organizationUuid: user.data.organizationUuid,
+                    }),
+                )
+            );
+        },
+        [user.data],
+    );
+
     const filteredProjects = useMemo(() => {
         return projects.filter((project) => {
             const matchesSearch =
                 !search ||
                 project.name.toLowerCase().includes(search.toLowerCase());
 
-            const matchesType = (() => {
-                switch (activeFilter) {
-                    case ProjectTypeFilter.DEFAULT:
-                        return project.type === ProjectType.DEFAULT;
-                    case ProjectTypeFilter.PREVIEW:
-                        return project.type === ProjectType.PREVIEW;
-                    case ProjectTypeFilter.ALL:
-                        return true;
-                    default:
-                        return assertUnreachable(
-                            activeFilter,
-                            `Unknown filter: ${activeFilter}`,
-                        );
-                }
-            })();
+            const matchesType = matchesProjectTypeFilter(
+                activeFilter,
+                project.type,
+            );
 
             const matchesWarehouse =
                 selectedWarehouses.length === 0 ||
@@ -293,15 +308,7 @@ const ProjectManagementPanel: FC = () => {
                     ) : null,
                 Cell: ({ row }) => {
                     const project = row.original;
-                    const canDelete = user.data?.ability.can(
-                        'delete',
-                        subject('Project', {
-                            type: project.type,
-                            projectUuid: project.projectUuid,
-                            organizationUuid: user.data?.organizationUuid,
-                            createdByUserUuid: project.createdByUserUuid,
-                        }),
-                    );
+                    const canDelete = canDeleteProject(project);
                     return (
                         <Center>
                             <Checkbox
@@ -345,6 +352,11 @@ const ProjectManagementPanel: FC = () => {
                             )}
                             {project.type === ProjectType.PREVIEW && (
                                 <Badge size="xs">Preview</Badge>
+                            )}
+                            {project.type === ProjectType.TRAINING && (
+                                <Badge size="xs" color="grape" flex="none">
+                                    Playground
+                                </Badge>
                             )}
                         </Group>
                     );
@@ -469,15 +481,7 @@ const ProjectManagementPanel: FC = () => {
                             projectUuid: project.projectUuid,
                         }),
                     );
-                    const canDelete = user.data?.ability.can(
-                        'delete',
-                        subject('Project', {
-                            type: project.type,
-                            projectUuid: project.projectUuid,
-                            organizationUuid: user.data?.organizationUuid,
-                            createdByUserUuid: project.createdByUserUuid,
-                        }),
-                    );
+                    const canDelete = canDeleteProject(project);
 
                     return (
                         <Menu
@@ -568,6 +572,7 @@ const ProjectManagementPanel: FC = () => {
             lastProjectUuid,
             selectedProjects,
             user.data?.ability,
+            canDeleteProject,
             user.data?.organizationUuid,
         ],
     );
@@ -695,6 +700,18 @@ const ProjectManagementPanel: FC = () => {
                                         <Box>
                                             <Text fz="xs" fw={500}>
                                                 Preview
+                                            </Text>
+                                        </Box>
+                                    </Tooltip>
+                                ),
+                            },
+                            {
+                                value: ProjectTypeFilter.TRAINING,
+                                label: (
+                                    <Tooltip label="Show only the training playground Learn created">
+                                        <Box>
+                                            <Text fz="xs" fw={500}>
+                                                Training
                                             </Text>
                                         </Box>
                                     </Tooltip>

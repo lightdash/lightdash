@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    assertUnreachable,
-    ProjectType,
-    type OrganizationProject,
-} from '@lightdash/common';
+import { ProjectType, type OrganizationProject } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -46,6 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
+import { isPlaygroundProject, splitSwitcherProjects } from './switcherProjects';
 
 const MENU_TEXT_PROPS = {
     c: 'ldGray.9',
@@ -69,6 +66,13 @@ const CurrentBadge: FC = () => (
         className={classes.badge}
     >
         current
+    </Badge>
+);
+
+/** The org's training playground, so nobody takes it for a real project. */
+const PlaygroundBadge: FC = () => (
+    <Badge color="grape" size="xs" className={classes.badge}>
+        Playground
     </Badge>
 );
 
@@ -180,6 +184,7 @@ const ProjectRow: FC<{
 
                 <Group gap="xs" wrap="nowrap">
                     {isActive && <CurrentBadge />}
+                    {isPlaygroundProject(item) && <PlaygroundBadge />}
                     {previewCount > 0 && (
                         <Box
                             component="span"
@@ -457,53 +462,26 @@ const ProjectSwitcher: FC<ProjectSwitcherProps> = ({ portalTarget }) => {
 
     const { baseProjects, previewsByUpstream, baseProjectsByUuid } =
         useMemo(() => {
-            const base = (projects ?? []).filter(
-                (p) =>
-                    p.type === ProjectType.DEFAULT ||
-                    p.type === ProjectType.TRAINING,
+            // Only show previews the user is allowed to access: org-level
+            // preview creators, or developers of the preview project itself.
+            const grouped = splitSwitcherProjects(
+                projects ?? [],
+                (preview) =>
+                    orgRoleCanCreatePreviews ||
+                    !!user.data?.ability.can(
+                        'create',
+                        subject('Project', {
+                            upstreamProjectUuid: preview.projectUuid,
+                            type: ProjectType.PREVIEW,
+                        }),
+                    ),
             );
-
-            // Only show previews the user is allowed to access. Visibility is
-            // unchanged from before: org-level preview creators, or developers
-            // of the preview project itself.
-            const visiblePreviews = (projects ?? []).filter((project) => {
-                switch (project.type) {
-                    case ProjectType.DEFAULT:
-                    case ProjectType.TRAINING:
-                        return false;
-                    case ProjectType.PREVIEW:
-                        return (
-                            orgRoleCanCreatePreviews ||
-                            !!user.data?.ability.can(
-                                'create',
-                                subject('Project', {
-                                    upstreamProjectUuid: project.projectUuid,
-                                    type: ProjectType.PREVIEW,
-                                }),
-                            )
-                        );
-                    default:
-                        return assertUnreachable(
-                            project.type,
-                            `Unknown project type: ${project.type}`,
-                        );
-                }
-            });
-
-            const byUpstream = new Map<string, OrganizationProject[]>();
-            visiblePreviews.forEach((preview) => {
-                if (!preview.upstreamProjectUuid) return;
-                const existing =
-                    byUpstream.get(preview.upstreamProjectUuid) ?? [];
-                existing.push(preview);
-                byUpstream.set(preview.upstreamProjectUuid, existing);
-            });
-
             return {
-                baseProjects: base,
-                previewsByUpstream: byUpstream,
+                ...grouped,
                 baseProjectsByUuid: new Map(
-                    base.map((p) => [p.projectUuid, p] as const),
+                    grouped.baseProjects.map(
+                        (p) => [p.projectUuid, p] as const,
+                    ),
                 ),
             };
         }, [projects, orgRoleCanCreatePreviews, user.data]);
