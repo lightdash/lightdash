@@ -23,6 +23,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
 import fetch from 'node-fetch';
@@ -80,6 +81,31 @@ type SchemaResult = {
     // SCOPE_TABLE: null,
     // SOURCE_DATA_TYPE: null,
     // IS_AUTO_INCREMENT: 'NO'
+};
+
+// A decimal's scale travels as a type qualifier beside the primitive type
+export const getDatabricksNumericKind = (entry: {
+    type: DatabricksDataTypes;
+    typeQualifiers?: {
+        qualifiers: Record<string, { i32Value?: number }>;
+    };
+}): ResultNumericKind | null => {
+    switch (entry.type) {
+        case DatabricksDataTypes.TINYINT_TYPE:
+        case DatabricksDataTypes.SMALLINT_TYPE:
+        case DatabricksDataTypes.INT_TYPE:
+        case DatabricksDataTypes.BIGINT_TYPE:
+            return { kind: 'integer' };
+        case DatabricksDataTypes.FLOAT_TYPE:
+        case DatabricksDataTypes.DOUBLE_TYPE:
+            return { kind: 'float' };
+        case DatabricksDataTypes.DECIMAL_TYPE: {
+            const scale = entry.typeQualifiers?.qualifiers.scale?.i32Value;
+            return scale === undefined ? null : { kind: 'decimal', scale };
+        }
+        default:
+            return null;
+    }
 };
 
 const convertDataTypeToDimensionType = (
@@ -452,19 +478,22 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
             const querySchema = await query.getSchema();
             const fields = (querySchema?.columns ?? []).reduce<
-                Record<string, { type: DimensionType }>
-            >(
-                (acc, column) => ({
+                WarehouseResults['fields']
+            >((acc, column) => {
+                const entry = column.typeDesc.types[0]?.primitiveEntry;
+                const numericKind = entry
+                    ? getDatabricksNumericKind(entry)
+                    : null;
+                return {
                     ...acc,
                     [column.columnName]: {
                         type: convertDataTypeToDimensionType(
-                            column.typeDesc.types[0]?.primitiveEntry?.type ??
-                                DatabricksDataTypes.STRING_TYPE,
+                            entry?.type ?? DatabricksDataTypes.STRING_TYPE,
                         ),
+                        ...(numericKind ? { numericKind } : {}),
                     },
-                }),
-                {},
-            );
+                };
+            }, {});
 
             do {
                 // eslint-disable-next-line no-await-in-loop

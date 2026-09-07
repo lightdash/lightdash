@@ -15,6 +15,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
@@ -513,6 +514,34 @@ export type SnowflakePublicKeySlot = 'RSA_PUBLIC_KEY' | 'RSA_PUBLIC_KEY_2';
 export type SnowflakePublicKeySlots = {
     RSA_PUBLIC_KEY: string | null;
     RSA_PUBLIC_KEY_2: string | null;
+};
+
+/** NUMBER is FIXED with a scale at the source; scale 0 is an integer. */
+export const getSnowflakeNumericKind = (
+    type: string,
+    scale: number | undefined,
+): ResultNumericKind | null => {
+    switch (type.toUpperCase()) {
+        case SnowflakeTypes.NUMBER:
+        case SnowflakeTypes.FIXED:
+        case SnowflakeTypes.DECIMAL:
+        case SnowflakeTypes.NUMERIC:
+        case SnowflakeTypes.INT:
+        case SnowflakeTypes.INTEGER:
+        case SnowflakeTypes.BIGINT:
+        case SnowflakeTypes.SMALLINT:
+            if (scale === undefined) return null;
+            return scale > 0 ? { kind: 'decimal', scale } : { kind: 'integer' };
+        case SnowflakeTypes.FLOAT:
+        case SnowflakeTypes.FLOAT4:
+        case SnowflakeTypes.FLOAT8:
+        case SnowflakeTypes.DOUBLE:
+        case SnowflakeTypes.DOUBLE_PRECISION:
+        case SnowflakeTypes.REAL:
+            return { kind: 'float' };
+        default:
+            return null;
+    }
 };
 
 export const mapFieldType = (type: string): DimensionType => {
@@ -1318,15 +1347,20 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // There is a bug/mistype in snowflake-sdk since this method can return undefined
         const columns = stmt.getColumns() as Column[] | undefined;
         return columns
-            ? columns.reduce(
-                  (acc, column) => ({
+            ? columns.reduce<WarehouseResults['fields']>((acc, column) => {
+                  const type = column.getType().toUpperCase();
+                  const numericKind = getSnowflakeNumericKind(
+                      type,
+                      column.getScale?.(),
+                  );
+                  return {
                       ...acc,
                       [column.getName()]: {
-                          type: mapFieldType(column.getType().toUpperCase()),
+                          type: mapFieldType(type),
+                          ...(numericKind ? { numericKind } : {}),
                       },
-                  }),
-                  {},
-              )
+                  };
+              }, {})
             : {};
     }
 

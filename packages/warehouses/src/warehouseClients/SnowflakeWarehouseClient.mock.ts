@@ -129,9 +129,12 @@ class ColumnMock {
 
     private readonly type: string;
 
-    constructor(name: string, type: string) {
+    private readonly scale: number;
+
+    constructor(name: string, type: string, scale: number = 0) {
         this.name = name;
         this.type = type;
+        this.scale = scale;
     }
 
     getName() {
@@ -140,6 +143,10 @@ class ColumnMock {
 
     getType() {
         return this.type;
+    }
+
+    getScale() {
+        return this.scale;
     }
 }
 

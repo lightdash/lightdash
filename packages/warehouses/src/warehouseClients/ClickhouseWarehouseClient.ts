@@ -18,6 +18,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '../types';
@@ -96,6 +97,39 @@ export const getClickhouseTimestampDomain = (
             return 'aware';
         default:
             return undefined;
+    }
+};
+
+// Decimal(P, S) and DecimalN(S) carry their scale in the type string; Decimal256 exceeds a DuckDB decimal
+export const getClickhouseNumericKind = (
+    type: ClickhouseTypes | string,
+): ResultNumericKind | null => {
+    const cleanType = cleanClickhouseType(type);
+    switch (cleanType) {
+        case ClickhouseTypes.UINT8:
+        case ClickhouseTypes.UINT16:
+        case ClickhouseTypes.UINT32:
+        case ClickhouseTypes.UINT64:
+        case ClickhouseTypes.INT8:
+        case ClickhouseTypes.INT16:
+        case ClickhouseTypes.INT32:
+        case ClickhouseTypes.INT64:
+            return { kind: 'integer' };
+        case ClickhouseTypes.FLOAT32:
+        case ClickhouseTypes.FLOAT64:
+            return { kind: 'float' };
+        case ClickhouseTypes.DECIMAL: {
+            const scale = type.match(/Decimal\(\s*\d+\s*,\s*(\d+)\s*\)/);
+            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
+        }
+        case ClickhouseTypes.DECIMAL32:
+        case ClickhouseTypes.DECIMAL64:
+        case ClickhouseTypes.DECIMAL128: {
+            const scale = type.match(/Decimal\d+\(\s*(\d+)\s*\)/);
+            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
+        }
+        default:
+            return null;
     }
 };
 
@@ -320,7 +354,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             });
 
             const columnNames: string[] = [];
-            const fields: Record<string, { type: DimensionType }> = {};
+            const fields: WarehouseResults['fields'] = {};
 
             const stream = resultSet.stream();
 
@@ -345,10 +379,12 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     } else if (Object.keys(fields).length === 0) {
                         // handle second row with column types
                         columnNames.forEach((c, index) => {
+                            const rawType = String(row[index]);
+                            const numericKind =
+                                getClickhouseNumericKind(rawType);
                             fields[c] = {
-                                type: convertDataTypeToDimensionType(
-                                    String(row[index]),
-                                ),
+                                type: convertDataTypeToDimensionType(rawType),
+                                ...(numericKind ? { numericKind } : {}),
                             };
                         });
                         // eslint-disable-next-line no-await-in-loop

@@ -46,6 +46,11 @@ describe('BigqueryWarehouseClient', () => {
 
         expect(results.fields).toEqual({
             ...expectedFields,
+            // NUMERIC is (38, 9) unless declared; BIGNUMERIC reports no kind
+            myNumberColumn: {
+                type: 'number',
+                numericKind: { kind: 'decimal', scale: 9 },
+            },
             myBigNumberColumn: { type: 'number' },
             myRepeatedColumn: { type: 'string' },
             myRecordColumn: { type: 'string' },

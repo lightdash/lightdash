@@ -37,6 +37,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
@@ -197,6 +198,33 @@ const mapFieldType = (type: string | undefined): DimensionType => {
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
+    }
+};
+
+// NUMERIC is (38, 9) unless declared; BIGNUMERIC exceeds what a DuckDB decimal holds unless its scale is declared
+export const getBigqueryNumericKind = (field: {
+    type?: string;
+    scale?: string;
+}): ResultNumericKind | null => {
+    const declaredScale =
+        field.scale !== undefined && field.scale !== ''
+            ? Number(field.scale)
+            : null;
+    switch (field.type) {
+        case BigqueryFieldType.INTEGER:
+        case BigqueryFieldType.INT64:
+            return { kind: 'integer' };
+        case BigqueryFieldType.FLOAT:
+        case BigqueryFieldType.FLOAT64:
+            return { kind: 'float' };
+        case BigqueryFieldType.NUMERIC:
+            return { kind: 'decimal', scale: declaredScale ?? 9 };
+        case BigqueryFieldType.BIGNUMERIC:
+            return declaredScale !== null && declaredScale <= 18
+                ? { kind: 'decimal', scale: declaredScale }
+                : null;
+        default:
+            return null;
     }
 };
 
@@ -504,9 +532,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             WarehouseResults['fields']
         >((acc, field) => {
             if (field.name) {
+                const numericKind = getBigqueryNumericKind(field);
                 return {
                     ...acc,
-                    [field.name]: { type: mapFieldType(field.type) },
+                    [field.name]: {
+                        type: mapFieldType(field.type),
+                        ...(numericKind ? { numericKind } : {}),
+                    },
                 };
             }
             return acc;
