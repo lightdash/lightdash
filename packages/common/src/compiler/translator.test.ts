@@ -3005,3 +3005,123 @@ describe('granularity_labels overrides', () => {
         }
     });
 });
+
+describe('convertExplores at scale', () => {
+    const MODEL_COUNT = 3000;
+
+    const buildScaleModels = (
+        count: number,
+        withJoins: boolean,
+    ): DbtModelNode[] =>
+        Array.from({ length: count }, (_, index) => ({
+            ...model,
+            unique_id: `model.pkg.m_${index}`,
+            package_name: 'pkg',
+            name: `m_${index}`,
+            alias: `m_${index}`,
+            relation_name: `analytics.m_${index}`,
+            columns: {
+                id: { name: 'id', data_type: DimensionType.NUMBER, meta: {} },
+                amount: {
+                    name: 'amount',
+                    data_type: DimensionType.NUMBER,
+                    meta: {},
+                },
+            },
+            meta:
+                withJoins && index > 0
+                    ? {
+                          joins: [
+                              {
+                                  join: `m_${index - 1}`,
+                                  sql_on: `\${m_${index}.id} = \${m_${index - 1}.id}`,
+                              },
+                          ],
+                      }
+                    : {},
+        })) as DbtModelNode[];
+
+    // The build this replaced. Kept as the oracle for key identity and for
+    // insertion order, which JSON serialisation of an explore depends on.
+    const buildTableLookupBySpread = (
+        tables: { name: string }[],
+    ): Record<string, { name: string }> =>
+        tables.reduce(
+            (prev, table) => ({ ...prev, [table.name]: table }),
+            {} as Record<string, { name: string }>,
+        );
+
+    const buildTableLookupByMutation = (
+        tables: { name: string }[],
+    ): Record<string, { name: string }> => {
+        const lookup: Record<string, { name: string }> = {};
+        tables.forEach((table) => {
+            lookup[table.name] = table;
+        });
+        return lookup;
+    };
+
+    it('builds the table lookup with the keys and the order of the spread build', () => {
+        const tables = [
+            { name: 'orders', version: 1 },
+            { name: 'customers', version: 1 },
+            { name: 'orders', version: 2 },
+            { name: 'payments', version: 1 },
+        ];
+
+        const expected = buildTableLookupBySpread(tables);
+        const actual = buildTableLookupByMutation(tables);
+
+        expect(actual).toEqual(expected);
+        expect(Object.keys(actual)).toEqual(Object.keys(expected));
+        expect(actual.orders).toBe(tables[2]);
+    });
+
+    it.each([
+        ['without joins', false],
+        ['with joins', true],
+    ])(
+        `converts ${MODEL_COUNT} models %s in under 2 seconds`,
+        async (_label, withJoins) => {
+            const models = buildScaleModels(MODEL_COUNT, withJoins);
+
+            const startedAt = performance.now();
+            const explores = await convertExplores(
+                models,
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            );
+            const durationMs = performance.now() - startedAt;
+
+            expect(explores).toHaveLength(MODEL_COUNT);
+            expect(explores.map(({ name }) => name)).toEqual(
+                models.map(({ name }) => name),
+            );
+            expect(durationMs).toBeLessThan(2000);
+        },
+        30000,
+    );
+
+    it('keeps every explore scoped to its base table and its joins', async () => {
+        const models = buildScaleModels(MODEL_COUNT, true);
+
+        const explores = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        const last = explores[explores.length - 1] as Explore;
+        expect(Object.keys(last.tables)).toEqual([
+            `m_${MODEL_COUNT - 1}`,
+            `m_${MODEL_COUNT - 2}`,
+        ]);
+
+        const first = explores[0] as Explore;
+        expect(Object.keys(first.tables)).toEqual(['m_0']);
+    });
+});

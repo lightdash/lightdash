@@ -1111,15 +1111,13 @@ const translateDbtModelsToTableLineage = (
     models: DbtModelNode[],
 ): Record<string, Pick<Table, 'lineageGraph'>> => {
     const graph = buildModelGraph(models);
-    return models.reduce<Record<string, Pick<Table, 'lineageGraph'>>>(
-        (previousValue, currentValue) => ({
-            ...previousValue,
-            [currentValue.name]: {
-                lineageGraph: generateTableLineage(currentValue, graph),
-            },
-        }),
-        {},
-    );
+    const lineageByModelName: Record<string, Pick<Table, 'lineageGraph'>> = {};
+    models.forEach((currentValue) => {
+        lineageByModelName[currentValue.name] = {
+            lineageGraph: generateTableLineage(currentValue, graph),
+        };
+    });
+    return lineageByModelName;
 };
 
 export type ExplorePostProcessor = (
@@ -1223,81 +1221,79 @@ export const convertExplores = async (
     const granularityLabels = resolveGranularityLabels(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
-    const [tables, exploreErrors] = resolvedModels.reduce(
-        ([accTables, accErrors], model) => {
-            // Config block takes priority, then meta block
-            const meta = merge({}, model.meta, model.config?.meta);
+    const tables: Table[] = [];
+    const exploreErrors: ExploreError[] = [];
+    resolvedModels.forEach((model) => {
+        // Config block takes priority, then meta block
+        const meta = merge({}, model.meta, model.config?.meta);
 
-            // model.config.tags has type string[] | string | undefined - normalise it to string[]
-            const configTags =
-                typeof model.config?.tags === 'string'
-                    ? [model.config.tags]
-                    : model.config?.tags;
+        // model.config.tags has type string[] | string | undefined - normalise it to string[]
+        const configTags =
+            typeof model.config?.tags === 'string'
+                ? [model.config.tags]
+                : model.config?.tags;
 
-            // model.config.tags takes priority over model.tags - if config tags is an empty list, we'll use model tags
-            const tags =
-                configTags && configTags.length > 0 ? configTags : model.tags;
+        // model.config.tags takes priority over model.tags - if config tags is an empty list, we'll use model tags
+        const tags =
+            configTags && configTags.length > 0 ? configTags : model.tags;
 
-            // If there are any errors compiling the table return an ExploreError
-            try {
-                const table = convertTable(
-                    adapterType,
-                    model,
-                    lightdashProjectConfig.spotlight,
-                    warehouseSqlBuilder.getStartOfWeek(),
-                    disableTimestampConversion,
-                    lightdashProjectConfig.custom_granularities,
-                    allowPartialCompilation,
-                    additionalTimeIntervals,
-                    granularityLabels,
-                );
+        // If there are any errors compiling the table return an ExploreError
+        try {
+            const table = convertTable(
+                adapterType,
+                model,
+                lightdashProjectConfig.spotlight,
+                warehouseSqlBuilder.getStartOfWeek(),
+                disableTimestampConversion,
+                lightdashProjectConfig.custom_granularities,
+                allowPartialCompilation,
+                additionalTimeIntervals,
+                granularityLabels,
+            );
 
-                // add lineage
-                const tableWithLineage: Table = {
-                    ...table,
-                    ...(originalNamesByUniqueId.get(model.unique_id) !==
-                    model.name
-                        ? {
-                              originalName: originalNamesByUniqueId.get(
-                                  model.unique_id,
-                              ),
-                          }
-                        : {}),
-                    ...tableLineage[model.name],
-                };
+            // add lineage
+            const tableWithLineage: Table = {
+                ...table,
+                ...(originalNamesByUniqueId.get(model.unique_id) !== model.name
+                    ? {
+                          originalName: originalNamesByUniqueId.get(
+                              model.unique_id,
+                          ),
+                      }
+                    : {}),
+                ...tableLineage[model.name],
+            };
 
-                return [[...accTables, tableWithLineage], accErrors];
-            } catch (e: unknown) {
-                const exploreError: ExploreError = {
-                    name: model.name,
-                    label: meta.label || friendlyName(model.name),
-                    tags,
-                    groupLabel: meta.group_label,
-                    ...(meta.groups && meta.groups.length > 0
-                        ? { groups: meta.groups }
-                        : {}),
-                    errors: [
-                        {
-                            type:
-                                e instanceof ParseError
-                                    ? InlineErrorType.METADATA_PARSE_ERROR
-                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
-                            message:
-                                e instanceof Error
-                                    ? e.message
-                                    : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
-                        },
-                    ],
-                };
-                return [accTables, [...accErrors, exploreError]];
-            }
-        },
-        [[], []] as [Table[], ExploreError[]],
-    );
-    const tableLookup: Record<string, Table> = tables.reduce(
-        (prev, table) => ({ ...prev, [table.name]: table }),
-        {},
-    );
+            tables.push(tableWithLineage);
+        } catch (e: unknown) {
+            const exploreError: ExploreError = {
+                name: model.name,
+                label: meta.label || friendlyName(model.name),
+                tags,
+                groupLabel: meta.group_label,
+                ...(meta.groups && meta.groups.length > 0
+                    ? { groups: meta.groups }
+                    : {}),
+                errors: [
+                    {
+                        type:
+                            e instanceof ParseError
+                                ? InlineErrorType.METADATA_PARSE_ERROR
+                                : InlineErrorType.NO_DIMENSIONS_FOUND,
+                        message:
+                            e instanceof Error
+                                ? e.message
+                                : `Could not convert dbt model: "${model.name}" in to a Lightdash explore`,
+                    },
+                ],
+            };
+            exploreErrors.push(exploreError);
+        }
+    });
+    const tableLookup: Record<string, Table> = {};
+    tables.forEach((table) => {
+        tableLookup[table.name] = table;
+    });
     const validModels = resolvedModels.filter(
         (model) =>
             tableLookup[model.name] !== undefined &&
@@ -1309,9 +1305,8 @@ export const convertExplores = async (
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
         allowPartialCompilation,
     });
-    const explores: (Explore | ExploreError)[] = validModels.reduce<
-        (Explore | ExploreError)[]
-    >((acc, model) => {
+    const explores: (Explore | ExploreError)[] = [];
+    validModels.forEach((model) => {
         // Config block takes priority, then meta block
         const meta = merge({}, model.meta, model.config?.meta);
 
@@ -1352,7 +1347,7 @@ export const convertExplores = async (
                               meta.label || friendlyName(model.name);
 
                           // Convert explore-scoped additional dimensions
-                          let exploreScopedDimensions: Record<
+                          const exploreScopedDimensions: Record<
                               string,
                               Dimension
                           > = {};
@@ -1374,10 +1369,10 @@ export const convertExplores = async (
                                           adapterType,
                                           warehouseSqlBuilder.getStartOfWeek(),
                                       );
-                                  exploreScopedDimensions = {
-                                      ...exploreScopedDimensions,
-                                      ...convertedDims,
-                                  };
+                                  Object.assign(
+                                      exploreScopedDimensions,
+                                      convertedDims,
+                                  );
                               });
                           }
 
@@ -1549,8 +1544,8 @@ export const convertExplores = async (
             return [...errors, ...processor(successes, postProcessorContext)];
         }, successfulExplores);
 
-        return [...acc, ...compileErrors, ...postProcessedExplores];
-    }, []);
+        explores.push(...compileErrors, ...postProcessedExplores);
+    });
 
     return [...explores, ...exploreErrors];
 };
