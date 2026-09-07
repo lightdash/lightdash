@@ -19,6 +19,10 @@ vi.mock('../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(),
 }));
 
+vi.mock('../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-1',
+}));
+
 vi.mock('../features/chartTypes/hooks/useDataAppVisualizations', () => ({
     useDataAppVisualizations: vi.fn(),
 }));

@@ -29,6 +29,10 @@ vi.mock('react-router', () => ({
     useSearchParams: () => [searchParams, setSearchParams],
 }));
 
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => 'project-uuid',
+}));
+
 vi.mock('../../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: () => ({
         data: undefined,
