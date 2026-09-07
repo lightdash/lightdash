@@ -7,7 +7,6 @@ import {
     getItemLabelWithoutTableName,
     getReadableTextColor,
     getTooltipDivider,
-    getTooltipStyle,
     vizThemeColors,
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
@@ -15,7 +14,6 @@ import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isTreemapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 
 const EchartsTreemapType = 'treemap';
 
@@ -206,11 +204,8 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         if (!chartConfig || !treemapSeriesOption) return;
 
         return {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
-            },
             tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                appendToBody: !isTouchDevice,
                 trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
             },
             series: [treemapSeriesOption],
@@ -221,7 +216,6 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         treemapSeriesOption,
         isInDashboard,
         minimal,
-        theme?.other?.chartFont,
         isTouchDevice,
     ]);
     if (!itemsMap) return;

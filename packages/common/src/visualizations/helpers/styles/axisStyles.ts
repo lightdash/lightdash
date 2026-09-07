@@ -1,35 +1,38 @@
-import { AXIS_TITLE_COLOR, GRAY_4, GRAY_5, GRAY_7, WHITE } from './themeColors';
+import { lightdashEchartsTheme } from './echartsTheme';
+import { GRAY_4, GRAY_5, GRAY_7, WHITE } from './themeColors';
 
-export const DEFAULT_AXIS_LABEL_FONT_SIZE = 11.5;
-export const DEFAULT_AXIS_TITLE_FONT_SIZE = 12;
+export {
+    DEFAULT_AXIS_LABEL_FONT_SIZE,
+    DEFAULT_AXIS_TITLE_FONT_SIZE,
+} from './echartsTheme';
 
 /**
  * Get axis label styling (for values like "Jan", "Feb", "Mar")
  */
 export const getAxisLabelStyle = (fontSize?: number) => ({
-    color: GRAY_7,
-    fontWeight: '500',
-    fontSize: fontSize ?? DEFAULT_AXIS_LABEL_FONT_SIZE,
+    ...lightdashEchartsTheme.categoryAxis.axisLabel,
+    fontWeight: String(lightdashEchartsTheme.categoryAxis.axisLabel.fontWeight),
+    fontSize: fontSize ?? lightdashEchartsTheme.categoryAxis.axisLabel.fontSize,
 });
 
 /**
  * Get axis title styling (for titles like "Month", "Amount")
  */
 export const getAxisTitleStyle = (fontSize?: number) => ({
-    color: AXIS_TITLE_COLOR,
-    fontWeight: '500',
-    fontSize: fontSize ?? DEFAULT_AXIS_TITLE_FONT_SIZE,
+    ...lightdashEchartsTheme.categoryAxis.nameTextStyle,
+    fontWeight: String(
+        lightdashEchartsTheme.categoryAxis.nameTextStyle.fontWeight,
+    ),
+    fontSize:
+        fontSize ?? lightdashEchartsTheme.categoryAxis.nameTextStyle.fontSize,
 });
 
 /**
  * Get axis line styling (the main axis line)
  */
 export const getAxisLineStyle = () => ({
-    show: true,
-    lineStyle: {
-        color: GRAY_4,
-        type: 'solid' as const,
-    },
+    ...lightdashEchartsTheme.categoryAxis.axisLine,
+    lineStyle: { ...lightdashEchartsTheme.categoryAxis.axisLine.lineStyle },
 });
 
 /**

@@ -1,0 +1,61 @@
+{
+    "axisLabel": {
+        "color": "var(--mantine-color-ldGray-7, #495057)",
+        "fontWeight": "500",
+        "fontSize": 11.5
+    },
+    "nameTextStyle": {
+        "color": "var(--mantine-color-gray-6, #868e96)",
+        "fontWeight": "500",
+        "fontSize": 12
+    },
+    "axisLine": {
+        "show": true,
+        "lineStyle": {
+            "color": "var(--mantine-color-ldGray-4, #ced4da)",
+            "type": "solid"
+        }
+    },
+    "tooltip": {
+        "padding": 8,
+        "borderColor": "var(--mantine-color-ldGray-3, #dee2e6)",
+        "borderWidth": 1,
+        "borderRadius": 8,
+        "backgroundColor": "var(--mantine-color-background-0, #FEFEFE)",
+        "renderMode": "html",
+        "confine": true,
+        "textStyle": {
+            "color": "var(--mantine-color-ldGray-7, #495057)",
+            "fontSize": 12
+        },
+        "extraCssText": "box-shadow: 0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25);"
+    },
+    "legend": {
+        "itemWidth": 12,
+        "itemHeight": 12,
+        "itemGap": 16,
+        "icon": "roundRect",
+        "itemStyle": {
+            "borderRadius": 3,
+            "borderWidth": 0
+        },
+        "textStyle": {
+            "color": "var(--mantine-color-ldGray-7, #495057)",
+            "fontSize": 12,
+            "fontWeight": 500,
+            "padding": [0, 0, 0, 2]
+        },
+        "inactiveBorderWidth": 0,
+        "pageButtonItemGap": 16,
+        "pageButtonGap": 8,
+        "pageTextStyle": {
+            "color": "var(--mantine-color-ldGray-7, #495057)",
+            "fontSize": 12,
+            "fontWeight": 500
+        },
+        "pageIconColor": "var(--mantine-color-ldGray-7, #495057)",
+        "pageIconInactiveColor": "var(--mantine-color-ldGray-3, #dee2e6)",
+        "pageIconSize": 12
+    },
+    "font": "Inter, sans-serif"
+}

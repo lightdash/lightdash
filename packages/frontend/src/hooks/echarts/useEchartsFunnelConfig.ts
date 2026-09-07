@@ -8,9 +8,8 @@ import {
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
     getGranularityMapFromItems,
-    getLegendStyle,
+    getLegendIconStyle,
     getReadableTextColor,
-    getTooltipStyle,
     resolveGranularityInLabel,
     type Metric,
     type ResultRow,
@@ -23,7 +22,6 @@ import round from 'lodash/round';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 /**
@@ -251,7 +249,7 @@ const useEchartsFunnelConfig = (
             validConfig: { showLegend, legendPosition },
         } = chartConfig;
 
-        const legendStyle = getLegendStyle('square');
+        const legendStyle = getLegendIconStyle('square');
 
         const legendConfig = {
             show: showLegend,
@@ -282,11 +280,8 @@ const useEchartsFunnelConfig = (
         if (!chartConfig || !funnelSeriesOptions || !seriesData) return;
 
         const baseOptions = {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
-            },
             tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                appendToBody: !isTouchDevice,
                 trigger: 'item' as const,
             },
             series: [funnelSeriesOptions],
@@ -303,7 +298,6 @@ const useEchartsFunnelConfig = (
         seriesData,
         isInDashboard,
         minimal,
-        theme,
         legendConfigWithTooltip,
         isTouchDevice,
     ]);

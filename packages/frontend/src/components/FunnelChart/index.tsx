@@ -19,7 +19,7 @@ import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoub
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import EChartsReact from '../EChartsReactWrapper';
+import EChartsReact from '../LightdashECharts';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,

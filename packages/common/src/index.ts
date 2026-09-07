@@ -422,6 +422,7 @@ export * from './visualizations/helpers/seriesZOrder';
 export * from './visualizations/helpers/styles/axisStyles';
 export * from './visualizations/helpers/styles/barChartStyles';
 export * from './visualizations/helpers/styles/gridStyles';
+export { lightdashEchartsTheme } from './visualizations/helpers/styles/echartsTheme';
 export * from './visualizations/helpers/styles/legendStyles';
 export * from './visualizations/helpers/styles/pieChartStyles';
 export * from './visualizations/helpers/styles/referenceLineStyles';

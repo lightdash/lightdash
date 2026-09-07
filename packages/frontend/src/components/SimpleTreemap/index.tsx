@@ -4,7 +4,7 @@ import { memo, useEffect, useRef, type FC } from 'react';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import EChartsReact from '../EChartsReactWrapper';
+import EChartsReact from '../LightdashECharts';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (

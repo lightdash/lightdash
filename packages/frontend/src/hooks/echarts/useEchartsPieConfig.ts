@@ -6,24 +6,21 @@ import {
     formatTooltipRow,
     formatTooltipValue,
     getGranularityMapFromItems,
-    getLegendStyle,
+    getLegendIconStyle,
     getPieExternalLabelStyle,
     getPieInternalLabelStyle,
     getPieLabelLineStyle,
     getPieSliceStyle,
-    getTooltipStyle,
     PieChartLegendLabelMaxLengthDefault,
     PieChartTooltipLabelMaxLength,
     resolveGranularityInLabel,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -47,8 +44,6 @@ const useEchartsPieConfig = (
         isTouchDevice,
         resolvedTimezone,
     } = useVisualizationContext();
-
-    const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
         if (!isPieVisualizationConfig(visualizationConfig)) return;
@@ -241,14 +236,11 @@ const useEchartsPieConfig = (
         } = chartConfig;
 
         return {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
-            },
             legend: {
                 show: showLegend,
                 orient: legendPosition,
                 type: 'scroll',
-                ...getLegendStyle('square'),
+                ...getLegendIconStyle('square'),
                 formatter: (name: string) => {
                     return name.length >
                         (legendMaxItemLength ??
@@ -276,7 +268,7 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                appendToBody: !isTouchDevice,
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),
@@ -284,7 +276,6 @@ const useEchartsPieConfig = (
     }, [
         chartConfig,
         pieSeriesOption,
-        theme?.other?.chartFont,
         legendDoubleClickTooltip,
         selectedLegends,
         isInDashboard,

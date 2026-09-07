@@ -14,12 +14,9 @@ import {
     formatValueWithExpression,
     friendlyName,
     getCartesianAxisFormatterConfig as getAxisFormatterConfig,
-    getAxisLabelStyle,
-    getAxisLineStyle,
     getAxisName,
     getAxisPointerStyle,
     getAxisTickStyle,
-    getAxisTitleStyle,
     getBarBorderRadius,
     getBarChartGridStyle,
     getBarStyle,
@@ -38,7 +35,7 @@ import {
     getReadableColor,
     getReferenceLineStyle,
     getResultValueArray,
-    getTooltipStyle,
+    lightdashEchartsTheme,
     getValueLabelStyle,
     hasFormatting,
     hashFieldReference,
@@ -102,7 +99,6 @@ import {
     defaultGrid,
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { sliceRows } from '../../utils/sliceRows';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
@@ -2198,6 +2194,10 @@ const getEchartAxes = ({
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
     const axisTitleFontSize =
         validCartesianConfig?.eChartsConfig?.axisTitleFontSize;
+    const axisLabelFontOverride =
+        axisLabelFontSize !== undefined ? { fontSize: axisLabelFontSize } : {};
+    const axisTitleFontOverride =
+        axisTitleFontSize !== undefined ? { fontSize: axisTitleFontSize } : {};
 
     const bottomAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: bottomAxisXField,
@@ -2245,7 +2245,7 @@ const getEchartAxes = ({
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(axisLabelFontSize),
+                      ...axisLabelFontOverride,
                       ...bottomAxisFormatterConfig.axisLabel,
                       ...(hasBottomBarValueLabels
                           ? { margin: BOTTOM_VALUE_LABEL_AXIS_MARGIN }
@@ -2270,7 +2270,7 @@ const getEchartAxes = ({
         showXAxis && topAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(axisLabelFontSize),
+                      ...axisLabelFontOverride,
                       ...topAxisFormatterConfig.axisLabel,
                   },
               }
@@ -2298,7 +2298,7 @@ const getEchartAxes = ({
         showLeftYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(axisLabelFontSize),
+                      ...axisLabelFontOverride,
                       ...leftAxisFormatterConfig.axisLabel,
                       ...(hasLeftBarValueLabels
                           ? {
@@ -2326,7 +2326,7 @@ const getEchartAxes = ({
         showRightYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(axisLabelFontSize),
+                      ...axisLabelFontOverride,
                       ...rightAxisFormatterConfig.axisLabel,
                   },
               }
@@ -2555,7 +2555,7 @@ const getEchartAxes = ({
     const rightAxisLabelConfig =
         clampSecondaryAxisTo100 && !validCartesianConfig.layout.flipAxes
             ? {
-                  ...getAxisLabelStyle(axisLabelFontSize),
+                  ...axisLabelFontOverride,
                   ...((rightAxisConfigWithStyle.axisLabel as
                       | Record<string, unknown>
                       | undefined) ?? {}),
@@ -2565,7 +2565,7 @@ const getEchartAxes = ({
     const topAxisLabelConfig =
         clampSecondaryAxisTo100 && validCartesianConfig.layout.flipAxes
             ? {
-                  ...getAxisLabelStyle(axisLabelFontSize),
+                  ...axisLabelFontOverride,
                   ...((topAxisConfigWithStyle.axisLabel as
                       | Record<string, unknown>
                       | undefined) ?? {}),
@@ -2599,7 +2599,7 @@ const getEchartAxes = ({
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
+                          nameTextStyle: axisTitleFontOverride,
                       }
                     : {}),
                 ...bottomAxisConfigWithStyle,
@@ -2610,7 +2610,6 @@ const getEchartAxes = ({
                     : showGridX
                       ? gridStyle
                       : { show: false },
-                axisLine: getAxisLineStyle(),
                 inverse: !!xAxisConfiguration?.[0]?.inverse,
                 axisTick: {
                     ...getAxisTickStyle(
@@ -2651,7 +2650,7 @@ const getEchartAxes = ({
                                 })
                               : undefined,
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
+                          nameTextStyle: axisTitleFontOverride,
                       }
                     : {}),
                 min:
@@ -2683,7 +2682,6 @@ const getEchartAxes = ({
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
                 ),
@@ -2717,7 +2715,7 @@ const getEchartAxes = ({
                                 }),
                           nameLocation: 'center',
                           nameTextStyle: {
-                              ...getAxisTitleStyle(axisTitleFontSize),
+                              ...axisTitleFontOverride,
                               align: 'center',
                           },
                       }
@@ -2736,7 +2734,6 @@ const getEchartAxes = ({
                     : showGridY
                       ? gridStyle
                       : { show: false },
-                axisLine: getAxisLineStyle(),
                 inverse: !!yAxisConfiguration?.[0]?.inverse,
                 axisTick: {
                     ...getAxisTickStyle(
@@ -2770,7 +2767,7 @@ const getEchartAxes = ({
                           nameLocation: 'center',
                           nameRotate: -90,
                           nameTextStyle: {
-                              ...getAxisTitleStyle(axisTitleFontSize),
+                              ...axisTitleFontOverride,
                               align: 'center',
                           },
                       }
@@ -2806,7 +2803,6 @@ const getEchartAxes = ({
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
-                axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
                 ),
@@ -4084,9 +4080,9 @@ const useEchartsCartesianConfig = (
             show: true,
             trigger: 'axis',
             enterable: true,
-            ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+            appendToBody: !isTouchDevice,
             extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle({ appendToBody: !isTouchDevice }).extraCssText
+                lightdashEchartsTheme.tooltip.extraCssText
             }`,
             axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
             formatter: buildCartesianTooltipFormatter({
@@ -4354,6 +4350,7 @@ const useEchartsCartesianConfig = (
                 s.type === CartesianSeriesType.AREA,
         );
 
+        // Preserve the existing precedence over saved legend and overflow styles.
         const legendStyle = getLegendStyle(
             hasOnlyLineCharts ? 'line' : 'square',
         );
@@ -4518,9 +4515,6 @@ const useEchartsCartesianConfig = (
             },
             tooltip,
             grid: currentGrid,
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
-            },
             // We assign colors per series, so we specify an empty list here.
             color: [],
             ...(enableDataZoom && {
@@ -4559,7 +4553,6 @@ const useEchartsCartesianConfig = (
         dataToRender,
         tooltip,
         currentGrid,
-        theme?.other.chartFont,
         validCartesianConfig,
         timeAxisMode,
     ]);

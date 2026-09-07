@@ -3,7 +3,6 @@ import {
     formatItemValue,
     formatTooltipRow,
     formatTooltipValue,
-    getTooltipStyle,
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
@@ -12,7 +11,6 @@ import { type EChartsOption, type SankeySeriesOption } from 'echarts';
 import { useCallback, useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
-import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 
 const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
     const {
@@ -124,11 +122,8 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         }
 
         return {
-            textStyle: {
-                fontFamily: sanitizeEchartsFontFamily(theme?.other.chartFont),
-            },
             tooltip: {
-                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
+                appendToBody: !isTouchDevice,
                 trigger: 'item' as const,
                 formatter: (params: any) => {
                     if (params.dataType === 'edge') {
@@ -171,7 +166,6 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         sankeySeriesOption,
         isInDashboard,
         minimal,
-        theme,
         isTouchDevice,
         visualizationConfig,
         parameters,

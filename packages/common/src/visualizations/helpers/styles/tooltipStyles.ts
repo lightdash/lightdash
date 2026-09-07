@@ -1,10 +1,5 @@
-import {
-    GRAY_0,
-    GRAY_1,
-    GRAY_3,
-    GRAY_7,
-    TOOLTIP_BACKGROUND,
-} from './themeColors';
+import { lightdashEchartsTheme } from './echartsTheme';
+import { GRAY_0, GRAY_1, GRAY_7 } from './themeColors';
 
 /**
  * Helper to convert style object to CSS string
@@ -27,19 +22,8 @@ export const getTooltipStyle = ({
 }: {
     appendToBody?: boolean;
 } = {}) => ({
-    padding: 8,
-    borderColor: GRAY_3,
-    borderWidth: 1,
-    borderRadius: 8,
-    backgroundColor: TOOLTIP_BACKGROUND,
-    renderMode: 'html' as const,
-    confine: true,
-    textStyle: {
-        color: GRAY_7,
-        fontSize: 12,
-    },
-    extraCssText:
-        'box-shadow: 0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25);',
+    ...lightdashEchartsTheme.tooltip,
+    textStyle: { ...lightdashEchartsTheme.tooltip.textStyle },
     ...(appendToBody ? { appendToBody: true } : {}),
 });
 

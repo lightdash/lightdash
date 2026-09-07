@@ -6,7 +6,7 @@ import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import EChartsReact from '../EChartsReactWrapper';
+import EChartsReact from '../LightdashECharts';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
