@@ -799,6 +799,7 @@ describe('AsyncQueryService', () => {
                     },
                     engine: 'scopedToReferencedResults',
                     guard: null,
+                    referenceLabels: {},
                 },
             });
             await vi.waitFor(() =>

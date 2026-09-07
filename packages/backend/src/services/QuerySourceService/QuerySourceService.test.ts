@@ -825,6 +825,7 @@ describe('composer pipelines return the standard results interface', () => {
             },
             engine: 'scopedToReferencedResults',
             guard: null,
+            referenceLabels: {},
         };
 
         await service.submitQueries({

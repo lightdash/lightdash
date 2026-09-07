@@ -8631,7 +8631,9 @@ export class AsyncQueryService extends ProjectService {
         // A statement that reads files is refused before any leg runs; the
         // join node checks it again when it submits
         try {
-            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+            DuckdbWarehouseClient.validateUserSqlFileAccess(
+                compiledMerge.coreSql,
+            );
         } catch (e) {
             throw new ParameterError(getErrorMessage(e));
         }
