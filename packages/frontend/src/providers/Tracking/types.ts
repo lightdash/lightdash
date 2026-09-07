@@ -1,6 +1,7 @@
 import {
     type AppVersionStatus,
     type AiDeepResearchTerminalStatus,
+    type ContentReviewContentType,
     type CustomFormatType,
     type DataAppTemplate,
     type HomepageRecommendedActionKey,
@@ -584,6 +585,17 @@ type AiAgentBattleStartedEvent = {
     };
 };
 
+type ContentReviewSimilarContentClickedEvent = {
+    name: EventName.CONTENT_REVIEW_SIMILAR_CONTENT_CLICKED;
+    properties: {
+        projectId: string;
+        contentType: ContentReviewContentType;
+        contentId: string;
+        similarContentId: string;
+        similarContentIsVerified: boolean;
+    };
+};
+
 type AiDeepResearchReportEngagedEvent = {
     name: EventName.AI_DEEP_RESEARCH_REPORT_ENGAGED;
     properties: {
@@ -1027,6 +1039,7 @@ export type EventData =
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
+    | ContentReviewSimilarContentClickedEvent
     | AiAgentSuggestionImpressionEvent
     | AiAgentSuggestionClickEvent
     | DataAppRecentSuggestionClickEvent

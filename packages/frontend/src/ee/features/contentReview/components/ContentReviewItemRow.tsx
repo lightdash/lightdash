@@ -16,6 +16,7 @@ type Props = {
     name: string;
     meta?: string;
     href?: string;
+    onClick?: () => void;
     isVerified?: boolean;
     compact?: boolean;
 };
@@ -27,6 +28,7 @@ const ContentReviewItemRow: FC<Props> = ({
     name,
     meta,
     href,
+    onClick,
     isVerified = false,
     compact = false,
 }) => {
@@ -104,6 +106,7 @@ const ContentReviewItemRow: FC<Props> = ({
             c="inherit"
             underline="never"
             className={classes.link}
+            onClick={onClick}
         >
             {body}
         </Anchor>
