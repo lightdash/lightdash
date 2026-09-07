@@ -870,6 +870,28 @@ describe('DashboardService', () => {
             }),
         );
     });
+    test('should report an owner assignment on top of the update', async () => {
+        (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce(
+            dashboard,
+        );
+
+        await service.update(user, dashboardUuid, {
+            ...updateDashboard,
+            ownerUserUuid: 'target-user-uuid',
+        });
+
+        expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'dashboard.owner_assigned',
+                properties: expect.objectContaining({
+                    dashboardId: dashboard.uuid,
+                    ownerUserUuid: 'target-user-uuid',
+                    previousOwnerUserUuid: null,
+                }),
+            }),
+        );
+    });
     test('should update dashboard details & version', async () => {
         const result = await service.update(
             user,

@@ -2154,6 +2154,25 @@ export class DashboardService
                 },
             );
 
+            const previousOwnerUserUuid =
+                existingDashboardDao.owner?.userUuid ?? null;
+            if (
+                dashboardFields.ownerUserUuid !== undefined &&
+                dashboardFields.ownerUserUuid !== previousOwnerUserUuid
+            ) {
+                this.analytics.track({
+                    event: 'dashboard.owner_assigned',
+                    userId: user.userUuid,
+                    properties: {
+                        organizationId: existingDashboardDao.organizationUuid,
+                        projectId: existingDashboardDao.projectUuid,
+                        dashboardId: existingDashboardDao.uuid,
+                        ownerUserUuid: dashboardFields.ownerUserUuid,
+                        previousOwnerUserUuid,
+                    },
+                });
+            }
+
             this.analytics.track({
                 event: 'dashboard.updated',
                 userId: user.userUuid,
