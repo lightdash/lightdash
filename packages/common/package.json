@@ -15,15 +15,17 @@
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
+      "module": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
-      "default": "./dist/esm/index.js"
+      "import": "./dist/cjs/index.js",
+      "default": "./dist/cjs/index.js"
     },
     "./dbt/validation": {
       "types": "./dist/esm/dbt/validation.d.ts",
+      "module": "./dist/esm/dbt/validation.js",
       "require": "./dist/cjs/dbt/validation.js",
-      "import": "./dist/esm/dbt/validation.js",
-      "default": "./dist/esm/dbt/validation.js"
+      "import": "./dist/cjs/dbt/validation.js",
+      "default": "./dist/cjs/dbt/validation.js"
     },
     "./src": "./src/index.ts",
     "./src/*": "./src/*",
