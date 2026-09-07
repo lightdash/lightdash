@@ -7280,10 +7280,12 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         references,
+        labelByTable,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
+        labelByTable: Record<string, string>;
     }): Promise<Record<string, QueryHistory>> {
         const completed = await Promise.all(
             Object.entries(references).map(async ([tableName, queryUuid]) => {
@@ -7298,10 +7300,17 @@ export class AsyncQueryService extends ProjectService {
                         });
                     return [tableName, queryHistory] as const;
                 } catch (e) {
-                    throw new ParameterError(
-                        `Referenced query "${tableName}" (${queryUuid}) did not complete: ${getErrorMessage(
+                    // The message names what the user knows; the uuid goes to the log
+                    const label = labelByTable[tableName];
+                    this.logger.info(
+                        `Referenced query ${queryUuid} (${tableName}) did not complete: ${getErrorMessage(
                             e,
                         )}`,
+                    );
+                    throw new ParameterError(
+                        `${
+                            label ?? `Referenced query "${tableName}"`
+                        } did not complete: ${getErrorMessage(e)}`,
                     );
                 }
             }),
@@ -7436,6 +7445,7 @@ export class AsyncQueryService extends ProjectService {
                 columns: { mode: 'discover' },
                 engine: 'client',
                 guard: null,
+                referenceLabels: {},
             },
         });
 
@@ -7574,6 +7584,7 @@ export class AsyncQueryService extends ProjectService {
                 kind: 'queries',
                 references: normalizedReferences ?? {},
                 guard: plan.guard,
+                labelByTable: plan.referenceLabels,
             },
             columns: resolved.columns,
             storedCompiledSql: null,
@@ -8102,6 +8113,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     references: references.references,
+                    labelByTable: references.labelByTable,
                 });
                 const refusal = references.guard?.(completed) ?? null;
                 if (refusal !== null) throw new ParameterError(refusal);
@@ -8596,7 +8608,16 @@ export class AsyncQueryService extends ProjectService {
             // reaches only the leg files it joins
             engine: 'scopedToReferencedResults',
             guard: rowCap.guard,
+            referenceLabels: legLabelByReferenceTable,
         };
+
+        // A statement that reads files is refused before any leg runs; the
+        // join node checks it again when it submits
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
 
         // The DAG submits the legs, then the join with its references
         // rewritten to their queryUuids; the join waits for the legs itself

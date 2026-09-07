@@ -813,6 +813,7 @@ describe('AsyncQueryService', () => {
                     },
                     engine: 'scopedToReferencedResults',
                     guard,
+                    referenceLabels: {},
                 },
             });
             await vi.waitFor(() =>
@@ -845,6 +846,7 @@ describe('AsyncQueryService', () => {
                     kind: 'queries',
                     references: { orders: referencedQueryHistory.queryUuid },
                     guard,
+                    labelByTable: {},
                 },
             });
             // The shared session is built for the dialect and to refuse a
@@ -6189,6 +6191,7 @@ describe('runDuckdbQuery', () => {
                     kind: 'queries',
                     references: { merge_source_0: 'leg-uuid' },
                     guard: null,
+                    labelByTable: {},
                 },
                 columns: {
                     mode: 'supplied',
@@ -6259,6 +6262,7 @@ describe('runDuckdbQuery', () => {
                         merge_source_1: 'leg-b',
                     },
                     guard: null,
+                    labelByTable: {},
                 },
                 columns: {
                     mode: 'supplied',
@@ -6316,6 +6320,36 @@ describe('runDuckdbQuery', () => {
         );
     });
 
+    it('a leg that fails names the source in the error, not the reference table', async () => {
+        const { run, runWarehouseQuery, pollForQueryCompletion, update } =
+            buildService();
+        pollForQueryCompletion.mockRejectedValueOnce(
+            new Error('permission denied for table orders'),
+        );
+
+        await run(
+            baseArgs({
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: { merge_source_0: 'Query A ("a")' },
+                },
+            }),
+        );
+
+        expect(runWarehouseQuery).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalledWith(
+            'duckdb-query-uuid',
+            projectUuid,
+            expect.objectContaining({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Query A ("a") did not complete: permission denied for table orders',
+            }),
+            expect.anything(),
+        );
+    });
+
     it('a guard refusal lands as the query error before anything runs', async () => {
         const { streamQuery, warehouseClient } = probingClient({});
         const { run, runWarehouseQuery, update } = buildService();
@@ -6328,6 +6362,7 @@ describe('runDuckdbQuery', () => {
                     kind: 'queries',
                     references: { orders: 'leg-uuid' },
                     guard,
+                    labelByTable: {},
                 },
             }),
         );
@@ -6831,6 +6866,22 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                 joinExecutionTimeMs: 12,
             },
         });
+    });
+
+    it('refuses a join that reads files before any leg runs', async () => {
+        const { service, create } = buildService({
+            config: lightdashConfigMock,
+            legRowCount: 2,
+        });
+        vi.spyOn(service, 'compileMergeQuery').mockResolvedValue({
+            ...compiledMerge,
+            coreSql: "SELECT * FROM read_parquet('s3://bucket/secret.parquet')",
+        } as never);
+
+        await expect(execute(service)).rejects.toThrow(ParameterError);
+
+        expect(service.executeAsyncMetricQuery).not.toHaveBeenCalled();
+        expect(create).not.toHaveBeenCalled();
     });
 
     it('refuses before the join when a leg reached the row cap, naming the source', async () => {
