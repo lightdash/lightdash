@@ -127,6 +127,25 @@ type Props = {
  * opened by users without manage rights. Delivery actions use their dedicated
  * permissions, while duplicate only needs `useCanCreateDataApp`.
  */
+
+/**
+ * Walkthrough action for manage:DataApp: duplicating the seeded app makes
+ * one of the learner's own; adding it to a space then shares it.
+ */
+const duplicateTourAction = {
+    'data-tour-scope': 'manage:DataApp',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
+    'data-tour-label': 'Click Duplicate',
+    'data-tour-title': 'Share a data app with your team',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="browse"] >> [data-tour-nav="all-apps"] >> [data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"] >> [data-tour-anchor="app-actions"]',
+    'data-tour-then':
+        '[data-tour-anchor="app-actions"] >> [data-tour-anchor="app-add-to-space"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="transfer-confirm"]',
+    'data-tour-docs': 'data-apps.mdx#duplicating-an-app:p2:1-2',
+};
+
 const AppHeaderActions: FC<Props> = ({
     projectUuid,
     appUuid,
@@ -276,6 +295,10 @@ const AppHeaderActions: FC<Props> = ({
                     >
                         <ActionIcon
                             aria-label="Continue building"
+                            // Anchor for scope walkthroughs (data-tour-via):
+                            // from the running app into the builder.
+                            data-tour-anchor="app-continue-building"
+                            data-tour-hint="Click Continue building"
                             onClick={onEdit}
                             bg="foreground"
                             c="background"
@@ -332,6 +355,9 @@ const AppHeaderActions: FC<Props> = ({
                             variant="default"
                             size="md"
                             aria-label="App actions"
+                            // Anchor for scope walkthroughs (data-tour-via)
+                            data-tour-anchor="app-actions"
+                            data-tour-hint="Open the app's actions"
                         >
                             <MantineIcon icon={IconDots} />
                         </ActionIcon>
@@ -437,6 +463,7 @@ const AppHeaderActions: FC<Props> = ({
                             }
                             disabled={isDuplicating}
                             onClick={handleDuplicate}
+                            {...duplicateTourAction}
                         >
                             Duplicate
                         </Menu.Item>
@@ -455,6 +482,9 @@ const AppHeaderActions: FC<Props> = ({
                                     />
                                 }
                                 onClick={() => setIsMoveToSpaceOpen(true)}
+                                // Anchor for scope walkthroughs (data-tour-via)
+                                data-tour-anchor="app-add-to-space"
+                                data-tour-hint="Choose Add to space"
                             >
                                 {appSpaceUuid
                                     ? 'Move to space'
