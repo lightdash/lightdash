@@ -533,126 +533,116 @@ export class ExploreCompiler {
             });
         }
 
-        const includedTables = validJoinedTables.reduce<Record<string, Table>>(
-            (prev, join) => {
-                const joinTableName = join.alias || tables[join.table].name;
-                const joinTableLabel =
-                    join.label ||
-                    (join.alias && friendlyName(join.alias)) ||
-                    tables[join.table].label;
-                const joinDescription =
-                    join.description !== undefined
-                        ? join.description
-                        : tables[join.table].description;
+        const includedTables: Record<string, Table> = {
+            [baseTable]: tables[baseTable],
+        };
+        validJoinedTables.forEach((join) => {
+            const joinTableName = join.alias || tables[join.table].name;
+            const joinTableLabel =
+                join.label ||
+                (join.alias && friendlyName(join.alias)) ||
+                tables[join.table].label;
+            const joinDescription =
+                join.description !== undefined
+                    ? join.description
+                    : tables[join.table].description;
 
-                // Expand field sets if join.fields contains set references
-                let expandedFields: string[] | undefined;
-                if (join.fields) {
-                    expandedFields = expandFieldsWithSets(
-                        join.fields,
-                        tables[join.table],
-                    );
+            // Expand field sets if join.fields contains set references
+            let expandedFields: string[] | undefined;
+            if (join.fields) {
+                expandedFields = expandFieldsWithSets(
+                    join.fields,
+                    tables[join.table],
+                );
+            }
+
+            const requiredDimensionsForJoin = parseAllReferences(
+                join.sqlOn,
+                join.table,
+            ).reduce<string[]>((acc, reference) => {
+                if (reference.refTable === joinTableName) {
+                    acc.push(reference.refName);
                 }
+                return acc;
+            }, []);
 
-                const requiredDimensionsForJoin = parseAllReferences(
-                    join.sqlOn,
-                    join.table,
-                ).reduce<string[]>((acc, reference) => {
-                    if (reference.refTable === joinTableName) {
-                        acc.push(reference.refName);
+            const tableDimensions = tables[join.table].dimensions;
+            includedTables[join.alias || join.table] = {
+                ...tables[join.table],
+                originalName:
+                    tables[join.table].originalName ?? tables[join.table].name,
+                ...(tables[join.table].originalName !== undefined ||
+                tables[join.table].canonicalName !== undefined
+                    ? {
+                          canonicalName:
+                              tables[join.table].canonicalName ??
+                              tables[join.table].name,
+                      }
+                    : {}),
+                name: joinTableName,
+                label: joinTableLabel,
+                ...(joinDescription !== undefined && {
+                    description: joinDescription,
+                }),
+                hidden: join.hidden,
+                dimensions: Object.keys(tableDimensions).reduce<
+                    Record<string, Dimension>
+                >((acc, dimensionKey) => {
+                    const dimension = tableDimensions[dimensionKey];
+                    const isRequired =
+                        requiredDimensionsForJoin.includes(dimensionKey);
+
+                    const isTimeIntervalBaseDimensionVisible =
+                        (dimension.timeInterval ||
+                            dimension.customTimeInterval) &&
+                        dimension.timeIntervalBaseDimensionName &&
+                        expandedFields
+                            ? expandedFields.includes(
+                                  dimension.timeIntervalBaseDimensionName,
+                              )
+                            : false;
+
+                    const isVisible =
+                        expandedFields === undefined ||
+                        expandedFields.includes(dimensionKey) ||
+                        (dimension.group !== undefined &&
+                            expandedFields.includes(dimension.group)) ||
+                        isTimeIntervalBaseDimensionVisible;
+
+                    if (isRequired || isVisible) {
+                        acc[dimensionKey] = {
+                            ...dimension,
+                            hidden:
+                                join.hidden || dimension.hidden || !isVisible,
+                            table: joinTableName,
+                            tableLabel: joinTableLabel,
+                        };
                     }
                     return acc;
-                }, []);
-
-                const tableDimensions = tables[join.table].dimensions;
-                return {
-                    ...prev,
-                    [join.alias || join.table]: {
-                        ...tables[join.table],
-                        originalName:
-                            tables[join.table].originalName ??
-                            tables[join.table].name,
-                        ...(tables[join.table].originalName !== undefined ||
-                        tables[join.table].canonicalName !== undefined
-                            ? {
-                                  canonicalName:
-                                      tables[join.table].canonicalName ??
-                                      tables[join.table].name,
-                              }
-                            : {}),
-                        name: joinTableName,
-                        label: joinTableLabel,
-                        ...(joinDescription !== undefined && {
-                            description: joinDescription,
-                        }),
-                        hidden: join.hidden,
-                        dimensions: Object.keys(tableDimensions).reduce<
-                            Record<string, Dimension>
-                        >((acc, dimensionKey) => {
-                            const dimension = tableDimensions[dimensionKey];
-                            const isRequired =
-                                requiredDimensionsForJoin.includes(
-                                    dimensionKey,
-                                );
-
-                            const isTimeIntervalBaseDimensionVisible =
-                                (dimension.timeInterval ||
-                                    dimension.customTimeInterval) &&
-                                dimension.timeIntervalBaseDimensionName &&
-                                expandedFields
-                                    ? expandedFields.includes(
-                                          dimension.timeIntervalBaseDimensionName,
-                                      )
-                                    : false;
-
-                            const isVisible =
+                }, {}),
+                metrics: Object.fromEntries(
+                    Object.keys(tables[join.table].metrics)
+                        .filter(
+                            (d) =>
                                 expandedFields === undefined ||
-                                expandedFields.includes(dimensionKey) ||
-                                (dimension.group !== undefined &&
-                                    expandedFields.includes(dimension.group)) ||
-                                isTimeIntervalBaseDimensionVisible;
-
-                            if (isRequired || isVisible) {
-                                acc[dimensionKey] = {
-                                    ...dimension,
-                                    hidden:
-                                        join.hidden ||
-                                        dimension.hidden ||
-                                        !isVisible,
+                                expandedFields.includes(d),
+                        )
+                        .map((metricKey): [string, Metric] => {
+                            const metric =
+                                tables[join.table].metrics[metricKey];
+                            return [
+                                metricKey,
+                                {
+                                    ...metric,
+                                    hidden: !!join.hidden || metric.hidden,
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
-                                };
-                            }
-                            return acc;
-                        }, {}),
-                        metrics: Object.keys(tables[join.table].metrics)
-                            .filter(
-                                (d) =>
-                                    expandedFields === undefined ||
-                                    expandedFields.includes(d),
-                            )
-                            .reduce<Record<string, Metric>>(
-                                (prevMetrics, metricKey) => {
-                                    const metric =
-                                        tables[join.table].metrics[metricKey];
-                                    return {
-                                        ...prevMetrics,
-                                        [metricKey]: {
-                                            ...metric,
-                                            hidden:
-                                                !!join.hidden || metric.hidden,
-                                            table: joinTableName,
-                                            tableLabel: joinTableLabel,
-                                        },
-                                    };
                                 },
-                                {},
-                            ),
-                    },
-                };
-            },
-            { [baseTable]: tables[baseTable] },
-        );
+                            ];
+                        }),
+                ),
+            };
+        });
 
         // get all available parameters from the included tables
         const exploreAvailableParameters = getAvailableParametersFromTables(
@@ -851,45 +841,35 @@ export class ExploreCompiler {
         availableParameters: string[],
         allTables: Record<string, Table>,
     ): { table: CompiledTable; warnings: InlineError[] } {
-        const dimensions: Record<string, CompiledDimension> = Object.keys(
-            table.dimensions,
-        ).reduce((prev, dimensionKey) => {
+        const dimensions: Record<string, CompiledDimension> = {};
+        Object.keys(table.dimensions).forEach((dimensionKey) => {
             const dimension = table.dimensions[dimensionKey];
             if (this.options.allowPartialCompilation) {
                 try {
-                    return {
-                        ...prev,
-                        [dimensionKey]: this.compileDimension(
-                            dimension,
-                            tables,
-                            availableParameters,
-                        ),
-                    };
+                    dimensions[dimensionKey] = this.compileDimension(
+                        dimension,
+                        tables,
+                        availableParameters,
+                    );
                 } catch (e) {
                     const baseMessage =
                         e instanceof Error
                             ? e.message
                             : 'unknown compile error';
                     const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
-                    return {
-                        ...prev,
-                        [dimensionKey]:
-                            ExploreCompiler.createDimensionWithError(
-                                dimension,
-                                { message: errorMessage },
-                            ),
-                    };
+                    dimensions[dimensionKey] =
+                        ExploreCompiler.createDimensionWithError(dimension, {
+                            message: errorMessage,
+                        });
                 }
+                return;
             }
-            return {
-                ...prev,
-                [dimensionKey]: this.compileDimension(
-                    dimension,
-                    tables,
-                    availableParameters,
-                ),
-            };
-        }, {});
+            dimensions[dimensionKey] = this.compileDimension(
+                dimension,
+                tables,
+                availableParameters,
+            );
+        });
 
         const metricResults = Object.entries(table.metrics).map(
             ([metricKey, metric]) => {
