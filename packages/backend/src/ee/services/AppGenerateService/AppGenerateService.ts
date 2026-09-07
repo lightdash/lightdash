@@ -2255,11 +2255,18 @@ export class AppGenerateService extends BaseService {
                 generationUsage.numTurns > 0 ||
                 generationUsage.costUsd > 0)
         ) {
+            const claudeProvider = telemetry.claudeProvider ?? 'anthropic';
             AppGenerateService.emitDataAppAiUsage(
                 payload,
                 codingAgentModel,
-                telemetry.claudeProvider ?? 'anthropic',
-                telemetry.keyManagement ?? 'lightdash-managed',
+                claudeProvider,
+                // Fall back to the instance rule rather than assuming the key
+                // is Lightdash's: on self-hosted installs it never is.
+                telemetry.keyManagement ??
+                    resolveKeyManagement(
+                        this.lightdashConfig.ai.copilot,
+                        claudeProvider,
+                    ),
                 generationUsage,
             );
             await this.recordGenerationUsage(payload, generationUsage);

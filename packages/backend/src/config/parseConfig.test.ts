@@ -10,6 +10,7 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import { VERSION } from '../version';
+import { AI_PROVIDER_KEYS } from './aiConfigSchema';
 import {
     getFloatArrayFromEnvironmentVariable,
     getFloatFromEnvironmentVariable,
@@ -2319,5 +2320,33 @@ describe('APPS_CODING_AGENT', () => {
     test('throws on an unknown coding agent', () => {
         process.env.APPS_CODING_AGENT = 'cursor';
         expect(() => parseConfig()).toThrowError(ParseError);
+    });
+});
+
+describe('ai copilot key management config', () => {
+    it('treats every instance provider key as self-managed outside Lightdash Cloud', () => {
+        delete process.env.LIGHTDASH_CLOUD_INSTANCE;
+        process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS = 'openai';
+
+        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([
+            ...AI_PROVIDER_KEYS,
+        ]);
+    });
+
+    it('treats instance keys as Lightdash-managed on Lightdash Cloud unless declared', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        delete process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS;
+
+        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([]);
+    });
+
+    it('honours AI_COPILOT_SELF_MANAGED_PROVIDERS on Lightdash Cloud and drops unknown names', () => {
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS =
+            'anthropic,not-a-provider';
+
+        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([
+            'anthropic',
+        ]);
     });
 });
