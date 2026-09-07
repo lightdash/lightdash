@@ -19,6 +19,10 @@ export const getOpenRouterModel = (
             provider: {
                 data_collection: 'deny',
                 require_parameters: true,
+                // Ranks the upstream pool by latency/throughput/price instead
+                // of OpenRouter's default price-weighted load balancing.
+                // Providers listed in `order` are still tried first.
+                sort: config.sortOrder,
                 ...(config.allowedProviders.length > 0
                     ? { only: config.allowedProviders }
                     : {}),
