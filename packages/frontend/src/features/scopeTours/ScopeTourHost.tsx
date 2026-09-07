@@ -20,12 +20,11 @@ import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
-import { markScopeCompleted } from '../learn/progress';
+import { markScopeCompleted, markScopeStarted } from '../learn/progress';
 import { SCOPE_TOURS } from './generated';
 import {
     createTrainingPreview,
     deleteTrainingPreviews,
-    START_PARAM,
     tourUrlInCopy,
     LEAVING_COPY_STATE,
 } from './trainingCopy';
@@ -236,42 +235,67 @@ const ScopeTourHost: FC = () => {
         setFinishedScope(null);
         void leaveCopy(`/projects/${upstream}/learn`, upstream);
     };
-    // Next goes through the library, which makes the fresh copy; making it
-    // removes this one on the server, so nothing here has to be deleted
-    // first (and nothing can delete the copy being made).
-    const handleNext = (nextScope: string) => {
-        if (!upstream) return;
-        setFinishedScope(null);
-        void navigate(
-            `/projects/${upstream}/learn?${START_PARAM}=${encodeURIComponent(nextScope)}`,
-            { state: LEAVING_COPY_STATE },
-        );
-    };
-
     // One copy per tour start. `isLoading` is not set synchronously, and the
     // effect below re-runs as its inputs settle, so a ref does the gating; a
     // second request would delete the copy the learner is being sent to.
     const copyRequestedRef = useRef(false);
-    const { mutate: startInFreshCopy } = useMutation<
+    const { mutate: startInFreshCopy, isLoading: openingCopy } = useMutation<
         CreateTrainingPreviewResults,
         ApiError,
-        { trainingProjectUuid: string; scope: string; from: ReturnTo }
+        {
+            trainingProjectUuid: string;
+            scope: string;
+            from: ReturnTo;
+            /** Started from the completion dialog in a copy about to go. */
+            leavingCopy?: boolean;
+        }
     >(({ trainingProjectUuid }) => createTrainingPreview(trainingProjectUuid), {
         onError: () => {
             copyRequestedRef.current = false;
         },
-        onSuccess: async (copy, { scope, from }) => {
+        onSuccess: async (copy, { scope, from, leavingCopy }) => {
+            const to = tourUrlInCopy(copy.projectUuid, scope, from);
             // The navbar resolves the active project from the cached project
             // list, and the trainee permissions on the new copy only exist
-            // in a freshly built ability, so refresh both before moving there.
-            await Promise.all([
-                queryClient.invalidateQueries(['projects']),
-                queryClient.invalidateQueries(['user']),
-                queryClient.invalidateQueries(['account']),
-            ]);
-            void navigate(tourUrlInCopy(copy.projectUuid, scope, from));
+            // in a freshly built ability, so both are refreshed around the
+            // move. From a copy, the move comes first: the page being left
+            // is addressed by its slug, which the refreshed list no longer
+            // has (see leaveCopy). Every org member can view any project of
+            // the org, so the new copy opens on the old ability, and the
+            // walkthrough waits for its controls while the ability catches
+            // up.
+            const refresh = () =>
+                Promise.all([
+                    queryClient.invalidateQueries(['projects']),
+                    queryClient.invalidateQueries(['user']),
+                    queryClient.invalidateQueries(['account']),
+                ]);
+            if (leavingCopy) {
+                setFinishedScope(null);
+                await navigate(to, { state: LEAVING_COPY_STATE });
+                await refresh();
+                return;
+            }
+            await refresh();
+            void navigate(to);
         },
     });
+
+    // Next makes the fresh copy from here and goes straight into it, so no
+    // page shows on the way. Making it removes this copy on the server, so
+    // nothing here has to be deleted first (and nothing can delete the copy
+    // being made). The copy stays on screen, behind the dialog, until the
+    // new one is ready.
+    const handleNext = (nextScope: string) => {
+        if (!upstream || openingCopy) return;
+        markScopeStarted(nextScope);
+        startInFreshCopy({
+            trainingProjectUuid: upstream,
+            scope: nextScope,
+            from: 'learn',
+            leavingCopy: true,
+        });
+    };
 
     useEffect(() => {
         if (!requested || !projectUuid || !SCOPE_TOURS[requested]) return;
@@ -367,6 +391,7 @@ const ScopeTourHost: FC = () => {
         return (
             <LearnDoneModal
                 scope={finishedScope}
+                opening={openingCopy}
                 onBack={handleBackToLibrary}
                 onNext={handleNext}
             />

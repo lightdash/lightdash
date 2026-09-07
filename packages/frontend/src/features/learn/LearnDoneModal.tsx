@@ -17,8 +17,10 @@ type Props = {
     scope: string;
     /** Return to the library (the copy is put away behind the learner). */
     onBack: () => void;
-    /** Go straight into the next module; the library makes the copy. */
+    /** Go straight into the next module, in a fresh copy made from here. */
     onNext: (scope: string) => void;
+    /** The next copy is being made; the choice has been taken. */
+    opening?: boolean;
 };
 
 /**
@@ -27,7 +29,12 @@ type Props = {
  * the choice is the module the library would recommend next or the library
  * itself. Nothing changes on the page behind it until one is picked.
  */
-export const LearnDoneModal: FC<Props> = ({ scope, onBack, onNext }) => {
+export const LearnDoneModal: FC<Props> = ({
+    scope,
+    onBack,
+    onNext,
+    opening = false,
+}) => {
     const { user } = useApp();
     const { isOpen } = useLearnAvailability();
     const catalogue = useMemo(
@@ -69,6 +76,7 @@ export const LearnDoneModal: FC<Props> = ({ scope, onBack, onNext }) => {
                         variant="subtle"
                         color="gray"
                         onClick={onBack}
+                        disabled={opening}
                         data-learn-back
                     >
                         Back to library
@@ -77,6 +85,7 @@ export const LearnDoneModal: FC<Props> = ({ scope, onBack, onNext }) => {
                         <Button
                             variant="filled"
                             color="indigo"
+                            loading={opening}
                             onClick={() => onNext(next.scope)}
                         >
                             Next: {next.title}
