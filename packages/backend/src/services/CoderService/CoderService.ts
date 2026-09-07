@@ -97,6 +97,7 @@ import {
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
     type DirectAccessAssignment,
+    type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
@@ -105,7 +106,7 @@ import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { getAccountApiAccessContext } from '../../auth/account';
+import { fromSession, getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
@@ -985,10 +986,23 @@ export class CoderService extends BaseService {
         }
     }
 
-    private async validateSpaceAccessPrincipals(
+    /**
+     * Resolve portable as-code principals (organization email / group name) to
+     * concrete uuids, rejecting anything that is missing or ambiguous. Shared
+     * by space access blocks and resource direct-access blocks — the identity
+     * rules are the same, only the error prefix differs.
+     */
+    private async resolveAsCodeAccessPrincipals(
         organizationUuid: string,
-        access: NonNullable<SpaceAsCode['access']>,
-    ): Promise<void> {
+        access: {
+            users: { email: string; role: SpaceMemberRole }[];
+            groups: { name: string; role: SpaceMemberRole }[];
+        },
+        errorPrefix: string = '',
+    ): Promise<{
+        users: { userUuid: string; role: SpaceMemberRole }[];
+        groups: { groupUuid: string; role: SpaceMemberRole }[];
+    }> {
         const members =
             await this.organizationMemberProfileModel.findOrganizationMembersByEmails(
                 organizationUuid,
@@ -1002,43 +1016,41 @@ export class CoderService extends BaseService {
             },
             new Map(),
         );
-        access.users.forEach(({ email }) => {
-            const matches = membersByEmail.get(email) ?? [];
+        const resolvedUsers = access.users.map(({ email, role }) => {
+            const matches = membersByEmail.get(email.toLowerCase()) ?? [];
             if (matches.length === 0) {
                 throw new ParameterError(
-                    `User ${email} is not a member of this organization`,
+                    `${errorPrefix}User ${email} is not a member of this organization`,
                 );
             }
             if (matches.length > 1) {
                 throw new ParameterError(
-                    `User email ${email} is ambiguous in this organization`,
+                    `${errorPrefix}User email ${email} is ambiguous in this organization`,
                 );
             }
+            return { userUuid: matches[0].userUuid, role };
         });
 
-        const groupMatches = await Promise.all(
-            access.groups.map(async ({ name }) => ({
-                name,
-                matches: (
-                    await this.groupsModel.find({
-                        organizationUuid,
-                        name,
-                    })
-                ).data,
-            })),
+        const resolvedGroups = await Promise.all(
+            access.groups.map(async ({ name, role }) => {
+                const matches = (
+                    await this.groupsModel.find({ organizationUuid, name })
+                ).data;
+                if (matches.length === 0) {
+                    throw new ParameterError(
+                        `${errorPrefix}Group ${name} does not exist in this organization`,
+                    );
+                }
+                if (matches.length > 1) {
+                    throw new ParameterError(
+                        `${errorPrefix}Group name ${name} is ambiguous in this organization`,
+                    );
+                }
+                return { groupUuid: matches[0].uuid, role };
+            }),
         );
-        groupMatches.forEach(({ name, matches }) => {
-            if (matches.length === 0) {
-                throw new ParameterError(
-                    `Group ${name} does not exist in this organization`,
-                );
-            }
-            if (matches.length > 1) {
-                throw new ParameterError(
-                    `Group name ${name} is ambiguous in this organization`,
-                );
-            }
-        });
+
+        return { users: resolvedUsers, groups: resolvedGroups };
     }
 
     private async hasNonPortableDirectSpaceAccess(
@@ -1221,6 +1233,143 @@ export class CoderService extends BaseService {
                 return map;
             },
             new Map(),
+        );
+    }
+
+    /**
+     * Preflight for an as-code access block: shape and role validation,
+     * duplicate rejection, and portable-identity resolution to concrete
+     * principal refs — all before any content write, so a bad block fails
+     * the upload with the target environment fully untouched. Returns null
+     * when the block is absent (existing policy preserved on upload).
+     *
+     * Public because the data-app bundle import (AppGenerateService) shares
+     * it.
+     */
+    async prepareDirectAccessReplace({
+        user,
+        organizationUuid,
+        access,
+        contentLabel,
+    }: {
+        user: SessionUser;
+        organizationUuid: string;
+        access: ContentAsCodeDirectAccess | undefined;
+        contentLabel: string;
+    }): Promise<
+        | {
+              principal: DirectAccessPrincipalRef;
+              role: SpaceMemberRole;
+          }[]
+        | null
+    > {
+        if (access === undefined) {
+            return null;
+        }
+        // Fail closed before any write: with sharing disabled the policy
+        // could never be applied, and importing the content first would
+        // leave the upload half-done.
+        await this.directAccessService.assertEnabled(fromSession(user));
+
+        if (!Array.isArray(access.users) || !Array.isArray(access.groups)) {
+            throw new ParameterError(
+                `${contentLabel} access users and groups must be arrays`,
+            );
+        }
+        const validRoles = new Set<string>(Object.values(SpaceMemberRole));
+        access.users.forEach(({ email, role }) => {
+            if (typeof email !== 'string' || email.trim() === '') {
+                throw new ParameterError(
+                    `${contentLabel} access contains a user without an email`,
+                );
+            }
+            if (!validRoles.has(role)) {
+                throw new ParameterError(
+                    `${contentLabel} access user ${email} has an invalid role`,
+                );
+            }
+        });
+        access.groups.forEach(({ name, role }) => {
+            if (typeof name !== 'string' || name.trim() === '') {
+                throw new ParameterError(
+                    `${contentLabel} access contains a group without a name`,
+                );
+            }
+            if (!validRoles.has(role)) {
+                throw new ParameterError(
+                    `${contentLabel} access group ${name} has an invalid role`,
+                );
+            }
+        });
+
+        const normalizedUsers = access.users.map(({ email, role }) => ({
+            email: email.trim().toLowerCase(),
+            role,
+        }));
+        const userEmails = normalizedUsers.map(({ email }) => email);
+        if (new Set(userEmails).size !== userEmails.length) {
+            throw new ParameterError(
+                `${contentLabel} access contains duplicate user emails`,
+            );
+        }
+        const groupNames = access.groups.map(({ name }) => name);
+        if (new Set(groupNames).size !== groupNames.length) {
+            throw new ParameterError(
+                `${contentLabel} access contains duplicate group names`,
+            );
+        }
+
+        const resolved = await this.resolveAsCodeAccessPrincipals(
+            organizationUuid,
+            { users: normalizedUsers, groups: access.groups },
+            `${contentLabel} access: `,
+        );
+
+        return [
+            ...resolved.users.map(({ userUuid, role }) => ({
+                principal: {
+                    type: DirectAccessPrincipalType.USER,
+                    uuid: userUuid,
+                },
+                role,
+            })),
+            ...resolved.groups.map(({ groupUuid, role }) => ({
+                principal: {
+                    type: DirectAccessPrincipalType.GROUP,
+                    uuid: groupUuid,
+                },
+                role,
+            })),
+        ];
+    }
+
+    /**
+     * Apply a preflighted access block to a resource that now exists:
+     * authorization, atomic replacement, and audit all run inside
+     * DirectAccessService.replacePolicy. No-op for null (block absent).
+     * An empty array clears the policy.
+     *
+     * Public because the data-app bundle import (AppGenerateService) shares
+     * it.
+     */
+    async applyDirectAccessPolicy(
+        user: SessionUser,
+        projectUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: string,
+        assignments:
+            | { principal: DirectAccessPrincipalRef; role: SpaceMemberRole }[]
+            | null,
+    ): Promise<void> {
+        if (assignments === null) {
+            return;
+        }
+        await this.directAccessService.replacePolicy(
+            fromSession(user),
+            projectUuid,
+            resourceType,
+            resourceUuid,
+            assignments,
         );
     }
 
@@ -1422,7 +1571,7 @@ export class CoderService extends BaseService {
                 : [];
 
         if (desiredSpace.access) {
-            await this.validateSpaceAccessPrincipals(
+            await this.resolveAsCodeAccessPrincipals(
                 project.organizationUuid,
                 desiredSpace.access,
             );
@@ -3592,6 +3741,23 @@ export class CoderService extends BaseService {
             },
         };
 
+        // Access block preflight runs before any write; dashboard-owned
+        // chart definitions are not grantable and reject one outright.
+        if (
+            chartAsCode.access !== undefined &&
+            chartAsCode.dashboardSlug !== undefined
+        ) {
+            throw new ParameterError(
+                `Chart ${slug} is saved in a dashboard and cannot carry an access block`,
+            );
+        }
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: chartAsCode.access,
+            contentLabel: `Chart ${slug}`,
+        });
+
         // Create mode treats the requested slug as a base for a new unique
         // slug instead of updating content that already owns it.
         const existingCharts = shouldUpdateExistingContent
@@ -3771,6 +3937,14 @@ export class CoderService extends BaseService {
                 );
             }
 
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.CHART,
+                newChart.uuid,
+                directAccessAssignments,
+            );
+
             console.info(
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
@@ -3930,6 +4104,14 @@ export class CoderService extends BaseService {
             );
         }
 
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.CHART,
+            chart.uuid,
+            directAccessAssignments,
+        );
+
         console.info(
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
@@ -4042,6 +4224,14 @@ export class CoderService extends BaseService {
             ...sqlChartAsCode,
             updatedAt: sqlChartAsCode.updatedAt ?? new Date(),
         };
+
+        // Access block preflight runs before any write.
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: sqlChartAsCode.access,
+            contentLabel: `SQL chart ${slug}`,
+        });
 
         const sqlChartRows = await this.savedSqlModel.find({
             slugs: [slug],
@@ -4158,6 +4348,13 @@ export class CoderService extends BaseService {
                     : [],
                 dashboards: [],
             };
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.SQL_CHART,
+                savedSqlUuid,
+                directAccessAssignments,
+            );
             return promotionChanges;
         }
 
@@ -4207,6 +4404,13 @@ export class CoderService extends BaseService {
                 : [],
             dashboards: [],
         };
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.SQL_CHART,
+            existingSqlChart.saved_sql_uuid,
+            directAccessAssignments,
+        );
         return promotionChanges;
     }
 
@@ -4714,6 +4918,14 @@ export class CoderService extends BaseService {
             },
         };
 
+        // Access block preflight runs before any write.
+        const directAccessAssignments = await this.prepareDirectAccessReplace({
+            user,
+            organizationUuid: project.organizationUuid,
+            access: dashboardAsCode.access,
+            contentLabel: `Dashboard ${slug}`,
+        });
+
         // Create mode treats the requested slug as a base for a new unique
         // slug instead of updating content that already owns it.
         const [dashboardSummary] = shouldUpdateExistingContent
@@ -4832,6 +5044,14 @@ export class CoderService extends BaseService {
                     options.filePath,
                 );
             }
+
+            await this.applyDirectAccessPolicy(
+                user,
+                projectUuid,
+                DirectAccessResourceType.DASHBOARD,
+                newDashboard.uuid,
+                directAccessAssignments,
+            );
 
             return withTileWarnings(
                 {
@@ -4997,6 +5217,14 @@ export class CoderService extends BaseService {
                 options.filePath,
             );
         }
+
+        await this.applyDirectAccessPolicy(
+            user,
+            projectUuid,
+            DirectAccessResourceType.DASHBOARD,
+            dashboard.uuid,
+            directAccessAssignments,
+        );
 
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,
