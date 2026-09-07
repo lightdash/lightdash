@@ -6399,6 +6399,8 @@ type ResolveCompileAdapterArgs = {
 };
 
 type BuildMergedManifestAdapterArgs = {
+    projectType?: ProjectType;
+    jobUuid?: string;
     projectUuid: string;
     organizationUuid: string | undefined;
     primary: ResolveCompileAdapterArgs['primary'];
@@ -7026,6 +7028,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         await projectService.buildMergedManifestAdapter({
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
+            projectType: ProjectType.PREVIEW,
+            jobUuid: 'compile-job-uuid',
             primary: {
                 ...primary,
                 adapter: buildAdapterWithManifest(
@@ -7054,6 +7058,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 sourceUuid: 'source-b-uuid',
                 sourceType: 'additional',
             },
+            { projectType: ProjectType.PREVIEW, jobUuid: 'compile-job-uuid' },
         );
     });
 
@@ -7072,12 +7077,18 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             sourceType: 'additional',
         } as const;
 
+        const cacheContext = {
+            projectType: ProjectType.PREVIEW,
+            jobUuid: 'compile-job-uuid',
+        };
+
         await projectService.buildSourceAdapter(
             { type: DbtProjectType.NONE },
             { database: null, schema: 'source_schema' },
             'org-uuid',
             primary,
             cacheIdentity,
+            cacheContext,
         );
 
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
@@ -7086,6 +7097,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(vi.mocked(factory).mock.calls.at(-1)?.[7]).toEqual(
             cacheIdentity,
         );
+        expect(vi.mocked(factory).mock.calls.at(-1)?.[8]).toEqual(cacheContext);
     });
 
     it('BC-7: stages the projected merged manifest without publishing it during adapter construction', async () => {
@@ -7429,6 +7441,50 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectDbtSourcesModel,
         });
     };
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s passes preview type and job identity to each source adapter',
+        async (method) => {
+            const projectService = buildCompilationBoundaryService();
+            const storedProject = await projectModel.getWithSensitiveFields();
+            const previewProject = {
+                ...storedProject,
+                type: ProjectType.PREVIEW,
+            };
+            vi.mocked(projectModel.getWithSensitiveFields).mockResolvedValue(
+                previewProject,
+            );
+            vi.mocked(projectModel.get).mockResolvedValue(previewProject);
+            const factory = vi.mocked(
+                projectAdapterModule.projectAdapterFromConfig,
+            );
+
+            await projectService[method](
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'preview-compile-job-uuid',
+            );
+
+            expect(
+                factory.mock.calls.slice(0, 2).map((args) => args[8]),
+            ).toEqual([
+                {
+                    projectType: ProjectType.PREVIEW,
+                    jobUuid: 'preview-compile-job-uuid',
+                },
+                {
+                    projectType: ProjectType.PREVIEW,
+                    jobUuid: 'preview-compile-job-uuid',
+                },
+            ]);
+            expect(
+                factory.mock.calls
+                    .slice(0, 2)
+                    .map((args) => args[7]?.sourceType),
+            ).toEqual(['primary', 'additional']);
+        },
+    );
 
     it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
         const projectService = buildCompilationBoundaryService();

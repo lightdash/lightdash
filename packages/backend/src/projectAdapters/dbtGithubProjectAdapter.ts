@@ -15,6 +15,7 @@ import { CachedWarehouse } from '../types';
 import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 import {
     assertValidGitBranch,
+    DbtGitCacheContext,
     DbtGitProjectAdapter,
 } from './dbtGitProjectAdapter';
 import { DbtGitCacheIdentity } from './dbtGitProjectCache';
@@ -36,6 +37,7 @@ type DbtGithubProjectAdapterArgs = {
     selector?: string;
     analytics?: LightdashAnalytics;
     cacheIdentity?: DbtGitCacheIdentity;
+    cacheContext?: DbtGitCacheContext;
 };
 
 export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
@@ -58,6 +60,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
         selector,
         analytics,
         cacheIdentity,
+        cacheContext,
     }: DbtGithubProjectAdapterArgs) {
         const [isValid, error] = validateGithubToken(githubPersonalAccessToken);
         if (!isValid) {
@@ -94,6 +97,7 @@ export class DbtGithubProjectAdapter extends DbtGitProjectAdapter {
                 ? 'If a dependency is a private GitHub repository, ensure it is included in the same GitHub App installation as this project.'
                 : undefined,
             cacheIdentity,
+            cacheContext,
             credential: {
                 token: githubPersonalAccessToken,
                 installationId: githubInstallationId,

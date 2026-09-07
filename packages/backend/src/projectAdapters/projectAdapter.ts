@@ -17,6 +17,7 @@ import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
+import { DbtGitCacheContext } from './dbtGitProjectAdapter';
 import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import {
@@ -39,6 +40,7 @@ export const projectAdapterFromConfig = async (
     // Ignored by every other adapter type.
     manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
     cacheIdentity?: DbtGitCacheIdentity,
+    cacheContext?: DbtGitCacheContext,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -145,6 +147,7 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
                 cacheIdentity,
+                cacheContext,
             });
         case DbtProjectType.GITLAB:
             return new DbtGitlabProjectAdapter({
@@ -164,6 +167,7 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
                 cacheIdentity,
+                cacheContext,
             });
         case DbtProjectType.BITBUCKET:
             if (config.semanticLayer === 'lightdash') {
@@ -196,6 +200,7 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
                 cacheIdentity,
+                cacheContext,
             });
         case DbtProjectType.AZURE_DEVOPS:
             return new DbtAzureDevOpsProjectAdapter({
@@ -216,6 +221,7 @@ export const projectAdapterFromConfig = async (
 
                 selector: config.selector,
                 cacheIdentity,
+                cacheContext,
             });
         default:
             const never: never = config;

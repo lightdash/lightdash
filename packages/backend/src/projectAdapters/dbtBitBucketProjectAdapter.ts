@@ -7,7 +7,10 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_BITBUCKET_HOST_DOMAIN } from '../utils/credentialDestination';
-import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import {
+    DbtGitCacheContext,
+    DbtGitProjectAdapter,
+} from './dbtGitProjectAdapter';
 import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 
 type Args = {
@@ -27,12 +30,14 @@ type Args = {
     selector?: string;
     analytics?: LightdashAnalytics;
     cacheIdentity?: DbtGitCacheIdentity;
+    cacheContext?: DbtGitCacheContext;
 };
 
 export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
     constructor({
         analytics,
         cacheIdentity,
+        cacheContext,
         warehouseClient,
         username,
         branch,
@@ -56,6 +61,7 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         super({
             analytics,
             cacheIdentity,
+            cacheContext,
             warehouseClient,
             gitBranch: branch,
             remoteRepositoryUrl,

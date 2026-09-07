@@ -337,6 +337,7 @@ import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtGitCacheContext } from '../../projectAdapters/dbtGitProjectAdapter';
 import {
     configureDbtGitProjectCache,
     invalidateDbtGitProjectCacheProject,
@@ -3529,6 +3530,8 @@ export class ProjectService extends BaseService {
                         user,
                         'project_create',
                         method,
+                        undefined,
+                        { projectType: createProject.type, jobUuid },
                     ),
             );
 
@@ -4295,6 +4298,7 @@ export class ProjectService extends BaseService {
                             sourceUuid: primaryDbtSourceUuid,
                             sourceType: 'primary',
                         },
+                        { projectType: updatedProject.type, jobUuid },
                     ),
             );
             timings.testAdapter.end = performance.now();
@@ -4316,6 +4320,8 @@ export class ProjectService extends BaseService {
                                     projectUuid,
                                     organizationUuid: user.organizationUuid,
                                     userUuid: user.userUuid,
+                                    jobUuid,
+                                    projectType: updatedProject.type,
                                     primary: {
                                         adapter: primaryAdapter,
                                         warehouseCredentials,
@@ -4540,6 +4546,7 @@ export class ProjectService extends BaseService {
             sourceUuid: string;
             sourceType: 'primary';
         },
+        cacheContext?: DbtGitCacheContext,
     ): Promise<{
         adapter: ProjectAdapter;
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
@@ -4575,6 +4582,7 @@ export class ProjectService extends BaseService {
                 this.analytics,
                 undefined,
                 cacheIdentity,
+                cacheContext,
             );
             await adapter.test();
             this.analytics.track({
@@ -4974,6 +4982,7 @@ export class ProjectService extends BaseService {
     private async buildAdapter(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        jobUuid?: string,
     ): Promise<{
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
@@ -5170,6 +5179,7 @@ export class ProjectService extends BaseService {
                 sourceUuid: dbtSourceUuid,
                 sourceType: 'primary',
             },
+            { projectType: project.type, jobUuid },
         );
         return {
             adapter,
@@ -5202,6 +5212,7 @@ export class ProjectService extends BaseService {
             sourceUuid: string;
             sourceType: 'additional';
         },
+        cacheContext?: DbtGitCacheContext,
     ): Promise<ProjectAdapter> {
         const resolvedConnection =
             await this.resolveDbtConnectionInstallationId(
@@ -5220,6 +5231,7 @@ export class ProjectService extends BaseService {
             this.analytics,
             undefined,
             cacheIdentity,
+            cacheContext,
         );
     }
 
@@ -5360,10 +5372,12 @@ export class ProjectService extends BaseService {
         sources,
         manifestFetchAdapters,
         jobUuid,
+        projectType,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         jobUuid?: string;
+        projectType?: ProjectType;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -5521,6 +5535,7 @@ export class ProjectService extends BaseService {
                             sourceUuid: source.projectDbtSourceUuid,
                             sourceType: 'additional',
                         },
+                        { projectType, jobUuid },
                     );
                 } catch (e) {
                     throw new ParameterError(
@@ -5778,11 +5793,13 @@ export class ProjectService extends BaseService {
         manifestFetchAdapters,
         onDbtSourceCount,
         jobUuid,
+        projectType,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         userUuid: string;
         jobUuid?: string;
+        projectType?: ProjectType;
         primary: {
             adapter: ProjectAdapter;
             warehouseCredentials: CreateWarehouseCredentials;
@@ -5817,6 +5834,7 @@ export class ProjectService extends BaseService {
             sources,
             manifestFetchAdapters,
             jobUuid,
+            projectType,
         });
     }
 
@@ -9046,7 +9064,7 @@ export class ProjectService extends BaseService {
 
         // Force refresh adapter (refetch git repos, check for changed credentials, etc.)
         // Might want to cache parts of this in future if slow
-        const buildResult = await this.buildAdapter(projectUuid, user);
+        const buildResult = await this.buildAdapter(projectUuid, user, jobUuid);
         const { sshTunnel } = buildResult;
         let { adapter } = buildResult;
         // Adapters built only to read a source's manifest (git clones); destroyed in finally.
@@ -9064,6 +9082,8 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     userUuid: user.userUuid,
                     primary: buildResult,
+                    jobUuid,
+                    projectType: project.type,
                     manifestFetchAdapters,
                     onDbtSourceCount: (count) => {
                         dbtSourceCount = count;

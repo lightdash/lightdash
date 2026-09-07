@@ -6,7 +6,10 @@ import {
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { CachedWarehouse } from '../types';
-import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import {
+    DbtGitCacheContext,
+    DbtGitProjectAdapter,
+} from './dbtGitProjectAdapter';
 import { DbtGitCacheIdentity } from './dbtGitProjectCache';
 
 type Args = {
@@ -26,6 +29,7 @@ type Args = {
     selector?: string;
     analytics?: LightdashAnalytics;
     cacheIdentity?: DbtGitCacheIdentity;
+    cacheContext?: DbtGitCacheContext;
 };
 
 export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
@@ -46,6 +50,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
         dbtVersion,
         selector,
         cacheIdentity,
+        cacheContext,
     }: Args) {
         const remoteRepositoryUrl = `https://${encodeURIComponent(
             personalAccessToken,
@@ -65,6 +70,7 @@ export class DbtAzureDevOpsProjectAdapter extends DbtGitProjectAdapter {
             dbtVersion,
             selector,
             cacheIdentity,
+            cacheContext,
             credential: { token: personalAccessToken },
         });
     }
