@@ -3,6 +3,7 @@ import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import useApp from '../../providers/App/useApp';
 import { SCOPE_TOURS } from '../scopeTours/generated';
+import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
     focusModules,
@@ -28,7 +29,11 @@ type Props = {
  */
 export const LearnDoneModal: FC<Props> = ({ scope, onBack, onNext }) => {
     const { user } = useApp();
-    const catalogue = useMemo(buildLearnCatalogue, []);
+    const { isOpen } = useLearnAvailability();
+    const catalogue = useMemo(
+        () => buildLearnCatalogue().filter(isOpen),
+        [isOpen],
+    );
     const { completed, lastStarted } = useLearnProgress();
     const tour = SCOPE_TOURS[scope];
     const available = catalogue.filter((m) => m.available);

@@ -15,11 +15,32 @@ import { SCOPE_TOURS } from '../scopeTours/generated';
 export const FOUNDATIONS = 'foundations' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
 
+/**
+ * What an instance must have for a module's walkthrough to find its controls:
+ * an Enterprise licence, or one of the product's own feature switches on top
+ * of it. The library leaves a closed module out (see availability.ts).
+ */
+export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents';
+
+const SUBJECT_GATES: Record<string, LearnGate> = {
+    DataApp: 'dataApps',
+    AiAgent: 'aiAgents',
+    AiAgentThread: 'aiAgents',
+    AiDeepResearch: 'aiAgents',
+};
+
+export const gateFor = (scope: {
+    name: string;
+    isEnterprise: boolean;
+}): LearnGate | null =>
+    SUBJECT_GATES[scope.name.split(':')[1]] ??
+    (scope.isEnterprise ? 'enterprise' : null);
+
 export type LearnModule = {
     scope: string;
     title: string;
     group: LearnGroup;
-    isEnterprise: boolean;
+    gate: LearnGate | null;
     /** The lowest project role that holds the scope; null if none does. */
     minRole: ProjectMemberRole | null;
     available: boolean;
@@ -141,7 +162,7 @@ export const buildLearnCatalogue = (): LearnModule[] => {
                         minRole === ProjectMemberRole.VIEWER
                             ? FOUNDATIONS
                             : scope.group,
-                    isEnterprise: scope.isEnterprise,
+                    gate: gateFor(scope),
                     minRole,
                     available: tour !== undefined,
                     blurb: tour ? stripBold(tour.steps[0]?.body ?? '') : '',
