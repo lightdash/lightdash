@@ -113,6 +113,7 @@ import { OrganizationWarehouseCredentialsService } from './services/Organization
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
+import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
@@ -1113,6 +1114,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     savedChartModel:
                                         models.getSavedChartModel(),
                                     dashboardModel: models.getDashboardModel(),
+                                    pinnedListModel:
+                                        models.getPinnedListModel(),
+                                    commentModel: models.getCommentModel(),
+                                    tagsModel: models.getTagsModel(),
+                                    // The onboarding playground seeds no
+                                    // app, agent or research run; those
+                                    // belong to the training project.
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
