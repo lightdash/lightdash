@@ -62,16 +62,18 @@ const defaultFetchOpenIdConfiguration = async (
     return response.json();
 };
 
-const readTenantId = (token: string): string => {
-    let payload: JWTPayload;
+const decodeUnverified = (token: string): JWTPayload => {
     try {
-        payload = decodeJwt(token);
+        return decodeJwt(token);
     } catch {
         throw new ManagedSignInRejection(
             ManagedSignInError.TOKEN_INVALID,
             'token is not a JWT',
         );
     }
+};
+
+const readTenantId = (payload: JWTPayload): string => {
     const tenantId = payload.tid;
     if (typeof tenantId !== 'string' || !TENANT_ID_PATTERN.test(tenantId)) {
         throw new ManagedSignInRejection(
@@ -82,17 +84,32 @@ const readTenantId = (token: string): string => {
     return tenantId;
 };
 
-const toRejection = (error: unknown): ManagedSignInRejection => {
+const describeTiming = (payload: JWTPayload, nowSeconds: number): string => {
+    const claim = (name: 'iat' | 'nbf' | 'exp'): string => {
+        const value = payload[name];
+        return typeof value === 'number'
+            ? `${name}=${value} (${value - nowSeconds}s)`
+            : `${name}=absent`;
+    };
+    return `now=${nowSeconds} ${claim('iat')} ${claim('nbf')} ${claim(
+        'exp',
+    )} maxAge=${MANAGED_SIGN_IN_MAX_TOKEN_AGE_SECONDS}s clockTolerance=${CLOCK_TOLERANCE_SECONDS}s`;
+};
+
+const toRejection = (
+    error: unknown,
+    timing: string,
+): ManagedSignInRejection => {
     if (error instanceof joseErrors.JWTExpired) {
         return new ManagedSignInRejection(
             ManagedSignInError.TOKEN_EXPIRED,
-            `${error.claim} check failed`,
+            `${error.claim} check failed ${timing}`,
         );
     }
     if (error instanceof joseErrors.JWTClaimValidationFailed) {
         return new ManagedSignInRejection(
             ManagedSignInError.TOKEN_INVALID,
-            `${error.claim} check failed`,
+            `${error.claim} check failed ${timing}`,
         );
     }
     return new ManagedSignInRejection(
@@ -170,7 +187,8 @@ export class MicrosoftTokenVerifier {
         token: string,
         audiences: string[],
     ): Promise<MicrosoftIdTokenClaims> {
-        const tenantId = readTenantId(token);
+        const unverified = decodeUnverified(token);
+        const tenantId = readTenantId(unverified);
         const { issuer, keySet } = await this.getDiscovery(tenantId);
 
         let payload: JWTPayload;
@@ -183,7 +201,10 @@ export class MicrosoftTokenVerifier {
                 maxTokenAge: MANAGED_SIGN_IN_MAX_TOKEN_AGE_SECONDS,
             }));
         } catch (error) {
-            throw toRejection(error);
+            throw toRejection(
+                error,
+                describeTiming(unverified, Math.floor(this.now() / 1000)),
+            );
         }
 
         if (payload.tid !== tenantId) {

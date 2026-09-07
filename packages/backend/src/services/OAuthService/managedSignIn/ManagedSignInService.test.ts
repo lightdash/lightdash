@@ -350,6 +350,29 @@ describe('ManagedSignInService', () => {
             );
         });
 
+        it('reports the timing numbers behind a freshness rejection', async () => {
+            const warn = vi
+                .spyOn(Logger, 'warn')
+                .mockImplementation(() => Logger);
+            const { service } = createService(dedicatedConfig());
+            const issuedAt = nowSeconds() - 400;
+            const token = await signToken({
+                iat: issuedAt,
+                exp: issuedAt + 3600,
+            });
+
+            await exchange(service, token).catch(() => undefined);
+
+            const [message] = warn.mock.calls[0];
+            expect(message).toContain('iat check failed');
+            expect(message).toContain(`iat=${issuedAt}`);
+            expect(message).toContain(`exp=${issuedAt + 3600}`);
+            expect(message).toContain('now=');
+            expect(message).toContain('maxAge=300s');
+            expect(message).toMatch(/iat=\d+ \(-\d+s\)/);
+            expect(message).not.toContain(token);
+        });
+
         it('rejects a token that is not yet valid', async () => {
             const { service } = createService(dedicatedConfig());
 
