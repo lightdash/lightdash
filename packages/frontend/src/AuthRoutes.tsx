@@ -1,5 +1,5 @@
 import { type RouteObject } from 'react-router';
-import { loadLazyRouteDefault } from './features/chunkErrorHandler';
+import { loadLazyRouteDefault } from './features/chunkErrorHandler/loadLazyRouteDefault';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
 

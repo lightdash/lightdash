@@ -1,0 +1,4 @@
+.oneClickLabel {
+    display: block;
+    text-overflow: ellipsis;
+}
