@@ -17,7 +17,7 @@ import {
     IconCircleCheck,
 } from '@tabler/icons-react';
 import { type FC, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -145,7 +145,6 @@ const ModuleCard: FC<{
  * the learner back here when it ends.
  */
 const LearnPage: FC = () => {
-    const navigate = useNavigate();
     const { user } = useApp();
     const { data: health } = useHealth();
     const { data: projects } = useProjects();
@@ -182,22 +181,22 @@ const LearnPage: FC = () => {
             rememberLearnOrigin(projectRoute.project.projectUuid);
         }
     }, [projectRoute]);
-    useEffect(() => {
+    // A preview's /learn has no library of its own (see above): it goes to
+    // the remembered project's, or the training project's.
+    const previewRedirect = (() => {
         if (
-            projectRoute?.project.type === ProjectType.PREVIEW &&
-            trainingProject
-        ) {
-            const origin = readLearnOrigin();
-            const returnProject =
-                origin &&
-                projects?.some((project) => project.projectUuid === origin)
-                    ? origin
-                    : trainingProject.projectUuid;
-            void navigate(`/projects/${returnProject}/learn`, {
-                replace: true,
-            });
-        }
-    }, [projectRoute?.project.type, trainingProject, projects, navigate]);
+            projectRoute?.project.type !== ProjectType.PREVIEW ||
+            !trainingProject
+        )
+            return null;
+        const origin = readLearnOrigin();
+        const returnProject =
+            origin &&
+            projects?.some((project) => project.projectUuid === origin)
+                ? origin
+                : trainingProject.projectUuid;
+        return `/projects/${returnProject}/learn`;
+    })();
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
@@ -255,6 +254,7 @@ const LearnPage: FC = () => {
             ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
+    if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     // Learn switched off for the instance: the route falls through to the
     // project's home.
     if (health && !health.learn.enabled) {

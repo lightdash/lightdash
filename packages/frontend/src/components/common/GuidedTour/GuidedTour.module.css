@@ -319,3 +319,15 @@
     );
     transform: scale(1.15);
 }
+
+/* The ring and card still move between controls, just without the glide,
+   and the beacon holds still rather than pulsing. */
+@media (prefers-reduced-motion: reduce) {
+    .spotlightGliding,
+    .cardGliding {
+        transition: none;
+    }
+    .spotlightBeacon::before {
+        animation: none;
+    }
+}

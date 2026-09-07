@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 /**
  * What the learner has done with walkthroughs, kept in the browser for now:
@@ -55,28 +55,35 @@ export const markScopeStarted = (scope: string) =>
         localStorage.setItem(LAST_KEY, scope);
     });
 
-export const useLearnProgress = () => {
-    const [state, setState] = useState(() => ({
-        completed: readList(COMPLETED_KEY),
-        started: readList(STARTED_KEY),
-        lastStarted: readLast(),
-    }));
-    const refresh = useCallback(
-        () =>
-            setState({
-                completed: readList(COMPLETED_KEY),
-                started: readList(STARTED_KEY),
-                lastStarted: readLast(),
-            }),
-        [],
-    );
-    useEffect(() => {
-        window.addEventListener(CHANGE_EVENT, refresh);
-        window.addEventListener('storage', refresh);
-        return () => {
-            window.removeEventListener(CHANGE_EVENT, refresh);
-            window.removeEventListener('storage', refresh);
-        };
-    }, [refresh]);
-    return state;
+type LearnProgress = {
+    completed: string[];
+    started: string[];
+    lastStarted: string | null;
 };
+
+// The store's snapshot must be the same object while nothing changed, so
+// it is rebuilt only when the stored text differs from the last read.
+let snapshot: LearnProgress | null = null;
+let snapshotKey = '';
+const readProgress = (): LearnProgress => {
+    const completed = readList(COMPLETED_KEY);
+    const started = readList(STARTED_KEY);
+    const lastStarted = readLast();
+    const key = JSON.stringify([completed, started, lastStarted]);
+    if (snapshot === null || key !== snapshotKey) {
+        snapshotKey = key;
+        snapshot = { completed, started, lastStarted };
+    }
+    return snapshot;
+};
+const subscribe = (onChange: () => void) => {
+    window.addEventListener(CHANGE_EVENT, onChange);
+    window.addEventListener('storage', onChange);
+    return () => {
+        window.removeEventListener(CHANGE_EVENT, onChange);
+        window.removeEventListener('storage', onChange);
+    };
+};
+
+export const useLearnProgress = (): LearnProgress =>
+    useSyncExternalStore(subscribe, readProgress, readProgress);
