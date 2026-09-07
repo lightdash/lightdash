@@ -14,6 +14,7 @@ import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { duckdbTypeToDimensionType } from '../../../utils/duckdb/duckdbTypeToDimensionType';
 import {
@@ -197,6 +198,7 @@ describe('external source ingest capacity', () => {
         };
         const service = new ExternalSourceService({
             lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
             externalSourceModel,
             schedulerClient,
         } as never);
@@ -220,6 +222,7 @@ describe('external source ingest capacity', () => {
         };
         const service = new ExternalSourceService({
             lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
             externalSourceModel,
         } as never);
 
