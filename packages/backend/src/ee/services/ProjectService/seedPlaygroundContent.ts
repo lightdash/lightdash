@@ -87,6 +87,18 @@ const CONTENT_TYPES: Record<string, string> = {
     png: 'image/png',
 };
 
+const escapeHtml = (text: string): string =>
+    text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+/** The only files an app version serves: its page and its assets. */
+const isServableAppFile = (filePath: string): boolean =>
+    filePath === 'index.html' || /^assets\/[A-Za-z0-9._-]+$/.test(filePath);
+
 const contentTypeFor = (filePath: string): string =>
     CONTENT_TYPES[filePath.split('.').pop() ?? ''] ??
     'application/octet-stream';
@@ -243,7 +255,7 @@ export const seedPlaygroundContent = async ({
                     created.uuid,
                     tile.uuid,
                     comment.text,
-                    `<p>${comment.text}</p>`,
+                    `<p>${escapeHtml(comment.text)}</p>`,
                     null,
                     user,
                     [],
@@ -311,6 +323,14 @@ export const seedPlaygroundContent = async ({
                     app.app_id,
                     version.version,
                 );
+                const badFile = Object.keys(definition.files).find(
+                    (filePath) => !isServableAppFile(filePath),
+                );
+                if (badFile) {
+                    throw new Error(
+                        `Playground app "${definition.slug}" has a file the runtime would not serve: ${badFile}`,
+                    );
+                }
                 await Promise.all(
                     Object.entries(definition.files).map(([filePath, body]) =>
                         appFileStore.put(
