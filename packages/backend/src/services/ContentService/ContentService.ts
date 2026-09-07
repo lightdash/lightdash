@@ -396,13 +396,14 @@ export class ContentService extends BaseService {
             return emptyPage;
         }
 
-        const granted = await this.directAccessService.findSharedWithMeUuids(
-            {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            },
-            filters.projectUuids,
-        );
+        const { uuidsByType: granted, rolesByType } =
+            await this.directAccessService.findSharedWithMeAccess(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                },
+                filters.projectUuids,
+            );
         const grantedUuids = [
             ...(contentTypes.includes(ContentType.DASHBOARD)
                 ? granted[DirectAccessResourceType.DASHBOARD]
@@ -444,14 +445,39 @@ export class ContentService extends BaseService {
             ...results,
             // Spaces are excluded from grantable content types above, so no
             // row needs the SpaceContent access enrichment.
-            data: await this.withDirectAccessRoles(
-                user,
-                results.data.filter(
+            data: results.data
+                .filter(
                     (item): item is Exclude<SummaryContent, SpaceContentBase> =>
                         item.contentType !== ContentType.SPACE,
-                ),
-            ),
+                )
+                .map((item) => ({
+                    ...item,
+                    directAccessRoles:
+                        rolesByType[
+                            ContentService.getDirectAccessResourceType(item)
+                        ][item.uuid] ?? [],
+                })),
         };
+    }
+
+    private static getDirectAccessResourceType(
+        item: Exclude<SummaryContent, SpaceContentBase>,
+    ): DirectAccessResourceType {
+        switch (item.contentType) {
+            case ContentType.DASHBOARD:
+                return DirectAccessResourceType.DASHBOARD;
+            case ContentType.DATA_APP:
+                return DirectAccessResourceType.APP;
+            case ContentType.CHART:
+                return item.source === ChartSourceType.SQL
+                    ? DirectAccessResourceType.SQL_CHART
+                    : DirectAccessResourceType.CHART;
+            default:
+                return assertUnreachable(
+                    item,
+                    'Unsupported direct access content type',
+                );
+        }
     }
 
     async bulkMove(

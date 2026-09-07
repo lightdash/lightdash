@@ -102,7 +102,10 @@ export class AppAccessModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .whereIn(`${AppUserAccessTableName}.app_uuid`, uniqueAppUuids)
+            .whereRaw('?? = ANY(?::uuid[])', [
+                `${AppUserAccessTableName}.app_uuid`,
+                uniqueAppUuids,
+            ])
             .where(`${AppUserAccessTableName}.user_uuid`, userUuid)
             .where(
                 `${OrganizationTableName}.organization_uuid`,
@@ -159,10 +162,10 @@ export class AppAccessModel {
                             );
                         },
                     )
-                    .whereIn(
+                    .whereRaw('?? = ANY(?::uuid[])', [
                         `${AppGroupAccessTableName}.app_uuid`,
                         uniqueAppUuids,
-                    )
+                    ])
                     .where(`${UserTableName}.user_uuid`, userUuid)
                     .where(
                         `${OrganizationTableName}.organization_uuid`,

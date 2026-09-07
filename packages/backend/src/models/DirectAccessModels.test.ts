@@ -1,6 +1,7 @@
 import { SpaceMemberRole } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { randomUUID } from 'node:crypto';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { AppUserAccessTableName } from '../database/entities/appAccess';
 import { DashboardUserAccessTableName } from '../database/entities/dashboardAccess';
@@ -8,8 +9,48 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AppAccessModel } from './AppAccessModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { ModelRepository } from './ModelRepository';
+import { SavedChartAccessModel } from './SavedChartAccessModel';
+import { SavedSqlAccessModel } from './SavedSqlAccessModel';
 
 const database = knex({ client: MockClient, dialect: 'pg' });
+
+describe.each([
+    ['dashboard', DashboardAccessModel],
+    ['chart', SavedChartAccessModel],
+    ['SQL chart', SavedSqlAccessModel],
+    ['app', AppAccessModel],
+] as const)('%s resource list bindings', (_name, AccessModel) => {
+    afterEach(() => {
+        getTracker().reset();
+    });
+
+    it('keeps the bind count constant as the grant set grows', async () => {
+        const tracker = getTracker();
+        tracker.on.select(() => true).response([]);
+        const model = new AccessModel(database);
+        const resourceUuids = Array.from({ length: 1000 }, () => randomUUID());
+        const userUuid = randomUUID();
+        const organizationUuid = randomUUID();
+
+        await model.getUserAccess(resourceUuids.slice(0, 1), userUuid, {
+            organizationUuid,
+        });
+        await model.getUserAccess(
+            [...resourceUuids, resourceUuids[0]],
+            userUuid,
+            {
+                organizationUuid,
+            },
+        );
+
+        const [small, large] = tracker.history.select;
+        expect(large.bindings).toHaveLength(small.bindings.length);
+        expect(large.bindings.filter(Array.isArray)).toEqual([
+            resourceUuids,
+            resourceUuids,
+        ]);
+    });
+});
 
 describe('dashboard direct access read model', () => {
     let tracker: Tracker;

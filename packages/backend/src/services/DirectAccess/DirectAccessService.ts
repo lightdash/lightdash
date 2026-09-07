@@ -43,6 +43,14 @@ type DirectAccessServiceArguments = {
 
 export type SharedWithMeUuids = Record<DirectAccessResourceType, UUID[]>;
 
+type SharedWithMeAccess = {
+    uuidsByType: SharedWithMeUuids;
+    rolesByType: Record<
+        DirectAccessResourceType,
+        Record<UUID, SpaceMemberRole[]>
+    >;
+};
+
 /**
  * One administration seam for direct access across every registered resource
  * type. Requests are feature-gated, resolved against the concrete resource,
@@ -159,23 +167,39 @@ export class DirectAccessService extends BaseService {
         );
     }
 
+    async findSharedWithMeUuids(
+        user: { userUuid: UUID; organizationUuid: UUID },
+        projectUuids: UUID[],
+    ): Promise<SharedWithMeUuids> {
+        const access = await this.findSharedWithMeAccess(user, projectUuids);
+        return access.uuidsByType;
+    }
+
     /**
-     * Resources of every type that are directly granted to the user or their
+     * Resources and roles of every type directly granted to the user or their
      * groups, deduplicated and restricted to the given projects. Candidates
      * from the grant tables are validated through each type's read model, so
      * inert grants (lost membership, inactive granted groups, deleted or
      * ineligible resources) never surface. Feature off means no results —
      * grant rows are preserved but stay invisible.
      */
-    async findSharedWithMeUuids(
+    async findSharedWithMeAccess(
         user: { userUuid: UUID; organizationUuid: UUID },
         projectUuids: UUID[],
-    ): Promise<SharedWithMeUuids> {
-        const empty: SharedWithMeUuids = {
-            [DirectAccessResourceType.DASHBOARD]: [],
-            [DirectAccessResourceType.CHART]: [],
-            [DirectAccessResourceType.SQL_CHART]: [],
-            [DirectAccessResourceType.APP]: [],
+    ): Promise<SharedWithMeAccess> {
+        const empty: SharedWithMeAccess = {
+            uuidsByType: {
+                [DirectAccessResourceType.DASHBOARD]: [],
+                [DirectAccessResourceType.CHART]: [],
+                [DirectAccessResourceType.SQL_CHART]: [],
+                [DirectAccessResourceType.APP]: [],
+            },
+            rolesByType: {
+                [DirectAccessResourceType.DASHBOARD]: {},
+                [DirectAccessResourceType.CHART]: {},
+                [DirectAccessResourceType.SQL_CHART]: {},
+                [DirectAccessResourceType.APP]: {},
+            },
         };
         if (projectUuids.length === 0) {
             return empty;
@@ -196,22 +220,39 @@ export class DirectAccessService extends BaseService {
                         user.userUuid,
                     );
                 if (candidates.length === 0) {
-                    return [resourceType, []] as const;
+                    return [resourceType, {}] as const;
                 }
                 const access = await this.getGrantReadModel(
                     resourceType,
                 ).getUserAccess(candidates, user.userUuid, {
                     organizationUuid: user.organizationUuid,
                 });
-                const uuids = Object.entries(access)
-                    .filter(([, grant]) =>
-                        allowedProjects.has(grant.projectUuid),
-                    )
-                    .map(([resourceUuid]) => resourceUuid);
-                return [resourceType, uuids] as const;
+                const roles = Object.fromEntries(
+                    Object.entries(access)
+                        .filter(([, grant]) =>
+                            allowedProjects.has(grant.projectUuid),
+                        )
+                        .map(([resourceUuid, grant]) => [
+                            resourceUuid,
+                            [
+                                ...(grant.userRole ? [grant.userRole] : []),
+                                ...grant.groupRoles,
+                            ],
+                        ]),
+                );
+                return [resourceType, roles] as const;
             }),
         );
-        return Object.fromEntries(entries) as SharedWithMeUuids;
+        return entries.reduce<SharedWithMeAccess>(
+            (result, [resourceType, roles]) => ({
+                uuidsByType: {
+                    ...result.uuidsByType,
+                    [resourceType]: Object.keys(roles),
+                },
+                rolesByType: { ...result.rolesByType, [resourceType]: roles },
+            }),
+            empty,
+        );
     }
 
     private static toAccessTarget(
