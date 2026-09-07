@@ -28,19 +28,34 @@ export type StreamConfig = {
 };
 
 // All known stream types
-export const natsWorkerStreamSchema = z.enum(['warehouse', 'pre-aggregate']);
+export const natsWorkerStreamSchema = z.enum([
+    'warehouse',
+    'pre-aggregate',
+    'duckdb',
+]);
 export type NatsWorkerStream = z.infer<typeof natsWorkerStreamSchema>;
 
 // OSS streams — always available
-const OSS_STREAM_CONFIGS: Record<'warehouse', StreamConfig> = {
+const OSS_STREAM_CONFIGS: Record<'warehouse' | 'duckdb', StreamConfig> = {
     warehouse: {
         streamName: 'WAREHOUSE_QUERY_JOBS',
         subjects: {
             query: 'warehouse.query.jobs',
-            /** DuckDB source queries over other results: merges and compose SQL. */
-            duckdb: 'warehouse.duckdb.jobs',
         },
         durableName: 'worker-warehouse',
+    },
+    /**
+     * DuckDB source queries over other results: merges and compose SQL. Its
+     * own stream and durable, so a worker from before it existed never
+     * receives a job it would terminate, and a join waiting on its legs does
+     * not hold a warehouse slot.
+     */
+    duckdb: {
+        streamName: 'DUCKDB_QUERY_JOBS',
+        subjects: {
+            query: 'duckdb.query.jobs',
+        },
+        durableName: 'worker-duckdb',
     },
 };
 

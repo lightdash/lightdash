@@ -439,14 +439,37 @@ export class QueryHistoryModel {
         return row?.duckdb_execution ?? null;
     }
 
-    /** Marks a DuckDB source query as refused by its guard, keeping the rest of its spec. */
+    /**
+     * Marks a DuckDB source query as refused by its guard: the error status
+     * and the refusal land in one statement, so whoever polls the row never
+     * sees the error without the refusal.
+     */
     async recordDuckdbRefusal(
         queryUuid: string,
+        projectUuid: string,
         refusal: NonNullable<DuckdbExecutionSpec['refusal']>,
+        error: string,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
     ): Promise<void> {
-        const spec = await this.getDuckdbExecution(queryUuid);
-        if (spec === null) return;
-        await this.setDuckdbExecution(queryUuid, { ...spec, refusal });
+        const createdByColumn = account.isRegisteredUser()
+            ? 'created_by_user_uuid'
+            : 'created_by_account';
+        await this.database.raw(
+            `UPDATE ${QueryHistoryTableName}
+             SET status = ?, error = ?, errored_at = NOW(),
+                 duckdb_execution = jsonb_set(COALESCE(duckdb_execution, '{}'::jsonb), '{refusal}', ?::jsonb)
+             WHERE query_uuid = ? AND project_uuid = ? AND ${createdByColumn} = ?`,
+            [
+                QueryHistoryStatus.ERROR,
+                error,
+                JSON.stringify(refusal),
+                queryUuid,
+                projectUuid,
+                account.user.id,
+            ],
+        );
     }
 
     /**

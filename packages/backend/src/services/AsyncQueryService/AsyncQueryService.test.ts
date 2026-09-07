@@ -315,6 +315,7 @@ const inMemoryDuckdbHistory = ({
         updateStatusToExecuting: vi.fn(async () => 1),
         updateStatusToQueued: vi.fn(async () => 1),
         updateStatusToError: vi.fn(async () => 1),
+        updateStatusToExpired: vi.fn(async () => 1),
         setDuckdbExecution: vi.fn(
             async (uuid: string, spec: DuckdbExecutionSpec) => {
                 specs.set(uuid, spec);
@@ -324,7 +325,11 @@ const inMemoryDuckdbHistory = ({
             async (uuid: string) => specs.get(uuid) ?? null,
         ),
         recordDuckdbRefusal: vi.fn(
-            async (uuid: string, refusal: DuckdbExecutionSpec['refusal']) => {
+            async (
+                uuid: string,
+                _projectUuid: string,
+                refusal: DuckdbExecutionSpec['refusal'],
+            ) => {
                 const spec = specs.get(uuid);
                 if (spec) specs.set(uuid, { ...spec, refusal });
             },
@@ -6638,18 +6643,21 @@ describe('runDuckdbQuery', () => {
         expect(guard).toHaveBeenCalledWith({ orders: legHistory(1) });
         expect(streamQuery).not.toHaveBeenCalled();
         expect(runWarehouseQuery).not.toHaveBeenCalled();
-        expect(update).toHaveBeenCalledWith(
+        // The error status and the refusal land in one write, so a poll never
+        // sees the error without the refusal
+        expect(recordDuckdbRefusal).toHaveBeenCalledWith(
             'duckdb-query-uuid',
             projectUuid,
-            expect.objectContaining({
-                status: QueryHistoryStatus.ERROR,
-                error: 'Orders returned too many rows',
-            }),
+            { kind: 'row_cap' },
+            'Orders returned too many rows',
             expect.anything(),
         );
-        expect(recordDuckdbRefusal).toHaveBeenCalledWith('duckdb-query-uuid', {
-            kind: 'row_cap',
-        });
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
     });
 });
 
@@ -6910,10 +6918,12 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             legHistory(queryUuid, legRowCount);
         const update = vi.fn();
         let joinRan = false;
+        let refused = false;
         // The outcome reporter polls the join row: it lands in a terminal
         // state only once the tail has either refused it or run the join
         const mergeHistoryOnceSettled = async () => {
             const errored = () =>
+                refused ||
                 update.mock.calls.some(
                     ([queryUuid, , patch]) =>
                         queryUuid === 'merge-query-uuid' &&
@@ -6927,27 +6937,34 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
                     : QueryHistoryStatus.READY,
             };
         };
+        const queryHistoryModel = inMemoryDuckdbHistory({
+            queryUuid: 'merge-query-uuid',
+            account: sessionAccount,
+            overrides: {
+                get: vi.fn(async (queryUuid: string) => legByUuid(queryUuid)),
+                pollForQueryCompletion: vi.fn(
+                    async ({ queryUuid }: { queryUuid: string }) =>
+                        queryUuid === 'merge-query-uuid'
+                            ? mergeHistoryOnceSettled()
+                            : legByUuid(queryUuid),
+                ),
+                update,
+            },
+        });
+        const recordRefusal =
+            queryHistoryModel.recordDuckdbRefusal.getMockImplementation();
+        queryHistoryModel.recordDuckdbRefusal.mockImplementation(
+            async (...args) => {
+                await recordRefusal?.(...args);
+                refused = true;
+            },
+        );
         const service = getMockedAsyncQueryService(config, {
             composeEngineClient: new ComposeEngineClient({
                 lightdashConfig: config,
                 createDuckdbWarehouseClient: () => warehouseClient,
             }),
-            queryHistoryModel: inMemoryDuckdbHistory({
-                queryUuid: 'merge-query-uuid',
-                account: sessionAccount,
-                overrides: {
-                    get: vi.fn(async (queryUuid: string) =>
-                        legByUuid(queryUuid),
-                    ),
-                    pollForQueryCompletion: vi.fn(
-                        async ({ queryUuid }: { queryUuid: string }) =>
-                            queryUuid === 'merge-query-uuid'
-                                ? mergeHistoryOnceSettled()
-                                : legByUuid(queryUuid),
-                    ),
-                    update,
-                },
-            }),
+            queryHistoryModel,
             resultsStorageClient: {
                 isEnabled: true,
                 configuration: { bucket: 'results-bucket' },
@@ -7223,16 +7240,23 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
             },
         });
 
+        // The refusal and the error status land on the row in one write
         await vi.waitFor(() =>
-            expect(update).toHaveBeenCalledWith(
+            expect(
+                service.queryHistoryModel.recordDuckdbRefusal,
+            ).toHaveBeenCalledWith(
                 'merge-query-uuid',
                 projectUuid,
-                expect.objectContaining({
-                    status: QueryHistoryStatus.ERROR,
-                    error: `Query A and Query B each returned the maximum of ${SOURCE_ROW_CAP} rows, so the merged results would be missing data. Add a filter to each, then merge again.`,
-                }),
+                { kind: 'row_cap' },
+                `Query A and Query B each returned the maximum of ${SOURCE_ROW_CAP} rows, so the merged results would be missing data. Add a filter to each, then merge again.`,
                 expect.anything(),
             ),
+        );
+        expect(update).not.toHaveBeenCalledWith(
+            'merge-query-uuid',
+            projectUuid,
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
         );
         expect(streamQuery).not.toHaveBeenCalled();
         expect(runWarehouseQuery).not.toHaveBeenCalled();
@@ -8147,6 +8171,120 @@ describe('DuckDB source queries on the worker', () => {
                 guard: null,
             },
         });
+    });
+
+    it('a rebuild that fails after the claim marks the row errored instead of leaving it executing', async () => {
+        const { service, runDuckdbQuery } =
+            buildWorkerService(lightdashConfigMock);
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        model.getByQueryUuid.mockResolvedValue({
+            queryUuid: 'join-uuid',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            createdByUserUuid: sessionAccount.user.id,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            context: QueryExecutionContext.EXPLORE,
+            compiledSql: 'SELECT 1',
+            metricQuery: { exploreName: 'merge' },
+        } as unknown as QueryHistory);
+        // The spec is gone: nothing to rebuild from
+        model.getDuckdbExecution.mockResolvedValue(null);
+
+        await expect(
+            service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).rejects.toThrow(NotFoundError);
+
+        expect(model.updateStatusToExecuting).toHaveBeenCalledWith('join-uuid');
+        expect(model.updateStatusToError).toHaveBeenCalledWith(
+            'join-uuid',
+            projectUuid,
+            expect.stringContaining('DuckDB execution spec not found'),
+            expect.objectContaining({ user: { id: sessionAccount.user.id } }),
+        );
+        expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a DuckDB row queued behind its legs is claimed past the ordinary queue timeout, and expires past their wait', async () => {
+        const queued = (ageMs: number) =>
+            ({
+                queryUuid: 'join-uuid',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                status: QueryHistoryStatus.QUEUED,
+                createdAt: new Date(Date.now() - ageMs),
+                createdByUserUuid: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                context: QueryExecutionContext.EXPLORE,
+                compiledSql: 'SELECT * FROM merge_source_0',
+                cacheKey: 'row-cache-key',
+                fields: {},
+                originalColumns: {},
+                usedParameters: null,
+                pivotConfiguration: null,
+                metricQuery: { exploreName: 'merge' },
+                requestParameters: {
+                    context: QueryExecutionContext.EXPLORE,
+                    sql: 'SELECT * FROM merge_source_0',
+                },
+            }) as unknown as QueryHistory;
+        const spec = {
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            engine: 'scopedToReferencedResults' as const,
+            columns: { mode: 'supplied' as const },
+            guard: null,
+            storedCompiledSql: null,
+            refusal: null,
+        };
+        const { queueTimeoutMs } = lightdashConfigMock.natsWorker;
+        const referenceWaitMs = 15 * 60 * 1000;
+
+        const behindLegs = buildWorkerService(lightdashConfigMock);
+        const behindLegsModel = behindLegs.service
+            .queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        behindLegsModel.getByQueryUuid.mockResolvedValue(
+            queued(queueTimeoutMs + 60_000),
+        );
+        behindLegsModel.getDuckdbExecution.mockResolvedValue(spec);
+        expect(
+            await behindLegs.service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).toBe(true);
+        expect(behindLegs.runDuckdbQuery).toHaveBeenCalledTimes(1);
+        expect(behindLegsModel.updateStatusToExpired).not.toHaveBeenCalled();
+
+        const stale = buildWorkerService(lightdashConfigMock);
+        const staleModel = stale.service
+            .queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        staleModel.getByQueryUuid.mockResolvedValue(
+            queued(queueTimeoutMs + referenceWaitMs + 60_000),
+        );
+        staleModel.getDuckdbExecution.mockResolvedValue(spec);
+        expect(
+            await stale.service.runAsyncDuckdbQueryFromHistory(
+                'join-uuid',
+                'nats-worker-1',
+            ),
+        ).toBe(false);
+        expect(staleModel.updateStatusToExpired).toHaveBeenCalledWith(
+            'join-uuid',
+            expect.any(String),
+        );
+        expect(stale.runDuckdbQuery).not.toHaveBeenCalled();
     });
 
     it('skips a row another worker already took', async () => {

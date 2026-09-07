@@ -42,9 +42,14 @@ the Explorer pages.
 Submit writes everything the run needs beyond the row itself to the row's
 `duckdb_execution` column: the references, the engine, how columns are found,
 the row-cap guard as data, and whether the run was refused. With the NATS
-worker on, submit then hands the queryUuid to the `warehouse.duckdb.jobs`
-subject and the worker rebuilds the run from the row; with the worker off, the
-API process runs exactly the same rebuild. A refusal by the guard is recorded
+worker on, submit then hands the queryUuid to the `duckdb.query.jobs` subject
+on its own `DUCKDB_QUERY_JOBS` stream and the worker rebuilds the run from the
+row; with the worker off, the API process runs exactly the same rebuild. The
+stream is separate from the warehouse one so a worker from before it existed
+never receives a DuckDB job it would terminate, and a join queued behind the
+legs it references is allowed their wait on top of the queue timeout. A
+rebuild that fails after the worker claimed the row marks it errored rather
+than leaving it executing. A refusal by the guard is recorded
 on the row too, so the outcome reporter, which polls the join row rather than
 awaiting any run, tells a refusal from a failure wherever the join executed.
 

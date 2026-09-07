@@ -3165,6 +3165,9 @@ export class AsyncQueryService extends ProjectService {
     public async prepareQueuedQueryForExecution(
         queryUuid: string,
         workerLabel: string,
+        // A row may be allowed to queue longer than the default, as a
+        // DuckDB query queued behind the legs it references is
+        queueTimeoutMs: number = this.lightdashConfig.natsWorker.queueTimeoutMs,
     ): Promise<boolean> {
         const queryHistory =
             await this.queryHistoryModel.getByQueryUuid(queryUuid);
@@ -3190,7 +3193,7 @@ export class AsyncQueryService extends ProjectService {
         const timeInQueueMs =
             Date.now() - new Date(queryHistory.createdAt).getTime();
 
-        if (timeInQueueMs > this.lightdashConfig.natsWorker.queueTimeoutMs) {
+        if (timeInQueueMs > queueTimeoutMs) {
             await this.expireQueuedQuery(
                 queryHistory,
                 timeInQueueMs,
@@ -3210,8 +3213,11 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const queryContext = queryHistory.context || 'unknown';
+        // A row claimed in-process never queued: it moves from pending
         this.prometheusMetrics?.trackQueryStateTransition(
-            QueryHistoryStatus.QUEUED,
+            queryHistory.status === QueryHistoryStatus.PENDING
+                ? QueryHistoryStatus.PENDING
+                : QueryHistoryStatus.QUEUED,
             QueryHistoryStatus.EXECUTING,
             queryContext,
         );
@@ -7682,19 +7688,49 @@ export class AsyncQueryService extends ProjectService {
         workerLabel: string,
         queryTagsOverride?: RunQueryTags,
     ): Promise<boolean> {
+        // A DuckDB query may queue behind the legs it references, so it is
+        // allowed their wait on top of the ordinary queue timeout
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
             workerLabel,
+            this.lightdashConfig.natsWorker.queueTimeoutMs +
+                AsyncQueryService.REFERENCE_WAIT_TIMEOUT_MS,
         );
         if (!canRun) {
             return false;
         }
-        const args = await this.buildDuckdbQueryArgsFromHistory(
-            queryUuid,
-            queryTagsOverride,
-        );
+        let args: RunDuckdbQueryArgs;
+        try {
+            args = await this.buildDuckdbQueryArgsFromHistory(
+                queryUuid,
+                queryTagsOverride,
+            );
+        } catch (e) {
+            // The row is already claimed: a rebuild that fails must not
+            // leave it executing forever
+            await this.markClaimedQueryAsErrored(queryUuid, getErrorMessage(e));
+            throw e;
+        }
         await this.runDuckdbQuery(args);
         return true;
+    }
+
+    private async markClaimedQueryAsErrored(
+        queryUuid: string,
+        error: string,
+    ): Promise<void> {
+        const query = await this.queryHistoryModel.getByQueryUuid(queryUuid);
+        if (!query || !query.projectUuid) return;
+        const actor = AsyncQueryService.getQueryHistoryActor(query);
+        await this.queryHistoryModel.updateStatusToError(
+            queryUuid,
+            query.projectUuid,
+            error,
+            {
+                user: { id: actor.userUuid },
+                isRegisteredUser: () => actor.isRegisteredUser,
+            },
+        );
     }
 
     private async buildDuckdbQueryArgsFromHistory(
@@ -8246,6 +8282,19 @@ export class AsyncQueryService extends ProjectService {
                     warehouseClient.credentials.type,
             });
         } catch (e) {
+            // A refusal is the feature working, and whoever reports the
+            // outcome must tell it from a failure by reading the row alone,
+            // so the refusal lands with the error status in one write
+            if (e instanceof DuckdbQueryRefusal) {
+                await this.queryHistoryModel.recordDuckdbRefusal(
+                    queryUuid,
+                    projectUuid,
+                    e.refusal,
+                    getErrorMessage(e),
+                    account,
+                );
+                return;
+            }
             await this.queryHistoryModel.update(
                 queryUuid,
                 projectUuid,
@@ -8256,14 +8305,6 @@ export class AsyncQueryService extends ProjectService {
                 },
                 account,
             );
-            // A refusal is the feature working, and whoever reports the
-            // outcome must tell it from a failure by reading the row alone
-            if (e instanceof DuckdbQueryRefusal) {
-                await this.queryHistoryModel.recordDuckdbRefusal(
-                    queryUuid,
-                    e.refusal,
-                );
-            }
         }
     }
 

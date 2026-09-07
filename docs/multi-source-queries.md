@@ -96,7 +96,8 @@ rest of the results bucket; a duckdb query that references nothing is refused
 at submit, since it would have nothing to run on.
 The run rebuilds itself from the `query_history` row and its
 `duckdb_execution` column, so with the NATS worker on it runs on the worker
-(subject `warehouse.duckdb.jobs`), and in the API process otherwise.
+(subject `duckdb.query.jobs` on the `DUCKDB_QUERY_JOBS` stream, its own
+durable consumer), and in the API process otherwise.
 One caveat inherited by design: on the worker, a waiting query occupies a
 worker slot; dependency-ordered submission keeps queue order aligned with
 dependency order, and a dedicated consumer is the fix if slot starvation ever

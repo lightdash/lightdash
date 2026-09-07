@@ -173,7 +173,7 @@ export class NatsWorker {
                 );
         }
 
-        if (subject === STREAM_CONFIGS.warehouse.subjects.duckdb) {
+        if (subject === STREAM_CONFIGS.duckdb.subjects.query) {
             return (queryUuid, worker, queryTags) =>
                 this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
                     queryUuid,

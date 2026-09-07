@@ -213,7 +213,7 @@ export class NatsClient implements INatsClient {
     async enqueueDuckdbQuery(
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
-        return this.enqueue(STREAM_CONFIGS.warehouse.subjects.duckdb, payload);
+        return this.enqueue(STREAM_CONFIGS.duckdb.subjects.query, payload);
     }
 
     async enqueuePreAggregateQuery(
