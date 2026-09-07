@@ -341,7 +341,11 @@ export class ProjectDbtSourcesService extends BaseService {
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         if (projectDbtSourceUuid === identity.dbtSourceUuid) {
-            if (data.name === undefined || data.dbtConnection !== undefined) {
+            if (
+                data.name === undefined ||
+                data.dbtConnection !== undefined ||
+                data.warehouseLocation !== undefined
+            ) {
                 throw new ParameterError(
                     'Only the primary dbt source name can be updated here',
                 );
