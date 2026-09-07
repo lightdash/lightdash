@@ -37,26 +37,36 @@ export { MODEL_PRESETS };
 /**
  * Copilot config as consumed by the model builders. `byoProviders` is stamped
  * by the resolver (OrgAiCopilotConfigResolver) listing the providers whose
- * apiKey came from the org's own self-managed key; absent/empty for the
- * instance (Lightdash-managed) config. Optional so the raw instance config is
- * still a valid input (it resolves to Lightdash-managed). Instance-level
- * customer-owned keys are declared separately via
- * `selfManagedProviders` (AI_COPILOT_SELF_MANAGED_PROVIDERS) on the config
- * itself.
+ * apiKey came from the org's own key entered in the UI; absent/empty when the
+ * org falls through to the instance config. Whether an instance key is
+ * Lightdash's is declared by Lightdash infrastructure via
+ * `lightdashManagedProviders` (AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS); any
+ * key not declared there is the customer's.
  */
 export type CopilotConfigForModel = LightdashConfig['ai']['copilot'] & {
     byoProviders?: ByoAiProvider[];
 };
 
+/**
+ * Who pays for the key that serves a call. A key the org entered in the UI is
+ * always the customer's. An instance key is Lightdash's only when Lightdash
+ * infrastructure has declared the provider in `lightdashManagedProviders`;
+ * otherwise (self-hosted installs, dedicated instances running on a
+ * customer's key) it is the customer's. The default therefore errs towards
+ * self-managed: a missing declaration under-reports Lightdash's spend, which
+ * the console reconciliation catches, rather than silently billing customers'
+ * usage to Lightdash.
+ */
 export const resolveKeyManagement = (
     config: CopilotConfigForModel,
     provider: AiProvider,
 ): AiKeyManagement =>
-    (isByoAiProvider(provider) &&
-        (config.byoProviders ?? []).includes(provider)) ||
-    (config.selfManagedProviders ?? []).includes(provider)
-        ? 'self-managed'
-        : 'lightdash-managed';
+    !(
+        isByoAiProvider(provider) &&
+        (config.byoProviders ?? []).includes(provider)
+    ) && (config.lightdashManagedProviders ?? []).includes(provider)
+        ? 'lightdash-managed'
+        : 'self-managed';
 
 const withKeyManagement = <P extends AiProvider>(
     modelProperties: AiModel<P>,

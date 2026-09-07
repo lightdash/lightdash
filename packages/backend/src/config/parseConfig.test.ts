@@ -10,7 +10,6 @@ import {
     WeekDay,
 } from '@lightdash/common';
 import { VERSION } from '../version';
-import { AI_PROVIDER_KEYS } from './aiConfigSchema';
 import {
     getFloatArrayFromEnvironmentVariable,
     getFloatFromEnvironmentVariable,
@@ -2324,29 +2323,22 @@ describe('APPS_CODING_AGENT', () => {
 });
 
 describe('ai copilot key management config', () => {
-    it('treats every instance provider key as self-managed outside Lightdash Cloud', () => {
+    it('declares no Lightdash-managed providers by default, on or off Lightdash Cloud', () => {
+        delete process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS;
         delete process.env.LIGHTDASH_CLOUD_INSTANCE;
-        process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS = 'openai';
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
 
-        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([
-            ...AI_PROVIDER_KEYS,
-        ]);
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
     });
 
-    it('treats instance keys as Lightdash-managed on Lightdash Cloud unless declared', () => {
-        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
-        delete process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS;
+    it('reads AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS and drops unknown names', () => {
+        process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS =
+            'anthropic,openai,not-a-provider';
 
-        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([]);
-    });
-
-    it('honours AI_COPILOT_SELF_MANAGED_PROVIDERS on Lightdash Cloud and drops unknown names', () => {
-        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
-        process.env.AI_COPILOT_SELF_MANAGED_PROVIDERS =
-            'anthropic,not-a-provider';
-
-        expect(parseConfig().ai.copilot.selfManagedProviders).toEqual([
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([
             'anthropic',
+            'openai',
         ]);
     });
 });

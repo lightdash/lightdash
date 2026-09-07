@@ -41,12 +41,15 @@ export const aiCopilotConfigSchema = z
         defaultProvider: z
             .enum(AI_PROVIDER_KEYS)
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
-        // Providers whose instance-level API key belongs to the customer
-        // rather than Lightdash (e.g. a dedicated cloud deployment configured
-        // with the customer's own key). Only affects the `keyManagement`
-        // dimension on AI usage analytics; org BYO keys are tracked separately
-        // at config resolution.
-        selfManagedProviders: z.array(z.enum(AI_PROVIDER_KEYS)).default([]),
+        // Providers whose instance-level API key is Lightdash's own. Set by
+        // Lightdash infrastructure on Lightdash Cloud deployments; empty on
+        // self-hosted installs and on dedicated instances configured with a
+        // customer's key. Only affects the `keyManagement` dimension on AI
+        // usage analytics; org BYO keys are tracked separately at config
+        // resolution.
+        lightdashManagedProviders: z
+            .array(z.enum(AI_PROVIDER_KEYS))
+            .default([]),
         defaultEmbeddingModelProvider: z
             .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),

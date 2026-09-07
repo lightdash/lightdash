@@ -1261,34 +1261,25 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
-    // Which instance-level provider keys are the customer's rather than
-    // Lightdash's. Outside Lightdash Cloud (no LIGHTDASH_CLOUD_INSTANCE) every
-    // instance key is the customer's by construction, so all providers are
-    // self-managed and the env var is ignored. On a Lightdash Cloud instance
-    // the keys are Lightdash's unless AI_COPILOT_SELF_MANAGED_PROVIDERS names
-    // the providers whose key a customer handed us to install for them.
-    // Unknown names are dropped (with a log) rather than passed through so a
-    // typo can't fail schema validation and discard the whole parsed config.
-    selfManagedProviders:
-        process.env.LIGHTDASH_CLOUD_INSTANCE === undefined
-            ? [...AI_PROVIDER_KEYS]
-            : getArrayFromCommaSeparatedList(
-                  'AI_COPILOT_SELF_MANAGED_PROVIDERS',
-              ).filter(
-                  (provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
-                      if (
-                          (AI_PROVIDER_KEYS as readonly string[]).includes(
-                              provider,
-                          )
-                      ) {
-                          return true;
-                      }
-                      console.error(
-                          `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
-                      );
-                      return false;
-                  },
-              ),
+    // Which instance-level provider keys are Lightdash's. Set by Lightdash's
+    // own infrastructure on Lightdash Cloud deployments that run on Lightdash
+    // keys; never set by customers. Everything else — self-hosted installs,
+    // dedicated instances configured with a customer's key, org keys entered
+    // in the UI — is the customer's, so the default is "none". Only affects
+    // the `keyManagement` dimension on AI usage analytics. Unknown names are
+    // dropped (with a log) rather than passed through so a typo can't fail
+    // schema validation and discard the whole parsed config.
+    lightdashManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS',
+    ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
+        if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
+            return true;
+        }
+        console.error(
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS`,
+        );
+        return false;
+    }),
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
