@@ -7420,6 +7420,15 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        // User SQL runs on a session whose credentials reach only the results
+        // it references, so a query that references nothing has nothing to
+        // run on: it is refused rather than given the whole bucket
+        if (references === undefined || Object.keys(references).length === 0) {
+            throw new ParameterError(
+                'A compose SQL query must reference at least one query result. Run SQL against the warehouse in the SQL runner instead.',
+            );
+        }
+
         const { queryUuid } = await this.executeAsyncDuckdbSourceQuery({
             account,
             projectUuid,
@@ -7430,7 +7439,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             plan: {
                 columns: { mode: 'discover' },
-                engine: 'client',
+                engine: 'scopedToReferencedResults',
                 guard: null,
                 referenceLabels: {},
             },

@@ -724,6 +724,82 @@ describe('AsyncQueryService', () => {
         test('refuses a compose SQL query naming the missing results storage', async () => {
             const service = getMockedAsyncQueryService(withoutResultsStorage, {
                 featureFlagModel: composeFlags,
+                queryHistoryModel: {
+                    create: vi.fn(),
+                    get: vi.fn(async () => referencedQueryHistory),
+                } as unknown as QueryHistoryModel,
+            } as never);
+
+            await expect(
+                service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    sql: 'SELECT one FROM orders',
+                    references: { orders: referencedQueryHistory.queryUuid },
+                }),
+            ).rejects.toThrow(
+                new MissingConfigError(
+                    'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.',
+                ),
+            );
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        });
+
+        test('a compose SQL query runs on a session scoped to exactly the results it references', async () => {
+            const createExecutionWarehouseClient = vi.fn(
+                () => warehouseClientMock,
+            );
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
+                composeEngineClient: {
+                    createExecutionWarehouseClient,
+                } as unknown as ComposeEngineClient,
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
+                    get: vi.fn(async () => referencedQueryHistory),
+                    pollForQueryCompletion: vi.fn(
+                        async () => referencedQueryHistory,
+                    ),
+                    update: vi.fn(),
+                } as unknown as QueryHistoryModel,
+                resultsStorageClient: {
+                    isEnabled: true,
+                    configuration: { bucket: 'mock_bucket' },
+                } as unknown as S3ResultsFileStorageClient,
+            } as never);
+            const runAsyncWarehouseSpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+
+            await service.executeAsyncComposeSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.SQL_RUNNER,
+                sql: 'SELECT one FROM orders',
+                references: { orders: referencedQueryHistory.queryUuid },
+            });
+            await vi.waitFor(() =>
+                expect(runAsyncWarehouseSpy).toHaveBeenCalledTimes(1),
+            );
+
+            // The shared session is built once, for the dialect and to refuse
+            // a missing results storage up front; the run gets its own,
+            // scoped to the one file the query reads
+            expect(createExecutionWarehouseClient.mock.calls).toEqual([
+                [{ storage: 'results', scope: null }],
+                [
+                    {
+                        storage: 'results',
+                        scope: ['s3://mock_bucket/referenced-results.jsonl'],
+                    },
+                ],
+            ]);
+        });
+
+        test('refuses a compose SQL query that references no results before writing a row', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                featureFlagModel: composeFlags,
             } as never);
 
             await expect(
@@ -734,9 +810,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT 1 AS one',
                 }),
             ).rejects.toThrow(
-                new MissingConfigError(
-                    'The compose engine needs results storage to read referenced query results. Set S3_ENDPOINT, S3_BUCKET and S3_REGION, or the RESULTS_S3_* overrides.',
-                ),
+                'A compose SQL query must reference at least one query result',
             );
             expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
         });
@@ -7274,6 +7348,21 @@ describe('query sources carry the execution context', () => {
 
     test('a compose SQL submit with a missing parameter refuses synchronously and creates no query history row', async () => {
         const service = createComposeEngineService();
+        const referencedQueryUuid = '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11';
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: referencedQueryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: sessionAccount.user.id,
+            context: QueryExecutionContext.EXPLORE,
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'referenced-results.jsonl',
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: { exploreName: 'orders' },
+        });
 
         await expect(
             service.executeAsyncComposeSqlQuery({
@@ -7281,9 +7370,10 @@ describe('query sources carry the execution context', () => {
                 projectUuid,
                 context: QueryExecutionContext.MULTI_SOURCE_QUERY,
                 sql: 'SELECT * FROM t WHERE region = ${ld.parameters.region}',
+                references: { t: referencedQueryUuid },
                 parameters: {},
             }),
-        ).rejects.toThrow(ParameterError);
+        ).rejects.toThrow('region');
         expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
     });
 

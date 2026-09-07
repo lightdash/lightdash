@@ -90,6 +90,10 @@ The reference wait lives in `AsyncQueryService.runDuckdbQuery` (the
 background phase of `executeAsyncComposeSqlQuery`): references are validated
 and authorized at submit time with the exact access checks of fetching results
 by uuid, then resolved to S3-backed CTEs once the referenced queries complete.
+The statement then runs on an isolated DuckDB session whose storage
+credentials reach exactly those result files, so user SQL cannot read the
+rest of the results bucket; a duckdb query that references nothing is refused
+at submit, since it would have nothing to run on.
 One caveat inherited by design: when compose queries move to NATS workers, a
 waiting query occupies a worker slot; dependency-ordered submission keeps
 queue order aligned with dependency order, and a dedicated consumer is the
