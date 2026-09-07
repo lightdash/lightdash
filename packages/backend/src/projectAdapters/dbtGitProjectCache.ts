@@ -11,6 +11,7 @@ export const DBT_GIT_CACHE_MAX_ENTRIES = 128;
 
 const CACHE_VERSION = 1;
 const LEASE_STALE_MS = 2 * 60 * 1000;
+const FOREIGN_HOST_LEASE_STALE_MS = 5 * LEASE_STALE_MS;
 const ROOT_MARKER = '.lightdash-dbt-git-cache.json';
 const ENTRY_MARKER = '.lightdash-cache-entry.json';
 const METADATA = 'metadata.json';
@@ -437,7 +438,9 @@ const newLeaseOwner = async (leaseId: string): Promise<LeaseOwner> => ({
 const leaseOwnerIsProvablyStale = async (
     value: LeaseOwner,
 ): Promise<boolean> => {
-    if (value.hostname !== os.hostname()) return false;
+    if (value.hostname !== os.hostname()) {
+        return Date.now() - value.heartbeatAt > FOREIGN_HOST_LEASE_STALE_MS;
+    }
     if (Date.now() - value.heartbeatAt <= LEASE_STALE_MS) return false;
     const actualStartTime = await processStartTime(value.pid);
     return (

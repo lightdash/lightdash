@@ -484,6 +484,63 @@ describe('dbt git project cache', () => {
         await releaseDbtGitProjectCache(contenders.find(Boolean)!, 100);
     });
 
+    it('reclaims a foreign-host lease after five stale intervals', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    hostname: 'terminated-pod',
+                    heartbeatAt: Date.now() - 11 * 60_000,
+                }),
+            ),
+        );
+
+        const reclaimed = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+
+        expect(reclaimed?.reused).toBe(true);
+        await releaseDbtGitProjectCache(reclaimed!, 100);
+    });
+
+    it('protects a foreign-host lease within five stale intervals', async () => {
+        const root = await configure();
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(
+                staleOwner({
+                    hostname: 'active-pod',
+                    heartbeatAt: Date.now() - 9 * 60_000,
+                }),
+            ),
+        );
+
+        await expect(
+            acquireDbtGitProjectCache(identity(1), 'repository'),
+        ).resolves.toBeUndefined();
+        await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
+    });
+
     it('serializes concurrent reclaim of a stale reservation lock', async () => {
         const root = await configure();
         const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
