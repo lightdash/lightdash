@@ -1,3 +1,10 @@
+# [2.135.0](https://github.com/lightdash/lightdash/compare/2.134.2...2.135.0) (2026-09-07)
+
+
+### Features
+
+* **explorer:** graduate custom bin write-back ([#28700](https://github.com/lightdash/lightdash/issues/28700)) ([b1e4417](https://github.com/lightdash/lightdash/commit/b1e44171721f23fdb793101574e7e23cd376e3b5))
+
 ## [2.134.2](https://github.com/lightdash/lightdash/compare/2.134.1...2.134.2) (2026-09-06)
 
 

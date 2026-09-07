@@ -52235,6 +52235,26 @@
                 "required": ["enabled"],
                 "type": "object"
             },
+            "ApiCustomDimensionWriteBackPreview": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "yaml": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["yaml"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiGitFileContent": {
                 "properties": {
                     "filePath": {
@@ -59860,7 +59880,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.134.2",
+        "version": "2.135.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -90214,6 +90234,70 @@
                                     }
                                 },
                                 "required": ["customMetrics"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/pull-requests/custom-dimensions/preview": {
+            "post": {
+                "operationId": "PreviewPullRequestForCustomDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCustomDimensionWriteBackPreview"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview custom dimensions using the project's dbt model and warehouse dialect",
+                "summary": "Preview custom dimension YAML",
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "quoteChar": {
+                                        "type": "string",
+                                        "enum": ["\"", "'"]
+                                    },
+                                    "customDimensions": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/CustomDimension"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["customDimensions"],
                                 "type": "object"
                             }
                         }
