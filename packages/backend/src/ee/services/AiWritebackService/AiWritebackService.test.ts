@@ -30,6 +30,7 @@ import {
     revokeInstallationToken,
 } from '../../../clients/github/Github';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
+import { SandboxCommandError } from '../SandboxRuntime/errors';
 import {
     AiWritebackService,
     auditReasonForError,
@@ -54,6 +55,7 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackDbtParseError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
     WritebackThreadPrClosedError,
@@ -1500,6 +1502,149 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         });
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    // The `dbt parse` gate: the host parses the project itself rather than
+    // trusting the agent's own compile summary, and only holds a failure against
+    // the change when the project parsed BEFORE the turn.
+    describe('dbt parse gate', () => {
+        // `dbt parse` outcomes in call order: the baseline parse (before the
+        // agent), then one per post-change check.
+        const fakeSandboxWithParse = (
+            parseOutcomes: (boolean | 'unknown')[],
+        ): AnyType => {
+            let parseCalls = 0;
+            let agentCalls = 0;
+            const sandbox = fakeSandbox(0, true);
+            sandbox.commands.run = vi.fn(
+                async (command: string, opts: AnyType) => {
+                    if (command.includes('claude')) {
+                        agentCalls += 1;
+                        opts?.onStdout?.(
+                            `${JSON.stringify({
+                                type: 'assistant',
+                                message: {
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text:
+                                                agentCalls === 1
+                                                    ? agentReply()
+                                                    : `Fixed.\n${PR_TITLE_OPEN}Add metric${PR_TITLE_CLOSE}`,
+                                        },
+                                    ],
+                                },
+                            })}\n`,
+                        );
+                        return { exitCode: 0, stdout: '' };
+                    }
+                    if (command.includes('dbt parse')) {
+                        const parsed = parseOutcomes[parseCalls] ?? true;
+                        parseCalls += 1;
+                        // Not a verdict on the project — a transport/timeout
+                        // failure, which must never read as a broken change.
+                        if (parsed === 'unknown') {
+                            throw new Error('deadline_exceeded');
+                        }
+                        if (!parsed) {
+                            throw new SandboxCommandError(
+                                1,
+                                '',
+                                'Compilation Error in model orders\n  depends on a node named "missing" which was not found',
+                            );
+                        }
+                        return { exitCode: 0, stdout: '' };
+                    }
+                    // Profiles discovery — a found profiles.yml is what lets the
+                    // host run `dbt parse` at all.
+                    if (command.includes('profiles.yml')) {
+                        return {
+                            exitCode: 0,
+                            stdout: '/home/user/repo/profiles/profiles.yml\n',
+                        };
+                    }
+                    if (command.includes('--name-status')) {
+                        return { exitCode: 0, stdout: 'A\0models/x.sql\0' };
+                    }
+                    return { exitCode: 0, stdout: '' };
+                },
+            );
+            return {
+                sandbox,
+                parseCalls: () => parseCalls,
+                agentCalls: () => agentCalls,
+            };
+        };
+
+        it('opens the PR when the changes still parse', async () => {
+            const { sandbox, parseCalls, agentCalls } = fakeSandboxWithParse([
+                true,
+                true,
+            ]);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+            const result = await runService(sandbox);
+
+            expect(result.prUrl).toBe(PR_7);
+            // Baseline + post-change, and no repair turn was needed.
+            expect(parseCalls()).toBe(2);
+            expect(agentCalls()).toBe(1);
+        });
+
+        it('gives the agent one repair turn and opens the PR once it parses', async () => {
+            const { sandbox, parseCalls, agentCalls } = fakeSandboxWithParse([
+                true,
+                false,
+                true,
+            ]);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+            const result = await runService(sandbox);
+
+            expect(result.prUrl).toBe(PR_7);
+            expect(agentCalls()).toBe(2);
+            expect(parseCalls()).toBe(3);
+            // The repair turn's reply is what the user sees.
+            expect(result.output).toContain('Fixed.');
+        });
+
+        it('opens no PR when the changes still do not parse after the repair', async () => {
+            const { sandbox } = fakeSandboxWithParse([true, false, false]);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+            await expect(runService(sandbox)).rejects.toThrow(
+                WritebackDbtParseError,
+            );
+            expect(createPullRequest).not.toHaveBeenCalled();
+        });
+
+        it('does not treat a parse that could not run as a broken change', async () => {
+            const { sandbox, agentCalls } = fakeSandboxWithParse([
+                true,
+                'unknown',
+            ]);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+            const result = await runService(sandbox);
+
+            expect(result.prUrl).toBe(PR_7);
+            expect(agentCalls()).toBe(1);
+        });
+
+        it('does not hold a pre-existing parse failure against the change', async () => {
+            // The baseline parse fails, so the project was already broken: the
+            // gate is skipped and the PR opens without a repair turn.
+            const { sandbox, agentCalls, parseCalls } = fakeSandboxWithParse([
+                false,
+            ]);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+            const result = await runService(sandbox);
+
+            expect(result.prUrl).toBe(PR_7);
+            expect(agentCalls()).toBe(1);
+            expect(parseCalls()).toBe(1);
+        });
     });
 });
 

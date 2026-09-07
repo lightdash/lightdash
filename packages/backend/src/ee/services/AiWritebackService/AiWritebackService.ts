@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     DbtProjectType,
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
@@ -89,6 +90,7 @@ import {
     COMPILE_TIMINGS_PATH,
     COMPILE_WRAPPER_PATH,
     CWD,
+    DBT_PARSE_TIMEOUT_MS,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
     GENERAL_ALLOWED_TOOLS,
     GENERAL_DISALLOWED_TOOLS,
@@ -112,6 +114,7 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackDbtParseError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
     WritebackThreadPrClosedError,
@@ -119,17 +122,26 @@ import {
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
-import { buildGatherRepoContextScript } from './scripts';
+import { buildDbtParseCommand, buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
-import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
+import {
+    buildDbtParseRepairPrompt,
+    buildGeneralSystemPrompt,
+    buildSystemPrompt,
+} from './templates';
 import type {
     AdoptedPullRequest,
+    AgentRunOutcome,
     AiWritebackRunArgs,
     AiWritebackSource,
     AiWritebackUsage,
     AppliedChanges,
+    ChangeVerification,
     CloneTarget,
     CodingAgentConfig,
+    CodingAgentSetup,
+    DbtParseBaseline,
+    DbtParseBaselineStatus,
     GitConnection,
     GitInstallation,
     RepoContext,
@@ -153,6 +165,8 @@ import {
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
+    sumAgentUsage,
+    summarizeDbtParseFailure,
     summarizeRepoListing,
     summarizeToolInput,
 } from './utils';
@@ -2315,19 +2329,14 @@ export class AiWritebackService extends BaseService {
                 afterAgentRun: () => config.afterAgentRun(sandbox!),
             });
 
-            const {
-                title: prTitle,
-                description: prDescription,
-                summary: prSummary,
-                sanitizedStdout,
-            } = extractPrMetadata(agent.stdout);
+            const prMetadata = extractPrMetadata(agent.stdout);
             this.logger.info(
                 `AiWriteback: extracted PR metadata from stdout (title=${
-                    prTitle !== null
-                }, description=${prDescription !== null})`,
+                    prMetadata.title !== null
+                }, description=${prMetadata.description !== null})`,
             );
 
-            const { hasChanges } = await sandbox.git.status(CWD);
+            let { hasChanges } = await sandbox.git.status(CWD);
 
             // The agent crashed mid-run. The working tree may be in a
             // partial/inconsistent state, so skip the push/PR side-effects
@@ -2358,6 +2367,37 @@ export class AiWritebackService extends BaseService {
                         : `The coding agent exited with code ${agent.exitCode} and no pull request was created.`,
                 );
             }
+
+            // Host-side gate before any commit/push/PR: do the changes still
+            // verify (dbt: does the project parse)? A break earns ONE repair
+            // turn; if it survives that, no pull request is opened.
+            let repair: AgentRunOutcome | null = null;
+            if (hasChanges && config.verifyChanges) {
+                const gate = await this.verifyChangesOrRepair({
+                    sandbox,
+                    turn,
+                    config,
+                    setup,
+                    source,
+                    recordStep,
+                });
+                repair = gate.repair;
+                hasChanges = gate.hasChanges;
+            }
+            // The repair turn is the agent's last word, so its PR metadata and
+            // reply win — falling back to the first turn's for anything it
+            // didn't re-emit.
+            const repairMetadata = repair
+                ? extractPrMetadata(repair.stdout)
+                : null;
+            const prTitle = repairMetadata?.title ?? prMetadata.title;
+            const prDescription =
+                repairMetadata?.description ?? prMetadata.description;
+            const prSummary = repairMetadata?.summary ?? prMetadata.summary;
+            const sanitizedStdout = repairMetadata?.sanitizedStdout.trim()
+                ? repairMetadata.sanitizedStdout
+                : prMetadata.sanitizedStdout;
+            const usage = sumAgentUsage(agent.usage, repair?.usage ?? null);
 
             // Finalize claim: atomic arbitration with tasks/cancel before any
             // external side effect (commit/push/PR all happen inside
@@ -2403,7 +2443,7 @@ export class AiWritebackService extends BaseService {
                 exitCode: agent.exitCode,
                 hasChanges,
                 prCreated: applied.prCreated,
-                usage: agent.usage,
+                usage,
                 repoContext,
             });
 
@@ -2475,17 +2515,22 @@ export class AiWritebackService extends BaseService {
                 performance.now() - runStartedAt,
                 'error',
             );
-            Sentry.captureException(error, {
-                tags: {
-                    errorType: 'AiWritebackRunFailed',
-                    failureStage,
-                },
-                extra: {
-                    projectUuid,
-                    aiThreadUuid: aiThreadUuid ?? null,
-                    sandboxId: sandbox?.sandboxId ?? null,
-                },
-            });
+            // A change the agent couldn't make parse is a modelling mistake, not
+            // a system failure: it's already logged and tracked, so keep it out
+            // of Sentry.
+            if (!(error instanceof WritebackDbtParseError)) {
+                Sentry.captureException(error, {
+                    tags: {
+                        errorType: 'AiWritebackRunFailed',
+                        failureStage,
+                    },
+                    extra: {
+                        projectUuid,
+                        aiThreadUuid: aiThreadUuid ?? null,
+                        sandboxId: sandbox?.sandboxId ?? null,
+                    },
+                });
+            }
             tracker.failed(failureStage, error, repoContext);
             await persistRunFailed(error);
             throw error;
@@ -3712,11 +3757,7 @@ export class AiWritebackService extends BaseService {
         beforeAgentRun: () => Promise<void>;
         /** Mode-specific teardown run just after the CLI (e.g. dbt compile timings). */
         afterAgentRun: () => Promise<void>;
-    }): Promise<{
-        stdout: string;
-        exitCode: number;
-        usage: AiWritebackUsage | null;
-    }> {
+    }): Promise<AgentRunOutcome> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
 
@@ -4038,14 +4079,215 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Install the dbt compile wrapper, push the warehouse skill files, and reset
-     * the compile-timings log — the in-sandbox prerequisites for a dbt-writeback
-     * turn. Extracted as the `beforeAgentRun` hook of {@link dbtWritebackConfig}.
+     * Verify the agent's changes host-side before any git side effect, and give
+     * the agent ONE repair turn when they don't verify. The check runs on the
+     * host — not as a prompt instruction — because the class of failure it
+     * catches is exactly the agent believing its edit was fine (a dangling
+     * `ref()`, a mistyped YAML key) and opening a pull request that breaks dbt.
+     *
+     * The repair turn continues the same CLI session, so the agent still has the
+     * context of the edits it just made. If the changes still don't verify (or
+     * the repair turn itself crashes) the run fails with dbt's own error and no
+     * pull request is opened — an obviously broken dbt project is worse than no
+     * change at all. A repair that reverts everything leaves no changes, which
+     * the caller treats as a normal "nothing to open a PR for" turn.
+     */
+    private async verifyChangesOrRepair({
+        sandbox,
+        turn,
+        config,
+        setup,
+        source,
+        recordStep,
+    }: {
+        sandbox: SandboxHandle;
+        turn: TurnContext;
+        config: CodingAgentConfig;
+        setup: CodingAgentSetup;
+        source: AiWritebackSource;
+        recordStep: (step: AiWritebackStep) => void;
+    }): Promise<{ repair: AgentRunOutcome | null; hasChanges: boolean }> {
+        const verify = config.verifyChanges;
+        if (!verify) return { repair: null, hasChanges: true };
+
+        recordStep({ kind: 'stage', label: 'Checking the project parses' });
+        const verification = await verify(sandbox, turn);
+        if (verification.status === 'skipped') {
+            this.logger.info('AI writeback change verification skipped', {
+                event: 'ai_writeback.run.verify',
+                source,
+                sandboxId: sandbox.sandboxId,
+                status: verification.status,
+                reason: verification.reason,
+            });
+            return { repair: null, hasChanges: true };
+        }
+        if (verification.status === 'passed') {
+            this.logger.info('AI writeback change verification passed', {
+                event: 'ai_writeback.run.verify',
+                source,
+                sandboxId: sandbox.sandboxId,
+                status: verification.status,
+            });
+            return { repair: null, hasChanges: true };
+        }
+
+        this.logger.warn('AI writeback change verification failed', {
+            event: 'ai_writeback.run.verify',
+            source,
+            sandboxId: sandbox.sandboxId,
+            status: verification.status,
+            failureOutput: verification.failureOutput,
+        });
+        recordStep({ kind: 'stage', label: 'Fixing the changes' });
+        const repair = await this.runAgentInSandbox({
+            sandbox,
+            systemPrompt: setup.systemPrompt,
+            prompt: buildDbtParseRepairPrompt(verification.failureOutput),
+            // Continue the session the agent just finished, whatever the
+            // original turn was — it still holds the edits it made.
+            isResume: true,
+            source,
+            recordStep,
+            allowedTools: setup.allowedTools,
+            disallowedTools: setup.disallowedTools,
+            addDirs: setup.addDirs,
+            model: setup.model,
+            warehouseType: turn.warehouseType,
+            // The sandbox prerequisites were installed for the first turn and
+            // survive it, so only the post-run diagnostics are re-run.
+            beforeAgentRun: () => Promise.resolve(),
+            afterAgentRun: () => config.afterAgentRun(sandbox),
+        });
+        const { hasChanges } = await sandbox.git.status(CWD);
+        if (repair.exitCode !== 0) {
+            throw new WritebackDbtParseError(verification.failureOutput);
+        }
+        // The repair reverted everything: nothing to open a pull request for,
+        // and the agent's reply explains why.
+        if (!hasChanges) {
+            return { repair, hasChanges };
+        }
+        const recheck = await verify(sandbox, turn);
+        if (recheck.status === 'failed') {
+            throw new WritebackDbtParseError(recheck.failureOutput);
+        }
+        this.logger.info('AI writeback change verification repaired', {
+            event: 'ai_writeback.run.verify',
+            source,
+            sandboxId: sandbox.sandboxId,
+            status: recheck.status,
+        });
+        return { repair, hasChanges };
+    }
+
+    /**
+     * Run `dbt parse` on the working tree as it stands. `commands.run` throws on
+     * a non-zero exit, so a SandboxCommandError IS dbt's verdict — but any other
+     * throw (timeout, transport) says nothing about the project, and resolves to
+     * `unknown` so it can never be mistaken for a broken change.
+     */
+    private async runDbtParse(
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ): Promise<
+        | { outcome: 'parsed' }
+        | { outcome: 'failed'; failureOutput: string }
+        | { outcome: 'unknown'; reason: string }
+    > {
+        const command = buildDbtParseCommand({
+            dbtBin: dbtSandboxVenvBin(turn.dbtVersion),
+            projectDir: `${CWD}/${turn.gitConnection.projectSubPath}`,
+            profilesDir: TMP_PROFILES_DIR,
+        });
+        const start = performance.now();
+        try {
+            await sandbox.commands.run(command, {
+                cwd: CWD,
+                timeoutMs: DBT_PARSE_TIMEOUT_MS,
+            });
+            this.logger.info(
+                `AiWriteback: dbt parse ok (${AiWritebackService.elapsed(
+                    start,
+                )}ms, sandboxId=${sandbox.sandboxId})`,
+            );
+            return { outcome: 'parsed' };
+        } catch (error) {
+            if (!(error instanceof SandboxCommandError)) {
+                this.logger.warn(
+                    `AiWriteback: dbt parse could not be run (${AiWritebackService.elapsed(
+                        start,
+                    )}ms, sandboxId=${sandbox.sandboxId}): ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                return { outcome: 'unknown', reason: getErrorMessage(error) };
+            }
+            const failureOutput = summarizeDbtParseFailure({
+                stdout: error.stdout,
+                stderr: error.stderr,
+            });
+            this.logger.info(
+                `AiWriteback: dbt parse failed (${AiWritebackService.elapsed(
+                    start,
+                )}ms, sandboxId=${sandbox.sandboxId}): ${failureOutput}`,
+            );
+            return { outcome: 'failed', failureOutput };
+        }
+    }
+
+    /**
+     * The `verifyChanges` hook of {@link dbtWritebackConfig}: does the dbt
+     * project still parse after the agent's edits? Only a project that parsed
+     * BEFORE the turn can fail this gate — otherwise a pre-existing breakage
+     * (unresolvable packages, a profile the placeholder patch can't satisfy)
+     * would block every write-back to that repo.
+     */
+    private async verifyDbtParses(
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+        baseline: DbtParseBaseline,
+    ): Promise<ChangeVerification> {
+        if (baseline.status !== 'parsed') {
+            return {
+                status: 'skipped',
+                reason:
+                    baseline.status === 'not-run'
+                        ? 'the dbt project could not be parsed before this turn, so a failure now would not be attributable to the change'
+                        : 'the dbt project already failed to parse before this turn',
+            };
+        }
+        const parse = await this.runDbtParse(sandbox, turn);
+        switch (parse.outcome) {
+            case 'parsed':
+                return { status: 'passed' };
+            case 'failed':
+                return {
+                    status: 'failed',
+                    failureOutput: parse.failureOutput,
+                };
+            case 'unknown':
+                return {
+                    status: 'skipped',
+                    reason: `dbt parse could not be run: ${parse.reason}`,
+                };
+            default:
+                return assertUnreachable(parse, 'Unknown dbt parse outcome');
+        }
+    }
+
+    /**
+     * Install the dbt compile wrapper, push the warehouse skill files, reset the
+     * compile-timings log, and record whether the project parsed BEFORE the
+     * agent edits anything — the in-sandbox prerequisites for a dbt-writeback
+     * turn. Extracted as the `beforeAgentRun` hook of {@link dbtWritebackConfig};
+     * returns the baseline the post-agent parse gate is judged against.
      */
     private async prepareDbtAgentRun(
         sandbox: SandboxHandle,
         turn: TurnContext,
-    ): Promise<void> {
+        profilesStaged: boolean,
+    ): Promise<DbtParseBaselineStatus> {
         // Install the compile wrapper. The agent runs ${COMPILE_WRAPPER_PATH}
         // (allowlisted) instead of `lightdash compile` directly, and the wrapper
         // drops secrets from the environment before exec'ing the real CLI — so a
@@ -4130,6 +4372,21 @@ export class AiWritebackService extends BaseService {
         if (skills.warehouse !== null) {
             await sandbox.files.write(WAREHOUSE_SKILL_PATH, skills.warehouse);
         }
+
+        // Baseline for the post-agent `dbt parse` gate: does the project parse
+        // BEFORE the agent edits anything? Only meaningful once `dbt deps` has
+        // run and a credential-free profiles copy is staged. A project that is
+        // already broken can't have the gate held against it, so the gate is
+        // skipped rather than blocking every write-back to that repo.
+        if (!profilesStaged) return 'not-run';
+        const parse = await this.runDbtParse(sandbox, turn);
+        if (parse.outcome === 'failed') {
+            this.logger.warn(
+                `AiWriteback: dbt parse gate disabled — the project does not parse before this turn (sandboxId=${sandbox.sandboxId}): ${parse.failureOutput}`,
+            );
+            return 'failed';
+        }
+        return parse.outcome === 'parsed' ? 'parsed' : 'not-run';
     }
 
     /**
@@ -4139,6 +4396,15 @@ export class AiWritebackService extends BaseService {
      * wrapper / timings hooks. This is the specialization {@link run} uses.
      */
     private dbtWritebackConfig(): CodingAgentConfig {
+        // Per-run state shared by the hooks below: whether a credential-free
+        // profiles copy was staged (set while building the prompt) and whether
+        // the project parsed before the agent touched it (set just before the
+        // CLI runs). Both feed the post-agent `dbt parse` gate. A config is
+        // built per run, so this never leaks across runs.
+        const parseBaseline: DbtParseBaseline = {
+            profilesStaged: false,
+            status: 'not-run',
+        };
         return {
             mode: 'dbt-writeback',
             // Provider-aware writeback template (E2B template ref on e2b, the
@@ -4159,6 +4425,7 @@ export class AiWritebackService extends BaseService {
                     sandbox,
                     turn.gitConnection.projectSubPath,
                 );
+                parseBaseline.profilesStaged = profilesStaged;
                 const skillKey = warehouseTypeToSkillKey(turn.warehouseType);
                 const systemPrompt = buildSystemPrompt(
                     turn.gitConnection.projectSubPath,
@@ -4179,9 +4446,16 @@ export class AiWritebackService extends BaseService {
                     model: CLAUDE_MODEL,
                 };
             },
-            beforeAgentRun: (sandbox, turn) =>
-                this.prepareDbtAgentRun(sandbox, turn),
+            beforeAgentRun: async (sandbox, turn) => {
+                parseBaseline.status = await this.prepareDbtAgentRun(
+                    sandbox,
+                    turn,
+                    parseBaseline.profilesStaged,
+                );
+            },
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
+            verifyChanges: (sandbox, turn) =>
+                this.verifyDbtParses(sandbox, turn, parseBaseline),
         };
     }
 

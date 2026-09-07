@@ -189,7 +189,30 @@ export type CodingAgentConfig = {
      * depend on what the agent did (dbt: read + report the compile timings).
      */
     afterAgentRun: (sandbox: SandboxHandle) => Promise<void>;
+    /**
+     * Host-side check that the agent's changes are not obviously broken, run
+     * after the CLI exits and BEFORE any commit/push/PR (dbt: `dbt parse`).
+     * Undefined for the general agent, whose verification is the PR's own CI.
+     */
+    verifyChanges?: (
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ) => Promise<ChangeVerification>;
 };
+
+/**
+ * Outcome of a {@link CodingAgentConfig.verifyChanges} check.
+ * - `passed`: the changes verify — carry on to the pull request.
+ * - `skipped`: the check couldn't be trusted (no staged profiles, or the project
+ *   already failed to verify before the agent touched it), so it isn't held
+ *   against the change. `reason` is logged.
+ * - `failed`: the agent broke the project. `failureOutput` is the tool's own
+ *   error, shown to the agent for one repair turn and to the user if it stands.
+ */
+export type ChangeVerification =
+    | { status: 'passed' }
+    | { status: 'skipped'; reason: string }
+    | { status: 'failed'; failureOutput: string };
 
 /**
  * The git-target half of a {@link TurnContext}, resolved per mode before the
@@ -323,6 +346,28 @@ export type AiWritebackUsage = {
     numTurns: number | null;
     /** Time (ms) spent in LLM API calls — the rest is local tool execution. */
     durationApiMs: number | null;
+};
+
+/** What one Claude Code CLI invocation produced. */
+export type AgentRunOutcome = {
+    /** The agent's final assistant message. */
+    stdout: string;
+    exitCode: number;
+    usage: AiWritebackUsage | null;
+};
+
+/**
+ * Whether the dbt project parsed BEFORE this turn's edits, which is what makes
+ * the post-agent `dbt parse` gate attributable to the agent. Mutable: filled in
+ * as the run progresses (profiles staged while building the prompt, `status`
+ * just before the CLI runs) and read by the gate afterwards.
+ */
+export type DbtParseBaselineStatus = 'not-run' | 'parsed' | 'failed';
+
+export type DbtParseBaseline = {
+    /** A credential-free profiles copy was staged, so `dbt parse` can run. */
+    profilesStaged: boolean;
+    status: DbtParseBaselineStatus;
 };
 
 /** Title/description/summary parsed out of the agent's final stdout. */
