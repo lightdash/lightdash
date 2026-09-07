@@ -1261,16 +1261,22 @@ export const getAiConfig = () => ({
     defaultEmbeddingModelProvider:
         process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
         DEFAULT_DEFAULT_AI_PROVIDER,
-    // Unknown names are dropped (with a log) rather than passed through so a
-    // typo can't fail schema validation and discard the whole parsed config.
-    selfManagedProviders: getArrayFromCommaSeparatedList(
-        'AI_COPILOT_SELF_MANAGED_PROVIDERS',
+    // Which instance-level provider keys are Lightdash's. Set by Lightdash's
+    // own infrastructure on Lightdash Cloud deployments that run on Lightdash
+    // keys; never set by customers. Everything else — self-hosted installs,
+    // dedicated instances configured with a customer's key, org keys entered
+    // in the UI — is the customer's, so the default is "none". Only affects
+    // the `keyManagement` dimension on AI usage analytics. Unknown names are
+    // dropped (with a log) rather than passed through so a typo can't fail
+    // schema validation and discard the whole parsed config.
+    lightdashManagedProviders: getArrayFromCommaSeparatedList(
+        'AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS',
     ).filter((provider): provider is (typeof AI_PROVIDER_KEYS)[number] => {
         if ((AI_PROVIDER_KEYS as readonly string[]).includes(provider)) {
             return true;
         }
         console.error(
-            `Ignoring unknown provider "${provider}" in AI_COPILOT_SELF_MANAGED_PROVIDERS`,
+            `Ignoring unknown provider "${provider}" in AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS`,
         );
         return false;
     }),

@@ -15,6 +15,13 @@
  * needed to decompose `generateMs` into "too much output" vs "too many turns"
  * and to confirm prompt caching is landing (`cacheReadInputTokens > 0`).
  */
+export type ClaudeModelUsage = {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+};
+
 export type ClaudeGenerationUsage = {
     inputTokens: number;
     outputTokens: number;
@@ -23,6 +30,15 @@ export type ClaudeGenerationUsage = {
     numTurns: number;
     durationApiMs: number;
     costUsd: number;
+    /**
+     * Per-model split of the token counts, keyed by the concrete model id the
+     * CLI actually called (e.g. `claude-opus-4-8`), from the result event's
+     * `modelUsage`. The run is launched with a tier alias (`--model opus`)
+     * that the CLI resolves itself, and a run can fan out to a second model
+     * for subagents, so this is the only place the real model is known.
+     * Absent on CLI versions that don't report it.
+     */
+    modelUsage?: Record<string, ClaudeModelUsage>;
 };
 
 export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
@@ -51,6 +67,34 @@ export const ZERO_CLAUDE_GENERATION_TELEMETRY: ClaudeGenerationTelemetry = {
     attemptCount: 0,
 };
 
+function addClaudeModelUsage(
+    a: Record<string, ClaudeModelUsage> | undefined,
+    b: Record<string, ClaudeModelUsage> | undefined,
+): Record<string, ClaudeModelUsage> | undefined {
+    if (!a && !b) return undefined;
+    const merged: Record<string, ClaudeModelUsage> = {};
+    for (const source of [a, b]) {
+        for (const [modelId, usage] of Object.entries(source ?? {})) {
+            const current = merged[modelId] ?? {
+                inputTokens: 0,
+                outputTokens: 0,
+                cacheReadInputTokens: 0,
+                cacheCreationInputTokens: 0,
+            };
+            merged[modelId] = {
+                inputTokens: current.inputTokens + usage.inputTokens,
+                outputTokens: current.outputTokens + usage.outputTokens,
+                cacheReadInputTokens:
+                    current.cacheReadInputTokens + usage.cacheReadInputTokens,
+                cacheCreationInputTokens:
+                    current.cacheCreationInputTokens +
+                    usage.cacheCreationInputTokens,
+            };
+        }
+    }
+    return merged;
+}
+
 /**
  * Sum two usage records field-by-field. One build can invoke `claude` several
  * times (main generation, build-fix re-runs, metadata), so the pipeline totals
@@ -61,6 +105,7 @@ export function addClaudeUsage(
     b: ClaudeGenerationUsage | null,
 ): ClaudeGenerationUsage {
     if (!b) return a;
+    const modelUsage = addClaudeModelUsage(a.modelUsage, b.modelUsage);
     return {
         inputTokens: a.inputTokens + b.inputTokens,
         outputTokens: a.outputTokens + b.outputTokens,
@@ -70,6 +115,7 @@ export function addClaudeUsage(
         numTurns: a.numTurns + b.numTurns,
         durationApiMs: a.durationApiMs + b.durationApiMs,
         costUsd: a.costUsd + b.costUsd,
+        ...(modelUsage ? { modelUsage } : {}),
     };
 }
 
@@ -244,6 +290,36 @@ function asFiniteNumber(value: unknown): number {
 }
 
 /**
+ * Parse the result event's `modelUsage` map (`{ [modelId]: { inputTokens,
+ * outputTokens, cacheReadInputTokens, cacheCreationInputTokens, ... } }`).
+ * Returns `undefined` when the CLI didn't report it or reported nothing usable,
+ * so callers fall back to the alias the run was launched with.
+ */
+function parseModelUsage(
+    raw: unknown,
+): Record<string, ClaudeModelUsage> | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const parsed: Record<string, ClaudeModelUsage> = {};
+    Object.entries(raw as Record<string, unknown>).forEach(
+        ([modelId, value]) => {
+            if (!modelId || !value || typeof value !== 'object') return;
+            const fields = value as Record<string, unknown>;
+            parsed[modelId] = {
+                inputTokens: asFiniteNumber(fields.inputTokens),
+                outputTokens: asFiniteNumber(fields.outputTokens),
+                cacheReadInputTokens: asFiniteNumber(
+                    fields.cacheReadInputTokens,
+                ),
+                cacheCreationInputTokens: asFiniteNumber(
+                    fields.cacheCreationInputTokens,
+                ),
+            };
+        },
+    );
+    return Object.keys(parsed).length > 0 ? parsed : undefined;
+}
+
+/**
  * Parse a stream-json `result` event: the final response text plus the run's
  * usage summary (token counts, turn count, API time, cost). Returns
  * `undefined` for non-result lines. Missing numeric fields default to 0 —
@@ -265,6 +341,7 @@ function parseResult(line: string):
     }
     if (event.type !== 'result') return undefined;
     const usage = (event.usage ?? {}) as Record<string, unknown>;
+    const modelUsage = parseModelUsage(event.modelUsage);
     return {
         text: typeof event.result === 'string' ? event.result : null,
         // Populated only when the run was invoked with `--json-schema`; the CLI
@@ -281,6 +358,7 @@ function parseResult(line: string):
             numTurns: asFiniteNumber(event.num_turns),
             durationApiMs: asFiniteNumber(event.duration_api_ms),
             costUsd: asFiniteNumber(event.total_cost_usd),
+            ...(modelUsage ? { modelUsage } : {}),
         },
     };
 }

@@ -2321,3 +2321,24 @@ describe('APPS_CODING_AGENT', () => {
         expect(() => parseConfig()).toThrowError(ParseError);
     });
 });
+
+describe('ai copilot key management config', () => {
+    it('declares no Lightdash-managed providers by default, on or off Lightdash Cloud', () => {
+        delete process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS;
+        delete process.env.LIGHTDASH_CLOUD_INSTANCE;
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
+
+        process.env.LIGHTDASH_CLOUD_INSTANCE = 'cloud-instance';
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([]);
+    });
+
+    it('reads AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS and drops unknown names', () => {
+        process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS =
+            'anthropic,openai,not-a-provider';
+
+        expect(parseConfig().ai.copilot.lightdashManagedProviders).toEqual([
+            'anthropic',
+            'openai',
+        ]);
+    });
+});

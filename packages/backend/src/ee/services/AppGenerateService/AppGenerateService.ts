@@ -2124,37 +2124,71 @@ export class AppGenerateService extends BaseService {
         keyManagement: AiKeyManagement,
         usage: ClaudeGenerationUsage,
     ): void {
-        emitAiUsage(
-            getAiCallTelemetry({
-                functionId: 'appClaudeGeneration',
-                feature: 'data-app',
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                userUuid: payload.userUuid,
-                model,
-                provider,
-                keyManagement,
-                extra: {
-                    appUuid: payload.appUuid,
-                    appVersion: payload.version,
+        const emit = (
+            resolvedModel: string,
+            tokens: Pick<
+                ClaudeGenerationUsage,
+                | 'inputTokens'
+                | 'outputTokens'
+                | 'cacheReadInputTokens'
+                | 'cacheCreationInputTokens'
+            >,
+        ) =>
+            emitAiUsage(
+                getAiCallTelemetry({
+                    functionId: 'appClaudeGeneration',
+                    feature: 'data-app',
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    model: resolvedModel,
+                    provider,
+                    keyManagement,
+                    extra: {
+                        appUuid: payload.appUuid,
+                        appVersion: payload.version,
+                        codingAgentModel: model,
+                    },
+                }),
+                {
+                    // input_tokens is inclusive of cache reads and writes; the
+                    // warehouse derives the uncached share by subtraction.
+                    inputTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens,
+                    outputTokens: tokens.outputTokens,
+                    cacheReadTokens: tokens.cacheReadInputTokens,
+                    cacheWriteTokens: tokens.cacheCreationInputTokens,
+                    reasoningTokens: null,
+                    totalTokens:
+                        tokens.inputTokens +
+                        tokens.cacheReadInputTokens +
+                        tokens.cacheCreationInputTokens +
+                        tokens.outputTokens,
                 },
-            }),
-            {
-                inputTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens,
-                outputTokens: usage.outputTokens,
-                cacheReadTokens: usage.cacheReadInputTokens,
-                cacheWriteTokens: usage.cacheCreationInputTokens,
-                reasoningTokens: null,
-                totalTokens:
-                    usage.inputTokens +
-                    usage.cacheReadInputTokens +
-                    usage.cacheCreationInputTokens +
-                    usage.outputTokens,
-            },
+            );
+
+        // The run is launched with a tier alias (`opus`, `sonnet`) that the
+        // CLI resolves to a concrete model, and subagents can run on another
+        // model again. Anthropic bills by the concrete model, so when the CLI
+        // reports the per-model split, emit one usage event per model it
+        // actually called; the alias is kept in `extra.codingAgentModel`.
+        const perModel = Object.entries(usage.modelUsage ?? {}).filter(
+            ([, tokens]) =>
+                tokens.inputTokens +
+                    tokens.outputTokens +
+                    tokens.cacheReadInputTokens +
+                    tokens.cacheCreationInputTokens >
+                0,
         );
+        if (perModel.length > 0) {
+            perModel.forEach(([resolvedModel, tokens]) =>
+                emit(resolvedModel, tokens),
+            );
+            return;
+        }
+        emit(model, usage);
     }
 
     /**
@@ -2221,11 +2255,18 @@ export class AppGenerateService extends BaseService {
                 generationUsage.numTurns > 0 ||
                 generationUsage.costUsd > 0)
         ) {
+            const claudeProvider = telemetry.claudeProvider ?? 'anthropic';
             AppGenerateService.emitDataAppAiUsage(
                 payload,
                 codingAgentModel,
-                telemetry.claudeProvider ?? 'anthropic',
-                telemetry.keyManagement ?? 'lightdash-managed',
+                claudeProvider,
+                // Fall back to the instance rule rather than assuming the key
+                // is Lightdash's: on self-hosted installs it never is.
+                telemetry.keyManagement ??
+                    resolveKeyManagement(
+                        this.lightdashConfig.ai.copilot,
+                        claudeProvider,
+                    ),
                 generationUsage,
             );
             await this.recordGenerationUsage(payload, generationUsage);
