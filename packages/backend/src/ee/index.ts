@@ -491,6 +491,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             externalSourceService: ({ context, models, clients }) =>
                 new ExternalSourceService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
                     externalSourceModel:
                         models.getExternalSourceModel<ExternalSourceModel>(),
                     projectModel: models.getProjectModel(),

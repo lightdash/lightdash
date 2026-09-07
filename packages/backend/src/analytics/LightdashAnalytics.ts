@@ -12,6 +12,8 @@ import {
     ContentReviewNotificationEvent,
     ContentType,
     DbtProjectType,
+    ExternalSourceScope,
+    ExternalSourceType,
     getRequestMethod,
     InviteLinkPurpose,
     LightdashInstallType,
@@ -3576,6 +3578,56 @@ export type ContentAsCodeSettingsStampedEvent = BaseTrack & {
     };
 };
 
+export type ExternalSourceProperties = {
+    organizationId: string;
+    projectId: string;
+    externalSourceId: string;
+    sourceType: ExternalSourceType;
+    scope: ExternalSourceScope;
+};
+
+export type ExternalSourceStagedEvent = BaseTrack & {
+    event: 'external_source.staged';
+    userId: string;
+    properties: ExternalSourceProperties & {
+        fileSizeBytes: number;
+        columnCount: number;
+    };
+};
+
+export type ExternalSourceLifecycleEvent = BaseTrack & {
+    event:
+        | 'external_source.created'
+        | 'external_source.refreshed'
+        | 'external_source.reconnected'
+        | 'external_source.replaced'
+        | 'external_source.renamed'
+        | 'external_source.deleted';
+    userId: string;
+    properties: ExternalSourceProperties;
+};
+
+export type ExternalSourceIngestCompletedEvent = BaseTrack & {
+    event: 'external_source.ingest_completed';
+    anonymousId: string;
+    properties: ExternalSourceProperties & {
+        rowCount: number;
+        totalBytes: number;
+        columnCount: number;
+        durationMs: number;
+    };
+};
+
+export type ExternalSourceIngestFailedEvent = BaseTrack & {
+    event: 'external_source.ingest_failed';
+    anonymousId: string;
+    properties: ExternalSourceProperties & {
+        durationMs: number;
+        timedOut: boolean;
+        error: string;
+    };
+};
+
 export type ImpersonationEvent = BaseTrack & {
     event: 'user.impersonation_started' | 'user.impersonation_stopped';
     properties: {
@@ -3861,6 +3913,10 @@ type TypedEvent =
     | ContentAsCodeWritebackPullRequestEvent
     | ContentAsCodePulledFromGitEvent
     | ContentAsCodeSettingsStampedEvent
+    | ExternalSourceStagedEvent
+    | ExternalSourceLifecycleEvent
+    | ExternalSourceIngestCompletedEvent
+    | ExternalSourceIngestFailedEvent
     | ImpersonationEvent
     | PromptFetchedEvent
     | FeatureFlagCheckedAggregatedEvent

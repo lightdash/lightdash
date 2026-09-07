@@ -35,6 +35,11 @@ import {
 import { stringify } from 'csv-stringify';
 import { once } from 'events';
 import { PassThrough, Readable } from 'stream';
+import {
+    LightdashAnalytics,
+    type ExternalSourceLifecycleEvent,
+    type ExternalSourceProperties,
+} from '../../../analytics/LightdashAnalytics';
 import { type GoogleDriveClient } from '../../../clients/Google/GoogleDriveClient';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -81,6 +86,7 @@ const ALLOWED_UPLOAD_CONTENT_TYPES = [
 
 type ExternalSourceServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     externalSourceModel: ExternalSourceModel;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
@@ -103,6 +109,8 @@ type ExternalSourceUploadInput = {
 export class ExternalSourceService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly externalSourceModel: ExternalSourceModel;
 
     private readonly projectModel: ProjectModel;
@@ -123,6 +131,7 @@ export class ExternalSourceService extends BaseService {
     constructor(args: ExternalSourceServiceArguments) {
         super({ serviceName: 'ExternalSourceService' });
         this.lightdashConfig = args.lightdashConfig;
+        this.analytics = args.analytics;
         this.externalSourceModel = args.externalSourceModel;
         this.projectModel = args.projectModel;
         this.featureFlagModel = args.featureFlagModel;
@@ -130,6 +139,14 @@ export class ExternalSourceService extends BaseService {
         this.storageClient = args.storageClient;
         this.googleDriveClient = args.googleDriveClient;
         this.userOAuthGrantsModel = args.userOAuthGrantsModel;
+    }
+
+    private trackLifecycle(
+        event: ExternalSourceLifecycleEvent['event'],
+        userUuid: string,
+        properties: ExternalSourceLifecycleEvent['properties'],
+    ): void {
+        this.analytics.track({ event, userId: userUuid, properties });
     }
 
     private static rawKey(
@@ -438,6 +455,19 @@ export class ExternalSourceService extends BaseService {
                 `SELECT * FROM read_csv('${escapedUri}', normalize_names=true) LIMIT 5`,
                 {},
             );
+            this.analytics.track({
+                event: 'external_source.staged',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    externalSourceId: source.sourceUuid,
+                    sourceType: ExternalSourceType.CSV,
+                    scope,
+                    fileSizeBytes: input.contentLength,
+                    columnCount: Object.keys(inferredColumns).length,
+                },
+            });
             return {
                 sourceUuid: source.sourceUuid,
                 inferredColumns,
@@ -622,6 +652,13 @@ export class ExternalSourceService extends BaseService {
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
         });
+        this.trackLifecycle('external_source.created', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: source.sourceUuid,
+            sourceType: ExternalSourceType.GOOGLE_SHEETS,
+            scope: externalSourceScope(source.scope),
+        });
         return this.externalSourceModel.getSource(
             projectUuid,
             source.sourceUuid,
@@ -670,6 +707,13 @@ export class ExternalSourceService extends BaseService {
             scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
+        });
+        this.trackLifecycle('external_source.refreshed', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
@@ -722,6 +766,13 @@ export class ExternalSourceService extends BaseService {
             scope: externalSourceScope(source.scope),
             tableUuid: table.tableUuid,
             targetVersion: table.version + 1,
+        });
+        this.trackLifecycle('external_source.reconnected', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
         });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
@@ -801,6 +852,13 @@ export class ExternalSourceService extends BaseService {
                 table.version + 1,
             ),
         });
+        this.trackLifecycle('external_source.created', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
+        });
 
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
@@ -848,7 +906,10 @@ export class ExternalSourceService extends BaseService {
         sourceUuid: UUID,
         payload: UpdateExternalSourcePayload,
     ): Promise<ExternalSource> {
-        await this.assertAccess(account, projectUuid);
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
         const label = payload.label.trim();
         if (label.length === 0) {
             throw new ParameterError('Give the table a name');
@@ -890,6 +951,13 @@ export class ExternalSourceService extends BaseService {
                 explore,
             );
         }
+        this.trackLifecycle('external_source.renamed', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
+        });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
 
@@ -982,6 +1050,13 @@ export class ExternalSourceService extends BaseService {
             targetVersion: table.version + 1,
             rawObjectKey: rawKey,
         });
+        this.trackLifecycle('external_source.replaced', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
+        });
         return this.externalSourceModel.getSource(projectUuid, sourceUuid);
     }
 
@@ -1029,7 +1104,10 @@ export class ExternalSourceService extends BaseService {
         projectUuid: UUID,
         sourceUuid: UUID,
     ): Promise<void> {
-        await this.assertAccess(account, projectUuid);
+        const { organizationUuid, userUuid } = await this.assertAccess(
+            account,
+            projectUuid,
+        );
         const { source, tables } =
             await this.externalSourceModel.getSourceRowsForIngest(
                 projectUuid,
@@ -1048,6 +1126,13 @@ export class ExternalSourceService extends BaseService {
             projectUuid,
             source.external_source_uuid,
         );
+        this.trackLifecycle('external_source.deleted', userUuid, {
+            organizationId: organizationUuid,
+            projectId: projectUuid,
+            externalSourceId: sourceUuid,
+            sourceType: source.type,
+            scope: externalSourceScope(source.scope),
+        });
     }
 
     async markIngestError(attemptUuid: UUID, error: unknown): Promise<void> {
@@ -1153,6 +1238,8 @@ export class ExternalSourceService extends BaseService {
         const projectUuid = claimed.project_uuid;
         const executionUuid = claimed.execution_uuid;
         if (!executionUuid) throw new Error('Ingest lease has no execution id');
+        const startedAt = Date.now();
+        let ingestProperties: ExternalSourceProperties | undefined;
         let parquetKey: string | undefined;
         try {
             const { source, tables } =
@@ -1160,6 +1247,13 @@ export class ExternalSourceService extends BaseService {
                     projectUuid,
                     sourceUuid,
                 );
+            ingestProperties = {
+                organizationId: claimed.organization_uuid,
+                projectId: projectUuid,
+                externalSourceId: sourceUuid,
+                sourceType: source.type,
+                scope: externalSourceScope(source.scope),
+            };
             const table = tables.find(
                 (candidate) =>
                     candidate.external_source_table_uuid ===
@@ -1368,7 +1462,33 @@ export class ExternalSourceService extends BaseService {
                 attemptUuid: payload.attemptUuid,
                 executionUuid,
             });
+            this.analytics.track({
+                event: 'external_source.ingest_completed',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    ...ingestProperties,
+                    rowCount,
+                    totalBytes,
+                    columnCount: Object.keys(columns).length,
+                    durationMs: Date.now() - startedAt,
+                },
+            });
         } catch (error) {
+            if (ingestProperties) {
+                this.analytics.track({
+                    event: 'external_source.ingest_failed',
+                    anonymousId: LightdashAnalytics.anonymousId,
+                    properties: {
+                        ...ingestProperties,
+                        durationMs: Date.now() - startedAt,
+                        timedOut: error instanceof TimeoutError,
+                        error: sanitizeDuckdbError(error).slice(
+                            0,
+                            ERROR_MESSAGE_MAX_LENGTH,
+                        ),
+                    },
+                });
+            }
             if (parquetKey) {
                 await this.externalSourceModel
                     .abandonObject(parquetKey, sanitizeDuckdbError(error))
