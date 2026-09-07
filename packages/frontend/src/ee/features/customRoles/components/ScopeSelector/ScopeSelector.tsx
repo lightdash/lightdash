@@ -536,6 +536,13 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({
                         </Button>
                     </Group>
                 </Group>
+                {level === 'project' && (
+                    <Text fz="xs" c="dimmed">
+                        Organization permissions, including View Roadmap, are
+                        available on organization roles. Assign an organization
+                        role to grant these permissions.
+                    </Text>
+                )}
             </Stack>
 
             {filteredScopes.length === 0 ? (

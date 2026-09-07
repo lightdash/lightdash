@@ -83,9 +83,14 @@ Two assignment surfaces:
    `project_memberships.role_uuid` to a custom role uuid. Used today by both
    human users and project-scoped automation.
 2. **Organization-level custom roles**. Set
-   `organization_memberships.role_uuid`. The same `roles` row can be assigned
-   either way — there's no project-vs-org distinction at the role level, only
-   at the assignment.
+   `organization_memberships.role_uuid`. Each custom role has a `level`
+   (`organization` or `project`) that controls its available scopes and
+   assignment level. The API rejects scopes or assignments at the wrong level.
+
+A membership can also hold additional custom roles alongside its system or
+primary custom role. Their permissions are additive. Use the role-set controls
+to retain the user's existing roles when adding a grant; a singular role
+assignment replaces the complete set.
 
 The custom-roles UI under **Settings → Custom roles** edits both surfaces
 through the same controllers (`CustomRolesController`, `OrganizationRolesController`).
@@ -250,34 +255,43 @@ deny tokens to a set of users. A project-level role cannot do it, by
 design. System organization roles are unaffected either way: their token
 access always comes from the deployment config.
 
-### What `BASE_ROLE_SCOPES` returns when you duplicate "Admin"
+### Role levels in the role builder
 
-When an operator clicks **Duplicate role** on a system role, the new
-custom role gets the union of project-level *and* org-level abilities
-that role grants — i.e. every scope a human admin (or editor / developer
-/ etc.) can effectively use across both layers. That's intentional and
-mirrors the user's expectation that "the role does what the system role
-does." The trade-off is the project-level no-op above: an admin clone
-assigned at the project level will still show org-management toggles
-ticked, but those toggles are dead at runtime in that context.
+The role builder filters permissions to the selected role level, and the API
+validates the same boundary. `view:Roadmap` is only available on organization
+roles. A project role cannot grant access to the organization roadmap, even
+if legacy data or a direct ability-builder call includes that scope.
 
-### Known UX gap (revisit)
+## Enabling the roadmap for a non-admin
 
-The role builder shows **all** scopes regardless of intended assignment
-level. An admin who toggles `manage:OrganizationMemberProfile` on a
-project-only role gets nothing — no error, no warning, just no effect.
-Possible future improvements (none implemented today):
+Roadmap access stays explicit: organization admins keep access, while other
+system roles do not receive it by default. To grant access without replacing
+the user's existing permissions:
 
-- Mark each scope's "applicable level" (`project | org | both`) and
-  filter the role-builder UI by intended assignment context.
-- Two distinct role flavors at the API level — "project role" vs
-  "org role" — each with its own scope catalog.
-- Inline hint in the role builder ("only effective at org assignment")
-  when an org-only scope is toggled.
+1. Confirm the deployment has an enterprise license and custom roles enabled
+   (`CUSTOM_ROLES_ENABLED=true` or the `custom-roles` flag). The organization
+   must also have the `OrganizationRoadmap` flag and a working Control Center
+   license-to-organization mapping. A role grant alone does not enable the
+   roadmap feature or provision its data.
+2. In **Settings → Roles**, create a user role at the **organization** level
+   containing **View Roadmap** (`view:Roadmap`, Organization Management).
+3. In the users table, add that organization role to the user's existing role
+   set, retaining their system role and any other custom roles. The role-set
+   API is `ReplaceOrganizationUserRoleSet`; submit the complete intended set.
+4. Verify the user sees **Settings → Roadmap** and
+   `GET /api/v1/org/roadmap` succeeds. Remove just the added role and verify
+   that the non-admin no longer sees the nav item and receives a 403.
 
-Each option trades simplicity (one shared role-builder UI) for
-discoverability. The current design preserves the simpler UX at the cost
-of the silent-no-op trap.
+On older releases with only a single-role assignment control, duplicate the
+user's current role at organization level, add View Roadmap, and assign that
+custom role. It replaces their system-role abilities, so verify the duplicate
+preserves their existing permissions. Do not use the single-role API to add a
+grant to a user with multiple roles: it replaces the entire set.
+
+Assigning a role at project level grants no roadmap access. The role builder
+explains this boundary and does not offer the organization-only scope there.
+Ability coverage is in `packages/common/src/authorization/roadmapAccess.test.ts`;
+it does not replace the configured-instance UI and endpoint verification above.
 
 ## Code references
 
