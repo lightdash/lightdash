@@ -1,3 +1,17 @@
+## [2.136.3](https://github.com/lightdash/lightdash/compare/2.136.2...2.136.3) (2026-09-07)
+
+
+### Bug Fixes
+
+* refresh explores after creating virtual views ([#28707](https://github.com/lightdash/lightdash/issues/28707)) ([9f15ed2](https://github.com/lightdash/lightdash/commit/9f15ed29c2d7065b7c6353ee537b7e6963da18ef))
+
+## [2.136.2](https://github.com/lightdash/lightdash/compare/2.136.1...2.136.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **frontend:** cut dev-server work off the first-paint path ([#28696](https://github.com/lightdash/lightdash/issues/28696)) ([25d0842](https://github.com/lightdash/lightdash/commit/25d08421bec420bb6df47f295a1934bf801da445))
+
 ## [2.136.1](https://github.com/lightdash/lightdash/compare/2.136.0...2.136.1) (2026-09-07)
 
 
