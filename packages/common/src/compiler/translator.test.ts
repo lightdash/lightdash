@@ -3508,6 +3508,81 @@ describe('nested and repeated columns', () => {
         ]);
     });
 
+    it('instantiates virtual tables per join alias, referencing the alias in the UNNEST', async () => {
+        const orders: DbtModelNode = {
+            ...model,
+            name: 'orders',
+            alias: 'orders',
+            unique_id: 'model.orders',
+            database: 'db',
+            schema: 'ds',
+            relation_name: '`db`.`ds`.`orders`',
+            columns: { id: nestedColumn('id') },
+            meta: {
+                joins: [
+                    {
+                        join: 'ga_sessions',
+                        alias: 'first_session',
+                        sql_on: '${orders.id} = ${first_session.visitId}',
+                    },
+                    {
+                        join: 'ga_sessions',
+                        alias: 'second_session',
+                        label: 'Return visit',
+                        sql_on: '${orders.id} = ${second_session.visitId}',
+                    },
+                ],
+            },
+        };
+        const explores = await convertExplores(
+            [orders, ...typedModels],
+            false,
+            SupportedDbtAdapter.BIGQUERY,
+            bigqueryClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            { unnestRepeatedColumns: true },
+        );
+        const explore = explores.find((e) => e.name === 'orders');
+        if (!explore || isExploreError(explore)) {
+            throw new Error(JSON.stringify(explore));
+        }
+        expect(explore.joinedTables.map(({ table }) => table)).toEqual([
+            'first_session',
+            'first_session__customDimensions',
+            'first_session__hits',
+            'first_session__hits__product',
+            'second_session',
+            'second_session__customDimensions',
+            'second_session__hits',
+            'second_session__hits__product',
+        ]);
+        const firstHits = explore.tables.first_session__hits;
+        expect(firstHits.sqlTable).toEqual(
+            'UNNEST(`first_session`.hits) AS `first_session__hits` WITH OFFSET AS `first_session__hits__offset`',
+        );
+        expect(firstHits.nestedFrom).toEqual({
+            parentTable: 'first_session',
+            columnPath: 'hits',
+        });
+        expect(firstHits.dimensions['page.pagePath'].compiledSql).toEqual(
+            '`first_session__hits`.page.pagePath',
+        );
+        expect(
+            explore.joinedTables.find(
+                ({ table }) => table === 'first_session__hits__product',
+            )?.tablesReferences,
+        ).toEqual(['first_session__hits']);
+        const secondProduct = explore.tables.second_session__hits__product;
+        expect(secondProduct.sqlTable).toEqual(
+            'UNNEST(`second_session__hits`.product) AS `second_session__hits__product` WITH OFFSET AS `second_session__hits__product__offset`',
+        );
+        expect(secondProduct.label).toEqual('Return visit: Hits: Product');
+        expect(secondProduct.metrics.total_revenue.compiledSql).toEqual(
+            'SUM(`second_session__hits__product`.productRevenue)',
+        );
+        expect(explore.tables.ga_sessions__hits).toBeUndefined();
+    });
+
     it('fails the model when a virtual table name collides with a model', async () => {
         const collidingModel: DbtModelNode = {
             ...model,
@@ -3527,6 +3602,8 @@ describe('nested and repeated columns', () => {
         );
         const explore = explores.find((e) => e.name === 'ga_sessions');
         expect(explore && isExploreError(explore)).toBe(true);
-        expect(JSON.stringify(explore)).toContain('already a model name');
+        expect(JSON.stringify(explore)).toContain(
+            'already used by another table',
+        );
     });
 });
