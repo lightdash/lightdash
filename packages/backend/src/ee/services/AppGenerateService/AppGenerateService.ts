@@ -7932,6 +7932,7 @@ export class AppGenerateService extends BaseService {
                 appUuid: newAppUuid,
                 duplicatedFromAppUuid: sourceApp.app_id,
                 duplicatedFromVersion: sourceVersion.version,
+                duplicatedFromRegistrySlug: sourceApp.registry_slug,
             },
         });
 
@@ -9446,6 +9447,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: softDeleteEnabled,
+                registrySlug: app.registry_slug,
             },
         });
     }
@@ -9538,6 +9540,7 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 softDelete: false,
+                registrySlug: app.registry_slug,
             },
         });
     }
