@@ -220,6 +220,7 @@ export type SearchResultClickedEvent = {
     properties: {
         type: SearchItemType;
         id: string;
+        verifiedOnly: boolean;
     };
 };
 
@@ -234,6 +235,7 @@ export type GlobalSearchClosedEvent = {
     name: EventName.GLOBAL_SEARCH_CLOSED;
     properties: {
         action: 'result_click' | 'default';
+        verifiedOnly: boolean;
     };
 };
 
