@@ -906,6 +906,25 @@ describe('ProjectService', () => {
     });
 
     describe('Git cache identity liveness', () => {
+        it('passes the cache root and disabled limit to the cache', () => {
+            getMockedProjectService({
+                ...lightdashConfigMock,
+                dbt: {
+                    ...lightdashConfigMock.dbt,
+                    gitCacheRoot: '/var/cache/lightdash',
+                    gitCacheMaxBytes: 0,
+                },
+            });
+            expect(
+                vi.mocked(configureDbtGitProjectCache),
+            ).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    root: '/var/cache/lightdash',
+                    maxBytes: 0,
+                }),
+            );
+        });
+
         const getSourceIdentityRows =
             vi.fn<ProjectDbtSourcesModel['getSourceIdentityRows']>();
 

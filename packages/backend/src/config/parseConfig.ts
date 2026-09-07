@@ -1552,6 +1552,7 @@ export type LightdashConfig = {
         sourceFetchConcurrency: number | undefined;
         gitCacheMaxBytes: number;
         gitCacheMaxAgeMs: number;
+        gitCacheRoot: string | undefined;
     };
     database: {
         connectionUri: string | undefined;
@@ -3316,6 +3317,7 @@ export const parseConfig = (): LightdashConfig => {
             gitCacheMaxBytes:
                 getIntegerFromEnvironmentVariable('DBT_GIT_CACHE_MAX_BYTES') ??
                 2 * 1024 * 1024 * 1024,
+            gitCacheRoot: process.env.DBT_GIT_CACHE_ROOT || undefined,
             gitCacheMaxAgeMs:
                 getIntegerFromEnvironmentVariable('DBT_GIT_CACHE_MAX_AGE_MS') ??
                 24 * 60 * 60 * 1000,

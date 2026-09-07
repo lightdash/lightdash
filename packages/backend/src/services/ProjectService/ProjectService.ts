@@ -781,6 +781,7 @@ export class ProjectService extends BaseService {
         this.provisionPlaygroundProject = provisionPlaygroundProject;
         this.provisionTrainingProject = provisionTrainingProject;
         configureDbtGitProjectCache({
+            root: lightdashConfig.dbt.gitCacheRoot,
             maxBytes: lightdashConfig.dbt.gitCacheMaxBytes,
             maxAgeMs: lightdashConfig.dbt.gitCacheMaxAgeMs,
             livenessCheck: async (identities) => {

@@ -55,6 +55,16 @@ describe('usage events storage endpoint', () => {
 });
 
 describe('dbt git cache config', () => {
+    it.each(['0', '-1'])('preserves the disabled byte limit %s', (limit) => {
+        process.env.DBT_GIT_CACHE_MAX_BYTES = limit;
+        expect(parseConfig().dbt.gitCacheMaxBytes).toBe(Number(limit));
+    });
+
+    it('reads an explicit cache root', () => {
+        process.env.DBT_GIT_CACHE_ROOT = '/var/cache/lightdash';
+        expect(parseConfig().dbt.gitCacheRoot).toBe('/var/cache/lightdash');
+    });
+
     it('uses conservative defaults', () => {
         expect(parseConfig().dbt).toMatchObject({
             gitCacheMaxBytes: 2 * 1024 * 1024 * 1024,
