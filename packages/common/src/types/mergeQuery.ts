@@ -31,11 +31,9 @@ export type MergeQueryMetricSource = {
 /**
  * One side of a merge: an existing query result, referenced by queryUuid and
  * joined as the rows it already holds — nothing re-runs. Its structure and
- * types resolve at compile time from the stored query metadata, and the join
- * executes on the compose engine (`requiresCompose` on the compiled merge),
- * so a merge with a result source is refused where that engine is
- * unavailable. Results are creator-scoped and expire; an expired reference
- * is re-submitted as a query, not refreshed by handle.
+ * types resolve at compile time from the stored query metadata. Results are
+ * creator-scoped and expire; an expired reference is re-submitted as a
+ * query, not refreshed by handle.
  */
 export type MergeQueryResultSource = {
     /** Stable id. Names the CTE, and the table its merged fields belong to. */
@@ -249,11 +247,6 @@ export enum MergeQueryErrorKind {
      * text — the same refusal the query makes when it runs on its own.
      */
     MISSING_PARAMETERS = 'missing_parameters',
-    /**
-     * The merge references existing query results, which only the compose
-     * engine can join — there is no warehouse statement to fall back to.
-     */
-    COMPOSE_REQUIRED = 'compose_required',
     /**
      * A referenced query result cannot back a merge source: not found, not
      * the caller's, not ready, or expired. The remedy is re-running the
@@ -551,16 +544,33 @@ export type MergeTerminalWrapper = {
 };
 
 /**
+ * One side of a merge as it runs: the statement its metric query compiles to,
+ * or null for a result source, whose rows already exist.
+ */
+export type MergeCompiledLeg = {
+    sourceId: string;
+    sql: string | null;
+};
+
+/**
  * What the compile endpoint returns. `sql` is null exactly when `errors` is
  * non-empty: a merge that would produce wrong numbers is reported, not run.
+ *
+ * A merge runs as a composition: each metric source runs on its own as a
+ * leg, and the join runs on the compose engine over the legs' results, which
+ * it reads as `merge_source_N` tables in source order. `legs` and `sql`
+ * together are the SQL that runs.
  */
 export type ApiCompiledMergeQueryResults = {
+    /** The join statement over the `merge_source_N` reference tables. */
     sql: string | null;
+    /** What each source runs on its own, in source order. Empty on an error. */
+    legs: MergeCompiledLeg[];
     /**
-     * The composable core: a self-contained single-statement SELECT with no
-     * ORDER BY, no LIMIT and no guard column — valid under `SELECT *`, so it
-     * can back a virtual view. `sql` is this core with the terminal wrapper
-     * attached.
+     * The composable core of the join: a self-contained single-statement
+     * SELECT with no ORDER BY, no LIMIT and no guard column — valid under
+     * `SELECT *`, so it can back a virtual view. `sql` is this core with the
+     * terminal wrapper attached.
      */
     coreSql: string | null;
     /** The core's columns, in the order the statement returns them. */
@@ -589,9 +599,10 @@ export type ApiCompiledMergeQueryResults = {
      */
     fieldIdByColumn: Record<string, FieldId>;
     /**
-     * The merge references existing query results, so it has no warehouse
-     * statement (`sql`/`coreSql` stay null without that being an error) and
-     * only the compose engine can run it.
+     * @deprecated Always false: every merge runs on the compose engine.
+     * Nothing reads it; it stays on the response until the legacy merge
+     * endpoints are retired, because removing a required response property
+     * is an API break.
      */
     requiresCompose: boolean;
     errors: MergeQueryError[];

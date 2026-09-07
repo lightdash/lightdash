@@ -21,46 +21,40 @@ export type ComposeMergeSql = {
     referenceTableBySourceId: Record<string, string>;
 };
 
-/** Table name a merge source's results are exposed under in the compose SQL. */
+/** Table name a merge source's results are exposed under in the join SQL. */
 export const composeMergeReferenceTable = (sourceIndex: number): string =>
     `merge_source_${sourceIndex}`;
 
-/**
- * The compose form of a merge: the same MergeQueryBuilder assembly as the
- * warehouse statement, but in the DuckDB dialect over reference tables —
- * each source is `SELECT * FROM merge_source_N`, bound at execution time to
- * that source's already-materialized results (a freshly-run leg or an
- * existing result referenced by queryUuid; the builder cannot tell and does
- * not care). The join semantics (coalesced keys, typed null placeholders,
- * string casts) are identical by construction because the builder and the
- * key-option derivation are shared; only the dialect and where the source
- * rows come from differ.
- *
- * No source row cap here: the sources are legs that already ran at the cap,
- * so a cap in this statement could never see past it. The run path reads
- * the legs' own row counts instead (getMergeRowCapError).
- */
-export const buildComposeMergeSql = (args: {
+type ComposeMergeArgs = {
     /** Sources in merge order; value columns in the compile's column order. */
     sources: Array<{ id: string; valueColumns: string[] }>;
     joinKey: MergeJoinKeyPart[];
     joinType: MergeJoinType;
     tableCalculations: MergeTableCalculation[];
     fieldTypes: MergeFieldTypes;
-    /** Output field-id alias per internal column, from the merge compile. */
-    outputAliasByColumn: Record<string, string>;
     /** Row cap for the merged result, already clamped to the instance limit. */
     limit: number;
-}): ComposeMergeSql => {
-    const {
-        sources,
-        joinKey,
-        joinType,
-        tableCalculations,
-        fieldTypes,
-        outputAliasByColumn,
-        limit,
-    } = args;
+};
+
+/**
+ * The join of a merge, in the DuckDB dialect over reference tables: each
+ * source is `SELECT * FROM merge_source_N`, bound at execution time to that
+ * source's already-materialized results (a freshly-run leg or an existing
+ * result referenced by queryUuid; the builder cannot tell and does not
+ * care).
+ *
+ * No source row cap here: the sources are legs that already ran at the cap,
+ * so a cap in this statement could never see past it. The run path reads
+ * the legs' own row counts instead (getMergeRowCapError).
+ */
+export const createComposeMergeQueryBuilder = (
+    args: ComposeMergeArgs,
+): {
+    builder: MergeQueryBuilder;
+    referenceTableBySourceId: Record<string, string>;
+} => {
+    const { sources, joinKey, joinType, tableCalculations, fieldTypes, limit } =
+        args;
     const warehouseSqlBuilder = warehouseSqlBuilderFromType(
         SupportedDbtAdapter.DUCKDB,
     );
@@ -101,6 +95,19 @@ export const buildComposeMergeSql = (args: {
         stringJoinKeyNames,
     });
 
+    return { builder, referenceTableBySourceId };
+};
+
+/** The join SQL in one call, for callers that already know their aliases. */
+export const buildComposeMergeSql = (
+    args: ComposeMergeArgs & {
+        /** Output field-id alias per internal column, from the merge compile. */
+        outputAliasByColumn: Record<string, string>;
+    },
+): ComposeMergeSql => {
+    const { outputAliasByColumn, ...builderArgs } = args;
+    const { builder, referenceTableBySourceId } =
+        createComposeMergeQueryBuilder(builderArgs);
     return {
         coreSql: builder.toCoreSql(outputAliasByColumn),
         terminalWrapper: builder.buildTerminalWrapper(outputAliasByColumn),

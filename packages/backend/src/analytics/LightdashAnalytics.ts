@@ -588,7 +588,8 @@ type ResultsCacheDeleteEvent = BaseTrack & {
     };
 };
 
-export type MergeEngine = 'compose' | 'warehouse';
+/** The one engine merges run on; kept as a property so the event shape holds. */
+export type MergeEngine = 'compose';
 export type MergeSourceKind = 'metric' | 'result';
 /** The row cap has no compile-time kind: a leg is known to have reached it only once it has run. */
 export type MergeRefusalKind = MergeQueryErrorKind | 'row_cap';
@@ -609,8 +610,7 @@ export type MergeQueryExecutedEvent = BaseTrack & {
     properties: MergeQueryShapeProperties & {
         queryId: string;
         engine: MergeEngine;
-        /** `ready` and `error` are terminal; `started` is a warehouse merge whose outcome is not tracked. */
-        status: 'started' | 'ready' | 'error';
+        status: 'ready' | 'error';
         /** Whether the merged result itself was served from cache. */
         cacheHit: boolean;
         /** Legs this merge ran; referenced results run nothing. */
