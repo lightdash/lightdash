@@ -360,6 +360,7 @@ export type UncompiledExplore = {
     joinAliases?: Record<string, Record<string, string>>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     aiHint?: string | string[];
+    customMeta?: Explore['customMeta'];
     meta: DbtRawModelNode['meta'];
     databricksCompute?: string;
     projectParameters?: LightdashProjectConfig['parameters'];
@@ -418,6 +419,7 @@ export class ExploreCompiler {
         meta,
         databricksCompute,
         aiHint,
+        customMeta,
         projectParameters,
         preAggregates,
         caseSensitive,
@@ -782,6 +784,9 @@ export class ExploreCompiler {
                   }
                 : {}),
             ...(aiHint ? { aiHint } : {}),
+            ...(customMeta && Object.keys(customMeta).length > 0
+                ? { customMeta }
+                : {}),
             ...getSpotlightConfigurationForResource({
                 visibility: spotlightVisibility,
                 categories: spotlightCategories,

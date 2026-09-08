@@ -85,6 +85,20 @@ import {
 
 const compiler = new ExploreCompiler(warehouseClientMock);
 
+describe('custom model metadata', () => {
+    test.each([undefined, {}])(
+        'omits absent or empty custom metadata (%j)',
+        (customMeta) => {
+            const compiled = compiler.compileExplore({
+                ...exploreOneEmptyTable,
+                customMeta,
+            });
+
+            expect(compiled).not.toHaveProperty('customMeta');
+        },
+    );
+});
+
 test('Should throw when required/default filters reference a hidden dimension', () => {
     const exploreWithHiddenRequiredFilter = createExploreWithRequiredFilters([
         {

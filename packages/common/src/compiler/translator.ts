@@ -11,6 +11,7 @@ import {
     convertToAiHints,
     convertToGroups,
     patchPathParts,
+    RESERVED_MODEL_META_KEYS,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
@@ -1729,6 +1730,15 @@ export async function* iterateExplores(
     for (const [modelIndex, model] of validModels.entries()) {
         // Config block takes priority, then meta block
         const meta = merge({}, model.meta, model.config?.meta);
+        const customMeta = Object.fromEntries(
+            Object.entries(meta).filter(
+                (entry): entry is [string, string | number | boolean] =>
+                    !RESERVED_MODEL_META_KEYS.some((key) => key === entry[0]) &&
+                    (typeof entry[1] === 'string' ||
+                        typeof entry[1] === 'number' ||
+                        typeof entry[1] === 'boolean'),
+            ),
+        );
 
         const configTags =
             typeof model.config?.tags === 'string'
@@ -1895,6 +1905,9 @@ export async function* iterateExplores(
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint
                         ? { aiHint: convertToAiHints(meta.ai_hint) }
+                        : {}),
+                    ...(Object.keys(customMeta).length > 0
+                        ? { customMeta }
                         : {}),
                     meta: {
                         ...meta,
