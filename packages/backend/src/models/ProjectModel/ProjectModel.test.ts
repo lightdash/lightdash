@@ -152,6 +152,9 @@ describe('ProjectModel', () => {
                 missingTables,
             }),
         ).resolves.toEqual(row);
+        expect(tracker.history.insert[0].bindings).toContainEqual(
+            missingTables,
+        );
         await expect(model.getWarehouseFromCache(projectUuid)).resolves.toEqual(
             {
                 warehouseCatalog,

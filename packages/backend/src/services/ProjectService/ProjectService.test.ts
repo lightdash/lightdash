@@ -895,8 +895,13 @@ describe('ProjectService', () => {
     });
 
     describe('populateWarehouseTablesCache', () => {
-        const makeManualRefreshHarness = () => {
+        const makeManualRefreshHarness = (
+            userWarehouseCredentialsUuid: string | null = null,
+        ) => {
             const createAvailableTablesForProjectWarehouseCredentials = vi.fn(
+                async () => undefined,
+            );
+            const createAvailableTablesForUserWarehouseCredentials = vi.fn(
                 async () => undefined,
             );
             const getTablesForProjectWarehouseCredentials = vi.fn(
@@ -904,6 +909,7 @@ describe('ProjectService', () => {
             );
             const warehouseAvailableTablesModel = {
                 createAvailableTablesForProjectWarehouseCredentials,
+                createAvailableTablesForUserWarehouseCredentials,
                 getTablesForProjectWarehouseCredentials,
             } as unknown as WarehouseAvailableTablesModel;
             const manualRefreshService = getMockedProjectService(
@@ -925,7 +931,7 @@ describe('ProjectService', () => {
                 'getWarehouseCredentials',
             ).mockResolvedValue({
                 type: WarehouseTypes.POSTGRES,
-                userWarehouseCredentialsUuid: null,
+                userWarehouseCredentialsUuid,
             });
             vi.spyOn(
                 manualRefreshService,
@@ -941,6 +947,9 @@ describe('ProjectService', () => {
                 service: manualRefreshService,
                 createAvailableTablesForProjectWarehouseCredentials: vi.mocked(
                     createAvailableTablesForProjectWarehouseCredentials,
+                ),
+                createAvailableTablesForUserWarehouseCredentials: vi.mocked(
+                    createAvailableTablesForUserWarehouseCredentials,
                 ),
                 getTablesForProjectWarehouseCredentials: vi.mocked(
                     getTablesForProjectWarehouseCredentials,
@@ -977,6 +986,28 @@ describe('ProjectService', () => {
             expect(
                 harness.invalidateWarehouseCacheForManualRefresh,
             ).toHaveBeenCalledWith(projectUuid);
+            expect(harness.disconnect).toHaveBeenCalledOnce();
+        });
+
+        it('does not invalidate the project compile catalog after a per-user table-list refresh', async () => {
+            const harness = makeManualRefreshHarness(
+                'user-warehouse-credentials-uuid',
+            );
+
+            await harness.service.populateWarehouseTablesCache(
+                user,
+                projectUuid,
+            );
+
+            expect(
+                harness.createAvailableTablesForUserWarehouseCredentials,
+            ).toHaveBeenCalledWith(
+                'user-warehouse-credentials-uuid',
+                expect.any(Array),
+            );
+            expect(
+                harness.invalidateWarehouseCacheForManualRefresh,
+            ).not.toHaveBeenCalled();
             expect(harness.disconnect).toHaveBeenCalledOnce();
         });
 

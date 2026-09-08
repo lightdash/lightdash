@@ -14,6 +14,7 @@ import {
     DbtProjectType,
     DbtVersionOption,
     DbtVersionOptionLatest,
+    DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
     getErrorMessage,
     getInvalidHexColors,
     isLightdashMode,
@@ -3315,7 +3316,7 @@ export const parseConfig = (): LightdashConfig => {
             warehouseCatalogCacheMaxAgeMs:
                 getIntegerFromEnvironmentVariable(
                     'WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS',
-                ) ?? 24 * 60 * 60 * 1000,
+                ) ?? DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',

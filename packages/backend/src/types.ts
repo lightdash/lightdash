@@ -88,10 +88,10 @@ export interface DbtClient {
 
 export type CachedWarehouse = {
     warehouseCatalog: WarehouseCatalog | undefined;
-    warehouseCatalogFetchedAt?: Date | null;
-    missingWarehouseTables?: WarehouseCatalogTable[] | null;
-    manualWarehouseCatalogRefresh?: boolean;
-    warehouseCatalogMaxAgeMs?: number;
+    warehouseCatalogFetchedAt: Date | null;
+    missingWarehouseTables: WarehouseCatalogTable[] | null;
+    manualWarehouseCatalogRefresh: boolean | null;
+    warehouseCatalogMaxAgeMs: number | null;
     onWarehouseCatalogChange: (cache: {
         warehouseCatalog: WarehouseCatalog;
         fetchedAt: Date;

@@ -4509,6 +4509,10 @@ export class ProjectService extends BaseService {
             const warehouseCredentials = sshTunnel.overrideCredentials;
             const cachedWarehouse: CachedWarehouse = {
                 warehouseCatalog: undefined,
+                warehouseCatalogFetchedAt: null,
+                missingWarehouseTables: null,
+                manualWarehouseCatalogRefresh: null,
+                warehouseCatalogMaxAgeMs: null,
                 onWarehouseCatalogChange: () => {},
             };
             const dbtVersionOption =
@@ -5085,10 +5089,10 @@ export class ProjectService extends BaseService {
 
         const cachedWarehouse: CachedWarehouse = {
             warehouseCatalog: cachedWarehouseCache?.warehouseCatalog,
-            warehouseCatalogFetchedAt: cachedWarehouseCache?.fetchedAt,
-            missingWarehouseTables: cachedWarehouseCache?.missingTables,
+            warehouseCatalogFetchedAt: cachedWarehouseCache?.fetchedAt ?? null,
+            missingWarehouseTables: cachedWarehouseCache?.missingTables ?? null,
             manualWarehouseCatalogRefresh:
-                cachedWarehouseCache?.manualRefreshRequested,
+                cachedWarehouseCache?.manualRefreshRequested ?? null,
             warehouseCatalogMaxAgeMs:
                 this.lightdashConfig.dbt.warehouseCatalogCacheMaxAgeMs,
             onWarehouseCatalogChange: async (cache) => {
@@ -10014,7 +10018,10 @@ export class ProjectService extends BaseService {
                 );
             }
 
-            if (invalidateCompileCatalog) {
+            if (
+                invalidateCompileCatalog &&
+                !credentials.userWarehouseCredentialsUuid
+            ) {
                 await this.projectModel.invalidateWarehouseCacheForManualRefresh(
                     projectUuid,
                 );

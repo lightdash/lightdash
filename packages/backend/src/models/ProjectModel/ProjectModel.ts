@@ -2716,9 +2716,9 @@ export class ProjectModel {
         const [cachedWarehouse] = await this.database(CachedWarehouseTableName)
             .insert({
                 project_uuid: projectUuid,
-                warehouse: JSON.stringify(cache.warehouseCatalog),
+                warehouse: cache.warehouseCatalog,
                 fetched_at: cache.fetchedAt,
-                missing_tables: JSON.stringify(cache.missingTables),
+                missing_tables: cache.missingTables,
             })
             .onConflict('project_uuid')
             .merge()
@@ -2734,7 +2734,7 @@ export class ProjectModel {
         await this.database(CachedWarehouseTableName)
             .insert({
                 project_uuid: projectUuid,
-                warehouse: JSON.stringify({}),
+                warehouse: {},
                 fetched_at: null,
                 missing_tables: missingTables,
             })

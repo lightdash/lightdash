@@ -13,6 +13,8 @@ const MAX_QUERY_TAG_KEY_LENGTH = 60;
 const MAX_QUERY_TAG_VALUE_LENGTH = 60;
 const USER_ATTRIBUTE_QUERY_TAG_PREFIX = 'user_attribute_';
 
+export const DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
 export type UserAttributeQueryTag = `user_attribute_${string}`;
 
 export type RunQueryTags = Record<UserAttributeQueryTag, string> & {

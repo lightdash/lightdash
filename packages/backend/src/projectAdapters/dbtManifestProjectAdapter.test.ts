@@ -12,6 +12,15 @@ const mockWarehouseClient = {
     getAdapterType: vi.fn().mockReturnValue('postgres'),
 } as unknown as WarehouseClient;
 
+const makeCachedWarehouse = () => ({
+    warehouseCatalog: undefined,
+    warehouseCatalogFetchedAt: null,
+    missingWarehouseTables: null,
+    manualWarehouseCatalogRefresh: null,
+    warehouseCatalogMaxAgeMs: null,
+    onWarehouseCatalogChange: vi.fn(),
+});
+
 // Valid manifest JSON structure for testing
 const validManifestData = {
     metadata: {
@@ -45,10 +54,7 @@ const mockManifestString = JSON.stringify(validManifestData);
 
 const mockProjectAdapter = new DbtManifestProjectAdapter({
     warehouseClient: mockWarehouseClient,
-    cachedWarehouse: {
-        warehouseCatalog: undefined,
-        onWarehouseCatalogChange: vi.fn(),
-    },
+    cachedWarehouse: makeCachedWarehouse(),
     dbtVersion: SupportedDbtVersions.V1_8,
     manifest: mockManifestString,
 });
@@ -91,10 +97,7 @@ describe('DbtManifestProjectAdapter', () => {
     it('preserves an explicitly empty model selection', async () => {
         const emptySelectionAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,
-            cachedWarehouse: {
-                warehouseCatalog: undefined,
-                onWarehouseCatalogChange: vi.fn(),
-            },
+            cachedWarehouse: makeCachedWarehouse(),
             dbtVersion: SupportedDbtVersions.V1_8,
             manifest: mockManifestString,
             selectedModelIds: [],
@@ -139,10 +142,7 @@ describe('DbtManifestProjectAdapter', () => {
     it('throws the manifest validation error for malformed JSON', async () => {
         const invalidManifestAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,
-            cachedWarehouse: {
-                warehouseCatalog: undefined,
-                onWarehouseCatalogChange: vi.fn(),
-            },
+            cachedWarehouse: makeCachedWarehouse(),
             dbtVersion: SupportedDbtVersions.V1_8,
             manifest: 'invalid json',
         });
@@ -163,10 +163,7 @@ describe('DbtManifestProjectAdapter', () => {
 
         const incompleteManifestAdapter = new DbtManifestProjectAdapter({
             warehouseClient: mockWarehouseClient,
-            cachedWarehouse: {
-                warehouseCatalog: undefined,
-                onWarehouseCatalogChange: vi.fn(),
-            },
+            cachedWarehouse: makeCachedWarehouse(),
             dbtVersion: SupportedDbtVersions.V1_8,
             manifest: incompleteManifest,
         });
