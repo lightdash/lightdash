@@ -922,14 +922,12 @@ export const convertTable = (
             }, extraDimensions);
 
             // Metrics under an array of scalars aggregate its elements and
-            // live on the unnested table; a struct's metrics need explicit
-            // SQL because the container itself can't be aggregated.
+            // live on the unnested table. A struct's metrics stay: a count
+            // of the struct itself is valid SQL and was how errors were
+            // counted before containers stopped being dimensions.
             const columnMetrics = Object.fromEntries(
                 Object.entries(columnMeta.metrics || {})
-                    .filter(
-                        ([, metric]) =>
-                            !isScalarArray && (dimension || metric.sql),
-                    )
+                    .filter(() => !isScalarArray)
                     .map(([name, metric]) => [
                         name,
                         convertColumnMetric({
