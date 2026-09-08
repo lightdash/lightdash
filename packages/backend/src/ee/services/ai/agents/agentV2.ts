@@ -118,6 +118,7 @@ import {
 import { getMcpActiveTools } from './mcpToolGating';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
+import { TurnTimingTracker, type StepTiming } from './turnTiming';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -145,6 +146,56 @@ export const recordAgentStepUsage = async ({
         });
     }
     return tokens;
+};
+
+/**
+ * Emits one `ai_agent.step_completed` row for a finished loop step, pairing
+ * the step's wall-clock slices with the tokens that step consumed.
+ *
+ * Kept beside `recordAgentStepUsage` (which reports billing tokens) rather
+ * than folded into it: token accounting must stay exactly once per model
+ * call, while this is the latency grain and carries the step's shape.
+ */
+const trackAgentStep = (
+    args: AiAgentArgs,
+    dependencies: AiAgentDependencies,
+    timing: StepTiming,
+    usage: LanguageModelUsage | undefined,
+) => {
+    const tokens = usage
+        ? languageModelUsageToTokens(usage)
+        : {
+              inputTokens: null,
+              outputTokens: null,
+              cacheReadTokens: null,
+              cacheWriteTokens: null,
+              reasoningTokens: null,
+              totalTokens: null,
+          };
+
+    dependencies.trackEvent({
+        event: 'ai_agent.step_completed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            stepIndex: timing.stepIndex,
+            model: getAiAgentModelName(args.model),
+            modelProvider:
+                typeof args.model === 'string' ? null : args.model.provider,
+            stepOffsetMs: timing.stepOffsetMs,
+            stepTotalMs: timing.stepTotalMs,
+            inferenceMs: timing.inferenceMs,
+            toolWallMs: timing.toolWallMs,
+            ttftMs: timing.ttftMs,
+            toolCallCount: timing.toolCallCount,
+            reasoningChars: timing.reasoningChars,
+            ...tokens,
+        },
+    });
 };
 
 export const DEFAULT_AGENT_MAX_STEPS = 40;
@@ -1590,6 +1641,9 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
+    // Same waterfall grain as the streaming path, minus the decide/execute
+    // split: this transport only reports a step once it has wholly finished.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
@@ -1682,6 +1736,18 @@ export const generateAgentResponse = async ({
                     telemetry,
                     execution: args.execution,
                 });
+                // Read before completing: completeStep opens the next step,
+                // and the tool calls below belong to the one just closed.
+                const stepIndex = timing.getCurrentStepIndex();
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(
+                        step.reasoningText?.length ?? 0,
+                        step.toolCalls?.length ?? 0,
+                    ),
+                    step.usage,
+                );
                 for (const toolCall of step.toolCalls) {
                     if (toolCall) {
                         logger(
@@ -1720,6 +1786,8 @@ export const generateAgentResponse = async ({
                                         toolName: toolCall.toolName,
                                         threadId: args.threadUuid,
                                         promptId: args.promptUuid,
+                                        toolCallId: toolCall.toolCallId,
+                                        stepIndex,
                                     },
                                 });
 
@@ -1959,6 +2027,9 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
+    // Per-step boundaries for the turn waterfall. The turn-level timers above
+    // stay as they are: they feed Prometheus and the persisted responseTiming.
+    const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(
         dependencies.updatePrompt,
@@ -2043,6 +2114,7 @@ export const streamAgentResponse = async ({
             messages,
             experimental_context: new AgentContext(availableExplores),
             onChunk: (event) => {
+                timing.recordChunk();
                 // Track time to first chunk (any type) - only once
                 if (firstChunkTime === null) {
                     firstChunkTime = Date.now();
@@ -2056,6 +2128,10 @@ export const streamAgentResponse = async ({
 
                 switch (event.chunk.type) {
                     case 'tool-call':
+                        timing.recordToolCallStart(
+                            event.chunk.toolCallId,
+                            event.chunk.toolName,
+                        );
                         logger(
                             'Chunk Tool Call',
                             `Storing tool call for Prompt UUID ${
@@ -2077,6 +2153,8 @@ export const streamAgentResponse = async ({
                                 toolName: event.chunk.toolName,
                                 threadId: args.threadUuid,
                                 promptId: args.promptUuid,
+                                toolCallId: event.chunk.toolCallId,
+                                stepIndex: timing.getCurrentStepIndex(),
                             },
                         });
 
@@ -2197,6 +2275,31 @@ export const streamAgentResponse = async ({
                             event.chunk.toolName,
                             event.chunk.output,
                         );
+                        const toolTiming = timing.recordToolCallEnd(
+                            event.chunk.toolCallId,
+                        );
+                        if (toolTiming) {
+                            dependencies.trackEvent({
+                                event: 'ai_agent.tool_call_completed',
+                                userId: args.userId,
+                                properties: {
+                                    organizationId: args.organizationId,
+                                    projectId: args.agentSettings.projectUuid,
+                                    aiAgentId: args.agentSettings.uuid,
+                                    toolName: event.chunk.toolName,
+                                    threadId: args.threadUuid,
+                                    promptId: args.promptUuid,
+                                    toolCallId: event.chunk.toolCallId,
+                                    stepIndex: toolTiming.stepIndex,
+                                    durationMs: toolTiming.durationMs,
+                                    status: isErrorToolResult(
+                                        event.chunk.output as AnyType,
+                                    )
+                                        ? 'error'
+                                        : 'success',
+                                },
+                            });
+                        }
                         void dependencies
                             .storeToolResults([
                                 {
@@ -2246,6 +2349,12 @@ export const streamAgentResponse = async ({
                 }
             },
             onStepFinish: (step) => {
+                trackAgentStep(
+                    args,
+                    dependencies,
+                    timing.completeStep(step.reasoningText?.length ?? 0),
+                    step.usage,
+                );
                 if (step.reasoningText && step.reasoningText.length > 0) {
                     logger(
                         'On Step Finish',
@@ -2367,6 +2476,8 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
+                        promptId: args.promptUuid,
+                        threadId: args.threadUuid,
                         usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
                         model: modelName,

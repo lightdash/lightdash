@@ -24,6 +24,14 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'execution_source', type: 'VARCHAR' },
     { name: 'warehouse_type', type: 'VARCHAR' },
     { name: 'warehouse_execution_time_ms', type: 'BIGINT' },
+    // Phase split of the line above, flattened so the compacted zone stays
+    // typed columns rather than a nested blob. Null where the adapter (or the
+    // code path) reports no phases.
+    { name: 'warehouse_ssh_tunnel_ms', type: 'BIGINT' },
+    { name: 'warehouse_connect_ms', type: 'BIGINT' },
+    { name: 'warehouse_session_ms', type: 'BIGINT' },
+    { name: 'warehouse_query_ms', type: 'BIGINT' },
+    { name: 'warehouse_fetch_ms', type: 'BIGINT' },
     { name: 'total_row_count', type: 'BIGINT' },
     { name: 'columns_count', type: 'INTEGER' },
 ];
@@ -54,6 +62,14 @@ const projectQueryCompletedEvent = (
             execution_source: properties.executionSource,
             warehouse_type: properties.warehouseType,
             warehouse_execution_time_ms: properties.warehouseExecutionTimeMs,
+            warehouse_ssh_tunnel_ms:
+                properties.warehousePhaseTimings?.ssh_tunnel ?? null,
+            warehouse_connect_ms:
+                properties.warehousePhaseTimings?.connect ?? null,
+            warehouse_session_ms:
+                properties.warehousePhaseTimings?.session ?? null,
+            warehouse_query_ms: properties.warehousePhaseTimings?.query ?? null,
+            warehouse_fetch_ms: properties.warehousePhaseTimings?.fetch ?? null,
             total_row_count: properties.totalRowCount,
             columns_count: properties.columnsCount,
         },

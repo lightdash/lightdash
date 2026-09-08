@@ -39,6 +39,7 @@ const queryCompletedEvent: QueryCompletedEvent = {
         executionSource: 'warehouse',
         warehouseType: WarehouseTypes.POSTGRES,
         warehouseExecutionTimeMs: 123,
+        warehousePhaseTimings: { connect: 20, query: 90, fetch: 13 },
         totalRowCount: 42,
         columnsCount: 5,
     },
@@ -72,6 +73,13 @@ describe('EventStreamSink', () => {
             execution_source: 'warehouse',
             warehouse_type: WarehouseTypes.POSTGRES,
             warehouse_execution_time_ms: 123,
+            // Phases flatten into their own columns; an unreported phase
+            // stays null rather than defaulting to 0.
+            warehouse_connect_ms: 20,
+            warehouse_query_ms: 90,
+            warehouse_fetch_ms: 13,
+            warehouse_session_ms: null,
+            warehouse_ssh_tunnel_ms: null,
             total_row_count: 42,
             columns_count: 5,
         });
@@ -89,6 +97,7 @@ describe('EventStreamSink', () => {
                 warehouseType: null,
                 executionSource: null,
                 warehouseExecutionTimeMs: null,
+                warehousePhaseTimings: null,
                 totalRowCount: null,
                 columnsCount: null,
             },

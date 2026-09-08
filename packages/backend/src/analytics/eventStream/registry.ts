@@ -1,5 +1,13 @@
 import type { AiUsageEvent } from '../aiUsage';
-import type { QueryCompletedEvent } from '../LightdashAnalytics';
+import type {
+    AiAgentStepCompletedEvent,
+    AiAgentToolCallCompletedEvent,
+    QueryCompletedEvent,
+} from '../LightdashAnalytics';
+import {
+    agentStepsCompactedColumns,
+    agentStepsProjections,
+} from './agentStepsStream';
 import { aiUsageCompactedColumns, aiUsageProjections } from './aiUsageStream';
 import type { ProjectionResult, StreamName } from './projection';
 import {
@@ -13,7 +21,11 @@ import type { CompactedStreamColumn } from './types';
  * Adding a new stream/event = add the event type here and a projection entry
  * below; nothing else needs to change.
  */
-export type ProjectedEvent = QueryCompletedEvent | AiUsageEvent;
+export type ProjectedEvent =
+    | QueryCompletedEvent
+    | AiUsageEvent
+    | AiAgentStepCompletedEvent
+    | AiAgentToolCallCompletedEvent;
 
 export type EventStreamRegistry = {
     [E in ProjectedEvent as E['event']]: (payload: E) => ProjectionResult;
@@ -26,6 +38,7 @@ export type EventStreamRegistry = {
 export const eventStreamRegistry: EventStreamRegistry = {
     ...queryEventsProjections,
     ...aiUsageProjections,
+    ...agentStepsProjections,
 };
 
 /**
@@ -39,6 +52,7 @@ export const compactedStreamSchemas: Record<
 > = {
     query_events: queryEventsCompactedColumns,
     ai_usage: aiUsageCompactedColumns,
+    agent_steps: agentStepsCompactedColumns,
 };
 
 export const getCompactedStreamColumns = (

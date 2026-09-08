@@ -35,6 +35,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type WarehousePhaseTimings,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -486,6 +487,14 @@ export type QueryCompletedEvent = BaseTrack & {
         executionSource: QueryExecutionSource | null;
         warehouseType: WarehouseTypes | null;
         warehouseExecutionTimeMs: number | null;
+        /**
+         * Breakdown of `warehouseExecutionTimeMs` into the phases the adapter
+         * reports. Previously computed and only written to a log line, which
+         * left "the warehouse was slow" as one opaque number — connect/session
+         * cost points at pooling, `query`/`fetch` at the query itself.
+         * Absent phases mean the adapter does not report them.
+         */
+        warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
     };
@@ -2914,6 +2923,10 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         threadId: string | undefined;
+        // Joins the turn's start to every downstream event in it (steps, tool
+        // calls, the streamed response). Without it the head of a turn —
+        // submit to first model output — cannot be measured.
+        promptId: string;
         context: 'slack' | 'web_app';
         hasPinnedContext: boolean;
         pinnedContextCount: number;
@@ -2941,6 +2954,10 @@ export type AiAgentResponseStreamed = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         agentName: string;
+        // Turn identity, so the tail of the turn joins to its steps, its tool
+        // calls and the prompt that started it.
+        promptId: string;
+        threadId: string;
         usageTokensCount: number;
         stepsCount: number;
         model: string;
@@ -2949,6 +2966,49 @@ export type AiAgentResponseStreamed = BaseTrack & {
         stepCapReached: boolean;
         timeToFirstTokenMs: number | null;
         durationMs: number;
+    };
+};
+
+/**
+ * One row per iteration of the agent loop — the grain the turn waterfall is
+ * reconstructed from. `ai.usage` reports a whole streamed run as a single
+ * total, which cannot express the alternation of inference and tool
+ * execution, so latency is sliced here instead.
+ *
+ * `toolWallMs` is a step's tool phase measured as wall time, not the sum of
+ * its tool durations: a step that fans out concurrent calls would otherwise
+ * be counted several times over.
+ */
+export type AiAgentStepCompletedEvent = BaseTrack & {
+    event: 'ai_agent.step_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        promptId: string;
+        threadId: string;
+        stepIndex: number;
+        model: string;
+        modelProvider: string | null;
+        // Offset from turn start, so steps order and locate without relying on
+        // event timestamps (which carry ingestion jitter).
+        stepOffsetMs: number;
+        stepTotalMs: number;
+        // Null when the step ran tools but the transport never exposed the
+        // decide/execute boundary (the non-streaming provider path).
+        // `stepTotalMs` is always present.
+        inferenceMs: number | null;
+        toolWallMs: number | null;
+        ttftMs: number | null;
+        toolCallCount: number;
+        reasoningChars: number;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
     };
 };
 
@@ -3065,6 +3125,37 @@ export type AiAgentToolCallEvent = BaseTrack & {
         toolName: string;
         threadId: string;
         promptId: string;
+        toolCallId: string;
+        // Which loop iteration emitted the call. Calls sharing a stepIndex ran
+        // concurrently, so their durations must not be summed.
+        stepIndex: number;
+    };
+};
+
+/**
+ * Fires when a tool returns, carrying what the call-time event cannot know.
+ * Kept as its own event rather than a second `ai_agent_tool_call` so the
+ * existing one stays one-row-per-call for the models that count it; join the
+ * pair on `toolCallId`.
+ *
+ * A call that never returns (aborted turn, crash) has no row here, so a
+ * missing completion is itself the signal — treat these as a left join, not
+ * an inner one.
+ */
+export type AiAgentToolCallCompletedEvent = BaseTrack & {
+    event: 'ai_agent.tool_call_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
+        toolCallId: string;
+        stepIndex: number;
+        durationMs: number;
+        status: 'success' | 'error';
     };
 };
 
@@ -3156,6 +3247,37 @@ export type ContentReviewSimilarContentFoundEvent = BaseTrack & {
         contentId: string | null;
         matchCount: number;
         verifiedMatchCount: number;
+    };
+};
+
+/**
+ * The browser fetching an artifact's chart data. This runs *after* the agent
+ * turn has streamed and closed, as a separate request that re-executes the
+ * query from the persisted config — so it is on the user's path to seeing a
+ * chart but sits outside the turn's own duration.
+ *
+ * `queryId` joins to `query.completed` for cache-hit and warehouse timings
+ * rather than restating them here.
+ *
+ * Previously emitted untyped, which is why it never reached the warehouse.
+ */
+export type AiAgentArtifactVizQueryEvent = BaseTrack & {
+    event: 'ai_agent.artifact_viz_query';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        agentName: string;
+        artifactId: string;
+        artifactVersionId: string;
+        vizType: string;
+        source: string;
+        // Ties the render round-trip back to the turn that produced the
+        // artifact. Null for artifacts persisted without a prompt.
+        promptId: string | null;
+        durationMs: number;
+        queryId: string | null;
     };
 };
 
@@ -4012,7 +4134,10 @@ type TypedEvent =
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
     | AiAgentToolCallEvent
+    | AiAgentToolCallCompletedEvent
     | AiAgentToolCallFailedEvent
+    | AiAgentStepCompletedEvent
+    | AiAgentArtifactVizQueryEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent

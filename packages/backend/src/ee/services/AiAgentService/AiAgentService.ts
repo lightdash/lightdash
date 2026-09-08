@@ -3748,6 +3748,7 @@ export class AiAgentService extends BaseService {
                     projectId: agent.projectUuid,
                     aiAgentId: agentUuid,
                     threadId: threadUuid,
+                    promptId: promptUuid,
                     context: 'web_app',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         context,
@@ -3896,6 +3897,7 @@ export class AiAgentService extends BaseService {
                 projectId: agent.projectUuid,
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
+                promptId: messageUuid,
                 context: 'web_app',
                 ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
@@ -7517,6 +7519,9 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentArtifactVizQuery> {
+        // The browser blocks on this whole call before it can paint a chart,
+        // so time it from the top rather than around the warehouse leg only.
+        const vizQueryStartedAt = Date.now();
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -7588,6 +7593,9 @@ export class AiAgentService extends BaseService {
                     artifactVersionId: versionUuid,
                     vizType: AiResultType.QUERY_RESULT,
                     source: 'semantic',
+                    promptId: artifact.promptUuid,
+                    durationMs: Date.now() - vizQueryStartedAt,
+                    queryId: query.queryUuid,
                 },
             });
             return {
@@ -7639,6 +7647,9 @@ export class AiAgentService extends BaseService {
                     artifactVersionId: versionUuid,
                     vizType: AiResultType.TABLE_RESULT,
                     source: 'sql',
+                    promptId: artifact.promptUuid,
+                    durationMs: Date.now() - vizQueryStartedAt,
+                    queryId: query.queryUuid,
                 },
             });
 
@@ -7702,6 +7713,9 @@ export class AiAgentService extends BaseService {
                 artifactVersionId: versionUuid,
                 vizType: parsedVizConfig.type,
                 source: artifactChartConfig.source,
+                promptId: artifact.promptUuid,
+                durationMs: Date.now() - vizQueryStartedAt,
+                queryId: query.queryUuid,
             },
         });
 
@@ -12198,6 +12212,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     projectId: data.projectUuid,
                     aiAgentId: data.agentUuid || '',
                     threadId: threadUuid,
+                    promptId: uuid,
                     context: 'slack',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         undefined,
