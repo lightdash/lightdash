@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     defineUserAbility,
     FeatureFlags,
     mcpToolDefinitions,
@@ -16,7 +17,12 @@ import {
     getMcpAnalystPrompt,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { isProjectScopedMcpTool, McpService, McpToolName } from './McpService';
+import {
+    isProjectScopedMcpTool,
+    McpService,
+    McpToolName,
+    type McpServerToolOptions,
+} from './McpService';
 
 type RegisteredMcpTool = {
     name: string;
@@ -111,6 +117,7 @@ const makeMcpService = (
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
+    runSqlMaxLimit = 500,
 ): McpService =>
     new McpService({
         aiAgentService: {},
@@ -130,7 +137,7 @@ const makeMcpService = (
         featureFlagService,
         lightdashConfig: {
             mcp: {
-                runSqlMaxLimit: 500,
+                runSqlMaxLimit,
             },
             siteUrl: 'https://lightdash.example',
         },
@@ -173,6 +180,38 @@ const defaultMcpAnalystPromptOptions = {
 
 // Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
 const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+
+// Required keeps newly added server options from silently escaping the matrix.
+const disabledMcpOptions: Required<McpServerToolOptions> = {
+    projectPinned: false,
+    aiWritebackEnabled: false,
+    mcpContentWritesEnabled: false,
+    scheduledDeliveryEnabled: false,
+    runSqlEnabled: false,
+    runMetricQueryEnabled: false,
+    filterExpressionsEnabled: false,
+};
+const mcpOptionCombinations = Object.keys(disabledMcpOptions).reduce(
+    (combinations, key) =>
+        combinations.flatMap((options) =>
+            [false, true].map((enabled) => ({ ...options, [key]: enabled })),
+        ),
+    [disabledMcpOptions],
+);
+
+// Decimal widths 1–21, scientific notation, and fixture/default/safe limits.
+const runSqlMaxLimits = [
+    ...new Set([
+        500,
+        AI_DEFAULT_MAX_QUERY_LIMIT,
+        ...Array.from({ length: 21 }, (_, exponent) => 10 ** exponent),
+        1e21,
+        1.2345678901234568e21,
+        Number.MAX_VALUE,
+        Number.MAX_SAFE_INTEGER,
+    ]),
+];
+const warnedTextLengths = new Set<string>();
 
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
@@ -278,60 +317,57 @@ describe('MCP tool contracts', () => {
         },
     );
 
+    it('covers every boolean server configuration exactly once', () => {
+        const expectedCount = 2 ** Object.keys(disabledMcpOptions).length;
+        expect(mcpOptionCombinations).toHaveLength(expectedCount);
+        expect(
+            new Set(
+                mcpOptionCombinations.map((options) => JSON.stringify(options)),
+            ).size,
+        ).toBe(expectedCount);
+    });
+
+    it('covers every positive-integer string width in the row-limit cases', () => {
+        expect(
+            new Set(runSqlMaxLimits.map((limit) => String(limit).length)),
+        ).toEqual(new Set(Array.from({ length: 23 }, (_, index) => index + 1)));
+    });
+
     it.each(
-        [
-            {
-                mode: 'saved-content',
-                runSqlEnabled: false,
-                runMetricQueryEnabled: false,
-                instructionCeilings: { structured: 2048, expression: 2048 },
-            },
-            {
-                mode: 'sql-only',
-                runSqlEnabled: true,
-                runMetricQueryEnabled: false,
-                instructionCeilings: { structured: 2048, expression: 2048 },
-            },
-            {
-                mode: 'metric-only',
-                runSqlEnabled: false,
-                runMetricQueryEnabled: true,
-                instructionCeilings: { structured: 4659, expression: 8368 },
-            },
-            {
-                mode: 'metric-and-sql',
-                runSqlEnabled: true,
-                runMetricQueryEnabled: true,
-                instructionCeilings: { structured: 5483, expression: 9192 },
-            },
-        ].flatMap(({ instructionCeilings, ...capabilities }) =>
-            [false, true].map((filterExpressionsEnabled) => ({
-                ...capabilities,
-                filterExpressionsEnabled,
-                filterMode: filterExpressionsEnabled
-                    ? 'expression'
-                    : 'structured',
-                instructionCeiling: filterExpressionsEnabled
-                    ? instructionCeilings.expression
-                    : instructionCeilings.structured,
+        mcpOptionCombinations.flatMap((options) =>
+            runSqlMaxLimits.map((runSqlMaxLimit) => ({
+                options,
+                runSqlMaxLimit,
+                configuration: JSON.stringify({ ...options, runSqlMaxLimit }),
             })),
         ),
     )(
-        'guards MCP text lengths: $mode / $filterMode',
-        async ({ mode, filterMode, instructionCeiling, ...options }) => {
-            const mcpService = makeMcpService();
+        'guards MCP text lengths: pinned=$options.projectPinned writeback=$options.aiWritebackEnabled content=$options.mcpContentWritesEnabled scheduled=$options.scheduledDeliveryEnabled sql=$options.runSqlEnabled metric=$options.runMetricQueryEnabled expressions=$options.filterExpressionsEnabled max=$runSqlMaxLimit',
+        async ({ configuration, options, runSqlMaxLimit }) => {
+            // Do not retain thousands of mocked servers and their callbacks.
+            vi.clearAllMocks();
+            const mcpService = makeMcpService(true, undefined, runSqlMaxLimit);
             mockRegisteredMcpTools.length = 0;
-            await mcpService.createServer({
-                ...options,
-                aiWritebackEnabled: true,
-                mcpContentWritesEnabled: true,
-                scheduledDeliveryEnabled: true,
-            });
+            await mcpService.createServer(options);
+            const instructionCeilings = options.runSqlEnabled
+                ? { structured: 5483, expression: 9192 }
+                : { structured: 4659, expression: 8368 };
+            const instructionCeiling = options.runMetricQueryEnabled
+                ? instructionCeilings[
+                      options.filterExpressionsEnabled
+                          ? 'expression'
+                          : 'structured'
+                  ]
+                : MCP_CLIENT_TEXT_MAX_CHARS;
 
             // Existing overages warn but cannot grow. Lower/remove these
             // ceilings as text is shortened; snapshot updates cannot raise them.
             const existingToolCeilings = new Map([
-                ['run_sql', 3654],
+                // Only the interpolated max-limit digits may change the baseline.
+                [
+                    'run_sql',
+                    3654 - String(500).length + String(runSqlMaxLimit).length,
+                ],
                 ['run_ai_writeback', 2651],
                 [
                     'run_metric_query',
@@ -354,12 +390,21 @@ describe('MCP tool contracts', () => {
                     ceiling: instructionCeiling,
                 },
             ];
-            const overages = texts.filter(
-                ({ length }) => length > MCP_CLIENT_TEXT_MAX_CHARS,
-            );
+            const overages = texts.filter(({ name, length }) => {
+                const key = `${name}:${length}`;
+                if (
+                    length <= MCP_CLIENT_TEXT_MAX_CHARS ||
+                    warnedTextLengths.has(key)
+                ) {
+                    return false;
+                }
+                // Report a distinct length once, while asserting every combination.
+                warnedTextLengths.add(key);
+                return true;
+            });
             if (overages.length > 0) {
                 process.stderr.write(
-                    `[MCP client text limit: ${mode} / ${filterMode}]\n${overages
+                    `[MCP client text limit: ${configuration}]\n${overages
                         .map(
                             ({ name, length }) =>
                                 `${name}: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})`,
@@ -371,7 +416,7 @@ describe('MCP tool contracts', () => {
                 expect
                     .soft(
                         length,
-                        `${mode} / ${filterMode}: ${name} exceeds its text ceiling; shorten the text instead of updating snapshots`,
+                        `${configuration}: ${name} exceeds its text ceiling; shorten the text instead of updating snapshots`,
                     )
                     .toBeLessThanOrEqual(ceiling);
             });
