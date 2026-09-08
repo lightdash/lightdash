@@ -153,7 +153,7 @@
     display: flex;
     flex-direction: column;
     gap: 22px;
-    padding: 36px 24px 56px;
+    padding: 72px 24px 56px;
 }
 
 /* The head in the homepage's shape: a centred greeting over a wide search,
@@ -205,8 +205,7 @@
    walkthrough named and described, its length and one action. */
 .upNext {
     width: 100%;
-    max-width: 720px;
-    margin: 0 auto;
+    margin-top: 10px;
 }
 
 .hero {
