@@ -6,9 +6,13 @@ import {
     render,
     screen,
     waitFor,
+    within,
 } from '@testing-library/react';
 import { RoadmapApiContext } from './roadmapApi';
-import { createRoadmapMockApi } from './roadmapMockApi';
+import {
+    createRoadmapMockApi,
+    mockProjectPresentation,
+} from './roadmapMockApi';
 import { RoadmapProjects } from './RoadmapProjects';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
@@ -31,61 +35,118 @@ function setup(
                 <RoadmapApiContext.Provider value={api}>
                     <RoadmapProjects
                         cacheKey="test"
-                        projectStages={{ 'dashboard-filters': 'started' }}
+                        projectPresentation={mockProjectPresentation}
                     />
                 </RoadmapApiContext.Provider>
             </QueryClientProvider>
         </MantineProvider>,
     );
-    return { api, getRequests, client };
+    return { getRequests };
 }
 
 describe('Project roadmap', () => {
     afterEach(() => vi.useRealTimers());
 
-    it('loads own requests only when a project is opened, and keeps shared projects visible', async () => {
+    it('mixes projects and loose tickets and opens a followed-ticket board without a sidebar', async () => {
         const { getRequests } = setup();
         const project = await screen.findByRole('button', {
             name: 'Open More flexible dashboard filters',
         });
-        expect(getRequests).not.toHaveBeenCalled();
+        expect(screen.queryByText('Other requests')).not.toBeInTheDocument();
+        const unfollowedProject = screen.getByRole('button', {
+            name: 'Open A single home for your metrics',
+        });
+        expect(unfollowedProject).toBeInTheDocument();
+        expect(
+            within(unfollowedProject).queryByText(/followed|following/i),
+        ).not.toBeInTheDocument();
+        expect(
+            within(project).getByText('4 tickets followed'),
+        ).toBeInTheDocument();
+
         expect(
             screen.getByRole('button', {
-                name: 'Open Scheduled reports that fit your workflow',
+                name: 'Open ticket Export tables with their number formatting',
             }),
         ).toBeInTheDocument();
+        expect(
+            within(project).getByLabelText('68% overall project progress'),
+        ).toBeInTheDocument();
+        expect(getRequests).not.toHaveBeenCalledWith(
+            expect.objectContaining({ groupId: 'dashboard-filters' }),
+        );
         fireEvent.click(project);
-        await screen.findByText(
-            'Apply one date filter across every dashboard tab',
-        );
-        expect(getRequests).toHaveBeenCalledWith(
-            expect.objectContaining({ groupId: 'dashboard-filters', page: 1 }),
-        );
+        await screen.findByRole('button', {
+            name: 'Open ticket Apply one date filter across every dashboard tab',
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('heading', {
+                name: 'More flexible dashboard filters',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('region', { name: 'Done tickets' }),
+        ).toHaveTextContent('Filter dashboards by several values at once');
+        expect(
+            screen.queryByText('Set workspace-wide filter defaults'),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText('Export tables with their number formatting'),
         ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Back to roadmap' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open ticket Export tables with their number formatting',
+        });
     });
 
-    it('keeps requests whose project disappeared under Other requests', async () => {
+    it('puts followed tickets from removed projects directly on the main board', async () => {
         setup('removed');
-        const other = await screen.findByRole('button', {
-            name: /Other requests/,
+        await screen.findByRole('button', {
+            name: 'Open ticket Apply one date filter across every dashboard tab',
         });
         expect(
             screen.queryByRole('button', {
                 name: 'Open More flexible dashboard filters',
             }),
         ).not.toBeInTheDocument();
-        fireEvent.click(other);
-        await screen.findByText(
-            'Apply one date filter across every dashboard tab',
-        );
         expect(
-            screen.getByText('Export tables with their number formatting'),
-        ).toBeInTheDocument();
+            screen.getByRole('region', { name: 'Done roadmap items' }),
+        ).toHaveTextContent('Filter dashboards by several values at once');
+        expect(screen.queryByText('Other requests')).not.toBeInTheDocument();
     });
 
-    it('removes cached titles and closes the project panel when expiry refresh fails', async () => {
+    it('loads every page of followed project tickets without mixing in loose or unfollowed tickets', async () => {
+        setup('pagination');
+        await screen.findByRole('button', { name: 'Load more projects' });
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Load more projects' }),
+        );
+        await screen.findByRole('button', { name: 'Open Example project 18' });
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Load more projects' }),
+        );
+        const project = await screen.findByRole('button', {
+            name: 'Open More flexible dashboard filters',
+        });
+        fireEvent.click(project);
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Load more tickets' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open ticket Followed filter improvement 12',
+        });
+        expect(
+            screen.getAllByRole('button', { name: /^Open ticket/ }),
+        ).toHaveLength(16);
+        expect(
+            screen.queryByText('Set workspace-wide filter defaults'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('removes expired project titles and tickets when refresh fails', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         setup('expiry');
         fireEvent.click(
@@ -93,9 +154,9 @@ describe('Project roadmap', () => {
                 name: 'Open More flexible dashboard filters',
             }),
         );
-        await screen.findByText(
-            'Apply one date filter across every dashboard tab',
-        );
+        await screen.findByRole('button', {
+            name: 'Open ticket Apply one date filter across every dashboard tab',
+        });
         await act(async () => {
             vi.advanceTimersByTime(12_100);
         });

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { RoadmapApiContext } from './roadmapApi';
 import {
     createRoadmapMockApi,
+    mockProjectPresentation,
     type RoadmapMockScenario,
 } from './roadmapMockApi';
 import { RoadmapProjects } from './RoadmapProjects';
@@ -22,14 +23,7 @@ export default function RoadmapMockContent({
             <RoadmapApiContext.Provider value={api}>
                 <RoadmapProjects
                     cacheKey={`preview-${scenario}`}
-                    projectStages={{
-                        metrics: 'planned',
-                        'dashboard-filters': 'started',
-                        'ai-exploration': 'started',
-                        performance: 'planned',
-                        scheduling: 'backlog',
-                        'self-serve': 'paused',
-                    }}
+                    projectPresentation={mockProjectPresentation}
                     showDesignPartnerPreview
                 />
             </RoadmapApiContext.Provider>

@@ -19,9 +19,10 @@
 }
 .board {
     display: grid;
-    grid-template-columns: repeat(4, minmax(260px, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(280px, 1fr);
     gap: var(--mantine-spacing-lg);
-    height: calc(100dvh - 365px);
+    height: calc(100dvh - 320px);
     min-height: 400px;
     overflow-x: auto;
     padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
@@ -44,13 +45,14 @@
     overflow-y: auto;
     padding: 2px;
 }
-.projectCard {
+.projectCard,
+.ticketCard {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: var(--mantine-spacing-xl);
+    gap: var(--mantine-spacing-md);
     width: 100%;
-    min-height: 118px;
+    min-height: 156px;
     flex-shrink: 0;
     padding: var(--mantine-spacing-md);
     background: var(--mantine-color-body);
@@ -58,18 +60,17 @@
     border-radius: var(--mantine-radius-md);
     text-align: left;
 }
-.projectCard:hover {
+.projectCard:hover,
+.ticketCard:hover {
     border-color: var(--mantine-color-dimmed);
 }
 .projectCard:focus-visible,
-.request:focus-visible,
-.otherRequests:focus-visible {
+.ticketCard:focus-visible {
     outline: 2px solid var(--mantine-color-text);
     outline-offset: 2px;
 }
-.projectTitle {
-    font-weight: 500;
-    font-size: var(--mantine-font-size-sm);
+.projectTitle,
+.ticketTitle {
     line-height: var(--mantine-line-height-sm);
     overflow-wrap: anywhere;
 }
@@ -79,25 +80,39 @@
     border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
 }
-.otherSection {
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+.ticketCard {
+    min-height: 104px;
+    gap: var(--mantine-spacing-md);
 }
-.otherRequests {
-    display: block;
-    padding: var(--mantine-spacing-md);
+.ticketTitle {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+}
+.ticketId,
+.progressValue {
+    font-variant-numeric: tabular-nums;
+}
+.cardProgress {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--mantine-spacing-xs);
     width: 100%;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
 }
-.otherRequests:hover,
-.request:hover {
-    background-color: var(--mantine-color-default-hover);
-}
-.request {
+.cardProgress .progress {
+    grid-column: 1 / -1;
     width: 100%;
-    padding: var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-sm);
-    text-align: left;
+}
+.inlineProgress {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+.inlineProgress .progress {
+    order: -1;
+    width: 64px;
+}
+.projectIcon {
+    flex-shrink: 0;
 }
 .markdown :global(.wmde-markdown) {
     background: inherit;
@@ -118,14 +133,13 @@
     }
     .pageHeader,
     .boardToolbar,
-    .board,
-    .otherSection {
+    .board {
         padding: var(--mantine-spacing-md);
     }
     .search {
         width: 100%;
     }
     .board {
-        grid-template-columns: repeat(4, 280px);
+        grid-auto-columns: 280px;
     }
 }

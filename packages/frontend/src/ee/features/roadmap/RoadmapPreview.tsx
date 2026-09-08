@@ -25,7 +25,7 @@ const scenarios: {
         value: 'populated',
         label: 'Populated',
         description:
-            'Shared projects, your requests, direct project interest, and requests without a project.',
+            'Projects and loose tickets share the board. Open a project to see the tickets you follow.',
     },
     {
         value: 'empty',
@@ -52,19 +52,19 @@ const scenarios: {
         value: 'removed',
         label: 'Project removed',
         description:
-            'The dashboard-filter project has left the catalog. Its three requests remain under Other requests.',
+            'The dashboard-filter project has left the catalog. Its followed tickets now appear as loose tickets.',
     },
     {
         value: 'missing-title',
         label: 'Missing project title',
         description:
-            'A blank-title project is omitted. Its requests remain under Other requests.',
+            'A blank-title project is omitted. Its followed tickets appear directly on the main board.',
     },
     {
         value: 'pagination',
         label: 'Multiple pages',
         description:
-            'Twenty-four projects, fetched ten at a time. Other requests appears after the final projects.',
+            'Load additional projects on demand. The dashboard-filter project also has more than one page of followed tickets.',
     },
     {
         value: 'expiry',

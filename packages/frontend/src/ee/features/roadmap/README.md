@@ -1,15 +1,17 @@
-# Project roadmap preview
+# Roadmap board preview
 
-Open `/dev/roadmap` on the Vite development server. The route is development-only. The existing customer roadmap remains unchanged while the new experience is reviewed.
+Open `/dev/roadmap` on the Vite development server. The development-only preview uses an asynchronous mock API; it makes no Linear or central roadmap requests.
 
-The Kanban board uses synthetic data from an asynchronous `RoadmapApi` implementation. It supports search, project and request pagination, project panels, existing request details, and a non-writing design-partner entry point. Requests load when a project is opened. No Linear or central roadmap requests are made by the preview.
+The main board mixes eligible project cards and loose followed tickets in their status columns. Project cards have a labeled header, an icon before the title, and a full-width overall-progress footer. Tickets use a compact layout with their type and ID above the title. Projects without followed tickets remain visible with no zero-following label. Clicking a project switches to a full ticket board, showing only tickets the current user follows. Back to roadmap restores the main board and its search. Tickets open the existing request-details modal. There is no project sidebar or separate Other requests section.
 
-Use the scenario selector for populated, empty, pending, error/retry, access-denied, removed-project, missing-title, pagination, and expiry cases. Reset restarts the selected scenario. Expiry uses 12 seconds for review rather than the intended 10-minute production window. Removed and blank-title projects' requests move to Other requests. Storybook exposes the same component and scenarios under Roadmap / Project board.
+Project progress is supplied independently of the followed-ticket subset. The sample dashboard-filter project is 68% complete, has four followed tickets, and includes an unfollowed fixture that is excluded from the API response. Icon, stage, and progress metadata are synthetic preview inputs, not a live provider integration.
 
-The sample columns are Backlog, Planned, In progress, and Paused. Stage assignments are supplied separately as preview data; this does not change the title-only public project contract. The live project-stage contract needs to follow the reviewed grouping decision.
+Use the scenario selector to review populated, empty, pending, error/retry, access-denied, removed-project, missing-title, pagination, and expiry behavior. Removed or blank-title projects' followed tickets become loose cards. Load more projects/tickets fetches bounded pages on demand. Expiry uses 12 seconds for review rather than the intended 10-minute production window. Storybook exposes the same scenarios under Roadmap / Project board.
+
+For local comparison with the existing settings UI, `VITE_ROADMAP_MOCK_API=true` in `packages/frontend/.env.development.local` enables development-only fixtures in the legacy roadmap hook. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` (preserving other enabled flags) to expose the Roadmap settings entry. The Vite mock flag does not bypass production authorization or change production data.
 
 ## Integration handoff
 
-The shared types and `roadmapApi` adapter describe parallel v2 project and request reads. They are not connected to the existing customer page or a production v2 backend in this change. Keep legacy v1 schemas and request visibility rules intact. Scope real query-cache keys to the authenticated organization.
+The v2 contract and adapter remain groundwork; the preview is not connected to a production v2 backend. The live contract must supply project icon, overall progress and stage, plus authenticated user-following membership and counts. The mock uses the draft `ownRequestCount` field for followed-ticket counts; finalize that distinction before integration. Real follow management and design-partner writes are not implemented.
 
-Live delivery requires the central catalog and instance proxy, provider validation and authorization tests, and central support deployed before the consuming instance. The catalog must include only direct customer-to-project needs, omit inactive/archived/deleted/unlinked/blank-title projects, and stop displaying expired titles when a refresh fails. Keep shared project data separate from organization-specific associations. Design-partner submissions and broader rollout remain separate work.
+Preserve v1 compatibility and request visibility rules. Keep shared project data separate from private associations. Central support must precede the consuming instance deployment. No rollout is activated by this preview.

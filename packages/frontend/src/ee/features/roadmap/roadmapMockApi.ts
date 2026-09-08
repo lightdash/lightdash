@@ -2,12 +2,15 @@ import {
     RoadmapItemPriority,
     RoadmapItemStatus,
     type RoadmapItem,
+    type RoadmapResults,
     type RoadmapProject,
     type RoadmapProjectQuery,
     type RoadmapProjectResults,
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
+import { getRoadmapFacets } from '../../pages/roadmapUtils';
 import { type RoadmapApi } from './roadmapApi';
+import { type RoadmapProjectPresentation } from './roadmapPresentation';
 
 export type RoadmapMockScenario =
     | 'populated'
@@ -19,6 +22,28 @@ export type RoadmapMockScenario =
     | 'missing-title'
     | 'pagination'
     | 'expiry';
+
+export const mockProjectPresentation: Record<
+    string,
+    RoadmapProjectPresentation
+> = {
+    'ai-exploration': { stage: 'started', icon: 'sparkles', progress: 42 },
+    'dashboard-filters': { stage: 'started', icon: 'filter', progress: 68 },
+    metrics: { stage: 'planned', icon: 'chart', progress: 12 },
+    performance: { stage: 'planned', icon: 'bolt', progress: 8 },
+    scheduling: { stage: 'backlog', icon: 'calendar', progress: 0 },
+    'self-serve': { stage: 'paused', icon: 'users', progress: 24 },
+    ...Object.fromEntries(
+        Array.from({ length: 18 }, (_, i) => [
+            `example-${i}`,
+            {
+                stage: 'backlog',
+                icon: 'folder',
+                progress: 0,
+            } as RoadmapProjectPresentation,
+        ]),
+    ),
+};
 
 const projects: RoadmapProject[] = [
     { projectId: 'ai-exploration', title: 'AI-powered data exploration' },
@@ -113,8 +138,26 @@ const requests = [
         request: request(
             7,
             'Choose a default timezone for scheduled deliveries',
-            RoadmapItemStatus.CANCELED,
+            RoadmapItemStatus.BUILDING,
             'Use one timezone consistently across scheduled deliveries.',
+        ),
+    },
+    {
+        projectId: 'dashboard-filters',
+        request: request(
+            8,
+            'Set workspace-wide filter defaults',
+            RoadmapItemStatus.BUILDING,
+            'A ticket the current user does not follow.',
+        ),
+    },
+    {
+        projectId: 'dashboard-filters',
+        request: request(
+            9,
+            'Cascade filters automatically',
+            RoadmapItemStatus.CANCELED,
+            'This approach was replaced with explicit filter controls.',
         ),
     },
 ];
@@ -155,11 +198,36 @@ export function createRoadmapMockApi(
                 title: `Example project ${String(i + 1).padStart(2, '0')}`,
             })),
         ];
+    const followedTicketIds = new Set([
+        'DEMO-1',
+        'DEMO-2',
+        'DEMO-3',
+        'DEMO-4',
+        'DEMO-5',
+        'DEMO-6',
+        'DEMO-7',
+        'DEMO-9',
+    ]);
+    const followedRequests = requests.filter((item) =>
+        followedTicketIds.has(item.request.ticketId),
+    );
+    if (scenario === 'pagination')
+        followedRequests.push(
+            ...Array.from({ length: 12 }, (_, i) => ({
+                projectId: 'dashboard-filters',
+                request: request(
+                    20 + i,
+                    `Followed filter improvement ${i + 1}`,
+                    RoadmapItemStatus.BACKLOG,
+                    'An additional followed ticket for pagination review.',
+                ),
+            })),
+        );
     const ids = new Set(visibleProjects.map((project) => project.projectId));
     const visibleRequests =
         scenario === 'empty'
             ? []
-            : requests.map((item) => ({
+            : followedRequests.map((item) => ({
                   ...item,
                   projectId:
                       item.projectId && ids.has(item.projectId)
@@ -229,16 +297,10 @@ export function createRoadmapMockApi(
             await beforeRead();
             const groupId = query.groupId === 'other' ? null : query.groupId;
             const search = query.search?.trim().toLowerCase() ?? '';
-            const matchesProject =
-                visibleProjects
-                    .find((project) => project.projectId === groupId)
-                    ?.title.toLowerCase()
-                    .includes(search) ?? false;
             const items = visibleRequests.filter(
                 (item) =>
                     item.projectId === groupId &&
-                    (matchesProject ||
-                        item.request.title.toLowerCase().includes(search)),
+                    item.request.title.toLowerCase().includes(search),
             );
             const page = paginate(items, query);
             return {
@@ -246,6 +308,21 @@ export function createRoadmapMockApi(
                 pagination: page.pagination,
                 expiresAt,
             };
+        },
+    };
+}
+
+export default async function getLegacyRoadmapMock(): Promise<RoadmapResults> {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
+    const data = requests.map((item) => item.request);
+    return {
+        data,
+        facets: getRoadmapFacets(data),
+        pagination: {
+            page: 1,
+            pageSize: 100,
+            totalIssues: data.length,
+            totalPages: 1,
         },
     };
 }

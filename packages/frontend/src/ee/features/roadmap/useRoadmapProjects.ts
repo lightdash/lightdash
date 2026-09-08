@@ -3,7 +3,7 @@ import {
     type RoadmapProjectQuery,
     type RoadmapProjectRequestsQuery,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useRoadmapApi } from './roadmapApi';
 
@@ -35,9 +35,17 @@ export function useRoadmapProjects(
     cacheKey: string,
 ) {
     const api = useRoadmapApi();
-    return useQuery<Awaited<ReturnType<typeof api.getProjects>>, ApiError>({
+    return useInfiniteQuery<
+        Awaited<ReturnType<typeof api.getProjects>>,
+        ApiError
+    >({
         queryKey: ['roadmap-projects', cacheKey, query],
-        queryFn: () => api.getProjects(query),
+        queryFn: ({ pageParam = 1 }) =>
+            api.getProjects({ ...query, page: pageParam }),
+        getNextPageParam: (last) =>
+            last.pagination.page < last.pagination.totalPages
+                ? last.pagination.page + 1
+                : undefined,
         retry: false,
         refetchOnWindowFocus: true,
     });
@@ -49,9 +57,17 @@ export function useRoadmapRequests(
     enabled: boolean,
 ) {
     const api = useRoadmapApi();
-    return useQuery({
+    return useInfiniteQuery<
+        Awaited<ReturnType<typeof api.getRequests>>,
+        ApiError
+    >({
         queryKey: ['roadmap-project-requests', cacheKey, query],
-        queryFn: () => api.getRequests(query),
+        queryFn: ({ pageParam = 1 }) =>
+            api.getRequests({ ...query, page: pageParam }),
+        getNextPageParam: (last) =>
+            last.pagination.page < last.pagination.totalPages
+                ? last.pagination.page + 1
+                : undefined,
         enabled,
         retry: false,
     });

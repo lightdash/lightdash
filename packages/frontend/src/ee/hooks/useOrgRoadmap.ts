@@ -27,6 +27,15 @@ const getOrgRoadmap = async (query: RoadmapQuery) =>
     });
 
 const getAllOrgRoadmap = async (): Promise<RoadmapResults> => {
+    if (
+        import.meta.env.DEV &&
+        import.meta.env.VITE_ROADMAP_MOCK_API === 'true'
+    ) {
+        const { default: getLegacyRoadmapMock } =
+            await import('../features/roadmap/roadmapMockApi');
+        return getLegacyRoadmapMock();
+    }
+
     const firstPage = await getOrgRoadmap({
         page: 1,
         pageSize: ROADMAP_DEFAULT_PAGE_SIZE,

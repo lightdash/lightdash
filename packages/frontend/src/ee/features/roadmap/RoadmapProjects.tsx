@@ -3,10 +3,9 @@ import {
     Badge,
     Box,
     Button,
-    Drawer,
     Group,
-    Pagination,
     Paper,
+    Progress,
     Stack,
     Text,
     TextInput,
@@ -17,21 +16,29 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
-    IconArrowRight,
+    IconArrowLeft,
+    IconCircleCheck,
     IconCircleDashed,
     IconCircleDotted,
     IconCircleHalf2,
+    IconCircleX,
     IconPlayerPause,
-    IconMessageCircle2,
+    IconEye,
     IconRoad,
     IconSearch,
-    IconStack2,
+    IconTicket,
 } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { getStatusColor } from '../../pages/roadmapUtils';
+import {
+    defaultProjectPresentation,
+    projectIcons,
+    ticketStage,
+    type RoadmapBoardStage,
+    type RoadmapProjectPresentation,
+} from './roadmapPresentation';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
 import {
@@ -40,7 +47,6 @@ import {
     useRoadmapRequests,
 } from './useRoadmapProjects';
 
-export type RoadmapBoardStage = 'backlog' | 'planned' | 'started' | 'paused';
 const columns = [
     {
         id: 'backlog',
@@ -61,98 +67,115 @@ const columns = [
         color: 'yellow.6',
     },
     { id: 'paused', label: 'Paused', icon: IconPlayerPause, color: 'orange.6' },
+    { id: 'completed', label: 'Done', icon: IconCircleCheck, color: 'green.6' },
+    { id: 'canceled', label: 'Canceled', icon: IconCircleX, color: 'dimmed' },
 ] as const;
-function RequestGroup({
-    groupId,
-    search,
-    cacheKey,
-    onSelect,
+
+function Board({
+    entries,
+    projectBoard,
 }: {
-    groupId: string;
-    search: string;
-    cacheKey: string;
-    onSelect: (item: RoadmapItem) => void;
+    entries: { id: string; stage: RoadmapBoardStage; card: ReactNode }[];
+    projectBoard: boolean;
 }) {
-    const [page, setPage] = useState(1);
-    const query = useRoadmapRequests(
-        { groupId, search, page, pageSize: 10 },
-        cacheKey,
-        true,
+    const visibleColumns = columns.filter((column) =>
+        projectBoard
+            ? ['backlog', 'started', 'completed', 'canceled'].includes(
+                  column.id,
+              )
+            : ['backlog', 'planned', 'started', 'paused'].includes(column.id) ||
+              entries.some((entry) => entry.stage === column.id),
     );
-    const expired = useRoadmapExpiry(query.data?.expiresAt);
-    const { refetch } = query;
-    useEffect(() => {
-        if (expired) void refetch();
-    }, [expired, refetch]);
-    if (query.isInitialLoading || (expired && query.isFetching))
-        return <EmptyStateLoader title="Loading your requests" />;
-    if (query.isError || expired)
-        return (
-            <Stack gap="sm">
-                <Text fz="sm">Could not load your requests.</Text>
-                <Button
-                    variant="default"
-                    size="xs"
-                    onClick={() => void query.refetch()}
-                >
-                    Try again
-                </Button>
-            </Stack>
-        );
-    if (!query.data?.requests.length)
-        return (
-            <Text fz="sm" c="dimmed">
-                {search
-                    ? 'No matching requests from your organization.'
-                    : 'No requests from your organization are linked to this project.'}
-            </Text>
-        );
     return (
-        <Stack gap="xs">
-            {query.data.requests.map(({ request }) => (
-                <UnstyledButton
-                    key={request.ticketId}
-                    className={classes.request}
-                    onClick={() => onSelect(request)}
-                >
-                    <Group justify="space-between" wrap="wrap" gap="sm">
-                        <Text fz="sm">{request.title}</Text>
-                        <Group gap="sm">
-                            <Text fz="xs" c="dimmed">
-                                {request.ticketId}
-                            </Text>
-                            <Badge
+        <Box className={classes.board}>
+            {visibleColumns.map((column) => {
+                const cards = entries.filter(
+                    (entry) => entry.stage === column.id,
+                );
+                return (
+                    <section
+                        className={classes.column}
+                        key={column.id}
+                        aria-label={`${column.label} ${projectBoard ? 'tickets' : 'roadmap items'}`}
+                    >
+                        <Group className={classes.columnHeader} gap="xs">
+                            <MantineIcon
+                                icon={column.icon}
                                 size="sm"
-                                color={
-                                    getStatusColor(request.status) === 'ldGray'
-                                        ? 'gray'
-                                        : getStatusColor(request.status)
-                                }
-                            >
-                                {request.status}
-                            </Badge>
+                                color={column.color}
+                            />
+                            <Text fz="sm" fw={500}>
+                                {column.label}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {cards.length}
+                            </Text>
                         </Group>
-                    </Group>
-                </UnstyledButton>
-            ))}
-            {query.data.pagination.totalPages > 1 && (
-                <Pagination
-                    size="sm"
-                    value={page}
-                    onChange={setPage}
-                    total={query.data.pagination.totalPages}
-                    aria-label="Request pages"
+                        <Stack gap="sm" className={classes.columnCards}>
+                            {cards.map((entry) => (
+                                <div key={entry.id}>{entry.card}</div>
+                            ))}
+                            {!cards.length && (
+                                <Text
+                                    className={classes.emptyColumn}
+                                    fz="xs"
+                                    c="dimmed"
+                                >
+                                    {projectBoard ? 'No tickets' : 'No items'}
+                                </Text>
+                            )}
+                        </Stack>
+                    </section>
+                );
+            })}
+        </Box>
+    );
+}
+
+function ProjectProgress({
+    value,
+    expanded = false,
+}: {
+    value: number | null;
+    expanded?: boolean;
+}) {
+    const label = value === null ? 'Progress unavailable' : `${value}%`;
+    return (
+        <Box
+            className={expanded ? classes.cardProgress : classes.inlineProgress}
+            aria-label={
+                value === null
+                    ? 'Overall project progress unavailable'
+                    : `${value}% overall project progress`
+            }
+        >
+            {expanded && (
+                <Text fz="xs" c="dimmed">
+                    Overall progress
+                </Text>
+            )}
+            <Text className={classes.progressValue} fz="xs">
+                {label}
+            </Text>
+            {value !== null && (
+                <Progress
+                    className={classes.progress}
+                    value={value}
+                    size="xs"
+                    aria-label="Overall project completion"
                 />
             )}
-        </Stack>
+        </Box>
     );
 }
 
 function ProjectCard({
     group,
+    presentation,
     onClick,
 }: {
     group: RoadmapProjectGroup;
+    presentation: RoadmapProjectPresentation;
     onClick: () => void;
 }) {
     return (
@@ -161,82 +184,209 @@ function ProjectCard({
             onClick={onClick}
             aria-label={`Open ${group.project.title}`}
         >
-            <Text className={classes.projectTitle}>{group.project.title}</Text>
-            <Group
-                justify="space-between"
-                gap="xs"
-                className={classes.cardFooter}
-            >
-                {group.ownRequestCount > 0 ? (
-                    <Group gap={4}>
-                        <MantineIcon
-                            icon={IconMessageCircle2}
-                            size="sm"
-                            color="dimmed"
-                        />
+            <Group justify="space-between" gap="xs">
+                <Badge size="xs" variant="light">
+                    Project
+                </Badge>
+                {group.ownRequestCount > 0 && (
+                    <Group gap={4} wrap="nowrap">
+                        <MantineIcon icon={IconEye} size="sm" color="dimmed" />
                         <Text fz="xs" c="dimmed">
-                            {group.ownRequestCount} of your requests
+                            {group.ownRequestCount}{' '}
+                            {group.ownRequestCount === 1 ? 'ticket' : 'tickets'}{' '}
+                            followed
                         </Text>
                     </Group>
-                ) : (
-                    <Text fz="xs" c="dimmed">
-                        {group.hasDirectNeed
-                            ? 'Your organization is interested'
-                            : 'Shared project'}
-                    </Text>
-                )}
-                {group.hasDirectNeed && group.ownRequestCount > 0 && (
-                    <Badge size="xs" variant="light">
-                        Requested
-                    </Badge>
                 )}
             </Group>
+            <Group gap="sm" align="flex-start" wrap="nowrap">
+                <ThemeIcon
+                    variant="light"
+                    size="md"
+                    className={classes.projectIcon}
+                >
+                    <MantineIcon icon={projectIcons[presentation.icon]} />
+                </ThemeIcon>
+                <Title order={5} className={classes.projectTitle}>
+                    {group.project.title}
+                </Title>
+            </Group>
+            <ProjectProgress value={presentation.progress} expanded />
         </UnstyledButton>
+    );
+}
+
+function TicketCard({
+    ticket,
+    onClick,
+}: {
+    ticket: RoadmapItem;
+    onClick: () => void;
+}) {
+    return (
+        <UnstyledButton
+            className={classes.ticketCard}
+            onClick={onClick}
+            aria-label={`Open ticket ${ticket.title}`}
+        >
+            <Group justify="space-between" gap="xs">
+                <Group gap={4}>
+                    <MantineIcon icon={IconTicket} size="sm" color="dimmed" />
+                    <Text fz="xs" c="dimmed">
+                        Ticket
+                    </Text>
+                </Group>
+                <Text className={classes.ticketId} fz="xs" c="dimmed">
+                    {ticket.ticketId}
+                </Text>
+            </Group>
+            <Text className={classes.ticketTitle}>{ticket.title}</Text>
+        </UnstyledButton>
+    );
+}
+
+function BoardError({
+    retry,
+    message = 'Could not load the roadmap',
+}: {
+    retry: () => void;
+    message?: string;
+}) {
+    return (
+        <Box p="xl">
+            <SuboptimalState
+                icon={IconAlertCircle}
+                title={message}
+                description="We couldn't refresh the board. Please try again."
+                action={
+                    <Button variant="default" onClick={retry}>
+                        Try again
+                    </Button>
+                }
+            />
+        </Box>
     );
 }
 
 export function RoadmapProjects({
     cacheKey,
-    projectStages,
+    projectPresentation,
     showDesignPartnerPreview = false,
 }: {
     cacheKey: string;
-    projectStages: Record<string, RoadmapBoardStage>;
+    projectPresentation: Record<string, RoadmapProjectPresentation>;
     showDesignPartnerPreview?: boolean;
 }) {
-    const [search, setSearch] = useState('');
-    const [debouncedSearch] = useDebouncedValue(search.trim(), 300);
-    const [page, setPage] = useState(1);
-    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-    const [selected, setSelected] = useState<RoadmapItem | null>(null);
+    const [mainSearch, setMainSearch] = useState('');
+    const [projectSearch, setProjectSearch] = useState('');
+    const [debouncedMainSearch] = useDebouncedValue(mainSearch.trim(), 300);
+    const [debouncedProjectSearch] = useDebouncedValue(
+        projectSearch.trim(),
+        300,
+    );
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
+        null,
+    );
+    const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
+        null,
+    );
     const [interestProject, setInterestProject] = useState<string | null>(null);
-    const query = useRoadmapProjects(
-        { page, pageSize: 10, search: debouncedSearch },
+    const projectsQuery = useRoadmapProjects(
+        { pageSize: 10, search: debouncedMainSearch },
         cacheKey,
     );
-    const expired = useRoadmapExpiry(query.data?.expiresAt);
-    const { refetch } = query;
+    const ticketsQuery = useRoadmapRequests(
+        {
+            groupId: selectedProjectId ?? 'other',
+            pageSize: 10,
+            search: selectedProjectId
+                ? debouncedProjectSearch
+                : debouncedMainSearch,
+        },
+        cacheKey,
+        projectsQuery.isSuccess,
+    );
+    const projects =
+        projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
+    const tickets =
+        ticketsQuery.data?.pages.flatMap((page) =>
+            page.requests.map((item) => item.request),
+        ) ?? [];
+    const expiresAt = [
+        ...(projectsQuery.data?.pages ?? []),
+        ...(ticketsQuery.data?.pages ?? []),
+    ]
+        .map((page) => page.expiresAt)
+        .sort()[0];
+    const expired = useRoadmapExpiry(expiresAt);
+    const { refetch: refetchProjects } = projectsQuery;
+    const { refetch: refetchTickets } = ticketsQuery;
     useEffect(() => {
         if (expired) {
-            setSelected(null);
-            setSelectedGroupId(null);
-            void refetch();
+            setSelectedTicket(null);
+            void refetchProjects();
+            void refetchTickets();
         }
-    }, [expired, refetch]);
-    const data = expired ? undefined : query.data;
-    const unavailable = query.error?.error?.statusCode === 403;
-    const loading = query.isInitialLoading || (expired && query.isFetching);
-    const selectedGroup = data?.projects.find(
-        (group) => group.project.projectId === selectedGroupId,
+    }, [expired, refetchProjects, refetchTickets]);
+    const selectedProject = projects.find(
+        (group) => group.project.projectId === selectedProjectId,
     );
-    const selectedColumn = columns.find(
-        (column) =>
-            column.id === (projectStages[selectedGroupId ?? ''] ?? 'backlog'),
-    );
-    const closeGroup = () => {
-        setSelectedGroupId(null);
+    const presentation =
+        projectPresentation[selectedProjectId ?? ''] ??
+        defaultProjectPresentation;
+    const projectBoard = selectedProjectId !== null;
+    const loading =
+        projectsQuery.isInitialLoading ||
+        ticketsQuery.isInitialLoading ||
+        (expired && (projectsQuery.isFetching || ticketsQuery.isFetching));
+    const unavailable =
+        projectsQuery.error?.error?.statusCode === 403 ||
+        ticketsQuery.error?.error?.statusCode === 403;
+    const failed = projectsQuery.isError || ticketsQuery.isError || expired;
+    const retry = () => {
+        void refetchProjects();
+        if (projectsQuery.isSuccess) void refetchTickets();
+    };
+    const back = () => {
+        setSelectedProjectId(null);
+        setProjectSearch('');
+        setSelectedTicket(null);
         setInterestProject(null);
     };
+    const entries = [
+        ...(!projectBoard
+            ? projects.map((group) => ({
+                  id: `project-${group.project.projectId}`,
+                  stage: (
+                      projectPresentation[group.project.projectId] ??
+                      defaultProjectPresentation
+                  ).stage,
+                  card: (
+                      <ProjectCard
+                          group={group}
+                          presentation={
+                              projectPresentation[group.project.projectId] ??
+                              defaultProjectPresentation
+                          }
+                          onClick={() => {
+                              setSelectedProjectId(group.project.projectId);
+                              setProjectSearch('');
+                          }}
+                      />
+                  ),
+              }))
+            : []),
+        ...tickets.map((ticket) => ({
+            id: `ticket-${ticket.ticketId}`,
+            stage: ticketStage(ticket.status),
+            card: (
+                <TicketCard
+                    ticket={ticket}
+                    onClick={() => setSelectedTicket(ticket)}
+                />
+            ),
+        })),
+    ];
     return (
         <Stack className={classes.page} gap={0}>
             <Group
@@ -245,62 +395,109 @@ export function RoadmapProjects({
                 gap="md"
             >
                 <Group gap="sm">
-                    <ThemeIcon variant="default" size="lg">
-                        <MantineIcon icon={IconRoad} />
-                    </ThemeIcon>
-                    <Title order={4}>Roadmap</Title>
+                    {projectBoard ? (
+                        <Button
+                            leftSection={
+                                <MantineIcon icon={IconArrowLeft} size="sm" />
+                            }
+                            variant="subtle"
+                            size="xs"
+                            onClick={back}
+                        >
+                            Back to roadmap
+                        </Button>
+                    ) : (
+                        <ThemeIcon variant="default" size="lg">
+                            <MantineIcon icon={IconRoad} />
+                        </ThemeIcon>
+                    )}
+                    {projectBoard && !failed && selectedProject && (
+                        <MantineIcon icon={projectIcons[presentation.icon]} />
+                    )}
+                    <Title order={4}>
+                        {projectBoard
+                            ? !failed && selectedProject
+                                ? selectedProject.project.title
+                                : 'Project board'
+                            : 'Roadmap'}
+                    </Title>
                     <Badge size="sm" variant="light">
-                        Preview
+                        {projectBoard ? 'Project' : 'Preview'}
                     </Badge>
                 </Group>
-                <Text fz="sm" c="dimmed">
-                    Built with our customers
-                </Text>
+                {projectBoard && !failed && selectedProject ? (
+                    <Group gap="md">
+                        <Text fz="xs" c="dimmed">
+                            Overall progress
+                        </Text>
+                        <ProjectProgress value={presentation.progress} />
+                        {showDesignPartnerPreview && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() =>
+                                    setInterestProject(selectedProjectId)
+                                }
+                            >
+                                Become a design partner
+                            </Button>
+                        )}
+                    </Group>
+                ) : (
+                    !projectBoard && (
+                        <Text fz="sm" c="dimmed">
+                            Built with our customers
+                        </Text>
+                    )
+                )}
             </Group>
             <Group
                 className={classes.boardToolbar}
                 justify="space-between"
                 gap="sm"
             >
-                <Group gap="lg">
-                    <Group gap="xs">
-                        <MantineIcon
-                            icon={IconStack2}
-                            size="sm"
-                            color="dimmed"
-                        />
-                        <Text fz="sm" fw={500}>
-                            Projects
-                        </Text>
-                        {data && (
-                            <Text c="dimmed" fz="xs">
-                                {data.pagination.totalResults}
-                            </Text>
-                        )}
-                    </Group>
-                    <Text fz="xs" c="dimmed">
-                        Explore the roadmap. See where your requests fit.
+                <Group gap="sm">
+                    <Text fz="sm" fw={500}>
+                        {projectBoard
+                            ? 'Tickets you follow'
+                            : 'Projects & tickets'}
                     </Text>
+                    {!failed && !loading && (
+                        <Text fz="xs" c="dimmed">
+                            {projectBoard
+                                ? `${ticketsQuery.data?.pages[0].pagination.totalResults ?? 0} tickets`
+                                : `${projectsQuery.data?.pages[0].pagination.totalResults ?? 0} projects · ${ticketsQuery.data?.pages[0].pagination.totalResults ?? 0} loose tickets`}
+                        </Text>
+                    )}
                 </Group>
                 <TextInput
                     className={classes.search}
                     size="xs"
-                    aria-label="Search roadmap"
-                    placeholder="Search projects or your requests…"
+                    aria-label={
+                        projectBoard
+                            ? 'Search project tickets'
+                            : 'Search roadmap'
+                    }
+                    placeholder={
+                        projectBoard
+                            ? 'Search tickets you follow…'
+                            : 'Search projects or tickets…'
+                    }
                     leftSection={<MantineIcon icon={IconSearch} size="sm" />}
-                    value={search}
-                    onChange={(event) => {
-                        setSearch(event.currentTarget.value);
-                        setPage(1);
-                        closeGroup();
-                    }}
+                    value={projectBoard ? projectSearch : mainSearch}
+                    onChange={(event) =>
+                        projectBoard
+                            ? setProjectSearch(event.currentTarget.value)
+                            : setMainSearch(event.currentTarget.value)
+                    }
                 />
             </Group>
-            {loading ? (
-                <Box p="xl">
-                    <EmptyStateLoader title="Loading roadmap" />
-                </Box>
-            ) : unavailable ? (
+            {interestProject !== null && !failed && (
+                <Text fz="xs" c="dimmed" px="xl" py="sm" role="status">
+                    Preview only — no interest has been submitted.
+                </Text>
+            )}
+            {unavailable ? (
                 <Box p="xl">
                     <SuboptimalState
                         icon={IconRoad}
@@ -308,317 +505,103 @@ export function RoadmapProjects({
                         description="Reach out to your Lightdash contact to get it switched on."
                     />
                 </Box>
-            ) : query.isError || expired ? (
+            ) : projectsQuery.isError ? (
+                <BoardError retry={retry} />
+            ) : loading ? (
+                <Box p="xl">
+                    <EmptyStateLoader
+                        title={
+                            projectBoard
+                                ? 'Loading project tickets'
+                                : 'Loading roadmap'
+                        }
+                    />
+                </Box>
+            ) : failed ? (
+                <BoardError retry={retry} />
+            ) : projectBoard && !selectedProject ? (
                 <Box p="xl">
                     <SuboptimalState
-                        icon={IconAlertCircle}
-                        title="Could not load the roadmap"
-                        description="We couldn't refresh the project list. Please try again."
+                        icon={IconRoad}
+                        title="This project is no longer on the roadmap"
+                        description="You can still find eligible tickets you follow on the main board."
                         action={
-                            <Button
-                                variant="default"
-                                onClick={() => void refetch()}
-                            >
-                                Try again
+                            <Button variant="default" onClick={back}>
+                                Back to roadmap
                             </Button>
                         }
                     />
                 </Box>
+            ) : !entries.length ? (
+                <Box p="xl">
+                    <Paper variant="dotted" p="xl">
+                        <SuboptimalState
+                            icon={IconSearch}
+                            title={
+                                projectBoard
+                                    ? projectSearch
+                                        ? 'No matching tickets'
+                                        : 'No followed tickets in this project'
+                                    : mainSearch
+                                      ? 'No matching projects or tickets'
+                                      : 'No roadmap items yet'
+                            }
+                            description={
+                                projectBoard
+                                    ? 'Only tickets you follow in this project appear here.'
+                                    : 'Projects and tickets you follow will appear here.'
+                            }
+                            action={
+                                (projectBoard ? projectSearch : mainSearch) ? (
+                                    <Button
+                                        variant="default"
+                                        onClick={() =>
+                                            projectBoard
+                                                ? setProjectSearch('')
+                                                : setMainSearch('')
+                                        }
+                                    >
+                                        Clear search
+                                    </Button>
+                                ) : undefined
+                            }
+                        />
+                    </Paper>
+                </Box>
             ) : (
-                data && (
-                    <>
-                        {!data.projects.length && !data.otherRequestCount ? (
-                            <Box p="xl">
-                                <Paper variant="dotted" p="xl">
-                                    <SuboptimalState
-                                        icon={search ? IconSearch : IconRoad}
-                                        title={
-                                            search
-                                                ? 'No matching projects or requests'
-                                                : 'No roadmap projects yet'
-                                        }
-                                        description={
-                                            search
-                                                ? 'Try another search or clear it to see all projects.'
-                                                : 'Projects will appear here as customer requests are connected to our roadmap.'
-                                        }
-                                        action={
-                                            search ? (
-                                                <Button
-                                                    variant="default"
-                                                    onClick={() => {
-                                                        setSearch('');
-                                                        setPage(1);
-                                                    }}
-                                                >
-                                                    Clear search
-                                                </Button>
-                                            ) : undefined
-                                        }
-                                    />
-                                </Paper>
-                            </Box>
-                        ) : (
-                            <>
-                                <Box className={classes.board}>
-                                    {columns.map((column) => {
-                                        const groups = data.projects.filter(
-                                            (group) =>
-                                                (projectStages[
-                                                    group.project.projectId
-                                                ] ?? 'backlog') === column.id,
-                                        );
-                                        return (
-                                            <section
-                                                className={classes.column}
-                                                key={column.id}
-                                                aria-label={`${column.label} projects`}
-                                            >
-                                                <Group
-                                                    className={
-                                                        classes.columnHeader
-                                                    }
-                                                    gap="xs"
-                                                >
-                                                    <MantineIcon
-                                                        icon={column.icon}
-                                                        size="sm"
-                                                        color={column.color}
-                                                    />
-                                                    <Text fz="sm" fw={500}>
-                                                        {column.label}
-                                                    </Text>
-                                                    <Text fz="xs" c="dimmed">
-                                                        {groups.length}
-                                                    </Text>
-                                                </Group>
-                                                <Stack
-                                                    gap="sm"
-                                                    className={
-                                                        classes.columnCards
-                                                    }
-                                                >
-                                                    {groups.map((group) => (
-                                                        <ProjectCard
-                                                            key={
-                                                                group.project
-                                                                    .projectId
-                                                            }
-                                                            group={group}
-                                                            onClick={() =>
-                                                                setSelectedGroupId(
-                                                                    group
-                                                                        .project
-                                                                        .projectId,
-                                                                )
-                                                            }
-                                                        />
-                                                    ))}
-                                                    {!groups.length && (
-                                                        <Text
-                                                            className={
-                                                                classes.emptyColumn
-                                                            }
-                                                            fz="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            No projects
-                                                        </Text>
-                                                    )}
-                                                </Stack>
-                                            </section>
-                                        );
-                                    })}
-                                </Box>
-                                {data.otherRequestCount > 0 &&
-                                    page >=
-                                        Math.max(
-                                            1,
-                                            data.pagination.totalPages,
-                                        ) && (
-                                        <Box className={classes.otherSection}>
-                                            <UnstyledButton
-                                                className={
-                                                    classes.otherRequests
-                                                }
-                                                onClick={() =>
-                                                    setSelectedGroupId('other')
-                                                }
-                                            >
-                                                <Group
-                                                    justify="space-between"
-                                                    gap="sm"
-                                                >
-                                                    <Group gap="sm">
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconMessageCircle2
-                                                            }
-                                                            color="dimmed"
-                                                        />
-                                                        <Stack gap={4}>
-                                                            <Group gap="xs">
-                                                                <Text
-                                                                    fz="sm"
-                                                                    fw={500}
-                                                                >
-                                                                    Other
-                                                                    requests
-                                                                </Text>
-                                                                <Badge
-                                                                    size="xs"
-                                                                    variant="light"
-                                                                >
-                                                                    {
-                                                                        data.otherRequestCount
-                                                                    }
-                                                                </Badge>
-                                                            </Group>
-                                                            <Text
-                                                                fz="xs"
-                                                                c="dimmed"
-                                                            >
-                                                                Your requests
-                                                                that aren't
-                                                                linked to a
-                                                                roadmap project.
-                                                            </Text>
-                                                        </Stack>
-                                                    </Group>
-                                                    <MantineIcon
-                                                        icon={IconArrowRight}
-                                                        color="dimmed"
-                                                    />
-                                                </Group>
-                                            </UnstyledButton>
-                                        </Box>
-                                    )}
-                            </>
+                <>
+                    <Board entries={entries} projectBoard={projectBoard} />
+                    <Group justify="center" gap="sm" p="md">
+                        {!projectBoard && projectsQuery.hasNextPage && (
+                            <Button
+                                variant="default"
+                                size="xs"
+                                loading={projectsQuery.isFetchingNextPage}
+                                onClick={() =>
+                                    void projectsQuery.fetchNextPage()
+                                }
+                            >
+                                Load more projects
+                            </Button>
                         )}
-                        {data.pagination.totalPages > 1 && (
-                            <Group justify="center" p="md">
-                                <Pagination
-                                    value={page}
-                                    total={data.pagination.totalPages}
-                                    onChange={(value) => {
-                                        setPage(value);
-                                        closeGroup();
-                                    }}
-                                    aria-label="Project pages"
-                                />
-                            </Group>
+                        {ticketsQuery.hasNextPage && (
+                            <Button
+                                variant="default"
+                                size="xs"
+                                loading={ticketsQuery.isFetchingNextPage}
+                                onClick={() =>
+                                    void ticketsQuery.fetchNextPage()
+                                }
+                            >
+                                Load more tickets
+                            </Button>
                         )}
-                    </>
-                )
+                    </Group>
+                </>
             )}
-            <Drawer
-                opened={
-                    !expired &&
-                    (selectedGroup !== undefined ||
-                        (selectedGroupId === 'other' &&
-                            !!data?.otherRequestCount))
-                }
-                onClose={closeGroup}
-                position="right"
-                size="lg"
-                closeButtonProps={{ 'aria-label': 'Close project' }}
-                title={
-                    selectedGroupId === 'other' ? 'Other requests' : 'Project'
-                }
-            >
-                {(selectedGroup || selectedGroupId === 'other') && (
-                    <Stack gap="xl">
-                        <Stack gap="md">
-                            <Title order={3}>
-                                {selectedGroup?.project.title ??
-                                    'Other requests'}
-                            </Title>
-                            {selectedGroup && selectedColumn && (
-                                <Group gap="xs">
-                                    <MantineIcon
-                                        icon={selectedColumn.icon}
-                                        color={selectedColumn.color}
-                                        size="sm"
-                                    />
-                                    <Text fz="sm" c="dimmed">
-                                        {selectedColumn.label}
-                                    </Text>
-                                </Group>
-                            )}
-                            {selectedGroup?.hasDirectNeed && (
-                                <Paper variant="dotted" p="md">
-                                    <Text fz="sm">
-                                        Your organization has requested this
-                                        project.
-                                    </Text>
-                                </Paper>
-                            )}
-                        </Stack>
-                        <Stack gap="sm">
-                            <Group justify="space-between">
-                                <Text fz="sm" fw={500}>
-                                    Your organization's requests
-                                </Text>
-                                <Badge variant="light" size="sm">
-                                    {selectedGroup?.ownRequestCount ??
-                                        data?.otherRequestCount ??
-                                        0}
-                                </Badge>
-                            </Group>
-                            <Text fz="xs" c="dimmed">
-                                Only requests from your organization are shown
-                                here.
-                            </Text>
-                            {selectedGroupId && (
-                                <RequestGroup
-                                    key={`${selectedGroupId}:${debouncedSearch}`}
-                                    groupId={selectedGroupId}
-                                    search={debouncedSearch}
-                                    cacheKey={cacheKey}
-                                    onSelect={setSelected}
-                                />
-                            )}
-                        </Stack>
-                        {showDesignPartnerPreview && selectedGroup && (
-                            <Paper p="md">
-                                <Stack gap="sm">
-                                    <Text fz="sm" fw={500}>
-                                        Help shape this project
-                                    </Text>
-                                    <Text fz="sm" c="dimmed">
-                                        Work with the Lightdash team to share
-                                        feedback and try new capabilities early.
-                                    </Text>
-                                    <Group>
-                                        <Button
-                                            size="sm"
-                                            variant="default"
-                                            onClick={() =>
-                                                setInterestProject(
-                                                    selectedGroup.project
-                                                        .projectId,
-                                                )
-                                            }
-                                        >
-                                            Become a design partner
-                                        </Button>
-                                    </Group>
-                                    {interestProject ===
-                                        selectedGroup.project.projectId && (
-                                        <Text fz="xs" c="dimmed" role="status">
-                                            Preview only — no interest has been
-                                            submitted.
-                                        </Text>
-                                    )}
-                                </Stack>
-                            </Paper>
-                        )}
-                    </Stack>
-                )}
-            </Drawer>
             <RoadmapRequestDetails
-                item={selected}
-                onClose={() => setSelected(null)}
+                item={failed ? null : selectedTicket}
+                onClose={() => setSelectedTicket(null)}
             />
         </Stack>
     );
