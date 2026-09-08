@@ -53,6 +53,7 @@ const app: ApiGetAppResponse['results'] = {
     versions: [readyVersion(3), readyVersion(2), readyVersion(1)],
     hasMore: false,
     latestReadyVersion: 3,
+    icon: null,
 };
 
 const item: DataAppRestoreContextItem = {
