@@ -274,7 +274,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding-top: 10px;
+    padding-top: 6px;
 }
 
 /* The roles as views, Linear's way: one pill per role, the chosen one
@@ -339,71 +339,46 @@
     border-color: var(--lu-secondary);
 }
 
-.iconBadge {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    min-width: 15px;
-    height: 15px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: var(--lu-accent);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 15px;
-    text-align: center;
+/* Under the views, the groups as quiet tabs (All first) on the grid's
+   edge, the Filter button at the row's end. */
+.tabBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: -10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--lu-border);
 }
 
-.filterChips {
+.tabs {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    margin-top: -8px;
+    gap: 2px 12px;
+    margin-right: auto;
 }
 
-.filterChip {
+.tab {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 4px 3px 9px;
-    border: 1px solid var(--lu-border);
-    border-radius: 6px;
-    background: var(--lu-surface);
-    color: var(--lu-ink);
-    font-size: 12px;
-}
-
-.filterChipKey {
-    color: var(--lu-muted);
-}
-
-.filterChipRemove {
-    display: inline-grid;
-    place-items: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 4px;
-    color: var(--lu-muted);
-    cursor: pointer;
-}
-
-.filterChipRemove:hover {
-    background: var(--lu-sunken);
-    color: var(--lu-ink);
-}
-
-.filterClear {
+    padding: 4px 2px;
     font: inherit;
-    font-size: 12px;
+    font-size: 12.5px;
     color: var(--lu-muted);
-    padding: 3px 6px;
+    background: transparent;
     cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 120ms ease;
 }
 
-.filterClear:hover {
+.tab:hover {
     color: var(--lu-ink);
+}
+
+.tabOn {
+    color: var(--lu-ink);
+    font-weight: 600;
+    border-bottom-color: var(--lu-accent);
 }
 
 .focusCard {

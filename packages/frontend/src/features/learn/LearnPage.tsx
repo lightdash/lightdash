@@ -11,7 +11,6 @@ import {
 import {
     IconCheck,
     IconFilter,
-    IconX,
     IconLayoutGrid,
     IconPlayerPlay,
     IconSearch,
@@ -207,14 +206,8 @@ const LearnPage: FC = () => {
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(true);
     const [showSoon, setShowSoon] = useState(true);
-    // The groups chosen in the Filter menu; none chosen means every group.
-    const [selectedGroups, setSelectedGroups] = useState<LearnGroup[]>([]);
-    const toggleGroup = (group: LearnGroup) =>
-        setSelectedGroups((current) =>
-            current.includes(group)
-                ? current.filter((candidate) => candidate !== group)
-                : [...current, group],
-        );
+    // One group tab, or All.
+    const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -233,9 +226,9 @@ const LearnPage: FC = () => {
     // A chip narrows the page to one group; the chips themselves always
     // list every group with a match, so the way back is a click away.
     const shownGroups =
-        selectedGroups.length === 0
+        groupFilter === null
             ? groups
-            : groups.filter((group) => selectedGroups.includes(group));
+            : groups.filter((group) => group === groupFilter);
     const available = catalogue.filter((m) => m.available);
     const doneCount = available.filter((m) =>
         completed.includes(m.scope),
@@ -377,6 +370,43 @@ const LearnPage: FC = () => {
                     >
                         {doneCount} of {available.length} complete
                     </span>
+                </Box>
+                <Box className={styles.tabBar}>
+                    <Box
+                        component="nav"
+                        className={styles.tabs}
+                        aria-label="Library groups"
+                    >
+                        <UnstyledButton
+                            type="button"
+                            className={`${styles.tab} ${
+                                groupFilter === null ? styles.tabOn : ''
+                            }`}
+                            aria-pressed={groupFilter === null}
+                            onClick={() => setGroupFilter(null)}
+                        >
+                            All
+                        </UnstyledButton>
+                        {groups.map((group) => (
+                            <UnstyledButton
+                                key={group}
+                                type="button"
+                                className={`${styles.tab} ${
+                                    groupFilter === group ? styles.tabOn : ''
+                                }`}
+                                style={groupVars(group)}
+                                aria-pressed={groupFilter === group}
+                                data-learn-chip={group}
+                                onClick={() => setGroupFilter(group)}
+                            >
+                                <span
+                                    className={styles.chipSwatch}
+                                    aria-hidden
+                                />
+                                {GROUP_LABELS[group]}
+                            </UnstyledButton>
+                        ))}
+                    </Box>
                     <Menu
                         position="bottom-end"
                         withinPortal
@@ -387,7 +417,7 @@ const LearnPage: FC = () => {
                                 <UnstyledButton
                                     type="button"
                                     className={`${styles.iconButton} ${
-                                        selectedGroups.length > 0
+                                        !showExtra || !showSoon
                                             ? styles.iconButtonOn
                                             : ''
                                     }`}
@@ -396,45 +426,10 @@ const LearnPage: FC = () => {
                                     data-learn-filter
                                 >
                                     <MantineIcon icon={IconFilter} size={15} />
-                                    {selectedGroups.length > 0 && (
-                                        <span className={styles.iconBadge}>
-                                            {selectedGroups.length}
-                                        </span>
-                                    )}
                                 </UnstyledButton>
                             </Tooltip>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Label>Group</Menu.Label>
-                            {groups.map((group) => {
-                                const on = selectedGroups.includes(group);
-                                return (
-                                    <Menu.Item
-                                        key={group}
-                                        onClick={() => toggleGroup(group)}
-                                        leftSection={
-                                            <span
-                                                className={styles.chipSwatch}
-                                                style={groupVars(group)}
-                                                aria-hidden
-                                            />
-                                        }
-                                        rightSection={
-                                            on ? (
-                                                <MantineIcon
-                                                    icon={IconCheck}
-                                                    size={13}
-                                                />
-                                            ) : null
-                                        }
-                                        aria-checked={on}
-                                        data-learn-filter-group={group}
-                                    >
-                                        {GROUP_LABELS[group]}
-                                    </Menu.Item>
-                                );
-                            })}
-                            <Menu.Divider />
                             <Menu.Label>Show</Menu.Label>
                             <Menu.Item
                                 onClick={() => setShowExtra(!showExtra)}
@@ -469,45 +464,6 @@ const LearnPage: FC = () => {
                         </Menu.Dropdown>
                     </Menu>
                 </Box>
-                {selectedGroups.length > 0 && (
-                    <Box
-                        className={styles.filterChips}
-                        aria-label="Active filters"
-                    >
-                        {selectedGroups.map((group) => (
-                            <span
-                                key={group}
-                                className={styles.filterChip}
-                                style={groupVars(group)}
-                                data-learn-chip={group}
-                            >
-                                <span className={styles.filterChipKey}>
-                                    Group is
-                                </span>
-                                <span
-                                    className={styles.chipSwatch}
-                                    aria-hidden
-                                />
-                                {GROUP_LABELS[group]}
-                                <UnstyledButton
-                                    type="button"
-                                    className={styles.filterChipRemove}
-                                    aria-label={`Remove ${GROUP_LABELS[group]} filter`}
-                                    onClick={() => toggleGroup(group)}
-                                >
-                                    <MantineIcon icon={IconX} size={12} />
-                                </UnstyledButton>
-                            </span>
-                        ))}
-                        <UnstyledButton
-                            type="button"
-                            className={styles.filterClear}
-                            onClick={() => setSelectedGroups([])}
-                        >
-                            Clear
-                        </UnstyledButton>
-                    </Box>
-                )}
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
