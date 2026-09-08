@@ -10,7 +10,6 @@ import {
     Radio,
     ScrollArea,
     Stack,
-    Switch,
     Text,
     TextInput,
     Tooltip,
@@ -39,7 +38,7 @@ export type FilterFacetGroup = {
     options: FilterFacetOption[];
 };
 
-export type FilterFacetMode = 'multi' | 'single' | 'switch';
+export type FilterFacetMode = 'multi' | 'single';
 
 export type FilterFacetProps = {
     label: string;
@@ -181,20 +180,6 @@ const FilterFacet = ({
     const renderOption = (option: FilterFacetOption) => {
         const isChecked = selectedSet.has(option.value);
         const disabled = option.disabled === true;
-        if (mode === 'switch') {
-            return (
-                <Box key={option.value} px="xs" py={6}>
-                    <Switch
-                        size="xs"
-                        role="switch"
-                        label={option.label}
-                        checked={isChecked}
-                        disabled={disabled}
-                        onChange={() => toggle(option.value, disabled)}
-                    />
-                </Box>
-            );
-        }
         return (
             <UnstyledButton
                 key={option.value}

@@ -142,9 +142,22 @@ describe('Project roadmap', () => {
             screen.getByRole('region', { name: 'Done roadmap items' }),
         ).toContainElement(completed);
         fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
-        fireEvent.click(
-            screen.getByRole('switch', { name: 'Only our interests' }),
-        );
+        expect(
+            within(screen.getByRole('button', { name: 'All' })).getByRole(
+                'radio',
+            ),
+        ).toBeChecked();
+        fireEvent.click(screen.getByRole('button', { name: 'Following' }));
+        expect(
+            within(screen.getByRole('button', { name: 'Following' })).getByRole(
+                'radio',
+            ),
+        ).toBeChecked();
+        expect(
+            within(screen.getByRole('button', { name: 'All' })).getByRole(
+                'radio',
+            ),
+        ).not.toBeChecked();
         fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         await waitFor(() =>
             expect(
@@ -171,9 +184,7 @@ describe('Project roadmap', () => {
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         expect(screen.getByRole('table')).toHaveTextContent('Interested');
         fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
-        fireEvent.click(
-            screen.getByRole('switch', { name: 'Only our interests' }),
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'All' }));
         fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         await screen.findByRole('button', {
             name: 'Open Instant dashboard previews',

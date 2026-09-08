@@ -699,17 +699,21 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         <FilterFacet
                             label="Interest"
                             icon={IconEye}
-                            mode="switch"
-                            selected={onlyInterested ? ['interested'] : []}
+                            mode="single"
+                            selected={onlyInterested ? ['following'] : ['all']}
                             onChange={(selected) =>
                                 setOnlyInterested(
-                                    selected.includes('interested'),
+                                    selected.includes('following'),
                                 )
                             }
                             options={[
                                 {
-                                    value: 'interested',
-                                    label: 'Only our interests',
+                                    value: 'following',
+                                    label: 'Following',
+                                },
+                                {
+                                    value: 'all',
+                                    label: 'All',
                                 },
                             ]}
                             tooltipLabel="Filter by your organization’s interests"
