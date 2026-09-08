@@ -144,6 +144,7 @@
         "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50",
         "dev:chart-registry": "tsx scripts/dev-chart-registry.mjs",
         "scope-tours:generate": "tsx scripts/scope-tours/generate.ts && pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts",
+        "scope-tours:order": "tsx scripts/scope-tours/order.ts && pnpm -F frontend run formatter -- src/features/scopeTours/curriculum.ts",
         "scope-tours:check": "tsx scripts/scope-tours/check.ts",
         "scope-tours:suggest": "tsx scripts/scope-tours/suggest.ts",
         "scope-tours:smoke": "tsx scripts/scope-tours/smoke.ts"

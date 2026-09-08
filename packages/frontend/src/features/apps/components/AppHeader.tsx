@@ -56,9 +56,12 @@ const appInSpaceTourProps = {
     'data-tour-step': '1',
     'data-tour-route': '/projects/:projectUuid/apps/:appUuid',
     'data-tour-label': 'Your app is in a space now',
-    'data-tour-docs': 'data-apps.mdx#intro:1',
+    // Cite the sharing section, not the page's opening: this walkthrough is
+    // about getting an app in front of the team, and the opening card takes
+    // its title from the docs heading it cites.
+    'data-tour-docs': 'data-apps.mdx#sharing-an-app:1',
     'data-tour-return': 'none',
-    'data-tour-resultdocs': 'data-apps.mdx#sharing-an-app:1-3',
+    'data-tour-resultdocs': 'data-apps.mdx#sharing-an-app:2-3',
 };
 
 const AppHeader: FC<Props> = ({ projectUuid, app, rightSection }) => {

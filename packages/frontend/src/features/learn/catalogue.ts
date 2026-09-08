@@ -5,6 +5,7 @@ import {
     ProjectMemberRole,
     ScopeGroup,
 } from '@lightdash/common';
+import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 
 /**
@@ -175,12 +176,23 @@ export const buildLearnCatalogue = (): LearnModule[] => {
             .sort(
                 (a, b) =>
                     Number(b.available) - Number(a.available) ||
+                    taughtAt(a) - taughtAt(b) ||
                     a.title.localeCompare(b.title),
             )
     );
 };
 
-/** Available first, then modules the role holds, then by title. */
+/**
+ * Where a module sits in the teaching order the docs imply
+ * (scripts/scope-tours/order.ts). A module the order does not name, because
+ * no walkthrough exists for it yet, sorts after every one that it does.
+ */
+const taughtAt = (module: LearnModule): number => {
+    const at = CURRICULUM.indexOf(module.scope);
+    return at < 0 ? CURRICULUM.length : at;
+};
+
+/** Available first, then modules the role holds, then in teaching order. */
 export const sortForRole = (
     role: ProjectMemberRole,
     modules: LearnModule[],
@@ -189,6 +201,7 @@ export const sortForRole = (
         (a, b) =>
             Number(b.available) - Number(a.available) ||
             Number(roleHolds(role, b)) - Number(roleHolds(role, a)) ||
+            taughtAt(a) - taughtAt(b) ||
             a.title.localeCompare(b.title),
     );
 

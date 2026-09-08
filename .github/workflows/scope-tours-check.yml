@@ -45,6 +45,12 @@ jobs:
                   pnpm scope-tours:generate
                   pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts
                   git diff --exit-code -- packages/frontend/src/features/scopeTours/generated.ts
+            - name: The teaching order is up to date
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  pnpm scope-tours:order
+                  git diff --exit-code -- packages/frontend/src/features/scopeTours/curriculum.ts
             - name: Generation checks
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
