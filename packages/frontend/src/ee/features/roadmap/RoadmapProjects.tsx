@@ -62,7 +62,7 @@ import {
 const columns = [
     {
         id: 'planned',
-        label: 'Planned',
+        label: 'Backlog',
         icon: IconCircleDashed,
         color: 'dimmed',
     },
