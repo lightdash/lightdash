@@ -428,7 +428,6 @@ const LearnPage: FC = () => {
                                             ) : null
                                         }
                                         aria-checked={on}
-                                        role="menuitemcheckbox"
                                         data-learn-filter-group={group}
                                     >
                                         {GROUP_LABELS[group]}
@@ -448,7 +447,6 @@ const LearnPage: FC = () => {
                                     ) : null
                                 }
                                 aria-checked={showExtra}
-                                role="menuitemcheckbox"
                                 aria-label="Show extra modules"
                             >
                                 Extra modules
@@ -464,7 +462,6 @@ const LearnPage: FC = () => {
                                     ) : null
                                 }
                                 aria-checked={showSoon}
-                                role="menuitemcheckbox"
                                 aria-label="Coming soon"
                             >
                                 Coming soon
