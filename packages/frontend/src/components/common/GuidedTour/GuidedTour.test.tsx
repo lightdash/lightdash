@@ -126,14 +126,23 @@ describe('GuidedTour', () => {
 
             expect(screen.queryByText('Step two')).not.toBeInTheDocument();
 
+            // Not straight away: a control that renders a beat late must not
+            // flash a centred card first.
             await act(async () => {
-                await vi.advanceTimersByTimeAsync(16_000);
+                await vi.advanceTimersByTimeAsync(3_000);
             });
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
 
+            // Well before the 15 s path patience: the learner needs to see
+            // the tour is alive long before that.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(2_000);
+            });
             expect(screen.getByText('Step two')).toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Skip' }),
             ).toBeInTheDocument();
+            expect(screen.getByText(/Still waiting/)).toBeInTheDocument();
         } finally {
             vi.useRealTimers();
         }

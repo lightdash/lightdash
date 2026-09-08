@@ -122,6 +122,13 @@ const CARD_EXPAND_MS = 280;
 const FALLBACK_GRACE_MS = 1500;
 /** How long a step waits for a control that has not appeared yet. */
 const TARGET_PATIENCE_MS = 15000;
+/**
+ * How long the beacon waits alone before the card comes back. Shorter than
+ * the patience above on purpose: a card returning early costs nothing (it
+ * re-anchors the moment the control appears), while a beacon alone for
+ * long reads as a page that has died.
+ */
+const CARD_RETURN_MS = 4000;
 /** A typed-input step counts as done after this many characters and a pause. */
 const MIN_INPUT_CHARS = 3;
 const INPUT_SETTLE_MS = 900;
@@ -679,15 +686,21 @@ export const GuidedTour: FC<GuidedTourProps> = ({
 
     // A control that never arrives (a screen this instance does not have)
     // would otherwise hide the card for good, leaving the page blocked with
-    // no way out but a new tab. Once patience runs out the card comes back,
-    // centred, so Skip is always within reach; the beacon keeps waiting and
-    // the card still opens at the control if it turns up.
+    // no way out but a new tab. After a short wait the card comes back,
+    // centred, saying it is still waiting, so Skip is always within reach;
+    // the beacon keeps waiting and the card still opens at the control if
+    // it turns up.
+    const [cardReturned, setCardReturned] = useState(false);
     useEffect(() => {
-        if (!waiting) return undefined;
+        if (!waiting) {
+            setCardReturned(false);
+            return undefined;
+        }
         const timeout = window.setTimeout(() => {
             setCardRect(null);
             setCardPhase('shown');
-        }, TARGET_PATIENCE_MS);
+            setCardReturned(true);
+        }, CARD_RETURN_MS);
         return () => window.clearTimeout(timeout);
     }, [waiting]);
 
@@ -921,6 +934,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         <Box fz="sm" c="dimmed">
                             {shownStep.body}
                         </Box>
+                    )}
+                    {cardReturned && waiting && (
+                        <Text fz="xs" c="dimmed" data-tour-card-waiting>
+                            Still waiting for the page to show the next control.
+                            You can skip if it does not appear.
+                        </Text>
                     )}
                 </Stack>
                 <Group justify="space-between" align="center">
