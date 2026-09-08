@@ -23,6 +23,8 @@ Lightdash is the Agentic BI platform for teams that want analytics to move like 
 
 Data teams can build and maintain analytics with any AI agent, then use the terminal, pull requests, and CI to preview, validate, and ship changes. Business users can ask questions in plain English, explore dashboards, or create custom data apps without bypassing governance.
 
+Lightdash documentation is maintained alongside the product in this repository.
+
 ## Start with Cloud
 
 The fastest way to use Lightdash is [Lightdash Cloud](https://www.lightdash.com/start): no infrastructure to run, always up to date, and ready for AI agents, Data Apps, scheduled deliveries, embedding, and enterprise controls.
