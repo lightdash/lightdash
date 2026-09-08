@@ -28,6 +28,7 @@ const createRequest = (body: Record<string, string>) =>
 
 const createGrant = ({
     exchangeIdToken = vi.fn(async () => sessionUser),
+    recordSignInAllowed = vi.fn(),
     saveToken = vi.fn(async (token, tokenClient, user) => ({
         ...token,
         client: tokenClient,
@@ -36,11 +37,13 @@ const createGrant = ({
     validateScope,
 }: {
     exchangeIdToken?: ManagedSignInService['exchangeIdToken'];
+    recordSignInAllowed?: ManagedSignInService['recordSignInAllowed'];
     saveToken?: OAuth2Server.AuthorizationCodeModel['saveToken'];
     validateScope?: OAuth2Server.AuthorizationCodeModel['validateScope'];
 } = {}) => {
     const managedSignInService = {
         exchangeIdToken,
+        recordSignInAllowed,
     } as unknown as ManagedSignInService;
     const GrantType = createMicrosoftTokenExchangeGrantType(
         () => managedSignInService,
@@ -54,7 +57,7 @@ const createGrant = ({
         refreshTokenLifetime: 7200,
         model,
     } as unknown as OAuth2Server.TokenOptions);
-    return { grant, exchangeIdToken, saveToken };
+    return { grant, exchangeIdToken, saveToken, recordSignInAllowed };
 };
 
 const validBody = {
@@ -84,6 +87,76 @@ describe('MicrosoftTokenExchangeGrantType', () => {
             client,
             sessionUser,
         );
+    });
+
+    it('records the allowed audit event only after the tokens are saved', async () => {
+        const order: string[] = [];
+        const { grant, recordSignInAllowed } = createGrant({
+            saveToken: vi.fn(async (token, tokenClient, user) => {
+                order.push('saveToken');
+                return { ...token, client: tokenClient, user };
+            }) as unknown as OAuth2Server.AuthorizationCodeModel['saveToken'],
+            recordSignInAllowed: vi.fn(() => {
+                order.push('audit');
+            }) as unknown as ManagedSignInService['recordSignInAllowed'],
+        });
+
+        await grant.handle(createRequest(validBody), client);
+
+        expect(order).toEqual(['saveToken', 'audit']);
+        expect(vi.mocked(recordSignInAllowed)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(recordSignInAllowed)).toHaveBeenCalledWith(
+            sessionUser,
+            { ip: undefined, userAgent: undefined },
+        );
+    });
+
+    it('records no allowed audit event when the exchange refuses', async () => {
+        const { grant, recordSignInAllowed } = createGrant({
+            exchangeIdToken: vi.fn(async () => {
+                throw new ManagedSignInRejection(
+                    ManagedSignInError.USER_NOT_ALLOWED,
+                    'user does not belong to the tenant organization',
+                );
+            }) as unknown as ManagedSignInService['exchangeIdToken'],
+        });
+
+        await expect(
+            grant.handle(createRequest(validBody), client),
+        ).rejects.toMatchObject({ name: 'invalid_grant' });
+        expect(vi.mocked(recordSignInAllowed)).not.toHaveBeenCalled();
+    });
+
+    it('records no allowed audit event when the token was replayed', async () => {
+        const { grant, recordSignInAllowed } = createGrant({
+            exchangeIdToken: vi.fn(async () => {
+                throw new ManagedSignInRejection(
+                    ManagedSignInError.TOKEN_REPLAYED,
+                    'token hash is already recorded',
+                );
+            }) as unknown as ManagedSignInService['exchangeIdToken'],
+        });
+
+        await expect(
+            grant.handle(createRequest(validBody), client),
+        ).rejects.toMatchObject({
+            name: 'invalid_grant',
+            message: ManagedSignInError.TOKEN_REPLAYED,
+        });
+        expect(vi.mocked(recordSignInAllowed)).not.toHaveBeenCalled();
+    });
+
+    it('records no allowed audit event when saving the token fails', async () => {
+        const { grant, recordSignInAllowed } = createGrant({
+            saveToken: vi.fn(
+                async () => undefined,
+            ) as unknown as OAuth2Server.AuthorizationCodeModel['saveToken'],
+        });
+
+        await expect(
+            grant.handle(createRequest(validBody), client),
+        ).rejects.toMatchObject({ name: 'invalid_grant' });
+        expect(vi.mocked(recordSignInAllowed)).not.toHaveBeenCalled();
     });
 
     it('rejects a missing subject token', async () => {

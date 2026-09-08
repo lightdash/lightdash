@@ -3693,6 +3693,49 @@ describe('UserService', () => {
     });
 
     describe('loginWithOpenId', () => {
+        const allowedLoginEvents = () =>
+            auditLogSpy.mock.calls.filter(
+                ([event]) =>
+                    (event as { action?: string; status?: string }).action ===
+                        'login' &&
+                    (event as { action?: string; status?: string }).status ===
+                        'allowed',
+            );
+
+        test('records the allowed audit event for browser sign-in', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                undefined,
+            );
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(allowedLoginEvents()).toHaveLength(1);
+        });
+
+        test('defers the allowed audit event when the caller commits it', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                undefined,
+            );
+
+            const user = await userService.loginWithOpenId(
+                openIdUser,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                { deferSuccessAudit: true },
+            );
+
+            expect(allowedLoginEvents()).toHaveLength(0);
+
+            userService.recordOpenIdLoginAllowed(
+                user,
+                OpenIdIdentityIssuerType.AZUREAD,
+            );
+
+            expect(allowedLoginEvents()).toHaveLength(1);
+        });
+
         test('should throw error if provider not allowed', async () => {
             await expect(
                 userService.loginWithOpenId(

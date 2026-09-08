@@ -205,6 +205,7 @@ type LoginWithOpenIdOptions = {
         tenantId: string;
         organizationUuid: string | null;
     };
+    deferSuccessAudit?: boolean;
 };
 
 const emitAuthAuditEvent = ({
@@ -969,6 +970,22 @@ export class UserService extends BaseService {
         }
     }
 
+    recordOpenIdLoginAllowed(
+        user: SessionUser,
+        issuerType: OpenIdIdentityIssuerType,
+        context?: AuthAuditContext,
+    ) {
+        emitAuthAuditEvent({
+            actor: createActorFromUser(user),
+            action: 'login',
+            resourceType: 'Session',
+            status: 'allowed',
+            organizationUuid: user.organizationUuid,
+            metadata: { loginProvider: issuerType },
+            context,
+        });
+    }
+
     async loginWithOpenId(
         openIdUser: OpenIdUser,
         authenticatedUser: SessionUser | undefined,
@@ -993,15 +1010,13 @@ export class UserService extends BaseService {
                 refreshToken,
                 options,
             );
-            emitAuthAuditEvent({
-                actor: createActorFromUser(loggedInUser),
-                action: 'login',
-                resourceType: 'Session',
-                status: 'allowed',
-                organizationUuid: loggedInUser.organizationUuid,
-                metadata: { loginProvider: openIdUser.openId.issuerType },
-                context,
-            });
+            if (!options?.deferSuccessAudit) {
+                this.recordOpenIdLoginAllowed(
+                    loggedInUser,
+                    openIdUser.openId.issuerType,
+                    context,
+                );
+            }
             return loggedInUser;
         } catch (e) {
             emitAuthAuditEvent({

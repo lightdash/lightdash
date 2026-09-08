@@ -222,6 +222,7 @@ describe('ManagedSignInService', () => {
                         tenantId: TENANT_ID,
                         organizationUuid: null,
                     },
+                    deferSuccessAudit: true,
                 },
             );
         });
@@ -438,6 +439,7 @@ describe('ManagedSignInService', () => {
                         tenantId: TENANT_ID,
                         organizationUuid: ORGANIZATION_UUID,
                     },
+                    deferSuccessAudit: true,
                 },
             );
         });
