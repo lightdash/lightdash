@@ -1,3 +1,10 @@
+## [2.163.2](https://github.com/lightdash/lightdash/compare/2.163.1...2.163.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **cli:** align chart type scaffolding with upload paths ([#28859](https://github.com/lightdash/lightdash/issues/28859)) ([063704e](https://github.com/lightdash/lightdash/commit/063704e632e687fd93c3698098efcb5f6dd8b101))
+
 ## [2.163.1](https://github.com/lightdash/lightdash/compare/2.163.0...2.163.1) (2026-09-08)
 
 
