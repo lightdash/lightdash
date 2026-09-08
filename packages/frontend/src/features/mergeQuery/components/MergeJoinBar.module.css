@@ -135,7 +135,14 @@
     transform: scale(0.98);
 }
 
+.joinTypeOption {
+    justify-content: center;
+    align-items: center;
+    padding: 6px;
+}
+
 .joinTypeDiagram {
+    display: block;
     width: 36px;
     height: 21px;
     flex: none;
@@ -192,12 +199,14 @@
 }
 
 .note {
-    display: flex;
-    gap: 6px;
-    align-items: flex-start;
+    align-items: center;
 }
 
 .noteIcon {
     flex: none;
-    margin-top: 2px;
+}
+
+.noteText {
+    flex: 1;
+    min-width: 0;
 }
