@@ -102,7 +102,7 @@ function buildService() {
         getLatestReadyVersion: vi.fn().mockResolvedValue(sourceVersion),
         getLatestVersion: vi.fn().mockResolvedValue({ version: 6 }),
         createWithVersion: vi.fn().mockResolvedValue({
-            app: { app_id: 'new-app-uuid' },
+            app: { app_id: 'new-app-uuid', slug: 'duplicated-chart-type' },
             version: { version: 1 },
         }),
         createVersion: vi.fn().mockResolvedValue({ version: 7 }),
