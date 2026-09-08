@@ -80,6 +80,26 @@ describe('embed scope abilities', () => {
         expect(ability.can('manage', 'Organization')).toBe(false);
     });
 
+    it('grants embedded AI access without granting regular-app AI access', () => {
+        const ability = projectScopes(customAbility(['EmbedAiAgent']), {
+            content: { type: 'aiAgent', agentUuid: 'agent' },
+            writeActions,
+        });
+        const target = {
+            projectUuid: embed.projectUuid,
+            organizationUuid: embed.organization.organizationUuid,
+        };
+        expect(
+            ability.can('view', subject('EmbedAiAgent', { ...target })),
+        ).toBe(true);
+        expect(ability.can('view', subject('AiAgent', { ...target }))).toBe(
+            false,
+        );
+        expect(
+            ability.can('create', subject('AiAgentThread', { ...target })),
+        ).toBe(false);
+    });
+
     it.each([
         { projectUuid: 'another-project' },
         { organizationUuid: 'another-org' },

@@ -2825,7 +2825,14 @@ export class EmbedService extends BaseService {
             const canUseAiAgent =
                 decodedToken.content.type === 'aiAgent' &&
                 canCreateSavedChart &&
-                canViewProject;
+                canViewProject &&
+                auditedAbility.can(
+                    'view',
+                    subject('EmbedAiAgent', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                );
 
             return {
                 canUpdateDashboard,
@@ -2880,7 +2887,7 @@ export class EmbedService extends BaseService {
             return 'Embed token write actor cannot view the embedded project';
         }
 
-        return 'Embed token does not allow AI agent actions';
+        return 'Embed token write actor cannot use embedded AI agents';
     }
 
     private async getEmbedWriteUser(

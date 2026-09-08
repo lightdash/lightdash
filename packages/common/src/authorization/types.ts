@@ -23,6 +23,7 @@ export const VIEWER_EMBED_SUBJECTS = [
 ] as const satisfies readonly CaslSubjectNames[];
 
 export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
+    'EmbedAiAgent',
     'EmbedExplore',
     'EmbedUnderlyingData',
     'EmbedDataApps',
@@ -58,6 +59,7 @@ export type CaslSubjectNames =
     | 'DeployProject'
     | 'DashboardComments'
     | 'DeletedContent'
+    | 'EmbedAiAgent'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'
     | 'EmbedDashboardParameters'

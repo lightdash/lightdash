@@ -88,6 +88,7 @@ const BASE_ROLE_SCOPES = {
         'view:EmbedExplore',
         'view:EmbedUnderlyingData',
         'view:EmbedDataApps',
+        'view:EmbedAiAgent',
     ],
 
     [ProjectMemberRole.EDITOR]: [
