@@ -182,7 +182,6 @@ const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
 // Required keeps newly added server options from silently escaping the matrix.
 const disabledMcpOptions: Required<McpServerToolOptions> = {
     projectPinned: false,
-    aiWritebackEnabled: false,
     mcpContentWritesEnabled: false,
     scheduledDeliveryEnabled: false,
     runSqlEnabled: false,
@@ -314,7 +313,7 @@ describe('MCP tool contracts', () => {
     });
 
     it.each(mcpOptionCombinations)(
-        'guards MCP text lengths: pinned=$projectPinned writeback=$aiWritebackEnabled content=$mcpContentWritesEnabled scheduled=$scheduledDeliveryEnabled sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        'guards MCP text lengths: pinned=$projectPinned content=$mcpContentWritesEnabled scheduled=$scheduledDeliveryEnabled sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
         async (options) => {
             const configuration = JSON.stringify(options);
             const mcpService = makeMcpService();
@@ -396,7 +395,6 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
         await mcpService.createServer({
-            aiWritebackEnabled: true,
             runSqlEnabled: true,
             runMetricQueryEnabled: true,
         });
@@ -437,7 +435,6 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer({
-            aiWritebackEnabled: true,
             runSqlEnabled: false,
             runMetricQueryEnabled: false,
         });
@@ -459,7 +456,6 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer({
-            aiWritebackEnabled: true,
             runSqlEnabled: true,
             runMetricQueryEnabled: false,
         });
@@ -548,7 +544,6 @@ describe('MCP tool contracts', () => {
         const mcpService = makeMcpService();
 
         await mcpService.createServer({
-            aiWritebackEnabled: true,
             runSqlEnabled: true,
         });
 

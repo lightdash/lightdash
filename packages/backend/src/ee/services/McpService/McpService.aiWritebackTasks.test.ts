@@ -168,11 +168,11 @@ const runSnapshot = (overrides: Record<string, unknown> = {}) => ({
 const createServerWithWriteback = async (
     aiWritebackService: Record<string, unknown>,
 ) => {
+    const mcpService = makeMcpService({ aiWritebackService });
     mockRegisteredMcpTools.clear();
     mockRegisteredRequestHandlers.clear();
     mockRegisterCapabilities.mockClear();
-    const mcpService = makeMcpService({ aiWritebackService });
-    await mcpService.createServer({ aiWritebackEnabled: true });
+    await mcpService.createServer();
 };
 
 describe('McpService AI writeback MCP tasks', () => {
@@ -193,12 +193,27 @@ describe('McpService AI writeback MCP tasks', () => {
             );
         });
 
-        it('does not register task handlers when writeback is disabled', async () => {
-            mockRegisteredRequestHandlers.clear();
+        it('registers writeback tools without optional query or content capabilities', async () => {
             const mcpService = makeMcpService({ aiWritebackService: {} });
-            await mcpService.createServer({ aiWritebackEnabled: false });
+            mockRegisteredMcpTools.clear();
+            mockRegisteredRequestHandlers.clear();
+            await mcpService.createServer({
+                projectPinned: true,
+                runSqlEnabled: false,
+                runMetricQueryEnabled: false,
+                mcpContentWritesEnabled: false,
+                scheduledDeliveryEnabled: false,
+            });
 
-            expect(mockRegisteredRequestHandlers.size).toBe(0);
+            expect(
+                mockRegisteredMcpTools.has(McpToolName.RUN_AI_WRITEBACK),
+            ).toBe(true);
+            expect(
+                mockRegisteredMcpTools.has(McpToolName.GET_AI_WRITEBACK_STATUS),
+            ).toBe(true);
+            expect([...mockRegisteredRequestHandlers.keys()]).toEqual(
+                expect.arrayContaining(['tasks/get', 'tasks/cancel']),
+            );
         });
     });
 

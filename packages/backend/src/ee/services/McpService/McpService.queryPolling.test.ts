@@ -36,6 +36,10 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
             return {
+                server: {
+                    registerCapabilities: vi.fn(),
+                    setRequestHandler: vi.fn(),
+                },
                 registerResource: vi.fn(),
                 registerPrompt: vi.fn(),
                 registerTool: vi.fn(
@@ -602,7 +606,6 @@ const makeMcpService = ({
     mockRegisteredMcpToolInputSchemas.clear();
     service.setupHandlers({
         projectPinned: false,
-        aiWritebackEnabled: false,
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
         runSqlEnabled: true,

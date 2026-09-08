@@ -459,7 +459,6 @@ const getMcpContext = (
 
 export type McpServerToolOptions = {
     projectPinned?: boolean;
-    aiWritebackEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     scheduledDeliveryEnabled?: boolean;
     runSqlEnabled?: boolean;
@@ -1927,7 +1926,6 @@ export class McpService extends BaseService {
     setupHandlers(
         options: {
             projectPinned: boolean;
-            aiWritebackEnabled: boolean;
             mcpContentWritesEnabled: boolean;
             scheduledDeliveryEnabled: boolean;
             runSqlEnabled: boolean;
@@ -1935,7 +1933,6 @@ export class McpService extends BaseService {
             filterExpressionsEnabled: boolean;
         } = {
             projectPinned: false,
-            aiWritebackEnabled: false,
             mcpContentWritesEnabled: true,
             scheduledDeliveryEnabled: true,
             runSqlEnabled: false,
@@ -3627,16 +3624,9 @@ export class McpService extends BaseService {
 
         this.registerSkillToolHandlers();
 
-        // Dark-launched: this tool is only registered — and therefore only
-        // advertised in tools/list and invocable — when the AiWriteback
-        // feature flag is enabled for the caller. Clients without the flag
-        // never see it. The flag is resolved per-request in the MCP router
-        // (mcpRouter.ts) and passed through createServer.
-        if (options.aiWritebackEnabled) {
-            this.registerRunAiWritebackTool();
-            this.registerGetAiWritebackStatusTool();
-            this.registerAiWritebackTaskHandlers();
-        }
+        this.registerRunAiWritebackTool();
+        this.registerGetAiWritebackStatusTool();
+        this.registerAiWritebackTaskHandlers();
 
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
@@ -4066,7 +4056,6 @@ export class McpService extends BaseService {
         this.mcpServer = newServer;
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
-            aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
             scheduledDeliveryEnabled: options?.scheduledDeliveryEnabled ?? true,
             runSqlEnabled: options?.runSqlEnabled ?? false,
