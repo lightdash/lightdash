@@ -1,7 +1,10 @@
+import { Popover } from '@mantine/core';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
+import MantineModal from '../MantineModal';
 import { GuidedTour, type GuidedTourStep } from './GuidedTour';
 
 const steps: GuidedTourStep[] = [
@@ -233,5 +236,117 @@ describe('GuidedTour', () => {
                 host.remove();
             }
         });
+    });
+});
+
+/** A menu the learner opened on a step, as that step would leave it. */
+const OpenMenu: FC = () => (
+    <Popover defaultOpened>
+        <Popover.Target>
+            <button type="button">Categories</button>
+        </Popover.Target>
+        <Popover.Dropdown>
+            <button type="button" data-in-menu>
+                Sales
+            </button>
+        </Popover.Dropdown>
+    </Popover>
+);
+
+// A menu a step opens survives the clicks that move the walkthrough on (the
+// tour swallows the press that would close it), so the tour puts it away
+// itself once it points somewhere else.
+describe('GuidedTour and the menus a step opens', () => {
+    it('closes a menu the step does not point into', async () => {
+        renderWithProviders(
+            <>
+                <div data-on-page>The metrics table</div>
+                <OpenMenu />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-on-page]',
+                            title: 'See the result',
+                            body: '',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+
+        await waitFor(() =>
+            expect(screen.queryByText('Sales')).not.toBeInTheDocument(),
+        );
+    });
+
+    it('leaves open the menu the step points into', async () => {
+        renderWithProviders(
+            <>
+                <OpenMenu />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-in-menu]',
+                            title: 'Choose Sales',
+                            body: '',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+
+        await screen.findByText('Choose Sales');
+        expect(screen.getByText('Sales')).toBeInTheDocument();
+    });
+
+    it('closes an open menu when the walkthrough ends', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <>
+                <OpenMenu />
+                <GuidedTour
+                    steps={[
+                        {
+                            target: '[data-in-menu]',
+                            title: 'Choose Sales',
+                            body: '',
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+
+        expect(screen.getByText('Sales')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        await waitFor(() =>
+            expect(screen.queryByText('Sales')).not.toBeInTheDocument(),
+        );
+    });
+
+    // Only menus: a dialog a step opened is part of what the walkthrough is
+    // teaching, and the host shows the completion dialog over it.
+    it('leaves an open dialog alone', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <>
+                <MantineModal opened onClose={vi.fn()} title="Save chart">
+                    <div>Chart name</div>
+                </MantineModal>
+                <GuidedTour
+                    steps={[{ target: null, title: 'Step one', body: '' }]}
+                    opened
+                    onClose={vi.fn()}
+                />
+            </>,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(screen.getByText('Chart name')).toBeInTheDocument();
     });
 });
