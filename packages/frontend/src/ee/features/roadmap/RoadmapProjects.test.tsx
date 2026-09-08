@@ -8,6 +8,7 @@ import {
     waitFor,
     within,
 } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { RoadmapApiContext } from './roadmapApi';
 import { createRoadmapMockApi } from './roadmapMockApi';
 import { RoadmapProjects } from './RoadmapProjects';
@@ -30,7 +31,9 @@ function setup(
         <MantineProvider env="test">
             <QueryClientProvider client={client}>
                 <RoadmapApiContext.Provider value={api}>
-                    <RoadmapProjects cacheKey="test" />
+                    <MemoryRouter>
+                        <RoadmapProjects cacheKey="test" />
+                    </MemoryRouter>
                 </RoadmapApiContext.Provider>
             </QueryClientProvider>
         </MantineProvider>,
@@ -88,9 +91,7 @@ describe('Project roadmap', () => {
         expect(
             screen.queryByText('Export tables with their number formatting'),
         ).not.toBeInTheDocument();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Back to roadmap' }),
-        );
+        fireEvent.click(screen.getByRole('link', { name: 'Roadmap' }));
         await screen.findByRole('button', {
             name: 'Open ticket Export tables with their number formatting',
         });
@@ -125,9 +126,7 @@ describe('Project roadmap', () => {
         expect(
             screen.getByRole('region', { name: 'In progress tickets' }),
         ).toHaveTextContent('High');
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Back to roadmap' }),
-        );
+        fireEvent.click(screen.getByRole('link', { name: 'Roadmap' }));
         await screen.findByRole('button', {
             name: 'Open A single home for your metrics',
         });
@@ -142,9 +141,11 @@ describe('Project roadmap', () => {
         expect(
             screen.getByRole('region', { name: 'Done roadmap items' }),
         ).toContainElement(completed);
+        fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         fireEvent.click(
             screen.getByRole('switch', { name: 'Only our interests' }),
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         await waitFor(() =>
             expect(
                 screen.queryByRole('button', {
@@ -169,9 +170,11 @@ describe('Project roadmap', () => {
         ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         expect(screen.getByRole('table')).toHaveTextContent('Interested');
+        fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         fireEvent.click(
             screen.getByRole('switch', { name: 'Only our interests' }),
         );
+        fireEvent.click(screen.getByRole('button', { name: /^Interest/ }));
         await screen.findByRole('button', {
             name: 'Open Instant dashboard previews',
         });
@@ -212,9 +215,7 @@ describe('Project roadmap', () => {
                 name: 'Open ticket Save personal filter defaults',
             }),
         ).not.toBeInTheDocument();
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Back to roadmap' }),
-        );
+        fireEvent.click(screen.getByRole('link', { name: 'Roadmap' }));
         await screen.findByRole('button', {
             name: 'Open More flexible dashboard filters',
         });

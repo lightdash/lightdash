@@ -13,7 +13,6 @@ import {
     SegmentedControl,
     Table,
     Stack,
-    Switch,
     Text,
     ThemeIcon,
     Title,
@@ -22,7 +21,6 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
-    IconArrowLeft,
     IconCircleCheck,
     IconCircleDashed,
     IconCircleHalf2,
@@ -37,6 +35,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import FilterFacet from '../../../components/common/FilterFacet';
@@ -173,7 +172,7 @@ function ProjectProgress({
         >
             {expanded && (
                 <Text fz="xs" c="dimmed">
-                    Overall progress
+                    Progress
                 </Text>
             )}
             <Text className={classes.progressValue} fz="xs">
@@ -339,7 +338,7 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                         <Table.Th>Type / ID</Table.Th>
                         <Table.Th>Status</Table.Th>
                         <Table.Th>Priority</Table.Th>
-                        <Table.Th>Overall progress</Table.Th>
+                        <Table.Th>Progress</Table.Th>
                         <Table.Th>Following</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
@@ -451,6 +450,7 @@ function BoardError({
 }
 
 export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
+    const { pathname } = useLocation();
     const [view, setView] = useState('board');
     const [onlyInterested, setOnlyInterested] = useState(false);
     const [mainStatuses, setMainStatuses] = useState<string[]>([]);
@@ -619,28 +619,19 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         : 'Project board'
                     : 'Roadmap'
             }
+            breadcrumbs={
+                projectBoard
+                    ? [{ title: 'Roadmap', to: pathname, onClick: back }]
+                    : undefined
+            }
             description={
                 projectBoard
                     ? 'Tickets your organization follows in this project.'
                     : 'Explore the Lightdash roadmap and track your organization’s feature requests.'
             }
             actions={
-                projectBoard ? (
-                    <Group gap="md">
-                        {!failed && selectedProject && (
-                            <ProjectProgress value={presentation.progress} />
-                        )}
-                        <Button
-                            leftSection={
-                                <MantineIcon icon={IconArrowLeft} size="sm" />
-                            }
-                            variant="default"
-                            size="xs"
-                            onClick={back}
-                        >
-                            Back to roadmap
-                        </Button>
-                    </Group>
+                projectBoard && !failed && selectedProject ? (
+                    <ProjectProgress value={presentation.progress} />
                 ) : undefined
             }
         >
@@ -704,19 +695,28 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         )}
                         tooltipLabel="Filter by priority"
                     />
-                </Group>
-                <Group gap="md" className={classes.viewControls}>
                     {!projectBoard && (
-                        <Switch
-                            size="sm"
-                            role="switch"
-                            label="Only our interests"
-                            checked={onlyInterested}
-                            onChange={(event) =>
-                                setOnlyInterested(event.currentTarget.checked)
+                        <FilterFacet
+                            label="Interest"
+                            icon={IconEye}
+                            mode="switch"
+                            selected={onlyInterested ? ['interested'] : []}
+                            onChange={(selected) =>
+                                setOnlyInterested(
+                                    selected.includes('interested'),
+                                )
                             }
+                            options={[
+                                {
+                                    value: 'interested',
+                                    label: 'Only our interests',
+                                },
+                            ]}
+                            tooltipLabel="Filter by your organization’s interests"
                         />
                     )}
+                </Group>
+                <Group gap="md" className={classes.viewControls}>
                     <SegmentedControl
                         aria-label="Roadmap view"
                         size="xs"
@@ -779,11 +779,6 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         icon={IconRoad}
                         title="This project is no longer on the roadmap"
                         description="You can still find eligible tickets you follow on the main board."
-                        action={
-                            <Button variant="default" onClick={back}>
-                                Back to roadmap
-                            </Button>
-                        }
                     />
                 </Box>
             ) : !entries.length ? (
