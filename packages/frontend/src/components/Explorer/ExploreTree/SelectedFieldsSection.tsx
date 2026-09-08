@@ -40,10 +40,7 @@ import {
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useAddFilter } from '../../../hooks/useFilters';
-import {
-    useIsModalHosted,
-    useModalHostedDashboardMetricIds,
-} from '../../../providers/Explorer/useIsModalHosted';
+import { useModalHostedDashboardMetricIds } from '../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
@@ -149,12 +146,12 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
 
     // Registry metrics stay frozen here too; the badge marks provenance
     const dashboardMetricIds = useModalHostedDashboardMetricIds();
-    const isModalHosted = useIsModalHosted();
     const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
     const isDashboardMetric =
-        isRegistryMetric || (isModalHosted && isAdditionalMetric(item));
+        isRegistryMetric ||
+        (dashboardMetricIds !== undefined && isAdditionalMetric(item));
 
     const selectIsFiltered = useMemo(
         () => (state: ExplorerStoreState) =>

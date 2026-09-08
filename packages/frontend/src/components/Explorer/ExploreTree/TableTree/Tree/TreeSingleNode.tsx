@@ -50,7 +50,6 @@ import {
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
-import { useIsModalHosted } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import {
@@ -175,7 +174,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const dashboardMetricIds = useTableTree(
         (context) => context.dashboardMetricIds,
     );
-    const isModalHosted = useIsModalHosted();
     const itemsAlerts = useTableTree((context) => context.itemsAlerts);
     const missingCustomDimensions = useTableTree(
         (context) => context.missingCustomDimensions,
@@ -289,9 +287,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const isRegistryMetric =
         isAdditionalMetric(item) &&
         (dashboardMetricIds?.has(getItemId(item)) ?? false);
-    // The '=' badge marks provenance: dashboard-local from creation
+    // The '=' badge marks provenance: dashboard-local from creation. The ids
+    // set is only provided when the shared-metrics layer is enabled.
     const isDashboardMetric =
-        isRegistryMetric || (isModalHosted && isAdditionalMetric(item));
+        isRegistryMetric ||
+        (dashboardMetricIds !== undefined && isAdditionalMetric(item));
 
     const itemColors = getFieldColors(item);
     const alerts = itemsAlerts?.[getItemId(item)];
