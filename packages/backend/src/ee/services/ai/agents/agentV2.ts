@@ -110,6 +110,7 @@ import {
 } from '../utils/errorMessages';
 import { renderMemoryBlock } from '../utils/memoryBlock';
 import {
+    isErrorToolResult,
     isPendingToolResult,
     summarizeToolCall,
     summarizeToolResult,
@@ -486,6 +487,28 @@ export const normalizeToolOutput = (
     } catch {
         return { result: String(output) };
     }
+};
+
+const trackFailedToolResult = (
+    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+    args: AiAgentArgs,
+    toolName: string,
+    output: unknown,
+) => {
+    if (!isErrorToolResult(output)) return;
+    dependencies.trackEvent({
+        event: 'ai_agent_tool_call_failed',
+        userId: args.userId,
+        properties: {
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            aiAgentId: args.agentSettings.uuid,
+            agentName: args.agentSettings.name,
+            toolName,
+            threadId: args.threadUuid,
+            promptId: args.promptUuid,
+        },
+    });
 };
 
 // Raw args of an invalid tool call: may be a parsed object or, when JSON
@@ -1786,6 +1809,12 @@ export const generateAgentResponse = async ({
                                     toolResult.toolCallId
                                 }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                             );
+                            trackFailedToolResult(
+                                dependencies,
+                                args,
+                                toolResult.toolName,
+                                toolResult.output,
+                            );
                             const output = normalizeToolOutput(
                                 toolResult.output,
                             );
@@ -2162,6 +2191,12 @@ export const streamAgentResponse = async ({
                                     error,
                                 );
                             });
+                        trackFailedToolResult(
+                            dependencies,
+                            args,
+                            event.chunk.toolName,
+                            event.chunk.output,
+                        );
                         void dependencies
                             .storeToolResults([
                                 {

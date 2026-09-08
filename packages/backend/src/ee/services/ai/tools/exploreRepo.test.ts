@@ -5,6 +5,8 @@ import { getExploreRepo } from './exploreRepo';
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    getActiveSpan: vi.fn(),
 }));
 
 vi.mock('../../../../logging/logger', () => ({

@@ -210,6 +210,7 @@ import {
     AiAgentSuggestionSubmitEvent,
     AiAgentThreadsRetentionCleanedEvent,
     AiAgentToolCallEvent,
+    AiAgentToolCallFailedEvent,
     AiAgentUpdatedEvent,
     ContentVerificationEvent,
     LightdashAnalytics,
@@ -11845,6 +11846,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 event:
                     | AiAgentResponseStreamed
                     | AiAgentToolCallEvent
+                    | AiAgentToolCallFailedEvent
                     | AiAgentFindContentCoverageEvent,
             ) => this.analytics.track(event),
 

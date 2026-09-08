@@ -1,9 +1,6 @@
 import {
-    ForbiddenError,
     getErrorMessage,
     iterateDataAppToolDefinition,
-    NotFoundError,
-    ParameterError,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type { IterateDataAppFn } from '../types/aiAgentDependencies';
@@ -15,13 +12,6 @@ type Dependencies = {
 };
 
 const toolDefinition = iterateDataAppToolDefinition.for('agent');
-
-// The agent's mistakes and expected refusals, not incidents: an unknown slug,
-// a version already building, or missing manage permission on the app.
-const isExpectedIterateError = (error: unknown): boolean =>
-    error instanceof NotFoundError ||
-    error instanceof ParameterError ||
-    error instanceof ForbiddenError;
 
 export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
     tool({
@@ -52,7 +42,6 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                     result: toolErrorHandler(
                         error,
                         'Error starting the data app build. No new version was created.',
-                        { captureToSentry: !isExpectedIterateError(error) },
                     ),
                     metadata: {
                         status: 'error' as const,
