@@ -171,6 +171,9 @@ const defaultMcpAnalystPromptOptions = {
     filterExpressionsEnabled: false,
 };
 
+// Observed in Claude Code 2.1.263; this is not an MCP protocol limit.
+const MCP_CLIENT_TEXT_MAX_CHARS = 2048;
+
 const inputSchemaRequirements = z.object({
     required: z.array(z.string()).optional(),
 });
@@ -272,6 +275,106 @@ describe('MCP tool contracts', () => {
             });
 
             expect(getLatestMcpServerInstructions()).toMatchSnapshot();
+        },
+    );
+
+    it.each(
+        [
+            {
+                mode: 'saved-content',
+                runSqlEnabled: false,
+                runMetricQueryEnabled: false,
+                instructionCeilings: { structured: 2048, expression: 2048 },
+            },
+            {
+                mode: 'sql-only',
+                runSqlEnabled: true,
+                runMetricQueryEnabled: false,
+                instructionCeilings: { structured: 2048, expression: 2048 },
+            },
+            {
+                mode: 'metric-only',
+                runSqlEnabled: false,
+                runMetricQueryEnabled: true,
+                instructionCeilings: { structured: 4659, expression: 8368 },
+            },
+            {
+                mode: 'metric-and-sql',
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+                instructionCeilings: { structured: 5483, expression: 9192 },
+            },
+        ].flatMap(({ instructionCeilings, ...capabilities }) =>
+            [false, true].map((filterExpressionsEnabled) => ({
+                ...capabilities,
+                filterExpressionsEnabled,
+                filterMode: filterExpressionsEnabled
+                    ? 'expression'
+                    : 'structured',
+                instructionCeiling: filterExpressionsEnabled
+                    ? instructionCeilings.expression
+                    : instructionCeilings.structured,
+            })),
+        ),
+    )(
+        'guards MCP text lengths: $mode / $filterMode',
+        async ({ mode, filterMode, instructionCeiling, ...options }) => {
+            const mcpService = makeMcpService();
+            mockRegisteredMcpTools.length = 0;
+            await mcpService.createServer({
+                ...options,
+                aiWritebackEnabled: true,
+                mcpContentWritesEnabled: true,
+                scheduledDeliveryEnabled: true,
+            });
+
+            // Existing overages warn but cannot grow. Lower/remove these
+            // ceilings as text is shortened; snapshot updates cannot raise them.
+            const existingToolCeilings = new Map([
+                ['run_sql', 3654],
+                ['run_ai_writeback', 2651],
+                [
+                    'run_metric_query',
+                    options.filterExpressionsEnabled ? 2664 : 2430,
+                ],
+                ['get_query_result', 2219],
+                ['find_content', 2086],
+            ]);
+            const texts = [
+                ...mockRegisteredMcpTools.map(({ name, config }) => ({
+                    name,
+                    length: config.description.length,
+                    ceiling:
+                        existingToolCeilings.get(name) ??
+                        MCP_CLIENT_TEXT_MAX_CHARS,
+                })),
+                {
+                    name: 'server instructions',
+                    length: getLatestMcpServerInstructions().length,
+                    ceiling: instructionCeiling,
+                },
+            ];
+            const overages = texts.filter(
+                ({ length }) => length > MCP_CLIENT_TEXT_MAX_CHARS,
+            );
+            if (overages.length > 0) {
+                process.stderr.write(
+                    `[MCP client text limit: ${mode} / ${filterMode}]\n${overages
+                        .map(
+                            ({ name, length }) =>
+                                `${name}: ${length} chars (+${length - MCP_CLIENT_TEXT_MAX_CHARS} over ${MCP_CLIENT_TEXT_MAX_CHARS})`,
+                        )
+                        .join('\n')}\n`,
+                );
+            }
+            texts.forEach(({ name, length, ceiling }) => {
+                expect
+                    .soft(
+                        length,
+                        `${mode} / ${filterMode}: ${name} exceeds its text ceiling; shorten the text instead of updating snapshots`,
+                    )
+                    .toBeLessThanOrEqual(ceiling);
+            });
         },
     );
 
