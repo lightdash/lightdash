@@ -1,4 +1,8 @@
-import { assertUnreachable, RoadmapItemStatus } from '@lightdash/common';
+import {
+    assertUnreachable,
+    RoadmapItemStatus,
+    RoadmapItemPriority,
+} from '@lightdash/common';
 import {
     IconBolt,
     IconCalendar,
@@ -27,6 +31,7 @@ export type RoadmapProjectPresentation = {
         | 'users'
         | 'folder';
     progress: number | null;
+    priority: RoadmapItemPriority;
 };
 export const projectIcons = {
     sparkles: IconSparkles,
@@ -41,6 +46,7 @@ export const defaultProjectPresentation: RoadmapProjectPresentation = {
     stage: 'backlog',
     icon: 'folder',
     progress: null,
+    priority: RoadmapItemPriority.NO_PRIORITY,
 };
 export function ticketStage(status: RoadmapItemStatus): RoadmapBoardStage {
     switch (status) {

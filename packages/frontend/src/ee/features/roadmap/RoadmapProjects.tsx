@@ -1,4 +1,8 @@
-import { type RoadmapItem, type RoadmapProjectGroup } from '@lightdash/common';
+import {
+    type RoadmapItem,
+    type RoadmapProjectGroup,
+    RoadmapItemPriority,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -6,6 +10,8 @@ import {
     Group,
     Paper,
     Progress,
+    SegmentedControl,
+    Table,
     Stack,
     Text,
     TextInput,
@@ -27,11 +33,14 @@ import {
     IconRoad,
     IconSearch,
     IconTicket,
+    IconLayoutKanban,
+    IconTable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
+import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
     defaultProjectPresentation,
     projectIcons,
@@ -184,21 +193,6 @@ function ProjectCard({
             onClick={onClick}
             aria-label={`Open ${group.project.title}`}
         >
-            <Group justify="space-between" gap="xs">
-                <Badge size="xs" variant="light">
-                    Project
-                </Badge>
-                {group.ownRequestCount > 0 && (
-                    <Group gap={4} wrap="nowrap">
-                        <MantineIcon icon={IconEye} size="sm" color="dimmed" />
-                        <Text fz="xs" c="dimmed">
-                            {group.ownRequestCount}{' '}
-                            {group.ownRequestCount === 1 ? 'ticket' : 'tickets'}{' '}
-                            followed
-                        </Text>
-                    </Group>
-                )}
-            </Group>
             <Group gap="sm" align="flex-start" wrap="nowrap">
                 <ThemeIcon
                     variant="light"
@@ -210,6 +204,19 @@ function ProjectCard({
                 <Title order={5} className={classes.projectTitle}>
                     {group.project.title}
                 </Title>
+            </Group>
+            <Group justify="space-between" gap="xs">
+                <PriorityBadge priority={presentation.priority} />
+                {group.ownRequestCount > 0 && (
+                    <Group gap={4} wrap="nowrap">
+                        <MantineIcon icon={IconEye} size="sm" color="dimmed" />
+                        <Text fz="xs" c="dimmed">
+                            {group.ownRequestCount}{' '}
+                            {group.ownRequestCount === 1 ? 'ticket' : 'tickets'}{' '}
+                            followed
+                        </Text>
+                    </Group>
+                )}
             </Group>
             <ProjectProgress value={presentation.progress} expanded />
         </UnstyledButton>
@@ -241,7 +248,136 @@ function TicketCard({
                 </Text>
             </Group>
             <Text className={classes.ticketTitle}>{ticket.title}</Text>
+            <PriorityBadge priority={ticket.priority} />
         </UnstyledButton>
+    );
+}
+
+function PriorityBadge({ priority }: { priority: RoadmapItemPriority }) {
+    return (
+        <Badge
+            size="xs"
+            variant="light"
+            color={
+                priority === RoadmapItemPriority.NO_PRIORITY
+                    ? 'gray'
+                    : getPriorityColor(priority)
+            }
+        >
+            {priority}
+        </Badge>
+    );
+}
+
+type RoadmapEntry = {
+    id: string;
+    title: string;
+    type: 'project' | 'ticket';
+    icon: typeof IconTicket;
+    stage: RoadmapBoardStage;
+    priority: RoadmapItemPriority;
+    progress: number | null;
+    following: number | null;
+    ticketId?: string;
+    onOpen: () => void;
+    card: ReactNode;
+};
+
+function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
+    return (
+        <Table.ScrollContainer
+            minWidth={840}
+            className={classes.tableContainer}
+        >
+            <Table
+                verticalSpacing="md"
+                horizontalSpacing="md"
+                highlightOnHover
+                aria-label="Roadmap items"
+            >
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Name</Table.Th>
+                        <Table.Th>Type / ID</Table.Th>
+                        <Table.Th>Status</Table.Th>
+                        <Table.Th>Priority</Table.Th>
+                        <Table.Th>Overall progress</Table.Th>
+                        <Table.Th>Following</Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {entries.map((entry) => {
+                        const status = columns.find(
+                            (column) => column.id === entry.stage,
+                        )!;
+                        return (
+                            <Table.Tr key={entry.id}>
+                                <Table.Td className={classes.nameCell}>
+                                    <UnstyledButton
+                                        className={classes.tableTitle}
+                                        onClick={entry.onOpen}
+                                        aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
+                                    >
+                                        <MantineIcon
+                                            icon={entry.icon}
+                                            className={classes.projectIcon}
+                                        />
+                                        <Text
+                                            fz="sm"
+                                            fw={
+                                                entry.type === 'project'
+                                                    ? 600
+                                                    : 400
+                                            }
+                                        >
+                                            {entry.title}
+                                        </Text>
+                                    </UnstyledButton>
+                                </Table.Td>
+                                <Table.Td>
+                                    <Text fz="xs" c="dimmed">
+                                        {entry.ticketId ?? 'Project'}
+                                    </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={status.icon}
+                                            color={status.color}
+                                            size="sm"
+                                        />
+                                        <Text fz="sm">{status.label}</Text>
+                                    </Group>
+                                </Table.Td>
+                                <Table.Td>
+                                    <PriorityBadge priority={entry.priority} />
+                                </Table.Td>
+                                <Table.Td>
+                                    {entry.type === 'project' ? (
+                                        <ProjectProgress
+                                            value={entry.progress}
+                                        />
+                                    ) : (
+                                        <Text c="dimmed" fz="xs">
+                                            —
+                                        </Text>
+                                    )}
+                                </Table.Td>
+                                <Table.Td>
+                                    <Text fz="xs" c="dimmed">
+                                        {entry.following
+                                            ? `${entry.following} ${entry.following === 1 ? 'ticket' : 'tickets'}`
+                                            : entry.type === 'ticket'
+                                              ? 'Following'
+                                              : ''}
+                                    </Text>
+                                </Table.Td>
+                            </Table.Tr>
+                        );
+                    })}
+                </Table.Tbody>
+            </Table>
+        </Table.ScrollContainer>
     );
 }
 
@@ -277,6 +413,7 @@ export function RoadmapProjects({
     projectPresentation: Record<string, RoadmapProjectPresentation>;
     showDesignPartnerPreview?: boolean;
 }) {
+    const [view, setView] = useState('board');
     const [mainSearch, setMainSearch] = useState('');
     const [projectSearch, setProjectSearch] = useState('');
     const [debouncedMainSearch] = useDebouncedValue(mainSearch.trim(), 300);
@@ -353,39 +490,56 @@ export function RoadmapProjects({
         setSelectedTicket(null);
         setInterestProject(null);
     };
-    const entries = [
+    const entries: RoadmapEntry[] = [
         ...(!projectBoard
-            ? projects.map((group) => ({
-                  id: `project-${group.project.projectId}`,
-                  stage: (
+            ? projects.map((group): RoadmapEntry => {
+                  const metadata =
                       projectPresentation[group.project.projectId] ??
-                      defaultProjectPresentation
-                  ).stage,
-                  card: (
-                      <ProjectCard
-                          group={group}
-                          presentation={
-                              projectPresentation[group.project.projectId] ??
-                              defaultProjectPresentation
-                          }
-                          onClick={() => {
-                              setSelectedProjectId(group.project.projectId);
-                              setProjectSearch('');
-                          }}
-                      />
-                  ),
-              }))
+                      defaultProjectPresentation;
+                  const onOpen = () => {
+                      setSelectedProjectId(group.project.projectId);
+                      setProjectSearch('');
+                  };
+                  return {
+                      id: `project-${group.project.projectId}`,
+                      title: group.project.title,
+                      type: 'project',
+                      icon: projectIcons[metadata.icon],
+                      stage: metadata.stage,
+                      priority: metadata.priority,
+                      progress: metadata.progress,
+                      following: group.ownRequestCount,
+                      onOpen,
+                      card: (
+                          <ProjectCard
+                              group={group}
+                              presentation={metadata}
+                              onClick={onOpen}
+                          />
+                      ),
+                  };
+              })
             : []),
-        ...tickets.map((ticket) => ({
-            id: `ticket-${ticket.ticketId}`,
-            stage: ticketStage(ticket.status),
-            card: (
-                <TicketCard
-                    ticket={ticket}
-                    onClick={() => setSelectedTicket(ticket)}
-                />
-            ),
-        })),
+        ...tickets.map(
+            (ticket): RoadmapEntry => ({
+                id: `ticket-${ticket.ticketId}`,
+                title: ticket.title,
+                type: 'ticket',
+                icon: IconTicket,
+                stage: ticketStage(ticket.status),
+                priority: ticket.priority,
+                progress: null,
+                following: null,
+                ticketId: ticket.ticketId,
+                onOpen: () => setSelectedTicket(ticket),
+                card: (
+                    <TicketCard
+                        ticket={ticket}
+                        onClick={() => setSelectedTicket(ticket)}
+                    />
+                ),
+            }),
+        ),
     ];
     return (
         <Stack className={classes.page} gap={0}>
@@ -421,9 +575,11 @@ export function RoadmapProjects({
                                 : 'Project board'
                             : 'Roadmap'}
                     </Title>
-                    <Badge size="sm" variant="light">
-                        {projectBoard ? 'Project' : 'Preview'}
-                    </Badge>
+                    {!projectBoard && (
+                        <Badge size="sm" variant="light">
+                            Preview
+                        </Badge>
+                    )}
                 </Group>
                 {projectBoard && !failed && selectedProject ? (
                     <Group gap="md">
@@ -470,27 +626,63 @@ export function RoadmapProjects({
                         </Text>
                     )}
                 </Group>
-                <TextInput
-                    className={classes.search}
-                    size="xs"
-                    aria-label={
-                        projectBoard
-                            ? 'Search project tickets'
-                            : 'Search roadmap'
-                    }
-                    placeholder={
-                        projectBoard
-                            ? 'Search tickets you follow…'
-                            : 'Search projects or tickets…'
-                    }
-                    leftSection={<MantineIcon icon={IconSearch} size="sm" />}
-                    value={projectBoard ? projectSearch : mainSearch}
-                    onChange={(event) =>
-                        projectBoard
-                            ? setProjectSearch(event.currentTarget.value)
-                            : setMainSearch(event.currentTarget.value)
-                    }
-                />
+                <Group gap="md" className={classes.viewControls}>
+                    <TextInput
+                        className={classes.search}
+                        size="xs"
+                        aria-label={
+                            projectBoard
+                                ? 'Search project tickets'
+                                : 'Search roadmap'
+                        }
+                        placeholder={
+                            projectBoard
+                                ? 'Search tickets you follow…'
+                                : 'Search projects or tickets…'
+                        }
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size="sm" />
+                        }
+                        value={projectBoard ? projectSearch : mainSearch}
+                        onChange={(event) =>
+                            projectBoard
+                                ? setProjectSearch(event.currentTarget.value)
+                                : setMainSearch(event.currentTarget.value)
+                        }
+                    />
+                    <SegmentedControl
+                        aria-label="Roadmap view"
+                        size="xs"
+                        value={view}
+                        onChange={setView}
+                        data={[
+                            {
+                                value: 'board',
+                                label: (
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={IconLayoutKanban}
+                                            size="sm"
+                                        />
+                                        Board
+                                    </Group>
+                                ),
+                            },
+                            {
+                                value: 'table',
+                                label: (
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={IconTable}
+                                            size="sm"
+                                        />
+                                        Table
+                                    </Group>
+                                ),
+                            },
+                        ]}
+                    />
+                </Group>
             </Group>
             {interestProject !== null && !failed && (
                 <Text fz="xs" c="dimmed" px="xl" py="sm" role="status">
@@ -570,7 +762,11 @@ export function RoadmapProjects({
                 </Box>
             ) : (
                 <>
-                    <Board entries={entries} projectBoard={projectBoard} />
+                    {view === 'board' ? (
+                        <Board entries={entries} projectBoard={projectBoard} />
+                    ) : (
+                        <RoadmapTable entries={entries} />
+                    )}
                     <Group justify="center" gap="sm" p="md">
                         {!projectBoard && projectsQuery.hasNextPage && (
                             <Button

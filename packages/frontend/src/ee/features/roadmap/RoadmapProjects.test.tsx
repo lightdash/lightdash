@@ -102,6 +102,44 @@ describe('Project roadmap', () => {
         });
     });
 
+    it('switches between board and table while preserving project navigation and priorities', async () => {
+        setup();
+        const project = await screen.findByRole('button', {
+            name: 'Open More flexible dashboard filters',
+        });
+        expect(within(project).getByText('High')).toBeInTheDocument();
+        expect(within(project).queryByText('Project')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        const table = screen.getByRole('table', { name: 'Roadmap items' });
+        expect(
+            within(table).getByRole('columnheader', { name: 'Priority' }),
+        ).toBeInTheDocument();
+        expect(within(table).getByText('DEMO-6')).toBeInTheDocument();
+        expect(within(table).getByText('68%')).toBeInTheDocument();
+        fireEvent.click(
+            within(table).getByRole('button', {
+                name: 'Open More flexible dashboard filters',
+            }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open ticket Save personal filter defaults',
+        });
+        expect(screen.getByRole('radio', { name: 'Table' })).toBeChecked();
+        expect(screen.getByRole('table')).toHaveTextContent('DEMO-2');
+        expect(screen.getByRole('table')).not.toHaveTextContent('DEMO-6');
+        fireEvent.click(screen.getByRole('radio', { name: 'Board' }));
+        expect(
+            screen.getByRole('region', { name: 'In progress tickets' }),
+        ).toHaveTextContent('High');
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Back to roadmap' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open A single home for your metrics',
+        });
+        expect(screen.getByRole('radio', { name: 'Board' })).toBeChecked();
+    });
+
     it('puts followed tickets from removed projects directly on the main board', async () => {
         setup('removed');
         await screen.findByRole('button', {

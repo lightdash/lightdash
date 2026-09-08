@@ -81,7 +81,7 @@
     border-radius: var(--mantine-radius-md);
 }
 .ticketCard {
-    min-height: 104px;
+    min-height: 128px;
     gap: var(--mantine-spacing-md);
 }
 .ticketTitle {
@@ -141,5 +141,28 @@
     }
     .board {
         grid-auto-columns: 280px;
+    }
+}
+
+.tableContainer {
+    min-height: 400px;
+}
+.nameCell {
+    width: 38%;
+}
+.tableTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    width: 100%;
+    min-height: 32px;
+}
+.tableTitle:focus-visible {
+    outline: 2px solid var(--mantine-color-text);
+    outline-offset: 2px;
+}
+@media (max-width: 600px) {
+    .viewControls {
+        width: 100%;
     }
 }

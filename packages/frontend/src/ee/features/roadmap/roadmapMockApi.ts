@@ -27,12 +27,42 @@ export const mockProjectPresentation: Record<
     string,
     RoadmapProjectPresentation
 > = {
-    'ai-exploration': { stage: 'started', icon: 'sparkles', progress: 42 },
-    'dashboard-filters': { stage: 'started', icon: 'filter', progress: 68 },
-    metrics: { stage: 'planned', icon: 'chart', progress: 12 },
-    performance: { stage: 'planned', icon: 'bolt', progress: 8 },
-    scheduling: { stage: 'backlog', icon: 'calendar', progress: 0 },
-    'self-serve': { stage: 'paused', icon: 'users', progress: 24 },
+    'ai-exploration': {
+        stage: 'started',
+        icon: 'sparkles',
+        progress: 42,
+        priority: RoadmapItemPriority.HIGH,
+    },
+    'dashboard-filters': {
+        stage: 'started',
+        icon: 'filter',
+        progress: 68,
+        priority: RoadmapItemPriority.HIGH,
+    },
+    metrics: {
+        stage: 'planned',
+        icon: 'chart',
+        progress: 12,
+        priority: RoadmapItemPriority.MEDIUM,
+    },
+    performance: {
+        stage: 'planned',
+        icon: 'bolt',
+        progress: 8,
+        priority: RoadmapItemPriority.URGENT,
+    },
+    scheduling: {
+        stage: 'backlog',
+        icon: 'calendar',
+        progress: 0,
+        priority: RoadmapItemPriority.LOW,
+    },
+    'self-serve': {
+        stage: 'paused',
+        icon: 'users',
+        progress: 24,
+        priority: RoadmapItemPriority.NO_PRIORITY,
+    },
     ...Object.fromEntries(
         Array.from({ length: 18 }, (_, i) => [
             `example-${i}`,
@@ -40,6 +70,7 @@ export const mockProjectPresentation: Record<
                 stage: 'backlog',
                 icon: 'folder',
                 progress: 0,
+                priority: RoadmapItemPriority.NO_PRIORITY,
             } as RoadmapProjectPresentation,
         ]),
     ),
@@ -71,7 +102,11 @@ function request(
         title,
         status,
         description,
-        priority: RoadmapItemPriority.MEDIUM,
+        priority: [
+            RoadmapItemPriority.HIGH,
+            RoadmapItemPriority.MEDIUM,
+            RoadmapItemPriority.LOW,
+        ][(id - 1) % 3],
         createdAt: '2026-08-01T10:00:00Z',
         updatedAt: '2026-09-07T14:30:00Z',
         issueUrl: `https://github.com/lightdash/lightdash/issues/${27151 + id}`,
