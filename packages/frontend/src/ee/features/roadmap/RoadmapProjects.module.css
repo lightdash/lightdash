@@ -21,6 +21,10 @@
 .columnHeader {
     padding: 4px var(--mantine-spacing-xs) var(--mantine-spacing-xs);
 }
+.columnIcon,
+.columnCount {
+    align-self: center;
+}
 .columnCards {
     flex: 1;
     min-height: 0;

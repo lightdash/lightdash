@@ -121,8 +121,13 @@ function Board({
                         key={column.id}
                         aria-label={`${column.label} ${projectBoard ? 'tickets' : 'roadmap items'}`}
                     >
-                        <Group className={classes.columnHeader} gap="xs">
+                        <Group
+                            className={classes.columnHeader}
+                            gap="xs"
+                            align="baseline"
+                        >
                             <MantineIcon
+                                className={classes.columnIcon}
                                 icon={column.icon}
                                 size="sm"
                                 color={column.color}
@@ -130,7 +135,9 @@ function Board({
                             <Text fz="sm" fw={500}>
                                 {column.label}
                             </Text>
-                            <Badge size="sm">{cards.length}</Badge>
+                            <Badge size="sm" className={classes.columnCount}>
+                                {cards.length}
+                            </Badge>
                             {(column.id === 'completed' ||
                                 column.id === 'canceled') && (
                                 <Text fz="xs" c="dimmed">
