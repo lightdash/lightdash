@@ -19,7 +19,9 @@ import {
     GitFileOrDirectory,
     GitIntegrationConfiguration,
     isCustomBinDimension,
+    isExploreError,
     isUserWithOrg,
+    LightdashModelEditor,
     NotFoundError,
     ParameterError,
     ParseError,
@@ -83,11 +85,26 @@ type GitProps = {
     hostDomain?: string; // For GitLab or GitHub Enterprise
     type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
     dbtVersion?: SupportedDbtVersions;
+    semanticLayer?: 'dbt' | 'lightdash';
 };
 
 type ExploreGitProps =
     | GitProps
     | (Omit<GitProps, 'type'> & { type: DbtProjectType.BITBUCKET });
+
+type WriteBackFileArgs = ExploreGitProps &
+    (
+        | {
+              fieldType: 'customDimensions';
+              fields: CustomDimension[];
+          }
+        | {
+              fieldType: 'customMetrics';
+              fields: AdditionalMetric[];
+          }
+    ) & {
+        projectUuid: string;
+    };
 
 // Keep backward compatibility
 type GithubProps = GitProps;
@@ -363,18 +380,22 @@ Affected charts:
         type: ExploreGitProps['type'];
         hostDomain?: string;
     }) {
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            table,
-        );
+        const project = await this.projectModel.get(projectUuid);
+        const isNative =
+            project.dbtConnection.type === DbtProjectType.GITHUB &&
+            project.dbtConnection.semanticLayer === 'lightdash';
+        const ymlPath = isNative
+            ? await this.getNativeModelPath(projectUuid, table)
+            : (await this.projectModel.getExploreFromCache(projectUuid, table))
+                  .ymlPath;
 
-        if (!explore.ymlPath)
+        if (!ymlPath)
             throw new ParameterError(
                 'Your project needs to be compiled before writing back custom fields. Please refresh your project to fix this issue.',
             );
 
         const fileName = GitIntegrationService.removeExtraSlashes(
-            `${path}/${explore.ymlPath}`,
+            `${path}/${ymlPath}`,
         );
 
         const getFileContent = {
@@ -392,8 +413,15 @@ Affected charts:
             hostDomain,
         });
 
-        // Get the dbt version from the project
-        const project = await this.projectModel.get(projectUuid);
+        // The native document uses its own schema, with no dbt envelope.
+        if (isNative) {
+            return {
+                yamlSchema: new LightdashModelEditor(fileContent, fileName),
+                fileName,
+                fileContent,
+                fileSha,
+            };
+        }
         const dbtVersion =
             project.dbtVersion === DbtVersionOptionLatest.LATEST
                 ? getLatestSupportDbtVersion()
@@ -412,21 +440,7 @@ Affected charts:
         return { yamlSchema, fileName, fileContent, fileSha };
     }
 
-    async updateFile(
-        args: ExploreGitProps &
-            (
-                | {
-                      fieldType: 'customDimensions';
-                      fields: CustomDimension[];
-                  }
-                | {
-                      fieldType: 'customMetrics';
-                      fields: AdditionalMetric[];
-                  }
-            ) & {
-                projectUuid: string;
-            },
-    ): Promise<void> {
+    private async *iterateFileUpdates(args: WriteBackFileArgs) {
         const {
             owner,
             repo,
@@ -468,12 +482,13 @@ Affected charts:
                     hostDomain,
                 });
 
-            if (!yamlSchema.hasModels()) {
-                throw new ParseError(`No models found in ${fileName}`);
-            }
-
             let updatedYml: string;
             if (fieldType === 'customDimensions') {
+                if (yamlSchema instanceof LightdashModelEditor) {
+                    throw new ParameterError(
+                        'Native custom dimension write-back is not supported yet',
+                    );
+                }
                 const warehouseCredentials =
                     await this.projectModel.getWarehouseCredentialsForProject(
                         projectUuid,
@@ -502,44 +517,99 @@ Affected charts:
 
             const message = `Updated file ${fileName} with ${fieldsForTable?.length} custom ${fieldsType} from table ${table}`;
 
-            if (gitType === DbtProjectType.BITBUCKET) {
+            yield {
+                type: gitType,
+                owner,
+                repo,
+                fileName,
+                content: updatedYml,
+                fileSha,
+                branch,
+                installationId,
+                token,
+                hostDomain,
+                message,
+            };
+        }
+    }
+
+    private async prepareFileUpdates(args: WriteBackFileArgs) {
+        const updates = [];
+        for await (const update of this.iterateFileUpdates(args)) {
+            updates.push(update);
+        }
+        return updates;
+    }
+
+    private static async updatePreparedFiles(
+        updates: Awaited<
+            ReturnType<GitIntegrationService['prepareFileUpdates']>
+        >,
+        branch: string,
+    ): Promise<void> {
+        for (const { type, ...update } of updates) {
+            if (type === DbtProjectType.BITBUCKET) {
                 await BitbucketClient.commitFiles({
-                    owner,
-                    repo,
-                    token,
+                    owner: update.owner,
+                    repo: update.repo,
+                    token: update.token,
                     branch,
-                    expectedParent: fileSha,
-                    message,
+                    expectedParent: update.fileSha,
+                    message: update.message,
                     changes: [
                         {
-                            path: fileName,
-                            content: updatedYml,
+                            path: update.fileName,
+                            content: update.content,
                             action: 'upsert',
                         },
                     ],
                 });
             } else {
                 const updateFile =
-                    gitType === DbtProjectType.GITHUB
+                    type === DbtProjectType.GITHUB
                         ? GithubClient.updateFile
                         : GitlabClient.updateFile;
-                await updateFile({
-                    owner,
-                    repo,
-                    fileName,
-                    content: updatedYml,
-                    fileSha,
-                    branch,
-                    installationId,
-                    token,
-                    hostDomain,
-                    message,
-                });
+                await updateFile({ ...update, branch });
             }
-            Logger.debug(
-                `Successfully updated file ${fileName} in ${owner}/${repo} (branch: ${branch})`,
+            Logger.debug('Successfully updated file', {
+                type,
+                owner: update.owner,
+                repo: update.repo,
+                fileName: update.fileName,
+                branch,
+            });
+        }
+    }
+
+    async updateFile(args: WriteBackFileArgs): Promise<void> {
+        // dbt models can share a YAML file; read each model after the previous write.
+        for await (const update of this.iterateFileUpdates(args)) {
+            await GitIntegrationService.updatePreparedFiles(
+                [update],
+                args.branch,
             );
         }
+    }
+
+    private async getNativeModelPath(
+        projectUuid: string,
+        table: string,
+    ): Promise<string> {
+        const explores =
+            await this.projectModel.getAllExploresFromCache(projectUuid);
+        const paths = new Set(
+            Object.values(explores).flatMap((explore) => {
+                if (isExploreError(explore)) return [];
+                const sourcePath = explore.tables[table]?.ymlPath;
+                return sourcePath ? [sourcePath] : [];
+            }),
+        );
+        if (paths.size !== 1) {
+            throw new ParameterError(
+                `Cannot determine the native source file for ${table}. Refresh the project before writing back.`,
+            );
+        }
+        return [...paths][0];
     }
 
     async getProjectRepo(projectUuid: string) {
@@ -566,6 +636,10 @@ Affected charts:
             branch,
             path,
             hostDomain,
+            semanticLayer:
+                connection.type === DbtProjectType.GITHUB
+                    ? connection.semanticLayer
+                    : undefined,
             type: project.dbtConnection.type as
                 | DbtProjectType.GITHUB
                 | DbtProjectType.GITLAB,
@@ -658,7 +732,8 @@ Affected charts:
         projectUuid: string,
         quoteChar: `"` | `'`,
     ) {
-        const { branch, path } = await this.getProjectRepo(projectUuid);
+        const { branch, path, semanticLayer } =
+            await this.getProjectRepo(projectUuid);
         const { owner, repo, hostDomain, type, token, installationId } =
             await this.getGitCredentials(user, projectUuid, {
                 preferUserToken: true,
@@ -688,6 +763,7 @@ Affected charts:
             installationId,
             quoteChar,
             dbtVersion,
+            semanticLayer,
         };
         return gitProps;
     }
@@ -831,6 +907,11 @@ Affected charts:
                 projectUuid,
                 table,
             });
+            if (yamlSchema instanceof LightdashModelEditor) {
+                throw new ParameterError(
+                    'Native custom dimension write-back is not supported yet',
+                );
+            }
             customDimensions
                 .filter((dimension) => dimension.table === table)
                 .forEach((dimension) => {
@@ -899,8 +980,31 @@ Affected charts:
             quoteChar,
         );
 
+        // Validate every native source document before creating a branch or writing files.
+        const nativeUpdates =
+            gitProps.semanticLayer === 'lightdash'
+                ? await this.prepareFileUpdates({
+                      ...gitProps,
+                      branch: gitProps.mainBranch,
+                      projectUuid,
+                      ...(args.type === 'customMetrics'
+                          ? {
+                                fieldType: 'customMetrics' as const,
+                                fields: args.fields,
+                            }
+                          : {
+                                fieldType: 'customDimensions' as const,
+                                fields: args.fields,
+                            }),
+                  })
+                : undefined;
         await GitIntegrationService.createBranch(gitProps);
-        if (args.type === 'customMetrics') {
+        if (nativeUpdates) {
+            await GitIntegrationService.updatePreparedFiles(
+                nativeUpdates,
+                gitProps.branch,
+            );
+        } else if (args.type === 'customMetrics') {
             await this.updateFile({
                 ...gitProps,
                 fieldType: 'customMetrics',
@@ -945,7 +1049,7 @@ Affected charts:
             } = await createPullRequest({
                 ...gitProps,
                 title: `Adds ${fieldsInfo}`,
-                body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the dbt model.
+                body: `Created by Lightdash, this pull request adds ${fieldsInfo} to the ${gitProps.semanticLayer === 'lightdash' ? 'native Lightdash' : 'dbt'} model.
 Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
 ${replacementGuidance}`,

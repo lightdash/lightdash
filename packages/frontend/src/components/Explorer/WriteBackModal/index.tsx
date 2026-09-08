@@ -1,5 +1,6 @@
 import {
     capitalize,
+    convertCustomMetricToLightdash,
     getCustomDimensionWriteBackError,
     getErrorMessage,
     isCustomBinDimension,
@@ -36,6 +37,7 @@ import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent
 import {
     useCustomDimensionsWriteBackPreview,
     useSupportsCustomFieldWriteBack,
+    useIsNativeGitProject,
     useWriteBackCustomDimensions,
     useWriteBackCustomMetrics,
 } from './hooks';
@@ -110,6 +112,7 @@ export const SingleItemModalContent = ({
     const [showDiff, setShowDiff] = useState(true);
     const supportsCustomFieldWriteBack =
         useSupportsCustomFieldWriteBack(projectUuid);
+    const isNative = useIsNativeGitProject(projectUuid);
     const writeBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -127,12 +130,17 @@ export const SingleItemModalContent = ({
     const metricPreview = useMemo(() => {
         if (isCustomDimension(item)) return { code: '', error: null };
         try {
-            const { key, value } = convertToDbt(item);
+            const { key, value } = isNative
+                ? {
+                      key: item.name,
+                      value: convertCustomMetricToLightdash(item),
+                  }
+                : convertToDbt(item);
             return { code: yaml.dump({ [key]: value }), error: null };
         } catch (e) {
             return { code: '', error: parseError(e, type) };
         }
-    }, [item, type]);
+    }, [item, type, isNative]);
     const previewError =
         writeBackError ??
         (previewQuery.error
@@ -163,9 +171,9 @@ export const SingleItemModalContent = ({
             size="xl"
             opened={true}
             onClose={handleClose}
-            title="Write back to dbt"
+            title="Write back to project"
             icon={IconGitBranch}
-            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
+            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your project. This will create a new branch and open a pull request.`}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}
@@ -198,8 +206,8 @@ export const SingleItemModalContent = ({
         >
             <Stack>
                 <Text fz="sm">
-                    Create a pull request in your dbt project's git repository
-                    for the following {texts[type].name}:
+                    Create a pull request in your project's git repository for
+                    the following {texts[type].name}:
                 </Text>
                 <List spacing="xs" pl="xs">
                     <List.Item fz="xs" ff="monospace">
@@ -274,6 +282,7 @@ const MultipleItemsModalContent = ({
 
     const supportsCustomFieldWriteBack =
         useSupportsCustomFieldWriteBack(projectUuid);
+    const isNative = useIsNativeGitProject(projectUuid);
 
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -297,7 +306,12 @@ const MultipleItemsModalContent = ({
             const code = yaml.dump(
                 (selectedItems as AdditionalMetric[])
                     .map((item) => {
-                        const { key, value } = convertToDbt(item);
+                        const { key, value } = isNative
+                            ? {
+                                  key: item.name,
+                                  value: convertCustomMetricToLightdash(item),
+                              }
+                            : convertToDbt(item);
                         return { [key]: value };
                     })
                     .reduce((acc, curr) => ({ ...acc, ...curr }), {}),
@@ -306,7 +320,7 @@ const MultipleItemsModalContent = ({
         } catch (e) {
             return { code: '', error: parseError(e, type) };
         }
-    }, [selectedCustomDimensions.length, selectedItems, type]);
+    }, [selectedCustomDimensions.length, selectedItems, type, isNative]);
     const previewError = previewQuery.error
         ? getErrorMessage(previewQuery.error.error)
         : metricPreview.error;
@@ -343,9 +357,9 @@ const MultipleItemsModalContent = ({
             size="auto"
             opened={true}
             onClose={handleClose}
-            title="Write back to dbt"
+            title="Write back to project"
             icon={IconGitBranch}
-            description={`Create a pull request in your dbt project's git repository for the following ${texts[type].baseName}s`}
+            description={`Create a pull request in your project's git repository for the following ${texts[type].baseName}s`}
             actions={
                 <Tooltip
                     label={errorTooltipLabel}

@@ -276,7 +276,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                     );
                                 }}
                             >
-                                Write back to dbt
+                                Write back to project
                             </Menu.Item>
                         ) : null}
 
@@ -421,7 +421,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                                                     );
                                                 }}
                                             >
-                                                Write back to dbt
+                                                Write back to project
                                             </Menu.Item>
                                         </Box>
                                     </Tooltip>

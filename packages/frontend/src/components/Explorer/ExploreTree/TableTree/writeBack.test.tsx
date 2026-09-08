@@ -127,7 +127,7 @@ describe('custom bin write-back in Explorer trees', () => {
         const store = renderNodeActions(item);
 
         await user.click(
-            screen.getByRole('menuitem', { name: 'Write back to dbt' }),
+            screen.getByRole('menuitem', { name: 'Write back to project' }),
         );
 
         expect(store.getState().explorer.modals.writeBack.items).toEqual([
@@ -140,7 +140,7 @@ describe('custom bin write-back in Explorer trees', () => {
         renderNodeActions(makeBin(BinType.FIXED_WIDTH));
 
         expect(
-            screen.queryByRole('menuitem', { name: 'Write back to dbt' }),
+            screen.queryByRole('menuitem', { name: 'Write back to project' }),
         ).not.toBeInTheDocument();
     });
 
@@ -148,7 +148,7 @@ describe('custom bin write-back in Explorer trees', () => {
         const user = userEvent.setup();
         renderNodeActions(makeBin(BinType.FIXED_NUMBER));
         const action = screen.getByRole('menuitem', {
-            name: 'Write back to dbt',
+            name: 'Write back to project',
         });
 
         expect(action).toBeDisabled();

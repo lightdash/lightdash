@@ -153,6 +153,70 @@ beforeEach(() => {
 });
 
 describe('Bitbucket Explorer writeback', () => {
+    it.each(['customMetrics', 'customDimensions'] as const)(
+        'preserves both models and advances the parent commit for %s in a shared schema',
+        async (fieldType) => {
+            const { service } = setup();
+            let content = SCHEMA_YML;
+            let sha = 'base-sha';
+            let writes = 0;
+            vi.mocked(BitbucketClient.getFileContent).mockImplementation(
+                async () => ({ content, sha }),
+            );
+            vi.mocked(BitbucketClient.commitFiles).mockImplementation(
+                async (commit) => {
+                    expect(commit.expectedParent).toBe(sha);
+                    const change = commit.changes[0];
+                    if (!change || change.action !== 'upsert')
+                        throw new Error('Expected a schema update');
+                    content = change.content;
+                    writes += 1;
+                    sha = `sha-${writes}`;
+                },
+            );
+
+            await service.createPullRequest(
+                writebackUser,
+                'project',
+                "'",
+                fieldType === 'customMetrics'
+                    ? {
+                          type: fieldType,
+                          fields: [
+                              CUSTOM_METRIC,
+                              {
+                                  ...CUSTOM_METRIC,
+                                  name: 'new_metric_b',
+                                  table: 'table_b',
+                              },
+                          ],
+                      }
+                    : {
+                          type: fieldType,
+                          fields: [
+                              CUSTOM_DIMENSION,
+                              {
+                                  ...CUSTOM_DIMENSION,
+                                  id: 'amount_size_b',
+                                  table: 'table_b',
+                                  sql: '${table_b.dim_a}',
+                              },
+                          ],
+                      },
+            );
+
+            expect(writes).toBe(2);
+            expect(content).toContain(
+                fieldType === 'customMetrics' ? 'new_metric:' : 'amount_size:',
+            );
+            expect(content).toContain(
+                fieldType === 'customMetrics'
+                    ? 'new_metric_b:'
+                    : 'amount_size_b:',
+            );
+        },
+    );
+
     it.each([
         ['.', 'models/schema.yml'],
         ['/', 'models/schema.yml'],
