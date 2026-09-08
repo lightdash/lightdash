@@ -39,12 +39,12 @@ import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
+import classes from './ChartTypeGallery.module.css';
 import {
     projectChartTypeItem,
     useChartTypeOptions,
     type ChartTypeOption,
-} from '../VisualizationCardOptions/useChartTypeOptions';
-import classes from './ChartTypeGallery.module.css';
+} from './useChartTypeOptions';
 
 /** Grid slots the project section may fill before collapsing; when it does,
     the last slot becomes the "+N more" tile, so the collapse never trades a

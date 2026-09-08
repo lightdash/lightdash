@@ -24,10 +24,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.AiReviewReplayCapture,
     // Security hardening: previews must not accept long-lived GitHub PATs.
     FeatureFlags.AiMcpGithubPat,
-    // The Explorer E2E specs drive the legacy chart type picker, which the
-    // gallery replaces; keep previews on the shipped path until it has its
-    // own coverage. QA can still turn it on with a feature_flag_overrides row.
-    FeatureFlags.ExplorerChartGallery,
     // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
     // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
     // on the shipped path until it has its own coverage.

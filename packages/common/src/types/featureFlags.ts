@@ -89,12 +89,6 @@ export enum FeatureFlags {
     EnableDataApps = 'enable-data-apps',
 
     /**
-     * Keep Explorer fields mounted on the left while chart selection and
-     * configuration render in a right sidebar.
-     */
-    ExplorerChartGallery = 'explorer-chart-gallery',
-
-    /**
      * Per-organization gate for declaring custom npm dependencies in data
      * apps. Disabled by default; self-hosted instances can enable it globally
      * via LIGHTDASH_ENABLE_FEATURE_FLAGS.
