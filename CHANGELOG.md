@@ -1,3 +1,10 @@
+# [2.159.0](https://github.com/lightdash/lightdash/compare/2.158.0...2.159.0) (2026-09-08)
+
+
+### Features
+
+* **embed:** add opt-in AI scope with backwards compatibility ([#28801](https://github.com/lightdash/lightdash/issues/28801)) ([5ed9174](https://github.com/lightdash/lightdash/commit/5ed9174c3a65ec10e15393b8ec1706be5d619b2b)), closes [#28808](https://github.com/lightdash/lightdash/issues/28808) [#28808](https://github.com/lightdash/lightdash/issues/28808) [#28808](https://github.com/lightdash/lightdash/issues/28808)
+
 # [2.158.0](https://github.com/lightdash/lightdash/compare/2.157.1...2.158.0) (2026-09-08)
 
 

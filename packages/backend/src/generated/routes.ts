@@ -14259,6 +14259,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                permissionsMode: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['default'] },
+                        { dataType: 'enum', enums: ['roles'] },
+                    ],
+                },
                 spaceUuid: { dataType: 'string', required: true },
                 userUuid: { dataType: 'string' },
                 serviceAccountUserUuid: { dataType: 'string' },

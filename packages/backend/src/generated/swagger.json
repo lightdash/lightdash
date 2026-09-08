@@ -14911,6 +14911,11 @@
             },
             "EmbedWriteActions": {
                 "properties": {
+                    "permissionsMode": {
+                        "type": "string",
+                        "enum": ["default", "roles"],
+                        "description": "AI access only: roles requires EmbedAiAgent; default preserves existing access."
+                    },
                     "spaceUuid": {
                         "type": "string"
                     },
@@ -60121,7 +60126,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.158.0",
+        "version": "2.159.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
