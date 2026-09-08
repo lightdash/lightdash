@@ -1,3 +1,10 @@
+# [2.163.0](https://github.com/lightdash/lightdash/compare/2.162.4...2.163.0) (2026-09-08)
+
+
+### Features
+
+* **dashboard:** split the chart editor modal onto its own feature flag ([#28841](https://github.com/lightdash/lightdash/issues/28841)) ([9ea9c66](https://github.com/lightdash/lightdash/commit/9ea9c667dd55f5ba2b2ad2df36f005af2ed4aded))
+
 ## [2.162.4](https://github.com/lightdash/lightdash/compare/2.162.3...2.162.4) (2026-09-08)
 
 
