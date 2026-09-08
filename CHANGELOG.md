@@ -1,3 +1,10 @@
+## [2.162.2](https://github.com/lightdash/lightdash/compare/2.162.1...2.162.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* select the configured merge freeze ruleset ([#28855](https://github.com/lightdash/lightdash/issues/28855)) ([5772e61](https://github.com/lightdash/lightdash/commit/5772e61157addb2caf54c865d44b066fabc9a5ff))
+
 ## [2.162.1](https://github.com/lightdash/lightdash/compare/2.162.0...2.162.1) (2026-09-08)
 
 
