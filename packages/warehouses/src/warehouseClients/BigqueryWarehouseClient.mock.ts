@@ -58,6 +58,28 @@ const metadata = {
                 name: 'myObjectColumn',
                 type: BigqueryFieldType.STRUCT,
             },
+            {
+                name: 'myRepeatedColumn',
+                type: BigqueryFieldType.STRING,
+                mode: 'REPEATED',
+            },
+            {
+                name: 'myRecordColumn',
+                type: BigqueryFieldType.RECORD,
+                mode: 'NULLABLE',
+                fields: [
+                    { name: 'id', type: BigqueryFieldType.INT64 },
+                    { name: 'createdAt', type: BigqueryFieldType.TIMESTAMP },
+                    {
+                        name: 'tags',
+                        type: BigqueryFieldType.RECORD,
+                        mode: 'REPEATED',
+                        fields: [
+                            { name: 'label', type: BigqueryFieldType.STRING },
+                        ],
+                    },
+                ],
+            },
         ],
     },
 };
@@ -99,6 +121,12 @@ export const rows: Record<string, AnyType>[] = [
         myBooleanColumn: false,
         myArrayColumn: ['1', '2', '3'],
         myObjectColumn: { test: '1', toFixed: () => '123' },
+        myRepeatedColumn: ['a', 'b'],
+        myRecordColumn: {
+            id: 7,
+            createdAt: new BigQueryTimestamp('1990-03-02T08:30:00.010Z'),
+            tags: [{ label: 'x' }, { label: 'y' }],
+        },
     },
 ];
 

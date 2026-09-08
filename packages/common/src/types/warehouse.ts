@@ -170,6 +170,83 @@ export const ensureCatalogTimestampDomainsKey = (
         catalogWithDomains[WAREHOUSE_TIMESTAMP_DOMAINS_KEY] ?? {};
 };
 
+/**
+ * Shape of a non-scalar column path: `repeated` for arrays, `record` for
+ * structs. Keys are dotted paths (`product.attributes`), so a nested node
+ * appears at every level it occurs. Scalar columns have no entry.
+ */
+export type WarehouseNestedColumnShape = {
+    repeated: boolean;
+    record: boolean;
+};
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+export const isWarehouseNestedColumnShape = (
+    value: unknown,
+): value is WarehouseNestedColumnShape =>
+    isPlainRecord(value) &&
+    typeof value.repeated === 'boolean' &&
+    typeof value.record === 'boolean';
+
+/**
+ * Sidecar of nested column shapes keyed database → schema → table → column
+ * path, stored under a reserved key next to the database keys like the
+ * timestamp domains. Its value shares the catalog's key space, so it is read
+ * back through runtime checks rather than a cast; a malformed sidecar from an
+ * older cache is ignored.
+ */
+export const WAREHOUSE_NESTED_COLUMNS_KEY = '__lightdashNestedColumns';
+
+const getNestedColumnsSidecar = (
+    catalog: WarehouseCatalog,
+): Record<string, unknown> | undefined => {
+    const sidecar: unknown = catalog[WAREHOUSE_NESTED_COLUMNS_KEY];
+    return isPlainRecord(sidecar) ? sidecar : undefined;
+};
+
+export const getCatalogNestedColumnShape = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    columnPath: string,
+): WarehouseNestedColumnShape | undefined => {
+    const shape = [database, schema, table, columnPath].reduce<unknown>(
+        (node, key) => (isPlainRecord(node) ? node[key] : undefined),
+        getNestedColumnsSidecar(catalog),
+    );
+    return isWarehouseNestedColumnShape(shape) ? shape : undefined;
+};
+
+export const setCatalogNestedColumnShape = (
+    catalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    table: string,
+    columnPath: string,
+    shape: WarehouseNestedColumnShape | undefined,
+): void => {
+    if (shape === undefined) return;
+    const sidecar = getNestedColumnsSidecar(catalog) ?? {};
+    Object.assign(catalog, { [WAREHOUSE_NESTED_COLUMNS_KEY]: sidecar });
+    const ensureRecord = (
+        parent: Record<string, unknown>,
+        key: string,
+    ): Record<string, unknown> => {
+        const existing = parent[key];
+        if (isPlainRecord(existing)) return existing;
+        const created: Record<string, unknown> = {};
+        // eslint-disable-next-line no-param-reassign
+        parent[key] = created;
+        return created;
+    };
+    ensureRecord(ensureRecord(ensureRecord(sidecar, database), schema), table)[
+        columnPath
+    ] = shape;
+};
+
 export type WarehouseTablesCatalog = {
     [database: string]: {
         [schema: string]: {

@@ -3,9 +3,11 @@ import {
     DbtModelNode,
     DbtSchemaEditor,
     DimensionType,
+    getCatalogNestedColumnShape,
     ParseError,
     patchPathParts,
     SupportedDbtVersions,
+    type WarehouseCatalog,
 } from '@lightdash/common';
 import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import execa from 'execa';
@@ -30,12 +32,39 @@ type GetDatabaseTableForModelArgs = {
     warehouseClient: WarehouseClient;
     preserveColumnCase: boolean;
 };
+type TableRef = { database: string; schema: string; table: string };
+
+/**
+ * Only scalar leaves reachable through non-repeated structs can be queried as
+ * plain columns today, so generated YAML skips container nodes and anything
+ * inside a repeated node.
+ */
+export const isGeneratableColumn = (
+    catalog: WarehouseCatalog,
+    { database, schema, table }: TableRef,
+    columnPath: string,
+): boolean => {
+    const segments = columnPath.split('.');
+    return segments.every((_, index) => {
+        const prefix = segments.slice(0, index + 1).join('.');
+        const shape = getCatalogNestedColumnShape(
+            catalog,
+            database,
+            schema,
+            table,
+            prefix,
+        );
+        const isLeaf = index === segments.length - 1;
+        return isLeaf ? shape === undefined : shape?.repeated === false;
+    });
+};
+
 export const getWarehouseTableForModel = async ({
     model,
     warehouseClient,
     preserveColumnCase,
 }: GetDatabaseTableForModelArgs): Promise<WarehouseTableSchema> => {
-    const tableRef = {
+    const tableRef: TableRef = {
         database: model.database,
         schema: model.schema,
         table: model.alias || model.name,
@@ -57,6 +86,9 @@ export const getWarehouseTableForModel = async ({
     }
     return Object.entries(table).reduce<WarehouseTableSchema>(
         (accumulator, [key, value]) => {
+            if (!isGeneratableColumn(catalog, tableRef, key)) {
+                return accumulator;
+            }
             const columnName = preserveColumnCase ? key : key.toLowerCase();
             accumulator[columnName] = value;
             return accumulator;

@@ -27,6 +27,7 @@ import {
     type AttachTypesDiagnostics,
 } from './translator';
 import {
+    column,
     expectedModelWithTimestampDomain,
     expectedModelWithType,
     LIGHTDASH_TABLE_SQL_WHERE,
@@ -109,6 +110,27 @@ describe('attachTypesToModels', () => {
         expect(attachTypesToModels([model], warehouseSchema, false)[0]).toEqual(
             expectedModelWithType,
         );
+    });
+    it('should resolve a dotted nested column from its dotted catalog entry', async () => {
+        const nestedModel = {
+            ...model,
+            columns: {
+                ...model.columns,
+                'myRecordColumn.id': {
+                    ...column,
+                    name: 'myRecordColumn.id',
+                },
+            },
+        };
+        const nestedCatalog = structuredClone(warehouseSchema);
+        nestedCatalog[model.database][model.schema][model.name][
+            'myRecordColumn.id'
+        ] = DimensionType.NUMBER;
+        expect(
+            attachTypesToModels([nestedModel], nestedCatalog, true)[0].columns[
+                'myRecordColumn.id'
+            ].data_type,
+        ).toEqual(DimensionType.NUMBER);
     });
     it('should return models with undefined type when is missing dataset or table or column', async () => {
         expect(attachTypesToModels([model], {}, false)[0]).toEqual(model);

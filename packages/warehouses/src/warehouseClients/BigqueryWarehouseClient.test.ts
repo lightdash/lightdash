@@ -8,10 +8,14 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     DimensionType,
+    getCatalogNestedColumnShape,
+    setCatalogNestedColumnShape,
+    setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
     type BigqueryProject,
     type CreateBigqueryCredentials,
+    type WarehouseNestedColumnShape,
 } from '@lightdash/common';
 import type { Mock, MockInstance } from 'vitest';
 import {
@@ -43,11 +47,19 @@ describe('BigqueryWarehouseClient', () => {
         expect(results.fields).toEqual({
             ...expectedFields,
             myBigNumberColumn: { type: 'number' },
+            myRepeatedColumn: { type: 'string' },
+            myRecordColumn: { type: 'string' },
         });
         expect(results.rows[0]).toEqual({
             ...expectedRow,
             myNumberColumn: 100.25,
             myBigNumberColumn: 200.5,
+            // BigQuery serialises nested values as JSON; other clients pass them through
+            myArrayColumn: '["1","2","3"]',
+            myObjectColumn: '{"test":"1"}',
+            myRepeatedColumn: '["a","b"]',
+            myRecordColumn:
+                '{"id":7,"createdAt":"1990-03-02T08:30:00.010Z","tags":[{"label":"x"},{"label":"y"}]}',
         });
         expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledTimes(
             1,
@@ -94,11 +106,74 @@ describe('BigqueryWarehouseClient', () => {
         const expectedCatalog = structuredClone(
             expectedWarehouseSchemaWithAwareTimestamp,
         );
-        expectedCatalog.myDatabase.mySchema.myTable.myBigNumberColumn =
-            DimensionType.NUMBER;
+        Object.assign(expectedCatalog.myDatabase.mySchema.myTable, {
+            myBigNumberColumn: DimensionType.NUMBER,
+            myRepeatedColumn: DimensionType.STRING,
+            myRecordColumn: DimensionType.STRING,
+            'myRecordColumn.id': DimensionType.NUMBER,
+            'myRecordColumn.createdAt': DimensionType.TIMESTAMP,
+            'myRecordColumn.tags': DimensionType.STRING,
+            'myRecordColumn.tags.label': DimensionType.STRING,
+        });
+        setCatalogTimestampDomain(
+            expectedCatalog,
+            'myDatabase',
+            'mySchema',
+            'myTable',
+            'myRecordColumn.createdAt',
+            'aware',
+        );
+        const nestedShapes: Record<string, WarehouseNestedColumnShape> = {
+            myObjectColumn: { repeated: false, record: true },
+            myRepeatedColumn: { repeated: true, record: false },
+            myRecordColumn: { repeated: false, record: true },
+            'myRecordColumn.tags': { repeated: true, record: true },
+        };
+        Object.entries(nestedShapes).forEach(([path, shape]) =>
+            setCatalogNestedColumnShape(
+                expectedCatalog,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                path,
+                shape,
+            ),
+        );
         expect(await warehouse.getCatalog(config)).toEqual(expectedCatalog);
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
+    });
+    it('expect getFields to flatten nested columns with the same shapes as getCatalog', async () => {
+        Dataset.prototype.table = vi
+            .fn()
+            .mockImplementationOnce(() => getTableResponse);
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const fields = await warehouse.getFields(
+            'myTable',
+            'mySchema',
+            'myDatabase',
+        );
+        expect(fields.myDatabase.mySchema.myTable['myRecordColumn.id']).toBe(
+            DimensionType.NUMBER,
+        );
+        expect(
+            getCatalogNestedColumnShape(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                'myRecordColumn.tags',
+            ),
+        ).toEqual({ repeated: true, record: true });
+        expect(
+            getCatalogNestedColumnShape(
+                fields,
+                'myDatabase',
+                'mySchema',
+                'myTable',
+                'myStringColumn',
+            ),
+        ).toBeUndefined();
     });
 });
 
