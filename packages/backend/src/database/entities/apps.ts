@@ -5,6 +5,7 @@ import {
     type AppVersionStatusHistoryEntry,
     type DataAppGenerationUsage,
     type DataAppTemplate,
+    type DataAppTemplateKind,
     type DataAppVizSchema,
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
@@ -35,8 +36,11 @@ export type DbApp = {
     // in-flight old code during a deploy.
     sandbox_id: string | null;
     template: Exclude<DataAppTemplate, 'custom'> | null;
-    // Organization template (uploaded package) the app was built from.
+    // Organization template (uploaded package) the app was built from, and
+    // its kind as pinned when the app was created: the template's current
+    // files may change or vanish, the app's contract must not.
     template_slug: string | null;
+    template_kind: DataAppTemplateKind | null;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
@@ -69,6 +73,7 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'sandbox_id'
                 | 'template'
                 | 'template_slug'
+                | 'template_kind'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
                 | 'registry_slug'
