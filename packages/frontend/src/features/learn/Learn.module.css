@@ -237,12 +237,12 @@
     margin-left: 4px;
 }
 
-/* The two Continue cards as heroes: the group's colour as a tile, the
+/* The Up next card as a hero: the group's colour as a tile, the
    walkthrough named and described, its length and one action. */
-.heroGrid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 14px;
+.upNext {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
 }
 
 .hero {

@@ -243,6 +243,9 @@ const LearnPage: FC = () => {
         completed,
         lastStarted,
     );
+    // One thing to do next: the recommendation, or whatever was last
+    // started if nothing is left to recommend.
+    const upNext = recommended ?? resume;
 
     // Start makes the learner's copy and goes straight into it; the
     // walkthrough brings them back to the library side when it ends.
@@ -288,7 +291,7 @@ const LearnPage: FC = () => {
                     <TextInput
                         className={styles.search}
                         size="md"
-                        radius="xl"
+                        radius="md"
                         placeholder="Search the library"
                         aria-label="Search the library"
                         leftSection={<MantineIcon icon={IconSearch} />}
@@ -298,96 +301,46 @@ const LearnPage: FC = () => {
                         }
                     />
                 </Box>
-                {(resume || recommended) && (
-                    <Box component="section" className={styles.section}>
+                {upNext && (
+                    <Box
+                        component="section"
+                        className={`${styles.section} ${styles.upNext}`}
+                    >
                         <h2 className={styles.sectionTitle}>
                             <MantineIcon icon={IconPlayerPlay} size={14} />
-                            Continue
+                            Up next
                         </h2>
-                        <Box className={styles.heroGrid}>
-                            {resume && (
-                                <Box
-                                    component="article"
-                                    className={styles.hero}
-                                    style={groupVars(resume.group)}
-                                    data-learn-resume={resume.scope}
-                                >
-                                    <span className={styles.heroTile}>
-                                        <MantineIcon
-                                            icon={GROUP_ICONS[resume.group]}
-                                            size={20}
-                                        />
-                                    </span>
-                                    <Box className={styles.heroBody}>
-                                        <span
-                                            className={`${styles.overline} ${styles.overlineAccent}`}
-                                        >
-                                            Resume
-                                        </span>
-                                        <h3>{resume.title}</h3>
-                                        <p>{resume.blurb}</p>
-                                        <Box className={styles.heroFoot}>
-                                            <span>
-                                                {resume.stepCount} steps
-                                            </span>
-                                            <Button
-                                                variant="light"
-                                                size="compact-md"
-                                                loading={
-                                                    opening === resume.scope
-                                                }
-                                                onClick={() =>
-                                                    start(resume.scope)
-                                                }
-                                            >
-                                                Resume module
-                                            </Button>
-                                        </Box>
-                                    </Box>
+                        <Box
+                            component="article"
+                            className={styles.hero}
+                            style={groupVars(upNext.group)}
+                            data-learn-recommended={upNext.scope}
+                        >
+                            <span className={styles.heroTile}>
+                                <MantineIcon
+                                    icon={GROUP_ICONS[upNext.group]}
+                                    size={20}
+                                />
+                            </span>
+                            <Box className={styles.heroBody}>
+                                <span className={styles.overline}>
+                                    {GROUP_LABELS[upNext.group]}
+                                </span>
+                                <h3>{upNext.title}</h3>
+                                <p>{upNext.blurb}</p>
+                                <Box className={styles.heroFoot}>
+                                    <span>{upNext.stepCount} steps</span>
+                                    <Button
+                                        variant="filled"
+                                        color="indigo"
+                                        size="compact-md"
+                                        loading={opening === upNext.scope}
+                                        onClick={() => start(upNext.scope)}
+                                    >
+                                        Start
+                                    </Button>
                                 </Box>
-                            )}
-                            {recommended && (
-                                <Box
-                                    component="article"
-                                    className={styles.hero}
-                                    style={groupVars(recommended.group)}
-                                    data-learn-recommended={recommended.scope}
-                                >
-                                    <span className={styles.heroTile}>
-                                        <MantineIcon
-                                            icon={
-                                                GROUP_ICONS[recommended.group]
-                                            }
-                                            size={20}
-                                        />
-                                    </span>
-                                    <Box className={styles.heroBody}>
-                                        <span className={styles.overline}>
-                                            Recommended next
-                                        </span>
-                                        <h3>{recommended.title}</h3>
-                                        <p>{recommended.blurb}</p>
-                                        <Box className={styles.heroFoot}>
-                                            <span>
-                                                {recommended.stepCount} steps
-                                            </span>
-                                            <Button
-                                                variant="default"
-                                                size="compact-md"
-                                                loading={
-                                                    opening ===
-                                                    recommended.scope
-                                                }
-                                                onClick={() =>
-                                                    start(recommended.scope)
-                                                }
-                                            >
-                                                Start
-                                            </Button>
-                                        </Box>
-                                    </Box>
-                                </Box>
-                            )}
+                            </Box>
                         </Box>
                     </Box>
                 )}
