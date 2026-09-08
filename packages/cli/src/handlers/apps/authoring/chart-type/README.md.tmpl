@@ -3,9 +3,11 @@
 Created or downloaded with the Lightdash CLI. This is a **custom chart type** (a reusable visualization): one chart component that Lightdash hands data and settings to. It runs no query of its own — the same component is reused across many different queries.
 
 ## Edit → validate → upload
+Run these commands from this folder under `chart-types/<slug>/`. The upload path `../..` selects the Lightdash content root.
+
 1. Edit files under `src/`. The component's contract with Lightdash — the fields it maps and the config options viewers can change — is declared in `lightdash-app.yml` under `vizSchema` and must match what `src/App.jsx` reads (see `.claude/skills/reusable-visualization`).
 2. Run `lightdash apps validate` to check the source and manifest; `lightdash apps validate --build` adds the Cloud-parity Vite production build.
-3. `lightdash upload --chart-types <slug>` (the `slug` from `lightdash-app.yml`) — Lightdash rebuilds and serves it.
+3. `lightdash upload --chart-types <slug> --path ../..` (the `slug` from `lightdash-app.yml`) — Lightdash rebuilds and serves it.
 4. Open any explore in Lightdash, run a query, and pick this chart type in the chart type picker to see it against real data.
 
 There is no standalone preview: the component waits for the Lightdash host's data, so `npm run dev` shows a blank page. Upload and verify in the explorer.

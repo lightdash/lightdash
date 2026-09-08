@@ -1214,7 +1214,7 @@ appsProgram
         )}\n  ${styles.title('⚡')}️lightdash ${styles.bold(
             'apps create "Radial gauge" --chart-type',
         )} ${styles.secondary(
-            '-- creates a custom chart type at ./lightdash/apps/radial-gauge',
+            '-- creates a custom chart type at ./lightdash/chart-types/radial-gauge',
         )}\n`,
     )
     .action(createAppHandler);
