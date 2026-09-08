@@ -1,3 +1,10 @@
+## [2.167.1](https://github.com/lightdash/lightdash/compare/2.167.0...2.167.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **learn:** clear GuidedTour glide timers on unmount ([#28895](https://github.com/lightdash/lightdash/issues/28895)) ([8189182](https://github.com/lightdash/lightdash/commit/8189182bee72d73bee6d3eb7a73d6cdffc7c44cf))
+
 # [2.167.0](https://github.com/lightdash/lightdash/compare/2.166.1...2.167.0) (2026-09-08)
 
 
