@@ -399,7 +399,7 @@ writeActions: {
 }
 ```
 
-- Omitted or `'legacy'`: preserve pre-scope AI access. Existing integrations
+- Omitted or `'jwt'`: preserve pre-scope AI access. Existing integrations
   do not need to change their tokens or roles.
 - `'roles'`: additionally require `view:EmbedAiAgent` from the resolved write
   actor. Removing the last effective grant blocks subsequent AI requests with
@@ -424,7 +424,7 @@ if `permissionsMode: 'roles'` is present. Do not advertise role-only dashboard
 authorization until SPK-1970 ships.
 
 That follow-up should make `'roles'` use embed scopes exclusively, with no
-legacy flag/default bypass, while omitted/`'legacy'` preserves today's behavior.
+legacy flag/default bypass, while omitted/`'jwt'` preserves today's behavior.
 Apply it consistently to backend abilities, dashboard response capabilities,
 and structured filter/parameter controls, preserving hidden-filter presentation.
 Retain existing payload/response shapes and reject unresolved role-mode actors.

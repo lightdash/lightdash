@@ -459,9 +459,9 @@ describe('EmbedService', () => {
                 allowed: true,
             },
             {
-                name: 'explicit legacy mode without scope',
+                name: 'explicit jwt mode without scope',
                 legacy: true,
-                explicitLegacy: true,
+                explicitJwt: true,
                 scope: 'view:AiAgent',
                 allowed: true,
             },
@@ -592,7 +592,7 @@ describe('EmbedService', () => {
             const content = scenario.dashboard
                 ? { type: 'dashboard' as const, dashboardUuid: 'dashboard' }
                 : { type: 'aiAgent' as const, agentUuid: 'agent' };
-            const legacyMode = scenario.explicitLegacy ? 'legacy' : undefined;
+            const jwtMode = scenario.explicitJwt ? 'jwt' : undefined;
             const context = await getContext(
                 {
                     content,
@@ -602,7 +602,7 @@ describe('EmbedService', () => {
                               writeActions: {
                                   spaceUuid: 'space',
                                   permissionsMode: scenario.legacy
-                                      ? legacyMode
+                                      ? jwtMode
                                       : 'roles',
                                   ...(scenario.serviceAccount
                                       ? { serviceAccountUserUuid: mockUserUuid }

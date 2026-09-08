@@ -53,7 +53,7 @@ export function decodeLightdashJwt(
 
         // Unknown AI authorization modes must not fall back to legacy access.
         if (decodedToken.content?.type === 'aiAgent') {
-            z.enum(['legacy', 'roles'])
+            z.enum(['jwt', 'roles'])
                 .optional()
                 .parse(decodedToken.writeActions?.permissionsMode);
         }
