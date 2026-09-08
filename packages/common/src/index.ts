@@ -1234,3 +1234,5 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
         ],
     },
 ] as const;
+
+export * from './compiler/compileLightdashModels';

@@ -49,7 +49,7 @@
                     "description": "Primary key column(s) for the model"
                 },
                 "order_fields_by": {
-                    "enum": ["INDEX", "LABEL"],
+                    "enum": ["INDEX", "LABEL", "index", "label"],
                     "description": "Strategy for ordering fields in the UI"
                 },
                 "group_label": {

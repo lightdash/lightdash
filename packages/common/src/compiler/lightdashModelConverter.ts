@@ -21,6 +21,7 @@ import {
  */
 export function convertLightdashModelToDbtModel(
     model: LightdashModel,
+    sourcePath?: string,
 ): DbtModelNode {
     // Generate a unique ID for this model
     const uniqueId = `model.lightdash.${model.name}`;
@@ -116,8 +117,8 @@ export function convertLightdashModelToDbtModel(
             meta: modelConfig,
         },
         tags: [],
-        path: `lightdash/models/${model.name}.yml`,
-        patch_path: `lightdash://${model.name}.yml`,
+        path: sourcePath ?? `lightdash/models/${model.name}.yml`,
+        patch_path: `lightdash://${sourcePath ?? `${model.name}.yml`}`,
         depends_on: {
             nodes: [],
             macros: [],
@@ -131,7 +132,7 @@ export function convertLightdashModelToDbtModel(
         raw_code: sqlFrom,
         language: 'sql' as const,
         package_name: 'lightdash',
-        original_file_path: `lightdash/models/${model.name}.yml`,
+        original_file_path: sourcePath ?? `lightdash/models/${model.name}.yml`,
         checksum: {
             name: 'sha256',
             checksum: '',
