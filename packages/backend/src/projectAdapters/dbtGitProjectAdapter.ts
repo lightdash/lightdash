@@ -505,7 +505,7 @@ export class DbtGitProjectAdapter
         const previous = this.cacheLease;
         previous?.signal.removeEventListener('abort', this.onCacheLeaseAbort);
         this.cacheLease = lease;
-        (this.dbtClient as DbtCliClient).setAbortSignal(lease?.signal);
+        this.dbtClient.setAbortSignal?.(lease?.signal);
         lease?.signal.addEventListener('abort', this.onCacheLeaseAbort);
         if (lease?.signal.aborted || lease?.invalidated) {
             this.onCacheLeaseAbort();

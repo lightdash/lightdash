@@ -81,6 +81,8 @@ export interface ProjectAdapter {
 export interface DbtClient {
     installDeps?(): Promise<void>;
 
+    setAbortSignal?(signal: AbortSignal | undefined): void;
+
     getDbtManifest(): Promise<DbtRpcGetManifestResults>;
 
     getDbtPackages?(): Promise<DbtPackages | undefined>;
