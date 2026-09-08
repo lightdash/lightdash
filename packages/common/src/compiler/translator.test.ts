@@ -3624,9 +3624,15 @@ describe('nested and repeated columns', () => {
         expect(table.dimensions.pageviews_bucket.compiledSql).toEqual(
             "CASE WHEN `ga_sessions`.totals.pageviews > 5 THEN 'many' ELSE 'few' END",
         );
-        expect(Object.keys(table.metrics)).toEqual(['sessions_with_visits']);
+        expect(Object.keys(table.metrics).sort()).toEqual([
+            'container_count',
+            'sessions_with_visits',
+        ]);
         expect(table.metrics.sessions_with_visits.compiledSql).toEqual(
             '`ga_sessions`.totals.visits',
+        );
+        expect(table.metrics.container_count.compiledSql).toEqual(
+            '`ga_sessions`.totals',
         );
     });
 
