@@ -43,7 +43,7 @@ const githubPullRequestUrlSchema = z
         'Expected a public lightdash/lightdash pull request URL',
     );
 
-export const RoadmapItemSchema: z.ZodType<RoadmapItem> = z
+export const RoadmapItemSchema = z
     .object({
         ticketId: z.string().min(1).max(255),
         title: z.string().min(1),
@@ -56,92 +56,6 @@ export const RoadmapItemSchema: z.ZodType<RoadmapItem> = z
         pullRequestUrl: githubPullRequestUrlSchema.nullable(),
     })
     .strict();
-
-export const RoadmapQuerySchema = z
-    .object({
-        page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
-        pageSize: z
-            .number()
-            .int()
-            .min(1)
-            .max(ROADMAP_DEFAULT_PAGE_SIZE)
-            .optional(),
-    })
-    .strict();
-
-export type RoadmapQuery = z.infer<typeof RoadmapQuerySchema>;
-
-export type RoadmapPagination = {
-    page: number;
-    pageSize: number;
-    totalIssues: number;
-    totalPages: number;
-};
-
-export const RoadmapPaginationSchema: z.ZodType<RoadmapPagination> = z
-    .object({
-        page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
-        pageSize: z.number().int().min(1).max(100),
-        totalIssues: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-        totalPages: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
-    })
-    .strict();
-
-export type RoadmapFacets = {
-    statusCounts: Record<RoadmapItemStatus, number>;
-    priorityCounts: Record<RoadmapItemPriority, number>;
-};
-
-const roadmapCountSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
-
-export const RoadmapFacetsSchema: z.ZodType<RoadmapFacets> = z
-    .object({
-        statusCounts: z
-            .object({
-                [RoadmapItemStatus.BACKLOG]: roadmapCountSchema,
-                [RoadmapItemStatus.BUILDING]: roadmapCountSchema,
-                [RoadmapItemStatus.SHIPPED]: roadmapCountSchema,
-                [RoadmapItemStatus.CANCELED]: roadmapCountSchema,
-            })
-            .strict(),
-        priorityCounts: z
-            .object({
-                [RoadmapItemPriority.URGENT]: roadmapCountSchema,
-                [RoadmapItemPriority.HIGH]: roadmapCountSchema,
-                [RoadmapItemPriority.MEDIUM]: roadmapCountSchema,
-                [RoadmapItemPriority.LOW]: roadmapCountSchema,
-                [RoadmapItemPriority.NO_PRIORITY]: roadmapCountSchema,
-            })
-            .strict(),
-    })
-    .strict();
-
-export type RoadmapResponse = {
-    status: 'ok';
-    results: RoadmapItem[];
-    pagination: RoadmapPagination;
-    facets: RoadmapFacets;
-};
-
-export const RoadmapResponseSchema: z.ZodType<RoadmapResponse> = z
-    .object({
-        status: z.literal('ok'),
-        results: z.array(RoadmapItemSchema),
-        pagination: RoadmapPaginationSchema,
-        facets: RoadmapFacetsSchema,
-    })
-    .strict();
-
-export type RoadmapResults = {
-    data: RoadmapItem[];
-    pagination: RoadmapPagination;
-    facets: RoadmapFacets;
-};
-
-export type ApiRoadmapResponse = {
-    status: 'ok';
-    results: RoadmapResults;
-};
 
 export const RoadmapProjectQuerySchema = z
     .object({
@@ -190,11 +104,96 @@ export const RoadmapProjectQuerySchema = z
         onlyInterested: z.boolean().optional(),
     })
     .strict();
+export const RoadmapQuerySchema = RoadmapProjectQuerySchema.omit({
+    onlyInterested: true,
+}).extend({
+    projectId: z.string().min(1).max(255).optional(),
+});
+
+export type RoadmapQuery = z.infer<typeof RoadmapQuerySchema>;
+
+export type RoadmapPagination = {
+    page: number;
+    pageSize: number;
+    totalIssues: number;
+    totalPages: number;
+};
+
+export const RoadmapPaginationSchema: z.ZodType<RoadmapPagination> = z
+    .object({
+        page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER),
+        pageSize: z.number().int().min(1).max(100),
+        totalIssues: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+        totalPages: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    })
+    .strict();
+
+export type RoadmapFacets = {
+    statusCounts: Record<RoadmapItemStatus, number>;
+    priorityCounts: Record<RoadmapItemPriority, number>;
+};
+
+const roadmapCountSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
+
+export const RoadmapFacetsSchema: z.ZodType<RoadmapFacets> = z
+    .object({
+        statusCounts: z
+            .object({
+                [RoadmapItemStatus.BACKLOG]: roadmapCountSchema,
+                [RoadmapItemStatus.BUILDING]: roadmapCountSchema,
+                [RoadmapItemStatus.SHIPPED]: roadmapCountSchema,
+                [RoadmapItemStatus.CANCELED]: roadmapCountSchema,
+            })
+            .strict(),
+        priorityCounts: z
+            .object({
+                [RoadmapItemPriority.URGENT]: roadmapCountSchema,
+                [RoadmapItemPriority.HIGH]: roadmapCountSchema,
+                [RoadmapItemPriority.MEDIUM]: roadmapCountSchema,
+                [RoadmapItemPriority.LOW]: roadmapCountSchema,
+                [RoadmapItemPriority.NO_PRIORITY]: roadmapCountSchema,
+            })
+            .strict(),
+    })
+    .strict();
+
+const RoadmapRequestSchema = RoadmapItemSchema.extend({
+    projectId: z.string().min(1).nullable().optional(),
+});
+
+export type RoadmapResponse = {
+    status: 'ok';
+    results: (RoadmapItem & { projectId?: string | null })[];
+    expiresAt?: string;
+    pagination: RoadmapPagination;
+    facets: RoadmapFacets;
+};
+
+export const RoadmapResponseSchema = z
+    .object({
+        status: z.literal('ok'),
+        results: z.array(RoadmapRequestSchema),
+        expiresAt: z.string().datetime({ offset: true }).optional(),
+        pagination: RoadmapPaginationSchema,
+        facets: RoadmapFacetsSchema,
+    })
+    .strict();
+
+export type RoadmapResults = {
+    data: RoadmapResponse['results'];
+    expiresAt?: string;
+    pagination: RoadmapPagination;
+    facets: RoadmapFacets;
+};
+
+export type ApiRoadmapResponse = {
+    status: 'ok';
+    results: RoadmapResults;
+};
+
 export type RoadmapProjectQuery = z.infer<typeof RoadmapProjectQuerySchema>;
-export const RoadmapProjectRequestsQuerySchema = RoadmapProjectQuerySchema.omit(
-    { onlyInterested: true },
-).extend({
-    groupId: z.string().min(1).max(255),
+export const RoadmapProjectRequestsQuerySchema = RoadmapQuerySchema.required({
+    projectId: true,
 });
 export type RoadmapProjectRequestsQuery = z.infer<
     typeof RoadmapProjectRequestsQuerySchema
@@ -226,8 +225,9 @@ export type RoadmapProjectResults = {
     expiresAt: string;
 };
 export type RoadmapProjectRequestsResults = {
-    requests: { request: RoadmapItem; projectId: string | null }[];
-    pagination: RoadmapProjectPagination;
+    data: (RoadmapItem & { projectId: string | null })[];
+    pagination: RoadmapPagination;
+    facets: RoadmapFacets;
     expiresAt: string;
 };
 const RoadmapProjectPaginationSchema = z
@@ -269,35 +269,22 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> = z
         expiresAt: z.string().datetime({ offset: true }),
     })
     .strict();
+export const RoadmapProjectRequestsResponseSchema =
+    RoadmapResponseSchema.extend({
+        results: z.array(RoadmapRequestSchema.required({ projectId: true })),
+        expiresAt: z.string().datetime({ offset: true }),
+    });
 export const RoadmapProjectRequestsResultsSchema: z.ZodType<RoadmapProjectRequestsResults> =
-    z
-        .object({
-            requests: z.array(
-                z
-                    .object({
-                        request: RoadmapItemSchema,
-                        projectId: z.string().min(1).nullable(),
-                    })
-                    .strict(),
-            ),
-            pagination: RoadmapProjectPaginationSchema,
-            expiresAt: z.string().datetime({ offset: true }),
-        })
-        .strict();
+    RoadmapProjectRequestsResponseSchema.omit({
+        status: true,
+        results: true,
+    }).extend({
+        data: RoadmapProjectRequestsResponseSchema.shape.results,
+    });
 export const RoadmapProjectResponseSchema = z
     .object({ status: z.literal('ok'), results: RoadmapProjectResultsSchema })
-    .strict();
-export const RoadmapProjectRequestsResponseSchema = z
-    .object({
-        status: z.literal('ok'),
-        results: RoadmapProjectRequestsResultsSchema,
-    })
     .strict();
 export type ApiRoadmapProjectResponse = {
     status: 'ok';
     results: RoadmapProjectResults;
-};
-export type ApiRoadmapProjectRequestsResponse = {
-    status: 'ok';
-    results: RoadmapProjectRequestsResults;
 };

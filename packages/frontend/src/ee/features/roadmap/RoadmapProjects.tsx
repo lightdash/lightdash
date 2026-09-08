@@ -528,7 +528,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     );
     const ticketsQuery = useRoadmapRequests(
         {
-            groupId: selectedProjectId ?? 'other',
+            projectId: selectedProjectId ?? 'null',
             statuses: statusQuery(
                 selectedProjectId ? projectStatuses : mainStatuses,
             ),
@@ -546,10 +546,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     );
     const projects =
         projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
-    const tickets =
-        ticketsQuery.data?.pages.flatMap((page) =>
-            page.requests.map((item) => item.request),
-        ) ?? [];
+    const tickets = ticketsQuery.data?.pages.flatMap((page) => page.data) ?? [];
     const expiresAt = [
         ...(projectsQuery.data?.pages ?? []),
         ...(ticketsQuery.data?.pages ?? []),

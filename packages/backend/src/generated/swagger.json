@@ -32995,9 +32995,191 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "RoadmapItemStatus": {
+                "enum": ["Backlog", "Building", "Shipped", "Canceled"],
+                "type": "string"
+            },
             "RoadmapItemPriority": {
                 "enum": ["Urgent", "High", "Medium", "Low", "No priority"],
                 "type": "string"
+            },
+            "RoadmapItem": {
+                "properties": {
+                    "pullRequestUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "issueUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "$ref": "#/components/schemas/RoadmapItemPriority"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/RoadmapItemStatus"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "ticketId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "pullRequestUrl",
+                    "issueUrl",
+                    "updatedAt",
+                    "createdAt",
+                    "priority",
+                    "status",
+                    "description",
+                    "title",
+                    "ticketId"
+                ],
+                "type": "object"
+            },
+            "RoadmapPagination": {
+                "properties": {
+                    "totalPages": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalIssues": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalPages", "totalIssues", "pageSize", "page"],
+                "type": "object"
+            },
+            "Record_RoadmapItemStatus.number_": {
+                "properties": {
+                    "Backlog": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Building": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Shipped": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Canceled": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["Backlog", "Building", "Shipped", "Canceled"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "Record_RoadmapItemPriority.number_": {
+                "properties": {
+                    "Urgent": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "High": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Medium": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "Low": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "No priority": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["Urgent", "High", "Medium", "Low", "No priority"],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "RoadmapFacets": {
+                "properties": {
+                    "priorityCounts": {
+                        "$ref": "#/components/schemas/Record_RoadmapItemPriority.number_"
+                    },
+                    "statusCounts": {
+                        "$ref": "#/components/schemas/Record_RoadmapItemStatus.number_"
+                    }
+                },
+                "required": ["priorityCounts", "statusCounts"],
+                "type": "object"
+            },
+            "RoadmapResults": {
+                "properties": {
+                    "facets": {
+                        "$ref": "#/components/schemas/RoadmapFacets"
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/RoadmapPagination"
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "items": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/RoadmapItem"
+                                },
+                                {
+                                    "properties": {
+                                        "projectId": {
+                                            "type": "string",
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["facets", "pagination", "data"],
+                "type": "object"
+            },
+            "ApiRoadmapResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "RoadmapProject": {
                 "properties": {
@@ -33108,214 +33290,6 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/RoadmapProjectResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "RoadmapItemStatus": {
-                "enum": ["Backlog", "Building", "Shipped", "Canceled"],
-                "type": "string"
-            },
-            "RoadmapItem": {
-                "properties": {
-                    "pullRequestUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "issueUrl": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "updatedAt": {
-                        "type": "string"
-                    },
-                    "createdAt": {
-                        "type": "string"
-                    },
-                    "priority": {
-                        "$ref": "#/components/schemas/RoadmapItemPriority"
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/RoadmapItemStatus"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string"
-                    },
-                    "ticketId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "pullRequestUrl",
-                    "issueUrl",
-                    "updatedAt",
-                    "createdAt",
-                    "priority",
-                    "status",
-                    "description",
-                    "title",
-                    "ticketId"
-                ],
-                "type": "object"
-            },
-            "RoadmapProjectRequestsResults": {
-                "properties": {
-                    "expiresAt": {
-                        "type": "string"
-                    },
-                    "pagination": {
-                        "$ref": "#/components/schemas/RoadmapProjectPagination"
-                    },
-                    "requests": {
-                        "items": {
-                            "properties": {
-                                "projectId": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
-                                "request": {
-                                    "$ref": "#/components/schemas/RoadmapItem"
-                                }
-                            },
-                            "required": ["projectId", "request"],
-                            "type": "object"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["expiresAt", "pagination", "requests"],
-                "type": "object"
-            },
-            "ApiRoadmapProjectRequestsResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/RoadmapProjectRequestsResults"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "RoadmapPagination": {
-                "properties": {
-                    "totalPages": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "totalIssues": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["totalPages", "totalIssues", "pageSize", "page"],
-                "type": "object"
-            },
-            "Record_RoadmapItemStatus.number_": {
-                "properties": {
-                    "Backlog": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "Building": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "Shipped": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "Canceled": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["Backlog", "Building", "Shipped", "Canceled"],
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "Record_RoadmapItemPriority.number_": {
-                "properties": {
-                    "Urgent": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "High": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "Medium": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "Low": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "No priority": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["Urgent", "High", "Medium", "Low", "No priority"],
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "RoadmapFacets": {
-                "properties": {
-                    "priorityCounts": {
-                        "$ref": "#/components/schemas/Record_RoadmapItemPriority.number_"
-                    },
-                    "statusCounts": {
-                        "$ref": "#/components/schemas/Record_RoadmapItemStatus.number_"
-                    }
-                },
-                "required": ["priorityCounts", "statusCounts"],
-                "type": "object"
-            },
-            "RoadmapResults": {
-                "properties": {
-                    "facets": {
-                        "$ref": "#/components/schemas/RoadmapFacets"
-                    },
-                    "pagination": {
-                        "$ref": "#/components/schemas/RoadmapPagination"
-                    },
-                    "data": {
-                        "items": {
-                            "$ref": "#/components/schemas/RoadmapItem"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["facets", "pagination", "data"],
-                "type": "object"
-            },
-            "ApiRoadmapResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/RoadmapResults"
                     },
                     "status": {
                         "type": "string",

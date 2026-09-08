@@ -30,16 +30,16 @@ export const roadmapApi: RoadmapApi = {
                 url: `/org/roadmap/projects?${queryString(query)}`,
                 method: 'GET',
                 body: undefined,
-                version: 'v2',
+                version: 'v1',
             }),
         ),
     getRequests: async (query) =>
         RoadmapProjectRequestsResultsSchema.parse(
             await lightdashApi<RoadmapProjectRequestsResults>({
-                url: `/org/roadmap/requests?${queryString(query)}`,
+                url: `/org/roadmap?${queryString(query)}`,
                 method: 'GET',
                 body: undefined,
-                version: 'v2',
+                version: 'v1',
             }),
         ),
 };

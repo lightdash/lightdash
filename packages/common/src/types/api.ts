@@ -341,7 +341,6 @@ import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
 import {
-    type ApiRoadmapProjectRequestsResponse,
     type ApiRoadmapProjectResponse,
     type ApiRoadmapResponse,
 } from './roadmap';
@@ -1347,7 +1346,6 @@ type ApiResults =
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
-    | ApiRoadmapProjectRequestsResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

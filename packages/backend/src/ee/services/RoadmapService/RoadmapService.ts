@@ -7,7 +7,6 @@ import {
     ParameterError,
     ROADMAP_DEFAULT_PAGE_SIZE,
     RoadmapProjectQuerySchema,
-    RoadmapProjectRequestsQuerySchema,
     RoadmapProjectRequestsResponseSchema,
     RoadmapProjectResponseSchema,
     RoadmapQuerySchema,
@@ -15,8 +14,6 @@ import {
     UnexpectedServerError,
     type Account,
     type RoadmapProjectQuery,
-    type RoadmapProjectRequestsQuery,
-    type RoadmapProjectRequestsResults,
     type RoadmapProjectResults,
     type RoadmapQuery,
     type RoadmapResults,
@@ -94,30 +91,9 @@ export class RoadmapService extends BaseService {
         const response = await this.request(
             organizationUuid,
             licenseKey,
-            'v2',
             '/projects',
             parsed.data,
             RoadmapProjectResponseSchema,
-        );
-        this.assertFresh(response.results.expiresAt);
-        return response.results;
-    }
-
-    async getProjectRequests(
-        account: Account,
-        query: RoadmapProjectRequestsQuery,
-    ): Promise<RoadmapProjectRequestsResults> {
-        const { organizationUuid, licenseKey } = await this.authorize(account);
-        const parsed = RoadmapProjectRequestsQuerySchema.safeParse(query);
-        if (!parsed.success)
-            throw new ParameterError('Could not load the organization roadmap');
-        const response = await this.request(
-            organizationUuid,
-            licenseKey,
-            'v2',
-            '/requests',
-            parsed.data,
-            RoadmapProjectRequestsResponseSchema,
         );
         this.assertFresh(response.results.expiresAt);
         return response.results;
@@ -138,33 +114,43 @@ export class RoadmapService extends BaseService {
         const parsed = RoadmapQuerySchema.safeParse(query);
         if (!parsed.success)
             throw new ParameterError('Could not load the organization roadmap');
+        const hasFilters =
+            parsed.data.projectId !== undefined ||
+            parsed.data.search !== undefined ||
+            parsed.data.statuses !== undefined ||
+            parsed.data.priorities !== undefined;
         const response = await this.request(
             organizationUuid,
             licenseKey,
-            'v1',
             '',
             {
                 ...parsed.data,
                 pageSize: parsed.data.pageSize ?? ROADMAP_DEFAULT_PAGE_SIZE,
             },
-            RoadmapResponseSchema,
+            hasFilters
+                ? RoadmapProjectRequestsResponseSchema
+                : RoadmapResponseSchema,
         );
+        if (response.expiresAt !== undefined)
+            this.assertFresh(response.expiresAt);
         return {
             data: response.results,
             pagination: response.pagination,
             facets: response.facets,
+            ...(response.expiresAt !== undefined && {
+                expiresAt: response.expiresAt,
+            }),
         };
     }
 
     private async request<T>(
         organizationUuid: string,
         licenseKey: string,
-        version: 'v1' | 'v2',
         suffix: string,
         query: Record<string, string | number | boolean | undefined>,
         schema: z.ZodType<T>,
     ): Promise<T> {
-        const url = new URL(ROADMAP_URL.replace('/v1/', `/${version}/`));
+        const url = new URL(ROADMAP_URL);
         url.pathname = `${url.pathname}/${encodeURIComponent(organizationUuid)}${suffix}`;
         Object.entries(query).forEach(([key, value]) => {
             if (value !== undefined) url.searchParams.set(key, String(value));
