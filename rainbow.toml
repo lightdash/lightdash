@@ -77,6 +77,13 @@ LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # exist to try unreleased work, so switch it on here and let an admin press
 # Enable Learn in the environment.
 LIGHTDASH_LEARN_ENABLED = "true"
+# No product analytics from previews. The backend's config bakes in a default
+# RudderStack write key and data plane, so without this every environment
+# tracks into production analytics — and the migrate rung's node process
+# stays alive until the client gives up on that request. With the data plane
+# outside the egress list that was four TCP timeouts, 8m47s, on every fork;
+# with this set the same command takes 2.5s.
+RUDDERSTACK_ANALYTICS_DISABLED = "true"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
