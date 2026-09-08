@@ -15,17 +15,10 @@ const mocks = vi.hoisted(() => ({
         queryTimezone: undefined as string | undefined,
         useProjectTimezoneInFilters: false,
     },
-    timezoneSupportEnabled: false,
 }));
 
 vi.mock('../../../../hooks/useProject', () => ({
     useProject: () => ({ data: mocks.project }),
-}));
-
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mocks.timezoneSupportEnabled },
-    }),
 }));
 
 vi.mock('./InvalidDateInput', () => ({
@@ -266,7 +259,6 @@ describe('Mantine Dates wrapper boundaries', () => {
     });
 
     it('preserves the project-timezone shift/string/unshift pipeline', () => {
-        mocks.timezoneSupportEnabled = true;
         mocks.project.useProjectTimezoneInFilters = true;
         const onChange = vi.fn();
 
@@ -297,7 +289,6 @@ describe('Mantine Dates wrapper boundaries', () => {
     });
 
     it('preserves datetime bounds and fractional milliseconds', () => {
-        mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;
         const onChange = vi.fn();
 
@@ -323,7 +314,6 @@ describe('Mantine Dates wrapper boundaries', () => {
     });
 
     it('drops bounds the stored value violates so Mantine cannot clamp it on dropdown close', () => {
-        mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;
         const onChange = vi.fn();
 
@@ -345,7 +335,6 @@ describe('Mantine Dates wrapper boundaries', () => {
     });
 
     it('keeps bounds the stored value satisfies', () => {
-        mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;
         const onChange = vi.fn();
 
@@ -366,7 +355,6 @@ describe('Mantine Dates wrapper boundaries', () => {
     });
 
     it('closes invalid replacement only after a valid parsed submission', () => {
-        mocks.timezoneSupportEnabled = false;
         mocks.project.useProjectTimezoneInFilters = false;
         mocks.closeInvalidInput.mockClear();
         const onChange = vi.fn();

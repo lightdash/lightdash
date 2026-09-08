@@ -24,7 +24,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
 
         retryQueryOnTransientErrors: false,
-        enableTimezoneSupport: undefined,
     },
 };
 
@@ -63,7 +62,6 @@ export const lightdashConfigWithBasicSMTP: Pick<
         timezone: undefined,
 
         retryQueryOnTransientErrors: false,
-        enableTimezoneSupport: undefined,
     },
 };
 
@@ -89,7 +87,6 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         timezone: undefined,
 
         retryQueryOnTransientErrors: false,
-        enableTimezoneSupport: undefined,
     },
 };
 
@@ -111,7 +108,6 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         timezone: undefined,
 
         retryQueryOnTransientErrors: false,
-        enableTimezoneSupport: undefined,
     },
 };
 

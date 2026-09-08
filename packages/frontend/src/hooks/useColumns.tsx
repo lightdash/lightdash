@@ -527,8 +527,8 @@ export const useColumns = (): TableColumn[] => {
     const resultsFields = mergeResults?.fields ?? query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
-    // Format temporal cells in the flag-gated resolved timezone (null when
-    // timezone support is off), never the chart's unresolved state timezone.
+    // Format temporal cells in the resolved query timezone, never the chart's
+    // unresolved state timezone.
     const timezone = query.data?.resolvedTimezone ?? undefined;
 
     const { data: exploreData } = useExplore(tableName, {

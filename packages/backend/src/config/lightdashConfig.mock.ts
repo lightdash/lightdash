@@ -288,7 +288,6 @@ export const lightdashConfigMock: LightdashConfig = {
         csvMaxLimit: 5000000,
         timezone: undefined,
         retryQueryOnTransientErrors: true,
-        enableTimezoneSupport: undefined,
     },
     ai: {
         copilot: {

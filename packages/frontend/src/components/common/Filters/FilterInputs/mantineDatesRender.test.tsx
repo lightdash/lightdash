@@ -12,18 +12,11 @@ const mocks = vi.hoisted(() => ({
         queryTimezone: 'America/New_York',
         useProjectTimezoneInFilters: false,
     },
-    timezoneSupportEnabled: false,
 }));
 
 vi.mock('../../../../hooks/useProject', () => ({
     useProject: () => ({
         data: mocks.project,
-    }),
-}));
-
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mocks.timezoneSupportEnabled },
     }),
 }));
 
@@ -69,7 +62,6 @@ describe('Mantine Dates runtime', () => {
     // return null and this onChange would never fire.
     it('parses the real DateTimePicker emission into a successful onChange', async () => {
         mocks.project.useProjectTimezoneInFilters = false;
-        mocks.timezoneSupportEnabled = false;
         const onChange = vi.fn();
         renderDateTimeRange(
             <FilterDateTimePicker
@@ -104,7 +96,6 @@ describe('Mantine Dates runtime', () => {
         'does not clamp a same-day datetime range when project timezone is %s',
         async (useProjectTimezone) => {
             mocks.project.useProjectTimezoneInFilters = useProjectTimezone;
-            mocks.timezoneSupportEnabled = useProjectTimezone;
             const startValue = useProjectTimezone
                 ? new Date('2025-05-14T14:00:00.000Z')
                 : new Date(2025, 4, 14, 10);

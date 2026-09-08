@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    FeatureFlags,
     getItemId,
     isAdditionalMetric,
     isCompiledMetric,
@@ -49,7 +48,6 @@ import {
 } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useIsModalHosted } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -74,13 +72,8 @@ const NavItemIcon = ({
     isMissing?: boolean;
     item: Item | AdditionalMetric;
 }) => {
-    const { data: tzSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const tzSupportEnabled = tzSupportFlag?.enabled ?? false;
-
     const tzAffordance = useMemo(() => {
-        if (isMissing || !tzSupportEnabled || !isField(item)) return null;
+        if (isMissing || !isField(item)) return null;
         const isDate = item.type === DimensionType.DATE;
         const isTimestamp = item.type === DimensionType.TIMESTAMP;
         if (!isDate && !isTimestamp) return null;
@@ -105,7 +98,7 @@ const NavItemIcon = ({
                   tooltip:
                       "Timestamp shown as stored, not affected by the chart's timezone",
               };
-    }, [isMissing, tzSupportEnabled, item]);
+    }, [isMissing, item]);
 
     if (isMissing) {
         return <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />;

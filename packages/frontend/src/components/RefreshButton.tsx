@@ -1,4 +1,4 @@
-import { FeatureFlags, type TimezoneSetting } from '@lightdash/common';
+import { type TimezoneSetting } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -22,7 +22,6 @@ import {
 import { useMergeSetup } from '../features/mergeQuery/hooks/useMergeSetup';
 import useHealth from '../hooks/health/useHealth';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
@@ -42,10 +41,6 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const dispatch = useExplorerDispatch();
     const preAggVisible = useExplorerSelector(selectPreAggVisible);
     const timezone = useExplorerSelector(selectTimezone);
-
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
 
     const setTimeZone = useCallback(
         (newTimezone: TimezoneSetting) => {
@@ -149,7 +144,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     onLimitChange={setRowLimit}
                     showAutoFetchSetting
                     showPreAggregateSetting={preAggVisible}
-                    showTimezoneSetting={timezoneSupportFlag?.enabled ?? false}
+                    showTimezoneSetting
                     timezone={timezone ?? undefined}
                     onTimezoneChange={setTimeZone}
                     isQueryRunning={isLoading}

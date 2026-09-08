@@ -546,6 +546,43 @@ type JwtDashboardQueryContextTestService = {
 };
 
 describe('AsyncQueryService', () => {
+    describe('timezone resolution', () => {
+        test.each([
+            {
+                projectTimezone: undefined,
+                sessionTimezone: null,
+                expected: 'UTC',
+            },
+            {
+                projectTimezone: 'Asia/Tokyo',
+                sessionTimezone: null,
+                expected: 'Asia/Tokyo',
+            },
+            {
+                projectTimezone: 'Asia/Tokyo',
+                sessionTimezone: 'America/New_York',
+                expected: 'America/New_York',
+            },
+        ])(
+            'always applies $expected to result formatting',
+            async ({ projectTimezone, sessionTimezone, expected }) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const context = await service['resolveTimezoneContext']({
+                    projectUuid,
+                    metricQuery: { ...metricQueryMock, timezone: undefined },
+                    sessionTimezone,
+                    userTimezone: null,
+                    preloadedProjectTimezone: projectTimezone,
+                });
+
+                expect(context).toEqual({
+                    resolvedTimezone: expected,
+                    displayTimezone: expected,
+                });
+            },
+        );
+    });
+
     describe('saved SQL chart access', () => {
         test('resolves access through the saved SQL chart target', async () => {
             const resolveAccess = vi.fn(async () => ({
@@ -1662,11 +1699,9 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        // Regression: persisted metric_query.timezone must follow the gated
-        // displayTimezone, not the ungated resolvedTimezone — otherwise
-        // downstream readers (formatTimestamp, downloads, worker re-exec)
-        // apply a +TZ shift on flag-off orgs that have a project timezone.
-        test('persists displayTimezone=null when flag is off, even if a resolved timezone exists', async () => {
+        // Persist the display timezone supplied by the query composer, including
+        // null for query paths that do not format temporal results.
+        test('persists no timezone when the composer has no display timezone', async () => {
             (
                 serviceWithCache.findResultsCache as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -1694,10 +1729,8 @@ describe('AsyncQueryService', () => {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
                     invalidateCache: false,
-                    // Resolved tz is set (project has query_timezone) but
-                    // the gating flag is off — SQL was built without a
-                    // timezone-aware DATE_TRUNC, so the persisted snapshot
-                    // must not carry the resolved value either.
+                    // A composer without a display timezone must not persist
+                    // its SQL compilation timezone for result formatting.
                     queryComposer: createQueryComposerMock({
                         timezone: 'Asia/Tokyo',
                         displayTimezone: null,
@@ -1720,7 +1753,7 @@ describe('AsyncQueryService', () => {
             );
         });
 
-        test('persists displayTimezone when flag is on', async () => {
+        test('persists the resolved displayTimezone', async () => {
             (
                 serviceWithCache.findResultsCache as import('vitest').Mock
             ).mockResolvedValueOnce({

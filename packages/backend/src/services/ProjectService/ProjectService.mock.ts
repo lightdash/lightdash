@@ -538,7 +538,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         csvMaxLimit: 5000000,
         timezone: undefined,
         retryQueryOnTransientErrors: false,
-        enableTimezoneSupport: undefined,
     },
 };
 

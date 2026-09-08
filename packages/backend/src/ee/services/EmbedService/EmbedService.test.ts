@@ -875,7 +875,6 @@ describe('EmbedService', () => {
                             };
                         }),
                     combineParameters,
-                    isTimezoneSupportEnabled: vi.fn().mockResolvedValue(false),
                     getQueryTimezoneForProject: vi
                         .fn()
                         .mockResolvedValue('UTC'),
@@ -1166,9 +1165,6 @@ describe('EmbedService', () => {
                             staticResults: null,
                         }),
                         combineParameters,
-                        isTimezoneSupportEnabled: vi
-                            .fn()
-                            .mockResolvedValue(false),
                         getQueryTimezoneForProject: vi
                             .fn()
                             .mockResolvedValue('UTC'),

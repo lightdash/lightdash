@@ -35,7 +35,6 @@ import {
  * Expected counts by day (queryTimezone = UTC, all cases):
  *   Jan 15 = 6, Jan 16 = 4
  *
- * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true in the environment.
  */
 
 let admin: ApiClient;

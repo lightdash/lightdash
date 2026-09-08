@@ -1,5 +1,7 @@
 # GLITCH-452 — Cast day-or-coarser DATE_TRUNCs to DATE at compile time
 
+> Timezone support is now always active. Feature-flag rollout and opt-out behavior described below is historical.
+
 **Status:** shipped (v2 Phase 2, Done) · **Flag:** `EnableTimezoneSupport` (TimezoneV2), default ON since 1.22.0 (#26295)
 **PRs:** #24231 (SQL cast) + #24251 (display / predicate collapse), stacked — ship together · design doc #24208 (merged)
 **Depends on:** GLITCH-450 (merged, #24086) — the consolidated calendar-value predicate this ticket updates.

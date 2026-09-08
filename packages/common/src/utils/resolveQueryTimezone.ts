@@ -33,9 +33,7 @@ export function getAccountUserTimezone(account: Account): string | null {
  *     preference).
  *   - any other value → an override IANA zone, frozen regardless of viewer/project.
  *
- * Whether the resolved zone is actually applied to the query is gated by the
- * calling service (EnableTimezoneSupport). The result is validated to prevent
- * SQL injection — it is interpolated into warehouse SQL (e.g. AT TIME ZONE '...').
+ * The result is validated to prevent SQL injection — it is interpolated into warehouse SQL (e.g. AT TIME ZONE '...').
  */
 export function resolveQueryTimezone({
     sessionTimezone,

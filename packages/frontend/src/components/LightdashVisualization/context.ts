@@ -72,7 +72,7 @@ type VisualizationContext = {
     hasExplorerStore: boolean;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
-    // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
+    // Resolved timezone for formatting (undefined when no query timezone is available)
     resolvedTimezone?: string;
     // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
     dateZoom?: DateZoom;

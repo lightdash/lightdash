@@ -1,5 +1,7 @@
 # Timezones v2 — Design Principles
 
+> Timezone support is now always active. Feature-flag rollout and opt-out behavior described below is historical.
+
 Distilled from the [Q&A](./timezone-questions.md). Each principle is one sentence + a status line.
 
 **Legend.** ✅ already true · ⚠️ partial — gap noted · ❌ change needed.

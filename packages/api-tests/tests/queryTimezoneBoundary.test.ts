@@ -24,7 +24,6 @@ import {
  *   #18 2024-01-31 15:00Z  (month boundary)
  *
  * Asserts the bare-date `raw` bucket (the GLITCH-452 contract).
- * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true in the environment.
  */
 
 let admin: ApiClient;

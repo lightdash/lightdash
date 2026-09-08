@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     isTimeZone,
     PROJECT_TIMEZONE_SETTING,
     USER_TIMEZONE_SETTING,
@@ -7,7 +6,6 @@ import {
 import { ActionIcon, HoverCard, Text } from '@mantine/core';
 import { IconWorld } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { getTimezoneSourceLabel } from '../../utils/timezoneSourceLabel';
 import MantineIcon from '../common/MantineIcon';
 
@@ -19,11 +17,6 @@ type Props = {
 };
 
 const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const timezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
-
     // Only surface the indicator when the chart opts out of the project default:
     // either following each viewer's own zone or pinned to a specific zone.
     const isUserTimezone = timezoneSetting === USER_TIMEZONE_SETTING;
@@ -35,11 +28,7 @@ const TileTimezoneInfo: FC<Props> = ({ resolvedTimezone, timezoneSetting }) => {
             : null;
     const timezone = resolvedTimezone ?? pinnedZone;
 
-    if (
-        !timezoneSupportEnabled ||
-        (!isUserTimezone && !pinnedZone) ||
-        !timezone
-    ) {
+    if ((!isUserTimezone && !pinnedZone) || !timezone) {
         return null;
     }
 

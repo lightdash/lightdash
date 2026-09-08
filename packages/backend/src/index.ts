@@ -18,8 +18,6 @@ installProcessExitLogging();
 (async () => {
     try {
         const timezoneWarning = getProcessTimezoneWarning({
-            enableTimezoneSupport:
-                lightdashConfig.query.enableTimezoneSupport !== false,
             timezoneOffsetMinutes: new Date().getTimezoneOffset(),
         });
         if (timezoneWarning) {

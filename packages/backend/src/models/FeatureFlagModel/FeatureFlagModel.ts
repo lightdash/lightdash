@@ -55,8 +55,6 @@ export class FeatureFlagModel {
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.EnableTimezoneSupport]:
-                this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.EnableDataApps]:
                 this.getEnableDataAppsEnabled.bind(this),
             [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
@@ -147,22 +145,6 @@ export class FeatureFlagModel {
             id: featureFlagId,
             enabled: this.lightdashConfig.editYamlInUi.enabled,
         };
-    }
-
-    // On by default. Disable it instance-wide with
-    // LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false (or LIGHTDASH_DISABLE_FEATURE_FLAGS),
-    // or per organization/user with a `feature_flag_overrides` row.
-    private async getEnableTimezoneSupportEnabled(
-        args: FeatureFlagLogicArgs,
-        options: FeatureFlagQueryOptions = {},
-    ): Promise<FeatureFlag> {
-        if (this.lightdashConfig.query.enableTimezoneSupport !== undefined) {
-            return {
-                id: args.featureFlagId,
-                enabled: this.lightdashConfig.query.enableTimezoneSupport,
-            };
-        }
-        return this.getWithEnvFallback(args, true, options);
     }
 
     private async getEnableDataAppsEnabled(

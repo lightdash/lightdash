@@ -3457,14 +3457,8 @@ export class AsyncQueryService extends ProjectService {
                 tunnelConnectMs = warehouseConnection.tunnelConnectMs;
             }
 
-            const isTimezoneSupportEnabled =
-                await this.isTimezoneSupportEnabled({
-                    userUuid,
-                    organizationUuid,
-                });
-            const resolvedDataTimezone = isTimezoneSupportEnabled
-                ? warehouseClient.credentials.dataTimezone
-                : undefined;
+            const resolvedDataTimezone =
+                warehouseClient.credentials.dataTimezone;
 
             const t0 = Date.now();
 
@@ -3841,30 +3835,24 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Resolves both the honest `resolvedTimezone` (always a valid TZ string,
-     * used for SQL compilation + cache keys) and the flag-gated
-     * `displayTimezone` (null when timezone-aware DATE_TRUNC is off — this is
-     * what reaches API responses and the row formatter).
+     * used for SQL compilation + cache keys) and `displayTimezone`
+     * for API responses and the row formatter.
      */
     private async resolveTimezoneContext({
         projectUuid,
-        organizationUuid,
-        userUuid,
         userTimezone,
         sessionTimezone,
         metricQuery,
         preloadedProjectTimezone,
     }: {
         projectUuid: string | null;
-        organizationUuid: string;
-        userUuid: string;
         userTimezone: string | null;
         sessionTimezone: string | null;
         metricQuery: MetricQuery;
         preloadedProjectTimezone?: string;
     }): Promise<{
         resolvedTimezone: string;
-        displayTimezone: string | null;
-        enabled: boolean;
+        displayTimezone: string;
     }> {
         const projectTimezone =
             preloadedProjectTimezone ??
@@ -3877,14 +3865,9 @@ export class AsyncQueryService extends ProjectService {
             projectTimezone,
             userTimezone,
         });
-        const enabled = await this.isTimezoneSupportEnabled({
-            userUuid,
-            organizationUuid,
-        });
         return {
             resolvedTimezone,
-            displayTimezone: enabled ? resolvedTimezone : null,
-            enabled,
+            displayTimezone: resolvedTimezone,
         };
     }
 
@@ -4383,25 +4366,20 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters,
         );
 
-        const {
-            resolvedTimezone,
-            displayTimezone,
-            enabled: useTimezoneAwareDateTrunc,
-        } = await this.resolveTimezoneContext({
-            projectUuid,
-            organizationUuid: account.organization.organizationUuid,
-            userUuid: account.user.id,
-            // Pre-aggregate materializations build shared tables queried by
-            // every viewer — they must compile against the project timezone,
-            // not the triggering user's profile preference.
-            userTimezone:
-                materializationRole !== undefined
-                    ? null
-                    : getAccountUserTimezone(account),
-            sessionTimezone: sessionTimezone ?? null,
-            metricQuery,
-            preloadedProjectTimezone,
-        });
+        const { resolvedTimezone, displayTimezone } =
+            await this.resolveTimezoneContext({
+                projectUuid,
+                // Pre-aggregate materializations build shared tables queried by
+                // every viewer — they must compile against the project timezone,
+                // not the triggering user's profile preference.
+                userTimezone:
+                    materializationRole !== undefined
+                        ? null
+                        : getAccountUserTimezone(account),
+                sessionTimezone: sessionTimezone ?? null,
+                metricQuery,
+                preloadedProjectTimezone,
+            });
 
         return new QueryComposer(
             { metricQuery, pivotConfiguration, totalConfiguration },
@@ -4417,7 +4395,7 @@ export class AsyncQueryService extends ProjectService {
                 dateZoom,
                 pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
                 skipModelRequiredFilters,
-                useTimezoneAwareDateTrunc,
+                useTimezoneAwareDateTrunc: true,
                 columnTimezone,
                 dataTimezone,
                 applyDateZoomToFilters,
@@ -4545,15 +4523,8 @@ export class AsyncQueryService extends ProjectService {
                     // Mirrors runAsyncWarehouseQuery's resolvedDataTimezone:
                     // the session (data) timezone changes results without
                     // changing the SQL text, so it is part of the cache key.
-                    const isTimezoneSupportEnabled =
-                        await this.isTimezoneSupportEnabled({
-                            userUuid: account.user.id,
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        });
-                    const resolvedDataTimezone = isTimezoneSupportEnabled
-                        ? warehouseCredentials.dataTimezone
-                        : undefined;
+                    const resolvedDataTimezone =
+                        warehouseCredentials.dataTimezone;
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
                     // Use the resolved timezone (not metricQuery.timezone) because the
@@ -10534,14 +10505,10 @@ export class AsyncQueryService extends ProjectService {
 
         // GLITCH-452: format subtotal raw values with the same resolved display
         // timezone as the main rows so DATE dimensions compare and render
-        // identically (null when the timezone flag is off → legacy ISO output).
+        // identically.
         const { displayTimezone } = await this.resolveTimezoneContext({
             projectUuid,
-            organizationUuid,
-            userUuid: account.user.id,
             userTimezone: getAccountUserTimezone(account),
-            // Only used as a presence gate for DATE raw formatting; the flag
-            // null-vs-set gating is independent of sessionTimezone.
             sessionTimezone: null,
             metricQuery,
         });

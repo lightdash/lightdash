@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getEmailSchema,
     getUserNameSchema,
     isValidTimezone,
@@ -25,7 +24,6 @@ import {
     useOneTimePassword,
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
@@ -53,11 +51,6 @@ const ProfilePanel: FC = () => {
         health,
     } = useApp();
     const { showToastSuccess, showToastApiError } = useToaster();
-
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const timezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -203,20 +196,18 @@ const ProfilePanel: FC = () => {
                     }
                 />
 
-                {timezoneSupportEnabled && (
-                    <TimeZonePicker
-                        label="Default timezone"
-                        description="Used to render query results for charts pinned to the viewer timezone. Leave empty to fall back to the project timezone."
-                        variant="default"
-                        maw="100%"
-                        size="sm"
-                        searchable
-                        clearable
-                        placeholder="Project default"
-                        disabled={isLoading}
-                        {...form.getInputProps('timezone')}
-                    />
-                )}
+                <TimeZonePicker
+                    label="Default timezone"
+                    description="Used to render query results for charts pinned to the viewer timezone. Leave empty to fall back to the project timezone."
+                    variant="default"
+                    maw="100%"
+                    size="sm"
+                    searchable
+                    clearable
+                    placeholder="Project default"
+                    disabled={isLoading}
+                    {...form.getInputProps('timezone')}
+                />
 
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdatingUser && (

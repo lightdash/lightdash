@@ -1074,7 +1074,6 @@ export class EmbedService extends BaseService {
         timezone,
         dateZoomGranularity,
         combinedParameters,
-        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
@@ -1102,7 +1101,6 @@ export class EmbedService extends BaseService {
         timezone: string;
         dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
-        useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             account,
@@ -1136,7 +1134,7 @@ export class EmbedService extends BaseService {
                     : undefined,
                 parameters: combinedParameters,
                 availableParameterDefinitions,
-                useTimezoneAwareDateTrunc,
+                useTimezoneAwareDateTrunc: true,
                 columnTimezone: getColumnTimezone(warehouseClient.credentials),
                 dataTimezone: warehouseClient.credentials.dataTimezone,
             },
@@ -1304,25 +1302,17 @@ export class EmbedService extends BaseService {
 
         // Resolve feature/permission/explore/org-context in parallel — these
         // are independent once the chart is known.
-        const [, , explore, isTimezoneSupportEnabled, projectParameters] =
-            await Promise.all([
-                this.isFeatureEnabled({ userUuid, organizationUuid }),
-                this._permissionsGetChartAndResults(
-                    { allowAllDashboards, dashboardUuids },
-                    projectUuid,
-                    chart.uuid,
-                    dashboardUuid,
-                ),
-                this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    chart.tableName,
-                ),
-                this.projectService.isTimezoneSupportEnabled({
-                    userUuid,
-                    organizationUuid,
-                }),
-                this.projectService.projectParametersModel.find(projectUuid),
-            ]);
+        const [, , explore, projectParameters] = await Promise.all([
+            this.isFeatureEnabled({ userUuid, organizationUuid }),
+            this._permissionsGetChartAndResults(
+                { allowAllDashboards, dashboardUuids },
+                projectUuid,
+                chart.uuid,
+                dashboardUuid,
+            ),
+            this.projectModel.getExploreFromCache(projectUuid, chart.tableName),
+            this.projectService.projectParametersModel.find(projectUuid),
+        ]);
 
         if (isExploreError(explore)) {
             throw new ForbiddenError(
@@ -1375,9 +1365,7 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: acceptedUserParameters,
             pivotResults,
-            sessionTimezone: isTimezoneSupportEnabled
-                ? (timezone ?? null)
-                : null,
+            sessionTimezone: timezone ?? null,
         });
     }
 
@@ -1663,13 +1651,8 @@ export class EmbedService extends BaseService {
             projectTimezone,
             userTimezone: null,
         });
-        const isTimezoneSupportEnabled =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: user?.userUuid ?? account.user.id,
-                organizationUuid,
-            });
 
-        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
+        const displayTimezone = timezone;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
@@ -1689,7 +1672,6 @@ export class EmbedService extends BaseService {
             timezone,
             dateZoomGranularity,
             combinedParameters,
-            useTimezoneAwareDateTrunc: isTimezoneSupportEnabled,
         });
 
         return {
@@ -2568,20 +2550,10 @@ export class EmbedService extends BaseService {
             dashboard ? getDashboardParametersValuesMap(dashboard) : {},
         );
 
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: user?.userUuid ?? account.user.id,
-                organizationUuid,
-            });
-
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
-            // Gated like the tile path: the session timezone is dropped unless
-            // timezone support is enabled, leaving the param inert.
-            sessionTimezone: useTimezoneAwareDateTrunc
-                ? (sessionTimezoneParam ?? null)
-                : null,
+            sessionTimezone: sessionTimezoneParam ?? null,
             metricQuery,
             projectTimezone,
             userTimezone: null,
@@ -2602,7 +2574,6 @@ export class EmbedService extends BaseService {
             },
             account,
             timezone,
-            useTimezoneAwareDateTrunc,
             combinedParameters,
         });
 

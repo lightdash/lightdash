@@ -5143,19 +5143,7 @@ describe('ProjectService', () => {
             vi.useRealTimers();
         });
 
-        it('throws ForbiddenError when timezone support is disabled', async () => {
-            await expect(
-                service.previewDataTimezone(previewAccount, {
-                    mode: 'create',
-                    credentials,
-                }),
-            ).rejects.toThrowError(ForbiddenError);
-        });
-
         it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
-            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
-                true,
-            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -5191,9 +5179,6 @@ describe('ProjectService', () => {
         });
 
         it('rejects an edit preview when the warehouse type was switched but not saved', async () => {
-            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
-                true,
-            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -5214,9 +5199,6 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot update the project (edit flow)', async () => {
-            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
-                true,
-            );
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -5237,10 +5219,6 @@ describe('ProjectService', () => {
         });
 
         it('throws ForbiddenError when the user cannot create projects (create flow)', async () => {
-            vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
-                true,
-            );
-
             await expect(
                 service.previewDataTimezone(noAccessAccount, {
                     mode: 'create',

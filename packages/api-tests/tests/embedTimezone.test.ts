@@ -168,13 +168,7 @@ describe('Embed dashboard-tile session timezone (?timezone=)', () => {
         const resp = await executeTile(token, SESSION_TIMEZONE);
 
         expect(resp.status).toBe(200);
-        // resolvedTimezone is the gated display timezone — null when
-        // EnableTimezoneSupport is off. When present, it must reflect the
-        // session timezone we passed, proving it reached the resolver and
-        // won over the chart pin / project default.
-        if (resp.body.results.resolvedTimezone !== null) {
-            expect(resp.body.results.resolvedTimezone).toBe(SESSION_TIMEZONE);
-        }
+        expect(resp.body.results.resolvedTimezone).toBe(SESSION_TIMEZONE);
     });
 
     it('totals inherit the session timezone without re-passing it', async () => {
@@ -214,30 +208,14 @@ describe('Embed dashboard-tile session timezone (?timezone=)', () => {
         expect(totalsResp.body.results.resolvedTimezone).toBe(resolvedTimezone);
     });
 
-    it('rejects an invalid session timezone with a 400 when timezone support is on', async () => {
+    it('rejects an invalid session timezone with a 400', async () => {
         const token = await freshDashboardJwt();
-
-        // Probe the flag: resolvedTimezone is null when EnableTimezoneSupport
-        // is off, in which case the session timezone is gated out before
-        // resolution and never validated.
-        const probe = await executeTile(token, SESSION_TIMEZONE);
-        expect(probe.status).toBe(200);
-        const timezoneSupportEnabled =
-            probe.body.results.resolvedTimezone !== null;
 
         const resp = await executeTile(token, 'Not/AZone', {
             failOnStatusCode: false,
         });
 
-        if (timezoneSupportEnabled) {
-            // Flag on: the invalid session timezone reaches the resolver and
-            // is rejected as a ParameterError.
-            expect(resp.status).toBe(400);
-            expect(resp.body).toHaveProperty('error');
-        } else {
-            // Flag off: the session timezone is dropped at the embed boundary,
-            // so the invalid value is inert and the query runs normally.
-            expect(resp.status).toBe(200);
-        }
+        expect(resp.status).toBe(400);
+        expect(resp.body).toHaveProperty('error');
     });
 });

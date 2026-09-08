@@ -364,7 +364,7 @@ describe('FeatureFlagModel', () => {
         });
 
         it('leaves config-derived flags to their handler', async () => {
-            // ai-copilot, results-cache-enabled and enable-timezone-support are
+            // ai-copilot and results-cache-enabled are
             // excluded so previews never advertise unconfigured backends.
             const model = buildModel({
                 ...previewConfig,
@@ -577,71 +577,6 @@ describe('FeatureFlagModel', () => {
         });
     });
 
-    describe('EnableTimezoneSupport defaults to on', () => {
-        const withTimezoneSupport = (enableTimezoneSupport: boolean) => ({
-            query: { ...lightdashConfigMock.query, enableTimezoneSupport },
-        });
-
-        it('is enabled when neither config nor database has an opinion', async () => {
-            const model = buildModel({}, buildFakeDatabase({}));
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.EnableTimezoneSupport,
-                enabled: true,
-            });
-        });
-
-        it('is disabled by an organization override', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride: { enabled: false },
-                }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result.enabled).toBe(false);
-        });
-
-        it('is disabled by LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false, ignoring the database', async () => {
-            const model = buildModel(
-                withTimezoneSupport(false),
-                buildFakeDatabase({ flag: { default_enabled: true } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result.enabled).toBe(false);
-        });
-
-        it('stays enabled when LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true, ignoring the database', async () => {
-            const model = buildModel(
-                withTimezoneSupport(true),
-                buildFakeDatabase({ orgOverride: { enabled: false } }),
-            );
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: dbUser,
-            });
-
-            expect(result.enabled).toBe(true);
-        });
-    });
-
     describe('ensureOrganizationOverrideEnabled', () => {
         const FLAG_ID = 'homepage-builder';
         const ORG_UUID = 'org-uuid';
@@ -720,25 +655,6 @@ describe('FeatureFlagModel', () => {
 
         afterEach(() => {
             warnSpy.mockRestore();
-        });
-
-        it('does not throw when EnableTimezoneSupport DB lookup fails', async () => {
-            // Falls back to the default (on) rather than propagating.
-            const model = buildModel({}, throwingDatabase);
-
-            const result = await model.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                user: {
-                    userUuid: 'external::not-a-uuid',
-                    organizationUuid: 'org-uuid',
-                },
-            });
-
-            expect(result).toEqual({
-                id: FeatureFlags.EnableTimezoneSupport,
-                enabled: true,
-            });
-            expect(warnSpy).toHaveBeenCalled();
         });
 
         it('does not throw when EnableDataApps DB lookup fails', async () => {

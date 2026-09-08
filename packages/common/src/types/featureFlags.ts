@@ -11,7 +11,6 @@ export enum FeatureFlags {
     /* Gate new timezone features: warehouse session timezone, timezone-aware
        DATE_TRUNC, per-viewer (user-profile) timezone resolution, result
        formatting, etc. Temporary — remove once stable. */
-    EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
      * Enable the dynamic calculation of series color, when not manually set on the chart config.

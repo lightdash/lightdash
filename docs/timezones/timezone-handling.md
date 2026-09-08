@@ -23,22 +23,7 @@ In addition, three overrides sit on top of the project timezone (the session tim
 
 Resolution order: `session (embed URL) → chart → user → project → server default ('UTC')`. A viewer with no profile preference falls through to the project. A viewer with a profile timezone sees their zone on charts that don't pin one. An embedding host can pin a single session to a zone via the `?timezone=` URL param, which outranks even the chart pin. See [User-level timezone](#user-level-timezone) below.
 
-A single flag gates timezone behavior:
-
-| Flag                    | Env var                               | Gates                                                                                                                                                  |
-| ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `EnableTimezoneSupport` | `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`   | The whole timezone feature: data-timezone warehouse field + session-TZ setup, the "filter inputs in project TZ" toggle, the user-facing timezone pickers (Profile panel, Explorer chart-level), and per-viewer (user-profile) timezone resolution |
-
-The project timezone setting itself is always available. `resolveQueryTimezone` always honors a chart pinned to `user_timezone` — falling back to the project timezone only when the viewer has no stored profile preference. The `EnableTimezoneSupport` flag gates the surrounding pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`), so when the flag is off the resolved zone simply isn't applied to the query.
-
-**The flag is on by default.** Resolution order (`FeatureFlagModel`):
-
-1. `LIGHTDASH_DISABLE_FEATURE_FLAGS=enable-timezone-support` — instance-wide kill switch.
-2. `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT` — when set to `true`/`false` it pins the flag instance-wide and the database is not consulted.
-3. `feature_flag_overrides` in the database — per-user override, then per-organization override, then the `feature_flags.default_enabled` row. This is how a single organization is opted out.
-4. No opinion anywhere → **enabled**.
-
-A database lookup failure is swallowed (logged as a warning) and falls through to the default, so an outage leaves the flag on rather than silently changing query semantics for everyone.
+Timezone support is always active for all users. Warehouse session setup, timezone-aware `DATE_TRUNC`, result formatting, and timezone controls do not require a feature flag. Projects without a configured timezone use the server default (`UTC` unless configured otherwise). The project setting still controls whether filter inputs use the project timezone.
 
 ### Data timezone (`dataTimezone`)
 
@@ -159,7 +144,7 @@ The SQL differs per warehouse (some have native TZ-aware truncation, others comp
 
 **Day-or-coarser grains converge on `DATE` regardless of base type (GLITCH-452).** A DATE-base interval emits raw `DATE_TRUNC` (already a DATE); a TIMESTAMP-base interval round-trips through project wall-clock and then `CAST(... AS DATE)`. Both return a real calendar `DATE`, so the warehouse type matches the dimension metadata (`DATE`) and no display-time correction is needed. The WHERE clause for these dimensions emits **bare date literals** (no `+00:00` offset, no `::timestamptz`) to compare cleanly against the `DATE` LHS — the same literal path DATE-base dimensions already used. Only sub-day TIMESTAMP-base grains still return a UTC instant. Gated by `castDayOrCoarserToDate` threaded from `MetricQueryBuilder.getTimezoneAwareDimensionSql`, so it is inert when the flag is off.
 
-**A custom MIN/MAX over a day-or-coarser interval aggregates the tz-aware `DATE` (GLITCH-499).** A custom metric that takes MIN/MAX of a day-grain DATE interval (a `DATE_TRUNC` of a TIMESTAMP base) inherited the dimension's raw `compiledSql` and skipped the round-trip above, so it truncated in UTC and returned a timestamp a calendar day off from its own dimension. `getTimezoneAwareMetricSql` re-points the aggregate at the dimension's timezone-aware `compiledSql` — the same wrap the SELECT applies — so the metric and its dimension agree on the day. It fires only for a MIN/MAX whose `baseDimensionType` is a truncatable interval `DATE` over a TIMESTAMP; plain DATE columns and TIMESTAMP bases are untouched, and the substring swap is a safe no-op if the base SQL doesn't match. The base dimension is resolved through the custom metric's `baseDimensionName`, so only custom metrics are affected — model/column YAML metrics are not. Behind `useTimezoneAwareDateTrunc`, inert when the flag is off.
+**A custom MIN/MAX over a day-or-coarser interval aggregates the tz-aware `DATE` (GLITCH-499).** A custom metric that takes MIN/MAX of a day-grain DATE interval (a `DATE_TRUNC` of a TIMESTAMP base) inherited the dimension's raw `compiledSql` and skipped the round-trip above, so it truncated in UTC and returned a timestamp a calendar day off from its own dimension. `getTimezoneAwareMetricSql` re-points the aggregate at the dimension's timezone-aware `compiledSql` — the same wrap the SELECT applies — so the metric and its dimension agree on the day. It fires only for a MIN/MAX whose `baseDimensionType` is a truncatable interval `DATE` over a TIMESTAMP; plain DATE columns and TIMESTAMP bases are untouched, and the substring swap is a safe no-op if the base SQL doesn't match. The base dimension is resolved through the custom metric's `baseDimensionName`, so only custom metrics are affected — model/column YAML metrics are not. Uses `useTimezoneAwareDateTrunc` in the query builder.
 
 ### SELECT — EXTRACT-based grouping
 
@@ -233,7 +218,7 @@ const formatTimestampAsUTCNoOffset = (date: Date): string =>
 
 **Filters on a day-or-coarser truncated interval emit bare date literals.** A filter on e.g. `order_date_month` emits bare date literals — no `+00:00`, no `::timestamptz` cast. For a DATE-base interval this was always the case; post-452 a TIMESTAMP-base interval at day-or-coarser grain compiles to a `DATE` too (the cast), so its filter takes the same bare-literal path. Same reason as the SELECT-side bypass: the LHS is a calendar value, so wrapping the literal as a timestamptz would re-introduce the midnight-anchor drift we're trying to avoid.
 
-**DATE-dimension boundaries are server-timezone-independent.** DATE-dimension filter boundaries are computed and formatted in UTC (flag off) or the project timezone (flag on) — never in the server's local timezone. Previously the default formatter used `moment(date)`, which read the process timezone — on a server with a positive UTC offset, `endOf('day')` would shift into the next calendar day and produce a 2-day filter range.
+**DATE-dimension boundaries are server-timezone-independent.** DATE-dimension filter boundaries are computed and formatted in the resolved query timezone — never in the server's local timezone. Previously the default formatter used `moment(date)`, which read the process timezone — on a server with a positive UTC offset, `endOf('day')` would shift into the next calendar day and produce a 2-day filter range.
 
 **File:** `packages/common/src/compiler/filtersCompiler.ts`
 
@@ -241,7 +226,7 @@ const formatTimestampAsUTCNoOffset = (date: Date): string =>
 
 When a user clicks a result cell to filter, drill, or view underlying rows, the row's raw value is fed into a filter rule. Pre-452, a day-or-coarser TIMESTAMP-base interval (e.g. `created_at_day`, `created_at_month`) stored a UTC instant while its displayed bucket was a project-TZ wall-clock date, so the raw instant had to be shifted into the project TZ first or the filter would target the previous calendar day in a positive-offset project (e.g. Europe/Paris). 452 makes the warehouse return a real `DATE` for those grains, so the raw value is already the bucket's calendar date — no correction is needed.
 
-`normalizeCellRawForFilter` (in `@lightdash/common`) is the guard that performed that shift. It only acts when `field.type === DATE` **and** `shouldShiftItemTimezone(field)` is true — but post-452 the latter is true only for `TIMESTAMP`-typed fields, so the two conditions are mutually exclusive and the function is now an inert pass-through (also a no-op with the flag off, since no resolved timezone is supplied). Every field shape now returns the raw value unchanged:
+`normalizeCellRawForFilter` (in `@lightdash/common`) is the guard that performed that shift. It only acts when `field.type === DATE` **and** `shouldShiftItemTimezone(field)` is true — but post-452 the latter is true only for `TIMESTAMP`-typed fields, so the two conditions are mutually exclusive and the function is now an inert pass-through. Every field shape now returns the raw value unchanged:
 
 | Field shape                                       | Shifted? | Reason                                                          |
 | ------------------------------------------------- | -------- | -------------------------------------------------------------- |
@@ -312,7 +297,7 @@ Sub-day DATE_TRUNC grains produce real UTC instants whose wall-clock alignment m
 
 `formatItemValue` resolves this once and threads it through every temporal branch; the shape predicates stay exported as primitives for the value-less callers (exports, filters, pivots, sidebar, axis config).
 
-**Timestamp metrics shift like dimensions.** A MIN or MAX over a timestamp column (e.g. "last seen") now renders in the project zone everywhere a dimension does — the explore table, Big Number tiles, and cartesian tooltips/labels — whether the value arrives as a fresh `Date` or as an ISO string rehydrated from cached results, and whether or not the user applied a display format. `applyCustomFormat` takes a `timezone` and routes timestamp **strings** (which are `Number()`-NaN and would otherwise return raw) through the temporal formatters before its numeric guard. With the flag off no timezone is resolved, so the string still renders raw — unchanged.
+**Timestamp metrics shift like dimensions.** A MIN or MAX over a timestamp column (e.g. "last seen") now renders in the project zone everywhere a dimension does — the explore table, Big Number tiles, and cartesian tooltips/labels — whether the value arrives as a fresh `Date` or as an ISO string rehydrated from cached results, and whether or not the user applied a display format. `applyCustomFormat` takes a `timezone` and routes timestamp **strings** (which are `Number()`-NaN and would otherwise return raw) through the temporal formatters before its numeric guard.
 
 The resolved timezone rides on the API response (`resolvedTimezone` on `ApiExecuteAsyncQueryResultsCommon`) and is threaded into every downstream formatter:
 

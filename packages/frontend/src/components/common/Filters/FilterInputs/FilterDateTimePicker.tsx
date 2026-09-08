@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    getTimezoneLabel,
-    isValidTimezone,
-} from '@lightdash/common';
+import { getTimezoneLabel, isValidTimezone } from '@lightdash/common';
 import { Group, Text } from '@mantine/core';
 import {
     DateTimePicker,
@@ -14,7 +10,6 @@ import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useProject } from '../../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useFiltersContext from '../useFiltersContext';
 import styles from './FilterDateTimePicker.module.css';
 import {
@@ -67,15 +62,11 @@ const FilterDateTimePicker: FC<Props> = ({
     );
 
     const { projectUuid, metricQueryTimezone } = useFiltersContext();
-    const { data: enableTimezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
     const { data: project } = useProject(projectUuid);
 
     const candidateTimezone =
         metricQueryTimezone ?? project?.queryTimezone ?? undefined;
     const projectTimezone =
-        enableTimezoneSupportFlag?.enabled &&
         project?.useProjectTimezoneInFilters &&
         candidateTimezone &&
         isValidTimezone(candidateTimezone)

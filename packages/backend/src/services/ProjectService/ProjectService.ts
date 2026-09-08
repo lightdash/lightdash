@@ -4398,14 +4398,6 @@ export class ProjectService extends BaseService {
         body: DataTimezonePreviewRequest,
     ): Promise<ApiDataTimezonePreviewResults> {
         assertIsAccountWithOrg(account);
-        if (
-            !(await this.isTimezoneSupportEnabled({
-                userUuid: account.user.userUuid,
-                organizationUuid: account.organization.organizationUuid,
-            }))
-        ) {
-            throw new ForbiddenError('Timezone support is not enabled');
-        }
 
         const auditedAbility = this.createAuditedAbility(account);
 
@@ -5835,10 +5827,6 @@ export class ProjectService extends BaseService {
             projectTimezone,
             userTimezone: getAccountUserTimezone(account),
         });
-        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
-            userUuid: account.user.id,
-            organizationUuid: account.organization.organizationUuid,
-        });
 
         const queryComposer = new QueryComposer(
             { metricQuery, pivotConfiguration, asCteBody: args.asCteBody },
@@ -5854,7 +5842,7 @@ export class ProjectService extends BaseService {
                 pivotDimensions,
                 pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
-                useTimezoneAwareDateTrunc,
+                useTimezoneAwareDateTrunc: true,
                 columnTimezone: getColumnTimezone(warehouseCredentials),
                 dataTimezone: warehouseCredentials.dataTimezone,
                 applyDateZoomToFilters: undefined,
@@ -7740,12 +7728,6 @@ export class ProjectService extends BaseService {
                         projectTimezone,
                         userTimezone: getAccountUserTimezone(account),
                     });
-                    const useTimezoneAwareDateTrunc =
-                        await this.isTimezoneSupportEnabled({
-                            userUuid: account.user.id,
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        });
 
                     const fullQuery = new QueryComposer(
                         { metricQuery: metricQueryWithLimit },
@@ -7760,7 +7742,7 @@ export class ProjectService extends BaseService {
                             availableParameterDefinitions,
                             pivotDimensions:
                                 metricQueryWithLimit.pivotDimensions,
-                            useTimezoneAwareDateTrunc,
+                            useTimezoneAwareDateTrunc: true,
                             columnTimezone: getColumnTimezone(
                                 warehouseClient.credentials,
                             ),
@@ -7881,9 +7863,7 @@ export class ProjectService extends BaseService {
                         rows,
                         cacheMetadata,
                         fields: fieldsWithOverrides,
-                        displayTimezone: useTimezoneAwareDateTrunc
-                            ? timezone
-                            : undefined,
+                        displayTimezone: timezone,
                         warehouseType: warehouseClient.credentials.type,
                     };
                 } catch (e) {
@@ -8391,7 +8371,6 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
             combinedParameters,
             projectTimezone,
-            useTimezoneAwareDateTrunc,
         ] = await Promise.all([
             this.getWarehouseCredentials({
                 projectUuid,
@@ -8402,7 +8381,6 @@ export class ProjectService extends BaseService {
             this.getAvailableParameters(projectUuid, explore),
             this.combineParameters(projectUuid, explore, parameters),
             this.getQueryTimezoneForProject(projectUuid),
-            this.isTimezoneSupportEnabled(user),
         ]);
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
@@ -8438,7 +8416,7 @@ export class ProjectService extends BaseService {
                 timezone,
                 parameters: combinedParameters,
                 availableParameterDefinitions,
-                useTimezoneAwareDateTrunc,
+                useTimezoneAwareDateTrunc: true,
                 columnTimezone: getColumnTimezone(warehouseClient.credentials),
             },
         ).compile();
@@ -12094,18 +12072,6 @@ export class ProjectService extends BaseService {
             user,
         });
         return { unnestRepeatedColumns: enabled };
-    }
-
-    async isTimezoneSupportEnabled(user: {
-        userUuid: string;
-        organizationUuid?: string;
-    }): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            user,
-        });
-
-        return enabled;
     }
 
     async getQueryTimezoneForProject(projectUuid: string): Promise<string> {

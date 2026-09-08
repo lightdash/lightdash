@@ -1,7 +1,4 @@
-import {
-    FeatureFlags,
-    type CreateWarehouseCredentials,
-} from '@lightdash/common';
+import { type CreateWarehouseCredentials } from '@lightdash/common';
 import {
     Alert,
     Badge,
@@ -13,7 +10,6 @@ import {
 } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import { useFormContext } from '../formContext';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -47,12 +43,7 @@ const Connector: FC<{ children: ReactNode }> = ({ children }) => (
 const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
     const { savedProject } = useProjectFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
     const preview = useDataTimezonePreviewMutation();
-
-    if (!(timezoneSupportFlag?.enabled ?? false)) return null;
 
     const onPreview = () => {
         const warehouse = form.values.warehouse;

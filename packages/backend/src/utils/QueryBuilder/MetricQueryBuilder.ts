@@ -164,7 +164,7 @@ export type BuildQueryProps = {
      * so the click-filter grain matches the zoom grain (PROD-880).
      */
     dateZoomFilterTargetFieldId?: string;
-    /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
+    /** Wrap DATE_TRUNC with timezone conversion. */
     useTimezoneAwareDateTrunc?: boolean;
     /** Timezone the column data is in — source for the timezone-aware wrap.
      *  Derived from warehouse credentials via `getColumnTimezone`. */

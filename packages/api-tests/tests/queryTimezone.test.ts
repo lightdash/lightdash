@@ -41,7 +41,6 @@ import {
  * Expected FILTER day > Jan 15 counts:
  *   UTC: 4 | New_York: 3 | Chicago: 3 | Tokyo: 5 | Pago_Pago: 2
  *
- * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true in the environment.
  */
 
 let admin: ApiClient;

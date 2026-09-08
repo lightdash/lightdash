@@ -107,11 +107,11 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 ### Is there a user-TZ concept at all? What's the roadmap?
 
-**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableTimezoneSupport` feature flag. Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
+**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone. Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
 
 **Admin opt-in**: yes — `EnableTimezoneSupport` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
-**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — when `EnableTimezoneSupport` is off, the surrounding query pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`) is short-circuited, so the resolved zone is not applied to the query. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
+Timezone support is always active; stored user preferences apply to charts pinned to `user_timezone`.
 
 ### Scheduled deliveries & embeds — which TZ wins?
 
@@ -163,8 +163,6 @@ The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-sid
 
 | Configuration | Alice's SQL == Bob's SQL? |
 |---|---|
-| `EnableTimezoneSupport=off`, no chart pin | ✅ Yes — both get project TZ |
-| `EnableTimezoneSupport=off`, chart pinned to `user_timezone` | ✅ Yes — flag off, both fall back to project TZ |
 | `EnableTimezoneSupport=on`, no chart pin | ✅ Yes — both get project TZ |
 | `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, neither has profile TZ | ✅ Yes — both fall through to project |
 | `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |

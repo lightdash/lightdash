@@ -1,9 +1,4 @@
-import {
-    FeatureFlags,
-    getErrorMessage,
-    isApiError,
-    type Project,
-} from '@lightdash/common';
+import { getErrorMessage, isApiError, type Project } from '@lightdash/common';
 import {
     Button,
     Flex,
@@ -22,7 +17,6 @@ import {
     useProject,
     useProjectUpdateQueryTimezoneSettings,
 } from '../../hooks/useProject';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import TimeZonePicker from '../common/TimeZonePicker';
 
@@ -36,9 +30,8 @@ type QueryTimezoneFormValues = z.infer<typeof queryTimezoneSchema>;
 const QueryTimezoneForm: FC<{
     isLoading: boolean;
     project: Project;
-    showFilterInputsToggle: boolean;
     onSubmit: (data: QueryTimezoneFormValues) => void;
-}> = ({ isLoading, project, showFilterInputsToggle, onSubmit }) => {
+}> = ({ isLoading, project, onSubmit }) => {
     const form = useForm<QueryTimezoneFormValues>({
         validate: zodResolver(queryTimezoneSchema),
         initialValues: {
@@ -74,16 +67,14 @@ const QueryTimezoneForm: FC<{
                     placeholder="Server default (UTC)"
                     {...form.getInputProps('timezone')}
                 />
-                {showFilterInputsToggle && (
-                    <Switch
-                        label="Project time zone in filter inputs"
-                        description="Interpret absolute dates in the project's time zone instead of the user's browser."
-                        disabled={filterToggleDisabled}
-                        {...form.getInputProps('useProjectTimezoneInFilters', {
-                            type: 'checkbox',
-                        })}
-                    />
-                )}
+                <Switch
+                    label="Project time zone in filter inputs"
+                    description="Interpret absolute dates in the project's time zone instead of the user's browser."
+                    disabled={filterToggleDisabled}
+                    {...form.getInputProps('useProjectTimezoneInFilters', {
+                        type: 'checkbox',
+                    })}
+                />
             </Stack>
             <Flex justify="flex-end" gap="sm" mt="sm">
                 <Button
@@ -106,10 +97,6 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
     projectUuid,
 }) => {
     const { showToastError, showToastSuccess } = useToaster();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const timezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
     const { data: project, isLoading: isLoadingProject } =
         useProject(projectUuid);
     const projectMutation = useProjectUpdateQueryTimezoneSettings(projectUuid);
@@ -147,24 +134,9 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                 <Stack gap="xs">
                     <Title order={5}>Time zone behavior</Title>
                     <Text c="dimmed" fz="sm">
-                        {timezoneSupportEnabled ? (
-                            <>
-                                The time zone used for date filters, time
-                                grouping, and how dates appear in charts and
-                                tables. This does not change your
-                                database&apos;s session time zone.
-                            </>
-                        ) : (
-                            <>
-                                Controls what &quot;today&quot;, &quot;this
-                                week&quot;, and other &quot;in the current&quot;
-                                date filters mean. For example, if set to
-                                US/Eastern, &quot;today&quot; means
-                                midnight-to-midnight New York time instead of
-                                UTC. This does not change your database&apos;s
-                                session time zone.
-                            </>
-                        )}
+                        The time zone used for date filters, time grouping, and
+                        how dates appear in charts and tables. This does not
+                        change your database&apos;s session time zone.
                     </Text>
                 </Stack>
                 <div>
@@ -172,7 +144,6 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                         <QueryTimezoneForm
                             isLoading={projectMutation.isLoading}
                             project={project}
-                            showFilterInputsToggle={timezoneSupportEnabled}
                             onSubmit={handleSubmit}
                         />
                     )}

@@ -151,8 +151,8 @@ export type CalendarTimeAxisField = TimezoneShiftedField;
 // label it one day early. Encoding the plotted coordinate as UTC midnight
 // keeps the calendar day fixed for every viewer.
 //
-// Gated on the response's resolvedTimezone: only flag-on results emit bare
-// calendar values (flag-off keeps full ISO strings and must stay untouched).
+// Results with a resolvedTimezone emit bare calendar values. Older results
+// without one keep full ISO strings and must stay untouched.
 // The timezone string is only the mode signal and is never applied to the
 // DATE. physicalAxisType must come from the axis actually built for the
 // field (xAxis[0], or yAxis[0] when flipped) so reference-line-forced time

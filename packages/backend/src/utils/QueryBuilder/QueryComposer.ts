@@ -71,7 +71,7 @@ export type QueryComposerContext = {
     applyDateZoomToFilters?: boolean;
     queryExecutionContext?: QueryExecutionContext;
     /**
-     * Flag-gated timezone echoed to clients and persisted with the query.
+     * Resolved timezone echoed to clients and persisted with the query.
      * Not a compile input — `timezone` drives SQL. SQL charts set it to null.
      */
     displayTimezone?: string | null;
@@ -256,7 +256,7 @@ export class QueryComposer {
         return this.context.timezone;
     }
 
-    /** Flag-gated timezone echoed to clients and persisted with the query. */
+    /** Resolved timezone echoed to clients and persisted with the query. */
     getDisplayTimezone(): string | null {
         return this.context.displayTimezone ?? null;
     }
