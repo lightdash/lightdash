@@ -2,13 +2,11 @@ import {
     RoadmapItemPriority,
     RoadmapItemStatus,
     type RoadmapItem,
-    type RoadmapResults,
     type RoadmapProject,
     type RoadmapProjectQuery,
     type RoadmapProjectResults,
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
-import { getRoadmapFacets } from '../../pages/roadmapUtils';
 import { type RoadmapApi } from './roadmapApi';
 import { type RoadmapProjectPresentation } from './roadmapPresentation';
 
@@ -23,10 +21,7 @@ export type RoadmapMockScenario =
     | 'pagination'
     | 'expiry';
 
-export const mockProjectPresentation: Record<
-    string,
-    RoadmapProjectPresentation
-> = {
+const mockProjectPresentation: Record<string, RoadmapProjectPresentation> = {
     'ai-exploration': {
         stage: 'started',
         icon: 'sparkles',
@@ -57,6 +52,12 @@ export const mockProjectPresentation: Record<
         progress: 0,
         priority: RoadmapItemPriority.LOW,
     },
+    'recently-shipped': {
+        stage: 'completed',
+        icon: 'bolt',
+        progress: 100,
+        priority: RoadmapItemPriority.HIGH,
+    },
     'self-serve': {
         stage: 'paused',
         icon: 'users',
@@ -83,13 +84,17 @@ const projects: RoadmapProject[] = [
         title: 'More flexible dashboard filters',
     },
     { projectId: 'metrics', title: 'A single home for your metrics' },
+    { projectId: 'recently-shipped', title: 'Instant dashboard previews' },
     { projectId: 'performance', title: 'Faster dashboards at any scale' },
     {
         projectId: 'scheduling',
         title: 'Scheduled reports that fit your workflow',
     },
     { projectId: 'self-serve', title: 'Self-serve analytics for everyone' },
-];
+].map((project) => ({
+    ...project,
+    ...mockProjectPresentation[project.projectId],
+}));
 
 function request(
     id: number,
@@ -216,7 +221,7 @@ export function createRoadmapMockApi(
     latency = 400,
 ): RoadmapApi {
     const startedAt = Date.now();
-    const expiresAt = new Date(
+    let expiresAt = new Date(
         startedAt + (scenario === 'expiry' ? 12_000 : 600_000),
     ).toISOString();
     let errorReturned = false;
@@ -229,6 +234,7 @@ export function createRoadmapMockApi(
         visibleProjects = [
             ...projects,
             ...Array.from({ length: 18 }, (_, i) => ({
+                ...mockProjectPresentation[`example-${i}`],
                 projectId: `example-${i}`,
                 title: `Example project ${String(i + 1).padStart(2, '0')}`,
             })),
@@ -271,6 +277,8 @@ export function createRoadmapMockApi(
               }));
     const beforeRead = async () => {
         if (scenario === 'loading') return new Promise<void>(() => {});
+        if (scenario !== 'expiry' && Date.now() >= Date.parse(expiresAt))
+            expiresAt = new Date(Date.now() + 600_000).toISOString();
         await new Promise<void>((resolve) =>
             window.setTimeout(resolve, latency),
         );
@@ -315,7 +323,13 @@ export function createRoadmapMockApi(
                     hasDirectNeed: ['dashboard-filters', 'metrics'].includes(
                         project.projectId,
                     ),
-                }));
+                }))
+                .filter(
+                    (group) =>
+                        !query.onlyInterested ||
+                        group.hasDirectNeed ||
+                        group.ownRequestCount > 0,
+                );
             const page = paginate(groups, query);
             return {
                 projects: page.items,
@@ -343,21 +357,6 @@ export function createRoadmapMockApi(
                 pagination: page.pagination,
                 expiresAt,
             };
-        },
-    };
-}
-
-export default async function getLegacyRoadmapMock(): Promise<RoadmapResults> {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 400));
-    const data = requests.map((item) => item.request);
-    return {
-        data,
-        facets: getRoadmapFacets(data),
-        pagination: {
-            page: 1,
-            pageSize: 100,
-            totalIssues: data.length,
-            totalPages: 1,
         },
     };
 }

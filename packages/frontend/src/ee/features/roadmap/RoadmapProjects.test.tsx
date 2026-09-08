@@ -9,10 +9,7 @@ import {
     within,
 } from '@testing-library/react';
 import { RoadmapApiContext } from './roadmapApi';
-import {
-    createRoadmapMockApi,
-    mockProjectPresentation,
-} from './roadmapMockApi';
+import { createRoadmapMockApi } from './roadmapMockApi';
 import { RoadmapProjects } from './RoadmapProjects';
 
 vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
@@ -33,10 +30,7 @@ function setup(
         <MantineProvider env="test">
             <QueryClientProvider client={client}>
                 <RoadmapApiContext.Provider value={api}>
-                    <RoadmapProjects
-                        cacheKey="test"
-                        projectPresentation={mockProjectPresentation}
-                    />
+                    <RoadmapProjects cacheKey="test" />
                 </RoadmapApiContext.Provider>
             </QueryClientProvider>
         </MantineProvider>,
@@ -138,6 +132,49 @@ describe('Project roadmap', () => {
             name: 'Open A single home for your metrics',
         });
         expect(screen.getByRole('radio', { name: 'Board' })).toBeChecked();
+    });
+
+    it('includes Done projects and filters interests without hiding direct needs that have no tickets', async () => {
+        setup();
+        const completed = await screen.findByRole('button', {
+            name: 'Open Instant dashboard previews',
+        });
+        expect(
+            screen.getByRole('region', { name: 'Done roadmap items' }),
+        ).toContainElement(completed);
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Only our interests' }),
+        );
+        await waitFor(() =>
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Open Instant dashboard previews',
+                }),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            await screen.findByRole('button', {
+                name: 'Open A single home for your metrics',
+            }),
+        ).toHaveTextContent('Interested');
+        expect(
+            screen.getByRole('button', {
+                name: 'Open ticket Export tables with their number formatting',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Open Scheduled reports that fit your workflow',
+            }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        expect(screen.getByRole('table')).toHaveTextContent('Interested');
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Only our interests' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open Instant dashboard previews',
+        });
     });
 
     it('puts followed tickets from removed projects directly on the main board', async () => {

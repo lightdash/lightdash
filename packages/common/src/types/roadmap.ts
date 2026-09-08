@@ -148,18 +148,27 @@ export const RoadmapProjectQuerySchema = z
         page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
         pageSize: z.number().int().min(1).max(100).optional(),
         search: z.string().max(255).optional(),
+        onlyInterested: z.boolean().optional(),
     })
     .strict();
 export type RoadmapProjectQuery = z.infer<typeof RoadmapProjectQuerySchema>;
-export const RoadmapProjectRequestsQuerySchema =
-    RoadmapProjectQuerySchema.extend({
-        groupId: z.string().min(1).max(255),
-    });
+export const RoadmapProjectRequestsQuerySchema = RoadmapProjectQuerySchema.omit(
+    { onlyInterested: true },
+).extend({
+    groupId: z.string().min(1).max(255),
+});
 export type RoadmapProjectRequestsQuery = z.infer<
     typeof RoadmapProjectRequestsQuerySchema
 >;
 
-export type RoadmapProject = { projectId: string; title: string };
+export type RoadmapProject = {
+    projectId: string;
+    title: string;
+    icon: string | null;
+    stage: 'backlog' | 'planned' | 'started' | 'paused' | 'completed';
+    progress: number;
+    priority: RoadmapItemPriority;
+};
 export type RoadmapProjectGroup = {
     project: RoadmapProject;
     ownRequestCount: number;
@@ -198,7 +207,17 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> = z
                     project: z
                         .object({
                             projectId: z.string().min(1),
-                            title: z.string().min(1),
+                            title: z.string().trim().min(1),
+                            icon: z.string().max(255).nullable(),
+                            stage: z.enum([
+                                'backlog',
+                                'planned',
+                                'started',
+                                'paused',
+                                'completed',
+                            ]),
+                            progress: z.number().min(0).max(100),
+                            priority: z.enum(RoadmapItemPriority),
                         })
                         .strict(),
                     ownRequestCount: z.number().int().min(0),

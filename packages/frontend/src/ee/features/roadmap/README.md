@@ -1,17 +1,24 @@
-# Roadmap board preview
+# Project roadmap
 
-Open `/dev/roadmap` on the Vite development server. The development-only preview uses an asynchronous mock API; it makes no Linear or central roadmap requests.
+The Settings roadmap consumes `/api/v2/org/roadmap/projects` and `/api/v2/org/roadmap/requests`. Both derive organization identity from the authenticated account and retain the existing roadmap permission, feature flag and license checks. Lightdash validates the Control Center response before returning it. Provider credentials never reach the browser. The v1 endpoint and its response remain compatible with older installations.
 
-The main board mixes eligible project cards and loose followed tickets in their status columns. Project cards lead with an icon and title, followed by priority and any positive followed-ticket count, then a full-width overall-progress footer. There is no Project badge. Tickets use a compact layout with their type and ID above the title and priority below. A Board/Table selector works on the main roadmap and within projects; search, pagination and navigation work in both views. Projects without followed tickets remain visible with no zero-following label. Clicking a project switches to a full ticket board, showing only tickets the current user follows. Back to roadmap restores the main board and its search. Tickets open the existing request-details modal. There is no project sidebar or separate Other requests section.
+Projects and loose tickets share a board or table. Opening a project shows the organization's visible linked requests in the selected view. Project cards show their icon, priority and overall progress, with positive followed-ticket counts below the title. Direct project interest with no visible tickets displays “Interested.” The “Only our interests” filter includes direct organization project needs or projects with visible organization requests. Loose tickets already belong to the organization. Following is organization-level customer relevance, not an individual subscription system.
 
-Project progress is supplied independently of the followed-ticket subset. The sample dashboard-filter project is 68% complete, has four followed tickets, and includes an unfollowed fixture that is excluded from the API response. Icon, stage, priority, and progress metadata are synthetic preview inputs, not a live provider integration.
+Control Center alone determines eligibility: a direct customer-to-project need from any customer qualifies a project. Issue-only needs do not. Active projects and projects completed within the past 30 days are eligible; canceled, archived, deleted, unlinked and blank-title projects are excluded. Existing public-issue curation and 30-day terminal-ticket retention remain unchanged. Requests whose parent is ineligible appear as loose tickets. No other customer's identity or requests are returned.
 
-Use the scenario selector to review populated, empty, pending, error/retry, access-denied, removed-project, missing-title, pagination, and expiry behavior. Removed or blank-title projects' followed tickets become loose cards. Load more projects/tickets fetches bounded pages on demand. Expiry uses 12 seconds for review rather than the intended 10-minute production window. Storybook exposes the same scenarios under Roadmap / Project board.
+Search and “Only our interests” are applied before catalog pagination. Projects are alphabetical; tickets retain central priority/update ordering. Pages load on demand. The frontend hides expired titles and requests immediately, attempts refresh, and offers retry on failure. Expiry reflects the earlier of the provider snapshot's 10-minute freshness deadline and any approaching 30-day retention boundary.
 
-For local comparison with the existing settings UI, `VITE_ROADMAP_MOCK_API=true` in `packages/frontend/.env.development.local` enables development-only fixtures in the legacy roadmap hook. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` (preserving other enabled flags) to expose the Roadmap settings entry. The Vite mock flag does not bypass production authorization or change production data.
+## Local review
 
-## Integration handoff
+`/dev/roadmap` provides synthetic scenarios for populated, empty, loading, retry, access denied, removed projects, missing titles, pagination and expiry. The review expiry scenario uses 12 seconds. `VITE_ROADMAP_MOCK_API=true` in `packages/frontend/.env.development.local` also enables fixtures on the Settings page in development only. Turn it off to exercise the live consumer. Keep `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` enabled locally. The mock switch is ignored in production.
 
-The v2 contract and adapter remain groundwork; the preview is not connected to a production v2 backend. The live contract must supply project icon, overall progress and stage, plus authenticated user-following membership and counts. The mock uses the draft `ownRequestCount` field for followed-ticket counts; finalize that distinction before integration. Real follow management and design-partner writes are not implemented.
+Project metadata travels through the same response contract in the preview and live UI. Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner entry point remains a preview only; signup writes belong to the separate signup feature.
 
-Preserve v1 compatibility and request visibility rules. Keep shared project data separate from private associations. Central support must precede the consuming instance deployment. No rollout is activated by this preview.
+## Deployment and rollback
+
+1. Deploy Control Center v2 first. Confirm a bound test organization can read both v2 endpoints, unbound organizations are denied, and v1 still works.
+2. Deploy the Lightdash consumer after central verification. Existing license bindings and roadmap flags still control access; no cloud access expansion is included.
+3. Smoke-test board/table switching, a completed project, interest filtering, linked request details, search and pagination. On refresh failure, verify titles disappear at expiry.
+4. Roll back Lightdash first if necessary. Central can retain v2 while older instances continue using v1. Do not remove central v2 while any consumer still calls it. Disabling the existing roadmap feature flag hides the feature if an immediate containment step is needed.
+
+No migration or new credentials are needed. Integrated production rollout remains PROD-10992.

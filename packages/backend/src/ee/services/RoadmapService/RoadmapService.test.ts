@@ -171,4 +171,113 @@ describe('RoadmapService', () => {
             UnexpectedServerError,
         );
     });
+    it('v2 uses session identity, sends bounded filters, and validates live metadata without changing v1', async () => {
+        const results = {
+            projects: [
+                {
+                    project: {
+                        projectId: 'project-1',
+                        title: 'Filters',
+                        icon: '🔎',
+                        stage: 'completed',
+                        progress: 100,
+                        priority: 'High',
+                    },
+                    ownRequestCount: 2,
+                    hasDirectNeed: false,
+                },
+            ],
+            otherRequestCount: 1,
+            pagination: {
+                page: 1,
+                pageSize: 10,
+                totalResults: 1,
+                totalPages: 1,
+            },
+            expiresAt: new Date(Date.now() + 600_000).toISOString(),
+        };
+        fetchMock.mockResolvedValue(
+            new Response(JSON.stringify({ status: 'ok', results })),
+        );
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        expect(
+            await buildService().getProjects(account, {
+                pageSize: 10,
+                search: 'Filters',
+                onlyInterested: true,
+            }),
+        ).toEqual(results);
+        const url = new URL(fetchMock.mock.calls[0][0]);
+        expect(url.pathname).toBe(
+            `/api/v2/roadmap/organizations/${sessionOrgUuid}/projects`,
+        );
+        expect(url.searchParams.get('onlyInterested')).toBe('true');
+        expect(url.searchParams.get('pageSize')).toBe('10');
+        expect(fetchMock.mock.calls[0][1].headers).toEqual({
+            'lightdash-license-key': 'test-license-key',
+        });
+        fetchMock.mockClear();
+        await expect(
+            buildService().getProjects(account, {
+                organizationUuid: otherOrgUuid,
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        await expect(
+            buildService().getProjectRequests(account, {
+                groupId: 'p',
+                customerId: 'foreign',
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        expect(fetchMock).not.toHaveBeenCalled();
+        const invalidPayloads = [
+            {
+                status: 'ok',
+                results: {
+                    ...results,
+                    expiresAt: new Date(Date.now() - 1).toISOString(),
+                },
+            },
+            { status: 'ok', results: { ...results, customerName: 'private' } },
+            roadmapServiceResponse,
+        ];
+        invalidPayloads.forEach((payload) =>
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify(payload)),
+            ),
+        );
+        await Promise.all(
+            invalidPayloads.map(() =>
+                expect(buildService().getProjects(account)).rejects.toThrow(
+                    UnexpectedServerError,
+                ),
+            ),
+        );
+    });
+
+    it('v2 gates both endpoints before provider requests and keeps authorization errors stable', async () => {
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        await Promise.all(
+            [
+                buildService({ flagEnabled: false }),
+                buildService({ licenseKey: '' }),
+            ].map(async (service) => {
+                await expect(service.getProjects(account)).rejects.toThrow();
+                await expect(
+                    service.getProjectRequests(account, { groupId: 'other' }),
+                ).rejects.toThrow();
+            }),
+        );
+        const deniedAccount = buildAccount(viewRoadmapAbility(otherOrgUuid));
+        await expect(buildService().getProjects(deniedAccount)).rejects.toThrow(
+            ForbiddenError,
+        );
+        await expect(
+            buildService().getProjectRequests(deniedAccount, { groupId: 'p' }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockResolvedValue(new Response('denied', { status: 403 }));
+        await expect(
+            buildService().getProjectRequests(account, { groupId: 'p' }),
+        ).rejects.toThrow(ForbiddenError);
+    });
 });

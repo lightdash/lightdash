@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     RoadmapItemStatus,
     RoadmapItemPriority,
+    type RoadmapProject,
 } from '@lightdash/common';
 import {
     IconBolt,
@@ -20,19 +21,10 @@ export type RoadmapBoardStage =
     | 'paused'
     | 'completed'
     | 'canceled';
-export type RoadmapProjectPresentation = {
-    stage: RoadmapBoardStage;
-    icon:
-        | 'sparkles'
-        | 'filter'
-        | 'chart'
-        | 'bolt'
-        | 'calendar'
-        | 'users'
-        | 'folder';
-    progress: number | null;
-    priority: RoadmapItemPriority;
-};
+export type RoadmapProjectPresentation = Pick<
+    RoadmapProject,
+    'stage' | 'icon' | 'progress' | 'priority'
+>;
 export const projectIcons = {
     sparkles: IconSparkles,
     filter: IconFilter,
@@ -45,7 +37,7 @@ export const projectIcons = {
 export const defaultProjectPresentation: RoadmapProjectPresentation = {
     stage: 'backlog',
     icon: 'folder',
-    progress: null,
+    progress: 0,
     priority: RoadmapItemPriority.NO_PRIORITY,
 };
 export function ticketStage(status: RoadmapItemStatus): RoadmapBoardStage {

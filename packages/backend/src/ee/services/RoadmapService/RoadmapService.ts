@@ -6,13 +6,22 @@ import {
     ForbiddenError,
     ParameterError,
     ROADMAP_DEFAULT_PAGE_SIZE,
+    RoadmapProjectQuerySchema,
+    RoadmapProjectRequestsQuerySchema,
+    RoadmapProjectRequestsResponseSchema,
+    RoadmapProjectResponseSchema,
     RoadmapQuerySchema,
     RoadmapResponseSchema,
     UnexpectedServerError,
     type Account,
+    type RoadmapProjectQuery,
+    type RoadmapProjectRequestsQuery,
+    type RoadmapProjectRequestsResults,
+    type RoadmapProjectResults,
     type RoadmapQuery,
     type RoadmapResults,
 } from '@lightdash/common';
+import { z } from 'zod';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import type { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -37,10 +46,7 @@ export class RoadmapService extends BaseService {
         this.featureFlagService = featureFlagService;
     }
 
-    async getRoadmap(
-        account: Account,
-        query: RoadmapQuery = {},
-    ): Promise<RoadmapResults> {
+    private async authorize(account: Account) {
         assertRegisteredAccount(account);
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
@@ -74,34 +80,95 @@ export class RoadmapService extends BaseService {
             );
         }
 
-        const parsedQuery = RoadmapQuerySchema.safeParse(query);
-        if (!parsedQuery.success) {
-            this.logger.warn('Could not parse roadmap query', {
-                issues: parsedQuery.error.issues,
-            });
+        return { organizationUuid, licenseKey };
+    }
+
+    async getProjects(
+        account: Account,
+        query: RoadmapProjectQuery = {},
+    ): Promise<RoadmapProjectResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        const parsed = RoadmapProjectQuerySchema.safeParse(query);
+        if (!parsed.success)
             throw new ParameterError('Could not load the organization roadmap');
-        }
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            'v2',
+            '/projects',
+            parsed.data,
+            RoadmapProjectResponseSchema,
+        );
+        this.assertFresh(response.results.expiresAt);
+        return response.results;
+    }
 
-        let url: URL;
-        try {
-            url = new URL(ROADMAP_URL);
-            const basePath = url.pathname.replace(/\/$/, '');
-            url.pathname = `${basePath}/${encodeURIComponent(organizationUuid)}`;
-        } catch {
+    async getProjectRequests(
+        account: Account,
+        query: RoadmapProjectRequestsQuery,
+    ): Promise<RoadmapProjectRequestsResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        const parsed = RoadmapProjectRequestsQuerySchema.safeParse(query);
+        if (!parsed.success)
+            throw new ParameterError('Could not load the organization roadmap');
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            'v2',
+            '/requests',
+            parsed.data,
+            RoadmapProjectRequestsResponseSchema,
+        );
+        this.assertFresh(response.results.expiresAt);
+        return response.results;
+    }
+
+    private assertFresh(expiresAt: string) {
+        if (Date.parse(expiresAt) <= Date.now())
             throw new UnexpectedServerError(
-                'Could not load the organization roadmap',
+                'Could not refresh the organization roadmap',
             );
-        }
-        const paginationQuery = {
-            ...parsedQuery.data,
-            pageSize: parsedQuery.data.pageSize ?? ROADMAP_DEFAULT_PAGE_SIZE,
-        };
-        Object.entries(paginationQuery).forEach(([key, value]) => {
-            if (value !== undefined) {
-                url.searchParams.set(key, String(value));
-            }
-        });
+    }
 
+    async getRoadmap(
+        account: Account,
+        query: RoadmapQuery = {},
+    ): Promise<RoadmapResults> {
+        const { organizationUuid, licenseKey } = await this.authorize(account);
+        const parsed = RoadmapQuerySchema.safeParse(query);
+        if (!parsed.success)
+            throw new ParameterError('Could not load the organization roadmap');
+        const response = await this.request(
+            organizationUuid,
+            licenseKey,
+            'v1',
+            '',
+            {
+                ...parsed.data,
+                pageSize: parsed.data.pageSize ?? ROADMAP_DEFAULT_PAGE_SIZE,
+            },
+            RoadmapResponseSchema,
+        );
+        return {
+            data: response.results,
+            pagination: response.pagination,
+            facets: response.facets,
+        };
+    }
+
+    private async request<T>(
+        organizationUuid: string,
+        licenseKey: string,
+        version: 'v1' | 'v2',
+        suffix: string,
+        query: Record<string, string | number | boolean | undefined>,
+        schema: z.ZodType<T>,
+    ): Promise<T> {
+        const url = new URL(ROADMAP_URL.replace('/v1/', `/${version}/`));
+        url.pathname = `${url.pathname}/${encodeURIComponent(organizationUuid)}${suffix}`;
+        Object.entries(query).forEach(([key, value]) => {
+            if (value !== undefined) url.searchParams.set(key, String(value));
+        });
         let response: Response;
         try {
             response = await fetch(url.toString(), {
@@ -148,7 +215,7 @@ export class RoadmapService extends BaseService {
             );
         }
 
-        const parsedResponse = RoadmapResponseSchema.safeParse(payload);
+        const parsedResponse = schema.safeParse(payload);
         if (!parsedResponse.success) {
             this.logger.warn('Roadmap service returned an invalid response', {
                 issueCount: parsedResponse.error.issues.length,
@@ -158,10 +225,6 @@ export class RoadmapService extends BaseService {
             );
         }
 
-        return {
-            data: parsedResponse.data.results,
-            pagination: parsedResponse.data.pagination,
-            facets: parsedResponse.data.facets,
-        };
+        return parsedResponse.data;
     }
 }

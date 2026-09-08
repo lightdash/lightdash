@@ -7,6 +7,7 @@ import {
     Badge,
     Box,
     Button,
+    Checkbox,
     Group,
     Paper,
     Progress,
@@ -178,6 +179,24 @@ function ProjectProgress({
     );
 }
 
+function ProjectIcon({ icon }: { icon: string | null }) {
+    if (icon && /\p{Extended_Pictographic}/u.test(icon)) {
+        return (
+            <Text
+                component="span"
+                aria-hidden="true"
+                className={classes.projectIcon}
+            >
+                {icon}
+            </Text>
+        );
+    }
+    const key = icon?.replace(/^Icon/, '').toLowerCase();
+    const glyph =
+        projectIcons[key as keyof typeof projectIcons] ?? projectIcons.folder;
+    return <MantineIcon icon={glyph} className={classes.projectIcon} />;
+}
+
 function ProjectCard({
     group,
     presentation,
@@ -199,7 +218,7 @@ function ProjectCard({
                     size="md"
                     className={classes.projectIcon}
                 >
-                    <MantineIcon icon={projectIcons[presentation.icon]} />
+                    <ProjectIcon icon={presentation.icon} />
                 </ThemeIcon>
                 <Title order={5} className={classes.projectTitle}>
                     {group.project.title}
@@ -207,6 +226,11 @@ function ProjectCard({
             </Group>
             <Group justify="space-between" gap="xs">
                 <PriorityBadge priority={presentation.priority} />
+                {group.ownRequestCount === 0 && group.hasDirectNeed && (
+                    <Text fz="xs" c="dimmed">
+                        Interested
+                    </Text>
+                )}
                 {group.ownRequestCount > 0 && (
                     <Group gap={4} wrap="nowrap">
                         <MantineIcon icon={IconEye} size="sm" color="dimmed" />
@@ -274,10 +298,12 @@ type RoadmapEntry = {
     title: string;
     type: 'project' | 'ticket';
     icon: typeof IconTicket;
+    projectIcon?: string | null;
     stage: RoadmapBoardStage;
     priority: RoadmapItemPriority;
     progress: number | null;
     following: number | null;
+    hasDirectNeed?: boolean;
     ticketId?: string;
     onOpen: () => void;
     card: ReactNode;
@@ -318,10 +344,16 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                         onClick={entry.onOpen}
                                         aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
                                     >
-                                        <MantineIcon
-                                            icon={entry.icon}
-                                            className={classes.projectIcon}
-                                        />
+                                        {entry.type === 'project' ? (
+                                            <ProjectIcon
+                                                icon={entry.projectIcon ?? null}
+                                            />
+                                        ) : (
+                                            <MantineIcon
+                                                icon={entry.icon}
+                                                className={classes.projectIcon}
+                                            />
+                                        )}
                                         <Text
                                             fz="sm"
                                             fw={
@@ -369,7 +401,9 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                             ? `${entry.following} ${entry.following === 1 ? 'ticket' : 'tickets'}`
                                             : entry.type === 'ticket'
                                               ? 'Following'
-                                              : ''}
+                                              : entry.hasDirectNeed
+                                                ? 'Interested'
+                                                : ''}
                                     </Text>
                                 </Table.Td>
                             </Table.Tr>
@@ -406,14 +440,15 @@ function BoardError({
 
 export function RoadmapProjects({
     cacheKey,
-    projectPresentation,
     showDesignPartnerPreview = false,
+    preview = false,
 }: {
     cacheKey: string;
-    projectPresentation: Record<string, RoadmapProjectPresentation>;
     showDesignPartnerPreview?: boolean;
+    preview?: boolean;
 }) {
     const [view, setView] = useState('board');
+    const [onlyInterested, setOnlyInterested] = useState(false);
     const [mainSearch, setMainSearch] = useState('');
     const [projectSearch, setProjectSearch] = useState('');
     const [debouncedMainSearch] = useDebouncedValue(mainSearch.trim(), 300);
@@ -429,7 +464,7 @@ export function RoadmapProjects({
     );
     const [interestProject, setInterestProject] = useState<string | null>(null);
     const projectsQuery = useRoadmapProjects(
-        { pageSize: 10, search: debouncedMainSearch },
+        { pageSize: 10, search: debouncedMainSearch, onlyInterested },
         cacheKey,
     );
     const ticketsQuery = useRoadmapRequests(
@@ -468,9 +503,7 @@ export function RoadmapProjects({
     const selectedProject = projects.find(
         (group) => group.project.projectId === selectedProjectId,
     );
-    const presentation =
-        projectPresentation[selectedProjectId ?? ''] ??
-        defaultProjectPresentation;
+    const presentation = selectedProject?.project ?? defaultProjectPresentation;
     const projectBoard = selectedProjectId !== null;
     const loading =
         projectsQuery.isInitialLoading ||
@@ -493,9 +526,7 @@ export function RoadmapProjects({
     const entries: RoadmapEntry[] = [
         ...(!projectBoard
             ? projects.map((group): RoadmapEntry => {
-                  const metadata =
-                      projectPresentation[group.project.projectId] ??
-                      defaultProjectPresentation;
+                  const metadata = group.project ?? defaultProjectPresentation;
                   const onOpen = () => {
                       setSelectedProjectId(group.project.projectId);
                       setProjectSearch('');
@@ -504,11 +535,13 @@ export function RoadmapProjects({
                       id: `project-${group.project.projectId}`,
                       title: group.project.title,
                       type: 'project',
-                      icon: projectIcons[metadata.icon],
+                      icon: IconTicket,
+                      projectIcon: metadata.icon,
                       stage: metadata.stage,
                       priority: metadata.priority,
                       progress: metadata.progress,
                       following: group.ownRequestCount,
+                      hasDirectNeed: group.hasDirectNeed,
                       onOpen,
                       card: (
                           <ProjectCard
@@ -566,7 +599,7 @@ export function RoadmapProjects({
                         </ThemeIcon>
                     )}
                     {projectBoard && !failed && selectedProject && (
-                        <MantineIcon icon={projectIcons[presentation.icon]} />
+                        <ProjectIcon icon={presentation.icon} />
                     )}
                     <Title order={4}>
                         {projectBoard
@@ -575,7 +608,7 @@ export function RoadmapProjects({
                                 : 'Project board'
                             : 'Roadmap'}
                     </Title>
-                    {!projectBoard && (
+                    {!projectBoard && preview && (
                         <Badge size="sm" variant="light">
                             Preview
                         </Badge>
@@ -602,7 +635,7 @@ export function RoadmapProjects({
                 ) : (
                     !projectBoard && (
                         <Text fz="sm" c="dimmed">
-                            Built with our customers
+                            Shared projects and your organization’s requests
                         </Text>
                     )
                 )}
@@ -615,7 +648,7 @@ export function RoadmapProjects({
                 <Group gap="sm">
                     <Text fz="sm" fw={500}>
                         {projectBoard
-                            ? 'Tickets you follow'
+                            ? 'Tickets your organization follows'
                             : 'Projects & tickets'}
                     </Text>
                     {!failed && !loading && (
@@ -627,6 +660,16 @@ export function RoadmapProjects({
                     )}
                 </Group>
                 <Group gap="md" className={classes.viewControls}>
+                    {!projectBoard && (
+                        <Checkbox
+                            size="xs"
+                            label="Only our interests"
+                            checked={onlyInterested}
+                            onChange={(event) =>
+                                setOnlyInterested(event.currentTarget.checked)
+                            }
+                        />
+                    )}
                     <TextInput
                         className={classes.search}
                         size="xs"
@@ -740,7 +783,7 @@ export function RoadmapProjects({
                             }
                             description={
                                 projectBoard
-                                    ? 'Only tickets you follow in this project appear here.'
+                                    ? 'Only your organization’s visible requests in this project appear here.'
                                     : 'Projects and tickets you follow will appear here.'
                             }
                             action={
