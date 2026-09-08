@@ -1178,8 +1178,13 @@ const selectRetentionVictims = async (
     entries: OwnedEntry[],
     bytesNeeded: number,
     countNeeded: number,
+    deadline: number,
     selected: RetentionVictim[] = [],
-): Promise<RetentionVictim[] | undefined> => {
+): Promise<RetentionVictim[] | 'deadline' | undefined> => {
+    if (Date.now() >= deadline) {
+        await releaseRetentionVictims(selected);
+        return 'deadline';
+    }
     if (bytesNeeded <= 0 && countNeeded <= 0) return selected;
     const [entry, ...remaining] = entries;
     if (!entry) {
@@ -1193,11 +1198,18 @@ const selectRetentionVictims = async (
         await releaseRetentionVictims(selected);
         throw error;
     }
+    if (Date.now() >= deadline) {
+        await releaseRetentionVictims(
+            lease ? [...selected, { entry, lease }] : selected,
+        );
+        return 'deadline';
+    }
     if (!lease) {
         return selectRetentionVictims(
             remaining,
             bytesNeeded,
             countNeeded,
+            deadline,
             selected,
         );
     }
@@ -1205,6 +1217,7 @@ const selectRetentionVictims = async (
         remaining,
         bytesNeeded - (entry.metadata?.sizeBytes ?? 0),
         countNeeded - 1,
+        deadline,
         [...selected, { entry, lease }],
     );
 };
@@ -1236,13 +1249,15 @@ const reserveRetentionVictims = async (
     entries: OwnedEntry[],
     bytesNeeded: number,
     countNeeded: number,
+    deadline: number,
 ) => {
     const victims = await selectRetentionVictims(
         entries,
         bytesNeeded,
         countNeeded,
+        deadline,
     );
-    if (!victims) return undefined;
+    if (!victims || victims === 'deadline') return victims;
     try {
         return await retireRetentionVictims(victims);
     } catch (error) {
@@ -1670,23 +1685,33 @@ const retainDbtGitProjectCache = async (
     let declineRetentionPaths: string[] | undefined;
     try {
         const entries = await listOwnedEntries();
+        if (Date.now() >= totalDeadline) {
+            declineRetention = 'publication-deadline';
+        }
         const corrupt = entries.filter(
             (entry) =>
                 !entry.owned || (entry.kind === 'entry' && !entry.metadata),
         );
-        if (corrupt.length > 0 || entries.length > DBT_GIT_CACHE_MAX_ENTRIES) {
+        if (
+            !declineRetention &&
+            (corrupt.length > 0 || entries.length > DBT_GIT_CACHE_MAX_ENTRIES)
+        ) {
             declineRetention =
                 corrupt.length > 0 ? 'corrupt-root-entry' : 'entry-limit';
             declineRetentionPaths =
                 corrupt.length > 0
                     ? corrupt.map((entry) => entry.entryDirectory)
                     : undefined;
-        } else {
+        } else if (!declineRetention) {
             const others = entries.filter(
                 (entry) => entry.entryDirectory !== lease.entryDirectory,
             );
             const entryCapacityBytes = async (entry: OwnedEntry) => {
-                if (entry.kind === 'tombstone') return configuration.maxBytes;
+                if (entry.kind === 'tombstone') {
+                    return entry.metadata?.state === 'retained'
+                        ? entry.metadata.sizeBytes
+                        : configuration.maxBytes;
+                }
                 if (!entry.metadata) return configuration.maxBytes;
                 if (entry.metadata.state === 'retained') {
                     return entry.metadata.sizeBytes;
@@ -1711,6 +1736,9 @@ const retainDbtGitProjectCache = async (
             const retainedBytes = (
                 await Promise.all(others.map(entryCapacityBytes))
             ).reduce((total, entryBytes) => total + entryBytes, 0);
+            if (Date.now() >= totalDeadline) {
+                declineRetention = 'publication-deadline';
+            }
             const retainedCount = others.filter(
                 (entry) =>
                     entry.kind === 'tombstone' ||
@@ -1766,8 +1794,9 @@ const retainDbtGitProjectCache = async (
                 });
             };
             if (
-                retainedBytes + sizeBytes > configuration.maxBytes ||
-                retainedCount + 1 > DBT_GIT_CACHE_MAX_ENTRIES
+                !declineRetention &&
+                (retainedBytes + sizeBytes > configuration.maxBytes ||
+                    retainedCount + 1 > DBT_GIT_CACHE_MAX_ENTRIES)
             ) {
                 const candidates = others
                     .filter(
@@ -1784,14 +1813,17 @@ const retainDbtGitProjectCache = async (
                     candidates,
                     retainedBytes + sizeBytes - configuration.maxBytes,
                     retainedCount + 1 - DBT_GIT_CACHE_MAX_ENTRIES,
+                    totalDeadline,
                 );
-                if (!reserved) {
+                if (reserved === 'deadline') {
+                    declineRetention = 'publication-deadline';
+                } else if (!reserved) {
                     declineRetention = 'capacity-unavailable';
                 } else {
                     cleanup = reserved;
                     await publish();
                 }
-            } else {
+            } else if (!declineRetention) {
                 await publish();
             }
         }
