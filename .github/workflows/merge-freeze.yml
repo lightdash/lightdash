@@ -33,6 +33,10 @@ on:
         options:
           - freeze
           - unfreeze
+      slack_actor:
+        description: Authenticated Slack identity supplied by the configured dispatcher
+        required: false
+        type: string
 
 permissions: {}
 
@@ -82,11 +86,54 @@ jobs:
           REPO: ${{ github.repository }}
           ACTION: ${{ inputs.action }}
           ACTOR_LOGIN: ${{ github.actor }}
-          FREEZE_ACTOR: ${{ vars.MERGE_FREEZE_ACTOR }}
+          SLACK_ACTOR: ${{ inputs.slack_actor }}
           CONTEXT: ${{ env.FREEZE_CONTEXT }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+
+          if [ "$ACTION" != "freeze" ] && [ "$ACTION" != "unfreeze" ]; then
+            echo "::error::Invalid merge freeze action."
+            exit 1
+          fi
+
+          read_variables() {
+            gh api --paginate --slurp "repos/$REPO/actions/variables" | jq -e '
+              if type == "array" and length > 0
+                 and all(.[]; (.variables | type) == "array") then
+                [.[].variables[]]
+                | if all(.[]; (.name | type) == "string" and (.value | type) == "string")
+                  then . else error("Invalid repository variables") end
+                | if all(.[] | select(.name == "MERGE_FREEZE_ACTOR" or .name == "MERGE_FREEZE_SLACK_DISPATCHER");
+                    .value | explode | all(. >= 32 and . <= 126))
+                  then . else error("Invalid ownership variable") end
+              else error("Invalid repository variables response") end
+            '
+          }
+
+          variables=$(read_variables)
+          FREEZE_ACTOR=$(jq -r '[.[] | select(.name == "MERGE_FREEZE_ACTOR") | .value]
+            | if length <= 1 then .[0] // "" else error("Duplicate freeze owner") end' <<<"$variables")
+          dispatcher=$(jq -r '[.[] | select(.name == "MERGE_FREEZE_SLACK_DISPATCHER") | .value]
+            | if length <= 1 then .[0] // "" else error("Duplicate dispatcher") end' <<<"$variables")
+          actor_key=$(printf '%s' "$ACTOR_LOGIN" | tr '[:upper:]' '[:lower:]')
+          dispatcher_key=$(printf '%s' "$dispatcher" | tr '[:upper:]' '[:lower:]')
+          effective_actor=$ACTOR_LOGIN
+
+          if [ -n "${SLACK_ACTOR:-}" ]; then
+            if [ -z "$dispatcher" ] || [ "$actor_key" != "$dispatcher_key" ]; then
+              echo "::error::Slack identity requires the configured MERGE_FREEZE_SLACK_DISPATCHER."
+              exit 1
+            fi
+            if [[ ! "$SLACK_ACTOR" =~ ^T0163M87MB9:U[A-Z0-9]{8,31}$ ]]; then
+              echo "::error::Invalid Slack identity."
+              exit 1
+            fi
+            effective_actor=$SLACK_ACTOR
+          elif [ -n "$dispatcher" ] && [ "$actor_key" = "$dispatcher_key" ]; then
+            echo "::error::The Slack dispatcher must supply an authenticated Slack identity."
+            exit 1
+          fi
 
           # `rulesets` also returns org-level rulesets that apply here but
           # cannot be edited from this repo, hence the source_type filter. The
@@ -128,20 +175,39 @@ jobs:
                        | select(.context == $ctx)] | length > 0
           ' <<<"$ruleset")
 
-          # A freeze belongs to whoever started it: they know what they are
-          # holding main for and when it is safe to let go. Checked before the
-          # ruleset is touched, so a refused unfreeze changes nothing.
-          #
-          # Three deliberate ways out, because a freeze nobody can lift is worse
-          # than one lifted early: an unknown owner allows anyone (the variable
-          # write is best-effort, and a hand-made freeze has no owner at all);
-          # unfreezing an already-open main is a no-op cleanup and is always
-          # allowed; and a repo admin can always remove the check from the
-          # ruleset by hand.
-          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ] \
-             && [ -n "${FREEZE_ACTOR:-}" ] && [ "$FREEZE_ACTOR" != "$ACTOR_LOGIN" ]; then
-            echo "::error::@$FREEZE_ACTOR froze main, so only they can unfreeze it here. Ask them to run this workflow, or ask a repo admin to remove the '$CONTEXT' check from the $ruleset_name ruleset by hand."
-            exit 1
+          if [ "$was_required" = "true" ] && [ -n "$FREEZE_ACTOR" ]; then
+            if [[ ! "$FREEZE_ACTOR" =~ ^T0163M87MB9:U[A-Z0-9]{8,31}$ ]] \
+               && [[ ! "$FREEZE_ACTOR" =~ ^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}(\[bot\])?$ ]]; then
+              echo "::error::Invalid recorded freeze owner. Ask a repository admin to recover the freeze."
+              exit 1
+            fi
+          fi
+
+          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ]; then
+            owner_key=$FREEZE_ACTOR
+            effective_key=$effective_actor
+            if [[ "$FREEZE_ACTOR" != *:* ]] && [ -z "${SLACK_ACTOR:-}" ]; then
+              owner_key=$(printf '%s' "$FREEZE_ACTOR" | tr '[:upper:]' '[:lower:]')
+              effective_key=$actor_key
+            fi
+            if { [ -n "$FREEZE_ACTOR" ] && [ "$owner_key" != "$effective_key" ]; } \
+               || { [ -z "$FREEZE_ACTOR" ] && [ -n "${SLACK_ACTOR:-}" ]; }; then
+              echo "::error::Only the recorded freeze owner can unfreeze main. Ask the owner or a repository admin."
+              exit 1
+            fi
+          fi
+
+          display_owner=$effective_actor
+          if [ "$ACTION" = "freeze" ]; then
+            if [ "$was_required" = "true" ]; then
+              display_owner=${FREEZE_ACTOR:-an unknown owner}
+            else
+              gh variable set MERGE_FREEZE_ACTOR --repo "$REPO" --body "$effective_actor"
+              recorded_variables=$(read_variables)
+              jq -e --arg owner "$effective_actor" '
+                [.[] | select(.name == "MERGE_FREEZE_ACTOR") | .value] == [$owner]
+              ' <<<"$recorded_variables" >/dev/null
+            fi
           fi
 
           if [ "$ACTION" = "freeze" ]; then
@@ -186,7 +252,10 @@ jobs:
             bypass_actors: [$r.bypass_actors[]? | {actor_id, actor_type, bypass_mode}],
             rules: $rules
           }')
-          gh api --method PUT "repos/$REPO/rulesets/$ruleset_id" --input - <<<"$payload" >/dev/null
+          if { [ "$ACTION" = "freeze" ] && [ "$was_required" = "false" ]; } \
+             || { [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ]; }; then
+            gh api --method PUT "repos/$REPO/rulesets/$ruleset_id" --input - <<<"$payload" >/dev/null
+          fi
 
           # Read back rather than trust the write: a silently no-op'd PUT would
           # leave everyone believing main is frozen when it is not.
@@ -216,7 +285,7 @@ jobs:
           # than hunting the Actions tab to work out who to ask.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
-            description="Merges to main are frozen by $ACTOR_LOGIN - ask them in Slack"
+            description="Merges to main are frozen by $display_owner - ask them in Slack"
           else
             state=success
             description="Merges to main are open"
@@ -243,16 +312,11 @@ jobs:
           gh variable set MERGE_FREEZE --repo "$REPO" --body "$freeze_var" \
             || echo "::warning::Could not write the MERGE_FREEZE variable. The freeze is applied, but PRs opened during it will show an unexplained blocked check."
 
-          # Ownership is recorded only on a real freeze, never on a repeat one:
-          # otherwise a second person re-freezing an already-frozen main would
-          # quietly take the freeze off whoever actually started it.
-          if [ "$ACTION" = "freeze" ] && [ "$changed" = "true" ]; then
-            gh variable set MERGE_FREEZE_ACTOR --repo "$REPO" --body "$ACTOR_LOGIN" \
-              || echo "::warning::Could not record who froze main, so anyone will be able to unfreeze it."
-          elif [ "$ACTION" = "unfreeze" ]; then
+          if [ "$ACTION" = "unfreeze" ]; then
             gh variable delete MERGE_FREEZE_ACTOR --repo "$REPO" 2>/dev/null \
-              || echo "Nothing to clear: no freeze owner was recorded."
+              || echo "::warning::Could not clear the recorded freeze owner. The ruleset is open."
           fi
+          echo "actor=$effective_actor" >> "$GITHUB_OUTPUT"
 
           # Only PRs targeting the default branch: the ruleset covers main
           # alone, so a stacked PR merging into its parent is not blocked and
@@ -296,7 +360,8 @@ jobs:
             echo
             echo "| | |"
             echo "| --- | --- |"
-            echo "| Actor | @$ACTOR_LOGIN |"
+            echo "| Actor | $effective_actor |"
+            echo "| Freeze owner | $display_owner |"
             echo "| Ruleset | \`$ruleset_name\` (id $ruleset_id) |"
             echo "| Required check | \`$CONTEXT\` |"
             echo "| Open PRs updated | $posted (couldn't reach $unreachable) |"
@@ -306,9 +371,17 @@ jobs:
                 echo "> Main was **already frozen** - this run only refreshed the PR statuses."
                 echo
               fi
-              echo "Run this workflow again with **unfreeze** to reopen merges."
+              if [[ "$display_owner" == T0163M87MB9:U* ]]; then
+                echo "Ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`."
+              else
+                echo "Run this workflow again with **unfreeze** to reopen merges."
+              fi
               echo
-              echo "Only **@$ACTOR_LOGIN** can do that here. If they are unavailable, a repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
+              if [ "$display_owner" = "an unknown owner" ]; then
+                echo "No owner is recorded. Use a direct GitHub dispatch or ask a repository admin to recover the freeze."
+              else
+                echo "Only **$display_owner** can do that here. If they are unavailable, a repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
+              fi
             else
               if [ "$was_required" = "false" ]; then
                 echo "> Main was **not frozen** - this run only cleared any stale \`$CONTEXT\` statuses."
@@ -333,7 +406,8 @@ jobs:
         env:
           WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           ACTION: ${{ inputs.action }}
-          ACTOR_LOGIN: ${{ github.actor }}
+          ACTOR_LOGIN: ${{ steps.toggle.outputs.actor }}
+          REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/workflows/merge-freeze.yml
         run: |
@@ -347,11 +421,19 @@ jobs:
           # No reason is carried anywhere, by design: this repo is public and a
           # free-text box invites someone to name a customer in it. Whoever
           # froze main can say why in the thread if it matters.
-          if [ "$ACTION" = "freeze" ]; then
-            text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by @${ACTOR_LOGIN}."
-            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Only @${ACTOR_LOGIN} can lift it: <${WORKFLOW_URL}|Merge freeze / unfreeze>. If they are unavailable, a repo admin can remove the check from the main ruleset by hand."
+          if [[ "$ACTOR_LOGIN" == T0163M87MB9:U* ]]; then
+            actor_mention="<@${ACTOR_LOGIN#*:}>"
+            unfreeze_instructions="ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`"
           else
-            text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by @${ACTOR_LOGIN}."
+            actor_mention="@$ACTOR_LOGIN"
+            unfreeze_instructions="<${WORKFLOW_URL}|Merge freeze / unfreeze>"
+          fi
+
+          if [ "$ACTION" = "freeze" ]; then
+            text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by ${actor_mention}."
+            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Only ${actor_mention} can lift it: ${unfreeze_instructions}. If they are unavailable, a repo admin can remove the check from the main ruleset by hand."
+          else
+            text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by ${actor_mention}."
             text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, push or reopen it to clear."
           fi
           text="$text"$'\n'"<${RUN_URL}|View run>"
