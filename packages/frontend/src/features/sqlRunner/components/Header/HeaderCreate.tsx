@@ -104,6 +104,15 @@ export const HeaderCreate: FC = () => {
                 undefined,
             ];
         }
+        if (
+            project?.dbtConnection.type === DbtProjectType.GITHUB &&
+            project.dbtConnection.semanticLayer === 'lightdash'
+        ) {
+            return [
+                'SQL Runner model creation is only supported for dbt projects.',
+                undefined,
+            ];
+        }
         const hasGithubEnabled = gitIntegration?.enabled;
         const hasGitProject = [
             DbtProjectType.GITHUB,
@@ -142,7 +151,7 @@ export const HeaderCreate: FC = () => {
         gitIntegration?.enabled,
         health?.data?.hasGithub,
         health?.data?.siteUrl,
-        project?.dbtConnection.type,
+        project?.dbtConnection,
         project?.name,
         projectUuid,
     ]);

@@ -90,6 +90,40 @@ describe('GitIntegrationService', () => {
         vi.clearAllMocks();
     });
 
+    it.each(['preview', 'create'] as const)(
+        'rejects native SQL Runner model %s before writing to Git',
+        async (action) => {
+            const project = await PROJECT_MODEL.get();
+            const nativeProject = {
+                ...project,
+                dbtConnection: {
+                    ...project.dbtConnection,
+                    semanticLayer: 'lightdash',
+                },
+            };
+            PROJECT_MODEL.get.mockResolvedValue(nativeProject);
+            try {
+                await expect(
+                    action === 'preview'
+                        ? service.writeBackPreview(user, 'projectUuid', 'model')
+                        : service.createPullRequestFromSql(
+                              user,
+                              'projectUuid',
+                              'model',
+                              'select 1',
+                              [],
+                          ),
+                ).rejects.toThrow(
+                    'SQL Runner model creation is only supported for dbt projects',
+                );
+                expect(createBranch).not.toHaveBeenCalled();
+                expect(updateFile).not.toHaveBeenCalled();
+            } finally {
+                PROJECT_MODEL.get.mockResolvedValue(project);
+            }
+        },
+    );
+
     describe('updateFile', () => {
         it('should update the file for custom metrics', async () => {
             await service.updateFile({

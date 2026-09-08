@@ -1124,6 +1124,20 @@ ${sql}
         });
     }
 
+    private async assertSqlModelWritebackSupported(
+        projectUuid: string,
+    ): Promise<void> {
+        const { dbtConnection } = await this.projectModel.get(projectUuid);
+        if (
+            dbtConnection.type === DbtProjectType.GITHUB &&
+            dbtConnection.semanticLayer === 'lightdash'
+        ) {
+            throw new ParameterError(
+                'SQL Runner model creation is only supported for dbt projects.',
+            );
+        }
+    }
+
     async createPullRequestFromSql(
         user: SessionUser,
         projectUuid: string,
@@ -1133,6 +1147,7 @@ ${sql}
         quoteChar: `"` | `'` = '"',
     ): Promise<PullRequestCreated> {
         const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
+        await this.assertSqlModelWritebackSupported(projectUuid);
         await GitIntegrationService.createBranch(gitProps);
 
         await GitIntegrationService.createSqlFile({
@@ -1226,6 +1241,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         name: string,
     ): Promise<ApiGithubDbtWritePreview['results']> {
+        await this.assertSqlModelWritebackSupported(projectUuid);
         const { owner, repo, path, type, hostDomain } =
             await this.getProjectRepo(projectUuid);
 

@@ -52,6 +52,22 @@ const MODE_COPY: Record<
     },
 };
 
+const NATIVE_MODE_COPY: typeof MODE_COPY = {
+    dbt: {
+        ...MODE_COPY.dbt,
+        label: 'Refresh models',
+        description: 'Recompile explores from your native Lightdash YAML',
+        busy: 'Refreshing models',
+    },
+    'dbt-and-content': {
+        ...MODE_COPY['dbt-and-content'],
+        label: 'Refresh models and sync content',
+        busy: 'Refreshing models and content',
+        tooltip:
+            'Recompiles your native Lightdash models, then applies charts and dashboards as code from the repo.',
+    },
+};
+
 const loadStoredMode = (projectUuid: string): RefreshMode => {
     try {
         return localStorage.getItem(refreshModeStorageKey(projectUuid)) ===
@@ -145,17 +161,16 @@ const RefreshDbtButton: FC<{
                             leftSection={<MantineIcon icon={IconRefresh} />}
                             disabled
                         >
-                            Refresh dbt
+                            Refresh project
                         </Button>
                     </Box>
                 </Popover.Target>
                 <Popover.Dropdown>
                     <Text>
-                        You're still connected to a dbt project created from the
-                        CLI.
+                        This project is deployed using the CLI.
                         <br />
-                        To keep your Lightdash project in sync with your dbt
-                        project,
+                        To keep your Lightdash project in sync with your source
+                        files,
                         <br /> you need to either{' '}
                         <Anchor
                             href={
@@ -187,7 +202,7 @@ const RefreshDbtButton: FC<{
                         >
                             lightdash deploy
                         </Anchor>
-                        ) from your command line.
+                        from your command line.
                     </Text>
                 </Popover.Dropdown>
             </Popover>
@@ -224,15 +239,16 @@ const RefreshDbtButton: FC<{
         if (projectUuid) storeMode(projectUuid, nextMode);
     };
 
+    const modeCopy =
+        data?.dbtConnection.type === DbtProjectType.GITHUB &&
+        data.dbtConnection.semanticLayer === 'lightdash'
+            ? NATIVE_MODE_COPY
+            : MODE_COPY;
     const busy = isLoading;
-    const busyLabel = MODE_COPY[activeMode].busy;
+    const busyLabel = modeCopy[activeMode].busy;
 
     const refreshButton = (
-        <Tooltip
-            w={320}
-            position="bottom"
-            label={MODE_COPY[activeMode].tooltip}
-        >
+        <Tooltip w={320} position="bottom" label={modeCopy[activeMode].tooltip}>
             <Button
                 size="xs"
                 variant="default"
@@ -242,7 +258,7 @@ const RefreshDbtButton: FC<{
                 style={canSyncContent ? undefined : buttonStyles}
             >
                 {!busy
-                    ? (defaultTextOverride ?? MODE_COPY[activeMode].label)
+                    ? (defaultTextOverride ?? modeCopy[activeMode].label)
                     : (refreshingTextOverride ?? busyLabel)}
             </Button>
         </Tooltip>
@@ -287,10 +303,10 @@ const RefreshDbtButton: FC<{
                                                         : undefined
                                                 }
                                             >
-                                                {MODE_COPY[option].label}
+                                                {modeCopy[option].label}
                                             </Text>
                                             <Text fz="xs" c="dimmed">
-                                                {MODE_COPY[option].description}
+                                                {modeCopy[option].description}
                                             </Text>
                                         </Stack>
                                     </Menu.Item>
