@@ -1,3 +1,17 @@
+## [2.156.2](https://github.com/lightdash/lightdash/compare/2.156.1...2.156.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **autopilot:** only reprovision on a 404, reuse persisted resources on transient errors ([#28832](https://github.com/lightdash/lightdash/issues/28832)) ([50487f7](https://github.com/lightdash/lightdash/commit/50487f705a5c0561583370ab6688b26cb2a81562))
+
+## [2.156.1](https://github.com/lightdash/lightdash/compare/2.156.0...2.156.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **autopilot:** recover from a missing Anthropic vault instead of failing every run ([#28829](https://github.com/lightdash/lightdash/issues/28829)) ([8c5054c](https://github.com/lightdash/lightdash/commit/8c5054c55254d5a5937ba2c695f0cee35e112421))
+
 # [2.156.0](https://github.com/lightdash/lightdash/compare/2.155.1...2.156.0) (2026-09-08)
 
 

@@ -3,16 +3,16 @@ import { type ProjectMemberRole, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
-    Checkbox,
-    Group,
     Menu,
     TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconChevronDown,
-    IconHelpCircle,
+    IconCheck,
+    IconFilter,
+    IconLayoutGrid,
+    IconPlayerPlay,
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
@@ -55,13 +56,6 @@ import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useStartWalkthrough } from './useStartWalkthrough';
-
-const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-};
 
 type CardState = 'soon' | 'ready' | 'started' | 'done';
 
@@ -221,7 +215,8 @@ const LearnPage: FC = () => {
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(true);
     const [showSoon, setShowSoon] = useState(true);
-    const [activeGroup, setActiveGroup] = useState<LearnGroup | null>(null);
+    // One group tab, or All.
+    const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -237,6 +232,12 @@ const LearnPage: FC = () => {
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
+    // A chip narrows the page to one group; the chips themselves always
+    // list every group with a match, so the way back is a click away.
+    const shownGroups =
+        groupFilter === null
+            ? groups
+            : groups.filter((group) => group === groupFilter);
     const available = catalogue.filter((m) => m.available);
     const doneCount = available.filter((m) =>
         completed.includes(m.scope),
@@ -250,6 +251,9 @@ const LearnPage: FC = () => {
         completed,
         lastStarted,
     );
+    // One thing to do next: the recommendation, or whatever was last
+    // started if nothing is left to recommend.
+    const upNext = recommended ?? resume;
 
     // Start makes the learner's copy and goes straight into it; the
     // walkthrough brings them back to the library side when it ends.
@@ -305,12 +309,6 @@ const LearnPage: FC = () => {
         completed,
         track,
     ]);
-    const jumpTo = (group: LearnGroup) => {
-        setActiveGroup(group);
-        document
-            .getElementById(`learn-group-${group}`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
 
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     // Learn switched off for the instance: the route falls through to the
@@ -341,163 +339,16 @@ const LearnPage: FC = () => {
 
     return (
         <Box className={styles.shell}>
-            <Box component="aside" className={styles.sidebar}>
-                <Box className={styles.sidebarInner}>
-                    <h2 className={styles.sidebarTitle}>Library</h2>
-                    <Box
-                        component="nav"
-                        className={styles.nav}
-                        aria-label="Library"
-                    >
-                        {groups.map((group) => {
-                            const Glyph = GROUP_ICONS[group];
-                            return (
-                                <UnstyledButton
-                                    key={group}
-                                    type="button"
-                                    className={`${styles.navItem} ${
-                                        activeGroup === group
-                                            ? styles.navItemActive
-                                            : ''
-                                    }`}
-                                    aria-current={
-                                        activeGroup === group
-                                            ? 'true'
-                                            : undefined
-                                    }
-                                    onClick={() => jumpTo(group)}
-                                >
-                                    <span
-                                        className={styles.navIcon}
-                                        style={groupVars(group)}
-                                    >
-                                        <MantineIcon icon={Glyph} size={15} />
-                                    </span>
-                                    {GROUP_LABELS[group]}
-                                </UnstyledButton>
-                            );
-                        })}
-                    </Box>
-                </Box>
-            </Box>
             <Box className={styles.main}>
-                <Box className={styles.homeHead}>
-                    <h1 className={styles.greeting}>{greeting()}</h1>
-                    <Box className={styles.stats} data-learn-role={role}>
-                        <Menu position="bottom-end" withinPortal>
-                            <Menu.Target>
-                                <UnstyledButton
-                                    type="button"
-                                    className={`${styles.stat} ${styles.statButton}`}
-                                    aria-haspopup="menu"
-                                >
-                                    Viewing as <b>{ROLE_LABELS[role]}</b>
-                                    <MantineIcon
-                                        icon={IconChevronDown}
-                                        size={14}
-                                    />
-                                </UnstyledButton>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {ROLE_ORDER.map((candidate) => (
-                                    <Menu.Item
-                                        key={candidate}
-                                        onClick={() => setRole(candidate)}
-                                        fw={
-                                            candidate === role ? 600 : undefined
-                                        }
-                                    >
-                                        {ROLE_LABELS[candidate]}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Dropdown>
-                        </Menu>
-                        <span
-                            className={styles.stat}
-                            data-learn-progress={`${doneCount}/${available.length}`}
-                        >
-                            Modules{' '}
-                            <b>
-                                {doneCount} of {available.length}
-                            </b>
-                        </span>
-                    </Box>
-                </Box>
-                <Box className={styles.focusGrid}>
-                    {resume ? (
-                        <Box
-                            component="article"
-                            className={styles.focusCard}
-                            data-learn-resume={resume.scope}
-                        >
-                            <span
-                                className={`${styles.overline} ${styles.overlineAccent}`}
-                            >
-                                Resume
-                            </span>
-                            <h2>{resume.title}</h2>
-                            <p>{resume.blurb}</p>
-                            <Button
-                                className={styles.focusAction}
-                                variant="light"
-                                size="compact-md"
-                                loading={opening === resume.scope}
-                                onClick={() => start(resume.scope, 'resume')}
-                            >
-                                Resume module
-                            </Button>
-                        </Box>
-                    ) : (
-                        <Box component="article" className={styles.focusCard}>
-                            <span
-                                className={`${styles.overline} ${styles.overlineAccent}`}
-                            >
-                                Resume
-                            </span>
-                            <h2>No module in progress</h2>
-                            <p>Start a module from the library below.</p>
-                        </Box>
-                    )}
-                    {recommended ? (
-                        <Box
-                            component="article"
-                            className={styles.focusCard}
-                            data-learn-recommended={recommended.scope}
-                        >
-                            <span className={styles.overline}>
-                                Recommended next
-                            </span>
-                            <h2>{recommended.title}</h2>
-                            <p>{recommended.blurb}</p>
-                            <Button
-                                className={styles.focusAction}
-                                variant="default"
-                                size="compact-md"
-                                loading={opening === recommended.scope}
-                                onClick={() =>
-                                    start(recommended.scope, 'recommended')
-                                }
-                            >
-                                Start
-                            </Button>
-                        </Box>
-                    ) : (
-                        <Box component="article" className={styles.focusCard}>
-                            <span className={styles.overline}>
-                                Recommendation
-                            </span>
-                            <h2>Nothing new for {ROLE_LABELS[role]}</h2>
-                            <p>
-                                Use Show extra modules when you want to go
-                                beyond your role.
-                            </p>
-                        </Box>
-                    )}
-                </Box>
-                <Box className={styles.toolbar}>
+                <Box component="header" className={styles.homeHead}>
+                    <h1 className={styles.greeting}>
+                        {getGreeting(user.data?.firstName)}. What do you want to
+                        learn?
+                    </h1>
                     <TextInput
                         className={styles.search}
-                        size="sm"
+                        size="md"
+                        radius="md"
                         placeholder="Search the library"
                         aria-label="Search the library"
                         leftSection={<MantineIcon icon={IconSearch} />}
@@ -506,61 +357,198 @@ const LearnPage: FC = () => {
                             setQuery(event.currentTarget.value)
                         }
                     />
-                    <Group className={styles.toggles} gap="md">
-                        <Group gap={6} wrap="nowrap">
-                            <Checkbox
-                                size="xs"
-                                label="Show extra modules"
-                                checked={showExtra}
-                                onChange={(event) =>
-                                    setShowExtra(event.currentTarget.checked)
-                                }
-                            />
-                            <Tooltip
-                                label="Modules for roles above yours, with the role they need"
-                                withArrow
+                </Box>
+                {upNext && (
+                    <Box
+                        component="section"
+                        className={`${styles.section} ${styles.upNext}`}
+                    >
+                        <h2 className={styles.sectionTitle}>
+                            <MantineIcon icon={IconPlayerPlay} size={14} />
+                            Up next
+                        </h2>
+                        <Box
+                            component="article"
+                            className={styles.hero}
+                            style={groupVars(upNext.group)}
+                            data-learn-recommended={upNext.scope}
+                        >
+                            <span className={styles.heroTile}>
+                                <MantineIcon
+                                    icon={GROUP_ICONS[upNext.group]}
+                                    size={20}
+                                />
+                            </span>
+                            <Box className={styles.heroBody}>
+                                <span className={styles.overline}>
+                                    {GROUP_LABELS[upNext.group]}
+                                </span>
+                                <h3>{upNext.title}</h3>
+                                <p>{upNext.blurb}</p>
+                                <Box className={styles.heroFoot}>
+                                    <span>{upNext.stepCount} steps</span>
+                                    <Button
+                                        variant="filled"
+                                        color="indigo"
+                                        size="compact-md"
+                                        loading={opening === upNext.scope}
+                                        onClick={() =>
+                                            start(
+                                                upNext.scope,
+                                                recommended
+                                                    ? 'recommended'
+                                                    : 'resume',
+                                            )
+                                        }
+                                    >
+                                        Start
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Box>
+                )}
+                <Box className={styles.libraryBar}>
+                    <Box
+                        component="nav"
+                        className={styles.views}
+                        aria-label="Viewing as"
+                        data-learn-role={role}
+                    >
+                        {ROLE_ORDER.map((candidate) => (
+                            <UnstyledButton
+                                key={candidate}
+                                type="button"
+                                className={`${styles.view} ${
+                                    candidate === role ? styles.viewOn : ''
+                                }`}
+                                aria-pressed={candidate === role}
+                                onClick={() => setRole(candidate)}
+                            >
+                                {ROLE_LABELS[candidate]}
+                            </UnstyledButton>
+                        ))}
+                    </Box>
+                    <span
+                        className={styles.libraryCount}
+                        data-learn-progress={`${doneCount}/${available.length}`}
+                    >
+                        {doneCount} of {available.length} complete
+                    </span>
+                </Box>
+                <Box className={styles.tabBar}>
+                    <Box
+                        component="nav"
+                        className={styles.tabs}
+                        aria-label="Library groups"
+                    >
+                        <UnstyledButton
+                            type="button"
+                            className={`${styles.tab} ${
+                                groupFilter === null ? styles.tabOn : ''
+                            }`}
+                            aria-pressed={groupFilter === null}
+                            onClick={() => setGroupFilter(null)}
+                        >
+                            All
+                        </UnstyledButton>
+                        {groups.map((group) => (
+                            <UnstyledButton
+                                key={group}
+                                type="button"
+                                className={`${styles.tab} ${
+                                    groupFilter === group ? styles.tabOn : ''
+                                }`}
+                                style={groupVars(group)}
+                                aria-pressed={groupFilter === group}
+                                data-learn-chip={group}
+                                onClick={() => setGroupFilter(group)}
                             >
                                 <span
-                                    role="img"
-                                    aria-label="Modules for roles above yours, with the role they need"
+                                    className={styles.chipSwatch}
+                                    aria-hidden
+                                />
+                                {GROUP_LABELS[group]}
+                            </UnstyledButton>
+                        ))}
+                    </Box>
+                    <Menu
+                        position="bottom-end"
+                        withinPortal
+                        closeOnItemClick={false}
+                    >
+                        <Menu.Target>
+                            <Tooltip label="Filter" withArrow>
+                                <UnstyledButton
+                                    type="button"
+                                    className={`${styles.iconButton} ${
+                                        !showExtra || !showSoon
+                                            ? styles.iconButtonOn
+                                            : ''
+                                    }`}
+                                    aria-label="Filter"
+                                    aria-haspopup="menu"
+                                    data-learn-filter
                                 >
-                                    <MantineIcon
-                                        icon={IconHelpCircle}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                </span>
+                                    <MantineIcon icon={IconFilter} size={15} />
+                                </UnstyledButton>
                             </Tooltip>
-                        </Group>
-                        <Checkbox
-                            size="xs"
-                            label="Coming soon"
-                            checked={showSoon}
-                            onChange={(event) =>
-                                setShowSoon(event.currentTarget.checked)
-                            }
-                        />
-                    </Group>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Show</Menu.Label>
+                            <Menu.Item
+                                onClick={() => setShowExtra(!showExtra)}
+                                rightSection={
+                                    showExtra ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={13}
+                                        />
+                                    ) : null
+                                }
+                                aria-checked={showExtra}
+                                aria-label="Show extra modules"
+                            >
+                                Extra modules
+                            </Menu.Item>
+                            <Menu.Item
+                                onClick={() => setShowSoon(!showSoon)}
+                                rightSection={
+                                    showSoon ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={13}
+                                        />
+                                    ) : null
+                                }
+                                aria-checked={showSoon}
+                                aria-label="Coming soon"
+                            >
+                                Coming soon
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Box>
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
                     </Box>
                 )}
-                {groups.map((group) => (
+                {shownGroups.map((group) => (
                     <Box
                         key={group}
                         component="section"
                         id={`learn-group-${group}`}
-                        className={styles.group}
+                        className={`${styles.group} ${styles.section}`}
                         data-learn-group={group}
                     >
-                        <h2 className={styles.groupTitle}>
+                        <h2 className={styles.sectionTitle}>
+                            <MantineIcon icon={IconLayoutGrid} size={14} />
                             {GROUP_LABELS[group]}
+                            <span className={styles.sectionDesc}>
+                                {GROUP_DESCRIPTIONS[group]}
+                            </span>
                         </h2>
-                        <p className={styles.groupDesc}>
-                            {GROUP_DESCRIPTIONS[group]}
-                        </p>
                         <Box className={styles.grid}>
                             {visible
                                 .filter((module) => module.group === group)

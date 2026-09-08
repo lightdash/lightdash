@@ -21,8 +21,6 @@
 }
 
 .shell {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
     min-height: 100%;
 }
 
@@ -148,126 +146,238 @@
     color: var(--lu-secondary);
 }
 
-.sidebar {
-    border-right: 1px solid var(--lu-border);
-    background: var(--lu-sunken);
-    padding: 24px 18px;
-}
-
-.sidebarInner {
-    position: sticky;
-    top: 76px;
-}
-
-.sidebarTitle {
-    margin: 0 0 12px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--lu-muted);
-}
-
-.nav {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.navItem {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    text-align: left;
-    background: transparent;
-    border: 0;
-    border-radius: 8px;
-    color: var(--lu-secondary);
-    padding: 6px 10px;
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.navItem:hover {
-    background: var(--lu-surface);
-}
-
-.navItemActive {
-    background: var(--lu-surface);
-    color: var(--lu-ink);
-    font-weight: 600;
-    box-shadow: 0 1px 2px rgba(16, 16, 20, 0.06);
-}
-
-.navIcon {
-    display: inline-flex;
-    color: var(--mi-fg);
-}
-
 .main {
+    max-width: 1040px;
+    margin: 0 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 24px 28px 48px;
+    gap: 22px;
+    padding: 72px 24px 56px;
 }
 
+/* The head in the homepage's shape: a centred greeting over a wide search,
+   the groups as quiet pills beneath, and the role and count as a small
+   line under those. */
 .homeHead {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 14px;
-    flex-wrap: wrap;
 }
 
 .greeting {
     margin: 0;
-    font-size: 22px;
+    font-size: 28px;
     line-height: 1.2;
     font-weight: 600;
     letter-spacing: -0.02em;
+    text-align: center;
+    text-wrap: balance;
+    color: var(--lu-ink);
 }
 
-.stats {
-    display: inline-flex;
-    align-items: stretch;
-    margin-left: auto;
-    border: 1px solid var(--lu-border);
-    border-radius: 8px;
-    background: var(--lu-surface);
+/* Titled sections as on the homepage: a small icon, the title, and for a
+   group its description alongside. */
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.stat {
-    display: inline-flex;
+.sectionTitle {
+    margin: 0;
+    display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 10px;
-    min-height: 32px;
-    font: inherit;
-    font-size: 12px;
-    color: var(--lu-muted);
-    background: transparent;
-    border: 0;
-    border-right: 1px solid var(--lu-border);
-    white-space: nowrap;
-    cursor: default;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lu-ink);
 }
 
-.stat b {
+.sectionDesc {
+    font-weight: 400;
+    color: var(--lu-muted);
+    margin-left: 4px;
+}
+
+/* The Up next card as a hero: the group's colour as a tile, the
+   walkthrough named and described, its length and one action. */
+.upNext {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.hero {
+    display: flex;
+    gap: 16px;
+    padding: 18px 20px;
+    background: var(--lu-surface);
+    border: 1px solid var(--lu-border);
+    border-radius: 10px;
+    min-width: 0;
+}
+
+.heroTile {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--mi-band);
+    color: var(--mi-fg);
+}
+
+.heroBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+}
+
+.heroBody h3 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 1.25;
     font-weight: 600;
     color: var(--lu-ink);
 }
 
-.statButton {
+.heroBody p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--lu-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.heroFoot {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--lu-muted);
+}
+
+/* The library's header row, Linear's way: a title on the left, the Filter
+   and Display icon buttons on the right; chosen filters as removable chips
+   on the line beneath. */
+.libraryBar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-top: 6px;
+}
+
+/* The roles as views, Linear's way: one pill per role, the chosen one
+   filled; the library is the modules that role can practise. */
+.views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-right: auto;
+}
+
+.view {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--lu-muted);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.view:hover {
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+}
+
+.viewOn {
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--lu-border) inset;
+}
+
+.libraryCount {
+    font-size: 12px;
+    color: var(--lu-muted);
+    margin-right: 6px;
+}
+
+.iconButton {
+    position: relative;
+    width: 30px;
+    height: 26px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--lu-border);
+    border-radius: 6px;
+    background: var(--lu-surface);
+    color: var(--lu-muted);
     cursor: pointer;
 }
 
-.stats > :last-child {
-    border-right: 0;
+.iconButton:hover {
+    color: var(--lu-ink);
 }
 
-.focusGrid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.7fr);
-    gap: 16px;
+.iconButtonOn {
+    color: var(--lu-ink);
+    border-color: var(--lu-secondary);
+}
+
+/* Under the views, the groups as quiet tabs (All first) on the grid's
+   edge, the Filter button at the row's end. */
+.tabBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: -10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--lu-border);
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-right: auto;
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 2px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--lu-muted);
+    background: transparent;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 120ms ease;
+}
+
+.tab:hover {
+    color: var(--lu-ink);
+}
+
+.tabOn {
+    color: var(--lu-ink);
+    font-weight: 600;
+    border-bottom-color: var(--lu-accent);
 }
 
 .focusCard {
@@ -305,51 +415,21 @@
     line-height: 1.45;
 }
 
-.focusAction {
-    align-self: flex-start;
-    margin-top: auto;
-}
-
-.toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    flex-wrap: wrap;
-}
-
 .search {
-    flex: 1;
-    min-width: 220px;
-    max-width: 640px;
-}
-
-.toggles {
-    display: inline-flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 13px;
-    color: var(--lu-secondary);
+    width: 100%;
+    max-width: 720px;
 }
 
 .group {
-    margin: 6px 0 10px;
     scroll-margin-top: 80px;
 }
 
-.groupTitle {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.35;
-    font-weight: 600;
-    color: var(--lu-ink);
-}
-
-.groupDesc {
-    margin: 2px 0 12px;
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--lu-muted);
+.chipSwatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+    background: var(--mi-fg);
+    flex: none;
 }
 
 .grid {
@@ -501,32 +581,4 @@
 /* The completion page: the library's tokens and cards without its sidebar. */
 .overlineDone {
     color: var(--lu-done-fg);
-}
-
-@media (max-width: 900px) {
-    .shell {
-        grid-template-columns: minmax(0, 1fr);
-    }
-    .sidebar {
-        border-right: 0;
-        border-bottom: 1px solid var(--lu-border);
-        padding: 10px 16px;
-    }
-    .sidebarInner {
-        position: static;
-    }
-    .sidebarTitle {
-        display: none;
-    }
-    .nav {
-        flex-direction: row;
-        overflow-x: auto;
-    }
-    .navItem {
-        flex: none;
-        white-space: nowrap;
-    }
-    .focusGrid {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }
