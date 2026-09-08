@@ -10,8 +10,11 @@ export const SshStaticIpHint: FC = () => {
     if (!staticIp) return null;
     return (
         <Text fz="xs" c="dimmed">
-            Lightdash connects to this host from <b>{staticIp}</b>. Allow
-            inbound SSH from that IP on the bastion.
+            Lightdash connects to this host from{' '}
+            <Text component="span" inherit fw={600}>
+                {staticIp}
+            </Text>
+            . Allow inbound SSH from that IP on the bastion.
         </Text>
     );
 };
