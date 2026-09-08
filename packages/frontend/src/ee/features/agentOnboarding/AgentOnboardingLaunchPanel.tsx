@@ -216,7 +216,7 @@ export const AgentOnboardingLaunchPanel: FC<
                                 size={44}
                                 radius="xl"
                                 variant="light"
-                                color="violet"
+                                color="indigo"
                             >
                                 <MantineIcon icon={IconSparkles} size="lg" />
                             </ThemeIcon>
