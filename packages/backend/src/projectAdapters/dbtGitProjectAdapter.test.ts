@@ -13,7 +13,7 @@ import * as fs from 'fs/promises';
 import { createServer, type Server } from 'http';
 import os from 'os';
 import path from 'path';
-import simpleGit, { GitError } from 'simple-git';
+import simpleGit from 'simple-git';
 import { pathToFileURL } from 'url';
 import { DbtCliClient } from '../dbt/dbtCliClient';
 import Logger from '../logging/logger';
@@ -68,23 +68,6 @@ describe('gitErrorHandler', () => {
             expect.unreachable();
         } catch (e) {
             expect(e).toBeInstanceOf(UnexpectedServerError);
-            expect((e as Error).message).not.toContain('ghp_secret_token_123');
-            expect((e as Error).message).toContain('//*****@github.com');
-        }
-    });
-
-    it('should strip credentials from stderr on the GitError branch', () => {
-        try {
-            gitErrorHandler(
-                new GitError(
-                    { commands: ['clone', TOKEN_URL] } as never,
-                    `Cloning into '/tmp/git_abc'...\nfatal: unable to access '${TOKEN_URL}/': server certificate verification failed\n`,
-                ),
-                'org/repo',
-            );
-            expect.unreachable();
-        } catch (e) {
-            expect(e).toBeInstanceOf(UnexpectedGitError);
             expect((e as Error).message).not.toContain('ghp_secret_token_123');
             expect((e as Error).message).toContain('//*****@github.com');
         }
@@ -266,6 +249,7 @@ describe('DbtGitProjectAdapter cache', () => {
             blocked?: boolean;
             closedRequests?: number;
             onBlocked?: () => void;
+            notFound?: boolean;
         },
     ) => {
         const authenticationState = authentication;
@@ -286,6 +270,11 @@ describe('DbtGitProjectAdapter cache', () => {
                         (authenticationState.closedRequests ?? 0) + 1;
                     authenticationState.blocked = false;
                 });
+                return;
+            }
+            if (authenticationState.notFound) {
+                response.writeHead(404, { 'Content-Type': 'text/plain' });
+                response.end('Repository not found.\n');
                 return;
             }
             const requestUrl = new URL(request.url ?? '/', 'http://localhost');
@@ -557,6 +546,86 @@ describe('DbtGitProjectAdapter cache', () => {
             await second.destroy();
         } finally {
             probe.mockRestore();
+        }
+    });
+
+    it('classifies a real Git authentication failure without exposing credentials', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const token = 'bad /?#@:% token';
+        const served = await serveRemote(path.dirname(remote), {
+            expected: `Basic ${Buffer.from('user:expected-token').toString(
+                'base64',
+            )}`,
+            received: [],
+        });
+        const url = new URL(served);
+        url.username = 'user';
+        url.password = token;
+        const adapter = createAdapter(
+            url.toString(),
+            'auth-failure',
+            undefined,
+            {
+                token,
+            },
+        );
+
+        try {
+            await adapter.getDbtManifest();
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(AuthorizationError);
+            expect((error as Error).message).toBe(
+                'Git credentials not recognized for this repository',
+            );
+            const serialized = JSON.stringify(error);
+            expect(serialized).not.toContain(token);
+            expect(serialized).not.toContain(encodeURIComponent(token));
+        } finally {
+            await adapter.destroy();
+        }
+    });
+
+    it('classifies a real missing Git repository without exposing credentials', async () => {
+        const { remote } = await createRemote({
+            'dbt_project.yml': 'name: test\n',
+        });
+        const token = 'missing /?#@:% token';
+        const authorization = `Basic ${Buffer.from(`user:${token}`).toString(
+            'base64',
+        )}`;
+        const served = await serveRemote(path.dirname(remote), {
+            expected: authorization,
+            received: [],
+            notFound: true,
+        });
+        const url = new URL(served);
+        url.username = 'user';
+        url.password = token;
+        const adapter = createAdapter(
+            url.toString(),
+            'missing-repository',
+            undefined,
+            {
+                token,
+            },
+        );
+
+        try {
+            await adapter.getDbtManifest();
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(NotFoundError);
+            expect((error as Error).message).toContain(
+                'Could not find git repository "test/repository"',
+            );
+            const serialized = JSON.stringify(error);
+            expect(serialized).not.toContain(token);
+            expect(serialized).not.toContain(encodeURIComponent(token));
+        } finally {
+            await adapter.destroy();
         }
     });
 
