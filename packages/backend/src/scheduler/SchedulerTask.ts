@@ -227,6 +227,10 @@ export interface SchedulerAiAugmentationRunner {
     }): Promise<string | null>;
 }
 
+type SlackDeliveryFile = NonNullable<
+    NotificationPayloadBase['page']['csvUrls']
+>[number];
+
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -626,6 +630,52 @@ export default class SchedulerTask {
         return isSchedulerCsvOptions(scheduler.options)
             ? scheduler.options
             : undefined;
+    }
+
+    // Sequential uploads (Slack rate-limits them); a failed file never fails the delivery.
+    private async postDeliveryFilesToSlackThread({
+        organizationUuid,
+        channel,
+        threadTs,
+        files,
+        fileType,
+    }: {
+        organizationUuid: string;
+        channel: string;
+        threadTs: string;
+        files: SlackDeliveryFile[];
+        fileType: SchedulerFormat.CSV;
+    }): Promise<void> {
+        await files.reduce<Promise<void>>(async (previous, file) => {
+            await previous;
+            if (file.path === '#no-results') return;
+            try {
+                const response = await fetch(file.localPath);
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status} ${response.statusText}`,
+                    );
+                }
+                const extension = `.${fileType}`;
+                await this.slackClient.postFileToThread({
+                    organizationUuid,
+                    channelId: channel,
+                    threadTs,
+                    file: Buffer.from(await response.arrayBuffer()),
+                    title: file.chartName ?? file.filename,
+                    // Dashboard files are named after the chart; Slack needs the extension to preview them as a table
+                    filename: file.filename.endsWith(extension)
+                        ? file.filename
+                        : `${file.filename}${extension}`,
+                    fileType,
+                });
+            } catch (e) {
+                Logger.error(
+                    `Failed to attach delivery file "${file.filename}" to the Slack thread: ${getErrorMessage(e)}`,
+                    { fileUrl: file.localPath.split('?')[0] },
+                );
+            }
+        }, Promise.resolve());
     }
 
     protected async getChartOrDashboard(
@@ -2242,6 +2292,7 @@ export default class SchedulerTask {
                 });
             } else {
                 let blocks;
+                let deliveryFiles: SlackDeliveryFile[];
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
                         throw new Error('Missing CSV URL');
@@ -2254,6 +2305,7 @@ export default class SchedulerTask {
                                 ? csvUrl.path
                                 : undefined,
                     });
+                    deliveryFiles = [{ ...csvUrl, chartName: details.name }];
                 } else if (dashboardUuid || appUuid) {
                     if (csvUrls === undefined) {
                         throw new Error('Missing CSV URLS');
@@ -2264,15 +2316,30 @@ export default class SchedulerTask {
                         failures,
                         notices,
                     });
+                    deliveryFiles = csvUrls;
                 } else {
                     throw new Error('Not implemented');
                 }
-                await this.slackClient.postMessage({
+                const message = await this.slackClient.postMessage({
                     organizationUuid,
                     text: name,
                     channel,
                     blocks,
                 });
+                const csvOptions = SchedulerTask.getCsvOptions(scheduler);
+                if (
+                    message.ts &&
+                    format === SchedulerFormat.CSV &&
+                    csvOptions?.asAttachment
+                ) {
+                    await this.postDeliveryFilesToSlackThread({
+                        organizationUuid,
+                        channel,
+                        threadTs: message.ts,
+                        files: deliveryFiles,
+                        fileType: format,
+                    });
+                }
             }
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',

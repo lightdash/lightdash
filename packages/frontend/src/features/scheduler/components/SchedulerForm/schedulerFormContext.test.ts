@@ -1,4 +1,4 @@
-import { ThresholdOperator } from '@lightdash/common';
+import { SchedulerFormat, ThresholdOperator } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import {
     DEFAULT_VALUES,
@@ -7,6 +7,36 @@ import {
 } from './schedulerFormContext';
 
 describe('transformFormValues', () => {
+    test('keeps the csv attachment on when the only recipient is a Slack channel', () => {
+        const result = transformFormValues(
+            {
+                ...DEFAULT_VALUES,
+                format: SchedulerFormat.CSV,
+                options: { ...DEFAULT_VALUES.options, asAttachment: true },
+                emailTargets: [],
+                slackTargets: ['C123'],
+            },
+            'chart',
+        );
+
+        expect(result.options).toMatchObject({ asAttachment: true });
+    });
+
+    test('forces the csv attachment off when there is nobody to attach it for', () => {
+        const result = transformFormValues(
+            {
+                ...DEFAULT_VALUES,
+                format: SchedulerFormat.CSV,
+                options: { ...DEFAULT_VALUES.options, asAttachment: true },
+                emailTargets: [],
+                slackTargets: [],
+            },
+            'chart',
+        );
+
+        expect(result.options).toMatchObject({ asAttachment: false });
+    });
+
     test('omits blank threshold values from the API payload', () => {
         const result = transformFormValues(
             {

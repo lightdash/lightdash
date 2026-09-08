@@ -31,7 +31,10 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
-import { useSchedulerFormContext } from '../schedulerFormContext';
+import {
+    hasFileAttachmentTargets,
+    useSchedulerFormContext,
+} from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -267,20 +270,20 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                     )}
                 {format === SchedulerFormat.CSV && (
                     <Tooltip
-                        label="You must have at least one email recipient to attach a file to emails"
+                        label="Add an email or Slack recipient to attach the file"
                         position="top-start"
-                        disabled={(form.values.emailTargets?.length || 0) > 0}
+                        disabled={hasFileAttachmentTargets(form.values)}
                     >
                         <Box display="flex" w="fit-content">
                             <Checkbox
                                 size="xs"
-                                label="Attach the file to emails"
+                                label="Attach the file to the delivery"
+                                description="Emails get it as an attachment, Slack channels get it in the message thread"
                                 {...form.getInputProps('options.asAttachment', {
                                     type: 'checkbox',
                                 })}
                                 disabled={
-                                    (form.values.emailTargets?.length || 0) ===
-                                    0
+                                    !hasFileAttachmentTargets(form.values)
                                 }
                             />
                         </Box>
