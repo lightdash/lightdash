@@ -67,6 +67,7 @@ const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
 
 const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     dataAppVizUuid: 'data-app-viz-1',
+    slug: 'radial-gauge',
     name: 'Radial gauge',
     description: 'A gauge for KPI progress',
     projectUuid: 'project-1',
@@ -250,7 +251,7 @@ describe('ChartTypeGallery', () => {
             screen.getByRole('link', { name: 'Edit' }).closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/data-app-viz-1',
+            '/projects/project-1/chart-types/radial-gauge',
         );
         expect(screen.getByText('v3')).toBeInTheDocument();
         // Typed field breakdown, matching the library modal.
@@ -351,7 +352,7 @@ describe('ChartTypeGallery', () => {
             screen.getByLabelText('Edit Radial gauge').closest('a'),
         ).toHaveAttribute(
             'href',
-            '/projects/project-1/chart-types/data-app-viz-1',
+            '/projects/project-1/chart-types/radial-gauge',
         );
 
         fireEvent.click(screen.getByLabelText('Actions for Radial gauge'));

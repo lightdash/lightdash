@@ -20,6 +20,7 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
 
 const projectChartType = {
     dataAppVizUuid: 'project-chart-type',
+    slug: 'event-pulse',
     name: 'Event pulse',
     description: 'Reusable ranked bars',
     projectUuid: 'project-uuid',

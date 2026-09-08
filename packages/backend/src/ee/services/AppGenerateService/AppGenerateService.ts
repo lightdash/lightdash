@@ -8585,6 +8585,7 @@ export class AppGenerateService extends BaseService {
     ): DataAppViz {
         return {
             dataAppVizUuid: app.app_id,
+            slug: app.slug,
             name: app.name,
             description: app.description,
             projectUuid: app.project_uuid,

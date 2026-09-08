@@ -113,7 +113,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                       component={Link}
                                       to={chartTypeBuilderPath(
                                           dataAppViz.projectUuid,
-                                          dataAppViz.dataAppVizUuid,
+                                          dataAppViz.slug,
                                       )}
                                       aria-label={`Edit ${displayName}`}
                                       onClick={(e) => e.stopPropagation()}

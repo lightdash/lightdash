@@ -142,7 +142,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                             component={Link}
                             to={chartTypeBuilderPath(
                                 projectUuid,
-                                dataAppViz.dataAppVizUuid,
+                                dataAppViz.slug,
                             )}
                             variant="default"
                             leftSection={<MantineIcon icon={IconFilePencil} />}

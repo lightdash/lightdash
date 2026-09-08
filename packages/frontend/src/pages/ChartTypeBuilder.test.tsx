@@ -318,6 +318,15 @@ describe('ChartTypeBuilder', () => {
         expect(screen.getByText('Chart type not found')).toBeInTheDocument();
     });
 
+    it('resolves an edit route by slug', () => {
+        setApp(appMeta());
+
+        renderBuilder('/projects/p1/chart-types/stream-graph');
+
+        expect(useGetApp).toHaveBeenCalledWith('p1', 'stream-graph');
+        expect(screen.getByText('Stream graph')).toBeInTheDocument();
+    });
+
     it('hands non-viz apps to the app builder', () => {
         setApp(appMeta({ template: 'dashboard' as AppMeta['template'] }));
         renderBuilder(

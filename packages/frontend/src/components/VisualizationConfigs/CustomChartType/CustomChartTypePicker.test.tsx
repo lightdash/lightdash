@@ -14,6 +14,7 @@ const mockedUseDataAppVisualizations = vi.mocked(useDataAppVisualizations);
 
 const makeDataAppViz = (overrides: Partial<DataAppViz>): DataAppViz => ({
     dataAppVizUuid: 'data-app-viz-1',
+    slug: 'radial-gauge',
     name: 'Radial gauge',
     description: '',
     projectUuid: 'project-1',

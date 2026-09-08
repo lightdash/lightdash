@@ -38,6 +38,7 @@ const vizSchema: DataAppVizSchema = {
 
 const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     app_id: 'data-app-viz-1',
+    slug: 'radial-gauge',
     name: 'Radial gauge',
     description: 'A radial gauge renderer',
     project_uuid: 'project-1',
@@ -222,6 +223,7 @@ describe('AppGenerateService data app vizs', () => {
             data: [
                 {
                     dataAppVizUuid: 'data-app-viz-1',
+                    slug: 'radial-gauge',
                     name: 'Radial gauge',
                     description: 'A radial gauge renderer',
                     projectUuid: 'project-1',
