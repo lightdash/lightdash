@@ -160,6 +160,7 @@ describe('Explorer chart configuration in alternate hosts', () => {
                     opened
                     dashboardUuid="dashboard-uuid"
                     dashboardName="Orders dashboard"
+                    customMetricsEnabled={false}
                     onChartSaved={vi.fn()}
                     onRegistryMetricEdited={vi.fn()}
                     onRegistryMetricDeleted={vi.fn()}
