@@ -109,6 +109,9 @@ function Board({
               : ['planned', 'started'].includes(column.id) ||
                 entries.some((entry) => entry.stage === column.id),
     );
+    const paginationColumn = visibleColumns.find((column) =>
+        entries.some((entry) => entry.stage === column.id),
+    )?.id;
     return (
         <Box className={classes.board}>
             {visibleColumns.map((column) => {
@@ -157,8 +160,9 @@ function Board({
                             ))}
                             {isCollapsed && (
                                 <Button
-                                    variant="default"
+                                    variant="subtle"
                                     size="xs"
+                                    color="gray"
                                     fullWidth
                                     onClick={() =>
                                         setExpandedColumns((expanded) => [
@@ -179,7 +183,7 @@ function Board({
                                     {projectBoard ? 'No tickets' : 'No items'}
                                 </Text>
                             )}
-                            {column.id === visibleColumns[0]?.id && pagination}
+                            {column.id === paginationColumn && pagination}
                         </Stack>
                     </section>
                 );
@@ -655,8 +659,10 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         <Group justify="center" gap="sm" className={classes.pagination}>
             {showProjects && projectsQuery.hasNextPage && (
                 <Button
-                    variant="default"
+                    variant={view === 'board' ? 'subtle' : 'default'}
                     size="xs"
+                    color={view === 'board' ? 'gray' : undefined}
+                    fullWidth={view === 'board'}
                     loading={projectsQuery.isFetchingNextPage}
                     onClick={() => void projectsQuery.fetchNextPage()}
                 >
@@ -665,8 +671,10 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             )}
             {showTickets && ticketsQuery.hasNextPage && (
                 <Button
-                    variant="default"
+                    variant={view === 'board' ? 'subtle' : 'default'}
                     size="xs"
+                    color={view === 'board' ? 'gray' : undefined}
+                    fullWidth={view === 'board'}
                     loading={ticketsQuery.isFetchingNextPage}
                     onClick={() => void ticketsQuery.fetchNextPage()}
                 >
