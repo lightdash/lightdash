@@ -178,129 +178,107 @@ describe('embed scope abilities', () => {
     });
 });
 
-describe.each([undefined, 'legacy', 'roles'] as const)(
-    'embed permissions mode %s',
-    (permissionsMode) => {
-        it.each([
-            ['canExplore', 'EmbedExplore', 'view', 'Explore'],
-            [
-                'canViewUnderlyingData',
-                'EmbedUnderlyingData',
-                'view',
-                'UnderlyingData',
-            ],
-            ['canExportCsv', 'EmbedCsvExport', 'export', 'Dashboard'],
-            ['canExportImages', 'EmbedImageExport', 'export', 'Dashboard'],
-            ['canExportPagePdf', 'EmbedPagePdfExport', 'export', 'Dashboard'],
-            [
-                'canExportDashboardCsv',
-                'EmbedDashboardCsvExport',
-                'manage',
-                'ExportCsv',
-            ],
-            ['canDateZoom', 'EmbedDateZoom', 'view', 'Dashboard'],
-            ['canViewDataApps', 'EmbedDataApps', 'view', 'DataApp'],
-        ] as const)(
-            '%s preserves legacy grants and accepts actor scopes',
-            (flag, scope, action, resource) => {
-                for (const legacy of [undefined, false, true]) {
-                    for (const hasActor of [false, true]) {
-                        for (const granted of [false, true]) {
-                            const actor = new AbilityBuilder<MemberAbility>(
-                                Ability,
-                            );
-                            if (granted)
-                                actor.can('view', scope, {
-                                    projectUuid: embed.projectUuid,
-                                });
-                            const builder = new AbilityBuilder<MemberAbility>(
-                                Ability,
-                            );
-                            const token: CreateEmbedJwt = {
-                                content: { ...dashboard, [flag]: legacy },
-                                ...(hasActor || permissionsMode === 'roles'
-                                    ? {
-                                          writeActions: {
-                                              ...writeActions,
-                                              permissionsMode,
-                                          },
-                                      }
-                                    : {}),
-                            };
-                            const original = structuredClone(token);
-                            applyEmbedScopeAbilities({
-                                embedUser: token,
-                                embed,
-                                embedWriteUserAbility: hasActor
-                                    ? actor.build()
-                                    : undefined,
-                                builder,
+describe('legacy flags OR embed scopes', () => {
+    it.each([
+        ['canExplore', 'EmbedExplore', 'view', 'Explore'],
+        [
+            'canViewUnderlyingData',
+            'EmbedUnderlyingData',
+            'view',
+            'UnderlyingData',
+        ],
+        ['canExportCsv', 'EmbedCsvExport', 'export', 'Dashboard'],
+        ['canExportImages', 'EmbedImageExport', 'export', 'Dashboard'],
+        ['canExportPagePdf', 'EmbedPagePdfExport', 'export', 'Dashboard'],
+        [
+            'canExportDashboardCsv',
+            'EmbedDashboardCsvExport',
+            'manage',
+            'ExportCsv',
+        ],
+        ['canDateZoom', 'EmbedDateZoom', 'view', 'Dashboard'],
+        ['canViewDataApps', 'EmbedDataApps', 'view', 'DataApp'],
+    ] as const)(
+        '%s preserves legacy grants and accepts actor scopes',
+        (flag, scope, action, resource) => {
+            for (const legacy of [undefined, false, true]) {
+                for (const hasActor of [false, true]) {
+                    for (const granted of [false, true]) {
+                        const actor = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        if (granted)
+                            actor.can('view', scope, {
+                                projectUuid: embed.projectUuid,
                             });
-                            const embedContent = {
-                                type: 'dashboard',
-                                dashboardUuid: 'dashboard',
+                        const builder = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        const token: CreateEmbedJwt = {
+                            content: { ...dashboard, [flag]: legacy },
+                            ...(hasActor ? { writeActions } : {}),
+                        };
+                        const original = structuredClone(token);
+                        applyEmbedScopeAbilities({
+                            embedUser: token,
+                            embed,
+                            embedWriteUserAbility: actor.build(),
+                            builder,
+                        });
+                        const embedContent = {
+                            type: 'dashboard',
+                            dashboardUuid: 'dashboard',
+                            chartUuids: [],
+                            explores: [],
+                        } as const;
+                        applyEmbeddedAbility(
+                            token,
+                            { ...embedContent, chartUuids: [], explores: [] },
+                            {
+                                ...embed,
+                                encodedSecret: '',
+                                dashboardUuids: [],
                                 chartUuids: [],
-                                explores: [],
-                            } as const;
-                            applyEmbeddedAbility(
-                                token,
-                                {
-                                    ...embedContent,
-                                    chartUuids: [],
-                                    explores: [],
+                                appUuids: [],
+                                allowAllApps: false,
+                                allowAllCharts: false,
+                                allowAllDashboards: false,
+                                createdAt: '',
+                                user: {
+                                    userUuid: 'creator',
+                                    firstName: '',
+                                    lastName: '',
                                 },
-                                {
-                                    ...embed,
-                                    encodedSecret: '',
-                                    dashboardUuids: [],
-                                    chartUuids: [],
-                                    appUuids: [],
-                                    allowAllApps: false,
-                                    allowAllCharts: false,
-                                    allowAllDashboards: false,
-                                    createdAt: '',
-                                    user: {
-                                        userUuid: 'creator',
-                                        firstName: '',
-                                        lastName: '',
-                                    },
-                                },
-                                'external',
-                                builder,
-                            );
-                            expect(
-                                builder.build().can(
-                                    action,
-                                    subject(resource, {
-                                        projectUuid: embed.projectUuid,
-                                        organizationUuid:
-                                            embed.organization.organizationUuid,
-                                        type: {
-                                            canExportCsv: 'csv',
-                                            canExportImages: 'images',
-                                            canExportPagePdf: 'pdf',
-                                        }[
-                                            flag as
-                                                | 'canExportCsv'
-                                                | 'canExportImages'
-                                                | 'canExportPagePdf'
-                                        ],
-                                        dateZoom: true,
-                                        metadata: {
-                                            dashboardUuid: 'dashboard',
-                                        },
-                                    }),
-                                ),
-                            ).toBe(
-                                (permissionsMode !== 'roles' &&
-                                    legacy === true) ||
-                                    (hasActor && granted),
-                            );
-                            expect(token).toEqual(original);
-                        }
+                            },
+                            'external',
+                            builder,
+                        );
+                        expect(
+                            builder.build().can(
+                                action,
+                                subject(resource, {
+                                    projectUuid: embed.projectUuid,
+                                    organizationUuid:
+                                        embed.organization.organizationUuid,
+                                    type: {
+                                        canExportCsv: 'csv',
+                                        canExportImages: 'images',
+                                        canExportPagePdf: 'pdf',
+                                    }[
+                                        flag as
+                                            | 'canExportCsv'
+                                            | 'canExportImages'
+                                            | 'canExportPagePdf'
+                                    ],
+                                    dateZoom: true,
+                                    metadata: { dashboardUuid: 'dashboard' },
+                                }),
+                            ),
+                        ).toBe(legacy === true || (hasActor && granted));
+                        expect(token).toEqual(original);
                     }
                 }
-            },
-        );
-    },
-);
+            }
+        },
+    );
+});

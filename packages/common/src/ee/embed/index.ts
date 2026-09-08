@@ -121,7 +121,7 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
-    /** Omit for legacy flags OR scopes; roles ignores legacy capability grants. */
+    /** AI access only: roles requires EmbedAiAgent; omit for legacy access. */
     permissionsMode?: 'legacy' | 'roles';
 };
 

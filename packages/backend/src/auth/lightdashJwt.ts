@@ -51,10 +51,12 @@ export function decodeLightdashJwt(
         );
         const decodedToken = verify(token, secret) as CreateEmbedJwt;
 
-        // Unlike legacy schema warnings, an unknown authorization mode must fail closed.
-        z.enum(['legacy', 'roles'])
-            .optional()
-            .parse(decodedToken.writeActions?.permissionsMode);
+        // Unknown AI authorization modes must not fall back to legacy access.
+        if (decodedToken.content?.type === 'aiAgent') {
+            z.enum(['legacy', 'roles'])
+                .optional()
+                .parse(decodedToken.writeActions?.permissionsMode);
+        }
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {

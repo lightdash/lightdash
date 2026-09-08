@@ -47,8 +47,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'dashboard' &&
-        ((embedUser.writeActions?.permissionsMode !== 'roles' &&
-            embedUser.content.canDateZoom) ||
+        (embedUser.content.canDateZoom ||
             canViewEmbedScope('EmbedDateZoom', builder, embed))
     ) {
         can('view', 'Dashboard', {
@@ -67,16 +66,15 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    // Data app tiles require an embed scope or a legacy-mode JWT opt-in.
-    // Without either, the tile renders as a "not authorized" placeholder.
-    // By granting access, the customer is
+    // Data app tiles require an explicit opt-in on the JWT — same trust
+    // model as canExplore. Off by default, the data app tile renders as a
+    // "not authorized" placeholder. With the flag set, the customer is
     // accepting that the embed user can run the app's metric queries and use
     // its admin-linked external connections. Metric queries remain filtered
     // by the JWT's user attributes via getFilteredExplore.
     if (
         embedUser.content.type === 'dashboard' &&
-        ((embedUser.writeActions?.permissionsMode !== 'roles' &&
-            embedUser.content.canViewDataApps) ||
+        (embedUser.content.canViewDataApps ||
             canViewEmbedScope('EmbedDataApps', builder, embed))
     ) {
         can('view', 'Explore', {
@@ -182,8 +180,7 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'aiAgent' &&
-        ((embedUser.writeActions?.permissionsMode !== 'roles' &&
-            embedUser.content.canExplore) ||
+        (embedUser.content.canExplore ||
             canViewEmbedScope('EmbedExplore', builder, embed))
     ) {
         can('view', 'Explore', {
@@ -220,8 +217,7 @@ const metricsCatalogAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'metricsCatalog' &&
-        ((embedUser.writeActions?.permissionsMode !== 'roles' &&
-            embedUser.content.canExplore) ||
+        (embedUser.content.canExplore ||
             canViewEmbedScope('EmbedExplore', builder, embed))
     ) {
         can('view', 'Explore', {
@@ -245,13 +241,10 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { can } = builder;
 
     const canExplore =
-        (embedUser.writeActions?.permissionsMode !== 'roles' &&
-            'canExplore' in permissions &&
-            permissions.canExplore) ||
+        ('canExplore' in permissions && permissions.canExplore) ||
         canViewEmbedScope('EmbedExplore', builder, embed);
     const canViewUnderlyingData =
-        (embedUser.writeActions?.permissionsMode !== 'roles' &&
-            'canViewUnderlyingData' in permissions &&
+        ('canViewUnderlyingData' in permissions &&
             permissions.canViewUnderlyingData) ||
         canViewEmbedScope('EmbedUnderlyingData', builder, embed);
 
@@ -292,8 +285,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
 
     // Common abilities for both dashboard and chart
     if (
-        (embedUser.writeActions?.permissionsMode !== 'roles' &&
-            permissions.canExportImages) ||
+        permissions.canExportImages ||
         canViewEmbedScope('EmbedImageExport', builder, embed)
     ) {
         can('export', subjectType, {
@@ -303,8 +295,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     }
 
     if (
-        (embedUser.writeActions?.permissionsMode !== 'roles' &&
-            permissions.canExportCsv) ||
+        permissions.canExportCsv ||
         canViewEmbedScope('EmbedCsvExport', builder, embed)
     ) {
         can('export', subjectType, {
@@ -320,8 +311,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
         if (
-            (embedUser.writeActions?.permissionsMode !== 'roles' &&
-                embedUser.content.canExportPagePdf) ||
+            embedUser.content.canExportPagePdf ||
             canViewEmbedScope('EmbedPagePdfExport', builder, embed)
         ) {
             can('export', 'Dashboard', {
@@ -333,8 +323,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         // Dashboard-level "Export all", scoped to the token's dashboard; the
         // JobStatus grant lets the embed poll the async export job it created.
         if (
-            (embedUser.writeActions?.permissionsMode !== 'roles' &&
-                embedUser.content.canExportDashboardCsv) ||
+            embedUser.content.canExportDashboardCsv ||
             canViewEmbedScope('EmbedDashboardCsvExport', builder, embed)
         ) {
             can('manage', 'ExportCsv', {

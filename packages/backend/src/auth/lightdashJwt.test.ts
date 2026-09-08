@@ -95,11 +95,12 @@ describe('JwtUtil', () => {
 
     describe('decodeJwt', () => {
         it.each(['invalid', '', null, true])(
-            'rejects signed tokens with invalid permission mode %s',
+            'rejects signed AI tokens with invalid permission mode %s',
             (permissionsMode) => {
                 const token = encodeLightdashJwt(
                     {
                         ...mockJwtData,
+                        content: { type: 'aiAgent', agentUuid: 'agent' },
                         writeActions: {
                             userUuid: 'actor',
                             spaceUuid: 'space',

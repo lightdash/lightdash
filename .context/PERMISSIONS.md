@@ -347,7 +347,7 @@ ability.can(
 );
 ```
 
-#### Existing dashboard permission resolution
+#### Effective permission resolution
 
 Scopes are considered only when the embed JWT has a `writeActions` actor that
 successfully resolves to either a Lightdash user (`userUuid`) or service
@@ -383,67 +383,59 @@ filter scope grants interactivity for all dashboard filters, while preserving
 hidden-filter presentation. Without that scope, retain the JWT's `enabled`
 and `allowedFilters` behavior.
 
-#### Role-based embed authorization
+#### AI access: opt-in role-based authorization
 
-**Status: implemented on the feature branch; release and external documentation
-pending.** This contract applies to dashboard and AI agent embeds, not only AI.
+**Current scope: AI access only (SPK-1967).** Dashboard role-mode enforcement
+is separate work in SPK-1970. This change does not alter dashboard flags,
+filter/parameter interactivity, exports, or existing Explore permissions.
 
-Integrations opt into centrally managed embed capabilities through the
-signed JWT's existing `writeActions` object:
+AI integrations opt into the new scope check through the signed JWT:
 
 ```typescript
 writeActions: {
-    userUuid: '...', // Or serviceAccountUserUuid, not both.
+    userUuid: '...', // Or serviceAccountUserUuid.
     spaceUuid: '...',
     permissionsMode: 'roles',
 }
 ```
 
-| `writeActions.permissionsMode` | Dashboard capabilities | AI agent access |
-| --- | --- | --- |
-| Omitted or `'legacy'` | Preserve existing JWT flags OR resolved actor scopes, including omitted-field defaults. Without an actor, use legacy JWT permissions only. | Preserve pre-scope behavior: an AI agent JWT, resolved write actor, project view and chart creation in the write space, plus existing agent restrictions. |
-| `'roles'` | Require the corresponding `view:Embed...` scope. Legacy flags, including `true` and permissive omitted-field defaults, cannot grant access. | Require `view:EmbedAiAgent` in addition to the existing prerequisites. |
+- Omitted or `'legacy'`: preserve pre-scope AI access. Existing integrations
+  do not need to change their tokens or roles.
+- `'roles'`: additionally require `view:EmbedAiAgent` from the resolved write
+  actor. Removing the last effective grant blocks subsequent AI requests with
+  the same JWT; re-granting restores access.
+- Both paths still require an AI agent JWT, a resolved user/service-account
+  actor, project view, chart creation in the write space, and existing agent,
+  space, and thread restrictions. Dashboard JWTs do not authorize AI endpoints.
+- Reject unknown AI modes rather than silently falling back. The mode is part
+  of the signed JWT, not a trusted browser override.
 
-Both modes retain token content boundaries, project/organization isolation,
-space access, and agent restrictions. A dashboard JWT does not become an AI
-agent JWT. Role mode must fail closed when its actor cannot be resolved;
-never fall back to legacy permissions or an implicit actor. Reject unknown
-mode values rather than treating them as legacy. The mode is signed server-side,
-not supplied as a trusted browser/SDK authorization override.
+No data migration or custom-role backfill is needed. Missing scopes cannot
+distinguish old roles from deliberate revocation, so integrations explicitly
+opt in through token generation. Existing and newly issued tokens omitting the
+mode retain legacy behavior; removing a scope is not legacy-token revocation.
+Organization/project grants remain additive. Test both modes with users and
+service accounts and grant/revoke/re-grant using identical JWTs.
 
-This is an authorization mode, not another per-capability allow flag. It needs
-no data migration or automatic custom-role backfill. A missing scope cannot
-distinguish an old role from an intentional revocation: scope removal deletes
-the grant. Do not infer the mode from role contents, timestamps, or token age.
+#### Future dashboard role mode (SPK-1970; not implemented here)
 
-In role mode, removing the last effective grant blocks subsequent authorized
-requests using the same JWT; adding it restores access without reissuing the
-token. Refetch frontend abilities to reflect the change in the UI. Organization
-and project grants remain additive. Legacy tokens retain legacy behavior until
-they expire or are revoked, and newly issued tokens that omit the mode also
-remain legacy. Adopting role mode therefore requires updating token generation;
-removing a scope alone is not revocation of legacy access.
+Dashboard permissions currently remain **legacy flags OR actor scopes** even
+if `permissionsMode: 'roles'` is present. Do not advertise role-only dashboard
+authorization until SPK-1970 ships.
 
-**For future dashboard and other embed capabilities:** add an independent scope
-under `ScopeGroup.EMBED`, not a new JWT boolean or a per-feature enforcement
-switch. New capabilities with no legacy behavior require their scope in either
-mode. When putting a scope around an existing capability, explicitly preserve
-its historical behavior in legacy mode and enforce the scope in role mode.
-Keep existing JWT flags accepted for compatibility; do not remove them as part
-of this feature.
+That follow-up should make `'roles'` use embed scopes exclusively, with no
+legacy flag/default bypass, while omitted/`'legacy'` preserves today's behavior.
+Apply it consistently to backend abilities, dashboard response capabilities,
+and structured filter/parameter controls, preserving hidden-filter presentation.
+Retain existing payload/response shapes and reject unresolved role-mode actors.
+Test true/false/omitted flags (especially PDF's default), structured controls,
+tenant boundaries, and UI/backend agreement.
 
-Implementation should keep the existing payload/response fields and CASL checks.
-Make existing legacy grants conditional on the mode wherever they are enforced
-(backend authorization, dashboard response capabilities, and structured filter
-or parameter interactivity). Hidden-filter presentation is not an authorization
-grant and must remain intact. Do not add a parallel permission response object.
-
-Before shipping, test both modes with user and service-account actors, missing
-or invalid actors, system and custom roles, and scope grants/removals using the
-same JWT. Cover legacy `true`/`false`/omitted values, structured options, role-mode
-denial despite a `true` flag or an omitted PDF flag, unknown modes, target
-org/project isolation, and AI agent/space restrictions. Update external docs
-after implementation and live validation, not from this design alone.
+For future dashboard capabilities, add independent scopes under
+`ScopeGroup.EMBED`, not new JWT capability booleans or per-feature enforcement
+switches. Keep existing flags for backward compatibility. External documentation
+and dashboard-mode examples are follow-up work after implementation and live
+validation.
 
 #### Implementation checklist for embed capabilities
 
@@ -474,13 +466,11 @@ after implementation and live validation, not from this design alone.
    and the existing ability context on the frontend, using the embed target's
    identifiers. The account already serializes these ability rules. Do not add
    JWT flags, separate permission response objects, or frontend token overlays.
-6. For existing capabilities in legacy mode, add an OR with the corresponding embed scope at
+6. For existing capabilities, add an OR with the corresponding embed scope at
    the existing flag check. Keep the JWT payload unchanged. Backend dashboard
    responses retain their existing fields; combine scopes with flags there for
    existing UI consumers. Structured filters and parameters remain in the
-   existing account access fields. Preserve omitted-field defaults. When
-   implementing role mode, follow the contract above instead of
-   allowing these legacy grants to bypass scopes.
+   existing account access fields. Preserve omitted-field defaults.
 7. Verify three cases: no write actor uses only the JWT; JWT `true` remains
    allowed with an actor; JWT `false` plus a granted actor scope is allowed.
    Also verify at least one system role and one custom role through the embed
