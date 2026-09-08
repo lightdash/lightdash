@@ -123,8 +123,6 @@ export default class PrometheusMetrics {
     // Add query status metrics
     public queryStatusCounter: prometheus.Counter<string> | null = null;
 
-    public warehouseQueryFailureCounter: prometheus.Counter | null = null;
-
     // AI Agent response time metrics
     public aiAgentGenerateResponseDurationHistogram: prometheus.Histogram | null =
         null;
@@ -394,12 +392,6 @@ export default class PrometheusMetrics {
                     name: 'lightdash_query_status_total',
                     help: 'Total number of queries by terminal status',
                     labelNames: ['status', 'context'],
-                    ...rest,
-                });
-
-                this.warehouseQueryFailureCounter = new prometheus.Counter({
-                    name: 'lightdash_warehouse_query_failures_total',
-                    help: 'Total number of failed warehouse queries',
                     ...rest,
                 });
 
@@ -1593,10 +1585,6 @@ export default class PrometheusMetrics {
             to,
             context: getQueryContextLabel(context),
         });
-    }
-
-    public incrementWarehouseQueryFailure() {
-        this.warehouseQueryFailureCounter?.inc();
     }
 
     public observeQueueWaitDuration(durationMs: number, context: string) {
