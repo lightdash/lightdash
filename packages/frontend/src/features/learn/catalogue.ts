@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
-import { ROLE_LABELS, SYSTEM_ROLE_VIEWS, type LearnRoleView } from './roles';
+import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
 
 /**
  * Foundations, as on learn.lightdash.com: what a viewer can already do,
@@ -109,8 +109,9 @@ export const buildLearnCatalogue = (): LearnModule[] => {
             .map((scope) => {
                 const tour = SCOPE_TOURS[scope.name];
                 const minRole =
-                    (SYSTEM_ROLE_VIEWS.find((view) => view.held.has(scope.name))
-                        ?.key as ProjectMemberRole | undefined) ?? null;
+                    SYSTEM_ROLE_SCOPES.find((system) =>
+                        system.held.has(scope.name),
+                    )?.role ?? null;
                 return {
                     scope: scope.name,
                     // A built walkthrough names itself (data-tour-title); a
@@ -151,15 +152,15 @@ const taughtAt = (module: LearnModule): number => {
     return at < 0 ? CURRICULUM.length : at;
 };
 
-/** Available first, then modules the role holds, then in teaching order. */
-export const sortForRole = (
-    role: LearnRoleView,
+/** Available first, then the modules the learner holds, then in teaching order. */
+export const sortForLearner = (
+    held: Set<string>,
     modules: LearnModule[],
 ): LearnModule[] =>
     [...modules].sort(
         (a, b) =>
             Number(b.available) - Number(a.available) ||
-            Number(roleHolds(role, b)) - Number(roleHolds(role, a)) ||
+            Number(holds(held, b)) - Number(holds(held, a)) ||
             taughtAt(a) - taughtAt(b) ||
             a.title.localeCompare(b.title),
     );
@@ -171,7 +172,7 @@ export const sortForRole = (
  * pages never disagree about what comes next.
  */
 export const focusModules = (
-    role: LearnRoleView,
+    held: Set<string>,
     available: LearnModule[],
     completed: string[],
     lastStarted: string | null,
@@ -179,29 +180,29 @@ export const focusModules = (
     const resume = available.find(
         (m) => m.scope === lastStarted && !completed.includes(m.scope),
     );
-    const recommended = sortForRole(role, available).find(
+    const recommended = sortForLearner(held, available).find(
         (m) => m.scope !== resume?.scope && !completed.includes(m.scope),
     );
     return { resume, recommended };
 };
 
 /**
- * Whether the chosen view holds a module's scope. Membership, not rank: a
- * custom role sits nowhere on the system ladder, and the ladder's own roles
- * hold exactly what the scope mapping gives them.
+ * Whether the learner holds a module's feature. Membership, not rank: their
+ * access is a set of scopes gathered from every role they hold, and a custom
+ * role sits nowhere on the system ladder.
  */
-export const roleHolds = (role: LearnRoleView, module: LearnModule): boolean =>
-    role.held.has(module.scope);
+export const holds = (held: Set<string>, module: LearnModule): boolean =>
+    held.has(module.scope);
 
 /**
- * What a card says about a module the chosen view does not hold: the lowest
- * system role that does, or, viewing as a custom role, that role's name.
+ * What a card says about a module the learner cannot practise yet: the
+ * lowest system role that holds it, so they know what it would take. A
+ * module no system role holds says nothing.
  */
-export const roleNote = (
-    role: LearnRoleView,
+export const accessNote = (
+    held: Set<string>,
     module: LearnModule,
 ): string | null => {
-    if (roleHolds(role, module)) return null;
-    if (role.custom) return `Not in ${role.label}`;
+    if (holds(held, module)) return null;
     return module.minRole ? `${ROLE_LABELS[module.minRole]} and above` : null;
 };

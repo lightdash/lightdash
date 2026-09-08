@@ -1,31 +1,22 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
-import type * as LearnRoles from './roles';
 
-const {
-    track,
-    projectState,
-    healthState,
-    availabilityState,
-    rolesState,
-    userState,
-} = vi.hoisted(() => ({
-    track: vi.fn(),
-    projectState: { current: [] as unknown[] },
-    healthState: { current: { learn: { enabled: true } } },
-    availabilityState: { current: { isSettled: true } },
-    rolesState: { current: [] as unknown[] },
-    userState: {
-        current: { role: 'admin', roleUuid: undefined as string | undefined },
-    },
-}));
+const { track, projectState, healthState, availabilityState, accessState } =
+    vi.hoisted(() => ({
+        track: vi.fn(),
+        projectState: { current: [] as unknown[] },
+        healthState: { current: { learn: { enabled: true } } },
+        availabilityState: { current: { isSettled: true } },
+        // Everything the learner can do, anywhere.
+        accessState: { current: [] as string[] },
+    }));
 
 vi.mock('react-router', () => ({
     Navigate: () => null,
@@ -40,8 +31,7 @@ vi.mock('../../providers/App/useApp', () => ({
         user: {
             data: {
                 organizationUuid: 'org-1',
-                role: userState.current.role,
-                roleUuid: userState.current.roleUuid,
+                role: 'admin',
                 ability: new Ability([
                     { action: 'manage', subject: 'Organization' },
                 ]),
@@ -50,12 +40,22 @@ vi.mock('../../providers/App/useApp', () => ({
     }),
 }));
 
-// The org's own roles come from the instance; the views built from them are
-// the real ones.
-vi.mock('./roles', async (importOriginal) => ({
-    ...(await importOriginal<typeof LearnRoles>()),
-    useLearnRoles: () => ({ data: rolesState.current }),
-}));
+// The learner's access comes from the instance; how the library reads a
+// scope set is the real thing.
+vi.mock('./access', async (importOriginal) => {
+    const actual = await importOriginal<Record<string, unknown>>();
+    const heldScopes = actual.heldScopes as (
+        scopes: string[],
+        variants: boolean,
+    ) => Set<string>;
+    return {
+        ...actual,
+        useLearnAccess: () => ({
+            held: heldScopes(accessState.current, true),
+            isSettled: true,
+        }),
+    };
+});
 
 vi.mock('../../hooks/health/useHealth', () => ({
     default: () => ({ data: healthState.current }),
@@ -112,8 +112,7 @@ describe('LearnPage analytics', () => {
         track.mockClear();
         healthState.current = { learn: { enabled: true } };
         availabilityState.current = { isSettled: true };
-        rolesState.current = [];
-        userState.current = { role: 'admin', roleUuid: undefined };
+        accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
@@ -201,161 +200,70 @@ describe('LearnPage analytics', () => {
     });
 });
 
-describe('LearnPage role views', () => {
-    const analyst = {
-        roleUuid: 'role-1',
-        name: 'Analyst',
-        scopes: ['view:Dashboard', 'manage:Validation'],
-    };
+describe('LearnPage access', () => {
+    const catalogueScopes = catalogue.map((module) => module.scope);
 
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
         healthState.current = { learn: { enabled: true } };
         availabilityState.current = { isSettled: true };
-        rolesState.current = [];
-        userState.current = { role: 'admin', roleUuid: undefined };
+        accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
     });
 
-    const openPicker = async () => {
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Viewing as' }),
+    const shown = (container: HTMLElement) =>
+        [...container.querySelectorAll('[data-learn-module]')].map((card) =>
+            card.getAttribute('data-learn-module'),
         );
-        return screen.getByRole('menu');
+    const toggleExtra = async () => {
+        await userEvent.click(screen.getByLabelText('Filter'));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Show extra modules' }),
+        );
     };
 
-    it('offers the system roles alone when the org has no custom roles', async () => {
-        renderPage();
+    it('shows what the learner can do, and nothing else', () => {
+        const { container } = renderPage();
 
-        const menu = await openPicker();
-        expect(within(menu).getByText('Roles')).toBeTruthy();
-        expect(within(menu).queryByText('Custom roles')).toBeNull();
-        expect(
-            within(menu)
-                .getAllByRole('menuitem')
-                .map((item) => item.textContent),
-        ).toEqual([
-            'Viewer',
-            'Interactive viewer',
-            'Editor',
-            'Developer',
-            // The admin this test renders as holds the last one.
-            'AdminYour role',
-        ]);
+        expect(shown(container).sort()).toEqual(
+            ['manage:Validation', 'view:Dashboard'].sort(),
+        );
     });
 
-    it("lists the org's custom roles under their own heading", async () => {
-        rolesState.current = [
-            { roleUuid: 'role-2', name: 'Steward', scopes: [] },
-            analyst,
-        ];
-
-        renderPage();
-
-        const menu = await openPicker();
-        expect(within(menu).getByText('Custom roles')).toBeTruthy();
-        expect(
-            within(menu)
-                .getAllByRole('menuitem')
-                .map((item) => item.textContent)
-                .slice(5),
-        ).toEqual(['Analyst', 'Steward']);
-    });
-
-    it('marks the role the learner holds, and only that one', async () => {
-        rolesState.current = [analyst];
-        userState.current = { role: 'member', roleUuid: 'role-1' };
-
-        renderPage();
-
-        const menu = await openPicker();
-        const own = within(menu)
-            .getAllByRole('menuitem')
-            .filter((item) => item.textContent?.includes('Your role'));
-        expect(own.map((item) => item.textContent)).toEqual([
-            'AnalystYour role',
-        ]);
-    });
-
-    it('marks a system role when that is what the learner holds', async () => {
-        userState.current = { role: 'editor', roleUuid: undefined };
-
-        renderPage();
-
-        const menu = await openPicker();
-        expect(
-            within(menu)
-                .getAllByRole('menuitem')
-                .filter((item) => item.textContent?.includes('Your role'))
-                .map((item) => item.textContent),
-        ).toEqual(['EditorYour role']);
-    });
-
-    it('marks nothing when the learner holds no role the library shows', async () => {
-        userState.current = { role: 'member', roleUuid: undefined };
-
-        renderPage();
-
-        const menu = await openPicker();
-        expect(within(menu).queryAllByText('Your role')).toEqual([]);
-    });
-
-    it('opens on the custom role the learner holds', () => {
-        rolesState.current = [analyst];
-        userState.current = { role: 'member', roleUuid: 'role-1' };
+    it('reads their access however they came by it', () => {
+        // A viewer at organization level who edits in one project holds the
+        // editor features, wherever the grant came from.
+        accessState.current = ['view:Dashboard', 'manage:Dashboard@space'];
 
         const { container } = renderPage();
 
-        expect(
-            container
-                .querySelector('[data-learn-role]')
-                ?.getAttribute('data-learn-role'),
-        ).toBe('role-1');
-        expect(
-            screen.getByRole('button', { name: 'Viewing as' }).textContent,
-        ).toContain('Analyst');
+        expect(shown(container)).toContain('manage:Dashboard');
     });
 
-    it('opens on the matching system role when the learner holds no custom one', () => {
-        userState.current = { role: 'editor', roleUuid: undefined };
-
+    it('keeps the rest behind the extra modules toggle', async () => {
         const { container } = renderPage();
 
+        await toggleExtra();
+
+        expect(shown(container).length).toBe(catalogueScopes.length);
         expect(
-            container
-                .querySelector('[data-learn-role]')
-                ?.getAttribute('data-learn-role'),
-        ).toBe('editor');
+            container.querySelector('[data-learn-module="manage:PinnedItems"]')
+                ?.textContent,
+        ).toContain('Editor and above');
+        expect(
+            container.querySelector('[data-learn-module="view:Dashboard"]')
+                ?.textContent,
+        ).not.toContain('and above');
     });
 
-    it('reads the library as the role that is picked', async () => {
-        rolesState.current = [analyst];
+    it('says what the shelf is showing', async () => {
+        renderPage();
+        expect(screen.getByText('What you can do')).toBeTruthy();
 
-        const { container } = renderPage();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Viewing as' }),
-        );
-        await userEvent.click(
-            screen.getByRole('menuitem', { name: 'Analyst' }),
-        );
-
-        expect(
-            container
-                .querySelector('[data-learn-role]')
-                ?.getAttribute('data-learn-role'),
-        ).toBe('role-1');
-        // A module the custom role holds carries no note; one it lacks names
-        // the role rather than a rung of the system ladder.
-        const validation = container.querySelector(
-            '[data-learn-module="manage:Validation"]',
-        );
-        expect(validation?.textContent).not.toContain('Not in Analyst');
-        const pinning = container.querySelector(
-            '[data-learn-module="manage:PinnedItems"]',
-        );
-        expect(pinning?.textContent).toContain('Not in Analyst');
+        await toggleExtra();
+        expect(screen.getByText('Every module')).toBeTruthy();
     });
 });

@@ -10,7 +10,6 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
-    IconChevronDown,
     IconFilter,
     IconLayoutGrid,
     IconPlayerPlay,
@@ -34,16 +33,17 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { useLearnAccess } from './access';
 import { useLearnAvailability } from './availability';
 import {
+    accessNote,
     buildLearnCatalogue,
     focusModules,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
-    roleHolds,
-    roleNote,
-    sortForRole,
+    holds,
+    sortForLearner,
     type LearnGroup,
     type LearnModule,
 } from './catalogue';
@@ -52,13 +52,6 @@ import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
-import {
-    buildRoleViews,
-    defaultRoleView,
-    ownRoleView,
-    useLearnRoles,
-    type LearnRoleView,
-} from './roles';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useStartWalkthrough } from './useStartWalkthrough';
@@ -147,73 +140,6 @@ const ModuleCard: FC<{
 };
 
 /**
- * The roles as views: one control naming the role the library is being read
- * as, and a menu of every role to read it as instead. A menu rather than a
- * row of pills because an org's custom roles are as many as it has made,
- * and the row has to stay on one line beside the count and the filter.
- */
-const RolePicker: FC<{
-    views: LearnRoleView[];
-    chosen: LearnRoleView;
-    /** The learner's own role, marked in the menu; null when they hold none. */
-    own: LearnRoleView | null;
-    onChoose: (view: LearnRoleView) => void;
-}> = ({ views, chosen, own, onChoose }) => {
-    const custom = views.filter((view) => view.custom);
-    const item = (view: LearnRoleView) => (
-        <Menu.Item
-            key={view.key}
-            onClick={() => onChoose(view)}
-            data-learn-role-option={view.key}
-            data-learn-role-own={view.key === own?.key ? 'true' : undefined}
-            aria-checked={view.key === chosen.key}
-            rightSection={
-                <Box className={styles.roleOptionEnd}>
-                    {view.key === own?.key && (
-                        <span className={styles.roleOwn}>Your role</span>
-                    )}
-                    {view.key === chosen.key && (
-                        <MantineIcon icon={IconCheck} size={13} />
-                    )}
-                </Box>
-            }
-        >
-            {view.label}
-        </Menu.Item>
-    );
-    return (
-        <Menu position="bottom-start" withinPortal>
-            <Menu.Target>
-                <UnstyledButton
-                    type="button"
-                    className={styles.rolePicker}
-                    aria-label="Viewing as"
-                    aria-haspopup="menu"
-                    data-learn-role={chosen.key}
-                >
-                    Viewing as
-                    <span className={styles.rolePickerName}>
-                        {chosen.label}
-                    </span>
-                    <MantineIcon icon={IconChevronDown} size={13} />
-                </UnstyledButton>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Label>Roles</Menu.Label>
-                {views.filter((view) => !view.custom).map(item)}
-                {custom.length > 0 && (
-                    <>
-                        <Menu.Divider />
-                        <Menu.Label>Custom roles</Menu.Label>
-                        {custom.map(item)}
-                    </>
-                )}
-            </Menu.Dropdown>
-        </Menu>
-    );
-};
-
-/**
  * The learner's library: every feature they can practise in the training
  * project, one card each, grouped as the scope registry groups them. Start
  * opens the walkthrough in a fresh copy of the training project and brings
@@ -281,33 +207,28 @@ const LearnPage: FC = () => {
         [isOpen],
     );
     const { completed, started, lastStarted } = useLearnProgress();
-    // The roles as views: the five system roles, and the org's own custom
-    // roles, which arrive after the first render (and never on an instance
-    // without them). Until the learner picks one, the view is the role they
-    // hold, which their custom role becomes as soon as it lands.
-    const { data: customRoles } = useLearnRoles();
-    const roleViews = useMemo(() => buildRoleViews(customRoles), [customRoles]);
-    const [chosenRole, setChosenRole] = useState<string | null>(null);
-    const role =
-        roleViews.find((view) => view.key === chosenRole) ??
-        defaultRoleView(roleViews, user.data ?? undefined);
+    // What the learner can do, anywhere: their organization role, any
+    // organization-level custom roles, and every project role they hold. The
+    // library is that; everything else waits behind the Extra modules
+    // toggle.
+    const { held } = useLearnAccess();
     const [query, setQuery] = useState('');
-    const [showExtra, setShowExtra] = useState(true);
+    const [showExtra, setShowExtra] = useState(false);
     const [showSoon, setShowSoon] = useState(true);
     // One group tab, or All.
     const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
-        return sortForRole(role, catalogue).filter(
+        return sortForLearner(held, catalogue).filter(
             (module) =>
-                (showExtra || roleHolds(role, module)) &&
+                (showExtra || holds(held, module)) &&
                 (showSoon || module.available) &&
                 (needle === '' ||
                     module.title.toLowerCase().includes(needle) ||
                     module.scope.toLowerCase().includes(needle)),
         );
-    }, [catalogue, role, showExtra, showSoon, query]);
+    }, [catalogue, held, showExtra, showSoon, query]);
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
@@ -325,7 +246,7 @@ const LearnPage: FC = () => {
     // recommendation is the first unfinished walkthrough, held-by-role ones
     // first (sortForRole), rather than nothing for a viewer.
     const { resume, recommended } = focusModules(
-        role,
+        held,
         available,
         completed,
         lastStarted,
@@ -488,12 +409,9 @@ const LearnPage: FC = () => {
                     </Box>
                 )}
                 <Box className={styles.libraryBar}>
-                    <RolePicker
-                        views={roleViews}
-                        chosen={role}
-                        own={ownRoleView(roleViews, user.data ?? undefined)}
-                        onChoose={(view) => setChosenRole(view.key)}
-                    />
+                    <span className={styles.libraryHeading}>
+                        {showExtra ? 'Every module' : 'What you can do'}
+                    </span>
                     <span
                         className={styles.libraryCount}
                         data-learn-progress={`${doneCount}/${available.length}`}
@@ -626,7 +544,7 @@ const LearnPage: FC = () => {
                                             started,
                                             completed,
                                         )}
-                                        note={roleNote(role, module)}
+                                        note={accessNote(held, module)}
                                         opening={opening === module.scope}
                                         onStart={startFromCard}
                                     />

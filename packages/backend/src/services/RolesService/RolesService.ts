@@ -15,7 +15,7 @@ import {
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
-    LearnRole,
+    LearnAccess,
     NotFoundError,
     OrganizationMemberRole,
     OrganizationRoleSet,
@@ -436,40 +436,20 @@ export class RolesService extends BaseService {
     }
 
     /**
-     * The org's own roles as the Learn library's views (CS-267). The library
-     * lets a learner see the modules a role holds; custom roles are views
-     * like the system roles are, so it needs their scope sets.
-     *
-     * Who sees which: an org admin gets every custom role, so they can look
-     * at the library through the eyes of any role they have made. Everyone
-     * else gets only the role they hold themselves, which is a description
-     * of their own permissions rather than a look at the org's role design.
-     * Nothing is returned when custom roles are not licensed or switched on,
-     * because a role that is not in force is not a view of anything.
+     * Everything a learner can do, anywhere (CS-267): the scopes they hold
+     * through their organization role, any organization-level custom roles,
+     * and every project role they hold directly or through a group. The
+     * library shows those features and keeps the rest behind a toggle, so a
+     * learner is taught what they can actually practise rather than what one
+     * role's rank suggests. Custom-role scopes only count where custom roles
+     * are licensed and switched on, as they only apply there.
      */
-    async getLearnRoles(user: SessionUser): Promise<LearnRole[]> {
-        const { organizationUuid } = user;
-        if (!organizationUuid) return [];
-        if (!(await this.areCustomRolesInForce(user))) return [];
-
-        const roles =
-            await this.rolesModel.getRolesWithScopesByOrganizationUuid(
-                organizationUuid,
-                'user',
-            );
-        const canSeeEveryRole = this.createAuditedAbility(user).can(
-            'manage',
-            subject('Organization', { organizationUuid }),
-        );
-        return roles
-            .filter(
-                (role) => canSeeEveryRole || role.roleUuid === user.roleUuid,
-            )
-            .map((role) => ({
-                roleUuid: role.roleUuid,
-                name: role.name,
-                scopes: role.scopes,
-            }));
+    async getLearnAccess(user: SessionUser): Promise<LearnAccess> {
+        return {
+            scopes: await this.userModel.getScopesHeldAnywhere(user.userUuid, {
+                includeCustomRoles: await this.areCustomRolesInForce(user),
+            }),
+        };
     }
 
     /** Whether this org's custom roles are licensed and switched on. */

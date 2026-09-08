@@ -1270,19 +1270,18 @@ export type ApiEnableLearnResponse = {
 };
 
 /**
- * A custom role the library can be viewed as (CS-267). The five system roles
- * are the same everywhere, so the frontend builds those itself from the scope
- * mapping; only an org's own roles have to come from the instance.
+ * What a learner can do, anywhere (CS-267): every scope they hold through
+ * their organization role, any organization-level custom roles, and every
+ * project role they hold directly or through a group. The library shows the
+ * features in this set and keeps the rest behind a toggle.
  */
-export type LearnRole = {
-    roleUuid: string;
-    name: string;
+export type LearnAccess = {
     scopes: string[];
 };
 
-export type ApiLearnRolesResponse = {
+export type ApiLearnAccessResponse = {
     status: 'ok';
-    results: LearnRole[];
+    results: LearnAccess;
 };
 
 export const playgroundProjectTriggers = [
