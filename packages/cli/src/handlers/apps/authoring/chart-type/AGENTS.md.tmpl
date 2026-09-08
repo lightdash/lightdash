@@ -1,0 +1,22 @@
+# Working on this Lightdash custom chart type
+
+This folder is a **custom chart type** (a reusable visualization, the `data_app_viz` template) — ONE chart component that receives its data and settings from Lightdash, not a data app. It runs no query, owns no explore, and must not fetch anything itself.
+
+The contract lives in `.claude/skills/reusable-visualization` — read it before editing: the `useVizContext()` hook, the field/option declaration, resolved series colours, and pivoted results.
+
+The one difference from that skill here: the declaration is not emitted as structured output. It lives in this folder's `lightdash-app.yml` under `vizSchema`, and **must stay in lockstep with the component** — every key `src/App.jsx` reads from `fieldMapping` or `options` is declared there, and everything declared there is read. When you change what the component reads, update `vizSchema` in the same edit.
+
+Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
+
+## The loop
+
+1. Edit `src/` (and `vizSchema` in `lightdash-app.yml` when the declaration changes).
+2. `lightdash apps validate --build` — Cloud-parity Vite build; a failure is a validation error with the Vite output.
+3. `lightdash upload --chart-types <slug>` — the server rebuilds; the chart type then appears in the explorer's chart type picker for that project.
+4. Verify in Lightdash: open any explore, run a query, pick this chart type, and map its fields.
+
+There is no local preview for a chart type: `useVizContext()` waits for the Lightdash host, so the component renders nothing standalone (`lightdash apps preview` and `npm run dev` show a blank page). Upload and verify in the explorer instead.
+
+Build with the template's preinstalled dependency set (see `package.json` — React, Recharts, d3, and more). Do not add npm packages or vendor library source into `src/`; chart types published to the official registry must stay template-deps-only.
+
+`.npmrc` sets `ignore-scripts=true` — never remove it or run installs with scripts enabled.

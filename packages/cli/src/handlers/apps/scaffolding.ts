@@ -140,14 +140,35 @@ export const loadVendoredStarterSource = (): DataAppCodeFile[] => {
 };
 
 /**
+ * The chart-type starter component: replaces the template's src/App.jsx when
+ * scaffolding a custom chart type (data_app_viz). The rest of the starter
+ * source (main.jsx already mounts VizContextProvider, lib/, css) is shared
+ * with data apps.
+ */
+export const loadChartTypeStarterApp = (): DataAppCodeFile => {
+    const { authoringDir } = resolveVendorDirs();
+    return {
+        path: 'src/App.jsx',
+        contentBase64: readFileSync(
+            path.join(authoringDir, 'chart-type', 'App.jsx'),
+        ).toString('base64'),
+    };
+};
+
+/** Which scaffold is being assembled: a data app or a custom chart type. */
+export type AuthoringFlavor = 'app' | 'chart-type';
+
+/**
  * Assembles static authoring files (configs, skills, templates) to deploy alongside a data app.
  */
 export const buildStaticAuthoringFiles = (args: {
     appName: string;
     sdkVersion: string;
+    flavor?: AuthoringFlavor;
 }): DataAppCodeFile[] => {
-    const { appName, sdkVersion } = args;
+    const { appName, sdkVersion, flavor = 'app' } = args;
     const { templateDir, authoringDir } = resolveVendorDirs();
+    const isChartType = flavor === 'chart-type';
 
     const files: DataAppCodeFile[] = [];
 
@@ -156,34 +177,47 @@ export const buildStaticAuthoringFiles = (args: {
         files.push(file);
     }
 
-    // 2. skill.md → .claude/skills/lightdash-data-app/SKILL.md
-    files.push({
-        path: '.claude/skills/lightdash-data-app/SKILL.md',
-        contentBase64: readFileSync(
-            path.join(templateDir, 'skill.md'),
-        ).toString('base64'),
-    });
+    // 2+3. App-only skills: a chart type must not query through the SDK, so
+    // the app-building skills would only mislead — the viz contract ships via
+    // the template's .claude/skills/reusable-visualization (step 1).
+    if (!isChartType) {
+        // skill.md → .claude/skills/lightdash-data-app/SKILL.md
+        files.push({
+            path: '.claude/skills/lightdash-data-app/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(templateDir, 'skill.md'),
+            ).toString('base64'),
+        });
 
-    // 3. authoring/developing-data-apps-locally/SKILL.md
-    //    → .claude/skills/developing-data-apps-locally/SKILL.md
-    files.push({
-        path: '.claude/skills/developing-data-apps-locally/SKILL.md',
-        contentBase64: readFileSync(
-            path.join(authoringDir, 'developing-data-apps-locally', 'SKILL.md'),
-        ).toString('base64'),
-    });
+        // authoring/developing-data-apps-locally/SKILL.md
+        //    → .claude/skills/developing-data-apps-locally/SKILL.md
+        files.push({
+            path: '.claude/skills/developing-data-apps-locally/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(
+                    authoringDir,
+                    'developing-data-apps-locally',
+                    'SKILL.md',
+                ),
+            ).toString('base64'),
+        });
+    }
+
+    const flavorDir = isChartType
+        ? path.join(authoringDir, 'chart-type')
+        : authoringDir;
 
     // 4. AGENTS.md.tmpl → AGENTS.md
     files.push({
         path: 'AGENTS.md',
         contentBase64: readFileSync(
-            path.join(authoringDir, 'AGENTS.md.tmpl'),
+            path.join(flavorDir, 'AGENTS.md.tmpl'),
         ).toString('base64'),
     });
 
     // 5. README.md.tmpl → README.md  (substitute {{APP_NAME}})
     const readme = readFileSync(
-        path.join(authoringDir, 'README.md.tmpl'),
+        path.join(flavorDir, 'README.md.tmpl'),
         'utf-8',
     ).replace(/\{\{APP_NAME\}\}/g, appName);
     files.push({

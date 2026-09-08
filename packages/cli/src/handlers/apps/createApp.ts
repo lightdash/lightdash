@@ -1,11 +1,13 @@
 import {
     AuthorizationError,
+    DATA_APP_VIZ_TEMPLATE,
     generateSlug,
     isValidDataAppSlug,
     LightdashError,
     ParameterError,
     type DataAppContext,
     type DataAppManifest,
+    type DataAppVizSchema,
 } from '@lightdash/common';
 import execa from 'execa';
 import { promises as fs } from 'fs';
@@ -26,16 +28,51 @@ import {
 } from './appCodeFiles';
 import {
     buildStaticAuthoringFiles,
+    loadChartTypeStarterApp,
     loadVendoredStarterSource,
 } from './scaffolding';
 
 export type CreateAppHandlerOptions = {
     assumeYes?: boolean;
+    chartType?: boolean;
     description?: string;
     path?: string;
     project?: string;
     slug?: string;
     verbose: boolean;
+};
+
+// Declaration matching the starter component in authoring/chart-type/App.jsx —
+// the two must stay in lockstep (every key the component reads from
+// fieldMapping/options is declared here, and everything declared is read).
+export const CHART_TYPE_STARTER_VIZ_SCHEMA: DataAppVizSchema = {
+    fields: [
+        {
+            name: 'category',
+            label: 'Category',
+            type: 'dimension',
+            required: true,
+        },
+        { name: 'value', label: 'Value', type: 'metric', required: true },
+    ],
+    configOptions: [
+        {
+            type: 'boolean',
+            name: 'showLabels',
+            label: 'Show value labels',
+            group: 'Labels',
+            default: true,
+        },
+        {
+            type: 'number',
+            name: 'maxBars',
+            label: 'Max bars',
+            default: 10,
+            min: 1,
+            max: 50,
+        },
+    ],
+    colorPalette: {},
 };
 
 export const SHADCN_VERSION = '2.3.0';
@@ -87,6 +124,7 @@ export const buildLocalAppManifest = (args: {
     projectUuid: string;
     slug: string;
     now: Date;
+    chartType?: boolean;
 }): DataAppManifest => ({
     codeVersion: 1,
     projectUuid: args.projectUuid,
@@ -94,7 +132,10 @@ export const buildLocalAppManifest = (args: {
     version: 1,
     name: args.name,
     description: args.description,
-    template: null,
+    template: args.chartType ? DATA_APP_VIZ_TEMPLATE : null,
+    // vizSchema round-trips through upload — without it the uploaded chart
+    // type never appears in the explorer's chart type picker.
+    ...(args.chartType ? { vizSchema: CHART_TYPE_STARTER_VIZ_SCHEMA } : {}),
     downloadedAt: args.now.toISOString(),
     scaffoldingVersion: CLI_VERSION,
 });
@@ -148,13 +189,21 @@ const assertNpmAvailable = async (): Promise<void> => {
 
 const confirmLocalPackageTooling = async (
     assumeYes: boolean,
+    entityLabel: string,
+    withShadcn: boolean,
 ): Promise<void> => {
     GlobalState.log(
         styles.warning(
             [
                 '⚠ Local package installation',
-                `Creating a data app downloads third-party packages through npm into the new app folder and runs shadcn@${SHADCN_VERSION} to generate UI files.`,
-                'Dependency lifecycle scripts are disabled, but npm and shadcn will access the network and write files on this machine.',
+                `Creating a ${entityLabel} downloads third-party packages through npm into the new folder${
+                    withShadcn
+                        ? ` and runs shadcn@${SHADCN_VERSION} to generate UI files`
+                        : ''
+                }.`,
+                `Dependency lifecycle scripts are disabled, but ${
+                    withShadcn ? 'npm and shadcn' : 'npm'
+                } will access the network and write files on this machine.`,
                 'Only continue if you trust these package sources and are comfortable running this tooling locally.',
             ].join('\n'),
         ),
@@ -163,7 +212,7 @@ const confirmLocalPackageTooling = async (
     if (assumeYes) return;
     if (GlobalState.isNonInteractive()) {
         throw new ParameterError(
-            'Creating a data app requires approval to download and install npm packages. Rerun with --assume-yes to approve in non-interactive mode.',
+            `Creating a ${entityLabel} requires approval to download and install npm packages. Rerun with --assume-yes to approve in non-interactive mode.`,
         );
     }
 
@@ -183,13 +232,19 @@ const confirmLocalPackageTooling = async (
 const confirmDependencyInstall = async (
     directPackages: string[],
     assumeYes: boolean,
+    entityLabel: string,
+    withShadcn: boolean,
 ): Promise<void> => {
     GlobalState.log(
         [
-            'Creating this data app will install these direct npm packages:',
+            `Creating this ${entityLabel} will install these direct npm packages:`,
             ...directPackages.map((packageSpec) => `  - ${packageSpec}`),
-            `\nIt will also run shadcn@${SHADCN_VERSION} to generate:`,
-            `  ${SHADCN_COMPONENTS.join(', ')}`,
+            ...(withShadcn
+                ? [
+                      `\nIt will also run shadcn@${SHADCN_VERSION} to generate:`,
+                      `  ${SHADCN_COMPONENTS.join(', ')}`,
+                  ]
+                : []),
             "\nDependency lifecycle scripts will be disabled. React 19 peer dependencies will use npm's legacy-peer-deps mode.",
         ].join('\n'),
     );
@@ -197,7 +252,7 @@ const confirmDependencyInstall = async (
     if (assumeYes) return;
     if (GlobalState.isNonInteractive()) {
         throw new ParameterError(
-            'Creating a data app requires approval to install npm packages. Rerun with --assume-yes to approve in non-interactive mode.',
+            `Creating a ${entityLabel} requires approval to install npm packages. Rerun with --assume-yes to approve in non-interactive mode.`,
         );
     }
 
@@ -205,7 +260,7 @@ const confirmDependencyInstall = async (
         {
             type: 'confirm',
             name: 'confirmed',
-            message: 'Install these packages and create the app?',
+            message: `Install these packages and create the ${entityLabel}?`,
             default: false,
         },
     ]);
@@ -214,7 +269,10 @@ const confirmDependencyInstall = async (
     }
 };
 
-const installDependenciesAndShadcn = async (appDir: string): Promise<void> => {
+const installDependenciesAndShadcn = async (
+    appDir: string,
+    withShadcn: boolean,
+): Promise<void> => {
     const npmEnv = {
         ...process.env,
         npm_config_ignore_scripts: 'true',
@@ -239,6 +297,9 @@ const installDependenciesAndShadcn = async (appDir: string): Promise<void> => {
         ['install', '--include=dev', '--ignore-scripts', '--no-package-lock'],
         subprocessOptions,
     );
+    // Chart types are single chart components (recharts/d3/SVG) — the shadcn
+    // UI kit would only be dead weight shipped in their published source.
+    if (!withShadcn) return;
     await execa(
         'npx',
         ['--yes', `shadcn@${SHADCN_VERSION}`, 'init', '--defaults', '--force'],
@@ -265,6 +326,8 @@ export const createAppHandler = async (
     const startTime = Date.now();
     let success = false;
     GlobalState.setVerbose(options.verbose);
+    const isChartType = options.chartType ?? false;
+    const entityLabel = isChartType ? 'custom chart type' : 'data app';
 
     try {
         const slug = resolveLocalAppSlug(name, options.slug);
@@ -301,15 +364,22 @@ export const createAppHandler = async (
             body: undefined,
         });
 
-        await confirmLocalPackageTooling(options.assumeYes ?? false);
+        await confirmLocalPackageTooling(
+            options.assumeYes ?? false,
+            entityLabel,
+            !isChartType,
+        );
 
         const staticFiles = buildStaticAuthoringFiles({
             appName: name,
             sdkVersion: CLI_VERSION,
+            flavor: isChartType ? 'chart-type' : 'app',
         });
         await confirmDependencyInstall(
             parseDirectPackages(staticFiles),
             options.assumeYes ?? false,
+            entityLabel,
+            !isChartType,
         );
         const manifest = buildLocalAppManifest({
             name,
@@ -317,6 +387,7 @@ export const createAppHandler = async (
             projectUuid,
             slug,
             now: new Date(),
+            chartType: isChartType,
         });
         const appsDir = path.dirname(appDir);
         await fs.mkdir(appsDir, { recursive: true });
@@ -329,22 +400,31 @@ export const createAppHandler = async (
                 manifest,
                 files: loadVendoredStarterSource(),
             });
+            if (isChartType) {
+                // Swap the app placeholder for the viz starter matching the
+                // manifest's CHART_TYPE_STARTER_VIZ_SCHEMA declaration.
+                await writeFilesToDir(temporaryAppDir, [
+                    loadChartTypeStarterApp(),
+                ]);
+            }
             await writeFilesToDir(temporaryAppDir, staticFiles);
             await writeContextToDir(temporaryAppDir, context);
-            await installDependenciesAndShadcn(temporaryAppDir);
+            await installDependenciesAndShadcn(temporaryAppDir, !isChartType);
 
             // shadcn rewrites package versions and tailwind colors while it
             // generates source. Restore the reviewed template declarations so
             // the approval list stays exact and uploads do not mistake the
             // generated app for one with custom dependencies.
-            await writeFilesToDir(
-                temporaryAppDir,
-                staticFiles.filter(
-                    (file) =>
-                        file.path === 'package.json' ||
-                        file.path === 'tailwind.config.js',
-                ),
-            );
+            if (!isChartType) {
+                await writeFilesToDir(
+                    temporaryAppDir,
+                    staticFiles.filter(
+                        (file) =>
+                            file.path === 'package.json' ||
+                            file.path === 'tailwind.config.js',
+                    ),
+                );
+            }
             await fs.rename(temporaryAppDir, appDir);
         } catch (error) {
             await fs.rm(temporaryAppDir, { recursive: true, force: true });
@@ -352,17 +432,23 @@ export const createAppHandler = async (
         }
 
         GlobalState.log(
-            styles.success(`Created data app "${name}" at ${appDir}`),
+            styles.success(`Created ${entityLabel} "${name}" at ${appDir}`),
         );
         GlobalState.log(
-            `\nNext:\n  cd ${JSON.stringify(appDir)}\n  npm run build\n  lightdash upload --apps ${slug}`,
+            isChartType
+                ? `\nNext:\n  cd ${JSON.stringify(
+                      appDir,
+                  )}\n  lightdash apps validate --build\n  lightdash upload --chart-types ${slug}\n\nThen open any explore in Lightdash and pick "${name}" in the chart type picker.`
+                : `\nNext:\n  cd ${JSON.stringify(
+                      appDir,
+                  )}\n  npm run build\n  lightdash upload --apps ${slug}`,
         );
         success = true;
     } finally {
         await LightdashAnalytics.track({
             event: 'command.executed',
             properties: {
-                command: 'create-app',
+                command: isChartType ? 'create-chart-type' : 'create-app',
                 durationMs: Date.now() - startTime,
                 success,
             },
