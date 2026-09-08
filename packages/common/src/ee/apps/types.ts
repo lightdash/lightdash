@@ -556,6 +556,7 @@ export type ApiDuplicateAppRequest = {
 
 export type ApiDuplicateAppResponse = ApiSuccess<{
     appUuid: string;
+    slug: string;
     version: number;
 }>;
 

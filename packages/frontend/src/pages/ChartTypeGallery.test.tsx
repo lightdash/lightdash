@@ -137,6 +137,11 @@ const LocationSearch = () => {
     return <div data-testid="location-search">{search}</div>;
 };
 
+const LocationPathname = () => {
+    const { pathname } = useLocation();
+    return <div data-testid="location-pathname">{pathname}</div>;
+};
+
 const renderPage = (initialEntry = '/projects/project-1/gallery') =>
     renderWithProviders(
         <MemoryRouter initialEntries={[initialEntry]}>
@@ -153,6 +158,10 @@ const renderPage = (initialEntry = '/projects/project-1/gallery') =>
                 <Route
                     path="/projects/:projectUuid/home"
                     element={<div>home</div>}
+                />
+                <Route
+                    path="/projects/:projectUuid/chart-types/:slug"
+                    element={<LocationPathname />}
                 />
                 <Route
                     path="/projects/:projectUuid/tables/:tableId"
@@ -652,5 +661,44 @@ describe('ChartTypeGallery', () => {
             ).toBeInTheDocument();
             expect(screen.queryByText('Edit')).not.toBeInTheDocument();
         });
+
+        it.each(['card', 'detail modal'])(
+            'opens the forked chart type by its returned slug from the %s',
+            async (entryPoint) => {
+                vi.mocked(useDuplicateApp).mockReturnValue({
+                    mutate: vi.fn((_params, options) => {
+                        options.onSuccess({
+                            appUuid: 'forked-app-uuid',
+                            slug: 'radial-gauge-custom-2',
+                            version: 1,
+                        });
+                    }),
+                    isLoading: false,
+                } as unknown as ReturnType<typeof useDuplicateApp>);
+                setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
+                renderPage();
+
+                if (entryPoint === 'card') {
+                    fireEvent.click(screen.getByLabelText('Fork Radial gauge'));
+                } else {
+                    fireEvent.click(screen.getByText('Radial gauge'));
+                    fireEvent.click(
+                        screen.getByRole('button', {
+                            name: /Fork to customize/,
+                        }),
+                    );
+                }
+
+                fireEvent.click(screen.getByRole('button', { name: 'Fork' }));
+
+                await waitFor(() =>
+                    expect(
+                        screen.getByTestId('location-pathname'),
+                    ).toHaveTextContent(
+                        '/projects/project-1/chart-types/radial-gauge-custom-2',
+                    ),
+                );
+            },
+        );
     });
 });

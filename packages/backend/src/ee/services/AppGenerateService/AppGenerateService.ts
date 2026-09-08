@@ -58,6 +58,7 @@ import {
     validateDataAppDependencies,
     type Account,
     type AnonymousAccount,
+    type ApiDuplicateAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -7843,7 +7844,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         sourceAppUuid: string,
         options?: { name?: string },
-    ): Promise<GenerateAppResult> {
+    ): Promise<ApiDuplicateAppResponse['results']> {
         await this.assertDataAppsEnabled(user);
 
         const sourceApp = await this.appModel.getApp(
@@ -7916,9 +7917,10 @@ export class AppGenerateService extends BaseService {
         const duplicatePrompt = `Duplicate [${sourceDisplayName}](${sourcePreviewPath})`;
         const newAppName =
             options?.name?.trim() || `Duplicate of ${sourceDisplayName}`;
+        let newAppSlug: string;
 
         try {
-            await this.appModel.createWithVersion(
+            const { app } = await this.appModel.createWithVersion(
                 {
                     app_id: newAppUuid,
                     project_uuid: projectUuid,
@@ -7938,6 +7940,7 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 sourceVersion.viz_schema ?? undefined,
             );
+            newAppSlug = app.slug;
             await this.persistVersionDataReferences(
                 newAppUuid,
                 newVersion,
@@ -7982,7 +7985,7 @@ export class AppGenerateService extends BaseService {
             `App ${newAppUuid}: duplicated from app ${sourceApp.app_id} v${sourceVersion.version} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
         );
 
-        return { appUuid: newAppUuid, version: newVersion };
+        return { appUuid: newAppUuid, slug: newAppSlug, version: newVersion };
     }
 
     /**
