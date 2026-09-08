@@ -47359,6 +47359,79 @@
                 "type": "object",
                 "description": "Body of the run endpoint. The pivot configuration is the same one every\nother query runs with: the merged rows are wrapped by the standard pivot\nstage, so the pipeline is join within an explore, then merge between\nexplores, then pivot."
             },
+            "SshTunnelStage": {
+                "type": "string",
+                "enum": ["resolve", "tcp", "handshake", "auth", "forward"]
+            },
+            "WarehouseConnectionHopStage": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SshTunnelStage"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["database"]
+                    }
+                ]
+            },
+            "WarehouseConnectionHopStatus": {
+                "type": "string",
+                "enum": ["ok", "failed", "skipped"]
+            },
+            "WarehouseConnectionHop": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/WarehouseConnectionHopStatus"
+                    },
+                    "stage": {
+                        "$ref": "#/components/schemas/WarehouseConnectionHopStage"
+                    }
+                },
+                "required": ["message", "status", "stage"],
+                "type": "object"
+            },
+            "WarehouseConnectionTestResults": {
+                "properties": {
+                    "hops": {
+                        "items": {
+                            "$ref": "#/components/schemas/WarehouseConnectionHop"
+                        },
+                        "type": "array"
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["hops", "ok"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionTestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectionTestResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectionTestBody": {
+                "properties": {
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    }
+                },
+                "required": ["warehouseConnection"],
+                "type": "object"
+            },
             "DbtExposureType": {
                 "enum": [
                     "dashboard",
@@ -60163,7 +60236,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.164.1",
+        "version": "2.165.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -84233,6 +84306,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/RunMergeQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/warehouse/test": {
+            "post": {
+                "operationId": "testWarehouseConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWarehouseConnectionTestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Tests warehouse credentials without saving them. Reports each SSH tunnel hop and the database login separately so a broken bastion setup points at the step to fix.",
+                "summary": "Test warehouse connection",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiWarehouseConnectionTestBody"
                             }
                         }
                     }

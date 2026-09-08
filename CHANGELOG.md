@@ -1,3 +1,11 @@
+# [2.165.0](https://github.com/lightdash/lightdash/compare/2.164.1...2.165.0) (2026-09-08)
+
+
+### Features
+
+* **frontend:** diagnose requests that never reach the server and hand the user the evidence ([#28875](https://github.com/lightdash/lightdash/issues/28875)) ([0404841](https://github.com/lightdash/lightdash/commit/0404841c268f2fe8248ef4066c0e05caf7fe2b52))
+* **projects:** test SSH tunnels hop by hop and on every save ([#28878](https://github.com/lightdash/lightdash/issues/28878)) ([614ed94](https://github.com/lightdash/lightdash/commit/614ed9478a459c4db20817774da974967f87a61a))
+
 ## [2.164.1](https://github.com/lightdash/lightdash/compare/2.164.0...2.164.1) (2026-09-08)
 
 
