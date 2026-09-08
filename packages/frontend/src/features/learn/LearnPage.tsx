@@ -209,7 +209,7 @@ const LearnPage: FC = () => {
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
-    const { isOpen } = useLearnAvailability();
+    const { isOpen, isSettled } = useLearnAvailability();
     const catalogue = useMemo(
         () => buildLearnCatalogue().filter(isOpen),
         [isOpen],
@@ -262,14 +262,17 @@ const LearnPage: FC = () => {
     );
 
     // One view per visit to the library, once the page knows what it is
-    // showing. The redirects below are not views of it, and the call to
-    // action before an admin has enabled Learn is (hasTrainingProject
-    // false): it is the page a learner lands on.
+    // showing: the projects, the instance switch, and the gates that decide
+    // which modules are in the catalogue (they answer after the projects
+    // do, and the counts below would be short without them). The redirects
+    // below are not views of it, and the call to action before an admin
+    // has enabled Learn is (hasTrainingProject false): it is the page a
+    // learner lands on.
     const { track } = useTracking();
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !health) return;
+        if (!projects || !health || !isSettled) return;
         if (previewRedirect || !health.learn.enabled) return;
         trackedViewRef.current = true;
         track({
@@ -293,6 +296,7 @@ const LearnPage: FC = () => {
     }, [
         projects,
         health,
+        isSettled,
         previewRedirect,
         organizationUuid,
         trainingProject,

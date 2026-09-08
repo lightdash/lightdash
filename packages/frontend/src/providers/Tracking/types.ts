@@ -1020,12 +1020,17 @@ type ChartTypeForkModalOpenedEvent = {
     };
 };
 
-/** Where in the Learn library a walkthrough was started from. */
+/**
+ * Where a walkthrough was started from: a library card, the library's
+ * Resume or Recommended card, Next on the completion dialog, or a tour
+ * link opened directly (docs, the smoke) without going through the library.
+ */
 export type LearnStartSource =
     | 'card'
     | 'resume'
     | 'recommended'
-    | 'next_from_completion';
+    | 'next_from_completion'
+    | 'deep_link';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;

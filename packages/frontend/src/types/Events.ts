@@ -68,6 +68,7 @@ export enum PageName {
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
+    LEARN = 'learn',
 }
 
 export enum CategoryName {

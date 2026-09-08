@@ -7,11 +7,14 @@ import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
 
-const { track, projectState, healthState } = vi.hoisted(() => ({
-    track: vi.fn(),
-    projectState: { current: [] as unknown[] },
-    healthState: { current: { learn: { enabled: true } } },
-}));
+const { track, projectState, healthState, availabilityState } = vi.hoisted(
+    () => ({
+        track: vi.fn(),
+        projectState: { current: [] as unknown[] },
+        healthState: { current: { learn: { enabled: true } } },
+        availabilityState: { current: { isSettled: true } },
+    }),
+);
 
 vi.mock('react-router', () => ({
     Navigate: () => null,
@@ -48,9 +51,13 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 }));
 
 // The real gates ask the licence and the AI settings; the library's own
-// counting is what is under test, so every module is open here.
+// counting is what is under test, so every module is open here, and the
+// tests decide whether the gates have answered yet.
 vi.mock('./availability', () => ({
-    useLearnAvailability: () => ({ isOpen: () => true }),
+    useLearnAvailability: () => ({
+        isOpen: () => true,
+        isSettled: availabilityState.current.isSettled,
+    }),
 }));
 
 vi.mock('./useEnableLearn', () => ({
@@ -85,6 +92,7 @@ describe('LearnPage analytics', () => {
         localStorage.clear();
         track.mockClear();
         healthState.current = { learn: { enabled: true } };
+        availabilityState.current = { isSettled: true };
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
@@ -146,6 +154,21 @@ describe('LearnPage analytics', () => {
             trainingProjectUuid: null,
             hasTrainingProject: false,
         });
+    });
+
+    it('waits for the catalogue gates to answer before counting', () => {
+        availabilityState.current = { isSettled: false };
+        const { rerender } = renderPage();
+        expect(viewEvents()).toEqual([]);
+
+        availabilityState.current = { isSettled: true };
+        rerender(
+            <MantineProvider env="test">
+                <LearnPage />
+            </MantineProvider>,
+        );
+
+        expect(viewEvents()).toHaveLength(1);
     });
 
     it('records nothing when Learn is switched off for the instance', () => {

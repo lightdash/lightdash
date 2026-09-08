@@ -158,6 +158,9 @@ const ScopeTourHost: FC = () => {
     // every step would hand GuidedTour a new starting step mid-tour.
     const currentStepRef = useRef(0);
     const startedAtRef = useRef<number | null>(null);
+    // The scope whose link-opened start has been recorded, so the effect
+    // below records it once however many times it settles.
+    const deepLinkTrackedRef = useRef<string | null>(null);
     const organizationUuid = user.data?.organizationUuid ?? null;
     // A tour already under way in this project resumes where it was left,
     // once the host knows which project it is on. Read once per mount and
@@ -284,6 +287,7 @@ const ScopeTourHost: FC = () => {
             });
         }
         startedAtRef.current = null;
+        deepLinkTrackedRef.current = null;
         if (!upstream) return;
         if (finished && scope) {
             setFinishedScope(scope);
@@ -405,6 +409,29 @@ const ScopeTourHost: FC = () => {
             return;
         }
         copyRequestedRef.current = false;
+        // Starts from the library and from Next were recorded where they
+        // were clicked, and arrive with from=learn. Anything else is a tour
+        // link opened directly (docs, the smoke), so this is the first
+        // anyone hears of it: record the start here, as local progress and
+        // as the event, or its completion would have nothing to pair with.
+        if (
+            requestedFrom !== 'learn' &&
+            upstream &&
+            deepLinkTrackedRef.current !== requested
+        ) {
+            deepLinkTrackedRef.current = requested;
+            markScopeStarted(requested);
+            track({
+                name: EventName.LEARN_WALKTHROUGH_STARTED,
+                properties: {
+                    organizationUuid,
+                    trainingProjectUuid: upstream,
+                    scope: requested,
+                    source: 'deep_link',
+                    isRestart: completed.includes(requested),
+                },
+            });
+        }
         currentStepRef.current = 0;
         startedAtRef.current = Date.now();
         setActiveScope(requested);
@@ -435,6 +462,10 @@ const ScopeTourHost: FC = () => {
         searchParams,
         requestedFrom,
         setSearchParams,
+        upstream,
+        track,
+        completed,
+        organizationUuid,
     ]);
 
     const steps = useMemo(() => {

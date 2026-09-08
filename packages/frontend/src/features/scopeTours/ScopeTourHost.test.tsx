@@ -217,6 +217,35 @@ describe('ScopeTourHost analytics', () => {
         });
     });
 
+    it('records a start for a tour opened by link, since nothing else did', () => {
+        searchState.current = new URLSearchParams(`tour=${SCOPE}&copy=true`);
+
+        renderHost();
+        fireEvent.click(screen.getByText('got it'));
+
+        expect(learnEvents().map((event) => event.name)).toEqual([
+            EventName.LEARN_WALKTHROUGH_STARTED,
+            EventName.LEARN_WALKTHROUGH_COMPLETED,
+        ]);
+        expect(learnEvents()[0].properties).toMatchObject({
+            scope: SCOPE,
+            source: 'deep_link',
+            trainingProjectUuid: 'training-1',
+        });
+        expect(
+            JSON.parse(localStorage.getItem('lightdash.learn.started') ?? '[]'),
+        ).toContain(SCOPE);
+    });
+
+    it('does not record a second start for a tour the library already started', () => {
+        renderHost();
+        fireEvent.click(screen.getByText('got it'));
+
+        expect(learnEvents().map((event) => event.name)).toEqual([
+            EventName.LEARN_WALKTHROUGH_COMPLETED,
+        ]);
+    });
+
     it('reports a walkthrough the learner has finished before as a restart', () => {
         localStorage.setItem(
             'lightdash.learn.completed',
