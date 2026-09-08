@@ -370,6 +370,70 @@ dimensions:
         );
     });
 
+    it('previews and writes native SQL dimensions and bins into the original model', async () => {
+        const project = await PROJECT_MODEL.get();
+        const nativeProject = {
+            ...project,
+            dbtConnection: {
+                ...project.dbtConnection,
+                semanticLayer: 'lightdash',
+            },
+        };
+        PROJECT_MODEL.get.mockResolvedValue(nativeProject);
+        vi.mocked(getFileContent).mockResolvedValue({
+            content: `type: model
+name: table_a
+sql_from: public.table_a
+dimensions:
+  - name: dim_a
+    type: number
+    sql: \${TABLE}.dim_a * 2
+`,
+            sha: 'native-sha',
+        });
+        const dimensions = [
+            CUSTOM_DIMENSION,
+            {
+                id: 'amount_band',
+                name: 'Amount band',
+                table: 'table_a',
+                type: CustomDimensionType.BIN as const,
+                dimensionId: 'table_a_dim_a',
+                binType: BinType.FIXED_WIDTH as const,
+                binWidth: 10,
+            },
+        ];
+        try {
+            const preview = await service.previewCustomDimensions(
+                fromSession(
+                    { ...user, organizationUuid: 'organizationUuid' },
+                    'session-cookie',
+                ),
+                'projectUuid',
+                dimensions,
+                "'",
+            );
+            expect(preview.yaml).toContain('dimensions:');
+            expect(preview.yaml).toContain('name: amount_band');
+            expect(preview.yaml).toContain('${TABLE}.dim_a * 2');
+            expect(preview.yaml).not.toContain('additional_dimensions');
+            await service.createPullRequest(
+                { ...user, organizationUuid: 'organizationUuid' },
+                'projectUuid',
+                "'",
+                { type: 'customDimensions', fields: dimensions },
+            );
+            expect(updateFile).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    fileName: 'path/models/nested/original.yaml',
+                    content: expect.stringContaining('name: amount_band'),
+                }),
+            );
+        } finally {
+            PROJECT_MODEL.get.mockResolvedValue(project);
+        }
+    });
+
     describe('findOpenPullRequestForBranch', () => {
         it('returns the open PR the provider has for the branch', async () => {
             vi.mocked(findOpenPullRequestByHead).mockResolvedValueOnce({
@@ -529,7 +593,7 @@ models:
                     ],
                 }),
             ).rejects.toThrow(
-                'Fixed-number bins cannot be written back because they require a dbt model CTE',
+                'Fixed-number bins cannot be written back because their boundaries depend on query results',
             );
 
             expect(createBranch).not.toHaveBeenCalled();
