@@ -1,3 +1,10 @@
+## [2.165.2](https://github.com/lightdash/lightdash/compare/2.165.1...2.165.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **merge-queries:** align join-type help icon with text ([#28880](https://github.com/lightdash/lightdash/issues/28880)) ([99f4cc5](https://github.com/lightdash/lightdash/commit/99f4cc5ee13258caa039636662fc68f6a2750ffd))
+
 ## [2.165.1](https://github.com/lightdash/lightdash/compare/2.165.0...2.165.1) (2026-09-08)
 
 
