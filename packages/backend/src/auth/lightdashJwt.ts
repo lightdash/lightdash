@@ -51,8 +51,11 @@ export function decodeLightdashJwt(
         );
         const decodedToken = verify(token, secret) as CreateEmbedJwt;
 
-        // Unknown AI authorization modes must not fall back to legacy access.
-        if (decodedToken.content?.type === 'aiAgent') {
+        // Unknown authorization modes must not fall back to default permissions.
+        if (
+            decodedToken.content?.type === 'aiAgent' ||
+            decodedToken.content?.type === 'dashboard'
+        ) {
             z.enum(['default', 'roles'])
                 .optional()
                 .parse(decodedToken.writeActions?.permissionsMode);

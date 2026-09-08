@@ -95,6 +95,27 @@ describe('JwtUtil', () => {
 
     describe('decodeJwt', () => {
         it.each(['jwt', 'legacy', 'invalid', '', null, true])(
+            'rejects signed dashboard tokens with invalid permission mode %s',
+            (permissionsMode) => {
+                const token = encodeLightdashJwt(
+                    {
+                        ...mockJwtData,
+                        writeActions: {
+                            userUuid: 'actor',
+                            spaceUuid: 'space',
+                            permissionsMode,
+                        },
+                    } as unknown as CreateEmbedJwt,
+                    encodedSecret,
+                    '1h',
+                );
+                expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                    ForbiddenError,
+                );
+            },
+        );
+
+        it.each(['jwt', 'legacy', 'invalid', '', null, true])(
             'rejects signed AI tokens with invalid permission mode %s',
             (permissionsMode) => {
                 const token = encodeLightdashJwt(

@@ -22,6 +22,11 @@ export const applyEmbedScopeAbilities = ({
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
 }): void => {
     if (!embedUser.writeActions || !embedWriteUserAbility) return;
+    if (
+        embedUser.content.type === 'dashboard' &&
+        embedUser.writeActions.permissionsMode !== 'roles'
+    )
+        return;
 
     const target = {
         organizationUuid: embed.organization.organizationUuid,
