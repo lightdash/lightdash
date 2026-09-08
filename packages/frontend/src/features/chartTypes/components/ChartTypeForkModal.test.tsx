@@ -1,3 +1,4 @@
+import { type ApiDuplicateAppResponse } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -57,16 +58,20 @@ describe('ChartTypeForkModal', () => {
         );
     });
 
-    it('navigates to the builder for the new app on success', () => {
+    it('navigates to the builder using the forked app slug on success', () => {
         mockedDuplicate.mockImplementation((_params, options) =>
-            options?.onSuccess?.({ appUuid: 'viz-forked', version: 1 }),
+            options?.onSuccess?.({
+                appUuid: 'viz-forked',
+                slug: 'radial-gauge-custom-2',
+                version: 1,
+            } satisfies ApiDuplicateAppResponse['results']),
         );
         renderModal();
 
         fireEvent.click(screen.getByRole('button', { name: 'Fork' }));
 
         expect(mockedNavigate).toHaveBeenCalledWith(
-            '/projects/project-1/chart-types/viz-forked',
+            '/projects/project-1/chart-types/radial-gauge-custom-2',
         );
     });
 
