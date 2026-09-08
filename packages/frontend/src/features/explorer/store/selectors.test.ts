@@ -84,7 +84,7 @@ describe('chart type authoring selectors', () => {
 });
 
 describe('selectIsDataAppVizVersionReadyForSave', () => {
-    it('waits for an unsaved project chart type to capture its previewed version', () => {
+    it('waits for an unsaved custom chart type to capture its previewed version', () => {
         const explorer = explorerReducer(
             undefined,
             explorerActions.setChartConfig({

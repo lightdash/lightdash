@@ -1,14 +1,14 @@
 # Chart type registry
 
-Official, installable project chart types. Two halves make the feature: a
+Official, installable custom chart types. Two halves make the feature: a
 public **chart registry** that publishes prebuilt chart types as static
 artifacts, and the in-product **chart type library** that lists them and
 installs them into a project. Installed official chart types are read-only;
 making one editable is an explicit fork.
 
-Project chart types themselves — the viz schema, the explorer behaviour,
+Custom chart types themselves — the viz schema, the explorer behaviour,
 saved-chart version pinning — belong to the data apps context; use its
-vocabulary (see `docs/data-apps/CONTEXT.md`, "Project chart type") for the
+vocabulary (see `docs/data-apps/CONTEXT.md`, "Custom chart type") for the
 app/viz side and this glossary for the registry/library side.
 
 ## Language

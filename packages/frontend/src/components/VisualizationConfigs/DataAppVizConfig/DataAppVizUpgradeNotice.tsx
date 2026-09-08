@@ -12,7 +12,7 @@ type Props = {
 };
 
 /**
- * Tells a chart editor that its project chart type moved on. The details and
+ * Tells a chart editor that its custom chart type moved on. The details and
  * the upgrade itself live behind the review modal, so the panel stays quiet.
  */
 const DataAppVizUpgradeNotice: FC<Props> = ({

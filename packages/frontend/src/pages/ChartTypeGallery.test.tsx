@@ -242,7 +242,7 @@ describe('ChartTypeGallery', () => {
         });
     });
 
-    it('lists the project chart types and opens the detail modal', () => {
+    it('lists the custom chart types and opens the detail modal', () => {
         setData([
             makeDataAppViz({}),
             makeDataAppViz({ dataAppVizUuid: 'viz-2', name: 'Bar race' }),
