@@ -1,3 +1,10 @@
+## [2.157.1](https://github.com/lightdash/lightdash/compare/2.157.0...2.157.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* use chart type slug after forking to customize ([#28823](https://github.com/lightdash/lightdash/issues/28823)) ([d9da7a7](https://github.com/lightdash/lightdash/commit/d9da7a7f02549697855fda0c964c930e4176d2d6))
+
 # [2.157.0](https://github.com/lightdash/lightdash/compare/2.156.2...2.157.0) (2026-09-08)
 
 

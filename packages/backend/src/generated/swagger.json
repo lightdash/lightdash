@@ -20072,8 +20072,35 @@
             "ApiRestoreAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
+            "ApiSuccess__appUuid-string--slug-string--version-number__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "version": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "slug": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["version", "slug", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiDuplicateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--slug-string--version-number__"
             },
             "ApiDuplicateAppRequest": {
                 "properties": {
@@ -60094,7 +60121,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.157.0",
+        "version": "2.157.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
