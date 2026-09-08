@@ -121,8 +121,8 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
-    /** AI access only: roles requires EmbedAiAgent; jwt (default) preserves existing access. */
-    permissionsMode?: 'jwt' | 'roles';
+    /** AI access only: roles requires EmbedAiAgent; default preserves existing access. */
+    permissionsMode?: 'default' | 'roles';
 };
 
 export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
@@ -130,7 +130,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
         spaceUuid: z.string().uuid(),
-        permissionsMode: z.enum(['jwt', 'roles']).optional(),
+        permissionsMode: z.enum(['default', 'roles']).optional(),
     })
     .refine(
         ({ serviceAccountUserUuid, userUuid }) =>

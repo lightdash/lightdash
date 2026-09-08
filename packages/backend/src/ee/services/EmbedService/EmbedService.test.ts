@@ -459,9 +459,9 @@ describe('EmbedService', () => {
                 allowed: true,
             },
             {
-                name: 'explicit jwt mode without scope',
+                name: 'explicit default mode without scope',
                 legacy: true,
-                explicitJwt: true,
+                explicitDefault: true,
                 scope: 'view:AiAgent',
                 allowed: true,
             },
@@ -592,7 +592,9 @@ describe('EmbedService', () => {
             const content = scenario.dashboard
                 ? { type: 'dashboard' as const, dashboardUuid: 'dashboard' }
                 : { type: 'aiAgent' as const, agentUuid: 'agent' };
-            const jwtMode = scenario.explicitJwt ? 'jwt' : undefined;
+            const defaultMode = scenario.explicitDefault
+                ? 'default'
+                : undefined;
             const context = await getContext(
                 {
                     content,
@@ -602,7 +604,7 @@ describe('EmbedService', () => {
                               writeActions: {
                                   spaceUuid: 'space',
                                   permissionsMode: scenario.legacy
-                                      ? jwtMode
+                                      ? defaultMode
                                       : 'roles',
                                   ...(scenario.serviceAccount
                                       ? { serviceAccountUserUuid: mockUserUuid }

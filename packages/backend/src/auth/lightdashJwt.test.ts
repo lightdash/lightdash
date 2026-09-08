@@ -94,7 +94,7 @@ describe('JwtUtil', () => {
     });
 
     describe('decodeJwt', () => {
-        it.each(['legacy', 'invalid', '', null, true])(
+        it.each(['jwt', 'legacy', 'invalid', '', null, true])(
             'rejects signed AI tokens with invalid permission mode %s',
             (permissionsMode) => {
                 const token = encodeLightdashJwt(

@@ -18,7 +18,7 @@ describe('embed permissions mode', () => {
         userUuid: '00000000-0000-4000-8000-000000000001',
         spaceUuid: '00000000-0000-4000-8000-000000000002',
     };
-    it.each([undefined, 'jwt', 'roles'] as const)(
+    it.each([undefined, 'default', 'roles'] as const)(
         'accepts %s without changing the default',
         (permissionsMode) => {
             const result = EmbedJwtSchema.parse({
@@ -28,7 +28,7 @@ describe('embed permissions mode', () => {
             expect(result.writeActions?.permissionsMode).toBe(permissionsMode);
         },
     );
-    it.each(['legacy', 'invalid', '', null, true])(
+    it.each(['jwt', 'legacy', 'invalid', '', null, true])(
         'rejects unknown mode %s',
         (permissionsMode) => {
             expect(

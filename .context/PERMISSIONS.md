@@ -399,7 +399,7 @@ writeActions: {
 }
 ```
 
-- Omitted or `'jwt'`: preserve pre-scope AI access. Existing integrations
+- Omitted or `'default'`: preserve pre-scope AI access. Existing integrations
   do not need to change their tokens or roles.
 - `'roles'`: additionally require `view:EmbedAiAgent` from the resolved write
   actor. Removing the last effective grant blocks subsequent AI requests with
@@ -420,11 +420,11 @@ service accounts and grant/revoke/re-grant using identical JWTs.
 #### Future dashboard role mode (SPK-1970; not implemented here)
 
 Dashboard permissions currently remain **legacy flags OR actor scopes** even
-if `permissionsMode: 'roles'` is present. Do not advertise role-only dashboard
-authorization until SPK-1970 ships.
+if `permissionsMode: 'roles'` is present. Dashboard opt-in enforcement is
+implemented separately in SPK-1970.
 
-That follow-up should make `'roles'` use embed scopes exclusively, with no
-legacy flag/default bypass, while omitted/`'jwt'` preserves today's behavior.
+That follow-up makes omitted/`'default'` use JWT flags only and `'roles'` use
+JWT flags OR embed scopes. True flags remain grants in either mode.
 Apply it consistently to backend abilities, dashboard response capabilities,
 and structured filter/parameter controls, preserving hidden-filter presentation.
 Retain existing payload/response shapes and reject unresolved role-mode actors.
