@@ -59,7 +59,9 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         }
 
         if (!user) {
-            return { id: featureFlagId, enabled: false };
+            throw new Error(
+                'User is required to check if AI copilot is enabled',
+            );
         }
 
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
