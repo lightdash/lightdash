@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import {
     CreateEmbedJwt,
+    FilterInteractivityValues,
     ForbiddenError,
     MemberAbility,
     OrganizationMemberRole,
@@ -154,6 +155,130 @@ describe('account', () => {
                 );
                 expect(result.authentication.data).toEqual(original);
                 expect(decodedToken).toEqual(original);
+            },
+        );
+
+        describe.each([undefined, 'jwt', 'roles'] as const)(
+            'dashboard permission mode %s',
+            (permissionsMode) => {
+                it.each(['userUuid', 'serviceAccountUserUuid'] as const)(
+                    'resolves structured controls independently for %s',
+                    (actorField) => {
+                        for (const enabled of [
+                            false,
+                            true,
+                            FilterInteractivityValues.some,
+                        ]) {
+                            for (const scope of [
+                                undefined,
+                                'EmbedDashboardFilters',
+                                'EmbedDashboardFilterAddition',
+                                'EmbedDashboardParameters',
+                            ] as const) {
+                                const actor = new AbilityBuilder<MemberAbility>(
+                                    Ability,
+                                );
+                                if (scope)
+                                    actor.can('view', scope, {
+                                        projectUuid: mockEmbed.projectUuid,
+                                    });
+                                const decodedToken: CreateEmbedJwt = {
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'test-dashboard-uuid',
+                                        dashboardFiltersInteractivity: {
+                                            enabled,
+                                            allowedFilters: ['department'],
+                                            hidden: true,
+                                            canAddFilters: true,
+                                        },
+                                        parameterInteractivity: {
+                                            enabled: true,
+                                        },
+                                    },
+                                    writeActions: {
+                                        [actorField]:
+                                            defaultSessionUser.userUuid,
+                                        spaceUuid: 'space',
+                                        permissionsMode,
+                                    },
+                                };
+                                const original = structuredClone(decodedToken);
+                                const result = fromJwt({
+                                    decodedToken,
+                                    embed: mockEmbed,
+                                    source: 'test-jwt-token',
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'test-dashboard-uuid',
+                                        chartUuids: [],
+                                        explores: [],
+                                    },
+                                    userAttributes: mockUserAttributes,
+                                    embedWriteUser: {
+                                        ...defaultSessionUser,
+                                        ability: actor.build(),
+                                    },
+                                });
+                                const jwtEnabled =
+                                    permissionsMode === 'roles'
+                                        ? false
+                                        : enabled;
+                                expect(result.access.filtering).toEqual({
+                                    enabled:
+                                        scope === 'EmbedDashboardFilters'
+                                            ? FilterInteractivityValues.all
+                                            : jwtEnabled,
+                                    allowedFilters: ['department'],
+                                    hidden: true,
+                                    canAddFilters:
+                                        scope ===
+                                            'EmbedDashboardFilterAddition' ||
+                                        permissionsMode !== 'roles',
+                                });
+                                expect(result.access.parameters).toEqual({
+                                    enabled:
+                                        scope === 'EmbedDashboardParameters' ||
+                                        permissionsMode !== 'roles',
+                                });
+                                expect(result.access.controls).toEqual(
+                                    mockUserAttributes,
+                                );
+                                expect(decodedToken).toEqual(original);
+                            }
+                        }
+                    },
+                );
+
+                it('fails closed only in role mode when the actor cannot be resolved', () => {
+                    const create = () =>
+                        fromJwt({
+                            decodedToken: {
+                                ...mockDecodedToken,
+                                writeActions: {
+                                    userUuid: 'missing',
+                                    spaceUuid: 'space',
+                                    permissionsMode,
+                                },
+                            },
+                            embed: mockEmbed,
+                            source: 'test-jwt-token',
+                            content: {
+                                type: 'dashboard',
+                                dashboardUuid: 'test-dashboard-uuid',
+                                chartUuids: [],
+                                explores: [],
+                            },
+                            userAttributes: mockUserAttributes,
+                        });
+                    if (permissionsMode === 'roles')
+                        expect(create).toThrow(ForbiddenError);
+                    else
+                        expect(create().access.filtering).toEqual({
+                            enabled: true,
+                            allowedFilters: ['department', 'region'],
+                        });
+                });
             },
         );
 

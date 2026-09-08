@@ -39,6 +39,8 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
 }) => {
     const { organization } = embed;
     const { can } = builder;
+    const useJwtPermissions =
+        embedUser.writeActions?.permissionsMode !== 'roles';
 
     can('view', 'Dashboard', {
         dashboardUuid: content.dashboardUuid,
@@ -47,7 +49,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'dashboard' &&
-        (embedUser.content.canDateZoom ||
+        ((useJwtPermissions && embedUser.content.canDateZoom) ||
             canViewEmbedScope('EmbedDateZoom', builder, embed))
     ) {
         can('view', 'Dashboard', {
@@ -74,7 +76,7 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     // by the JWT's user attributes via getFilteredExplore.
     if (
         embedUser.content.type === 'dashboard' &&
-        (embedUser.content.canViewDataApps ||
+        ((useJwtPermissions && embedUser.content.canViewDataApps) ||
             canViewEmbedScope('EmbedDataApps', builder, embed))
     ) {
         can('view', 'Explore', {
@@ -239,12 +241,18 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { content: permissions } = embedUser;
     const { organization } = embed;
     const { can } = builder;
+    const useJwtPermissions =
+        !isDashboardContent(permissions) ||
+        embedUser.writeActions?.permissionsMode !== 'roles';
 
     const canExplore =
-        ('canExplore' in permissions && permissions.canExplore) ||
+        (useJwtPermissions &&
+            'canExplore' in permissions &&
+            permissions.canExplore) ||
         canViewEmbedScope('EmbedExplore', builder, embed);
     const canViewUnderlyingData =
-        ('canViewUnderlyingData' in permissions &&
+        (useJwtPermissions &&
+            'canViewUnderlyingData' in permissions &&
             permissions.canViewUnderlyingData) ||
         canViewEmbedScope('EmbedUnderlyingData', builder, embed);
 
@@ -282,10 +290,13 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
 
     const subjectType: 'Dashboard' | 'SavedChart' =
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
+    const useJwtPermissions =
+        !isDashboardContent(permissions) ||
+        embedUser.writeActions?.permissionsMode !== 'roles';
 
     // Common abilities for both dashboard and chart
     if (
-        permissions.canExportImages ||
+        (useJwtPermissions && permissions.canExportImages) ||
         canViewEmbedScope('EmbedImageExport', builder, embed)
     ) {
         can('export', subjectType, {
@@ -295,7 +306,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     }
 
     if (
-        permissions.canExportCsv ||
+        (useJwtPermissions && permissions.canExportCsv) ||
         canViewEmbedScope('EmbedCsvExport', builder, embed)
     ) {
         can('export', subjectType, {
@@ -311,7 +322,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
         if (
-            embedUser.content.canExportPagePdf ||
+            (useJwtPermissions && embedUser.content.canExportPagePdf) ||
             canViewEmbedScope('EmbedPagePdfExport', builder, embed)
         ) {
             can('export', 'Dashboard', {
@@ -323,7 +334,7 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         // Dashboard-level "Export all", scoped to the token's dashboard; the
         // JobStatus grant lets the embed poll the async export job it created.
         if (
-            embedUser.content.canExportDashboardCsv ||
+            (useJwtPermissions && embedUser.content.canExportDashboardCsv) ||
             canViewEmbedScope('EmbedDashboardCsvExport', builder, embed)
         ) {
             can('manage', 'ExportCsv', {

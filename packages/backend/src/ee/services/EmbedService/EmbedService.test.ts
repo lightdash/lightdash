@@ -28,6 +28,114 @@ describe('EmbedService', () => {
         vi.clearAllMocks();
     });
 
+    test.each([undefined, 'jwt', 'roles'] as const)(
+        'dashboard response permissions in %s mode',
+        async (permissionsMode) => {
+            const fields = [
+                'canExportCsv',
+                'canExportDashboardCsv',
+                'canExportImages',
+                'canExportPagePdf',
+                'canDateZoom',
+                'canExplore',
+                'canViewUnderlyingData',
+                'canViewDataApps',
+            ] as const;
+            const dashboard = {
+                uuid: 'dashboard',
+                projectUuid: mockProjectUuid,
+                organizationUuid: mockOrganizationUuid,
+                tiles: [],
+            };
+            const scopedService = new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                embedModel: {
+                    get: vi
+                        .fn()
+                        .mockResolvedValue({ allowAllDashboards: true }),
+                },
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue(dashboard),
+                },
+                savedChartModel: {
+                    resolveColorPalette: vi
+                        .fn()
+                        .mockResolvedValue({ colors: [], darkColors: null }),
+                },
+                analytics: { trackAccount: vi.fn() },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+            await Promise.all(
+                [undefined, false, true].flatMap((flag) =>
+                    [false, true].map(async (granted) => {
+                        const builder = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        if (granted)
+                            builder.can(
+                                'view',
+                                [
+                                    'EmbedCsvExport',
+                                    'EmbedDashboardCsvExport',
+                                    'EmbedImageExport',
+                                    'EmbedPagePdfExport',
+                                    'EmbedDateZoom',
+                                    'EmbedExplore',
+                                    'EmbedUnderlyingData',
+                                    'EmbedDataApps',
+                                ],
+                                { projectUuid: mockProjectUuid },
+                            );
+                        const account = {
+                            ...mockAccountWithPermission,
+                            authentication: {
+                                type: 'jwt',
+                                source: 'token',
+                                data: {
+                                    content: {
+                                        type: 'dashboard',
+                                        dashboardUuid: 'dashboard',
+                                        ...Object.fromEntries(
+                                            fields.map((field) => [
+                                                field,
+                                                flag,
+                                            ]),
+                                        ),
+                                    },
+                                    writeActions: {
+                                        userUuid: mockUserUuid,
+                                        spaceUuid: 'space',
+                                        permissionsMode,
+                                    },
+                                },
+                            },
+                            access: { content: { dashboardUuid: 'dashboard' } },
+                            user: {
+                                ...mockAccountWithPermission.user,
+                                ability: builder.build(),
+                            },
+                        } as unknown as AnonymousAccount;
+                        const result = await scopedService.getDashboard(
+                            mockProjectUuid,
+                            account,
+                        );
+                        for (const field of fields) {
+                            const jwtPermission =
+                                field === 'canExportPagePdf'
+                                    ? (flag ?? true)
+                                    : flag;
+                            const expected =
+                                granted ||
+                                (permissionsMode === 'roles'
+                                    ? false
+                                    : jwtPermission);
+                            expect(result[field]).toBe(expected);
+                        }
+                    }),
+                ),
+            );
+        },
+    );
+
     describe('updateConfig', () => {
         const validDashboardUpdate = {
             dashboardUuids: ['dashboard-1', 'dashboard-2'],

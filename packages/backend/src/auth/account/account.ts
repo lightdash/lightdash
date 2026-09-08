@@ -96,6 +96,15 @@ export const fromJwt = ({
     embedWriteUser?: SessionUser;
     embedWriteContext?: AnonymousAccount['embedWriteContext'];
 }): AnonymousAccount => {
+    if (
+        isDashboardContent(decodedToken.content) &&
+        decodedToken.writeActions?.permissionsMode === 'roles' &&
+        !embedWriteUser
+    ) {
+        throw new ForbiddenError(
+            'Role-based dashboard permissions require a resolved write actor',
+        );
+    }
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
     applyEmbedScopeAbilities({
@@ -114,6 +123,10 @@ export const fromJwt = ({
         ? decodedToken.content.parameterInteractivity
         : undefined;
     if (isDashboardContent(decodedToken.content)) {
+        if (decodedToken.writeActions?.permissionsMode === 'roles') {
+            filtering = { ...filtering, enabled: false, canAddFilters: false };
+            parameters = { enabled: false };
+        }
         const target = {
             organizationUuid: embed.organization.organizationUuid,
             projectUuid: embed.projectUuid,
