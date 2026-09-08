@@ -142,8 +142,12 @@ export type DbCachedWarehouse = {
         | null;
 };
 
+type WriteDbCachedWarehouse = Omit<DbCachedWarehouse, 'missing_tables'> & {
+    missing_tables: DbCachedWarehouse['missing_tables'] | string;
+};
+
 export type CachedWarehouseTable = Knex.CompositeTableType<
     DbCachedWarehouse,
-    DbCachedWarehouse,
-    Partial<DbCachedWarehouse>
+    WriteDbCachedWarehouse,
+    Partial<WriteDbCachedWarehouse>
 >;

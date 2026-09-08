@@ -2718,7 +2718,7 @@ export class ProjectModel {
                 project_uuid: projectUuid,
                 warehouse: cache.warehouseCatalog,
                 fetched_at: cache.fetchedAt,
-                missing_tables: cache.missingTables,
+                missing_tables: JSON.stringify(cache.missingTables),
             })
             .onConflict('project_uuid')
             .merge()
