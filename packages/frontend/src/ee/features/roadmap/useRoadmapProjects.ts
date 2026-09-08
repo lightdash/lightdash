@@ -1,7 +1,7 @@
 import {
     type ApiError,
     type RoadmapProjectQuery,
-    type RoadmapProjectRequestsQuery,
+    type RoadmapQuery,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { roadmapApi } from './roadmapApi';
@@ -27,7 +27,7 @@ export function useRoadmapProjects(
 }
 
 export function useRoadmapRequests(
-    query: RoadmapProjectRequestsQuery,
+    query: RoadmapQuery,
     cacheKey: string,
     enabled: boolean,
 ) {

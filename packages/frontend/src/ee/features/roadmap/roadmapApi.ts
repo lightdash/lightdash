@@ -2,7 +2,7 @@ import {
     RoadmapProjectResultsSchema,
     RoadmapProjectRequestsResultsSchema,
     type RoadmapProjectQuery,
-    type RoadmapProjectRequestsQuery,
+    type RoadmapQuery,
     type RoadmapProjectResults,
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
@@ -11,11 +11,11 @@ import { lightdashApi } from '../../../api';
 interface RoadmapApi {
     getProjects: (query: RoadmapProjectQuery) => Promise<RoadmapProjectResults>;
     getRequests: (
-        query: RoadmapProjectRequestsQuery,
+        query: RoadmapQuery,
     ) => Promise<RoadmapProjectRequestsResults>;
 }
 
-function queryString(query: RoadmapProjectQuery | RoadmapProjectRequestsQuery) {
+function queryString(query: RoadmapProjectQuery | RoadmapQuery) {
     return new URLSearchParams(
         Object.entries(query)
             .filter(([, value]) => value !== undefined)

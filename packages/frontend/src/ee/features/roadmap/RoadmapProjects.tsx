@@ -26,6 +26,7 @@ import {
     IconCircleX,
     IconEye,
     IconFlag,
+    IconFilter,
     IconRoad,
     IconSearch,
     IconTicket,
@@ -488,6 +489,9 @@ function BoardError({
 export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const { pathname } = useLocation();
     const [view, setView] = useState('board');
+    const [itemType, setItemType] = useState<'all' | 'projects' | 'tickets'>(
+        'all',
+    );
     const [onlyInterested, setOnlyInterested] = useState<boolean | null>(null);
     const initializingInterest = onlyInterested === null;
     const [mainStatuses, setMainStatuses] = useState<string[]>([]);
@@ -507,6 +511,9 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
         null,
     );
+    const projectBoard = selectedProjectId !== null;
+    const showProjects = !projectBoard && itemType !== 'tickets';
+    const showTickets = projectBoard || itemType !== 'projects';
     const projectsQuery = useRoadmapProjects(
         {
             pageSize: COLUMN_PREVIEW_LIMIT,
@@ -528,7 +535,9 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     }, [initializingInterest, projectsQuery.data]);
     const ticketsQuery = useRoadmapRequests(
         {
-            projectId: selectedProjectId ?? 'null',
+            projectId:
+                selectedProjectId ??
+                (itemType === 'tickets' ? undefined : 'null'),
             statuses: statusQuery(
                 selectedProjectId ? projectStatuses : mainStatuses,
             ),
@@ -542,7 +551,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 : debouncedMainSearch,
         },
         cacheKey,
-        !initializingInterest && projectsQuery.isSuccess,
+        !initializingInterest && projectsQuery.isSuccess && showTickets,
     );
     const projects =
         projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
@@ -553,7 +562,6 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         (group) => group.project.projectId === selectedProjectId,
     );
     const presentation = selectedProject?.project ?? defaultProjectPresentation;
-    const projectBoard = selectedProjectId !== null;
     const statuses = projectBoard ? projectStatuses : mainStatuses;
     const priorities = projectBoard ? projectPriorities : mainPriorities;
     const setStatuses = projectBoard ? setProjectStatuses : setMainStatuses;
@@ -561,25 +569,28 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         ? setProjectPriorities
         : setMainPriorities;
     const hasFilters =
+        (!projectBoard && itemType !== 'all') ||
         statuses.length > 0 ||
         priorities.length > 0 ||
         (projectBoard ? projectSearch : mainSearch) !== '';
     const clearFilters = () => {
         setStatuses([]);
         setPriorities([]);
+        if (!projectBoard) setItemType('all');
         (projectBoard ? setProjectSearch : setMainSearch)('');
     };
     const loading =
         initializingInterest ||
         projectsQuery.isInitialLoading ||
-        ticketsQuery.isInitialLoading;
+        (showTickets && ticketsQuery.isInitialLoading);
     const unavailable =
         projectsQuery.error?.error?.statusCode === 403 ||
-        ticketsQuery.error?.error?.statusCode === 403;
-    const failed = projectsQuery.isError || ticketsQuery.isError;
+        (showTickets && ticketsQuery.error?.error?.statusCode === 403);
+    const failed =
+        projectsQuery.isError || (showTickets && ticketsQuery.isError);
     const retry = () => {
         void refetchProjects();
-        if (projectsQuery.isSuccess) void refetchTickets();
+        if (projectsQuery.isSuccess && showTickets) void refetchTickets();
     };
     const back = () => {
         setSelectedProjectId(null);
@@ -587,7 +598,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         setSelectedTicket(null);
     };
     const entries: RoadmapEntry[] = [
-        ...(!projectBoard
+        ...(showProjects
             ? projects.map((group): RoadmapEntry => {
                   const metadata = group.project ?? defaultProjectPresentation;
                   const onOpen =
@@ -619,7 +630,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                   };
               })
             : []),
-        ...tickets.map(
+        ...(showTickets ? tickets : []).map(
             (ticket): RoadmapEntry => ({
                 id: `ticket-${ticket.ticketId}`,
                 title: ticket.title,
@@ -639,10 +650,10 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             }),
         ),
     ];
-    const pagination = ((!projectBoard && projectsQuery.hasNextPage) ||
-        ticketsQuery.hasNextPage) && (
+    const pagination = ((showProjects && projectsQuery.hasNextPage) ||
+        (showTickets && ticketsQuery.hasNextPage)) && (
         <Group justify="center" gap="sm" className={classes.pagination}>
-            {!projectBoard && projectsQuery.hasNextPage && (
+            {showProjects && projectsQuery.hasNextPage && (
                 <Button
                     variant="default"
                     size="xs"
@@ -652,7 +663,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                     Load more projects
                 </Button>
             )}
-            {ticketsQuery.hasNextPage && (
+            {showTickets && ticketsQuery.hasNextPage && (
                 <Button
                     variant="default"
                     size="xs"
@@ -720,6 +731,30 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                             projectBoard ? setProjectSearch : setMainSearch
                         }
                     />
+                    {!projectBoard && (
+                        <FilterFacet
+                            label="Type"
+                            icon={IconFilter}
+                            mode="single"
+                            showSelectionCount={false}
+                            selected={[itemType]}
+                            onChange={(selected) =>
+                                setItemType(
+                                    selected.includes('projects')
+                                        ? 'projects'
+                                        : selected.includes('tickets')
+                                          ? 'tickets'
+                                          : 'all',
+                                )
+                            }
+                            options={[
+                                { value: 'all', label: 'Projects and tickets' },
+                                { value: 'projects', label: 'Projects' },
+                                { value: 'tickets', label: 'Tickets' },
+                            ]}
+                            tooltipLabel="Filter by item type"
+                        />
+                    )}
                     <FilterFacet
                         label="Status"
                         icon={IconRoad}
