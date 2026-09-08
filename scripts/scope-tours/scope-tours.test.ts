@@ -390,6 +390,16 @@ export const Card = () => (
         );
     }
 
+    {
+        // A page's concept comes from its title, and the title is usually the
+        // first line of the frontmatter. Reading it with a pattern that wants
+        // a newline in front returns nothing for every page, and the teaching
+        // order silently degrades to a tie-break instead of failing.
+        const { conceptOf } = await import('./order');
+        assert.strictEqual(conceptOf('explore/homepage'), 'homepage');
+        assert.strictEqual(conceptOf('explore/no-such-page'), undefined);
+    }
+
     console.log('scope-tours: all checks passed');
 };
 
