@@ -35,6 +35,7 @@ import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
 import Explorer from '../Explorer';
+import { useChartGalleryRightSidebar } from '../Explorer/ChartGallery/useChartGalleryRightSidebar';
 import RegistryImpactPreviewModal from '../Explorer/CustomMetricModal/RegistryImpactPreviewModal';
 import ExploreSideBar from '../Explorer/ExploreSideBar';
 import PageSpinner from '../PageSpinner';
@@ -46,6 +47,35 @@ type ContentProps = {
     onDirtyChange: (isDirty: boolean) => void;
     onExploreSelect: (exploreName: string) => void;
     onBackToTables: () => void;
+};
+
+const DashboardChartEditorView: FC<
+    Pick<ContentProps, 'editChart' | 'onExploreSelect' | 'onBackToTables'> & {
+        title: string;
+    }
+> = ({ editChart, onExploreSelect, onBackToTables, title }) => {
+    const rightSidebarProps = useChartGalleryRightSidebar({ enabled: true });
+
+    return (
+        <Page
+            withContainerHeight
+            title={title}
+            sidebar={
+                <ExploreSideBar
+                    onExploreClick={(explore) => onExploreSelect(explore.name)}
+                    onBackToTables={onBackToTables}
+                />
+            }
+            isSidebarOpen
+            {...rightSidebarProps}
+            withFullHeight
+            withPaddedContent
+        >
+            <MergeProvider savedMerge={editChart?.merge ?? null}>
+                <Explorer />
+            </MergeProvider>
+        </Page>
+    );
 };
 
 const DashboardChartEditorContent: FC<ContentProps> = ({
@@ -118,25 +148,12 @@ const DashboardChartEditorContent: FC<ContentProps> = ({
         <Provider store={store}>
             <ExplorerEffects />
             <UnsavedChangesBridge onDirtyChange={onDirtyChange} />
-            <Page
-                withContainerHeight
+            <DashboardChartEditorView
+                editChart={editChart}
+                onExploreSelect={onExploreSelect}
+                onBackToTables={onBackToTables}
                 title={data ? data.label : 'Tables'}
-                sidebar={
-                    <ExploreSideBar
-                        onExploreClick={(explore) =>
-                            onExploreSelect(explore.name)
-                        }
-                        onBackToTables={onBackToTables}
-                    />
-                }
-                isSidebarOpen
-                withFullHeight
-                withPaddedContent
-            >
-                <MergeProvider savedMerge={editChart?.merge ?? null}>
-                    <Explorer />
-                </MergeProvider>
-            </Page>
+            />
         </Provider>
     );
 };
