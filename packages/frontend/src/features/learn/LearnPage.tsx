@@ -3,22 +3,24 @@ import { type ProjectMemberRole, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
-    Checkbox,
-    Group,
     Menu,
     TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconCheck,
     IconChevronDown,
     IconHelpCircle,
+    IconLayoutGrid,
+    IconPlayerPlay,
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
@@ -46,13 +48,6 @@ import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useStartWalkthrough } from './useStartWalkthrough';
-
-const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-};
 
 type CardState = 'soon' | 'ready' | 'started' | 'done';
 
@@ -285,10 +280,110 @@ const LearnPage: FC = () => {
     return (
         <Box className={styles.shell}>
             <Box className={styles.main}>
-                <Box className={styles.homeHead}>
-                    <h1 className={styles.greeting}>{greeting()}</h1>
+                <Box component="header" className={styles.homeHead}>
+                    <h1 className={styles.greeting}>
+                        {getGreeting(user.data?.firstName)}. What do you want to
+                        learn?
+                    </h1>
+                    <TextInput
+                        className={styles.search}
+                        size="md"
+                        radius="xl"
+                        placeholder="Search the library"
+                        aria-label="Search the library"
+                        leftSection={<MantineIcon icon={IconSearch} />}
+                        value={query}
+                        onChange={(event) =>
+                            setQuery(event.currentTarget.value)
+                        }
+                    />
+                    <Box
+                        component="nav"
+                        className={styles.chips}
+                        aria-label="Library groups"
+                    >
+                        <UnstyledButton
+                            type="button"
+                            className={`${styles.chip} ${
+                                groupFilter === null ? styles.chipOn : ''
+                            }`}
+                            aria-pressed={groupFilter === null}
+                            onClick={() => setGroupFilter(null)}
+                        >
+                            All
+                        </UnstyledButton>
+                        {groups.map((group) => (
+                            <UnstyledButton
+                                key={group}
+                                type="button"
+                                className={`${styles.chip} ${
+                                    groupFilter === group ? styles.chipOn : ''
+                                }`}
+                                style={groupVars(group)}
+                                aria-pressed={groupFilter === group}
+                                data-learn-chip={group}
+                                onClick={() =>
+                                    setGroupFilter(
+                                        groupFilter === group ? null : group,
+                                    )
+                                }
+                            >
+                                <span
+                                    className={styles.chipSwatch}
+                                    aria-hidden
+                                />
+                                {GROUP_LABELS[group]}
+                            </UnstyledButton>
+                        ))}
+                        <span className={styles.chipRule} aria-hidden />
+                        <UnstyledButton
+                            type="button"
+                            className={`${styles.chip} ${
+                                showExtra ? styles.chipOn : ''
+                            }`}
+                            role="switch"
+                            aria-checked={showExtra}
+                            aria-label="Show extra modules"
+                            onClick={() => setShowExtra(!showExtra)}
+                        >
+                            {showExtra && (
+                                <MantineIcon icon={IconCheck} size={12} />
+                            )}
+                            Extra modules
+                            <Tooltip
+                                label="Modules for roles above yours, with the role they need"
+                                withArrow
+                            >
+                                <span
+                                    className={styles.chipHelp}
+                                    role="img"
+                                    aria-label="Modules for roles above yours, with the role they need"
+                                >
+                                    <MantineIcon
+                                        icon={IconHelpCircle}
+                                        size={13}
+                                    />
+                                </span>
+                            </Tooltip>
+                        </UnstyledButton>
+                        <UnstyledButton
+                            type="button"
+                            className={`${styles.chip} ${
+                                showSoon ? styles.chipOn : ''
+                            }`}
+                            role="switch"
+                            aria-checked={showSoon}
+                            aria-label="Coming soon"
+                            onClick={() => setShowSoon(!showSoon)}
+                        >
+                            {showSoon && (
+                                <MantineIcon icon={IconCheck} size={12} />
+                            )}
+                            Coming soon
+                        </UnstyledButton>
+                    </Box>
                     <Box className={styles.stats} data-learn-role={role}>
-                        <Menu position="bottom-end" withinPortal>
+                        <Menu position="bottom" withinPortal>
                             <Menu.Target>
                                 <UnstyledButton
                                     type="button"
@@ -327,159 +422,83 @@ const LearnPage: FC = () => {
                         </span>
                     </Box>
                 </Box>
-                <Box className={styles.focusGrid}>
-                    {resume ? (
-                        <Box
-                            component="article"
-                            className={styles.focusCard}
-                            data-learn-resume={resume.scope}
-                        >
-                            <span
-                                className={`${styles.overline} ${styles.overlineAccent}`}
-                            >
-                                Resume
-                            </span>
-                            <h2>{resume.title}</h2>
-                            <p>{resume.blurb}</p>
-                            <Button
-                                className={styles.focusAction}
-                                variant="light"
-                                size="compact-md"
-                                loading={opening === resume.scope}
-                                onClick={() => start(resume.scope)}
-                            >
-                                Resume module
-                            </Button>
-                        </Box>
-                    ) : (
-                        <Box component="article" className={styles.focusCard}>
-                            <span
-                                className={`${styles.overline} ${styles.overlineAccent}`}
-                            >
-                                Resume
-                            </span>
-                            <h2>No module in progress</h2>
-                            <p>Start a module from the library below.</p>
-                        </Box>
-                    )}
-                    {recommended ? (
-                        <Box
-                            component="article"
-                            className={styles.focusCard}
-                            data-learn-recommended={recommended.scope}
-                        >
-                            <span className={styles.overline}>
-                                Recommended next
-                            </span>
-                            <h2>{recommended.title}</h2>
-                            <p>{recommended.blurb}</p>
-                            <Button
-                                className={styles.focusAction}
-                                variant="default"
-                                size="compact-md"
-                                loading={opening === recommended.scope}
-                                onClick={() => start(recommended.scope)}
-                            >
-                                Start
-                            </Button>
-                        </Box>
-                    ) : (
-                        <Box component="article" className={styles.focusCard}>
-                            <span className={styles.overline}>
-                                Recommendation
-                            </span>
-                            <h2>Nothing new for {ROLE_LABELS[role]}</h2>
-                            <p>
-                                Use Show extra modules when you want to go
-                                beyond your role.
-                            </p>
-                        </Box>
-                    )}
-                </Box>
-                <Box className={styles.toolbar}>
-                    <TextInput
-                        className={styles.search}
-                        size="sm"
-                        placeholder="Search the library"
-                        aria-label="Search the library"
-                        leftSection={<MantineIcon icon={IconSearch} />}
-                        value={query}
-                        onChange={(event) =>
-                            setQuery(event.currentTarget.value)
-                        }
-                    />
-                    <Group className={styles.toggles} gap="md">
-                        <Group gap={6} wrap="nowrap">
-                            <Checkbox
-                                size="xs"
-                                label="Show extra modules"
-                                checked={showExtra}
-                                onChange={(event) =>
-                                    setShowExtra(event.currentTarget.checked)
-                                }
-                            />
-                            <Tooltip
-                                label="Modules for roles above yours, with the role they need"
-                                withArrow
-                            >
-                                <span
-                                    role="img"
-                                    aria-label="Modules for roles above yours, with the role they need"
+                {(resume || recommended) && (
+                    <Box component="section" className={styles.section}>
+                        <h2 className={styles.sectionTitle}>
+                            <MantineIcon icon={IconPlayerPlay} size={14} />
+                            Continue
+                        </h2>
+                        <Box className={styles.rows}>
+                            {resume && (
+                                <Box
+                                    component="article"
+                                    className={styles.row}
+                                    data-learn-resume={resume.scope}
                                 >
-                                    <MantineIcon
-                                        icon={IconHelpCircle}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                </span>
-                            </Tooltip>
-                        </Group>
-                        <Checkbox
-                            size="xs"
-                            label="Coming soon"
-                            checked={showSoon}
-                            onChange={(event) =>
-                                setShowSoon(event.currentTarget.checked)
-                            }
-                        />
-                    </Group>
-                </Box>
-                <Box
-                    component="nav"
-                    className={styles.chips}
-                    aria-label="Library groups"
-                >
-                    <UnstyledButton
-                        type="button"
-                        className={`${styles.chip} ${
-                            groupFilter === null ? styles.chipOn : ''
-                        }`}
-                        aria-pressed={groupFilter === null}
-                        onClick={() => setGroupFilter(null)}
-                    >
-                        All
-                    </UnstyledButton>
-                    {groups.map((group) => (
-                        <UnstyledButton
-                            key={group}
-                            type="button"
-                            className={`${styles.chip} ${
-                                groupFilter === group ? styles.chipOn : ''
-                            }`}
-                            style={groupVars(group)}
-                            aria-pressed={groupFilter === group}
-                            data-learn-chip={group}
-                            onClick={() =>
-                                setGroupFilter(
-                                    groupFilter === group ? null : group,
-                                )
-                            }
-                        >
-                            <span className={styles.chipSwatch} aria-hidden />
-                            {GROUP_LABELS[group]}
-                        </UnstyledButton>
-                    ))}
-                </Box>
+                                    <span
+                                        className={styles.rowTile}
+                                        style={groupVars(resume.group)}
+                                    >
+                                        <MantineIcon
+                                            icon={GROUP_ICONS[resume.group]}
+                                            size={16}
+                                        />
+                                    </span>
+                                    <span className={styles.rowText}>
+                                        <b>{resume.title}</b>
+                                        <small>
+                                            Resume · {resume.stepCount} steps
+                                        </small>
+                                    </span>
+                                    <Button
+                                        className={styles.rowAction}
+                                        variant="light"
+                                        size="compact-sm"
+                                        loading={opening === resume.scope}
+                                        onClick={() => start(resume.scope)}
+                                    >
+                                        Resume
+                                    </Button>
+                                </Box>
+                            )}
+                            {recommended && (
+                                <Box
+                                    component="article"
+                                    className={styles.row}
+                                    data-learn-recommended={recommended.scope}
+                                >
+                                    <span
+                                        className={styles.rowTile}
+                                        style={groupVars(recommended.group)}
+                                    >
+                                        <MantineIcon
+                                            icon={
+                                                GROUP_ICONS[recommended.group]
+                                            }
+                                            size={16}
+                                        />
+                                    </span>
+                                    <span className={styles.rowText}>
+                                        <b>{recommended.title}</b>
+                                        <small>
+                                            Recommended next ·{' '}
+                                            {recommended.stepCount} steps
+                                        </small>
+                                    </span>
+                                    <Button
+                                        className={styles.rowAction}
+                                        variant="default"
+                                        size="compact-sm"
+                                        loading={opening === recommended.scope}
+                                        onClick={() => start(recommended.scope)}
+                                    >
+                                        Start
+                                    </Button>
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
+                )}
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
@@ -490,15 +509,16 @@ const LearnPage: FC = () => {
                         key={group}
                         component="section"
                         id={`learn-group-${group}`}
-                        className={styles.group}
+                        className={`${styles.group} ${styles.section}`}
                         data-learn-group={group}
                     >
-                        <h2 className={styles.groupTitle}>
+                        <h2 className={styles.sectionTitle}>
+                            <MantineIcon icon={IconLayoutGrid} size={14} />
                             {GROUP_LABELS[group]}
+                            <span className={styles.sectionDesc}>
+                                {GROUP_DESCRIPTIONS[group]}
+                            </span>
                         </h2>
-                        <p className={styles.groupDesc}>
-                            {GROUP_DESCRIPTIONS[group]}
-                        </p>
                         <Box className={styles.grid}>
                             {visible
                                 .filter((module) => module.group === group)
