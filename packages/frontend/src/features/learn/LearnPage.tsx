@@ -55,6 +55,7 @@ import { useLearnProgress } from './progress';
 import {
     buildRoleViews,
     defaultRoleView,
+    ownRoleView,
     useLearnRoles,
     type LearnRoleView,
 } from './roles';
@@ -154,19 +155,27 @@ const ModuleCard: FC<{
 const RolePicker: FC<{
     views: LearnRoleView[];
     chosen: LearnRoleView;
+    /** The learner's own role, marked in the menu; null when they hold none. */
+    own: LearnRoleView | null;
     onChoose: (view: LearnRoleView) => void;
-}> = ({ views, chosen, onChoose }) => {
+}> = ({ views, chosen, own, onChoose }) => {
     const custom = views.filter((view) => view.custom);
     const item = (view: LearnRoleView) => (
         <Menu.Item
             key={view.key}
             onClick={() => onChoose(view)}
             data-learn-role-option={view.key}
+            data-learn-role-own={view.key === own?.key ? 'true' : undefined}
             aria-checked={view.key === chosen.key}
             rightSection={
-                view.key === chosen.key ? (
-                    <MantineIcon icon={IconCheck} size={13} />
-                ) : null
+                <Box className={styles.roleOptionEnd}>
+                    {view.key === own?.key && (
+                        <span className={styles.roleOwn}>Your role</span>
+                    )}
+                    {view.key === chosen.key && (
+                        <MantineIcon icon={IconCheck} size={13} />
+                    )}
+                </Box>
             }
         >
             {view.label}
@@ -482,6 +491,7 @@ const LearnPage: FC = () => {
                     <RolePicker
                         views={roleViews}
                         chosen={role}
+                        own={ownRoleView(roleViews, user.data ?? undefined)}
                         onChoose={(view) => setChosenRole(view.key)}
                     />
                     <span

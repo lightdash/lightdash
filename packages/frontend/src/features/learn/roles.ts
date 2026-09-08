@@ -102,17 +102,27 @@ export const buildRoleViews = (
 ];
 
 /**
- * The view the library opens on: the learner's own custom role when they
- * hold one, else the system role their organization role matches, else
- * viewer.
+ * The view that is the learner's own role: their custom role when they hold
+ * one, else the system role their organization role matches. Null when the
+ * organization role is one the library has no view for (a member with no
+ * custom role), so nothing is marked as theirs.
+ */
+export const ownRoleView = (
+    views: LearnRoleView[],
+    user: { role?: string; roleUuid?: string } | undefined,
+): LearnRoleView | null =>
+    views.find((view) => view.custom && view.key === user?.roleUuid) ??
+    views.find((view) => !view.custom && view.key === user?.role) ??
+    null;
+
+/**
+ * The view the library opens on: the learner's own role, else viewer, which
+ * is what everyone in an organization can at least do.
  */
 export const defaultRoleView = (
     views: LearnRoleView[],
     user: { role?: string; roleUuid?: string } | undefined,
-): LearnRoleView =>
-    views.find((view) => view.custom && view.key === user?.roleUuid) ??
-    views.find((view) => !view.custom && view.key === user?.role) ??
-    views[0];
+): LearnRoleView => ownRoleView(views, user) ?? views[0];
 
 /**
  * The org's custom roles, as views. An org admin gets all of them; every

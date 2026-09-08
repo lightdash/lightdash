@@ -300,6 +300,19 @@
     color: var(--lu-ink);
 }
 
+/* The role the learner holds, said once in the menu: every other view is a
+   look at someone else's library. */
+.roleOptionEnd {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.roleOwn {
+    font-size: 11px;
+    color: var(--lu-muted);
+}
+
 .rolePickerName {
     color: var(--lu-ink);
     font-weight: 600;

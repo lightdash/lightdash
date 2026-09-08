@@ -12,6 +12,7 @@ import {
     buildRoleViews,
     customRoleView,
     defaultRoleView,
+    ownRoleView,
     ROLE_ORDER,
     systemRoleView,
 } from './roles';
@@ -239,6 +240,18 @@ describe('the view the library opens on', () => {
         expect(defaultRoleView(views, { role: 'editor' }).label).toBe('Editor');
         expect(defaultRoleView(views, { role: 'member' }).label).toBe('Viewer');
         expect(defaultRoleView(views, undefined).label).toBe('Viewer');
+    });
+
+    it("knows which view is the learner's own role", () => {
+        expect(
+            ownRoleView(views, { role: 'member', roleUuid: 'role-1' })?.label,
+        ).toBe('Analyst');
+        expect(ownRoleView(views, { role: 'editor' })?.label).toBe('Editor');
+        // A member with no custom role holds no view: nothing is marked as
+        // theirs, though the library still opens on viewer.
+        expect(ownRoleView(views, { role: 'member' })).toBeNull();
+        expect(ownRoleView(views, undefined)).toBeNull();
+        expect(defaultRoleView(views, { role: 'member' }).label).toBe('Viewer');
     });
 
     it('shows no custom roles on an org without any', () => {

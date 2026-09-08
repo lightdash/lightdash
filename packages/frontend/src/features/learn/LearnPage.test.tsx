@@ -242,7 +242,8 @@ describe('LearnPage role views', () => {
             'Interactive viewer',
             'Editor',
             'Developer',
-            'Admin',
+            // The admin this test renders as holds the last one.
+            'AdminYour role',
         ]);
     });
 
@@ -262,6 +263,44 @@ describe('LearnPage role views', () => {
                 .map((item) => item.textContent)
                 .slice(5),
         ).toEqual(['Analyst', 'Steward']);
+    });
+
+    it('marks the role the learner holds, and only that one', async () => {
+        rolesState.current = [analyst];
+        userState.current = { role: 'member', roleUuid: 'role-1' };
+
+        renderPage();
+
+        const menu = await openPicker();
+        const own = within(menu)
+            .getAllByRole('menuitem')
+            .filter((item) => item.textContent?.includes('Your role'));
+        expect(own.map((item) => item.textContent)).toEqual([
+            'AnalystYour role',
+        ]);
+    });
+
+    it('marks a system role when that is what the learner holds', async () => {
+        userState.current = { role: 'editor', roleUuid: undefined };
+
+        renderPage();
+
+        const menu = await openPicker();
+        expect(
+            within(menu)
+                .getAllByRole('menuitem')
+                .filter((item) => item.textContent?.includes('Your role'))
+                .map((item) => item.textContent),
+        ).toEqual(['EditorYour role']);
+    });
+
+    it('marks nothing when the learner holds no role the library shows', async () => {
+        userState.current = { role: 'member', roleUuid: undefined };
+
+        renderPage();
+
+        const menu = await openPicker();
+        expect(within(menu).queryAllByText('Your role')).toEqual([]);
     });
 
     it('opens on the custom role the learner holds', () => {
