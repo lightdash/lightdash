@@ -1,3 +1,11 @@
+# [2.156.0](https://github.com/lightdash/lightdash/compare/2.155.1...2.156.0) (2026-09-08)
+
+
+### Features
+
+* **scheduler:** upload CSV deliveries into the Slack thread ([#28817](https://github.com/lightdash/lightdash/issues/28817)) ([6fc001e](https://github.com/lightdash/lightdash/commit/6fc001ee23c1fa9614e3ac82c908d7bd668057cb)), closes [#28819](https://github.com/lightdash/lightdash/issues/28819) [#11857](https://github.com/lightdash/lightdash/issues/11857)
+* **scheduler:** upload XLSX deliveries into the Slack thread ([#28819](https://github.com/lightdash/lightdash/issues/28819)) ([23f9bff](https://github.com/lightdash/lightdash/commit/23f9bffee5617d2cf0c41f5372c7a9ec60cf03f7)), closes [#28817](https://github.com/lightdash/lightdash/issues/28817) [#11857](https://github.com/lightdash/lightdash/issues/11857) [#28817](https://github.com/lightdash/lightdash/issues/28817)
+
 ## [2.155.1](https://github.com/lightdash/lightdash/compare/2.155.0...2.155.1) (2026-09-08)
 
 
