@@ -46,9 +46,10 @@ const OSS_STREAM_CONFIGS: Record<'warehouse' | 'duckdb', StreamConfig> = {
     },
     /**
      * DuckDB source queries over other results: merges and compose SQL. Its
-     * own stream and durable, so a worker from before it existed never
-     * receives a job it would terminate, and a join waiting on its legs does
-     * not hold a warehouse slot.
+     * own stream and durable, so a join waiting on its legs does not hold a
+     * warehouse slot. Only a worker started with `--stream duckdb` creates
+     * it; where the pre-aggregate stream is registered the jobs ride that
+     * stream instead, since its worker already runs DuckDB.
      */
     duckdb: {
         streamName: 'DUCKDB_QUERY_JOBS',
@@ -65,6 +66,7 @@ const PRE_AGGREGATE_STREAM_CONFIG: StreamConfig = {
     subjects: {
         query: 'pre_aggregate.query.jobs',
         materialization: 'pre_aggregate.materialization.jobs',
+        duckdb: 'pre_aggregate.duckdb.jobs',
     },
     durableName: 'worker-pre-aggregate',
 };
@@ -82,6 +84,16 @@ export const NATS_WORKER_STREAMS = natsWorkerStreamSchema.options;
  */
 export const getRegisteredStreams = (): NatsWorkerStream[] =>
     NATS_WORKER_STREAMS.filter((s) => STREAM_CONFIGS[s] !== undefined);
+
+/**
+ * The subject a DuckDB source query is published on. The pre-aggregate
+ * worker is the one deployed with DuckDB sized in, so when its stream is
+ * registered the jobs go there; the dedicated stream is for a worker
+ * started with `--stream duckdb`.
+ */
+export const getDuckdbQuerySubject = (): string =>
+    STREAM_CONFIGS['pre-aggregate']?.subjects.duckdb ??
+    STREAM_CONFIGS.duckdb.subjects.query;
 
 /**
  * Register an additional NATS stream configuration (used by EE).

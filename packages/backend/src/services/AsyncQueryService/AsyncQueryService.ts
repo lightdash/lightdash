@@ -166,7 +166,10 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import type { INatsClient } from '../../clients/NatsClient';
+import {
+    NatsNoRespondersError,
+    type INatsClient,
+} from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type DbExternalSourceTable } from '../../database/entities/externalSources';
@@ -7762,23 +7765,35 @@ export class AsyncQueryService extends ProjectService {
                 context,
             });
         } else {
-            void this.runAsyncDuckdbQueryFromHistory(
-                queryUuid,
-                'main-loop',
-                queryTags,
-            ).catch((e) => {
-                this.logger.error(
-                    `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-            });
+            this.runDuckdbQueryInProcess(queryUuid, queryTags);
         }
 
         return { queryUuid };
     }
 
-    /** Hands a DuckDB source query to the worker, as a warehouse query is. */
+    /** Runs a submitted DuckDB source query on this process, as a worker would. */
+    private runDuckdbQueryInProcess(
+        queryUuid: string,
+        queryTags: RunQueryTags,
+    ): void {
+        void this.runAsyncDuckdbQueryFromHistory(
+            queryUuid,
+            'main-loop',
+            queryTags,
+        ).catch((e) => {
+            this.logger.error(
+                `Async DuckDB source query ${queryUuid} failed: ${getErrorMessage(
+                    e,
+                )}`,
+            );
+        });
+    }
+
+    /**
+     * Hands a DuckDB source query to the worker, as a warehouse query is. A
+     * deployment whose workers do not take the subject yet runs it here
+     * instead, so a merge never waits on a worker that will not come.
+     */
     private async enqueueDuckdbQuery({
         queryUuid,
         projectUuid,
@@ -7809,6 +7824,13 @@ export class AsyncQueryService extends ProjectService {
                 context,
             );
         } catch (e) {
+            if (e instanceof NatsNoRespondersError) {
+                this.logger.warn(
+                    `No NATS worker takes DuckDB source query ${queryUuid} on ${e.subject}; running it in this process`,
+                );
+                this.runDuckdbQueryInProcess(queryUuid, queryTags);
+                return;
+            }
             const errorMessage = getErrorMessage(e);
             this.logger.error(
                 `Failed to enqueue DuckDB source query ${queryUuid} on NATS`,

@@ -56,7 +56,10 @@ import { defaultJwtToken } from '../../auth/account/account.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import type { INatsClient } from '../../clients/NatsClient';
+import {
+    NatsNoRespondersError,
+    type INatsClient,
+} from '../../clients/NatsClient';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -8722,6 +8725,39 @@ describe('DuckDB source queries on the worker', () => {
             sessionAccount,
         );
         expect(runDuckdbQuery).not.toHaveBeenCalled();
+    });
+
+    it('a hand-off no stream takes runs the query in this process instead', async () => {
+        const { service, runDuckdbQuery } = buildWorkerService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+        (
+            service.natsClient.enqueueDuckdbQuery as import('vitest').Mock
+        ).mockRejectedValueOnce(
+            new NatsNoRespondersError('pre_aggregate.duckdb.jobs'),
+        );
+
+        await service.executeAsyncDuckdbSourceQuery({
+            account: sessionAccount,
+            projectUuid,
+            context: QueryExecutionContext.EXPLORE,
+            sql: 'SELECT * FROM merge_source_0',
+            references: { merge_source_0: referencedQueryHistory.queryUuid },
+            plan: suppliedPlan(),
+        });
+
+        const model = service.queryHistoryModel as unknown as ReturnType<
+            typeof inMemoryDuckdbHistory
+        >;
+        expect(model.updateStatusToError).not.toHaveBeenCalled();
+        expect(model.updateStatusToQueued).not.toHaveBeenCalled();
+        await vi.waitFor(() => {
+            expect(model.updateStatusToExecuting).toHaveBeenCalledWith(
+                'join-uuid',
+            );
+            expect(runDuckdbQuery).toHaveBeenCalledTimes(1);
+        });
     });
 
     it('the worker rebuilds a queued run from the row and its spec alone', async () => {
