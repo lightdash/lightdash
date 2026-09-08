@@ -12,6 +12,12 @@ export type ScopeTourStepDefinition = {
     advanceOnTargetClick: boolean;
     advanceOnTargetInput: boolean;
     via: string[];
+    /**
+     * Optional hops on the way to `target`: controls that lead to it on the
+     * instances that show them. Spotlit, with their own title, while one is
+     * on the page and the target is not.
+     */
+    detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
@@ -1132,6 +1138,12 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
                 via: [],
+                detour: [
+                    {
+                        target: '[data-tour-anchor="export-choose-download"]',
+                        title: 'Click Download data',
+                    },
+                ],
             },
             {
                 target: '[data-tour-scope="manage:ExportCsv"][data-tour-step="1"]',

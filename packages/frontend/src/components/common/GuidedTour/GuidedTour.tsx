@@ -49,6 +49,13 @@ export type GuidedTourStep = {
      */
     via?: string[];
     /**
+     * Controls that lead to `target` on the instances that show them (a
+     * chooser some configurations put before a form). While one is on the
+     * page and `target` is not, the ring and the card's title move to it at
+     * once; nothing waits, since the product says this is the way through.
+     */
+    detour?: { target: string; title: string }[];
+    /**
      * Selector of the page's own "still working" surface for this step (a
      * streaming reply, a running query). While it is on the page the step is
      * not finished: the ring follows it, the card shows the product's own
@@ -233,54 +240,76 @@ const useTargetRect = (
     return rect;
 };
 
+type Resolved = {
+    selector: string | null;
+    /** Set while the ring sits on a detour control: that control's title. */
+    detourTitle: string | null;
+};
+
 /**
  * Which selector to spotlight right now: the step's target when it is on the
- * page, else the deepest `via` control that is (later controls only exist
- * once earlier ones were clicked, and earlier ones such as a nav button stay
- * on the page), else nothing.
+ * page, else a `detour` control that is (the way to the target on this
+ * instance), else the deepest `via` control that is (later controls only
+ * exist once earlier ones were clicked, and earlier ones such as a nav
+ * button stay on the page), else nothing.
  */
 const useResolvedSelector = (
     step: GuidedTourStep | undefined,
     active: boolean,
-): string | null => {
+): Resolved => {
     const target = active ? (step?.target ?? null) : null;
     const via = active ? step?.via : undefined;
-    const [resolved, setResolved] = useState<string | null>(target);
+    const detour = active ? step?.detour : undefined;
+    const [resolved, setResolved] = useState<Resolved>({
+        selector: target,
+        detourTitle: null,
+    });
 
     useEffect(() => {
-        if (!target || !via || via.length === 0) {
-            setResolved(target);
+        const hasVia = via !== undefined && via.length > 0;
+        const hasDetour = detour !== undefined && detour.length > 0;
+        if (!target || (!hasVia && !hasDetour)) {
+            setResolved({ selector: target, detourTitle: null });
             return undefined;
         }
         // Fallbacks are for a menu the learner closed by accident, not for a
         // control that is still loading after their click (a page, a list the
         // server fills in): until the target has been seen once, wait for it
         // as long as patience allows; once seen and gone, give it a moment
-        // before dropping back to an earlier control on the path.
+        // before dropping back to an earlier control on the path. A detour
+        // is different: the product says that control leads here, so it is
+        // taken the moment it is on the page.
         const since = Date.now();
         let seen = false;
         const tick = () => {
             if (document.querySelector(target)) {
                 seen = true;
-                setResolved(target);
+                setResolved({ selector: target, detourTitle: null });
+                return;
+            }
+            const hop = detour?.find((d) => document.querySelector(d.target));
+            if (hop) {
+                setResolved({ selector: hop.target, detourTitle: hop.title });
                 return;
             }
             const patience = seen ? FALLBACK_GRACE_MS : TARGET_PATIENCE_MS;
             if (Date.now() - since < patience) {
-                setResolved(null);
+                setResolved({ selector: null, detourTitle: null });
                 return;
             }
-            setResolved(
-                [...via]
-                    .reverse()
-                    .find((selector) => document.querySelector(selector)) ??
+            setResolved({
+                selector:
+                    [...(via ?? [])]
+                        .reverse()
+                        .find((selector) => document.querySelector(selector)) ??
                     null,
-            );
+                detourTitle: null,
+            });
         };
         tick();
         const poll = window.setInterval(tick, 150);
         return () => window.clearInterval(poll);
-    }, [target, via]);
+    }, [target, via, detour]);
 
     return resolved;
 };
@@ -489,7 +518,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // Each step resolves its own target when reached (rows may load late), so a
     // step with a not-yet-rendered target just shows a centered card until it
     // appears, rather than being dropped.
-    const resolvedSelector = useResolvedSelector(step, opened);
+    const { selector: resolvedSelector, detourTitle } = useResolvedSelector(
+        step,
+        opened,
+    );
     // While the page is still working on this step, the ring sits on that
     // work rather than on the finished surface.
     const { busy, status } = useBusy(step?.busy, opened);
@@ -643,6 +675,20 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             window.removeEventListener('mousemove', follow, true);
             if (frame !== null) window.cancelAnimationFrame(frame);
         };
+    }, [waiting]);
+
+    // A control that never arrives (a screen this instance does not have)
+    // would otherwise hide the card for good, leaving the page blocked with
+    // no way out but a new tab. Once patience runs out the card comes back,
+    // centred, so Skip is always within reach; the beacon keeps waiting and
+    // the card still opens at the control if it turns up.
+    useEffect(() => {
+        if (!waiting) return undefined;
+        const timeout = window.setTimeout(() => {
+            setCardRect(null);
+            setCardPhase('shown');
+        }, TARGET_PATIENCE_MS);
+        return () => window.clearTimeout(timeout);
     }, [waiting]);
 
     // When the work finishes the ring travels to the finished surface.
@@ -803,6 +849,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // What the card shows: the current step, except while it is collapsing
     // with the previous step's text.
     const shownStep = steps[shownStepIndex] ?? step;
+    // On a detour the card names the control it points at, not the target.
+    const shownTitle =
+        detourTitle !== null && shownStepIndex === stepIndex
+            ? detourTitle
+            : shownStep.title;
     const shownIsLast = shownStepIndex === steps.length - 1;
     // The highlighted control is clickable while it is on the way to the
     // target (a `via` control) or when clicking the target is what advances
@@ -859,11 +910,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             busy && status !== '' ? status : undefined
                         }
                     >
-                        {busy && status !== '' ? status : shownStep.title}
+                        {busy && status !== '' ? status : shownTitle}
                     </Text>
                     {busy && status !== '' && (
                         <Text fz="xs" c="dimmed">
-                            {shownStep.title}
+                            {shownTitle}
                         </Text>
                     )}
                     {shownStep.body !== '' && (

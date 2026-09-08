@@ -21,6 +21,7 @@ import {
     findMarkers,
     frontendSrc,
     listTsx,
+    parsePath,
     PATH_SELECTOR,
     root,
     type Marker,
@@ -124,7 +125,7 @@ export const suggestFor = (
     for (const marker of markers) {
         for (const value of [marker.via, marker.then, marker.return]) {
             if (!value || value === 'none') continue;
-            for (const selector of value.split(' >> ').map((v) => v.trim())) {
+            for (const { selector } of parsePath(value)) {
                 const at = locateAnchor(selector, files);
                 if (!at || /data-tour-hint/.test(at.block)) continue;
                 const absolute = path.join(root, at.file);

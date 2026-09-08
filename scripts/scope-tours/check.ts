@@ -31,6 +31,7 @@ import {
     findMarkers,
     frontendSrc,
     listTsx,
+    parsePath,
     PATH_SELECTOR,
     root,
     type Marker,
@@ -243,9 +244,15 @@ export const checkTours = (
                 ['return', marker.return],
             ] as const) {
                 if (!value || value === 'none') continue;
-                for (const selector of value
-                    .split(' >> ')
-                    .map((v) => v.trim())) {
+                const hops = parsePath(value);
+                if (attribute !== 'via' && hops[hops.length - 1]?.optional) {
+                    error(
+                        marker.file,
+                        `${scope}: data-tour-${attribute} ends on an optional hop (?); an optional hop needs a control after it to detour to`,
+                        marker.line,
+                    );
+                }
+                for (const { selector } of hops) {
                     const at = locateAnchor(selector, files);
                     if (!at) {
                         error(

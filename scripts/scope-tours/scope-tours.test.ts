@@ -223,6 +223,74 @@ const run = async () => {
         );
     }
 
+    // An optional hop (`?`) is a control the instance may or may not show on
+    // the way to the next one (a chooser some configurations add). It gets no
+    // step of its own: the next step carries it as a detour, taken only when
+    // the control is on the page.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker(
+                    'explore/homepage.mdx#pin-content:2',
+                    `\n        data-tour-then='[data-tour-anchor="choose"]? >> [data-tour-anchor="confirm"]'`,
+                ),
+            ),
+            write(
+                'Dialog.tsx',
+                `
+export const Dialog = () => (
+    <>
+        {hasChooser && (
+            <Button data-tour-anchor="choose" data-tour-hint="Click Download data" />
+        )}
+        <Button data-tour-anchor="confirm" data-tour-hint="Click Download" />
+    </>
+);
+`,
+            ),
+        ];
+        const errors = checkTours(files).filter((f) => f.level === 'error');
+        assert.deepStrictEqual(errors, [], JSON.stringify(errors, null, 2));
+        const { tours } = buildTours(files);
+        assert.strictEqual(
+            tours[0].steps.map((s) => s.title).join(' > '),
+            'Pin content > Click Browse > Click Pin to homepage > Click Download > Go home > See the result',
+        );
+        assert.deepStrictEqual(tours[0].steps[3].detour, [
+            {
+                target: '[data-tour-anchor="choose"]',
+                title: 'Click Download data',
+            },
+        ]);
+        assert.deepStrictEqual(tours[0].steps[3].via, []);
+        assert.strictEqual(tours[0].steps[2].detour, undefined);
+    }
+
+    // An optional hop with nothing after it has nowhere to detour to.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker(
+                    'explore/homepage.mdx#pin-content:2',
+                    `\n        data-tour-then='[data-tour-anchor="confirm"]?'`,
+                ),
+            ),
+            write(
+                'Dialog.tsx',
+                `<Button data-tour-anchor="confirm" data-tour-hint="Click Download" />`,
+            ),
+        ];
+        const errors = checkTours(files).filter((f) => f.level === 'error');
+        assert.ok(
+            errors.some((f) => /optional hop/.test(f.message)),
+            JSON.stringify(errors),
+        );
+    }
+
     // A path mentioning an anchor is not that anchor: its hint must come
     // from the anchor's own element, even when the mention is found first.
     {
