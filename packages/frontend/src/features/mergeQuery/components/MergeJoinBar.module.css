@@ -192,12 +192,14 @@
 }
 
 .note {
-    display: flex;
-    gap: 6px;
-    align-items: flex-start;
+    align-items: center;
 }
 
 .noteIcon {
     flex: none;
-    margin-top: 2px;
+}
+
+.noteText {
+    flex: 1;
+    min-width: 0;
 }
