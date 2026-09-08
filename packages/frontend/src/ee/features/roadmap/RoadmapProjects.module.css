@@ -33,10 +33,8 @@
 .ticketCard {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-xs);
+    gap: calc(var(--mantine-spacing-xs) / 2);
     width: 100%;
-    min-height: 132px;
     flex-shrink: 0;
     padding: var(--mantine-spacing-sm);
     background: var(--mantine-color-body);
@@ -48,12 +46,12 @@
         border-color 120ms ease,
         box-shadow 120ms ease;
 }
-.projectCard:hover,
+.projectCard[data-interactive]:hover,
 .ticketCard:hover {
     border-color: var(--mantine-color-indigo-4);
     box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
 }
-.projectCard:focus-visible,
+.projectCard[data-interactive]:focus-visible,
 .ticketCard:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
@@ -68,10 +66,6 @@
     text-align: center;
     border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-}
-.ticketCard {
-    min-height: 104px;
-    gap: var(--mantine-spacing-xs);
 }
 .ticketTitle {
     font-size: var(--mantine-font-size-sm);
@@ -100,7 +94,7 @@
     order: -1;
     width: 64px;
 }
-.projectIcon {
+.ticketIcon {
     flex-shrink: 0;
     color: var(--mantine-color-indigo-light-color);
 }
@@ -141,6 +135,10 @@
 .tableTitle:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
+}
+.projectCard:not([data-interactive]),
+.tableTitle:not([data-interactive]) {
+    cursor: default;
 }
 @media (max-width: 600px) {
     .viewControls {
