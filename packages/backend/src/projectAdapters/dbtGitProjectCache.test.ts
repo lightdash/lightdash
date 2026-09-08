@@ -1255,6 +1255,52 @@ describe('dbt git project cache', () => {
         }
     });
 
+    it('does not publish after victim retirement crosses the retention deadline', async () => {
+        const root = await configure({ maxBytes: 150 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const readFile = vi.mocked(fs.readFile);
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        const secondMetadataPath = path.join(
+            second!.entryDirectory,
+            'metadata.json',
+        );
+        let metadataReads = 0;
+        readFile.mockImplementation(async (...args) => {
+            const result = await actualFs.readFile(...args);
+            if (args[0] === secondMetadataPath) {
+                metadataReads += 1;
+                if (metadataReads === 2) clock.now += 3_001;
+            }
+            return result;
+        });
+        try {
+            await releaseDbtGitProjectCache(second!, 100);
+
+            expect(second).toMatchObject({
+                retained: false,
+                retentionReason: 'publication-deadline',
+            });
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            expect(await entryDirectories(root)).toHaveLength(0);
+        } finally {
+            now.mockRestore();
+            readFile.mockImplementation(actualFs.readFile);
+        }
+    });
+
     it('counts every hash-shaped root entry before creating another', async () => {
         const root = await configure();
         const seed = await acquireDbtGitProjectCache(identity(0), 'seed');

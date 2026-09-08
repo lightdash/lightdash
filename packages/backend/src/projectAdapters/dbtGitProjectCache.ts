@@ -1753,13 +1753,16 @@ const retainDbtGitProjectCache = async (
                 );
                 const ownsLease = await leaseOwnsEntry(lease);
                 if (
+                    Date.now() >= totalDeadline ||
                     lease.invalidated ||
                     pendingAfterAccounting ||
                     !isMetadata(current) ||
                     current.key !== lease.key ||
                     !ownsLease
                 ) {
-                    if (lease.invalidated) {
+                    if (Date.now() >= totalDeadline) {
+                        declineRetention = 'publication-deadline';
+                    } else if (lease.invalidated) {
                         declineRetention = 'invalidated';
                     } else if (pendingAfterAccounting) {
                         declineRetention = 'pending-delete';
@@ -1830,6 +1833,7 @@ const retainDbtGitProjectCache = async (
     } finally {
         await releaseDirectoryLease(cacheLock);
     }
+    void Promise.all(cleanup);
     if (declineRetention) {
         await declineDbtGitCacheRetention(
             lease,
@@ -1838,7 +1842,6 @@ const retainDbtGitProjectCache = async (
         );
         return;
     }
-    void Promise.all(cleanup);
 };
 
 export const releaseDbtGitProjectCache = async (
