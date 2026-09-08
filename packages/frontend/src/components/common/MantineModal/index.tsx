@@ -327,6 +327,8 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 opened={opened}
                 onClose={handleClose}
                 size={fullScreen ? 'auto' : size}
+                yOffset={fullScreen ? 24 : undefined}
+                xOffset={fullScreen ? 24 : undefined}
                 centered
                 closeOnClickOutside={isAlertDialog ? false : undefined}
                 closeOnEscape={isAlertDialog ? false : undefined}
