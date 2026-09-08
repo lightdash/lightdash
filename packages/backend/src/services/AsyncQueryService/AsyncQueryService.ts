@@ -4699,8 +4699,7 @@ export class AsyncQueryService extends ProjectService {
                                 warehouseExecutionTimeMs: outcome.cacheHit
                                     ? 0
                                     : null,
-                                // Terminal-state path: phases are reported by
-                                // the executor, which this branch did not run.
+                                // Phases come from the executor, not this path.
                                 warehousePhaseTimings: null,
                                 totalRowCount: outcome.totalRowCount ?? null,
                                 columnsCount: outcome.columnsCount ?? null,

@@ -73,8 +73,6 @@ describe('EventStreamSink', () => {
             execution_source: 'warehouse',
             warehouse_type: WarehouseTypes.POSTGRES,
             warehouse_execution_time_ms: 123,
-            // Phases flatten into their own columns; an unreported phase
-            // stays null rather than defaulting to 0.
             warehouse_connect_ms: 20,
             warehouse_query_ms: 90,
             warehouse_fetch_ms: 13,

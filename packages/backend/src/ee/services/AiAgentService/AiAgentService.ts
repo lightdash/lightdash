@@ -7519,8 +7519,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentArtifactVizQuery> {
-        // The browser blocks on this whole call before it can paint a chart,
-        // so time it from the top rather than around the warehouse leg only.
+        // Timed from the top: the browser blocks on the whole call.
         const vizQueryStartedAt = Date.now();
         const { organizationUuid } = user;
         if (!organizationUuid) {

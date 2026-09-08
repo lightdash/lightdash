@@ -24,9 +24,7 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'execution_source', type: 'VARCHAR' },
     { name: 'warehouse_type', type: 'VARCHAR' },
     { name: 'warehouse_execution_time_ms', type: 'BIGINT' },
-    // Phase split of the line above, flattened so the compacted zone stays
-    // typed columns rather than a nested blob. Null where the adapter (or the
-    // code path) reports no phases.
+    // Phase breakdown of warehouse_execution_time_ms; null when not reported.
     { name: 'warehouse_ssh_tunnel_ms', type: 'BIGINT' },
     { name: 'warehouse_connect_ms', type: 'BIGINT' },
     { name: 'warehouse_session_ms', type: 'BIGINT' },

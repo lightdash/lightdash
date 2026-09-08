@@ -6,16 +6,9 @@ import { buildEnvelope, ProjectionResult } from './projection';
 import type { CompactedStreamColumn } from './types';
 
 /**
- * Typed column list for the compacted (parquet) zone of the `agent_steps`
- * stream, v1.
- *
- * One stream carries both grains — a loop step and a finished tool call —
- * discriminated by `record_type`, because they are only useful read together:
- * a step's tool phase is the wall time of the calls sharing its `step_index`,
- * so splitting them across streams would force a cross-stream join for the
- * most common question.
- *
- * Columns that belong to only one grain are null on the other.
+ * Compacted (parquet) columns for the `agent_steps` stream, v1. Both grains —
+ * loop step and finished tool call — share it, discriminated by `record_type`,
+ * since they are read together. Columns of one grain are null on the other.
  */
 export const agentStepsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'event_name', type: 'VARCHAR' },
@@ -52,7 +45,7 @@ export const agentStepsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'tool_status', type: 'VARCHAR' },
 ];
 
-/** One row per finished iteration of the agent loop. */
+/** One row per finished loop iteration. */
 const projectAgentStepEvent = (
     payload: AiAgentStepCompletedEvent,
 ): ProjectionResult => {
@@ -91,7 +84,7 @@ const projectAgentStepEvent = (
     };
 };
 
-/** One row per tool call that returned, joinable to its step by step_index. */
+/** One row per returned tool call, joined to its step by step_index. */
 const projectAgentToolCallCompletedEvent = (
     payload: AiAgentToolCallCompletedEvent,
 ): ProjectionResult => {

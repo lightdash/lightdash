@@ -149,12 +149,8 @@ export const recordAgentStepUsage = async ({
 };
 
 /**
- * Emits one `ai_agent.step_completed` row for a finished loop step, pairing
- * the step's wall-clock slices with the tokens that step consumed.
- *
- * Kept beside `recordAgentStepUsage` (which reports billing tokens) rather
- * than folded into it: token accounting must stay exactly once per model
- * call, while this is the latency grain and carries the step's shape.
+ * Separate from `recordAgentStepUsage`: that reports billing tokens exactly
+ * once per model call, this is the latency grain.
  */
 const trackAgentStep = (
     args: AiAgentArgs,
@@ -1641,8 +1637,7 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
-    // Same waterfall grain as the streaming path, minus the decide/execute
-    // split: this transport only reports a step once it has wholly finished.
+    // No decide/execute split here: steps are reported once wholly finished.
     const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
@@ -1736,8 +1731,7 @@ export const generateAgentResponse = async ({
                     telemetry,
                     execution: args.execution,
                 });
-                // Read before completing: completeStep opens the next step,
-                // and the tool calls below belong to the one just closed.
+                // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
                 trackAgentStep(
                     args,
@@ -2027,8 +2021,7 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
-    // Per-step boundaries for the turn waterfall. The turn-level timers above
-    // stay as they are: they feed Prometheus and the persisted responseTiming.
+    // The turn-level timers above still feed Prometheus and responseTiming.
     const timing = new TurnTimingTracker(startTime);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(

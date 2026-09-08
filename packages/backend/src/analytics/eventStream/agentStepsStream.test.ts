@@ -117,8 +117,6 @@ describe('agentStepsStream', () => {
 
         const columns = agentStepsCompactedColumns.map((c) => c.name);
         writer.push.mock.calls.forEach(([, row]) => {
-            // Every declared column is present, so the parquet cast never sees
-            // a missing key for one grain.
             columns.forEach((column) => expect(row).toHaveProperty(column));
         });
 
