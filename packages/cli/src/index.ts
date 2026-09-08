@@ -7,7 +7,6 @@ import {
     ValidationTarget,
 } from '@lightdash/common';
 import { InvalidArgumentError, Option, program, type Command } from 'commander';
-import { validate } from 'uuid';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
     DEFAULT_DBT_PROJECT_DIR as defaultProjectDir,
@@ -105,10 +104,8 @@ function parseProjectArgument(value: string | undefined): string | undefined {
         throw new InvalidArgumentError('No project argument provided.');
     }
 
-    const isValidUuid = validate(value);
-
-    if (!isValidUuid) {
-        throw new InvalidArgumentError('Not a valid project UUID.');
+    if (value.trim() === '') {
+        throw new InvalidArgumentError('Not a valid project UUID or slug.');
     }
 
     return value;
@@ -255,8 +252,8 @@ ${styles.bold('Examples:')}
     .option('--token <token>', 'Login with an API access token', undefined)
     .addOption(
         new Option(
-            '--project <project uuid>',
-            'Select a project by UUID after login',
+            '--project <project uuid or slug>',
+            'Select a project by UUID or slug after login',
         )
             .argParser(parseProjectArgument)
             .conflicts('skipProjectSelection'),
@@ -917,8 +914,8 @@ const downloadCommand = program
         false,
     )
     .option(
-        '--project <project uuid>',
-        'specify a project UUID to download',
+        '--project <project uuid or slug>',
+        'specify a project (UUID or slug) to download from',
         parseProjectArgument,
         undefined,
     )
@@ -1071,8 +1068,8 @@ const uploadCommand = program
         undefined,
     )
     .option(
-        '--project <project uuid>',
-        'specify a project UUID to upload',
+        '--project <project uuid or slug>',
+        'specify a project (UUID or slug) to upload to',
         parseProjectArgument,
         undefined,
     )
@@ -1199,7 +1196,7 @@ appsProgram
         'Specify the Lightdash content root (default: ./lightdash)',
     )
     .option(
-        '--project <project uuid>',
+        '--project <project uuid or slug>',
         'Specify the project the app will use',
         parseProjectArgument,
         undefined,
@@ -1227,8 +1224,8 @@ appsProgram
         'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Your credential stays in the CLI, behind a local proxy limited to data-app SDK routes.',
     )
     .option(
-        '--project <project uuid>',
-        'preview against a specific project (default: the projectUuid in lightdash-app.yml)',
+        '--project <project uuid or slug>',
+        'preview against a specific project by UUID or slug (default: the projectUuid in lightdash-app.yml)',
     )
     .option('--url <url>', 'Lightdash server URL (default: your login config)')
     .option(
@@ -1284,8 +1281,8 @@ program
     .command('deploy')
     .description('Compiles and deploys a Lightdash project')
     .option(
-        '--project <project uuid>',
-        'Project UUID to deploy to. Overrides the default project configured via `lightdash config set-project`',
+        '--project <project uuid or slug>',
+        'Project UUID or slug to deploy to. Overrides the default project configured via `lightdash config set-project`',
     )
     .option(
         '--project-dir <path>',
@@ -1429,8 +1426,8 @@ program
     .command('validate')
     .description('Validates a project')
     .option(
-        '--project <project uuid>',
-        'Project UUID to validate, if not provided, the last preview will be used',
+        '--project <project uuid or slug>',
+        'Project UUID or slug to validate, if not provided, the last preview will be used',
     )
     .option('--verbose', undefined, false)
     .option(
@@ -1616,8 +1613,8 @@ program
     .description('Rename models and fields on Lightdash content')
     .option('--verbose', undefined, false)
     .option(
-        '-p, --project <project uuid>',
-        'specify a project UUID to rename',
+        '-p, --project <project uuid or slug>',
+        'specify a project (UUID or slug) to rename in',
         parseProjectArgument,
         undefined,
     )
@@ -1640,8 +1637,8 @@ program
     .description('Rename a chart slug and update its local references')
     .option('--verbose', 'show verbose output', false)
     .option(
-        '--project <project uuid>',
-        'specify a project UUID',
+        '--project <project uuid or slug>',
+        'specify a project by UUID or slug',
         parseProjectArgument,
         undefined,
     )
@@ -1830,8 +1827,8 @@ program
     )
     .option('--all', 'Audit every dashboard in the target project', false)
     .option(
-        '--project <projectUuid>',
-        'Project UUID (defaults to LIGHTDASH_PROJECT_UUID env or config)',
+        '--project <project uuid or slug>',
+        'Project UUID or slug (defaults to LIGHTDASH_PROJECT_UUID env or config)',
     )
     .option(
         '--json',
@@ -1974,8 +1971,8 @@ program
         undefined,
     )
     .option(
-        '--project <uuid>',
-        'Lightdash project UUID to update (defaults to currently selected project)',
+        '--project <project uuid or slug>',
+        'Lightdash project UUID or slug to update (defaults to currently selected project)',
         undefined,
     )
     .option(
@@ -1995,8 +1992,8 @@ program
     .argument('<chart>', 'Chart UUID or slug')
     .requiredOption('-o, --output <file>', 'Output file path for the PNG image')
     .option(
-        '--project <uuid>',
-        'Lightdash project UUID (defaults to the currently selected project)',
+        '--project <project uuid or slug>',
+        'Lightdash project UUID or slug (defaults to the currently selected project)',
     )
     .option('--verbose', 'Show detailed output', false)
     .action(exportChartImageHandler);

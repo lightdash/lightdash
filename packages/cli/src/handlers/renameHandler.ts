@@ -17,6 +17,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
+import { resolveProjectFlag } from './resolveProjectFlag';
 import {
     getJobState,
     getValidation,
@@ -89,10 +90,9 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
-    const projectUuid =
-        options.project ||
-        config.context.previewProject ||
-        config.context.project;
+    const projectUuid = options.project
+        ? await resolveProjectFlag(options.project)
+        : config.context.previewProject || config.context.project;
     if (!projectUuid) {
         throw new LightdashError({
             message: 'No project selected. Run lightdash config set-project',

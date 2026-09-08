@@ -4,6 +4,7 @@ import { Config, unsetPreviewProject } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
 
 export type ProjectSelection = {
     projectUuid: string;
@@ -58,7 +59,10 @@ export const selectProject = async (
 ): Promise<ProjectSelection | undefined> => {
     // If explicit project provided via --project flag, use it
     if (explicitProject) {
-        return { projectUuid: explicitProject, isPreview: false };
+        return {
+            projectUuid: await resolveProjectFlag(explicitProject),
+            isPreview: false,
+        };
     }
 
     const mainProject = config.context?.project;

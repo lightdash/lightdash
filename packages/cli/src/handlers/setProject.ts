@@ -14,7 +14,7 @@ type SetProjectOptions = {
 
 export const setProjectCommand = async (
     name?: string,
-    uuid?: string,
+    uuidOrSlug?: string,
 ): Promise<'selected' | 'skipped' | 'empty'> => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
@@ -39,9 +39,12 @@ export const setProjectCommand = async (
     let selectedProject: OrganizationProject | undefined;
 
     // --uuid or --name options
-    if (uuid !== undefined || name !== undefined) {
+    if (uuidOrSlug !== undefined || name !== undefined) {
         const matchedProject = projects.find(
-            (project) => project.name === name || project.projectUuid === uuid,
+            (project) =>
+                project.name === name ||
+                project.projectUuid === uuidOrSlug ||
+                (uuidOrSlug !== undefined && project.slug === uuidOrSlug),
         );
         if (matchedProject?.type === ProjectType.PREVIEW) {
             throw new Error(
