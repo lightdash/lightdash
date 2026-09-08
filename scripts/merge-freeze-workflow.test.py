@@ -60,14 +60,22 @@ def fake_command(kind, args):
             result = [{'variables': []}, {'variables': items}]
             if 'variable_response' in state:
                 result = state['variable_response']
-        elif endpoint.endswith('/rulesets/7'):
+        elif '/rulesets/' in endpoint:
+            ruleset_id = endpoint.rsplit('/', 1)[1]
+            rulesets = state.get('rulesets', {'7': state['ruleset']})
+            if ruleset_id not in rulesets:
+                sys.exit(1)
             if method == 'PUT':
                 if state.get('fail_put'):
                     sys.exit(1)
-                state['ruleset'] = json.load(sys.stdin)
-            result = state['ruleset']
+                payload = json.load(sys.stdin)
+                state.setdefault('ruleset_puts', []).append({'id': ruleset_id, 'payload': payload})
+                rulesets[ruleset_id].update(payload)
+            result = {'id': int(ruleset_id), 'source_type': 'Repository', **rulesets[ruleset_id]}
         elif endpoint.endswith('/rulesets'):
-            result = [{'id': 7, 'target': 'branch', 'source_type': 'Repository', 'enforcement': 'active'}]
+            result = list(state['rulesets'].values()) if 'rulesets' in state else [
+                {'id': 7, 'target': 'branch', 'source_type': 'Repository', 'enforcement': 'active'}]
+
         elif '/statuses/' in endpoint:
             assert method == 'POST'
             state['statuses'].append({args[i + 1].split('=', 1)[0]: args[i + 1].split('=', 1)[1]
@@ -126,7 +134,7 @@ class MergeFreezeTests(unittest.TestCase):
     def run_toggle(self, action='freeze', actor='cloudy[bot]', slack=SLACK_OWNER, success=True):
         return self.run_script(script_for('        id: toggle'), {
             'ACTION': action, 'ACTOR_LOGIN': actor, 'SLACK_ACTOR': slack,
-            'FREEZE_ACTOR': actor,
+            'FREEZE_ACTOR': actor, 'MERGE_FREEZE_RULESET_ID': '999',
         }, success)
 
     def run_script(self, script, extra, success=True):
@@ -341,6 +349,169 @@ class MergeFreezeTests(unittest.TestCase):
         })
         self.assertIn('<@U0123456789>', self.state['announcements'][0]['text'])
         self.assertNotIn('cloudy', self.state['announcements'][0]['text'])
+
+    def two_live_shaped_rulesets(self, pin='7546338'):
+        main = copy.deepcopy(self.state['ruleset'])
+        main.update({'id': 7546338, 'source_type': 'Repository', 'rules': [
+            {'type': 'deletion'}, {'type': 'non_fast_forward'},
+            {'type': 'required_linear_history'}, {'type': 'required_signatures'},
+            {'type': 'pull_request', 'parameters': {
+                'required_approving_review_count': 1,
+                'dismiss_stale_reviews_on_push': True,
+                'require_code_owner_review': True,
+                'require_last_push_approval': False,
+                'required_review_thread_resolution': True,
+            }},
+        ]})
+        safety = copy.deepcopy(self.state['ruleset'])
+        safety.update({'id': 20844470, 'source_type': 'Repository', 'name': 'release-safety-required'})
+        safety['rules'] = [safety['rules'][1]]
+        safety['rules'][0]['parameters']['required_status_checks'] = [
+            {'context': 'Release-safety preview', 'integration_id': 15368}]
+        self.state['rulesets'] = {'7546338': main, '20844470': safety}
+        if pin is not None:
+            self.state['variables']['MERGE_FREEZE_RULESET_ID'] = pin
+
+    def test_two_rulesets_without_pin_reproduce_live_failure(self):
+        self.two_live_shaped_rulesets(pin=None)
+        _, _, log = self.run_toggle(success=False)
+        self.assertIn('2 active rulesets cover main (ids: 7546338 20844470)', log)
+        self.assertEqual(self.mutations(), [])
+
+    def test_pin_selects_main_and_preserves_both_rulesets(self):
+        self.two_live_shaped_rulesets()
+        original = copy.deepcopy(self.state['rulesets'])
+        self.run_toggle()
+        expected = copy.deepcopy(original)
+        expected['7546338']['rules'].append({
+            'type': 'required_status_checks', 'parameters': {
+                'strict_required_status_checks_policy': False,
+                'do_not_enforce_on_create': False,
+                'required_status_checks': [{'context': 'merge-freeze'}],
+            },
+        })
+        self.assertEqual(self.state['rulesets'], expected)
+        self.run_toggle(action='unfreeze')
+        self.assertEqual(self.state['rulesets'], original)
+        self.assertEqual(self.state['ruleset_puts'], [
+            {'id': '7546338', 'payload': {key: value for key, value in snapshot['7546338'].items()
+                                         if key not in ('id', 'source_type')}}
+            for snapshot in [expected, original]
+        ])
+        writes = [c for c in self.state['calls'] if 'PUT' in c]
+        self.assertEqual(len(writes), 2)
+        self.assertTrue(all('repos/example/test/rulesets/7546338' in c for c in writes))
+        reads = [c for c in self.state['calls'] if 'repos/example/test/rulesets' in c]
+        self.assertTrue(all('--paginate' in c for c in reads))
+
+    def test_invalid_ruleset_pin_never_mutates(self):
+        for pin in ['', '0', '-7', '7.0', '7e0', ' 7', '7\n', '007', '7;echo nope']:
+            with self.subTest(pin=pin):
+                self.state['variables']['MERGE_FREEZE_RULESET_ID'] = pin
+                self.run_toggle(success=False)
+                self.assertEqual(self.mutations(), [])
+
+    def test_missing_ruleset_pin_never_falls_back(self):
+        self.state['variables']['MERGE_FREEZE_RULESET_ID'] = '999'
+        self.run_toggle(success=False)
+        self.assertEqual(self.mutations(), [])
+
+    def test_ineligible_ruleset_pin_never_falls_back(self):
+        for field, value in [('enforcement', 'disabled'), ('enforcement', 'evaluate'),
+                             ('source_type', 'Organization'), ('target', 'tag')]:
+            with self.subTest(field=field, value=value):
+                self.two_live_shaped_rulesets()
+                self.state['rulesets']['7546338'][field] = value
+                self.run_toggle(success=False)
+                self.assertEqual(self.mutations(), [])
+
+    def test_excluded_ruleset_pin_never_falls_back(self):
+        for exclusion in ['refs/heads/main', '~DEFAULT_BRANCH', '~ALL', 'refs/heads/*', 'refs/heads/m?in']:
+            with self.subTest(exclusion=exclusion):
+                self.two_live_shaped_rulesets()
+                self.state['rulesets']['7546338']['conditions']['ref_name']['exclude'] = [exclusion]
+                self.run_toggle(success=False)
+                self.assertEqual(self.mutations(), [])
+
+    def test_pin_requires_explicit_default_branch_coverage(self):
+        for include in ['refs/heads/other', 'refs/heads/*', 'refs/heads/m*']:
+            with self.subTest(include=include):
+                self.two_live_shaped_rulesets()
+                self.state['rulesets']['7546338']['conditions']['ref_name']['include'] = [include]
+                self.run_toggle(success=False)
+                self.assertEqual(self.mutations(), [])
+
+    def test_known_other_branch_exclusion_allows_pin(self):
+        self.two_live_shaped_rulesets()
+        self.state['rulesets']['7546338']['conditions']['ref_name'] = {
+            'include': ['refs/heads/main'], 'exclude': ['refs/heads/release']}
+        self.run_toggle()
+
+    def test_single_match_fallback_honours_exclusions(self):
+        self.state['ruleset']['conditions']['ref_name']['exclude'] = ['~DEFAULT_BRANCH']
+        self.run_toggle(success=False)
+        self.assertEqual(self.mutations(), [])
+
+    def test_another_ruleset_freeze_blocks_freeze_and_unfreeze(self):
+        self.two_live_shaped_rulesets()
+        self.state['rulesets']['20844470']['rules'][0]['parameters']['required_status_checks'].append(
+            {'context': 'merge-freeze'})
+        self.state['variables']['MERGE_FREEZE_ACTOR'] = SLACK_OTHER
+        original = copy.deepcopy(self.state['rulesets'])
+        for action in ['freeze', 'unfreeze']:
+            with self.subTest(action=action):
+                self.run_toggle(action=action, success=False)
+                self.assertEqual(self.mutations(), [])
+                self.assertEqual(self.state['rulesets'], original)
+                self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OTHER)
+
+    def test_duplicate_ruleset_pin_never_mutates(self):
+        self.state['variables']['MERGE_FREEZE_RULESET_ID'] = '7'
+        self.state['variable_response'] = [{'variables': [
+            {'name': key, 'value': value} for key, value in self.state['variables'].items()
+        ] + [{'name': 'MERGE_FREEZE_RULESET_ID', 'value': '7'}]}]
+        self.run_toggle(success=False)
+        self.assertEqual(self.mutations(), [])
+
+    def test_organization_freeze_also_blocks_selected_repository_rule(self):
+        self.two_live_shaped_rulesets()
+        self.state['rulesets']['20844470']['source_type'] = 'Organization'
+        self.state['rulesets']['20844470']['rules'][0]['parameters']['required_status_checks'].append(
+            {'context': 'merge-freeze'})
+        self.run_toggle(success=False)
+        self.assertEqual(self.mutations(), [])
+
+    def test_ambiguous_other_freeze_requires_admin_review(self):
+        self.two_live_shaped_rulesets()
+        self.state['rulesets']['20844470']['conditions']['ref_name']['include'] = ['refs/heads/m*']
+        self.state['rulesets']['20844470']['rules'][0]['parameters']['required_status_checks'].append(
+            {'context': 'merge-freeze'})
+        self.run_toggle(success=False)
+        self.assertEqual(self.mutations(), [])
+
+    def test_definitely_excluded_other_freeze_is_untouched(self):
+        self.two_live_shaped_rulesets()
+        other = self.state['rulesets']['20844470']
+        other['conditions']['ref_name']['exclude'] = ['refs/heads/main']
+        other['rules'][0]['parameters']['required_status_checks'].append({'context': 'merge-freeze'})
+        original = copy.deepcopy(other)
+        self.run_toggle()
+        self.assertEqual(self.state['rulesets']['20844470'], original)
+
+    def test_all_branches_pin_covers_default(self):
+        self.two_live_shaped_rulesets()
+        self.state['rulesets']['7546338']['conditions']['ref_name']['include'] = ['~ALL']
+        self.run_toggle()
+
+    def test_pin_preserves_owner_checks(self):
+        self.two_live_shaped_rulesets()
+        self.run_toggle()
+        original = copy.deepcopy(self.state['rulesets'])
+        self.state['calls'] = []
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
+        self.assertEqual(self.mutations(), [])
+        self.assertEqual(self.state['rulesets'], original)
+        self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
 
     def test_workflow_contract(self):
         workflow = WORKFLOW.read_text()

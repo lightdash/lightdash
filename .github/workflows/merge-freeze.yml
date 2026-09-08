@@ -135,37 +135,82 @@ jobs:
             exit 1
           fi
 
-          # `rulesets` also returns org-level rulesets that apply here but
-          # cannot be edited from this repo, hence the source_type filter. The
-          # list response carries no conditions, so each candidate is fetched to
-          # see whether it actually covers the default branch.
+          configured_ruleset_id=$(jq -r '
+            [.[] | select(.name == "MERGE_FREEZE_RULESET_ID") | .value]
+            | if length == 0 then ""
+              elif length == 1 and (.[0] | test("^[1-9][0-9]*$"))
+                   and (.[0] | explode | all(. >= 48 and . <= 57)) then .[0]
+              else error("MERGE_FREEZE_RULESET_ID must be a positive numeric ruleset ID") end
+          ' <<<"$variables")
           default_branch=$(gh api "repos/$REPO" --jq .default_branch)
-          candidates=$(gh api "repos/$REPO/rulesets" \
-            --jq '.[] | select(.target == "branch" and .source_type == "Repository" and .enforcement == "active") | .id')
+          candidates=$(gh api --paginate "repos/$REPO/rulesets" \
+            --jq '.[] | select(.target == "branch" and .enforcement == "active") | .id')
 
           matching=()
+          frozen_rulesets='[]'
+          matching_rulesets='[]'
           for id in $candidates; do
-            covers=$(gh api "repos/$REPO/rulesets/$id" \
-              | jq --arg branch "refs/heads/$default_branch" '
-                  (.conditions.ref_name.include // [])
-                  | any(. == "~ALL" or . == "~DEFAULT_BRANCH" or . == $branch)
-                ')
+            candidate=$(gh api "repos/$REPO/rulesets/$id")
+            candidate_source=$(jq -r '
+              if .target == "branch" and .enforcement == "active" then .source_type else "" end
+            ' <<<"$candidate")
+            [ -n "$candidate_source" ] || continue
+            covers=$(jq --arg branch "refs/heads/$default_branch" --arg ctx "$CONTEXT" '
+              def default_ref: . == "~ALL" or . == "~DEFAULT_BRANCH" or . == $branch;
+              def literal_ref: startswith("refs/heads/") and
+                (explode | all(. != 42 and . != 63 and . != 91 and . != 93 and . != 92));
+              (.conditions.ref_name.include // []) as $include
+              | (.conditions.ref_name.exclude // []) as $exclude
+              | if any($exclude[]; default_ref) then false
+                elif any($include[]; default_ref) then
+                  if all($exclude[]; literal_ref) then true
+                  else error("Cannot safely evaluate ruleset exclusions; ask a repository admin") end
+                elif any($include[]; literal_ref | not) and
+                     any(.rules[]? | select(.type == "required_status_checks")
+                         | .parameters.required_status_checks[]?; .context == $ctx) then
+                  error("Cannot rule out another freeze on the default branch; ask a repository admin")
+                else false end
+            ' <<<"$candidate")
             if [ "$covers" = "true" ]; then
-              matching+=("$id")
+              if jq -e --arg ctx "$CONTEXT" '
+                any(.rules[]? | select(.type == "required_status_checks")
+                    | .parameters.required_status_checks[]?; .context == $ctx)
+              ' <<<"$candidate" >/dev/null; then
+                frozen_rulesets=$(jq --arg id "$id" '. + [$id]' <<<"$frozen_rulesets")
+              fi
+              if [ "$candidate_source" = "Repository" ]; then
+                matching+=("$id")
+                matching_rulesets=$(jq --arg id "$id" --argjson ruleset "$candidate" \
+                  '. + [{id: $id, ruleset: $ruleset}]' <<<"$matching_rulesets")
+              fi
             fi
           done
 
-          if [ "${#matching[@]}" -eq 0 ]; then
-            echo "::error::No active repository branch ruleset covers $default_branch on $REPO, so there is nothing to attach the $CONTEXT check to."
-            exit 1
+          if [ -n "$configured_ruleset_id" ]; then
+            ruleset_id=$configured_ruleset_id
+            ruleset=$(jq -e --arg id "$ruleset_id" '
+              [.[] | select(.id == $id)]
+              | if length == 1 then .[0].ruleset
+                else error("Configured ruleset is not an active repository branch ruleset covering the default branch") end
+            ' <<<"$matching_rulesets")
+          else
+            if [ "${#matching[@]}" -eq 0 ]; then
+              echo "::error::No active repository branch ruleset covers $default_branch on $REPO, so there is nothing to attach the $CONTEXT check to."
+              exit 1
+            fi
+            if [ "${#matching[@]}" -gt 1 ]; then
+              echo "::error::${#matching[@]} active rulesets cover $default_branch (ids: ${matching[*]}). Set the MERGE_FREEZE_RULESET_ID repository variable to select the merge protection ruleset."
+              exit 1
+            fi
+            ruleset_id=${matching[0]}
+            ruleset=$(jq '.[0].ruleset' <<<"$matching_rulesets")
           fi
-          if [ "${#matching[@]}" -gt 1 ]; then
-            echo "::error::${#matching[@]} active rulesets cover $default_branch (ids: ${matching[*]}). Refusing to guess which one owns merge protection - consolidate them, or pin one in this workflow."
+
+          if ! jq -e --arg id "$ruleset_id" 'all(.[]; . == $id)' <<<"$frozen_rulesets" >/dev/null; then
+            echo "::error::Another applicable ruleset contains '$CONTEXT'. Ask a repository admin to review the freeze before retrying."
             exit 1
           fi
 
-          ruleset_id=${matching[0]}
-          ruleset=$(gh api "repos/$REPO/rulesets/$ruleset_id")
           ruleset_name=$(jq -r .name <<<"$ruleset")
           echo "Editing ruleset $ruleset_name (id $ruleset_id) on $default_branch"
 
