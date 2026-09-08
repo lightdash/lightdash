@@ -5,8 +5,8 @@ import {
     SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
-    type ExploreError,
     WarehouseTypes,
+    type ExploreError,
 } from '@lightdash/common';
 import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
