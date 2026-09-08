@@ -1,3 +1,10 @@
+# [2.161.0](https://github.com/lightdash/lightdash/compare/2.160.0...2.161.0) (2026-09-08)
+
+
+### Features
+
+* **embed:** add role-based dashboard permission mode ([#28808](https://github.com/lightdash/lightdash/issues/28808)) ([33d5c7b](https://github.com/lightdash/lightdash/commit/33d5c7b0900f96ea2cdc2960114bba93880475f3)), closes [#28801](https://github.com/lightdash/lightdash/issues/28801)
+
 # [2.160.0](https://github.com/lightdash/lightdash/compare/2.159.0...2.160.0) (2026-09-08)
 
 
