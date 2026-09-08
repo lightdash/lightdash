@@ -1,3 +1,10 @@
+# [2.160.0](https://github.com/lightdash/lightdash/compare/2.159.0...2.160.0) (2026-09-08)
+
+
+### Features
+
+* **learn:** record who opens the library and who starts, finishes or drops a walkthrough ([#28834](https://github.com/lightdash/lightdash/issues/28834)) ([245d7a8](https://github.com/lightdash/lightdash/commit/245d7a866a3fb6184763d05dfe93dfe10b2ed065))
+
 # [2.159.0](https://github.com/lightdash/lightdash/compare/2.158.0...2.159.0) (2026-09-08)
 
 
