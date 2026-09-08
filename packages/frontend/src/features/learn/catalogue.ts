@@ -1,5 +1,4 @@
 import {
-    getAllScopesForRole,
     getScopes,
     getTrainingProjectScopes,
     ProjectMemberRole,
@@ -7,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { CURRICULUM } from '../scopeTours/curriculum';
 import { SCOPE_TOURS } from '../scopeTours/generated';
+import { ROLE_LABELS, SYSTEM_ROLE_SCOPES } from './access';
 
 /**
  * Foundations, as on learn.lightdash.com: what a viewer can already do,
@@ -47,22 +47,6 @@ export type LearnModule = {
     available: boolean;
     blurb: string;
     stepCount: number;
-};
-
-export const ROLE_ORDER: ProjectMemberRole[] = [
-    ProjectMemberRole.VIEWER,
-    ProjectMemberRole.INTERACTIVE_VIEWER,
-    ProjectMemberRole.EDITOR,
-    ProjectMemberRole.DEVELOPER,
-    ProjectMemberRole.ADMIN,
-];
-
-export const ROLE_LABELS: Record<ProjectMemberRole, string> = {
-    [ProjectMemberRole.VIEWER]: 'Viewer',
-    [ProjectMemberRole.INTERACTIVE_VIEWER]: 'Interactive viewer',
-    [ProjectMemberRole.EDITOR]: 'Editor',
-    [ProjectMemberRole.DEVELOPER]: 'Developer',
-    [ProjectMemberRole.ADMIN]: 'Admin',
 };
 
 export const GROUP_ORDER: LearnGroup[] = [
@@ -115,31 +99,6 @@ const stripBold = (text: string) => text.replace(/\*\*/g, '');
  */
 export const buildLearnCatalogue = (): LearnModule[] => {
     const trainee = new Set(getTrainingProjectScopes());
-    // A role holds a feature when it holds the base scope or a variant it
-    // can use without a further grant: `@public` (public spaces) for any
-    // role that carries it, and `@space` / `@assigned` (via space access)
-    // from editor up, since editors edit public spaces by default while an
-    // interactive viewer only carries the variant in case a space grants
-    // it. `@self` (own content only) never makes a role hold the feature.
-    const roleScopes = ROLE_ORDER.map(
-        (role) =>
-            [
-                role,
-                new Set(
-                    getAllScopesForRole(role)
-                        .filter((name) => {
-                            const modifier = name.split('@')[1];
-                            if (!modifier || modifier === 'public') return true;
-                            if (modifier === 'self') return false;
-                            return (
-                                ROLE_ORDER.indexOf(role) >=
-                                ROLE_ORDER.indexOf(ProjectMemberRole.EDITOR)
-                            );
-                        })
-                        .map((name) => name.split('@')[0]),
-                ),
-            ] as const,
-    );
     return (
         getScopes({ isEnterprise: true })
             // Base scopes only: a modifier variant (`@self`, `@space`) is the
@@ -150,8 +109,9 @@ export const buildLearnCatalogue = (): LearnModule[] => {
             .map((scope) => {
                 const tour = SCOPE_TOURS[scope.name];
                 const minRole =
-                    roleScopes.find(([, held]) => held.has(scope.name))?.[0] ??
-                    null;
+                    SYSTEM_ROLE_SCOPES.find((system) =>
+                        system.held.has(scope.name),
+                    )?.role ?? null;
                 return {
                     scope: scope.name,
                     // A built walkthrough names itself (data-tour-title); a
@@ -192,15 +152,15 @@ const taughtAt = (module: LearnModule): number => {
     return at < 0 ? CURRICULUM.length : at;
 };
 
-/** Available first, then modules the role holds, then in teaching order. */
-export const sortForRole = (
-    role: ProjectMemberRole,
+/** Available first, then the modules the learner holds, then in teaching order. */
+export const sortForLearner = (
+    held: Set<string>,
     modules: LearnModule[],
 ): LearnModule[] =>
     [...modules].sort(
         (a, b) =>
             Number(b.available) - Number(a.available) ||
-            Number(roleHolds(role, b)) - Number(roleHolds(role, a)) ||
+            Number(holds(held, b)) - Number(holds(held, a)) ||
             taughtAt(a) - taughtAt(b) ||
             a.title.localeCompare(b.title),
     );
@@ -212,7 +172,7 @@ export const sortForRole = (
  * pages never disagree about what comes next.
  */
 export const focusModules = (
-    role: ProjectMemberRole,
+    held: Set<string>,
     available: LearnModule[],
     completed: string[],
     lastStarted: string | null,
@@ -220,23 +180,29 @@ export const focusModules = (
     const resume = available.find(
         (m) => m.scope === lastStarted && !completed.includes(m.scope),
     );
-    const recommended = sortForRole(role, available).find(
+    const recommended = sortForLearner(held, available).find(
         (m) => m.scope !== resume?.scope && !completed.includes(m.scope),
     );
     return { resume, recommended };
 };
 
-/** Whether a role holds a module's scope (its rank is at or above the minimum). */
-export const roleHolds = (
-    role: ProjectMemberRole,
-    module: LearnModule,
-): boolean =>
-    module.minRole !== null &&
-    ROLE_ORDER.indexOf(role) >= ROLE_ORDER.indexOf(module.minRole);
+/**
+ * Whether the learner holds a module's feature. Membership, not rank: their
+ * access is a set of scopes gathered from every role they hold, and a custom
+ * role sits nowhere on the system ladder.
+ */
+export const holds = (held: Set<string>, module: LearnModule): boolean =>
+    held.has(module.scope);
 
-/** The project role a learner's organization role most resembles. */
-export const roleFromOrganizationRole = (
-    organizationRole: string | undefined,
-): ProjectMemberRole =>
-    ROLE_ORDER.find((role) => role === organizationRole) ??
-    ProjectMemberRole.VIEWER;
+/**
+ * What a card says about a module the learner cannot practise yet: the
+ * lowest system role that holds it, so they know what it would take. A
+ * module no system role holds says nothing.
+ */
+export const accessNote = (
+    held: Set<string>,
+    module: LearnModule,
+): string | null => {
+    if (holds(held, module)) return null;
+    return module.minRole ? `${ROLE_LABELS[module.minRole]} and above` : null;
+};

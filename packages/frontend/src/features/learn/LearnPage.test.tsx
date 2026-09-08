@@ -1,20 +1,22 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
 
-const { track, projectState, healthState, availabilityState } = vi.hoisted(
-    () => ({
+const { track, projectState, healthState, availabilityState, accessState } =
+    vi.hoisted(() => ({
         track: vi.fn(),
         projectState: { current: [] as unknown[] },
         healthState: { current: { learn: { enabled: true } } },
         availabilityState: { current: { isSettled: true } },
-    }),
-);
+        // Everything the learner can do, anywhere.
+        accessState: { current: [] as string[] },
+    }));
 
 vi.mock('react-router', () => ({
     Navigate: () => null,
@@ -37,6 +39,18 @@ vi.mock('../../providers/App/useApp', () => ({
         },
     }),
 }));
+
+// The learner's access comes from the instance; how the library reads a
+// scope set is the real thing.
+vi.mock('./useLearnAccess', async () => {
+    const { heldScopes } = await import('./access');
+    return {
+        useLearnAccess: () => ({
+            held: heldScopes(accessState.current, true),
+            isSettled: true,
+        }),
+    };
+});
 
 vi.mock('../../hooks/health/useHealth', () => ({
     default: () => ({ data: healthState.current }),
@@ -93,6 +107,7 @@ describe('LearnPage analytics', () => {
         track.mockClear();
         healthState.current = { learn: { enabled: true } };
         availabilityState.current = { isSettled: true };
+        accessState.current = scopes;
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
@@ -177,5 +192,73 @@ describe('LearnPage analytics', () => {
         renderPage();
 
         expect(viewEvents()).toEqual([]);
+    });
+});
+
+describe('LearnPage access', () => {
+    const catalogueScopes = catalogue.map((module) => module.scope);
+
+    beforeEach(() => {
+        localStorage.clear();
+        track.mockClear();
+        healthState.current = { learn: { enabled: true } };
+        availabilityState.current = { isSettled: true };
+        accessState.current = ['view:Dashboard', 'manage:Validation'];
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+        ];
+    });
+
+    const shown = (container: HTMLElement) =>
+        [...container.querySelectorAll('[data-learn-module]')].map((card) =>
+            card.getAttribute('data-learn-module'),
+        );
+    const toggleExtra = async () => {
+        await userEvent.click(screen.getByLabelText('Filter'));
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Show extra modules' }),
+        );
+    };
+
+    it('shows what the learner can do, and nothing else', () => {
+        const { container } = renderPage();
+
+        expect(shown(container).sort()).toEqual(
+            ['manage:Validation', 'view:Dashboard'].sort(),
+        );
+    });
+
+    it('reads their access however they came by it', () => {
+        // A viewer at organization level who edits in one project holds the
+        // editor features, wherever the grant came from.
+        accessState.current = ['view:Dashboard', 'manage:Dashboard@space'];
+
+        const { container } = renderPage();
+
+        expect(shown(container)).toContain('manage:Dashboard');
+    });
+
+    it('keeps the rest behind the extra modules toggle', async () => {
+        const { container } = renderPage();
+
+        await toggleExtra();
+
+        expect(shown(container).length).toBe(catalogueScopes.length);
+        expect(
+            container.querySelector('[data-learn-module="manage:PinnedItems"]')
+                ?.textContent,
+        ).toContain('Editor and above');
+        expect(
+            container.querySelector('[data-learn-module="view:Dashboard"]')
+                ?.textContent,
+        ).not.toContain('and above');
+    });
+
+    it('says what the shelf is showing', async () => {
+        renderPage();
+        expect(screen.getByText('What you can do')).toBeTruthy();
+
+        await toggleExtra();
+        expect(screen.getByText('Every module')).toBeTruthy();
     });
 });

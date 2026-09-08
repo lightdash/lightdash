@@ -1269,6 +1269,21 @@ export type ApiEnableLearnResponse = {
     results: EnableLearnResults;
 };
 
+/**
+ * What a learner can do, anywhere (CS-267): every scope they hold through
+ * their organization role, any organization-level custom roles, and every
+ * project role they hold directly or through a group. The library shows the
+ * features in this set and keeps the rest behind a toggle.
+ */
+export type LearnAccess = {
+    scopes: string[];
+};
+
+export type ApiLearnAccessResponse = {
+    status: 'ok';
+    results: LearnAccess;
+};
+
 export const playgroundProjectTriggers = [
     'invite_expert',
     'agent_onboarding_wait',

@@ -276,38 +276,13 @@
     padding-top: 6px;
 }
 
-/* The roles as views, Linear's way: one pill per role, the chosen one
-   filled; the library is the modules that role can practise. */
-.views {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+/* What the shelf below is: what the learner can do, or everything, when
+   they have asked for the extras. */
+.libraryHeading {
     margin-right: auto;
-}
-
-.view {
-    padding: 5px 12px;
-    border-radius: 999px;
-    font: inherit;
     font-size: 12.5px;
-    color: var(--lu-muted);
-    background: transparent;
-    cursor: pointer;
-    transition:
-        background 120ms ease,
-        color 120ms ease;
-}
-
-.view:hover {
-    background: var(--lu-sunken);
-    color: var(--lu-ink);
-}
-
-.viewOn {
-    background: var(--lu-sunken);
-    color: var(--lu-ink);
     font-weight: 600;
-    box-shadow: 0 0 0 1px var(--lu-border) inset;
+    color: var(--lu-ink);
 }
 
 .libraryCount {
