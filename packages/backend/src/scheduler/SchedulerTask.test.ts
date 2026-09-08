@@ -3467,6 +3467,220 @@ describe('app delivery target senders', () => {
         expect(blocks).toContain('Orders');
     });
 
+    describe('csv file attachments in the Slack thread', () => {
+        const sendToSlack = async (
+            scheduler: CreateSchedulerAndTargets,
+            page: PageData,
+        ) => {
+            const postMessage = vi.fn().mockResolvedValue({ ts: '111' });
+            const postFileToThread = vi.fn().mockResolvedValue(undefined);
+            const task = makeTaskWithDeps({
+                ...senderBaseDeps(),
+                slackClient: asDep<'slackClient'>({
+                    isEnabled: true,
+                    postMessage,
+                    postFileToThread,
+                }),
+            });
+            await (
+                task as unknown as {
+                    sendSlackNotification(
+                        jobId: string,
+                        notification: never,
+                    ): Promise<void>;
+                }
+            ).sendSlackNotification(
+                'job-1',
+                notificationOf(scheduler, page, { channel: 'C123' }),
+            );
+            return { postMessage, postFileToThread };
+        };
+
+        const attachingScheduler = (
+            overrides: Partial<CreateSchedulerAndTargets> = {},
+        ) =>
+            appScheduler({
+                options: {
+                    formatted: true,
+                    limit: 'table',
+                    asAttachment: true,
+                },
+                ...overrides,
+            });
+
+        beforeEach(() => {
+            vi.stubGlobal(
+                'fetch',
+                vi.fn(async (url: string) =>
+                    url.includes('missing')
+                        ? new Response('gone', { status: 404 })
+                        : new Response(`rows from ${url}`),
+                ),
+            );
+        });
+
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('uploads every csv file into the thread of the delivery message', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Revenue-2026-07-30.csv',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(2);
+            const [first, second] = postFileToThread.mock.calls.map(
+                (call) => call[0],
+            );
+            expect(first).toMatchObject({
+                organizationUuid: 'org-1',
+                channelId: 'C123',
+                threadTs: '111',
+                filename: 'csv-Revenue-2026-07-30.csv',
+                title: 'Revenue',
+                fileType: 'csv',
+            });
+            expect(first.file.toString()).toBe(
+                'rows from https://files.example.com/revenue.csv',
+            );
+            expect(second.filename).toBe('csv-Orders-2026-07-30.csv');
+        });
+
+        it('adds the csv extension to dashboard files that are named after their chart', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue by method?',
+                        path: 'https://files.example.com/revenue.csv?sig=1',
+                        localPath: 'https://files.example.com/revenue.csv',
+                        chartName: 'Revenue by method?',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue by method?.csv',
+                title: 'Revenue by method?',
+            });
+        });
+
+        it('uploads the chart csv with the chart name as the file title', async () => {
+            const page = senderPage({
+                pageType: LightdashPage.CHART,
+                details: { name: 'Revenue by method', description: '' },
+                csvUrls: undefined,
+                failures: undefined,
+                notices: undefined,
+                csvUrl: {
+                    filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                    path: 'https://files.example.com/revenue.csv?sig=1',
+                    localPath: 'https://files.example.com/revenue.csv',
+                    truncated: false,
+                },
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    appUuid: null,
+                    appName: null,
+                    savedChartUuid: 'chart-1',
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                threadTs: '111',
+                filename: 'csv-Revenue-by-method-2026-07-30.csv',
+                title: 'Revenue by method',
+            });
+        });
+
+        it('keeps the link-only message when the attachment option is off', async () => {
+            const { postMessage, postFileToThread } = await sendToSlack(
+                appScheduler(),
+                senderPage(),
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).not.toHaveBeenCalled();
+        });
+
+        it('does not attach xlsx deliveries', async () => {
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({ format: SchedulerFormat.XLSX }),
+                senderPage(),
+            );
+
+            expect(postFileToThread).not.toHaveBeenCalled();
+        });
+
+        it('skips empty results and carries on after a file that fails to download', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'csv-Empty-2026-07-30.csv',
+                        path: '#no-results',
+                        localPath: '#no-results',
+                        chartName: 'Empty',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Missing-2026-07-30.csv',
+                        path: 'https://files.example.com/missing.csv?sig=1',
+                        localPath: 'https://files.example.com/missing.csv',
+                        chartName: 'Missing',
+                        truncated: false,
+                    },
+                    {
+                        filename: 'csv-Orders-2026-07-30.csv',
+                        path: 'https://files.example.com/orders.csv?sig=1',
+                        localPath: 'https://files.example.com/orders.csv',
+                        chartName: 'Orders',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postMessage, postFileToThread } = await sendToSlack(
+                attachingScheduler(),
+                page,
+            );
+
+            expect(postMessage).toHaveBeenCalledTimes(1);
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0].filename).toBe(
+                'csv-Orders-2026-07-30.csv',
+            );
+        });
+    });
+
     it('sends an app csv delivery by email with its failures and notices', async () => {
         const sendDashboardCsvNotificationEmail = vi
             .fn()

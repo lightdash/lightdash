@@ -222,6 +222,12 @@ export const getFormValuesFromScheduler = (
     };
 };
 
+// Emails receive the file as an attachment, Slack channels get it in the message thread.
+export const hasFileAttachmentTargets = (
+    values: Pick<SchedulerFormValues, 'emailTargets' | 'slackTargets'>,
+): boolean =>
+    (values.emailTargets?.length || 0) + (values.slackTargets?.length || 0) > 0;
+
 export const transformFormValues = (
     values: SchedulerFormValues,
     resourceType: 'chart' | 'dashboard' | 'app' | undefined,
@@ -234,10 +240,9 @@ export const transformFormValues = (
                 values.options.limit === Limit.CUSTOM
                     ? values.options.customLimit
                     : values.options.limit,
-            // Only allow attachment for CSV format and if there are email targets
             asAttachment:
                 values.format === SchedulerFormat.CSV &&
-                (values.emailTargets?.length || 0) > 0
+                hasFileAttachmentTargets(values)
                     ? values.options.asAttachment
                     : false,
             exportPivotedData: values.options.exportPivotedData,
