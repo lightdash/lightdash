@@ -184,6 +184,17 @@ export class ManagedSignInService {
         );
     }
 
+    recordSignInAllowed(
+        user: SessionUser,
+        context: { ip?: string; userAgent?: string },
+    ): void {
+        this.getUserService().recordOpenIdLoginAllowed(
+            user,
+            OpenIdIdentityIssuerType.AZUREAD,
+            context,
+        );
+    }
+
     async exchangeIdToken({
         subjectToken,
         clientId,
@@ -221,6 +232,7 @@ export class ManagedSignInService {
                             tenantId: claims.tid,
                             organizationUuid: organizationUuid ?? null,
                         },
+                        deferSuccessAudit: true,
                     },
                 );
             } catch (error) {

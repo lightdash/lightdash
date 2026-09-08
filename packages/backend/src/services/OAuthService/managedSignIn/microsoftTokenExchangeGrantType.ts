@@ -1,4 +1,8 @@
-import { ID_TOKEN_TYPE, ManagedSignInError } from '@lightdash/common';
+import {
+    ID_TOKEN_TYPE,
+    ManagedSignInError,
+    type SessionUser,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { ManagedSignInRejection } from './ManagedSignInRejection';
 import type { ManagedSignInService } from './ManagedSignInService';
@@ -34,13 +38,17 @@ export const createMicrosoftTokenExchangeGrantType = (
                 );
             }
 
-            let user: OAuth2Server.User;
+            const auditContext = {
+                ip: request.get('x-forwarded-for') ?? undefined,
+                userAgent: request.get('user-agent') ?? undefined,
+            };
+
+            let user: SessionUser;
             try {
                 user = await getManagedSignInService().exchangeIdToken({
                     subjectToken,
                     clientId: client.id,
-                    ip: request.get('x-forwarded-for') ?? undefined,
-                    userAgent: request.get('user-agent') ?? undefined,
+                    ...auditContext,
                 });
             } catch (error) {
                 throw new InvalidGrantError(
@@ -90,6 +98,9 @@ export const createMicrosoftTokenExchangeGrantType = (
             if (!saved) {
                 throw new InvalidGrantError(ManagedSignInError.TOKEN_INVALID);
             }
+
+            getManagedSignInService().recordSignInAllowed(user, auditContext);
+
             return saved;
         }
     };
