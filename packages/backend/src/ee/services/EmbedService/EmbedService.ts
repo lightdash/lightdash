@@ -621,6 +621,8 @@ export class EmbedService extends BaseService {
             throw new ParameterError('JWT content is not of type dashboard');
         }
         const { isPreview, stickyHeader } = decodedToken.content;
+        const useLegacyPermissions =
+            decodedToken.writeActions?.permissionsMode !== 'roles';
         const ability = this.createAuditedAbility(account);
         const embedTarget = {
             organizationUuid: dashboard.organizationUuid,
@@ -630,36 +632,43 @@ export class EmbedService extends BaseService {
             ability.can(
                 'view',
                 subject('EmbedCsvExport', { ...embedTarget }),
-            ) || decodedToken.content.canExportCsv;
+            ) ||
+            (useLegacyPermissions && decodedToken.content.canExportCsv);
         const canExportDashboardCsv =
             ability.can(
                 'view',
                 subject('EmbedDashboardCsvExport', { ...embedTarget }),
-            ) || decodedToken.content.canExportDashboardCsv;
+            ) ||
+            (useLegacyPermissions &&
+                decodedToken.content.canExportDashboardCsv);
         const canExportImages =
             ability.can(
                 'view',
                 subject('EmbedImageExport', { ...embedTarget }),
-            ) || decodedToken.content.canExportImages;
+            ) ||
+            (useLegacyPermissions && decodedToken.content.canExportImages);
         const canExportPagePdf =
             ability.can(
                 'view',
                 subject('EmbedPagePdfExport', { ...embedTarget }),
-            ) || decodedToken.content.canExportPagePdf;
+            ) ||
+            (useLegacyPermissions && decodedToken.content.canExportPagePdf);
         const canDateZoom =
             ability.can('view', subject('EmbedDateZoom', { ...embedTarget })) ||
-            decodedToken.content.canDateZoom;
+            (useLegacyPermissions && decodedToken.content.canDateZoom);
         const canExplore =
             ability.can('view', subject('EmbedExplore', { ...embedTarget })) ||
-            decodedToken.content.canExplore;
+            (useLegacyPermissions && decodedToken.content.canExplore);
         const canViewUnderlyingData =
             ability.can(
                 'view',
                 subject('EmbedUnderlyingData', { ...embedTarget }),
-            ) || decodedToken.content.canViewUnderlyingData;
+            ) ||
+            (useLegacyPermissions &&
+                decodedToken.content.canViewUnderlyingData);
         const canViewDataApps =
             ability.can('view', subject('EmbedDataApps', { ...embedTarget })) ||
-            decodedToken.content.canViewDataApps;
+            (useLegacyPermissions && decodedToken.content.canViewDataApps);
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {
@@ -2826,13 +2835,14 @@ export class EmbedService extends BaseService {
                 decodedToken.content.type === 'aiAgent' &&
                 canCreateSavedChart &&
                 canViewProject &&
-                auditedAbility.can(
-                    'view',
-                    subject('EmbedAiAgent', {
-                        organizationUuid,
-                        projectUuid,
-                    }),
-                );
+                (writeActions.permissionsMode !== 'roles' ||
+                    auditedAbility.can(
+                        'view',
+                        subject('EmbedAiAgent', {
+                            organizationUuid,
+                            projectUuid,
+                        }),
+                    ));
 
             return {
                 canUpdateDashboard,

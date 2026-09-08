@@ -121,6 +121,8 @@ export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
+    /** Omit for legacy flags OR scopes; roles ignores legacy capability grants. */
+    permissionsMode?: 'legacy' | 'roles';
 };
 
 export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
@@ -128,6 +130,7 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
         spaceUuid: z.string().uuid(),
+        permissionsMode: z.enum(['legacy', 'roles']).optional(),
     })
     .refine(
         ({ serviceAccountUserUuid, userUuid }) =>

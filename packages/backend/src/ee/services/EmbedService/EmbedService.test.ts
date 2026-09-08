@@ -452,6 +452,44 @@ describe('EmbedService', () => {
 
     describe('embedded AI scope', () => {
         test.each([
+            {
+                name: 'old JWT without scope',
+                legacy: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'explicit legacy mode without scope',
+                legacy: true,
+                explicitLegacy: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'legacy service account without scope',
+                legacy: true,
+                serviceAccount: true,
+                scope: 'view:AiAgent',
+                allowed: true,
+            },
+            {
+                name: 'legacy still requires chart creation',
+                legacy: true,
+                canCreate: false,
+                allowed: false,
+            },
+            {
+                name: 'legacy still requires project access',
+                legacy: true,
+                canView: false,
+                allowed: false,
+            },
+            {
+                name: 'legacy dashboard cannot access AI',
+                legacy: true,
+                dashboard: true,
+                allowed: false,
+            },
             { name: 'user with project scope', allowed: true },
             {
                 name: 'service account with scope',
@@ -554,6 +592,7 @@ describe('EmbedService', () => {
             const content = scenario.dashboard
                 ? { type: 'dashboard' as const, dashboardUuid: 'dashboard' }
                 : { type: 'aiAgent' as const, agentUuid: 'agent' };
+            const legacyMode = scenario.explicitLegacy ? 'legacy' : undefined;
             const context = await getContext(
                 {
                     content,
@@ -562,6 +601,9 @@ describe('EmbedService', () => {
                         : {
                               writeActions: {
                                   spaceUuid: 'space',
+                                  permissionsMode: scenario.legacy
+                                      ? legacyMode
+                                      : 'roles',
                                   ...(scenario.serviceAccount
                                       ? { serviceAccountUserUuid: mockUserUuid }
                                       : { userUuid: mockUserUuid }),
@@ -575,7 +617,7 @@ describe('EmbedService', () => {
             expect(context?.canUseAiAgent).toBe(allowed);
             if (allowed === false)
                 expect(context?.aiAgentErrorMessage).toBeTruthy();
-            if (scenario.scope === 'view:AiAgent') {
+            if (scenario.scope === 'view:AiAgent' && !allowed) {
                 expect(context?.aiAgentErrorMessage).toBe(
                     'Embed token write actor cannot use embedded AI agents',
                 );
