@@ -212,7 +212,8 @@ const LearnPage: FC = () => {
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(true);
     const [showSoon, setShowSoon] = useState(true);
-    const [activeGroup, setActiveGroup] = useState<LearnGroup | null>(null);
+    // One group, or every group: the chips beside the search.
+    const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -228,6 +229,12 @@ const LearnPage: FC = () => {
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
+    // A chip narrows the page to one group; the chips themselves always
+    // list every group with a match, so the way back is a click away.
+    const shownGroups =
+        groupFilter === null
+            ? groups
+            : groups.filter((group) => group === groupFilter);
     const available = catalogue.filter((m) => m.available);
     const doneCount = available.filter((m) =>
         completed.includes(m.scope),
@@ -247,12 +254,6 @@ const LearnPage: FC = () => {
     const { start, opening } = useStartWalkthrough(
         trainingProject?.projectUuid,
     );
-    const jumpTo = (group: LearnGroup) => {
-        setActiveGroup(group);
-        document
-            .getElementById(`learn-group-${group}`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
 
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     // Learn switched off for the instance: the route falls through to the
@@ -283,45 +284,6 @@ const LearnPage: FC = () => {
 
     return (
         <Box className={styles.shell}>
-            <Box component="aside" className={styles.sidebar}>
-                <Box className={styles.sidebarInner}>
-                    <h2 className={styles.sidebarTitle}>Library</h2>
-                    <Box
-                        component="nav"
-                        className={styles.nav}
-                        aria-label="Library"
-                    >
-                        {groups.map((group) => {
-                            const Glyph = GROUP_ICONS[group];
-                            return (
-                                <UnstyledButton
-                                    key={group}
-                                    type="button"
-                                    className={`${styles.navItem} ${
-                                        activeGroup === group
-                                            ? styles.navItemActive
-                                            : ''
-                                    }`}
-                                    aria-current={
-                                        activeGroup === group
-                                            ? 'true'
-                                            : undefined
-                                    }
-                                    onClick={() => jumpTo(group)}
-                                >
-                                    <span
-                                        className={styles.navIcon}
-                                        style={groupVars(group)}
-                                    >
-                                        <MantineIcon icon={Glyph} size={15} />
-                                    </span>
-                                    {GROUP_LABELS[group]}
-                                </UnstyledButton>
-                            );
-                        })}
-                    </Box>
-                </Box>
-            </Box>
             <Box className={styles.main}>
                 <Box className={styles.homeHead}>
                     <h1 className={styles.greeting}>{greeting()}</h1>
@@ -482,12 +444,48 @@ const LearnPage: FC = () => {
                         />
                     </Group>
                 </Box>
+                <Box
+                    component="nav"
+                    className={styles.chips}
+                    aria-label="Library groups"
+                >
+                    <UnstyledButton
+                        type="button"
+                        className={`${styles.chip} ${
+                            groupFilter === null ? styles.chipOn : ''
+                        }`}
+                        aria-pressed={groupFilter === null}
+                        onClick={() => setGroupFilter(null)}
+                    >
+                        All
+                    </UnstyledButton>
+                    {groups.map((group) => (
+                        <UnstyledButton
+                            key={group}
+                            type="button"
+                            className={`${styles.chip} ${
+                                groupFilter === group ? styles.chipOn : ''
+                            }`}
+                            style={groupVars(group)}
+                            aria-pressed={groupFilter === group}
+                            data-learn-chip={group}
+                            onClick={() =>
+                                setGroupFilter(
+                                    groupFilter === group ? null : group,
+                                )
+                            }
+                        >
+                            <span className={styles.chipSwatch} aria-hidden />
+                            {GROUP_LABELS[group]}
+                        </UnstyledButton>
+                    ))}
+                </Box>
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
                     </Box>
                 )}
-                {groups.map((group) => (
+                {shownGroups.map((group) => (
                     <Box
                         key={group}
                         component="section"
