@@ -20,6 +20,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { RedshiftDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
+import { SshStaticIpHint } from './SshStaticIpHint';
 
 export const RedshiftSchemaInput: FC<{
     disabled: boolean;
@@ -510,6 +511,8 @@ const RedshiftForm: FC<{
                                         'warehouse.sshTunnelHost',
                                     )}
                                 />
+
+                                <SshStaticIpHint />
 
                                 <NumberInput
                                     name="warehouse.sshTunnelPort"

@@ -75,6 +75,8 @@ import {
     type ApiUpdateDashboardsResponse,
     type ApiUpstreamDiffResponse,
     type ApiVerifiedContentListResponse,
+    type ApiWarehouseConnectionTestBody,
+    type ApiWarehouseConnectionTestResponse,
     type CalculateSubtotalsFromQuery,
     type CompileMergeQueryRequest,
     type CreateDashboard,
@@ -646,6 +648,35 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
             });
         }
         return { status: 'ok', results: result.query };
+    }
+
+    /**
+     * Tests warehouse credentials without saving them. Reports each SSH tunnel hop and the database login separately so a broken bastion setup points at the step to fix.
+     * @summary Test warehouse connection
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/warehouse/test')
+    @OperationId('testWarehouseConnection')
+    async testWarehouseConnection(
+        @Path() projectUuid: UUID,
+        @Body() body: ApiWarehouseConnectionTestBody,
+        @Request() req: express.Request,
+    ): Promise<ApiWarehouseConnectionTestResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .testWarehouseConnection(
+                req.account,
+                projectUuid,
+                body.warehouseConnection,
+            );
+        return { status: 'ok', results };
     }
 
     /**

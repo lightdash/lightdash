@@ -388,6 +388,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
+import { type WarehouseConnectionTestResults } from './sshTunnel';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
@@ -1284,6 +1285,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | WarehouseConnectionTestResults
     | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess

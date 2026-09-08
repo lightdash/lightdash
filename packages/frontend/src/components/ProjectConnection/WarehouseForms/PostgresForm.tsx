@@ -21,6 +21,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
+import { SshStaticIpHint } from './SshStaticIpHint';
 
 export const PostgresSchemaInput: FC<{
     disabled: boolean;
@@ -332,6 +333,8 @@ const PostgresForm: FC<{
                                         'warehouse.sshTunnelHost',
                                     )}
                                 />
+
+                                <SshStaticIpHint />
 
                                 <NumberInput
                                     name="warehouse.sshTunnelPort"

@@ -129,6 +129,7 @@ import {
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
+    isSshTunnelErrorData,
     isUserManagedExplore,
     isUserWithOrg,
     isValidTimezone,
@@ -210,6 +211,7 @@ import {
     SpaceSummary,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SshTunnelError,
     SummaryExplore,
     supportsOptionalUserCredentials,
     TablesConfiguration,
@@ -234,6 +236,7 @@ import {
     VizColumn,
     WarehouseClient,
     WarehouseConnectionError,
+    WarehouseConnectionTestResults,
     WarehouseCredentials,
     WarehouseTablesCatalog,
     WarehouseTableSchema,
@@ -370,6 +373,11 @@ import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
 import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
+import {
+    buildConnectionTestResults,
+    tunnelHopsAllOk,
+    tunnelHopsFailedAt,
+} from './warehouseConnectionHops';
 
 const manifestWithCompilationSelection = (
     manifest: DbtManifest,
@@ -3834,26 +3842,19 @@ export class ProjectService extends BaseService {
             savedProject.type === ProjectType.PREVIEW,
         );
 
-        if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-            await this.schedulerClient.testAndCompileProject({
-                organizationUuid: account.organization.organizationUuid,
-                createdByUserUuid: account.user.id,
-                projectUuid,
-                requestMethod: method,
-                jobUuid: job.jobUuid,
-                isPreview: savedProject.type === ProjectType.PREVIEW,
-                userUuid: account.user.id,
-                compilationSource: 'project_connection_form',
-            });
-        } else {
-            // Nothing to test and compile, just update the job status
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.DONE,
-                jobResults: {
-                    projectUuid,
-                },
-            });
-        }
+        // CLI projects have nothing to compile, but the warehouse connection
+        // (and its SSH tunnel) is still tested by the worker, so "Save and
+        // test" reports a broken tunnel instead of a green save.
+        await this.schedulerClient.testAndCompileProject({
+            organizationUuid: account.organization.organizationUuid,
+            createdByUserUuid: account.user.id,
+            projectUuid,
+            requestMethod: method,
+            jobUuid: job.jobUuid,
+            isPreview: savedProject.type === ProjectType.PREVIEW,
+            userUuid: account.user.id,
+            compilationSource: 'project_connection_form',
+        });
         return {
             jobUuid: job.jobUuid,
         };
@@ -4315,7 +4316,10 @@ export class ProjectService extends BaseService {
         dbtVersionOption: DbtVersionOption;
     }> {
         const onboardingFlow = await this.getOnboardingFlow(user);
-        const sshTunnel = new SshTunnel(data.warehouseConnection);
+        const sshTunnel = new SshTunnel(
+            data.warehouseConnection,
+            this.connectionTestTunnelOptions(),
+        );
         let adapter: ProjectAdapter | undefined;
         try {
             await sshTunnel.connect();
@@ -4390,6 +4394,106 @@ export class ProjectService extends BaseService {
             await adapter?.destroy();
             await sshTunnel.disconnect();
             throw error;
+        }
+    }
+
+    private connectionTestTunnelOptions() {
+        return {
+            staticIp: this.lightdashConfig.staticIp || null,
+            probeForward: true,
+        };
+    }
+
+    /**
+     * Tests warehouse credentials hop by hop without saving them. Secrets the
+     * form does not send are taken from the saved project, as on save.
+     */
+    async testWarehouseConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        warehouseConnection: CreateWarehouseCredentials,
+    ): Promise<WarehouseConnectionTestResults> {
+        assertIsAccountWithOrg(account);
+        const savedProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid: savedProject.projectUuid,
+                    upstreamProjectUuid: savedProject.upstreamProjectUuid,
+                    type: savedProject.type,
+                    createdByUserUuid: savedProject.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        ProjectService.assertEmbeddedCredentialsAreInternal(
+            warehouseConnection,
+        );
+        const merged = savedProject.warehouseConnection
+            ? ProjectModel.mergeMissingWarehouseSecrets(
+                  warehouseConnection,
+                  savedProject.warehouseConnection,
+              )
+            : warehouseConnection;
+        const resolved = await this._resolveWarehouseClientCredentials(
+            { warehouseConnection: merged },
+            account.user.userUuid,
+            savedProject.organizationUuid,
+        );
+        return this.runWarehouseConnectionHops(resolved.warehouseConnection);
+    }
+
+    private async runWarehouseConnectionHops(
+        credentials: CreateWarehouseCredentials,
+    ): Promise<WarehouseConnectionTestResults> {
+        const usesTunnel =
+            (credentials.type === WarehouseTypes.POSTGRES ||
+                credentials.type === WarehouseTypes.REDSHIFT) &&
+            !!credentials.useSshTunnel;
+        const sshTunnel = new SshTunnel(
+            credentials,
+            this.connectionTestTunnelOptions(),
+        );
+        try {
+            const tunnelCredentials = await sshTunnel.connect();
+            const tunnelHops = usesTunnel ? tunnelHopsAllOk() : [];
+            try {
+                const warehouseClient =
+                    this.projectModel.getWarehouseClientFromCredentials(
+                        tunnelCredentials,
+                    );
+                await warehouseClient.test();
+                return buildConnectionTestResults([
+                    ...tunnelHops,
+                    { stage: 'database', status: 'ok', message: null },
+                ]);
+            } catch (error) {
+                return buildConnectionTestResults([
+                    ...tunnelHops,
+                    {
+                        stage: 'database',
+                        status: 'failed',
+                        message: getErrorMessage(error),
+                    },
+                ]);
+            }
+        } catch (error) {
+            if (
+                error instanceof SshTunnelError &&
+                isSshTunnelErrorData(error.data)
+            ) {
+                return buildConnectionTestResults([
+                    ...tunnelHopsFailedAt(error.data.stage, error.message),
+                    { stage: 'database', status: 'skipped', message: null },
+                ]);
+            }
+            throw error;
+        } finally {
+            await sshTunnel.disconnect();
         }
     }
 
