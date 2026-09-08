@@ -130,9 +130,7 @@ function Board({
                             <Text fz="sm" fw={500}>
                                 {column.label}
                             </Text>
-                            <Text fz="xs" c="dimmed">
-                                {cards.length}
-                            </Text>
+                            <Badge size="sm">{cards.length}</Badge>
                             {column.id === 'completed' && (
                                 <Text fz="xs" c="dimmed">
                                     this month
