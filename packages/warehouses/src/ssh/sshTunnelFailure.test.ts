@@ -11,47 +11,56 @@ const err = (
     extra: Partial<SshClientError> = {},
 ): SshClientError => Object.assign(new Error(message), extra);
 
+const before = { tcpConnected: false, handshakeCompleted: false };
+const afterTcp = { tcpConnected: true, handshakeCompleted: false };
+const afterHandshake = { tcpConnected: true, handshakeCompleted: true };
+
 describe('classifySshClientError', () => {
     it('maps DNS failures to resolve', () => {
         expect(
             classifySshClientError(
                 err('getaddrinfo ENOTFOUND bastion.example', {
                     code: 'ENOTFOUND',
-                    level: 'client-socket',
                 }),
-                false,
+                before,
             ),
         ).toBe('resolve');
     });
 
-    it('maps socket failures before the handshake to tcp', () => {
+    it('maps anything before the TCP connect to tcp, including a dropped SYN', () => {
         expect(
             classifySshClientError(
-                err('connect ETIMEDOUT 34.195.79.184:22', {
+                err('connect ETIMEDOUT 34.195.79.184:22 after 10000ms', {
                     code: 'ETIMEDOUT',
-                    level: 'client-socket',
                 }),
-                false,
+                before,
             ),
         ).toBe('tcp');
         expect(
             classifySshClientError(
                 err('connect ECONNREFUSED 127.0.0.1:2222', {
                     code: 'ECONNREFUSED',
-                    level: 'client-socket',
                 }),
-                false,
+                before,
             ),
         ).toBe('tcp');
     });
 
-    it('maps a handshake timeout to handshake', () => {
+    it('maps a ready timeout after the TCP connect to handshake', () => {
         expect(
             classifySshClientError(
                 err('Timed out while waiting for handshake', {
                     level: 'client-timeout',
                 }),
-                false,
+                afterTcp,
+            ),
+        ).toBe('handshake');
+        expect(
+            classifySshClientError(
+                err('Connection lost before handshake', {
+                    level: 'client-socket',
+                }),
+                afterTcp,
             ),
         ).toBe('handshake');
     });
@@ -62,7 +71,7 @@ describe('classifySshClientError', () => {
                 err('All configured authentication methods failed', {
                     level: 'client-authentication',
                 }),
-                true,
+                afterHandshake,
             ),
         ).toBe('auth');
     });
@@ -74,7 +83,7 @@ describe('classifySshClientError', () => {
                     code: 'ECONNRESET',
                     level: 'client-socket',
                 }),
-                true,
+                afterHandshake,
             ),
         ).toBe('auth');
     });

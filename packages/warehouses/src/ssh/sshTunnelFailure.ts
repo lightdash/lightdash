@@ -18,34 +18,25 @@ export const sshClientErrorMessage = (error: SshClientError): string => {
 };
 
 const RESOLVE_CODES = new Set(['ENOTFOUND', 'EAI_AGAIN', 'EAI_FAIL']);
-const SOCKET_CODES = new Set([
-    'ECONNREFUSED',
-    'ETIMEDOUT',
-    'EHOSTUNREACH',
-    'ENETUNREACH',
-    'ECONNRESET',
-    'EPIPE',
-]);
 
-// ssh2 tags every client error with a level, and socket errors keep the
-// Node error code. Together with whether the handshake completed they pin
-// the failure to one hop.
+export type SshConnectionProgress = {
+    tcpConnected: boolean;
+    handshakeCompleted: boolean;
+};
+
+// The TCP connect is ours, so anything before it is resolve or tcp. After it,
+// ssh2 tags errors with a level, and whether the handshake event fired
+// separates handshake from auth.
 export const classifySshClientError = (
     error: SshClientError,
-    handshakeCompleted: boolean,
+    { tcpConnected, handshakeCompleted }: SshConnectionProgress,
 ): SshTunnelStage => {
     if (error.code && RESOLVE_CODES.has(error.code)) return 'resolve';
-    if (error.code && SOCKET_CODES.has(error.code) && !handshakeCompleted)
-        return 'tcp';
+    if (!tcpConnected) return 'tcp';
+    if (handshakeCompleted) return 'auth';
     if (error.level === 'client-authentication') return 'auth';
     if (/authentication methods failed/i.test(error.message)) return 'auth';
-    if (error.level === 'client-timeout' || /handshake/i.test(error.message))
-        return handshakeCompleted ? 'auth' : 'handshake';
-    if (error.level === 'client-socket')
-        return handshakeCompleted ? 'auth' : 'tcp';
-    if (error.level === 'client-ssh')
-        return handshakeCompleted ? 'auth' : 'handshake';
-    return handshakeCompleted ? 'auth' : 'tcp';
+    return 'handshake';
 };
 
 export type SshTunnelFailureContext = {

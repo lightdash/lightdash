@@ -17,8 +17,10 @@ import {
     sshClientErrorMessage,
 } from './sshTunnelFailure';
 
-// ssh2 default is 20s. A bastion that drops packets should classify as a
-// tcp failure in a few seconds, not hang the connection test.
+// The TCP connect is done here, not by ssh2, so a bastion that silently drops
+// packets fails as a tcp stage with ETIMEDOUT instead of ssh2's generic
+// handshake timeout. ssh2's ready timeout then only covers handshake and auth.
+const TCP_CONNECT_TIMEOUT_MS = 10000;
 const SSH_READY_TIMEOUT_MS = 15000;
 
 class SshTunnelStageFailure extends Error {
@@ -46,6 +48,8 @@ class SSH2Tunnel {
 
     private error: Error | undefined = undefined;
 
+    private tcpConnected = false;
+
     private handshakeCompleted = false;
 
     // Wall-clock (ms) when this tunnel was constructed. Used only for logging:
@@ -53,6 +57,10 @@ class SSH2Tunnel {
     private readonly openedAt: number = Date.now();
 
     private readonly probeForwardOnConnect: boolean;
+
+    private readonly sshHost: string;
+
+    private readonly sshPort: number;
 
     constructor(args: {
         sshHost: string;
@@ -65,6 +73,8 @@ class SSH2Tunnel {
     }) {
         this.id = crypto.randomBytes(8).toString('hex');
         this.probeForwardOnConnect = args.probeForward;
+        this.sshHost = args.sshHost;
+        this.sshPort = args.sshPort;
         this.databaseHostOnRemote = args.databaseHostOnRemote;
         this.databasePortOnRemote = args.databasePortOnRemote;
         this.sshConnectConfig = {
@@ -273,12 +283,50 @@ class SSH2Tunnel {
             });
             this.sshClient.on('error', (e: SshClientError) => {
                 fail(
-                    classifySshClientError(e, this.handshakeCompleted),
+                    classifySshClientError(e, {
+                        tcpConnected: this.tcpConnected,
+                        handshakeCompleted: this.handshakeCompleted,
+                    }),
                     sshClientErrorMessage(e),
                 );
             });
 
-            this.sshClient.connect(this.sshConnectConfig);
+            const sock = net.connect({
+                host: this.sshHost,
+                port: this.sshPort,
+            });
+            sock.setTimeout(TCP_CONNECT_TIMEOUT_MS);
+            const onConnectError = (e: SshClientError) => {
+                sock.destroy();
+                fail(
+                    classifySshClientError(e, {
+                        tcpConnected: false,
+                        handshakeCompleted: false,
+                    }),
+                    sshClientErrorMessage(e),
+                );
+            };
+            const onConnectTimeout = () => {
+                const e: SshClientError = Object.assign(
+                    new Error(
+                        `connect ETIMEDOUT ${this.sshHost}:${this.sshPort} after ${TCP_CONNECT_TIMEOUT_MS}ms`,
+                    ),
+                    { code: 'ETIMEDOUT' },
+                );
+                onConnectError(e);
+            };
+            sock.once('error', onConnectError);
+            sock.once('timeout', onConnectTimeout);
+            sock.once('connect', () => {
+                this.tcpConnected = true;
+                sock.setTimeout(0);
+                sock.off('error', onConnectError);
+                sock.off('timeout', onConnectTimeout);
+                console.log(
+                    `SSH tunnel ${this.id} - tcp connected to ${this.sshHost}:${this.sshPort}`,
+                );
+                this.sshClient.connect({ ...this.sshConnectConfig, sock });
+            });
 
             // When SSH Client has connected and the forward works - start
             // listening on local tcp server
