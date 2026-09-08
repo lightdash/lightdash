@@ -1,3 +1,15 @@
+# [2.155.0](https://github.com/lightdash/lightdash/compare/2.154.0...2.155.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **ai-agent:** stop paging Sentry for tool errors the model can recover from ([#28816](https://github.com/lightdash/lightdash/issues/28816)) ([5e1d942](https://github.com/lightdash/lightdash/commit/5e1d942d6defdeeb76c677b6b7e65faa17c12b96))
+
+
+### Features
+
+* **learn:** teach the library's modules in an order the docs imply ([#28815](https://github.com/lightdash/lightdash/issues/28815)) ([4805c2b](https://github.com/lightdash/lightdash/commit/4805c2bc3eb7af5a23c5d8f9567d90636b3829cb))
+
 # [2.154.0](https://github.com/lightdash/lightdash/compare/2.153.1...2.154.0) (2026-09-08)
 
 
