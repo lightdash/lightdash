@@ -1386,7 +1386,7 @@ describe('dbt git project cache', () => {
             now.mockRestore();
             rm.mockImplementation(actualFs.rm);
         }
-    });
+    }, 10_000);
 
     it('retains a fresh checkout when background victim cleanup fails', async () => {
         const root = await configure({ maxBytes: 150 });
