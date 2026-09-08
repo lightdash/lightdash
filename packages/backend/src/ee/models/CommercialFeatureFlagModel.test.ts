@@ -6,15 +6,11 @@ import { CommercialFeatureFlagModel } from './CommercialFeatureFlagModel';
 
 const database = knex({ client: MockClient, dialect: 'pg' });
 
-const createModel = (copilot = lightdashConfigMock.ai.copilot) =>
+const createModel = () =>
     new CommercialFeatureFlagModel({
         database,
         lightdashConfig: {
             ...lightdashConfigMock,
-            ai: {
-                ...lightdashConfigMock.ai,
-                copilot,
-            },
             enabledFeatureFlags: new Set<string>(),
             disabledFeatureFlags: new Set<string>(),
         },
@@ -84,33 +80,5 @@ describe('CommercialFeatureFlagModel direct access', () => {
             id: CommercialFeatureFlags.DirectAccess,
             enabled: true,
         });
-    });
-});
-
-describe('CommercialFeatureFlagModel AI copilot', () => {
-    let tracker: Tracker;
-
-    beforeAll(() => {
-        tracker = getTracker();
-    });
-
-    afterEach(() => {
-        tracker.reset();
-    });
-
-    it('fails closed without a user and issues no flag queries', async () => {
-        await expect(
-            createModel({
-                ...lightdashConfigMock.ai.copilot,
-                enabled: true,
-                requiresFeatureFlag: true,
-            }).get({
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-        ).resolves.toEqual({
-            id: CommercialFeatureFlags.AiCopilot,
-            enabled: false,
-        });
-        expect(tracker.history.select).toHaveLength(0);
     });
 });
