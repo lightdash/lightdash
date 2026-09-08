@@ -21,6 +21,7 @@ const mockRegisterCapabilities = vi.fn();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     wrapMcpServerWithSentry: (server: unknown) => server,
