@@ -161,7 +161,7 @@ At display == data timezone the equal-zones skip drops the wrap and the two agre
 
 **Gap:** `gap-snowflake-optout-aware` · **Type:** bug
 
-Snowflake normally normalizes every TIMESTAMP dim at compile time (`TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` in `translator.ts`). `disableTimestampConversion: true` skips that wrap — but the flag is **warehouse-wide**, so aware `TIMESTAMP_TZ`/`LTZ` columns lose their normalization along with the naive ones the modeler meant to opt out. Two failures result, both requiring `EnableTimezoneSupport` on:
+Snowflake normally normalizes every TIMESTAMP dim at compile time (`TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` in `translator.ts`). `disableTimestampConversion: true` skips that wrap — but the flag is **warehouse-wide**, so aware `TIMESTAMP_TZ`/`LTZ` columns lose their normalization along with the naive ones the modeler meant to opt out. Two failures result:
 
 **(a) Hard error on the timezone-aware wraps.** Snowflake's 3-arg `CONVERT_TIMEZONE` accepts only NTZ input. A raw `TIMESTAMP_TZ` column flowing into a truncation/extract wrap (resolved timezone ≠ source) fails the whole query:
 

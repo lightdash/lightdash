@@ -101,7 +101,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 ### Per-content choice between a pinned TZ and a viewer TZ?
 
-**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. A chart pinned to `user_timezone` with `EnableTimezoneSupport=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
+**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. A chart pinned to `user_timezone` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
 
 **What we don't have**: an *author-saved-at-save-time* default that silently inherits the author's zone. We require the author to explicitly pin if they want viewer-stable behavior. This is more honest, slightly less ergonomic.
 
@@ -109,7 +109,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 **Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone. Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
 
-**Admin opt-in**: yes — `EnableTimezoneSupport` defaults off and can be toggled per-org via `feature_flag_overrides`.
+**Availability**: timezone support is always available. Authors choose whether a chart follows the project, a specific timezone, or each viewer's profile.
 
 Timezone support is always active; stored user preferences apply to charts pinned to `user_timezone`.
 
@@ -163,10 +163,10 @@ The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-sid
 
 | Configuration | Alice's SQL == Bob's SQL? |
 |---|---|
-| `EnableTimezoneSupport=on`, no chart pin | ✅ Yes — both get project TZ |
-| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, neither has profile TZ | ✅ Yes — both fall through to project |
-| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
-| `EnableTimezoneSupport=on`, chart pinned to Pacific | ✅ Yes — pin wins over profile |
+| no chart pin | ✅ Yes — both get project TZ |
+| chart pinned to `user_timezone`, neither has profile TZ | ✅ Yes — both fall through to project |
+| chart pinned to `user_timezone`, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
+| chart pinned to Pacific | ✅ Yes — pin wins over profile |
 | Dashboard date filter (absolute range) | ✅ Yes — absolute filters are UTC instants regardless of viewer |
 | Dashboard date filter (relative — "last 7 days") | depends on the chart settings as above |
 
@@ -407,15 +407,13 @@ Verified on Snowflake too: `CONVERT_TIMEZONE('America/New_York', '2026-06-09 12:
 
 ### What's the declared design intent — "consistent shape" or "viewer-local"?
 
-**Both, depending on configuration.** Off the rack with `EnableTimezoneSupport=off`:
-- Every viewer sees project-TZ buckets → **consistent chart shape**.
-
-With `EnableTimezoneSupport=on`:
+**Both, depending on the chart setting.**
+- Charts using the project timezone give every viewer the same project-TZ buckets → **consistent chart shape**.
 - Charts pinned to `user_timezone` shift per viewer → **viewer-local boundaries**.
 - Charts pinned to a specific zone override per viewer → **per-content choice**.
 
 So the architectural intent is "support both, default to consistent." **This is not documented anywhere a customer can find.** Customers discover it via:
-- The Profile Settings picker appearing or not appearing (depending on flag).
+- The default timezone picker in Profile Settings.
 - The badge on the chart card showing "America/New_York" when their profile is Tokyo.
 - "Why does my dashboard look different in Singapore than in NY?" support tickets.
 
@@ -428,7 +426,6 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
 | ~~ECharts DST shift bug~~ ✅ fixed (GLITCH-449 → 509: all grains shift via companion column) | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
-| ~~`EnableTimezoneSupport=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented (GLITCH-465, v3; now in the published timezone docs: workspace-admin/set-project-timezone and personal-settings/timezone) | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation (GLITCH-463, v3) | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |

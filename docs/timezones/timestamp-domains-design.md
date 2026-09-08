@@ -273,8 +273,7 @@ behaviour, not a language guarantee; the BigQuery cases in
 `packages/api-tests/tests/queryTimezone.test.ts` and the day-partitioned
 `timezone_test` fixture are the regression gate.
 
-Deliberately unchanged: everything with the flag off, projects with a UTC data
-timezone, RAW dimensions with `convert_timezone: false`, DATE dimensions,
+Deliberately unchanged: projects with a UTC data timezone, RAW dimensions with `convert_timezone: false`, DATE dimensions,
 EXTRACT-based filters, and Snowflake.
 
 ## Why this is the right approach
@@ -300,9 +299,8 @@ What the chosen design provides:
 2. Unknown means unchanged. Every safety claim reduces to this single invariant,
    and it is asserted with byte-identity tests in every slice. Projects get correct
    as they redeploy; projects that never redeploy never change.
-3. No new feature flag. Everything rides the existing EnableTimezoneSupport
-   pipeline, which stays per-org overridable as the revert lever, and all of it
-   is inert when the flag is off or no data timezone is set.
+3. Timezone support is always active. Data-timezone conversion applies when
+   a data timezone is configured; without one, the source timezone is unchanged.
 
 One accepted limitation, inherent to naive storage under any strategy: during
 the DST fall-back, one wall-clock hour happens twice, so equality on a folded

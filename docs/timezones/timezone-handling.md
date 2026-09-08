@@ -34,7 +34,7 @@ Answers: "what timezone are my NTZ (no-timezone) timestamps actually stored in?"
 
 For TZ columns (Postgres `timestamptz`, Snowflake `TIMESTAMP_TZ`) data timezone has no effect — those are absolute instants already.
 
-The setting is gated behind `EnableTimezoneSupport`. Flag off → `dataTimezone` is `undefined` and the session TZ isn't touched (old behavior).
+The setting is always available. When no data timezone is configured, each warehouse uses the defaults listed below.
 
 ### Project timezone (`queryTimezone`)
 
@@ -114,11 +114,9 @@ flowchart LR
     Compile --> Execute --> Format --> Render
 ```
 
-> **Flag OFF → pre-timezone-work behavior.** With `EnableTimezoneSupport` off: no session TZ is set (Snowflake still defaults to `'UTC'`), DATE_TRUNC runs in UTC, filter literals stay bare, `resolvedTimezone` is omitted from the API, and formatters pass values through as UTC — identical to `main` before this work started.
-
 ### SELECT — DATE_TRUNC grouping
 
-With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dimension SQL is round-tripped through the project timezone so boundaries fall on project-local wall-clock midnights:
+Query compilation uses timezone-aware truncation. The base dimension SQL is round-tripped through the project timezone so boundaries fall on project-local wall-clock midnights:
 
 1. Shift the column value from its source TZ into project wall-clock
 2. Truncate on that wall-clock
@@ -130,7 +128,7 @@ With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dime
 
 The source TZ for step 1 is derived once per query at the service boundary via `getColumnTimezone(credentials)` (in `packages/common/src/types/projects.ts`) and threaded through `timeFrames.ts` as `sourceTimezone`. It returns `'UTC'` for Snowflake when the translator wrap is active, `dataTimezone` when Snowflake's `disableTimestampConversion` opts out of that wrap, and `dataTimezone` (defaulting to UTC) for every other adapter. Most warehouses ignore it because their `toProjectTz` doesn't take a source TZ; Snowflake threads it into the inner `CONVERT_TIMEZONE`.
 
-The SQL differs per warehouse (some have native TZ-aware truncation, others compose `AT TIME ZONE` / `CONVERT_TIMEZONE` / `to_utc_timestamp`), but the shape is identical everywhere. Flag off → falls back to raw `DATE_TRUNC` grouping in UTC (old behavior).
+The SQL differs per warehouse (some have native TZ-aware truncation, others compose `AT TIME ZONE` / `CONVERT_TIMEZONE` / `to_utc_timestamp`), but the shape is identical everywhere.
 
 > **DST fall-back bucketing is standardized on merge (GLITCH-509).** A DST fall-back collapses the two wall-clock-identical 1 AM hours into one `count=2` bucket on **every** warehouse, matching Lightdash's wall-clock contract (both folds are "1 AM" locally). BigQuery and ClickHouse previously split the fold into two `01:00` rows via instant-domain truncation; they now merge like the naive-domain adapters (Postgres, Snowflake, Databricks, Trino, Redshift, DuckDB, Spark). This was a deliberate product decision (`gap-dst-fold-bucketing`, GLITCH-504) made because the merge route is convergent across all adapters. See [`timezone-questions.md`](./timezone-questions.md) → "DST fall-back".
 
@@ -142,7 +140,7 @@ The SQL differs per warehouse (some have native TZ-aware truncation, others comp
 
 **Truncated intervals on a DATE base dimension skip the round-trip.** A truncated interval whose base column is a DATE (e.g. `order_date_month`) falls back to raw `DATE_TRUNC`. DATE values carry no time component — casting one into `timestamptz` for the round-trip would anchor at midnight and then cross a day boundary whenever the project timezone has a non-zero offset.
 
-**Day-or-coarser grains converge on `DATE` regardless of base type (GLITCH-452).** A DATE-base interval emits raw `DATE_TRUNC` (already a DATE); a TIMESTAMP-base interval round-trips through project wall-clock and then `CAST(... AS DATE)`. Both return a real calendar `DATE`, so the warehouse type matches the dimension metadata (`DATE`) and no display-time correction is needed. The WHERE clause for these dimensions emits **bare date literals** (no `+00:00` offset, no `::timestamptz`) to compare cleanly against the `DATE` LHS — the same literal path DATE-base dimensions already used. Only sub-day TIMESTAMP-base grains still return a UTC instant. Gated by `castDayOrCoarserToDate` threaded from `MetricQueryBuilder.getTimezoneAwareDimensionSql`, so it is inert when the flag is off.
+**Day-or-coarser grains converge on `DATE` regardless of base type (GLITCH-452).** A DATE-base interval emits raw `DATE_TRUNC` (already a DATE); a TIMESTAMP-base interval round-trips through project wall-clock and then `CAST(... AS DATE)`. Both return a real calendar `DATE`, so the warehouse type matches the dimension metadata (`DATE`) and no display-time correction is needed. The WHERE clause for these dimensions emits **bare date literals** (no `+00:00` offset, no `::timestamptz`) to compare cleanly against the `DATE` LHS — the same literal path DATE-base dimensions already used. Only sub-day TIMESTAMP-base grains still return a UTC instant. The query builder passes `castDayOrCoarserToDate` from `MetricQueryBuilder.getTimezoneAwareDimensionSql`.
 
 **A custom MIN/MAX over a day-or-coarser interval aggregates the tz-aware `DATE` (GLITCH-499).** A custom metric that takes MIN/MAX of a day-grain DATE interval (a `DATE_TRUNC` of a TIMESTAMP base) inherited the dimension's raw `compiledSql` and skipped the round-trip above, so it truncated in UTC and returned a timestamp a calendar day off from its own dimension. `getTimezoneAwareMetricSql` re-points the aggregate at the dimension's timezone-aware `compiledSql` — the same wrap the SELECT applies — so the metric and its dimension agree on the day. It fires only for a MIN/MAX whose `baseDimensionType` is a truncatable interval `DATE` over a TIMESTAMP; plain DATE columns and TIMESTAMP bases are untouched, and the substring swap is a safe no-op if the base SQL doesn't match. The base dimension is resolved through the custom metric's `baseDimensionName`, so only custom metrics are affected — model/column YAML metrics are not. Uses `useTimezoneAwareDateTrunc` in the query builder.
 
@@ -241,7 +239,7 @@ Because it is now inert, the function (and its frontend call sites) is a candida
 
 ### Filter input pickers — project-TZ wall-clock
 
-Absolute-date filter pickers (`FilterDateTimePicker`, `FilterDateTimeRangePicker`) can optionally render their wall-clock value in the project timezone instead of the browser zone. This is a per-project opt-in on top of `EnableTimezoneSupport`:
+Absolute-date filter pickers (`FilterDateTimePicker`, `FilterDateTimeRangePicker`) can optionally render their wall-clock value in the project timezone instead of the browser zone. This is a per-project opt-in:
 
 - Per-project boolean `use_project_timezone_in_filters` on `projects` (`NOT NULL DEFAULT false`)
 - Project settings exposes it as a Switch on the "Project time zone" page (page was renamed from "Query time zone")
@@ -256,7 +254,7 @@ The toggle controls picker rendering for absolute boundaries, not the chain that
 
 ### Session — Warehouse timezone
 
-Each warehouse client sets the session timezone from `dataTimezone` before running the query, when `EnableTimezoneSupport` is on.
+Each warehouse client sets the session timezone from `dataTimezone` before running the query.
 
 | Warehouse  | Session command                               | Behavior when not set                   |
 | ---------- | --------------------------------------------- | --------------------------------------- |
@@ -326,7 +324,7 @@ flowchart LR
 
 > **Known limitation — MIN/MAX with an explicit DATE format and a raw `Date` value (unknown base only).** When a MIN/MAX carries a known DATE `baseDimensionType` (GLITCH-499), `formatItemValue` renders the bare calendar date at the base grain *before* reaching `applyCustomFormat`, so an explicit date/timestamp display format no longer shifts it. The limitation now survives only for a MIN/MAX with an **unknown** base (an arbitrary-SQL metric): `applyCustomFormat` has no `item` (so no base-type or `isCalendarValueItem` access) and its by-value gate only protects date-only **strings**, so a midnight `Date` object with an explicit DATE format shifts back a day under a negative offset. This is an accepted trade-off; the safe cached-results string shape is pinned in tests.
 
-> **Operator note — bare `DATE` `raw` values depend on the backend's process timezone (GLITCH-507). Run the backend in UTC.** `formatRawValue` builds the `YYYY-MM-DD` raw value with `dayjs(value).utc(true)`, which keeps the *process-local* wall-clock. Warehouse adapters hand it the DATE differently: Postgres returns a **local-midnight** `Date` (process-tz-independent here), but BigQuery and Snowflake return a **UTC-midnight** `Date` — so under a non-UTC process timezone the bare date can shift by a day on those warehouses. **Set `TZ=UTC` on every backend process (API server, scheduler worker, headless browser);** they are separate pods and each formats independently. We deliberately do not "correct" this in the formatter: no single `Date` component-read is correct across local-midnight (Postgres) and UTC-midnight (BigQuery/Snowflake) encodings, and the formatter has no warehouse context. Instead the backend logs a startup warning when `EnableTimezoneSupport` is configured and the process is not UTC (`getProcessTimezoneWarning`, `packages/backend/src/utils/processTimezone.ts`). This is **independent of `LIGHTDASH_QUERY_TIMEZONE`**, which sets the analytical query timezone interpolated into the SQL (`… AT TIME ZONE`), not the OS/process timezone.
+> **Operator note — bare `DATE` `raw` values depend on the backend's process timezone (GLITCH-507). Run the backend in UTC.** `formatRawValue` builds the `YYYY-MM-DD` raw value with `dayjs(value).utc(true)`, which keeps the *process-local* wall-clock. Warehouse adapters hand it the DATE differently: Postgres returns a **local-midnight** `Date` (process-tz-independent here), but BigQuery and Snowflake return a **UTC-midnight** `Date` — so under a non-UTC process timezone the bare date can shift by a day on those warehouses. **Set `TZ=UTC` on every backend process (API server, scheduler worker, headless browser);** they are separate pods and each formats independently. We deliberately do not "correct" this in the formatter: no single `Date` component-read is correct across local-midnight (Postgres) and UTC-midnight (BigQuery/Snowflake) encodings, and the formatter has no warehouse context. Instead the backend logs a startup warning when the process is not UTC (`getProcessTimezoneWarning`, `packages/backend/src/utils/processTimezone.ts`). This is **independent of `LIGHTDASH_QUERY_TIMEZONE`**, which sets the analytical query timezone interpolated into the SQL (`… AT TIME ZONE`), not the OS/process timezone.
 
 **Files:** `packages/common/src/utils/formatting.ts`, `packages/common/src/visualizations/helpers/getCartesianAxisFormatterConfig.ts`, `packages/common/src/visualizations/helpers/tooltipFormatter.ts`, `packages/common/src/types/api.ts`, `packages/backend/src/utils/processTimezone.ts`
 
@@ -482,7 +480,6 @@ flowchart TD
 | MetricQueryBuilder      | `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`        |
 | AsyncQueryService       | `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` |
 | Project timezone config | `packages/backend/src/services/ProjectService/ProjectService.ts`       |
-| Feature flags           | `packages/common/src/types/featureFlags.ts`                            |
 | Warehouse credentials   | `packages/common/src/types/projects.ts` (incl. `getColumnTimezone`)    |
 | Result formatting       | `packages/common/src/utils/formatting.ts`                              |
 | Warehouse clients       | `packages/warehouses/src/warehouseClients/`                            |
