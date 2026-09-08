@@ -28,6 +28,7 @@ const HEARTBEAT_WRITE_TIMEOUT_MS = 30_000;
 const TOMBSTONE_CLEANUP_WAIT_MS = 3_000;
 const RETENTION_TOTAL_WAIT_MS = 3_000;
 const PUBLICATION_MAX_ATTEMPTS = DBT_GIT_CACHE_MAX_ENTRIES;
+const FUTURE_HEARTBEAT_OBSERVATION_LIMIT = DBT_GIT_CACHE_MAX_ENTRIES * 2;
 const ABANDONED_ROOT_GRACE_MS = 5 * 60 * 1000;
 const ORPHAN_TEMPORARY_FILE =
     /^\.lightdash-dbt-git-cache\.json\.[0-9a-f-]{36}\.tmp$/;
@@ -127,6 +128,10 @@ type RootDebris = {
 };
 
 const activeLeases = new Map<string, DbtGitCacheLease>();
+const futureHeartbeatObservations = new Map<
+    string,
+    { fingerprint: string; observedAt: number }
+>();
 let maintenanceTimer: NodeJS.Timeout | undefined;
 let configuration: CacheConfiguration = {
     root: path.join(os.tmpdir(), 'lightdash-dbt-git-cache'),
@@ -315,12 +320,39 @@ const atomicWriteJson = async (filePath: string, value: unknown) => {
 const leaseHeartbeatPath = (leaseDirectory: string, leaseId: string) =>
     path.join(leaseDirectory, `${LEASE_HEARTBEAT_PREFIX}${leaseId}.json`);
 
+const boundedHeartbeatAt = (
+    heartbeatPath: string,
+    heartbeat: LeaseOwner,
+    now: number,
+) => {
+    if (heartbeat.heartbeatAt <= now) {
+        futureHeartbeatObservations.delete(heartbeatPath);
+        return heartbeat.heartbeatAt;
+    }
+    const fingerprint = JSON.stringify(heartbeat);
+    const observed = futureHeartbeatObservations.get(heartbeatPath);
+    if (observed?.fingerprint === fingerprint) {
+        return Math.min(observed.observedAt, now);
+    }
+    if (
+        !observed &&
+        futureHeartbeatObservations.size >= FUTURE_HEARTBEAT_OBSERVATION_LIMIT
+    ) {
+        const oldestPath = futureHeartbeatObservations.keys().next().value;
+        if (oldestPath) futureHeartbeatObservations.delete(oldestPath);
+    }
+    futureHeartbeatObservations.set(heartbeatPath, {
+        fingerprint,
+        observedAt: now,
+    });
+    return now;
+};
+
 const readLeaseOwner = async (leaseDirectory: string) => {
     const owner = await readJson(path.join(leaseDirectory, LEASE_OWNER));
     if (!isLeaseOwner(owner)) return owner;
-    const heartbeat = await readJson(
-        leaseHeartbeatPath(leaseDirectory, owner.leaseId),
-    );
+    const heartbeatPath = leaseHeartbeatPath(leaseDirectory, owner.leaseId);
+    const heartbeat = await readJson(heartbeatPath);
     if (
         isLeaseOwner(heartbeat) &&
         heartbeat.leaseId === owner.leaseId &&
@@ -329,7 +361,14 @@ const readLeaseOwner = async (leaseDirectory: string) => {
         heartbeat.processStartTime === owner.processStartTime &&
         heartbeat.heartbeatAt >= owner.heartbeatAt
     ) {
-        return heartbeat;
+        return {
+            ...heartbeat,
+            heartbeatAt: boundedHeartbeatAt(
+                heartbeatPath,
+                heartbeat,
+                Date.now(),
+            ),
+        };
     }
     return owner;
 };

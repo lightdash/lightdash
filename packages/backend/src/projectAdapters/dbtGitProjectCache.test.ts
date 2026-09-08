@@ -906,6 +906,52 @@ describe('dbt git project cache', () => {
         await expect(fs.access(leaseDirectory)).resolves.toBeUndefined();
     });
 
+    it('ages an unchanged future-dated foreign heartbeat from first observation', async () => {
+        const root = await configure({ maxAgeMs: 20 * 60_000 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const [entry] = await entryDirectories(root);
+        const leaseDirectory = path.join(root, entry, 'lease');
+        const owner = staleOwner({
+            hostname: 'clock-skewed-pod',
+            heartbeatAt: Date.now() - 11 * 60_000,
+        });
+        await fs.mkdir(leaseDirectory);
+        await fs.writeFile(
+            path.join(leaseDirectory, 'owner.json'),
+            JSON.stringify(owner),
+        );
+        await fs.writeFile(
+            path.join(leaseDirectory, `.heartbeat-${owner.leaseId}.json`),
+            JSON.stringify({
+                ...owner,
+                heartbeatAt: Date.now() + 60 * 60_000,
+            }),
+        );
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        try {
+            await expect(
+                acquireDbtGitProjectCache(identity(1), 'repository'),
+            ).resolves.toBeUndefined();
+
+            clock.now += 11 * 60_000;
+            const reclaimed = await acquireDbtGitProjectCache(
+                identity(1),
+                'repository',
+            );
+
+            expect(reclaimed?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reclaimed!, 100);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
     it('serializes concurrent reclaim of a stale reservation lock', async () => {
         const root = await configure();
         const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
