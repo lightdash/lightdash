@@ -135,7 +135,14 @@
     transform: scale(0.98);
 }
 
+.joinTypeOption {
+    justify-content: center;
+    align-items: center;
+    padding: 6px;
+}
+
 .joinTypeDiagram {
+    display: block;
     width: 36px;
     height: 21px;
     flex: none;

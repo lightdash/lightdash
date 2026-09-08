@@ -137,9 +137,9 @@ const JoinTypePicker: FC<{
                     withBorder={false}
                     aria-label={`${option.label}: ${option.help}`}
                 >
-                    <Group justify="center" gap={6} wrap="nowrap" p={6}>
+                    <Group className={styles.joinTypeOption} gap={6} wrap="nowrap">
                         <JoinTypeDiagram type={option.value} />
-                        <Text size="xs" fw={600} ta="center" truncate>
+                        <Text span size="xs" fw={600} truncate>
                             {option.label}
                         </Text>
                     </Group>
