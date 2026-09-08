@@ -131,6 +131,11 @@ function Board({
                             <Text fz="xs" c="dimmed">
                                 {cards.length}
                             </Text>
+                            {column.id === 'completed' && (
+                                <Text fz="xs" c="dimmed">
+                                    this month
+                                </Text>
+                            )}
                         </Group>
                         <Stack gap="xs" className={classes.columnCards}>
                             {cards.map((entry) => (
