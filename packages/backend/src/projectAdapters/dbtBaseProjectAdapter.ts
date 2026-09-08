@@ -16,6 +16,7 @@ import {
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
+    getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     InlineError,
@@ -61,13 +62,42 @@ type WarehouseCatalogFetchReason =
     | 'cache_miss'
     | 'known_missing_probe'
     | 'cache_expired'
+    | 'missing_tables_truncated'
     | 'manual';
+
+type WarehouseCatalogSkipReason =
+    | 'cached_catalog_reused'
+    | 'known_missing_skipped';
 
 const warehouseCatalogTableKey = ({
     database,
     schema,
     table,
 }: WarehouseCatalogTable) => `${database}\u0000${schema}\u0000${table}`;
+
+const getWarehouseCatalogTableKeys = (
+    warehouseCatalog: WarehouseCatalog,
+    caseSensitiveMatching: boolean,
+): Set<string> => {
+    const catalogKeys = new Set<string>();
+    Object.entries(warehouseCatalog).forEach(([database, schemas]) => {
+        if (database === WAREHOUSE_TIMESTAMP_DOMAINS_KEY) return;
+        Object.entries(schemas ?? {}).forEach(([schema, tables]) => {
+            Object.entries(tables ?? {}).forEach(([table, columns]) => {
+                if (columns == null) return;
+                const key = warehouseCatalogTableKey({
+                    database,
+                    schema,
+                    table,
+                });
+                catalogKeys.add(
+                    caseSensitiveMatching ? key : key.toLowerCase(),
+                );
+            });
+        });
+    });
+    return catalogKeys;
+};
 
 const mergeWarehouseCatalogs = (
     cachedCatalog: WarehouseCatalog,
@@ -104,20 +134,10 @@ export const findMissingWarehouseTables = (
     warehouseCatalog: WarehouseCatalog,
     caseSensitiveMatching: boolean,
 ): WarehouseCatalogTable[] => {
-    const catalogKeys = new Set<string>();
-    Object.entries(warehouseCatalog).forEach(([database, schemas]) => {
-        if (database === WAREHOUSE_TIMESTAMP_DOMAINS_KEY) return;
-        Object.entries(schemas ?? {}).forEach(([schema, tables]) => {
-            Object.entries(tables ?? {}).forEach(([table, columns]) => {
-                if (columns == null) return;
-                const reference = { database, schema, table };
-                const key = warehouseCatalogTableKey(reference);
-                catalogKeys.add(
-                    caseSensitiveMatching ? key : key.toLowerCase(),
-                );
-            });
-        });
-    });
+    const catalogKeys = getWarehouseCatalogTableKeys(
+        warehouseCatalog,
+        caseSensitiveMatching,
+    );
 
     const references = models.map(({ database, schema, name, alias }) => ({
         database,
@@ -435,12 +455,24 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             Date.now() - fetchedAt.getTime() >= maxAgeMs
         ) {
             fetchReason = 'cache_expired';
+        } else if (
+            knownMissingTables.length === MAX_PERSISTED_MISSING_WAREHOUSE_TABLES
+        ) {
+            fetchReason = 'missing_tables_truncated';
         } else {
             try {
                 let catalogForCompile = cachedCatalog;
                 let knownMissingTablesForCompile = knownMissingTables;
-                let probedKnownMissingTables = false;
-                if (knownMissingTables.length > 0) {
+                let probeCacheUpdate: {
+                    warehouseCatalog: WarehouseCatalog;
+                    fetchedAt: Date;
+                    missingTables: WarehouseCatalogTable[];
+                } | null = null;
+                let catalogSkipReason: WarehouseCatalogSkipReason | null =
+                    knownMissingTables.length === 0
+                        ? 'cached_catalog_reused'
+                        : null;
+                if (knownMissingTables.length > 0 && fetchedAt !== null) {
                     const knownMissingKeys = new Set(
                         knownMissingTables.map((reference) => {
                             const key = warehouseCatalogTableKey(reference);
@@ -460,75 +492,87 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         );
                     });
                     if (currentlyMissingTables.length > 0) {
-                        probedKnownMissingTables = true;
+                        catalogSkipReason = null;
                         Logger.info('Probe known missing warehouse tables');
                         const probeStartedAt = Date.now();
-                        const probeCatalog =
-                            await this.warehouseClient.getCatalog(
-                                currentlyMissingTables,
-                            );
-                        ensureCatalogTimestampDomainsKey(probeCatalog);
-                        const mergedCatalog = mergeWarehouseCatalogs(
-                            cachedCatalog,
-                            probeCatalog,
-                        );
-                        const missingAfterProbe = findMissingWarehouseTables(
-                            validModels,
-                            mergedCatalog,
-                            caseSensitiveMatching,
-                        );
-                        const missingAfterProbeKeys = new Set(
-                            missingAfterProbe.map((reference) => {
-                                const key = warehouseCatalogTableKey(reference);
-                                return caseSensitiveMatching
-                                    ? key
-                                    : key.toLowerCase();
-                            }),
-                        );
-                        const tableReappeared = currentlyMissingTables.some(
-                            (reference) => {
-                                const key = warehouseCatalogTableKey(reference);
-                                return !missingAfterProbeKeys.has(
-                                    caseSensitiveMatching
-                                        ? key
-                                        : key.toLowerCase(),
+                        try {
+                            const probeCatalog =
+                                await this.warehouseClient.getCatalog(
+                                    currentlyMissingTables,
                                 );
-                            },
-                        );
-                        DbtBaseProjectAdapter.logWarehouseCatalogFetch(
-                            'known_missing_probe',
-                            trackingParams,
-                            this.warehouseClient,
-                            currentlyMissingTables.length,
-                            Date.now() - probeStartedAt,
-                            knownMissingTables.length,
-                        );
-                        if (tableReappeared) {
-                            const persistedMissingTables =
-                                capMissingWarehouseTables(missingAfterProbe);
-                            knownMissingTablesForCompile =
-                                missingAfterProbe.filter((reference) => {
-                                    const key =
-                                        warehouseCatalogTableKey(reference);
-                                    return knownMissingKeys.has(
-                                        caseSensitiveMatching
+                            DbtBaseProjectAdapter.logWarehouseCatalogFetch(
+                                'known_missing_probe',
+                                trackingParams,
+                                this.warehouseClient,
+                                currentlyMissingTables.length,
+                                Date.now() - probeStartedAt,
+                                knownMissingTables.length,
+                            );
+                            const probeCatalogKeys =
+                                getWarehouseCatalogTableKeys(
+                                    probeCatalog,
+                                    caseSensitiveMatching,
+                                );
+                            const reappearedTableKeys = new Set(
+                                currentlyMissingTables
+                                    .map((reference) => {
+                                        const key =
+                                            warehouseCatalogTableKey(reference);
+                                        return caseSensitiveMatching
                                             ? key
-                                            : key.toLowerCase(),
-                                    );
-                                });
-                            catalogForCompile = mergedCatalog;
-                            await this.cachedWarehouse.onWarehouseCatalogChange(
-                                {
+                                            : key.toLowerCase();
+                                    })
+                                    .filter((key) => probeCatalogKeys.has(key)),
+                            );
+                            if (reappearedTableKeys.size > 0) {
+                                ensureCatalogTimestampDomainsKey(probeCatalog);
+                                const mergedCatalog = mergeWarehouseCatalogs(
+                                    cachedCatalog,
+                                    probeCatalog,
+                                );
+                                knownMissingTablesForCompile =
+                                    knownMissingTables.filter((reference) => {
+                                        const key =
+                                            warehouseCatalogTableKey(reference);
+                                        return !reappearedTableKeys.has(
+                                            caseSensitiveMatching
+                                                ? key
+                                                : key.toLowerCase(),
+                                        );
+                                    });
+                                catalogForCompile = mergedCatalog;
+                                probeCacheUpdate = {
                                     warehouseCatalog: mergedCatalog,
-                                    fetchedAt: new Date(),
-                                    missingTables: persistedMissingTables,
+                                    fetchedAt,
+                                    missingTables: knownMissingTablesForCompile,
+                                };
+                            }
+                        } catch (error) {
+                            if (error instanceof MissingCatalogEntryError) {
+                                throw error;
+                            }
+                            Logger.warn(
+                                'Failed to probe known missing warehouse tables; using cached catalog',
+                                {
+                                    event: 'dbt.compile.warehouseCatalogProbeFailed',
+                                    projectUuid:
+                                        trackingParams?.projectUuid ?? null,
+                                    jobUuid: trackingParams?.jobUuid ?? null,
+                                    warehouseType:
+                                        this.warehouseClient.credentials.type,
+                                    requestedTables:
+                                        currentlyMissingTables.length,
+                                    error: getErrorMessage(error),
                                 },
                             );
                         }
+                    } else {
+                        catalogSkipReason = 'known_missing_skipped';
                     }
                 }
-                if (!probedKnownMissingTables) {
+                if (catalogSkipReason !== null) {
                     DbtBaseProjectAdapter.logWarehouseCatalogSkipped(
+                        catalogSkipReason,
                         trackingParams,
                         this.warehouseClient,
                         modelCatalog.length,
@@ -549,6 +593,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                         ),
                     knownMissingTablesForCompile,
                 );
+                if (probeCacheUpdate !== null) {
+                    await this.cachedWarehouse.onWarehouseCatalogChange(
+                        probeCacheUpdate,
+                    );
+                }
                 Logger.info('Convert explores');
                 const disableTimestampConversion =
                     this.warehouseClient.credentials.type === 'snowflake' &&
@@ -646,20 +695,21 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     private static logWarehouseCatalogSkipped(
+        reason: WarehouseCatalogSkipReason,
         trackingParams: TrackingParams | undefined,
         warehouseClient: WarehouseClient,
         requestedTables: number,
         knownMissing: number,
     ) {
         Logger.info(
-            `dbt.compile.warehouseCatalogSkipped reason=known_missing_skipped knownMissing=${knownMissing}`,
+            `dbt.compile.warehouseCatalogSkipped reason=${reason} knownMissing=${knownMissing}`,
             {
                 event: 'dbt.compile.warehouseCatalogSkipped',
                 projectUuid: trackingParams?.projectUuid ?? null,
                 jobUuid: trackingParams?.jobUuid ?? null,
                 warehouseType: warehouseClient.credentials.type,
                 requestedTables,
-                reason: 'known_missing_skipped',
+                reason,
                 knownMissing,
             },
         );
