@@ -4,11 +4,11 @@
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(280px, 1fr);
-    gap: var(--mantine-spacing-lg);
+    gap: var(--mantine-spacing-sm);
     height: calc(100dvh - 320px);
     min-height: 400px;
     overflow-x: auto;
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+    padding: var(--mantine-spacing-sm);
     align-items: stretch;
     background: var(--ld-color-page);
 }
@@ -19,8 +19,7 @@
     flex-direction: column;
 }
 .columnHeader {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs)
-        var(--mantine-spacing-lg);
+    padding: 4px var(--mantine-spacing-xs) var(--mantine-spacing-xs);
 }
 .columnCards {
     flex: 1;
@@ -33,11 +32,11 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: var(--mantine-spacing-md);
+    gap: var(--mantine-spacing-xs);
     width: 100%;
-    min-height: 156px;
+    min-height: 132px;
     flex-shrink: 0;
-    padding: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-sm);
     background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
@@ -58,14 +57,14 @@
     overflow-wrap: anywhere;
 }
 .emptyColumn {
-    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
     text-align: center;
     border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
 }
 .ticketCard {
-    min-height: 128px;
-    gap: var(--mantine-spacing-md);
+    min-height: 104px;
+    gap: var(--mantine-spacing-xs);
 }
 .ticketTitle {
     font-size: var(--mantine-font-size-sm);
@@ -113,9 +112,6 @@
 @media (max-width: 600px) {
     .review {
         padding: var(--mantine-spacing-sm);
-    }
-    .board {
-        padding: var(--mantine-spacing-md);
     }
     .board {
         grid-auto-columns: 280px;

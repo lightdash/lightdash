@@ -133,7 +133,7 @@ function Board({
                                 {cards.length}
                             </Text>
                         </Group>
-                        <Stack gap="sm" className={classes.columnCards}>
+                        <Stack gap="xs" className={classes.columnCards}>
                             {cards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
                             ))}
