@@ -1,3 +1,10 @@
+## [2.162.1](https://github.com/lightdash/lightdash/compare/2.162.0...2.162.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **explores:** keep a struct column's additional dimensions and metrics when unnesting is on ([#28846](https://github.com/lightdash/lightdash/issues/28846)) ([ef67b54](https://github.com/lightdash/lightdash/commit/ef67b54778e7a61f484185e57439a7e5c361f3ea))
+
 # [2.162.0](https://github.com/lightdash/lightdash/compare/2.161.0...2.162.0) (2026-09-08)
 
 
