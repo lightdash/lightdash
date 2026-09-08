@@ -8,7 +8,10 @@ import {
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
 import { type RoadmapApi } from './roadmapApi';
-import { type RoadmapProjectPresentation } from './roadmapPresentation';
+import {
+    ticketStage,
+    type RoadmapProjectPresentation,
+} from './roadmapPresentation';
 
 export type RoadmapMockScenario =
     | 'populated'
@@ -302,7 +305,15 @@ export function createRoadmapMockApi(
         getProjects: async (query): Promise<RoadmapProjectResults> => {
             await beforeRead();
             const search = query.search?.trim().toLowerCase() ?? '';
+            const matchesFilters = (stage: string, priority: string) =>
+                (!query.statuses ||
+                    query.statuses.split(',').includes(stage)) &&
+                (!query.priorities ||
+                    query.priorities.split(',').includes(priority));
             const groups = visibleProjects
+                .filter((project) =>
+                    matchesFilters(project.stage, project.priority),
+                )
                 .filter(
                     (project) =>
                         project.title.toLowerCase().includes(search) ||
@@ -337,6 +348,10 @@ export function createRoadmapMockApi(
                 otherRequestCount: visibleRequests.filter(
                     (item) =>
                         item.projectId === null &&
+                        matchesFilters(
+                            ticketStage(item.request.status),
+                            item.request.priority,
+                        ) &&
                         item.request.title.toLowerCase().includes(search),
                 ).length,
                 expiresAt,
@@ -349,6 +364,14 @@ export function createRoadmapMockApi(
             const items = visibleRequests.filter(
                 (item) =>
                     item.projectId === groupId &&
+                    (!query.statuses ||
+                        query.statuses
+                            .split(',')
+                            .includes(ticketStage(item.request.status))) &&
+                    (!query.priorities ||
+                        query.priorities
+                            .split(',')
+                            .includes(item.request.priority)) &&
                     item.request.title.toLowerCase().includes(search),
             );
             const page = paginate(items, query);

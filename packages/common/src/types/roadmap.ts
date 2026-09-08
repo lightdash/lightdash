@@ -147,6 +147,45 @@ export const RoadmapProjectQuerySchema = z
     .object({
         page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional(),
         pageSize: z.number().int().min(1).max(100).optional(),
+        statuses: z
+            .string()
+            .max(255)
+            .refine(
+                (value) =>
+                    value === '' ||
+                    value
+                        .split(',')
+                        .every((status) =>
+                            [
+                                'backlog',
+                                'planned',
+                                'started',
+                                'paused',
+                                'completed',
+                                'canceled',
+                            ].includes(status),
+                        ),
+                'Unknown roadmap status',
+            )
+            .optional(),
+        priorities: z
+            .string()
+            .max(255)
+            .refine(
+                (value) =>
+                    value === '' ||
+                    value
+                        .split(',')
+                        .every((priority) =>
+                            (
+                                Object.values(
+                                    RoadmapItemPriority,
+                                ) as readonly string[]
+                            ).includes(priority),
+                        ),
+                'Unknown roadmap priority',
+            )
+            .optional(),
         search: z.string().max(255).optional(),
         onlyInterested: z.boolean().optional(),
     })

@@ -15,7 +15,6 @@ import {
     Stack,
     Switch,
     Text,
-    TextInput,
     ThemeIcon,
     Title,
     UnstyledButton,
@@ -31,6 +30,7 @@ import {
     IconCircleX,
     IconPlayerPause,
     IconEye,
+    IconFlag,
     IconRoad,
     IconSearch,
     IconTicket,
@@ -38,8 +38,11 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
+import FilterFacet from '../../../components/common/FilterFacet';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
@@ -84,17 +87,22 @@ const columns = [
 function Board({
     entries,
     projectBoard,
+    statuses,
 }: {
     entries: { id: string; stage: RoadmapBoardStage; card: ReactNode }[];
     projectBoard: boolean;
+    statuses: string[];
 }) {
     const visibleColumns = columns.filter((column) =>
-        projectBoard
-            ? ['backlog', 'started', 'completed', 'canceled'].includes(
-                  column.id,
-              )
-            : ['backlog', 'planned', 'started', 'paused'].includes(column.id) ||
-              entries.some((entry) => entry.stage === column.id),
+        statuses.length
+            ? statuses.includes(column.id)
+            : projectBoard
+              ? ['backlog', 'started', 'completed', 'canceled'].includes(
+                    column.id,
+                )
+              : ['backlog', 'planned', 'started', 'paused'].includes(
+                    column.id,
+                ) || entries.some((entry) => entry.stage === column.id),
     );
     return (
         <Box className={classes.board}>
@@ -449,6 +457,10 @@ export function RoadmapProjects({
 }) {
     const [view, setView] = useState('board');
     const [onlyInterested, setOnlyInterested] = useState(false);
+    const [mainStatuses, setMainStatuses] = useState<string[]>([]);
+    const [mainPriorities, setMainPriorities] = useState<string[]>([]);
+    const [projectStatuses, setProjectStatuses] = useState<string[]>([]);
+    const [projectPriorities, setProjectPriorities] = useState<string[]>([]);
     const [mainSearch, setMainSearch] = useState('');
     const [projectSearch, setProjectSearch] = useState('');
     const [debouncedMainSearch] = useDebouncedValue(mainSearch.trim(), 300);
@@ -464,12 +476,25 @@ export function RoadmapProjects({
     );
     const [interestProject, setInterestProject] = useState<string | null>(null);
     const projectsQuery = useRoadmapProjects(
-        { pageSize: 10, search: debouncedMainSearch, onlyInterested },
+        {
+            pageSize: 10,
+            search: debouncedMainSearch,
+            onlyInterested,
+            statuses: mainStatuses.join(','),
+            priorities: mainPriorities.join(','),
+        },
         cacheKey,
     );
     const ticketsQuery = useRoadmapRequests(
         {
             groupId: selectedProjectId ?? 'other',
+            statuses: (selectedProjectId ? projectStatuses : mainStatuses).join(
+                ',',
+            ),
+            priorities: (selectedProjectId
+                ? projectPriorities
+                : mainPriorities
+            ).join(','),
             pageSize: 10,
             search: selectedProjectId
                 ? debouncedProjectSearch
@@ -505,6 +530,21 @@ export function RoadmapProjects({
     );
     const presentation = selectedProject?.project ?? defaultProjectPresentation;
     const projectBoard = selectedProjectId !== null;
+    const statuses = projectBoard ? projectStatuses : mainStatuses;
+    const priorities = projectBoard ? projectPriorities : mainPriorities;
+    const setStatuses = projectBoard ? setProjectStatuses : setMainStatuses;
+    const setPriorities = projectBoard
+        ? setProjectPriorities
+        : setMainPriorities;
+    const hasFilters =
+        statuses.length > 0 ||
+        priorities.length > 0 ||
+        (projectBoard ? projectSearch : mainSearch) !== '';
+    const clearFilters = () => {
+        setStatuses([]);
+        setPriorities([]);
+        (projectBoard ? setProjectSearch : setMainSearch)('');
+    };
     const loading =
         projectsQuery.isInitialLoading ||
         ticketsQuery.isInitialLoading ||
@@ -530,6 +570,8 @@ export function RoadmapProjects({
                   const onOpen = () => {
                       setSelectedProjectId(group.project.projectId);
                       setProjectSearch('');
+                      setProjectStatuses([]);
+                      setProjectPriorities([]);
                   };
                   return {
                       id: `project-${group.project.projectId}`,
@@ -575,89 +617,117 @@ export function RoadmapProjects({
         ),
     ];
     return (
-        <Stack className={classes.page} gap={0}>
-            <Group
-                className={classes.pageHeader}
-                justify="space-between"
-                gap="md"
-            >
-                <Group gap="sm">
-                    {projectBoard ? (
+        <SettingsPage
+            title={
+                projectBoard
+                    ? !failed && selectedProject
+                        ? selectedProject.project.title
+                        : 'Project board'
+                    : 'Roadmap'
+            }
+            isBeta={!projectBoard}
+            description={
+                projectBoard
+                    ? 'Tickets your organization follows in this project.'
+                    : 'Shared projects and your organization’s feature requests.'
+            }
+            actions={
+                projectBoard ? (
+                    <Group gap="md">
+                        {!failed && selectedProject && (
+                            <ProjectProgress value={presentation.progress} />
+                        )}
+                        {!failed &&
+                            selectedProject &&
+                            showDesignPartnerPreview && (
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    onClick={() =>
+                                        setInterestProject(selectedProjectId)
+                                    }
+                                >
+                                    Become a design partner
+                                </Button>
+                            )}
                         <Button
                             leftSection={
                                 <MantineIcon icon={IconArrowLeft} size="sm" />
                             }
-                            variant="subtle"
+                            variant="default"
                             size="xs"
                             onClick={back}
                         >
                             Back to roadmap
                         </Button>
-                    ) : (
-                        <ThemeIcon variant="default" size="lg">
-                            <MantineIcon icon={IconRoad} />
-                        </ThemeIcon>
-                    )}
-                    {projectBoard && !failed && selectedProject && (
-                        <ProjectIcon icon={presentation.icon} />
-                    )}
-                    <Title order={4}>
-                        {projectBoard
-                            ? !failed && selectedProject
-                                ? selectedProject.project.title
-                                : 'Project board'
-                            : 'Roadmap'}
-                    </Title>
-                    {!projectBoard && preview && (
-                        <Badge size="sm" variant="light">
-                            Preview
-                        </Badge>
-                    )}
-                </Group>
-                {projectBoard && !failed && selectedProject ? (
-                    <Group gap="md">
-                        <Text fz="xs" c="dimmed">
-                            Overall progress
-                        </Text>
-                        <ProjectProgress value={presentation.progress} />
-                        {showDesignPartnerPreview && (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                onClick={() =>
-                                    setInterestProject(selectedProjectId)
-                                }
-                            >
-                                Become a design partner
-                            </Button>
-                        )}
                     </Group>
-                ) : (
-                    !projectBoard && (
-                        <Text fz="sm" c="dimmed">
-                            Shared projects and your organization’s requests
-                        </Text>
-                    )
-                )}
-            </Group>
-            <Group
-                className={classes.boardToolbar}
-                justify="space-between"
-                gap="sm"
-            >
+                ) : preview ? (
+                    <Badge size="sm" variant="light">
+                        Preview
+                    </Badge>
+                ) : undefined
+            }
+        >
+            <Group justify="space-between" gap="sm" wrap="wrap">
                 <Group gap="sm">
-                    <Text fz="sm" fw={500}>
-                        {projectBoard
-                            ? 'Tickets your organization follows'
-                            : 'Projects & tickets'}
-                    </Text>
-                    {!failed && !loading && (
-                        <Text fz="xs" c="dimmed">
-                            {projectBoard
-                                ? `${ticketsQuery.data?.pages[0].pagination.totalResults ?? 0} tickets`
-                                : `${projectsQuery.data?.pages[0].pagination.totalResults ?? 0} projects · ${ticketsQuery.data?.pages[0].pagination.totalResults ?? 0} loose tickets`}
-                        </Text>
-                    )}
+                    <ContentTableSearchInput
+                        tooltipLabel={
+                            projectBoard
+                                ? 'Search project tickets'
+                                : 'Search roadmap'
+                        }
+                        aria-label={
+                            projectBoard
+                                ? 'Search project tickets'
+                                : 'Search roadmap'
+                        }
+                        placeholder={
+                            projectBoard
+                                ? 'Search project tickets'
+                                : 'Search roadmap'
+                        }
+                        collapsedWidth={340}
+                        expandedWidth={340}
+                        value={projectBoard ? projectSearch : mainSearch}
+                        onChange={
+                            projectBoard ? setProjectSearch : setMainSearch
+                        }
+                    />
+                    <FilterFacet
+                        label="Status"
+                        icon={IconRoad}
+                        selected={statuses}
+                        onChange={setStatuses}
+                        options={columns
+                            .filter(
+                                (column) =>
+                                    !projectBoard ||
+                                    [
+                                        'backlog',
+                                        'started',
+                                        'completed',
+                                        'canceled',
+                                    ].includes(column.id),
+                            )
+                            .map((column) => ({
+                                value: column.id,
+                                label: column.label,
+                            }))}
+                        tooltipLabel="Filter by status"
+                    />
+                    <FilterFacet
+                        label="Priority"
+                        icon={IconFlag}
+                        selected={priorities}
+                        onChange={setPriorities}
+                        options={Object.values(RoadmapItemPriority).map(
+                            (priority) => ({
+                                value: priority,
+                                label: priority,
+                            }),
+                        )}
+                        tooltipLabel="Filter by priority"
+                    />
                 </Group>
                 <Group gap="md" className={classes.viewControls}>
                     {!projectBoard && (
@@ -671,29 +741,6 @@ export function RoadmapProjects({
                             }
                         />
                     )}
-                    <TextInput
-                        className={classes.search}
-                        size="xs"
-                        aria-label={
-                            projectBoard
-                                ? 'Search project tickets'
-                                : 'Search roadmap'
-                        }
-                        placeholder={
-                            projectBoard
-                                ? 'Search tickets you follow…'
-                                : 'Search projects or tickets…'
-                        }
-                        leftSection={
-                            <MantineIcon icon={IconSearch} size="sm" />
-                        }
-                        value={projectBoard ? projectSearch : mainSearch}
-                        onChange={(event) =>
-                            projectBoard
-                                ? setProjectSearch(event.currentTarget.value)
-                                : setMainSearch(event.currentTarget.value)
-                        }
-                    />
                     <SegmentedControl
                         aria-label="Roadmap view"
                         size="xs"
@@ -775,10 +822,10 @@ export function RoadmapProjects({
                             icon={IconSearch}
                             title={
                                 projectBoard
-                                    ? projectSearch
+                                    ? hasFilters
                                         ? 'No matching tickets'
                                         : 'No followed tickets in this project'
-                                    : mainSearch
+                                    : hasFilters
                                       ? 'No matching projects or tickets'
                                       : 'No roadmap items yet'
                             }
@@ -788,16 +835,12 @@ export function RoadmapProjects({
                                     : 'Projects and tickets you follow will appear here.'
                             }
                             action={
-                                (projectBoard ? projectSearch : mainSearch) ? (
+                                hasFilters ? (
                                     <Button
                                         variant="default"
-                                        onClick={() =>
-                                            projectBoard
-                                                ? setProjectSearch('')
-                                                : setMainSearch('')
-                                        }
+                                        onClick={clearFilters}
                                     >
-                                        Clear search
+                                        Clear filters
                                     </Button>
                                 ) : undefined
                             }
@@ -807,7 +850,11 @@ export function RoadmapProjects({
             ) : (
                 <>
                     {view === 'board' ? (
-                        <Board entries={entries} projectBoard={projectBoard} />
+                        <Board
+                            entries={entries}
+                            projectBoard={projectBoard}
+                            statuses={statuses}
+                        />
                     ) : (
                         <RoadmapTable entries={entries} />
                     )}
@@ -843,6 +890,6 @@ export function RoadmapProjects({
                 item={failed ? null : selectedTicket}
                 onClose={() => setSelectedTicket(null)}
             />
-        </Stack>
+        </SettingsPage>
     );
 }

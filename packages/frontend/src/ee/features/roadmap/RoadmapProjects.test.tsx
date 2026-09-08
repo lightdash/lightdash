@@ -177,6 +177,55 @@ describe('Project roadmap', () => {
         });
     });
 
+    it('filters the full catalog and keeps project ticket filters separate', async () => {
+        setup('pagination');
+        await screen.findByRole('button', { name: 'Load more projects' });
+        expect(
+            screen.queryByRole('button', {
+                name: 'Open More flexible dashboard filters',
+            }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+        fireEvent.click(screen.getByRole('button', { name: 'In progress' }));
+        fireEvent.click(screen.getByRole('button', { name: /Status/ }));
+        const project = await screen.findByRole('button', {
+            name: 'Open More flexible dashboard filters',
+        });
+        expect(
+            screen.queryByRole('button', { name: 'Load more projects' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('region', { name: 'Backlog roadmap items' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(project);
+        await screen.findByRole('button', {
+            name: 'Open ticket Save personal filter defaults',
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Priority' }));
+        fireEvent.click(screen.getByRole('button', { name: 'High' }));
+        fireEvent.click(screen.getByRole('button', { name: /Priority/ }));
+        await screen.findByRole('button', {
+            name: 'Open ticket Followed filter improvement 12',
+        });
+        expect(
+            screen.queryByRole('button', {
+                name: 'Open ticket Save personal filter defaults',
+            }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Back to roadmap' }),
+        );
+        await screen.findByRole('button', {
+            name: 'Open More flexible dashboard filters',
+        });
+        expect(
+            screen.queryByRole('region', { name: 'Backlog roadmap items' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Priority' }),
+        ).toBeInTheDocument();
+    });
+
     it('puts followed tickets from removed projects directly on the main board', async () => {
         setup('removed');
         await screen.findByRole('button', {

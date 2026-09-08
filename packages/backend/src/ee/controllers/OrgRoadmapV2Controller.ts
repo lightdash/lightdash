@@ -36,6 +36,8 @@ export class OrgRoadmapV2Controller extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
         @Query() onlyInterested?: boolean,
     ): Promise<ApiRoadmapProjectResponse> {
         assertRegisteredAccount(req.account);
@@ -49,6 +51,8 @@ export class OrgRoadmapV2Controller extends BaseController {
                     page,
                     pageSize,
                     search,
+                    statuses,
+                    priorities,
                     onlyInterested,
                 }),
         };
@@ -64,6 +68,8 @@ export class OrgRoadmapV2Controller extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
         @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
     ): Promise<ApiRoadmapProjectRequestsResponse> {
         assertRegisteredAccount(req.account);
         this.setHeader('Cache-Control', 'no-store');
@@ -77,6 +83,8 @@ export class OrgRoadmapV2Controller extends BaseController {
                     page,
                     pageSize,
                     search,
+                    statuses,
+                    priorities,
                 }),
         };
     }

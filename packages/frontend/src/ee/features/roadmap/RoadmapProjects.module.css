@@ -1,23 +1,6 @@
-.page {
-    width: 100%;
-    min-height: calc(100dvh - 140px);
+.board {
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    overflow: hidden;
-    background: var(--mantine-color-body);
-}
-.pageHeader {
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-.boardToolbar {
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-}
-.search {
-    width: 280px;
-}
-.board {
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(280px, 1fr);
@@ -131,13 +114,8 @@
     .review {
         padding: var(--mantine-spacing-sm);
     }
-    .pageHeader,
-    .boardToolbar,
     .board {
         padding: var(--mantine-spacing-md);
-    }
-    .search {
-        width: 100%;
     }
     .board {
         grid-auto-columns: 280px;
@@ -145,6 +123,8 @@
 }
 
 .tableContainer {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
     min-height: 400px;
 }
 .nameCell {
