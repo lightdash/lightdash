@@ -1,3 +1,10 @@
+# [2.157.0](https://github.com/lightdash/lightdash/compare/2.156.2...2.157.0) (2026-09-08)
+
+
+### Features
+
+* **learn:** the library in the homepage's shape, with role views, group tabs and a Filter menu ([#28812](https://github.com/lightdash/lightdash/issues/28812)) ([2657e33](https://github.com/lightdash/lightdash/commit/2657e331f1021b71fcb88b468eab7f06be903e7f))
+
 ## [2.156.2](https://github.com/lightdash/lightdash/compare/2.156.1...2.156.2) (2026-09-08)
 
 
