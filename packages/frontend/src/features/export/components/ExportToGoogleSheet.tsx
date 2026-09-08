@@ -77,7 +77,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
 
         return (
             <Button
-                size="xs"
+                size="sm"
                 variant="default"
                 loading={isExporting}
                 leftSection={<MantineIcon icon={GSheetsIcon} />}

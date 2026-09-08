@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -97,5 +97,45 @@ describe('GuidedTour', () => {
         await user.click(screen.getByRole('button', { name: 'Next' }));
         await user.click(screen.getByRole('button', { name: 'Got it' }));
         expect(calls).toEqual(['finish', 'close']);
+    });
+
+    // A control the instance never shows (a screen behind a config the tour
+    // did not know about) used to leave the page blocked with no card and no
+    // Skip: the only way out was a new tab.
+    it('brings the card back when the next control never appears', async () => {
+        vi.useFakeTimers();
+        try {
+            renderWithProviders(
+                <GuidedTour
+                    steps={[
+                        { target: null, title: 'Step one', body: '' },
+                        {
+                            target: '[data-missing="true"]',
+                            title: 'Step two',
+                            body: '',
+                            interactive: true,
+                            advanceOnTargetClick: true,
+                        },
+                    ]}
+                    opened
+                    onClose={vi.fn()}
+                    initialStepIndex={1}
+                    initialBeacon={{ x: 10, y: 10 }}
+                />,
+            );
+
+            expect(screen.queryByText('Step two')).not.toBeInTheDocument();
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(16_000);
+            });
+
+            expect(screen.getByText('Step two')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Skip' }),
+            ).toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

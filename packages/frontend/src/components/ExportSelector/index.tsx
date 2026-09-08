@@ -1,19 +1,19 @@
 import {
-    SchedulerJobStatus,
-    type ApiDownloadCsv,
-    type ApiError,
     type ApiScheduledDownloadCsv,
     type PivotConfig,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
-import { IconArrowLeft, IconFileTypeCsv } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import { memo, useState, type FC } from 'react';
+import { memo, type FC } from 'react';
 import { ExportToGoogleSheet } from '../../features/export';
 import useHealth from '../../hooks/health/useHealth';
-import MantineIcon from '../common/MantineIcon';
 import ExportResults, { type ExportResultsProps } from '../ExportResults';
 
+/**
+ * The export form for a results table, with Google Sheets beside Download when
+ * the instance has Drive configured. Both ways out are on the one screen: an
+ * earlier version put the form behind a "Download data" button, which left
+ * anyone without the Google Sheets permission clicking through a chooser of
+ * one.
+ */
 const ExportSelector: FC<
     ExportResultsProps & {
         getGsheetLink?: () => Promise<ApiScheduledDownloadCsv>;
@@ -39,61 +39,6 @@ const ExportSelector: FC<
             health.data?.auth.google.oauth2ClientId !== undefined &&
             health.data?.auth.google.googleDriveApiKey !== undefined;
 
-        const [exportType, setExportType] = useState<string | undefined>();
-
-        const { data } = useQuery<ApiDownloadCsv | undefined, ApiError>({
-            queryKey: [`google-sheets`],
-            enabled: false,
-        });
-
-        const isExportingGoogleSheets =
-            data?.status === SchedulerJobStatus.STARTED;
-
-        if (exportType === 'csv') {
-            return (
-                <>
-                    <Button
-                        size="xs"
-                        mb="xs"
-                        leftSection={<MantineIcon icon={IconArrowLeft} />}
-                        variant="subtle"
-                        onClick={() => setExportType(undefined)}
-                    >
-                        Back
-                    </Button>
-                    <ExportResults
-                        totalResults={totalResults}
-                        getDownloadQueryUuid={getDownloadQueryUuid}
-                        projectUuid={projectUuid}
-                        columnOrder={columnOrder}
-                        customLabels={customLabels}
-                        hiddenFields={hiddenFields}
-                        showTableNames={showTableNames}
-                        chartName={chartName}
-                        pivotConfig={pivotConfig}
-                        conditionalFormattings={conditionalFormattings}
-                        showColumnTotals={showColumnTotals}
-                    />
-                </>
-            );
-        } else if (hasGoogleDrive && getGsheetLink) {
-            return (
-                <Stack gap="xs">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={() => setExportType('csv')}
-                        leftSection={<MantineIcon icon={IconFileTypeCsv} />}
-                        disabled={isExportingGoogleSheets}
-                        data-testid="chart-export-csv-button"
-                    >
-                        Download data
-                    </Button>
-                    <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
-                </Stack>
-            );
-        }
-
         return (
             <ExportResults
                 totalResults={totalResults}
@@ -107,6 +52,11 @@ const ExportSelector: FC<
                 pivotConfig={pivotConfig}
                 conditionalFormattings={conditionalFormattings}
                 showColumnTotals={showColumnTotals}
+                secondaryAction={
+                    hasGoogleDrive && getGsheetLink ? (
+                        <ExportToGoogleSheet getGsheetLink={getGsheetLink} />
+                    ) : undefined
+                }
             />
         );
     },

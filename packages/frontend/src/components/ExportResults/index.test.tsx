@@ -1,6 +1,7 @@
 import { createConditionalFormattingConfigWithSingleColor } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import {
     afterEach,
     beforeEach,
@@ -38,7 +39,7 @@ const getScheduledDownloadBody = async () =>
         return JSON.parse(scheduleRequest[1].body);
     });
 
-const renderExportResults = () =>
+const renderExportResults = (secondaryAction?: ReactNode) =>
     renderWithProviders(
         <ExportResults
             projectUuid={PROJECT_UUID}
@@ -46,6 +47,7 @@ const renderExportResults = () =>
             getDownloadQueryUuid={vi.fn().mockResolvedValue(QUERY_UUID)}
             conditionalFormattings={conditionalFormattings}
             hideLimitSelection
+            secondaryAction={secondaryAction}
         />,
     );
 
@@ -119,5 +121,14 @@ describe('ExportResults', () => {
         await waitFor(() =>
             expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled(),
         );
+    });
+
+    it('shows a secondary action beside Download', () => {
+        renderExportResults(<button type="button">Google Sheets</button>);
+
+        expect(screen.getByTestId('chart-export-results-button')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Google Sheets' }),
+        ).toBeVisible();
     });
 });

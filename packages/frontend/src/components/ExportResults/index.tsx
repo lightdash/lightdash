@@ -68,6 +68,8 @@ export type ExportResultsProps = {
     hideLimitSelection?: boolean;
     forceShowLimitSelection?: boolean;
     renderDialogActions?: (renderProps: ExportCsvRenderProps) => ReactNode;
+    /** Another way out of the same form, shown beside Download. */
+    secondaryAction?: ReactNode;
 };
 
 const TOAST_KEY = 'exporting-results';
@@ -88,6 +90,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         hideLimitSelection = false,
         forceShowLimitSelection = false,
         renderDialogActions,
+        secondaryAction,
     }) => {
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
@@ -476,19 +479,21 @@ const ExportResults: FC<ExportResultsProps> = memo(
                 )}
 
                 {!renderDialogActions ? (
-                    <Button
-                        loading={isExporting}
-                        size="sm"
-                        leftSection={<MantineIcon icon={IconTableExport} />}
-                        onClick={() => exportMutation()}
-                        data-testid="chart-export-results-button"
-                        // Walkthrough anchor (data-tour-then): the download.
-                        data-tour-anchor="export-download"
-                        data-tour-hint="Click Download"
-                        ml="auto"
-                    >
-                        Download
-                    </Button>
+                    <Group justify="flex-end" gap="xs">
+                        {secondaryAction}
+                        <Button
+                            loading={isExporting}
+                            size="sm"
+                            leftSection={<MantineIcon icon={IconTableExport} />}
+                            onClick={() => exportMutation()}
+                            data-testid="chart-export-results-button"
+                            // Walkthrough anchor (data-tour-then): the download.
+                            data-tour-anchor="export-download"
+                            data-tour-hint="Click Download"
+                        >
+                            Download
+                        </Button>
+                    </Group>
                 ) : (
                     <Stack gap="sm">
                         {renderDialogActions({

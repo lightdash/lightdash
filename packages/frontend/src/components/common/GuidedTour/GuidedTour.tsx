@@ -645,6 +645,20 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         };
     }, [waiting]);
 
+    // A control that never arrives (a screen this instance does not have)
+    // would otherwise hide the card for good, leaving the page blocked with
+    // no way out but a new tab. Once patience runs out the card comes back,
+    // centred, so Skip is always within reach; the beacon keeps waiting and
+    // the card still opens at the control if it turns up.
+    useEffect(() => {
+        if (!waiting) return undefined;
+        const timeout = window.setTimeout(() => {
+            setCardRect(null);
+            setCardPhase('shown');
+        }, TARGET_PATIENCE_MS);
+        return () => window.clearTimeout(timeout);
+    }, [waiting]);
+
     // When the work finishes the ring travels to the finished surface.
     const wasBusyRef = useRef(false);
     useEffect(() => {
