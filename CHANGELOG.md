@@ -1,3 +1,10 @@
+# [2.158.0](https://github.com/lightdash/lightdash/compare/2.157.1...2.158.0) (2026-09-08)
+
+
+### Features
+
+* **cli:** accept project slugs in --project and content urls ([#28838](https://github.com/lightdash/lightdash/issues/28838)) ([026ad56](https://github.com/lightdash/lightdash/commit/026ad56dc895d5f03316466e049248d14c51fbf8)), closes [#27972](https://github.com/lightdash/lightdash/issues/27972)
+
 ## [2.157.1](https://github.com/lightdash/lightdash/compare/2.157.0...2.157.1) (2026-09-08)
 
 
