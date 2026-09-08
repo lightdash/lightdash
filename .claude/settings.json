@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(packages/formula-tests/**)",
+      "Edit(packages/formula-tests/**)"
+    ]
+  }
+}
