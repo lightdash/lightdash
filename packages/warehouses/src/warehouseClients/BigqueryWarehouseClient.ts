@@ -37,6 +37,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
@@ -197,6 +198,36 @@ const mapFieldType = (type: string | undefined): DimensionType => {
             return DimensionType.BOOLEAN;
         default:
             return DimensionType.STRING;
+    }
+};
+
+// NUMERIC is (38, 9) unless declared; BIGNUMERIC fits a DuckDB decimal only when its declared precision does
+export const getBigqueryNumericKind = (field: {
+    type?: string;
+    precision?: string;
+    scale?: string;
+}): ResultNumericKind | null => {
+    const declared = (value: string | undefined): number | null =>
+        value !== undefined && value !== '' ? Number(value) : null;
+    const declaredScale = declared(field.scale);
+    const declaredPrecision = declared(field.precision);
+    switch (field.type) {
+        case BigqueryFieldType.INTEGER:
+        case BigqueryFieldType.INT64:
+            return { kind: 'integer' };
+        case BigqueryFieldType.FLOAT:
+        case BigqueryFieldType.FLOAT64:
+            return { kind: 'float' };
+        case BigqueryFieldType.NUMERIC:
+            return { kind: 'decimal', scale: declaredScale ?? 9 };
+        case BigqueryFieldType.BIGNUMERIC:
+            return declaredScale !== null &&
+                declaredPrecision !== null &&
+                declaredPrecision <= 38
+                ? { kind: 'decimal', scale: declaredScale }
+                : null;
+        default:
+            return null;
     }
 };
 
@@ -504,9 +535,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             WarehouseResults['fields']
         >((acc, field) => {
             if (field.name) {
+                const numericKind = getBigqueryNumericKind(field);
                 return {
                     ...acc,
-                    [field.name]: { type: mapFieldType(field.type) },
+                    [field.name]: {
+                        type: mapFieldType(field.type),
+                        ...(numericKind ? { numericKind } : {}),
+                    },
                 };
             }
             return acc;

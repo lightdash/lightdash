@@ -37,6 +37,11 @@ describe('TrinoWarehouseClient', () => {
         acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
         return acc;
     }, {});
+    // The mock's number column is a Trino integer, which reports its kind
+    lowerCaseFields.mynumbercolumn = {
+        ...lowerCaseFields.mynumbercolumn,
+        numericKind: { kind: 'integer' },
+    };
     const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<
         Record<string, AnyType>
     >((acc, key) => {

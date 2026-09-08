@@ -122,7 +122,13 @@ describe('DatabricksWarehouseClient', () => {
 
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual({
+            ...expectedFields,
+            myNumberColumn: {
+                ...expectedFields.myNumberColumn,
+                numericKind: { kind: 'integer' },
+            },
+        });
         expect(results.rows[0]).toEqual(rows[0]);
     });
 

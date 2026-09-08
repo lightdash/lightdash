@@ -753,7 +753,14 @@ describe('SnowflakeWarehouseClient', () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual({
+            ...expectedFields,
+            // NUMBER with scale 0 at the source is an integer
+            MYNUMBERCOLUMN: {
+                ...expectedFields.MYNUMBERCOLUMN,
+                numericKind: { kind: 'integer' },
+            },
+        });
         expect(results.rows[0]).toEqual(expectedRow);
     });
 

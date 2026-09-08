@@ -108,8 +108,13 @@ would have changed nothing. Referenced results are bound with a typed read
 (`getJsonlReferenceSelect` in `duckdbSqlTables.ts`): every column is read as
 text and cast in SQL, NUMBER by the per-column numeric kind the driver reports
 (`integer`, `decimal(scale)`, `float`), timestamps as instants unless naive,
-and an uncastable value refuses naming the column. Postgres and DuckDB report
-a kind; a column without one binds as DOUBLE. What that read cannot recover is
+and an uncastable value refuses naming the column. Every warehouse client
+reports a kind for integer and float columns and for a decimal whose scale it
+knows (Snowflake from the column scale, BigQuery from the schema field,
+Trino and ClickHouse from the type string, Databricks from the type
+qualifier, Athena from `ColumnInfo.Scale`, Postgres and Redshift from the
+typmod); a decimal of unknown scale reports none rather than a guess, and a
+column without a kind binds as DOUBLE. What that read cannot recover is
 what the driver already rounded: Postgres NUMERIC through `parseFloat`,
 BigQuery through `Number(toFixed)`, Snowflake without `fetchAsString`, Trino
 bigints through `JSON.parse`. Those are driver fixes, not merge bugs.

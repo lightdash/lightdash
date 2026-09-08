@@ -12,6 +12,7 @@ import {
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
+    type ResultNumericKind,
     type TimestampDomain,
 } from '@lightdash/common';
 import {
@@ -113,6 +114,28 @@ export const getTrinoTimestampDomain = (
             return 'aware';
         default:
             return undefined;
+    }
+};
+
+// The column type string carries the decimal scale: decimal(p,s)
+export const getTrinoNumericKind = (
+    type: TrinoTypes | string,
+): ResultNumericKind | null => {
+    switch (removeNumericTypeParameters(type)) {
+        case TrinoTypes.TINYINT:
+        case TrinoTypes.SMALLINT:
+        case TrinoTypes.INTEGER:
+        case TrinoTypes.BIGINT:
+            return { kind: 'integer' };
+        case TrinoTypes.REAL:
+        case TrinoTypes.DOUBLE:
+            return { kind: 'float' };
+        case TrinoTypes.DECIMAL: {
+            const scale = type.match(/\(\s*\d+\s*,\s*(\d+)\s*\)/);
+            return scale ? { kind: 'decimal', scale: Number(scale[1]) } : null;
+        }
+        default:
+            return null;
     }
 };
 
@@ -379,15 +402,22 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 type: string;
                 typeSignature: { rawType: string };
             }[] = queryResult.value.columns ?? [];
-            const fields = schema.reduce(
-                (acc, column) => ({
-                    ...acc,
-                    [normalizeColumnName(column.name)]: {
-                        type: convertDataTypeToDimensionType(
-                            column.typeSignature.rawType ?? TrinoTypes.VARCHAR,
-                        ),
-                    },
-                }),
+            const fields = schema.reduce<WarehouseResults['fields']>(
+                (acc, column) => {
+                    // The full type string carries the decimal scale that rawType drops
+                    const type =
+                        column.type ??
+                        column.typeSignature.rawType ??
+                        TrinoTypes.VARCHAR;
+                    const numericKind = getTrinoNumericKind(type);
+                    return {
+                        ...acc,
+                        [normalizeColumnName(column.name)]: {
+                            type: convertDataTypeToDimensionType(type),
+                            ...(numericKind ? { numericKind } : {}),
+                        },
+                    };
+                },
                 {},
             );
 
