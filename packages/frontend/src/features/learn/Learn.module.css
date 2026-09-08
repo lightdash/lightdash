@@ -177,42 +177,6 @@
     color: var(--lu-ink);
 }
 
-.stats {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--lu-muted);
-}
-
-.stat {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font: inherit;
-    font-size: 12px;
-    color: var(--lu-muted);
-    background: transparent;
-    border: 1px solid transparent;
-}
-
-.stat b {
-    font-weight: 600;
-    color: var(--lu-secondary);
-}
-
-.statButton {
-    cursor: pointer;
-}
-
-.statButton:hover {
-    background: var(--lu-surface);
-    border-color: var(--lu-border);
-    color: var(--lu-ink);
-}
-
 /* Titled sections as on the homepage: a small icon, the title, and for a
    group its description alongside. */
 .section {
@@ -303,13 +267,143 @@
     color: var(--lu-muted);
 }
 
-/* The filters sit between Continue and the groups they narrow. */
-.filters {
+/* The library's header row, Linear's way: a title on the left, the Filter
+   and Display icon buttons on the right; chosen filters as removable chips
+   on the line beneath. */
+.libraryBar {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding-top: 6px;
+    gap: 6px;
+    padding-top: 10px;
+}
+
+/* The roles as views, Linear's way: one pill per role, the chosen one
+   filled; the library is the modules that role can practise. */
+.views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-right: auto;
+}
+
+.view {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 12.5px;
+    color: var(--lu-muted);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        background 120ms ease,
+        color 120ms ease;
+}
+
+.view:hover {
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+}
+
+.viewOn {
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--lu-border) inset;
+}
+
+.libraryCount {
+    font-size: 12px;
+    color: var(--lu-muted);
+    margin-right: 6px;
+}
+
+.iconButton {
+    position: relative;
+    width: 30px;
+    height: 26px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid var(--lu-border);
+    border-radius: 6px;
+    background: var(--lu-surface);
+    color: var(--lu-muted);
+    cursor: pointer;
+}
+
+.iconButton:hover {
+    color: var(--lu-ink);
+}
+
+.iconButtonOn {
+    color: var(--lu-ink);
+    border-color: var(--lu-secondary);
+}
+
+.iconBadge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--lu-accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 15px;
+    text-align: center;
+}
+
+.filterChips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: -8px;
+}
+
+.filterChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px 3px 9px;
+    border: 1px solid var(--lu-border);
+    border-radius: 6px;
+    background: var(--lu-surface);
+    color: var(--lu-ink);
+    font-size: 12px;
+}
+
+.filterChipKey {
+    color: var(--lu-muted);
+}
+
+.filterChipRemove {
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    color: var(--lu-muted);
+    cursor: pointer;
+}
+
+.filterChipRemove:hover {
+    background: var(--lu-sunken);
+    color: var(--lu-ink);
+}
+
+.filterClear {
+    font: inherit;
+    font-size: 12px;
+    color: var(--lu-muted);
+    padding: 3px 6px;
+    cursor: pointer;
+}
+
+.filterClear:hover {
+    color: var(--lu-ink);
 }
 
 .focusCard {
@@ -356,69 +450,12 @@
     scroll-margin-top: 80px;
 }
 
-/* The groups as quiet pills under the search, as the homepage's: nothing
-   but text until hovered or chosen, the group's colour as a swatch. All,
-   then one per group, a hairline, then the two view toggles. */
-.chips {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 4px;
-}
-
-.chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--lu-muted);
-    font: inherit;
-    font-size: 12px;
-    line-height: 1.3;
-    cursor: pointer;
-    transition:
-        background 120ms ease,
-        border-color 120ms ease,
-        color 120ms ease;
-}
-
-.chip:hover {
-    background: var(--lu-surface);
-    border-color: var(--lu-border);
-    color: var(--lu-ink);
-}
-
-.chipOn {
-    background: var(--lu-surface);
-    border-color: var(--lu-border);
-    color: var(--lu-ink);
-    font-weight: 500;
-}
-
 .chipSwatch {
     width: 8px;
     height: 8px;
     border-radius: 3px;
     background: var(--mi-fg);
     flex: none;
-}
-
-/* The two view toggles sit at the end of the row as chips of their own,
-   past a hairline, so filters and toggles read as one set of controls. */
-.chipRule {
-    width: 1px;
-    height: 18px;
-    margin: 0 4px;
-    background: var(--lu-border);
-    align-self: center;
-}
-
-.chipHelp {
-    display: inline-flex;
-    color: var(--lu-muted);
 }
 
 .grid {

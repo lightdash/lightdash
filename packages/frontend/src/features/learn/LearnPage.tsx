@@ -10,8 +10,8 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
-    IconChevronDown,
-    IconHelpCircle,
+    IconFilter,
+    IconX,
     IconLayoutGrid,
     IconPlayerPlay,
     IconSearch,
@@ -207,8 +207,14 @@ const LearnPage: FC = () => {
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(true);
     const [showSoon, setShowSoon] = useState(true);
-    // One group, or every group: the chips beside the search.
-    const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
+    // The groups chosen in the Filter menu; none chosen means every group.
+    const [selectedGroups, setSelectedGroups] = useState<LearnGroup[]>([]);
+    const toggleGroup = (group: LearnGroup) =>
+        setSelectedGroups((current) =>
+            current.includes(group)
+                ? current.filter((candidate) => candidate !== group)
+                : [...current, group],
+        );
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -227,9 +233,9 @@ const LearnPage: FC = () => {
     // A chip narrows the page to one group; the chips themselves always
     // list every group with a match, so the way back is a click away.
     const shownGroups =
-        groupFilter === null
+        selectedGroups.length === 0
             ? groups
-            : groups.filter((group) => group === groupFilter);
+            : groups.filter((group) => selectedGroups.includes(group));
     const available = catalogue.filter((m) => m.available);
     const doneCount = available.filter((m) =>
         completed.includes(m.scope),
@@ -344,132 +350,167 @@ const LearnPage: FC = () => {
                         </Box>
                     </Box>
                 )}
-                <Box className={styles.filters}>
+                <Box className={styles.libraryBar}>
                     <Box
                         component="nav"
-                        className={styles.chips}
-                        aria-label="Library groups"
+                        className={styles.views}
+                        aria-label="Viewing as"
+                        data-learn-role={role}
                     >
-                        <UnstyledButton
-                            type="button"
-                            className={`${styles.chip} ${
-                                groupFilter === null ? styles.chipOn : ''
-                            }`}
-                            aria-pressed={groupFilter === null}
-                            onClick={() => setGroupFilter(null)}
-                        >
-                            All
-                        </UnstyledButton>
-                        {groups.map((group) => (
+                        {ROLE_ORDER.map((candidate) => (
                             <UnstyledButton
-                                key={group}
+                                key={candidate}
                                 type="button"
-                                className={`${styles.chip} ${
-                                    groupFilter === group ? styles.chipOn : ''
+                                className={`${styles.view} ${
+                                    candidate === role ? styles.viewOn : ''
                                 }`}
-                                style={groupVars(group)}
-                                aria-pressed={groupFilter === group}
-                                data-learn-chip={group}
-                                onClick={() =>
-                                    setGroupFilter(
-                                        groupFilter === group ? null : group,
-                                    )
-                                }
+                                aria-pressed={candidate === role}
+                                onClick={() => setRole(candidate)}
                             >
+                                {ROLE_LABELS[candidate]}
+                            </UnstyledButton>
+                        ))}
+                    </Box>
+                    <span
+                        className={styles.libraryCount}
+                        data-learn-progress={`${doneCount}/${available.length}`}
+                    >
+                        {doneCount} of {available.length} complete
+                    </span>
+                    <Menu
+                        position="bottom-end"
+                        withinPortal
+                        closeOnItemClick={false}
+                    >
+                        <Menu.Target>
+                            <Tooltip label="Filter" withArrow>
+                                <UnstyledButton
+                                    type="button"
+                                    className={`${styles.iconButton} ${
+                                        selectedGroups.length > 0
+                                            ? styles.iconButtonOn
+                                            : ''
+                                    }`}
+                                    aria-label="Filter"
+                                    aria-haspopup="menu"
+                                    data-learn-filter
+                                >
+                                    <MantineIcon icon={IconFilter} size={15} />
+                                    {selectedGroups.length > 0 && (
+                                        <span className={styles.iconBadge}>
+                                            {selectedGroups.length}
+                                        </span>
+                                    )}
+                                </UnstyledButton>
+                            </Tooltip>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>Group</Menu.Label>
+                            {groups.map((group) => {
+                                const on = selectedGroups.includes(group);
+                                return (
+                                    <Menu.Item
+                                        key={group}
+                                        onClick={() => toggleGroup(group)}
+                                        leftSection={
+                                            <span
+                                                className={styles.chipSwatch}
+                                                style={groupVars(group)}
+                                                aria-hidden
+                                            />
+                                        }
+                                        rightSection={
+                                            on ? (
+                                                <MantineIcon
+                                                    icon={IconCheck}
+                                                    size={13}
+                                                />
+                                            ) : null
+                                        }
+                                        aria-checked={on}
+                                        role="menuitemcheckbox"
+                                        data-learn-filter-group={group}
+                                    >
+                                        {GROUP_LABELS[group]}
+                                    </Menu.Item>
+                                );
+                            })}
+                            <Menu.Divider />
+                            <Menu.Label>Show</Menu.Label>
+                            <Menu.Item
+                                onClick={() => setShowExtra(!showExtra)}
+                                rightSection={
+                                    showExtra ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={13}
+                                        />
+                                    ) : null
+                                }
+                                aria-checked={showExtra}
+                                role="menuitemcheckbox"
+                                aria-label="Show extra modules"
+                            >
+                                Extra modules
+                            </Menu.Item>
+                            <Menu.Item
+                                onClick={() => setShowSoon(!showSoon)}
+                                rightSection={
+                                    showSoon ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={13}
+                                        />
+                                    ) : null
+                                }
+                                aria-checked={showSoon}
+                                role="menuitemcheckbox"
+                                aria-label="Coming soon"
+                            >
+                                Coming soon
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                </Box>
+                {selectedGroups.length > 0 && (
+                    <Box
+                        className={styles.filterChips}
+                        aria-label="Active filters"
+                    >
+                        {selectedGroups.map((group) => (
+                            <span
+                                key={group}
+                                className={styles.filterChip}
+                                style={groupVars(group)}
+                                data-learn-chip={group}
+                            >
+                                <span className={styles.filterChipKey}>
+                                    Group is
+                                </span>
                                 <span
                                     className={styles.chipSwatch}
                                     aria-hidden
                                 />
                                 {GROUP_LABELS[group]}
-                            </UnstyledButton>
-                        ))}
-                        <span className={styles.chipRule} aria-hidden />
-                        <UnstyledButton
-                            type="button"
-                            className={`${styles.chip} ${
-                                showExtra ? styles.chipOn : ''
-                            }`}
-                            role="switch"
-                            aria-checked={showExtra}
-                            aria-label="Show extra modules"
-                            onClick={() => setShowExtra(!showExtra)}
-                        >
-                            {showExtra && (
-                                <MantineIcon icon={IconCheck} size={12} />
-                            )}
-                            Extra modules
-                            <Tooltip
-                                label="Modules for roles above yours, with the role they need"
-                                withArrow
-                            >
-                                <span
-                                    className={styles.chipHelp}
-                                    role="img"
-                                    aria-label="Modules for roles above yours, with the role they need"
-                                >
-                                    <MantineIcon
-                                        icon={IconHelpCircle}
-                                        size={13}
-                                    />
-                                </span>
-                            </Tooltip>
-                        </UnstyledButton>
-                        <UnstyledButton
-                            type="button"
-                            className={`${styles.chip} ${
-                                showSoon ? styles.chipOn : ''
-                            }`}
-                            role="switch"
-                            aria-checked={showSoon}
-                            aria-label="Coming soon"
-                            onClick={() => setShowSoon(!showSoon)}
-                        >
-                            {showSoon && (
-                                <MantineIcon icon={IconCheck} size={12} />
-                            )}
-                            Coming soon
-                        </UnstyledButton>
-                    </Box>
-                    <Box className={styles.stats} data-learn-role={role}>
-                        <Menu position="bottom" withinPortal>
-                            <Menu.Target>
                                 <UnstyledButton
                                     type="button"
-                                    className={`${styles.stat} ${styles.statButton}`}
-                                    aria-haspopup="menu"
+                                    className={styles.filterChipRemove}
+                                    aria-label={`Remove ${GROUP_LABELS[group]} filter`}
+                                    onClick={() => toggleGroup(group)}
                                 >
-                                    Viewing as <b>{ROLE_LABELS[role]}</b>
-                                    <MantineIcon
-                                        icon={IconChevronDown}
-                                        size={14}
-                                    />
+                                    <MantineIcon icon={IconX} size={12} />
                                 </UnstyledButton>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {ROLE_ORDER.map((candidate) => (
-                                    <Menu.Item
-                                        key={candidate}
-                                        onClick={() => setRole(candidate)}
-                                        fw={
-                                            candidate === role ? 600 : undefined
-                                        }
-                                    >
-                                        {ROLE_LABELS[candidate]}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Dropdown>
-                        </Menu>
-                        <span
-                            className={styles.stat}
-                            data-learn-progress={`${doneCount}/${available.length}`}
+                            </span>
+                        ))}
+                        <UnstyledButton
+                            type="button"
+                            className={styles.filterClear}
+                            onClick={() => setSelectedGroups([])}
                         >
-                            Modules{' '}
-                            <b>
-                                {doneCount} of {available.length}
-                            </b>
-                        </span>
+                            Clear
+                        </UnstyledButton>
                     </Box>
-                </Box>
+                )}
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
