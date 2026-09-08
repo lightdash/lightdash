@@ -196,7 +196,7 @@ Never declare a break merely to make CI pass. Declaring a break advises every se
 `release.yml` fires on every push to `main`, so the release that goes out is whatever `main` contains at that moment. When something needs to reach a release on its own — a fix someone is waiting on — hold merges rather than asking people in Slack not to merge:
 
 -   **Freeze**: `gh workflow run merge-freeze.yml -f action=freeze`. This adds a `merge-freeze` required status check to the `main` ruleset. Nothing ever reports that check, so merges into `main` are blocked for everyone without a ruleset bypass.
--   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry.
+-   **Unfreeze**: the same workflow with `action=unfreeze`. Do it as soon as the release is cut — a freeze left on blocks the whole team, and there is no auto-expiry. Repeat unfreeze to refresh stale PR checks even when the ruleset is already open. In `#engineering`, ask `@Cloudy unfreeze merges to lightdash`.
 -   **Any verified Lightdash employee can unfreeze through Cloudy in Slack.** Direct Actions dispatch remains available to the recorded owner. A repo admin can remove the `merge-freeze` check from the `main` ruleset by hand.
 -   **There is no free-text reason, deliberately** — this repo is public, and a reason box invites someone to name a customer in it. Blocked PRs show who froze it so people know who to ask, and `#engineering` gets the same on both directions. Say why in Slack.
 -   **Only `main` is affected.** Stacked PRs merging into their parent branch are untouched.
