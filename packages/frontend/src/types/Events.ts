@@ -250,4 +250,10 @@ export enum EventName {
     CHART_TYPE_DETAIL_VIEWED = 'chart_type.detail_viewed',
     CHART_TYPE_PREVIEW_IN_EXPLORER = 'chart_type.preview_in_explorer',
     CHART_TYPE_FORK_MODAL_OPENED = 'chart_type.fork_modal_opened',
+
+    // Learn: the training library and the walkthroughs started from it
+    LEARN_LIBRARY_VIEWED = 'learn_library.viewed',
+    LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',
+    LEARN_WALKTHROUGH_COMPLETED = 'learn_walkthrough.completed',
+    LEARN_WALKTHROUGH_DISMISSED = 'learn_walkthrough.dismissed',
 }

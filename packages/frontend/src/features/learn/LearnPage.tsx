@@ -16,13 +16,22 @@ import {
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useState } from 'react';
+import {
+    type FC,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
@@ -247,6 +256,51 @@ const LearnPage: FC = () => {
     const { start, opening } = useStartWalkthrough(
         trainingProject?.projectUuid,
     );
+    const startFromCard = useCallback(
+        (scope: string) => start(scope, 'card'),
+        [start],
+    );
+
+    // One view per visit to the library, once the page knows what it is
+    // showing. The redirects below are not views of it, and the call to
+    // action before an admin has enabled Learn is (hasTrainingProject
+    // false): it is the page a learner lands on.
+    const { track } = useTracking();
+    const trackedViewRef = useRef(false);
+    useEffect(() => {
+        if (trackedViewRef.current) return;
+        if (!projects || !health) return;
+        if (previewRedirect || !health.learn.enabled) return;
+        trackedViewRef.current = true;
+        track({
+            name: EventName.LEARN_LIBRARY_VIEWED,
+            properties: {
+                organizationUuid: organizationUuid ?? null,
+                trainingProjectUuid: trainingProject?.projectUuid ?? null,
+                hasTrainingProject: !!trainingProject,
+                // Counted against this instance's catalogue, so the numbers
+                // are the ones the learner sees rather than every scope the
+                // browser has ever recorded progress for.
+                moduleCount: catalogue.length,
+                startedCount: catalogue.filter((module) =>
+                    started.includes(module.scope),
+                ).length,
+                completedCount: catalogue.filter((module) =>
+                    completed.includes(module.scope),
+                ).length,
+            },
+        });
+    }, [
+        projects,
+        health,
+        previewRedirect,
+        organizationUuid,
+        trainingProject,
+        catalogue,
+        started,
+        completed,
+        track,
+    ]);
     const jumpTo = (group: LearnGroup) => {
         setActiveGroup(group);
         document
@@ -384,7 +438,7 @@ const LearnPage: FC = () => {
                                 variant="light"
                                 size="compact-md"
                                 loading={opening === resume.scope}
-                                onClick={() => start(resume.scope)}
+                                onClick={() => start(resume.scope, 'resume')}
                             >
                                 Resume module
                             </Button>
@@ -416,7 +470,9 @@ const LearnPage: FC = () => {
                                 variant="default"
                                 size="compact-md"
                                 loading={opening === recommended.scope}
-                                onClick={() => start(recommended.scope)}
+                                onClick={() =>
+                                    start(recommended.scope, 'recommended')
+                                }
                             >
                                 Start
                             </Button>
@@ -515,7 +571,7 @@ const LearnPage: FC = () => {
                                         )}
                                         heldByRole={roleHolds(role, module)}
                                         opening={opening === module.scope}
-                                        onStart={start}
+                                        onStart={startFromCard}
                                     />
                                 ))}
                         </Box>
