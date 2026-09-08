@@ -33,7 +33,6 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useLearnAccess } from './access';
 import { useLearnAvailability } from './availability';
 import {
     accessNote,
@@ -54,6 +53,7 @@ import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
+import { useLearnAccess } from './useLearnAccess';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
 type CardState = 'soon' | 'ready' | 'started' | 'done';

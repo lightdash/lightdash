@@ -42,14 +42,9 @@ vi.mock('../../providers/App/useApp', () => ({
 
 // The learner's access comes from the instance; how the library reads a
 // scope set is the real thing.
-vi.mock('./access', async (importOriginal) => {
-    const actual = await importOriginal<Record<string, unknown>>();
-    const heldScopes = actual.heldScopes as (
-        scopes: string[],
-        variants: boolean,
-    ) => Set<string>;
+vi.mock('./useLearnAccess', async () => {
+    const { heldScopes } = await import('./access');
     return {
-        ...actual,
         useLearnAccess: () => ({
             held: heldScopes(accessState.current, true),
             isSettled: true,

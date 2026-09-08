@@ -2,11 +2,11 @@ import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { SCOPE_TOURS } from '../scopeTours/generated';
-import { useLearnAccess } from './access';
 import { useLearnAvailability } from './availability';
 import { buildLearnCatalogue, focusModules } from './catalogue';
 import styles from './Learn.module.css';
 import { useLearnProgress } from './progress';
+import { useLearnAccess } from './useLearnAccess';
 
 type Props = {
     /** The module just finished. */

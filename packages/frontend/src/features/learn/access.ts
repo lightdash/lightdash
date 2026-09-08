@@ -1,11 +1,4 @@
-import {
-    getAllScopesForRole,
-    ProjectMemberRole,
-    type ApiError,
-    type LearnAccess,
-} from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { getAllScopesForRole, ProjectMemberRole } from '@lightdash/common';
 
 export const ROLE_ORDER: ProjectMemberRole[] = [
     ProjectMemberRole.VIEWER,
@@ -58,28 +51,3 @@ export const SYSTEM_ROLE_SCOPES: {
         rank >= ROLE_ORDER.indexOf(ProjectMemberRole.EDITOR),
     ),
 }));
-
-/**
- * Everything the learner can do, anywhere: their organization role, any
- * organization-level custom roles, and every project role they hold
- * directly or through a group. A grant is a deliberate one wherever it came
- * from, so every variant it carries counts except `@self`.
- */
-export const useLearnAccess = () => {
-    const query = useQuery<LearnAccess, ApiError>({
-        queryKey: ['learn_access'],
-        queryFn: () =>
-            lightdashApi<LearnAccess>({
-                url: '/org/training-project/access',
-                method: 'GET',
-                body: undefined,
-            }),
-    });
-    return {
-        ...query,
-        held: heldScopes(query.data?.scopes ?? [], true),
-        // Until the instance answers, the library cannot say what the
-        // learner holds; it waits rather than showing them an empty shelf.
-        isSettled: !query.isLoading,
-    };
-};
