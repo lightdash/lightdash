@@ -587,10 +587,15 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // The position transition is on only for a moment after a move starts,
     // so scroll and resize still track instantly afterwards.
     const [gliding, setGliding] = useState(false);
+    // Held so the timer is cleared on unmount: its callback sets state, and
+    // firing after teardown throws on a window that no longer exists.
+    const glideTimer = useRef<number | undefined>(undefined);
     const glideFor = useCallback((ms: number) => {
         setGliding(true);
-        window.setTimeout(() => setGliding(false), ms);
+        window.clearTimeout(glideTimer.current);
+        glideTimer.current = window.setTimeout(() => setGliding(false), ms);
     }, []);
+    useEffect(() => () => window.clearTimeout(glideTimer.current), []);
     // The ring effect below answers to the target rect alone: the beacon,
     // card phase and step it reads are mirrored into refs so a change in
     // any of them does not re-run it (a click's beacon must wait for the
@@ -634,10 +639,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             glidedForStepRef.current = stepIndexRef.current;
             glideFor(GLIDE_MS);
             expandTimeoutRef.current = window.setTimeout(() => {
-                expandTimeoutRef.current = null;
                 setCardRect(latestRectRef.current);
                 setCardPhase('expanding');
-                window.setTimeout(() => setCardPhase('shown'), CARD_EXPAND_MS);
+                // Chained onto the same ref, which the outer timer has just
+                // released, so unmount clears whichever is still pending.
+                expandTimeoutRef.current = window.setTimeout(() => {
+                    expandTimeoutRef.current = null;
+                    setCardPhase('shown');
+                }, CARD_EXPAND_MS);
             }, GLIDE_MS);
             return;
         }
