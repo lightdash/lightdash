@@ -242,4 +242,12 @@ export enum EventName {
     AGENT_ONBOARDING_COMPLETION_TOAST_SHOWN = 'agent_onboarding_completion_toast.shown',
     AGENT_ONBOARDING_COMPLETION_TOAST_CLICKED = 'agent_onboarding_completion_toast.clicked',
     CREATE_PROJECT_COLUMNS_DEFINED_BUTTON_CLICKED = 'create_project_columns_defined_button.click',
+
+    // Chart type library (registry) funnel
+    CHART_TYPE_LIBRARY_VIEWED = 'chart_type_library.viewed',
+    CHART_TYPE_LIBRARY_CHART_CLICKED = 'chart_type_library.chart_clicked',
+    CHART_TYPE_LIBRARY_INSTALL_CLICKED = 'chart_type_library.install_clicked',
+    CHART_TYPE_DETAIL_VIEWED = 'chart_type.detail_viewed',
+    CHART_TYPE_PREVIEW_IN_EXPLORER = 'chart_type.preview_in_explorer',
+    CHART_TYPE_FORK_MODAL_OPENED = 'chart_type.fork_modal_opened',
 }

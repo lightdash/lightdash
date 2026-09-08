@@ -3,10 +3,14 @@ import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { useExplores } from '../../../hooks/useExplores';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 
 type Props = {
     projectUuid: string;
     dataAppVizUuid: string;
+    /** The chart type's registry slug, when it is a registry install */
+    registrySlug: string | null;
     onClose: () => void;
 };
 
@@ -19,9 +23,11 @@ type Props = {
 const ChartTypePreviewTableModal: FC<Props> = ({
     projectUuid,
     dataAppVizUuid,
+    registrySlug,
     onClose,
 }) => {
     const navigate = useNavigate();
+    const { track } = useTracking();
     const [tableName, setTableName] = useState<string | null>(null);
     const exploresQuery = useExplores(projectUuid, true);
     const options = (exploresQuery.data ?? [])
@@ -37,6 +43,10 @@ const ChartTypePreviewTableModal: FC<Props> = ({
             confirmDisabled={tableName === null}
             onConfirm={() => {
                 if (tableName === null) return;
+                track({
+                    name: EventName.CHART_TYPE_PREVIEW_IN_EXPLORER,
+                    properties: { projectUuid, registrySlug, tableName },
+                });
                 void navigate(
                     `/projects/${projectUuid}/tables/${tableName}?dataAppVizUuid=${dataAppVizUuid}&chartSidebar=configure`,
                 );

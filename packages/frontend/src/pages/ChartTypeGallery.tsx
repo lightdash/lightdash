@@ -92,6 +92,9 @@ const ChartTypeGallery = () => {
     const toDelete = dataAppVizs.find(
         (viz) => viz.dataAppVizUuid === deleteUuid,
     );
+    const toPreview = dataAppVizs.find(
+        (viz) => viz.dataAppVizUuid === previewUuid,
+    );
     // Unfiltered total, so the count holds steady while a search narrows the grid.
     const totalCount =
         !debouncedSearch && data?.pages[0]?.pagination
@@ -306,6 +309,7 @@ const ChartTypeGallery = () => {
                 <ChartTypePreviewTableModal
                     projectUuid={projectUuid}
                     dataAppVizUuid={previewUuid}
+                    registrySlug={toPreview?.registrySlug ?? null}
                     onClose={() => setPreviewUuid(null)}
                 />
             )}
