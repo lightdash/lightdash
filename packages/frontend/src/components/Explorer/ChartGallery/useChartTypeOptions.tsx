@@ -67,14 +67,14 @@ const CUSTOM_CHART_TYPE: SelectedChartType = {
     rotatedIcon: false,
 };
 
-/** Pass `null` while the project chart type is still loading. */
+/** Pass `null` while the custom chart type is still loading. */
 export const projectChartTypeItem = (
     dataAppViz: DataAppViz | null,
 ): SelectedChartType => ({
     id: ChartKind.DATA_APP_VIZ,
     label: dataAppViz
         ? getAppDisplayName(dataAppViz.name, dataAppViz.dataAppVizUuid)
-        : 'Project chart type',
+        : 'Custom chart type',
     icon: IconPuzzle,
     rotatedIcon: false,
 });
@@ -281,13 +281,13 @@ export const useChartTypeOptions = () => {
     const isCustomChart =
         isCustomVisualizationConfig(visualizationConfig) ||
         isDataAppVizVisualizationConfig(visualizationConfig);
-    // Vega and project chart types share one "Custom" entry in the picker;
+    // Vega and custom chart types share one "Custom" entry in the picker;
     // cartesian series that do not resolve to a single entry are mixed.
     const selectedChartType: SelectedChartType = isCustomChart
         ? CUSTOM_CHART_TYPE
         : (options.find((option) => option.selected) ?? MIXED_CHART_TYPE);
 
-    // The picker collapses Vega and project chart types into a single "Custom"
+    // The picker collapses Vega and custom chart types into a single "Custom"
     // entry, so callers showing the active type resolve it by chart type.
     const getSelectedChartTypeItem = (
         chartType: ChartType,

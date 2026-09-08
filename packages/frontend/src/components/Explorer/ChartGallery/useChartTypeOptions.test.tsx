@@ -40,7 +40,7 @@ const getSelectedItem = (
 };
 
 describe('getSelectedChartTypeItem', () => {
-    it('names the loaded project chart type', () => {
+    it('names the loaded custom chart type', () => {
         expect(
             getSelectedItem(ChartType.DATA_APP_VIZ, projectChartType),
         ).toMatchObject({
@@ -50,10 +50,10 @@ describe('getSelectedChartTypeItem', () => {
         });
     });
 
-    it('keeps a generic label while the project chart type loads', () => {
+    it('keeps a generic label while the custom chart type loads', () => {
         expect(getSelectedItem(ChartType.DATA_APP_VIZ, null)).toMatchObject({
             id: ChartKind.DATA_APP_VIZ,
-            label: 'Project chart type',
+            label: 'Custom chart type',
         });
     });
 

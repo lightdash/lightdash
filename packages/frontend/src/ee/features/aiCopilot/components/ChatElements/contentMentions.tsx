@@ -450,7 +450,7 @@ const summaryContentToSuggestion = (
         };
     }
 
-    // Project chart types are data apps under the hood but not content the
+    // Custom chart types are data apps under the hood but not content the
     // agent reads, so they never show up as mentions.
     if (item.contentType === ContentType.DATA_APP) {
         if (item.template === DATA_APP_VIZ_TEMPLATE) return null;

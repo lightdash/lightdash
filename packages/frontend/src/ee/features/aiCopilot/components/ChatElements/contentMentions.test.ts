@@ -113,7 +113,7 @@ describe('contentMentions', () => {
             expect(url.searchParams.get('dataAppVizsFilter')).toBe('exclude');
         });
 
-        it('drops project chart type results and labels personal apps', async () => {
+        it('drops custom chart type results and labels personal apps', async () => {
             mockContentSearch([
                 dataAppResult({ uuid: 'app-1', name: 'F1 standings' }),
                 dataAppResult({ uuid: 'viz-1', template: 'data_app_viz' }),

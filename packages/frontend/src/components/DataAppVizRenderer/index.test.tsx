@@ -438,7 +438,7 @@ describe('DataAppVizRenderer', () => {
         );
     });
 
-    it('pins an unsaved project chart type without requiring an SDK capability announcement', () => {
+    it('pins an unsaved custom chart type without requiring an SDK capability announcement', () => {
         mocks.dataAppVizVersion.current = undefined;
         mocks.vizContextOverrides.current = {
             savedChartUuid: undefined,
@@ -480,7 +480,7 @@ describe('DataAppVizRenderer', () => {
         expect(mocks.setDataAppVizVersion).toHaveBeenCalledWith(7);
     });
 
-    it('keeps an unchanged edited chart on its persisted project chart type version', () => {
+    it('keeps an unchanged edited chart on its persisted custom chart type version', () => {
         mocks.metadata.current = { ...readyMetadata(), version: 3 };
         mocks.dataAppVizVersion.current = 3;
         mocks.vizContextOverrides.current = {

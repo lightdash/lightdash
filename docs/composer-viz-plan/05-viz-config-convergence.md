@@ -49,7 +49,7 @@ today. The copilot has no awareness of it (`getAvailableChartTypes` /
    only after parity.
 3. **Data-app vizzes bind to columns**: extend `fieldMapping` targets to
    column references so a data-app viz can sit on a composer chart; make the
-   copilot aware of project chart types.
+   copilot aware of custom chart types.
 4. **Retire the AI vocabulary**: semantic artifacts move to emitting
    `AllVizChartConfig` (step 2 did composer/SQL); `getWebAiChartConfig`
    becomes legacy-read-only.

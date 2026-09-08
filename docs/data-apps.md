@@ -167,7 +167,7 @@ Entities, not columns:
   handle, link to its upstream app when it lives in a preview project, soft-delete markers.
 - **Version** — sequence number, verbatim prompt, status and status narration, error, attached context
   (clarifications, chart/dashboard/image/file/connection references, model and theme snapshot), viz schema for
-  project chart types, declared dependencies, generation usage, data references.
+  custom chart types, declared dependencies, generation usage, data references.
 - **Access grants** — per-app user and group access, in addition to space access.
 - **Links** — external connections linked to an app; dashboard tiles that reference an app.
 
@@ -216,9 +216,9 @@ flag-gated extension: registry-only, lockfile required, screened for malicious p
 
 ---
 
-## Project chart types
+## Custom chart types
 
-A project chart type is a data app built from a dedicated template that declares a viz schema instead of running
+A custom chart type is a data app built from a dedicated template that declares a viz schema instead of running
 queries: the explorer hands it rows and a field mapping, and it renders. They share the pipeline, storage and
 permissions of data apps but are excluded from app listings, have their own gallery and builder, and are downloaded
 as code separately.

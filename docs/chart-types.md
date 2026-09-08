@@ -3,8 +3,8 @@
 How official chart types get from the public registry into a project: the
 registry contract, listing, install, and the read-only/fork/upgrade model.
 Vocabulary is defined in [`docs/chart-types/CONTEXT.md`](./chart-types/CONTEXT.md).
-Project chart types themselves (viz schema, explorer behaviour, saved-chart
-version pinning) are data apps — see the "Project chart types" section of
+Custom chart types themselves (viz schema, explorer behaviour, saved-chart
+version pinning) are data apps — see the "Custom chart types" section of
 [`docs/data-apps.md`](./data-apps.md). The registry's own repo, publish
 pipeline, and authoring runbook are documented in
 [lightdash/lightdash-gallery](https://github.com/lightdash/lightdash-gallery).
@@ -14,7 +14,7 @@ pipeline, and authoring runbook are documented in
 ## What it is
 
 - The official registry (`lightdash/lightdash-gallery`, served from GitHub
-  Pages) publishes prebuilt project chart types. A Lightdash deployment
+  Pages) publishes prebuilt custom chart types. A Lightdash deployment
   points at one registry URL; the in-product chart type gallery gains a
   **chart type library** section to browse them and install them per
   project.
@@ -65,7 +65,7 @@ pipeline, and authoring runbook are documented in
 - The result is a project-owned app with provenance: `apps.registry_slug`
   and `apps.registry_url` identify the upstream chart, and each installed
   version records `app_versions.registry_version` (the semver it came
-  from). Once installed, the chart type behaves like any project chart type
+  from). Once installed, the chart type behaves like any custom chart type
   in the explorer.
 
 ## Read-only, fork, upgrade, uninstall

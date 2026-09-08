@@ -104,7 +104,7 @@ describe('CustomChartTypePicker', () => {
 
         expect(screen.getByText('Built in')).toBeDefined();
         expect(screen.getByText('Vega (JSON editor)')).toBeDefined();
-        expect(screen.getByText('Project')).toBeDefined();
+        expect(screen.getByText('Custom')).toBeDefined();
         expect(screen.getByText('Bar race')).toBeDefined();
     });
 

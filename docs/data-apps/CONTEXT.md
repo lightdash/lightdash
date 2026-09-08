@@ -30,11 +30,12 @@ under My apps. Moving it into a space hands access over to the space
 entirely; the creator keeps no special rights.
 _Avoid_: private app, draft, unshared app
 
-**Project chart type**:
+**Custom chart type**:
 A data app that declares a viz schema and is used as a reusable chart type
 in the explorer rather than opened as an app. Excluded from data app
 listings. Named "data app viz" in code.
-_Avoid_: custom chart (that is the Vega feature), chart-type app, viz app
+_Avoid_: project chart type (the old name), custom chart (that is the Vega
+chart type), chart-type app, viz app
 
 **Template**:
 The starter flavor a data app is generated from: Dashboard, Slide show, PDF
