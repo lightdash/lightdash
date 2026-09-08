@@ -1,3 +1,11 @@
+## [2.151.1](https://github.com/lightdash/lightdash/compare/2.151.0...2.151.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **auth:** record the managed sign-in audit event only after tokens are issued ([#28802](https://github.com/lightdash/lightdash/issues/28802)) ([1428623](https://github.com/lightdash/lightdash/commit/14286238d41cba9ff8ee2eb31220509b07d5f30d))
+* **redshift:** restore Authentication type menu and project IAM fields ([#28606](https://github.com/lightdash/lightdash/issues/28606)) ([0c10b85](https://github.com/lightdash/lightdash/commit/0c10b85fd6e7bdf2f16948e4ca627deed3714c6e))
+
 # [2.151.0](https://github.com/lightdash/lightdash/compare/2.150.0...2.151.0) (2026-09-08)
 
 
