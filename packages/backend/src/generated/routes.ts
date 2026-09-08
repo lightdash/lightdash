@@ -15461,6 +15461,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                nestedFrom: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        columnPath: { dataType: 'string', required: true },
+                        parentTable: { dataType: 'string', required: true },
+                    },
+                },
                 sqlTable: { dataType: 'string', required: true },
                 schema: { dataType: 'string', required: true },
                 database: { dataType: 'string', required: true },

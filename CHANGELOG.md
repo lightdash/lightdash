@@ -1,3 +1,14 @@
+# [2.153.0](https://github.com/lightdash/lightdash/compare/2.152.0...2.153.0) (2026-09-08)
+
+
+### Features
+
+* **bigquery:** expose nested and repeated columns in the warehouse catalog ([#28717](https://github.com/lightdash/lightdash/issues/28717)) ([37deb1f](https://github.com/lightdash/lightdash/commit/37deb1fdb4cc2ef9bc5a8c872ba2d75714658913))
+* **explores:** instantiate unnested tables per join alias ([#28746](https://github.com/lightdash/lightdash/issues/28746)) ([f41077f](https://github.com/lightdash/lightdash/commit/f41077f79ca02fca4d41c90ebe6036bbee2be2aa))
+* **explores:** unnest arrays of scalars into a virtual table with a value dimension ([#28767](https://github.com/lightdash/lightdash/issues/28767)) ([86d37b2](https://github.com/lightdash/lightdash/commit/86d37b2d007ea7d6a208477f1ef4b42c42b58554))
+* **explores:** unnest repeated BigQuery columns into virtual tables ([#28718](https://github.com/lightdash/lightdash/issues/28718)) ([6c9252c](https://github.com/lightdash/lightdash/commit/6c9252c83aed5ac49e1092c53e7b5bf8b393f4dd))
+* **explores:** warn when independent repeated columns are unnested together ([#28754](https://github.com/lightdash/lightdash/issues/28754)) ([2778a27](https://github.com/lightdash/lightdash/commit/2778a27b02a8a5ea7b9520a35de33b577ef39762))
+
 # [2.152.0](https://github.com/lightdash/lightdash/compare/2.151.1...2.152.0) (2026-09-08)
 
 
