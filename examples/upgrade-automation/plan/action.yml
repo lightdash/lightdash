@@ -9,7 +9,7 @@ inputs:
     required: false
     default: lightdash-upgrade
   title_scope:
-    description: Optional conventional-commit scope for the pin commit and pull request title, for example the instance name when one repository pins several instances. Empty keeps the title as chore: upgrade Lightdash to VERSION
+    description: 'Optional conventional-commit scope for the pin commit and pull request title, for example the instance name when one repository pins several instances. Empty keeps the unscoped title.'
     required: false
     default: ''
   tag_suffix:
