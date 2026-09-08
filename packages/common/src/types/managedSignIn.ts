@@ -39,9 +39,6 @@ export const TOKEN_EXCHANGE_GRANT_TYPE =
 
 export const ID_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:id_token';
 
-export const ACCESS_TOKEN_TYPE =
-    'urn:ietf:params:oauth:token-type:access_token';
-
 export enum ManagedSignInError {
     TENANT_NOT_CONFIGURED = 'tenant_not_configured',
     TOKEN_INVALID = 'token_invalid',
