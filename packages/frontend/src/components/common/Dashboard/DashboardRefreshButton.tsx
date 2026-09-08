@@ -1,5 +1,4 @@
 import { ActionIcon, Menu, Text, Tooltip } from '@mantine/core';
-import { useInterval } from '@mantine/hooks';
 import { IconCheck, IconChevronDown, IconRefresh } from '@tabler/icons-react';
 import {
     memo,
@@ -9,6 +8,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useInterval } from 'react-use';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
@@ -90,9 +90,12 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             invalidateDashboardResultsQueries,
         ]);
 
-        const interval = useInterval(
-            () => invalidateAndSetRefreshTime(),
-            refreshInterval ? refreshInterval * 1000 * 60 : 0,
+        // Keyed on the interval only; a paused (null) delay stops the timer.
+        useInterval(
+            () => {
+                void invalidateAndSetRefreshTime();
+            },
+            refreshInterval === undefined ? null : refreshInterval * 60 * 1000,
         );
 
         useEffect(() => {
@@ -102,16 +105,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             };
         }, [hasInterval, onIntervalChange]);
 
-        useEffect(() => {
-            if (refreshInterval !== undefined) {
-                interval.start();
-            }
-            return interval.stop;
-        }, [interval, refreshInterval]);
-
         return (
             <ActionIcon.Group>
-                {interval.active && refreshInterval ? (
+                {refreshInterval !== undefined ? (
                     <ActionIcon.GroupSection
                         variant="default"
                         size="md"
