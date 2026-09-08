@@ -1,3 +1,10 @@
+## [2.162.4](https://github.com/lightdash/lightdash/compare/2.162.3...2.162.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **ui:** even 24px gutter on full-screen modals ([#28853](https://github.com/lightdash/lightdash/issues/28853)) ([ea9df8a](https://github.com/lightdash/lightdash/commit/ea9df8a1ea9cd725acf98c1bfdcaf36c2fc13381))
+
 ## [2.162.3](https://github.com/lightdash/lightdash/compare/2.162.2...2.162.3) (2026-09-08)
 
 
