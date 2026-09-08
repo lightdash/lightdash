@@ -1,3 +1,10 @@
+## [2.163.1](https://github.com/lightdash/lightdash/compare/2.163.0...2.163.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **explores:** keep count metrics declared on a struct column when unnesting is on ([#28857](https://github.com/lightdash/lightdash/issues/28857)) ([ac9543a](https://github.com/lightdash/lightdash/commit/ac9543a54e3065d905c725d9b8be09878302e7ee))
+
 # [2.163.0](https://github.com/lightdash/lightdash/compare/2.162.4...2.163.0) (2026-09-08)
 
 
