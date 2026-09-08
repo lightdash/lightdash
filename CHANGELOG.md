@@ -1,3 +1,10 @@
+# [2.166.0](https://github.com/lightdash/lightdash/compare/2.165.2...2.166.0) (2026-09-08)
+
+
+### Features
+
+* **ai:** instrument the agent turn waterfall ([#28872](https://github.com/lightdash/lightdash/issues/28872)) ([19898e3](https://github.com/lightdash/lightdash/commit/19898e38b6e4078b5b15dcec3f266165aaf45a65))
+
 ## [2.165.2](https://github.com/lightdash/lightdash/compare/2.165.1...2.165.2) (2026-09-08)
 
 
