@@ -154,6 +154,14 @@ export const ALLOWED_TOOLS = [
     `Bash(${COMPILE_WRAPPER_PATH}:*)`,
 ].join(',');
 
+// Native compilation runs on the host with the shared compiler. The agent
+// needs neither shell execution nor access to temporary dbt profiles.
+export const NATIVE_ALLOWED_TOOLS = ALLOWED_TOOLS.split(',')
+    .filter(
+        (tool) => !tool.startsWith('Bash(') && !tool.includes(TMP_PROFILES_DIR),
+    )
+    .join(',');
+
 // Anthropic model used for the writeback agent. Pinned to a specific Sonnet
 // snapshot rather than the CLI default so runs stay deterministic across
 // Claude Code releases.

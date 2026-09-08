@@ -1695,6 +1695,71 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
+    it.each([true, false])(
+        'validates native source before Git mutation (valid=%s)',
+        async (valid) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: AnyType) => {
+                    if (command.includes('.ld-native-snapshot.cjs'))
+                        return Promise.resolve({
+                            exitCode: 0,
+                            stdout: JSON.stringify({
+                                'lightdash/models/orders.yaml': `type: model\nname: orders\nsql_from: public.orders\ndimensions:\n  - name: amount\n    type: number\n    sql: ${valid ? '${TABLE}.amount' : '${orders.missing}'}\n`,
+                            }),
+                        });
+                    return runCommand(command, options);
+                },
+            );
+            const result = runService(
+                sandbox,
+                {},
+                {
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            organizationUuid: ORG,
+                            name: 'Native analytics',
+                            dbtConnection: {
+                                type: DbtProjectType.GITHUB,
+                                repository: 'acme/analytics',
+                                branch: 'release',
+                                project_sub_path: '/native',
+                                semanticLayer: 'lightdash',
+                            },
+                            warehouseConnection: {
+                                type: WarehouseTypes.POSTGRES,
+                            },
+                            dbtVersion: SupportedDbtVersions.V1_9,
+                        }),
+                    },
+                },
+            );
+            if (valid) {
+                await expect(result).resolves.toMatchObject({ prUrl: PR_7 });
+                expect(createPullRequest).toHaveBeenCalledTimes(1);
+            } else {
+                await expect(result).rejects.toThrow(/missing/);
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(sandbox.git.createBranch).not.toHaveBeenCalled();
+            }
+            expect(
+                sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n'),
+            ).not.toMatch(/dbt deps|profiles\.yml/);
+            expect(
+                sandbox.files.write.mock.calls.find(
+                    ([file]: [string]) => file === COMPILE_WRAPPER_PATH,
+                ),
+            ).toBeUndefined();
+            expect(sandbox.git.clone.mock.calls[0][1]).toMatchObject({
+                branch: 'release',
+            });
+        },
+    );
+
     // R13: the sandbox network lockdown is a security invariant. The egress
     // allowlist passed to the provider must stay [anthropic,github,gitlab] —
     // never widened to `*`. Under the SandboxProvider abstraction the implicit
@@ -3011,6 +3076,34 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
 });
 
 describe('AiWritebackService.dbtWritebackConfig', () => {
+    it('uses native instructions and omits shell and profile access for native projects', async () => {
+        const service = buildService();
+        vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+            null,
+        );
+        const prepareProfiles = vi.spyOn(service as AnyType, 'prepareProfiles');
+        const turn = turnContext();
+        const setup = await (service as AnyType)
+            .dbtWritebackConfig()
+            .buildAgentSetup({
+                sandbox: {},
+                turn: {
+                    ...turn,
+                    gitConnection: {
+                        ...turn.gitConnection,
+                        provider: PullRequestProvider.GITHUB,
+                        semanticLayer: 'lightdash',
+                    },
+                },
+                repository: 'acme/analytics',
+            });
+        expect(prepareProfiles).not.toHaveBeenCalled();
+        expect(setup.systemPrompt).toContain('native Lightdash YAML');
+        expect(setup.systemPrompt).toContain('lightdash.project_context.yml');
+        expect(setup.allowedTools).not.toMatch(/Bash\(|ld-profiles/);
+        expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
+    });
+
     it('returns gathered repository context through the agent setup', async () => {
         const service = buildService();
         const repoContext = {

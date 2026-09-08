@@ -83,6 +83,9 @@ export const parseGithubConnection = (
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
         branch: connection.branch?.trim() ?? '',
+        ...(connection.semanticLayer === 'lightdash'
+            ? { semanticLayer: 'lightdash' as const }
+            : {}),
     };
 };
 

@@ -27,3 +27,16 @@ Native models still compile through the existing internal model-node conversion
 and explore compiler. This preserves one semantic compiler without introducing
 a general source-adapter framework. The Node filesystem loader is a separate
 `@lightdash/common/lightdash/loader` entry point, outside the browser barrel.
+
+Native AI write-back uses the existing sandbox, permission, conversation and PR
+lifecycle with native YAML instructions. It does not install dbt dependencies or
+prepare profiles. Before opening or updating a PR, the backend reads only native
+model/config/context YAML from the edited checkout and validates it with the
+shared compiler. A compile error prevents remote Git changes. This validation
+uses the connected warehouse dialect without sending warehouse credentials to
+the sandbox and does not depend on the sandbox's installed CLI version.
+
+Reviews semantic fixes follow the same path and retain the original model file
+paths. Project-context fixes retain the existing deterministic merge into
+`lightdash.project_context.yml` beside the project configuration. GitHub previews
+copy the connection format and compile the PR branch through the native adapter.

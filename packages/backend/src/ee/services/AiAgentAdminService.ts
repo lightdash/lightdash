@@ -1829,7 +1829,7 @@ export class AiAgentAdminService extends BaseService {
                 );
             case 'unsupported_source_control':
                 throw new ParameterError(
-                    'Writeback requires a GitHub, GitLab or Bitbucket Cloud connected dbt project',
+                    'Writeback requires a GitHub, GitLab or Bitbucket Cloud connected project',
                 );
             case 'unsupported_root_cause':
             default:

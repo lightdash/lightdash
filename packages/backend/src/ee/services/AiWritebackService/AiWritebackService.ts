@@ -101,6 +101,7 @@ import {
     GENERAL_SKILLS_DIR,
     GIT_TIMEOUT_MS,
     MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
+    NATIVE_ALLOWED_TOOLS,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
     PROMPT_PATH,
@@ -123,13 +124,18 @@ import {
     WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
+import { validateNativeSandbox } from './nativeValidation';
 import { BitbucketProvider } from './providers/BitbucketProvider';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
-import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
+import {
+    buildGeneralSystemPrompt,
+    buildNativeSystemPrompt,
+    buildSystemPrompt,
+} from './templates';
 import type {
     AdoptedPullRequest,
     AiWritebackRunArgs,
@@ -2359,7 +2365,10 @@ export class AiWritebackService extends BaseService {
                 adoptBranch:
                     adoptedPr?.headRef ??
                     (turn.gitConnection.provider ===
-                    PullRequestProvider.BITBUCKET
+                        PullRequestProvider.BITBUCKET ||
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB &&
+                        turn.gitConnection.semanticLayer === 'lightdash')
                         ? turn.gitConnection.branch || null
                         : null),
                 setStage,
@@ -2436,6 +2445,22 @@ export class AiWritebackService extends BaseService {
                         ? `The coding agent exited with code ${agent.exitCode} before making any new changes. The pull request from an earlier turn (${crashPrUrl}) is unaffected.`
                         : `The coding agent exited with code ${agent.exitCode} and no pull request was created.`,
                 );
+            }
+
+            if (
+                hasChanges &&
+                turn.gitConnection.provider === PullRequestProvider.GITHUB &&
+                turn.gitConnection.semanticLayer === 'lightdash'
+            ) {
+                recordStep({
+                    kind: 'compile',
+                    label: 'Compiling native models',
+                });
+                await validateNativeSandbox({
+                    sandbox,
+                    projectSubPath: turn.gitConnection.projectSubPath,
+                    warehouseType: turn.warehouseType,
+                });
             }
 
             // Finalize claim: atomic arbitration with tasks/cancel before any
@@ -4236,6 +4261,13 @@ export class AiWritebackService extends BaseService {
             );
         }
 
+        await this.prepareWarehouseSkills(sandbox, turn);
+    }
+
+    private async prepareWarehouseSkills(
+        sandbox: SandboxHandle,
+        turn: TurnContext,
+    ): Promise<void> {
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
         // The system prompt points the agent here before any `type:`/SQL edit.
@@ -4267,6 +4299,32 @@ export class AiWritebackService extends BaseService {
                     sandbox,
                     turn.gitConnection.projectSubPath,
                 );
+                if (
+                    turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB &&
+                    turn.gitConnection.semanticLayer === 'lightdash'
+                ) {
+                    return {
+                        systemPrompt: buildNativeSystemPrompt(
+                            turn.gitConnection.projectSubPath,
+                            {
+                                projectName: turn.projectName,
+                                repository,
+                                repoContext,
+                                warehouseType: turn.warehouseType,
+                                hasWarehouseSkill:
+                                    warehouseTypeToSkillKey(
+                                        turn.warehouseType,
+                                    ) !== null,
+                            },
+                        ),
+                        repoContext,
+                        allowedTools: NATIVE_ALLOWED_TOOLS,
+                        disallowedTools: GENERAL_DISALLOWED_TOOLS,
+                        addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
+                        model: CLAUDE_MODEL,
+                    };
+                }
                 // Stage a credential-free profiles copy host-side so the agent
                 // doesn't burn turns discovering profiles.yml and hand-stripping
                 // Jinja (mkdir + cp + edit). Deterministic string work — no
@@ -4303,7 +4361,10 @@ export class AiWritebackService extends BaseService {
                 };
             },
             beforeAgentRun: (sandbox, turn) =>
-                this.prepareDbtAgentRun(sandbox, turn),
+                turn.gitConnection.provider === PullRequestProvider.GITHUB &&
+                turn.gitConnection.semanticLayer === 'lightdash'
+                    ? this.prepareWarehouseSkills(sandbox, turn)
+                    : this.prepareDbtAgentRun(sandbox, turn),
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
         };
     }
