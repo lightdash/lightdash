@@ -374,6 +374,76 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         });
     });
 
+    it('persists a probe result before the first explore is yielded', async () => {
+        const model = makeModel('orders');
+        const harness = makeHarness({
+            models: [model],
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog(),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables: [
+                    {
+                        database: 'analytics',
+                        schema: 'public',
+                        table: 'orders',
+                    },
+                ],
+            },
+            fetchedCatalog: makeCatalog('orders'),
+        });
+        const cacheWriteCounts: number[] = [];
+        mockedIterateExplores.mockImplementationOnce(
+            async function* probeExploreIterator(models) {
+                cacheWriteCounts.push(
+                    harness.onWarehouseCatalogChange.mock.calls.length,
+                );
+                for (const typedModel of models) {
+                    yield {
+                        name: typedModel.name,
+                        typed: typedModel.columns.id.data_type,
+                    } as unknown as Explore;
+                }
+            },
+        );
+
+        const stream =
+            await harness.adapter.prepareExploreStream(trackingParams);
+        const firstExplore = await stream[Symbol.asyncIterator]().next();
+
+        expect(firstExplore.done).toBe(false);
+        expect(cacheWriteCounts).toEqual([1]);
+    });
+
+    it('persists a full refetch before the first explore is yielded', async () => {
+        const model = makeModel('orders');
+        const harness = makeHarness({
+            models: [model],
+            cachedWarehouse: { warehouseCatalog: undefined },
+            fetchedCatalog: makeCatalog('orders'),
+        });
+        const cacheWriteCounts: number[] = [];
+        mockedIterateExplores.mockImplementationOnce(
+            async function* refetchedExploreIterator(models) {
+                cacheWriteCounts.push(
+                    harness.onWarehouseCatalogChange.mock.calls.length,
+                );
+                for (const typedModel of models) {
+                    yield {
+                        name: typedModel.name,
+                        typed: typedModel.columns.id.data_type,
+                    } as unknown as Explore;
+                }
+            },
+        );
+
+        const stream =
+            await harness.adapter.prepareExploreStream(trackingParams);
+        const firstExplore = await stream[Symbol.asyncIterator]().next();
+
+        expect(firstExplore.done).toBe(false);
+        expect(cacheWriteCounts).toEqual([1]);
+    });
+
     it('uses the cached catalog when a known missing probe fails', async () => {
         const harness = makeHarness({
             models: [makeModel('missing_orders')],
@@ -634,7 +704,7 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
 
         expect(
             harness.onWarehouseCatalogChange.mock.calls[0][0].missingTables,
-        ).toHaveLength(MAX_PERSISTED_MISSING_WAREHOUSE_TABLES);
+        ).toHaveLength(MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1);
         expect(logger).toHaveBeenCalledWith(
             expect.stringContaining(
                 `count=${MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1} cap=${MAX_PERSISTED_MISSING_WAREHOUSE_TABLES}`,
@@ -642,11 +712,12 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
             expect.objectContaining({
                 missingTableCount: MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1,
                 persistedMissingTableCount:
-                    MAX_PERSISTED_MISSING_WAREHOUSE_TABLES,
+                    MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1,
             }),
         );
 
         harness.getCatalog.mockClear();
+        harness.onWarehouseCatalogChange.mockClear();
 
         await harness.adapter.compileAllExplores(trackingParams);
 
@@ -654,6 +725,37 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         expect(harness.getCatalog.mock.calls[0][0]).toHaveLength(
             MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1,
         );
+        expect(harness.onWarehouseCatalogChange).toHaveBeenCalledOnce();
+    });
+
+    it('probes an exact-cap missing table list without treating it as truncated', async () => {
+        const models = Array.from(
+            { length: MAX_PERSISTED_MISSING_WAREHOUSE_TABLES },
+            (_, index) => makeModel(`missing_${index}`),
+        );
+        const missingWarehouseTables = models.map(
+            ({ database, schema, alias }) => ({
+                database,
+                schema,
+                table: alias,
+            }),
+        );
+        const harness = makeHarness({
+            models,
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog(),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables,
+            },
+            fetchedCatalog: makeCatalog(),
+        });
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.getCatalog).toHaveBeenCalledExactlyOnceWith(
+            missingWarehouseTables,
+        );
+        expect(harness.onWarehouseCatalogChange).not.toHaveBeenCalled();
     });
 
     it('refetches a manually invalidated cache', async () => {

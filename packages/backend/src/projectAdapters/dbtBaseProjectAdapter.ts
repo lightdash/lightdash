@@ -57,6 +57,8 @@ import {
 
 const postProcessors = [preAggregatePostProcessor];
 export const MAX_PERSISTED_MISSING_WAREHOUSE_TABLES = 1_000;
+const TRUNCATED_MISSING_WAREHOUSE_TABLES_LENGTH =
+    MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1;
 
 type WarehouseCatalogFetchReason =
     | 'cache_miss'
@@ -166,10 +168,11 @@ const capMissingWarehouseTables = (
         {
             event: 'dbt.compile.warehouseCatalogMissingTablesTruncated',
             missingTableCount: missingTables.length,
-            persistedMissingTableCount: MAX_PERSISTED_MISSING_WAREHOUSE_TABLES,
+            persistedMissingTableCount:
+                TRUNCATED_MISSING_WAREHOUSE_TABLES_LENGTH,
         },
     );
-    return missingTables.slice(0, MAX_PERSISTED_MISSING_WAREHOUSE_TABLES);
+    return missingTables.slice(0, TRUNCATED_MISSING_WAREHOUSE_TABLES_LENGTH);
 };
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
@@ -456,7 +459,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         ) {
             fetchReason = 'cache_expired';
         } else if (
-            knownMissingTables.length === MAX_PERSISTED_MISSING_WAREHOUSE_TABLES
+            knownMissingTables.length > MAX_PERSISTED_MISSING_WAREHOUSE_TABLES
         ) {
             fetchReason = 'missing_tables_truncated';
         } else {

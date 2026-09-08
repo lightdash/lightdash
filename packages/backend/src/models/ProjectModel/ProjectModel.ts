@@ -2716,7 +2716,7 @@ export class ProjectModel {
         const [cachedWarehouse] = await this.database(CachedWarehouseTableName)
             .insert({
                 project_uuid: projectUuid,
-                warehouse: cache.warehouseCatalog,
+                warehouse: JSON.stringify(cache.warehouseCatalog),
                 fetched_at: cache.fetchedAt,
                 missing_tables: JSON.stringify(cache.missingTables),
             })
