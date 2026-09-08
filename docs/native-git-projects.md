@@ -3,7 +3,9 @@
 Native YAML and dbt share GitHub authentication, repository, branch and project
 subdirectory settings. The semantic format is a separate build choice: native
 Lightdash YAML does not use dbt profiles, targets, selectors, dependencies or a
-dbt installation. Existing connections default to dbt. GitLab support is deferred.
+dbt installation. GitHub connections set `semanticLayer: lightdash` to select
+native builds; an omitted setting or `semanticLayer: dbt` keeps existing dbt
+behavior. GitLab support is deferred.
 
 `lightdash.config.yml` owns semantic configuration. The CLI uses its warehouse
 type to compile SQL; server builds use the project's existing warehouse

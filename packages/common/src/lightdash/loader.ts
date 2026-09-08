@@ -62,6 +62,20 @@ export async function findLightdashModelFiles(
     }
     if (!modelsDir) return [];
 
+    const relativeModelsDir = path.relative(
+        await fs.realpath(projectDir),
+        await fs.realpath(modelsDir),
+    );
+    if (
+        relativeModelsDir === '..' ||
+        relativeModelsDir.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativeModelsDir)
+    ) {
+        throw new ParseError(
+            'Native models directory must stay within the project directory',
+        );
+    }
+
     const files: string[] = [];
     async function walk(dir: string): Promise<void> {
         const entries = await fs.readdir(dir, { withFileTypes: true });
