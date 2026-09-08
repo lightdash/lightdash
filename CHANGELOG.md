@@ -1,3 +1,10 @@
+## [2.156.2](https://github.com/lightdash/lightdash/compare/2.156.1...2.156.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **autopilot:** only reprovision on a 404, reuse persisted resources on transient errors ([#28832](https://github.com/lightdash/lightdash/issues/28832)) ([50487f7](https://github.com/lightdash/lightdash/commit/50487f705a5c0561583370ab6688b26cb2a81562))
+
 ## [2.156.1](https://github.com/lightdash/lightdash/compare/2.156.0...2.156.1) (2026-09-08)
 
 
