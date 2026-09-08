@@ -115,24 +115,90 @@ describe('dbtGitVersion', () => {
         expect(warn).toHaveBeenCalledTimes(1);
     });
 
-    it('retries a failed probe after the cooldown', async () => {
+    it('suppresses repeated failure warnings before recovery', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(0);
         const getVersion = vi
             .fn()
             .mockRejectedValueOnce(new Error('probe failed'))
+            .mockRejectedValueOnce(new Error('probe failed again'))
             .mockResolvedValueOnce(version(2, 29));
+        const warn = vi.fn();
         const probe = createDbtGitVersionSupportProbe({
             getVersion,
-            warn: vi.fn(),
+            warn,
         });
 
+        await expect(probe()).resolves.toMatchObject({ supported: false });
+        await vi.advanceTimersByTimeAsync(30_000);
         await expect(probe()).resolves.toMatchObject({ supported: false });
         await vi.advanceTimersByTimeAsync(30_000);
         await expect(probe()).resolves.toEqual({
             supported: true,
             reason: null,
         });
+        expect(getVersion).toHaveBeenCalledTimes(3);
+        expect(warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps a retry failure quiet after an initial timeout warning', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        let resolveInitial: ((result: VersionResult) => void) | undefined;
+        const initialProbe = new Promise<VersionResult>((resolve) => {
+            resolveInitial = resolve;
+        });
+        const getVersion = vi
+            .fn()
+            .mockImplementationOnce(() => initialProbe)
+            .mockRejectedValueOnce(new Error('retry failed'));
+        const warn = vi.fn();
+        const probe = createDbtGitVersionSupportProbe({ getVersion, warn });
+
+        const timedOut = probe();
+        await vi.advanceTimersByTimeAsync(3_000);
+        await expect(timedOut).resolves.toMatchObject({ supported: false });
+        await vi.advanceTimersByTimeAsync(30_000);
+        await expect(probe()).resolves.toMatchObject({ supported: false });
+
         expect(getVersion).toHaveBeenCalledTimes(2);
+        expect(warn).toHaveBeenCalledTimes(1);
+        resolveInitial?.(version(2, 29));
+    });
+
+    it('logs an unsupported result separately after a probe failure', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        const getVersion = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('probe failed'))
+            .mockResolvedValueOnce(version(2, 28));
+        const warn = vi.fn();
+        const probe = createDbtGitVersionSupportProbe({ getVersion, warn });
+
+        await expect(probe()).resolves.toMatchObject({ supported: false });
+        await vi.advanceTimersByTimeAsync(30_000);
+        await expect(probe()).resolves.toEqual({
+            supported: false,
+            reason: 'git-version-unsupported',
+        });
+        await vi.advanceTimersByTimeAsync(30_000);
+        await expect(probe()).resolves.toEqual({
+            supported: false,
+            reason: 'git-version-unsupported',
+        });
+
+        expect(getVersion).toHaveBeenCalledTimes(2);
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(warn).toHaveBeenNthCalledWith(
+            1,
+            'Dbt Git checkout cache disabled because the Git version probe failed',
+            expect.anything(),
+        );
+        expect(warn).toHaveBeenNthCalledWith(
+            2,
+            'Dbt Git checkout cache disabled because Git 2.29 or newer is required',
+            { version: '2.28.0' },
+        );
     });
 });

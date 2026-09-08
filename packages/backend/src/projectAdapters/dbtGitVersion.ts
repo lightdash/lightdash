@@ -40,6 +40,7 @@ export const createDbtGitVersionSupportProbe = ({
 }: Partial<DbtGitVersionSupportProbeDependencies> = {}) => {
     let generation = 0;
     let active: Promise<DbtGitVersionSupport> | undefined;
+    let probeFailureLogged = false;
     let cached:
         | {
               result: DbtGitVersionSupport;
@@ -71,6 +72,7 @@ export const createDbtGitVersionSupportProbe = ({
             deadline,
         ])
             .then<DbtGitVersionSupport>((gitVersion) => {
+                probeFailureLogged = false;
                 const supported =
                     gitVersion.installed &&
                     (gitVersion.major > 2 ||
@@ -89,18 +91,21 @@ export const createDbtGitVersionSupportProbe = ({
                 };
             })
             .catch<DbtGitVersionSupport>((error: unknown) => {
-                warn(
-                    'Dbt Git checkout cache disabled because the Git version probe failed',
-                    {
-                        error: {
-                            name:
-                                error instanceof Error
-                                    ? error.name
-                                    : 'UnknownError',
-                            message: getErrorMessage(error),
+                if (!probeFailureLogged) {
+                    probeFailureLogged = true;
+                    warn(
+                        'Dbt Git checkout cache disabled because the Git version probe failed',
+                        {
+                            error: {
+                                name:
+                                    error instanceof Error
+                                        ? error.name
+                                        : 'UnknownError',
+                                message: getErrorMessage(error),
+                            },
                         },
-                    },
-                );
+                    );
+                }
                 return {
                     supported: false,
                     reason: 'git-version-probe-failed',
