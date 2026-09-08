@@ -698,6 +698,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                     {!projectBoard && (
                         <FilterFacet
                             label="Interest"
+                            showSelectionCount={false}
                             icon={IconEye}
                             mode="single"
                             selected={onlyInterested ? ['following'] : ['all']}
