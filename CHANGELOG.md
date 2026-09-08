@@ -1,3 +1,10 @@
+## [2.162.3](https://github.com/lightdash/lightdash/compare/2.162.2...2.162.3) (2026-09-08)
+
+
+### Bug Fixes
+
+* **warehouses:** report the numeric kind of NUMBER columns from every driver ([#28750](https://github.com/lightdash/lightdash/issues/28750)) ([2ed8728](https://github.com/lightdash/lightdash/commit/2ed87289747273371bb18968fdbf4d4e4689e4ee))
+
 ## [2.162.2](https://github.com/lightdash/lightdash/compare/2.162.1...2.162.2) (2026-09-08)
 
 
