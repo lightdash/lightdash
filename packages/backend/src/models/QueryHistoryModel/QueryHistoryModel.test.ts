@@ -1,6 +1,39 @@
+import {
+    Account,
+    QueryExecutionContext,
+    QueryHistory,
+    QueryHistoryStatus,
+} from '@lightdash/common';
+import { Knex } from 'knex';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
 describe('QueryHistoryModel', () => {
+    describe('pollForQueryCompletion', () => {
+        test('preserves the stored error name', async () => {
+            const model = new QueryHistoryModel({ database: {} as Knex });
+            vi.spyOn(model, 'get').mockResolvedValue({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Warehouse query failed',
+                errorName: 'WarehouseQueryError',
+                context: QueryExecutionContext.EXPLORE,
+            } as QueryHistory & { errorName: string });
+
+            await expect(
+                model.pollForQueryCompletion({
+                    queryUuid: 'query-uuid',
+                    account: {} as Account,
+                    projectUuid: 'project-uuid',
+                    initialBackoffMs: 1,
+                    maxBackoffMs: 1,
+                    timeoutMs: 100,
+                }),
+            ).rejects.toMatchObject({
+                name: 'WarehouseQueryError',
+                message: 'Warehouse query failed',
+            });
+        });
+    });
+
     describe('getCacheKey', () => {
         const projectUuid = 'test-project-uuid';
         const sql = 'SELECT * FROM test_table';

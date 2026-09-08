@@ -42,7 +42,7 @@ import KnexPaginate from '../../database/pagination';
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
-): QueryHistory {
+): QueryHistory & { errorName: string | null } {
     return {
         queryUuid: queryHistory.query_uuid,
         createdAt: queryHistory.created_at,
@@ -67,6 +67,7 @@ function convertDbQueryHistoryToQueryHistory(
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
+        errorName: queryHistory.error_name,
         erroredAt: queryHistory.errored_at,
         cacheKey: queryHistory.cache_key,
         pivotConfiguration: queryHistory.pivot_configuration,
@@ -214,6 +215,7 @@ export class QueryHistoryModel {
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
                 error: null,
+                error_name: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,
                 pivot_configuration: queryHistory.pivotConfiguration,
@@ -316,6 +318,7 @@ export class QueryHistoryModel {
         account: Pick<Account, 'isRegisteredUser'> & {
             user: Pick<Account['user'], 'id'>;
         },
+        errorName?: string,
     ) {
         return this.update(
             queryUuid,
@@ -323,6 +326,7 @@ export class QueryHistoryModel {
             {
                 status: QueryHistoryStatus.ERROR,
                 error,
+                ...(errorName === undefined ? {} : { error_name: errorName }),
                 errored_at: new Date(),
             },
             account,
@@ -532,9 +536,11 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
-                        throw new Error(
+                        const error = new Error(
                             queryHistory.error ?? 'Warehouse query failed',
                         );
+                        error.name = queryHistory.errorName ?? error.name;
+                        throw error;
                     }
                     return queryHistory;
                 case QueryHistoryStatus.PENDING:

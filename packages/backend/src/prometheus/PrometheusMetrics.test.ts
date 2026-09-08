@@ -151,6 +151,32 @@ describe('Project-attributed warehouse phase metrics', () => {
     });
 });
 
+describe('Warehouse failure metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('increments the aggregate warehouse failure counter', async () => {
+        const metrics = new PrometheusMetrics(lightdashConfigMock.prometheus);
+        metrics.warehouseQueryFailureCounter = new prometheus.Counter({
+            name: 'test_warehouse_query_failures_total',
+            help: 'test',
+        });
+
+        metrics.incrementWarehouseQueryFailure();
+
+        await expect(
+            metrics.warehouseQueryFailureCounter.get(),
+        ).resolves.toMatchObject({
+            values: [expect.objectContaining({ value: 1 })],
+        });
+    });
+});
+
 describe('MotherDuck instance cache metrics', () => {
     beforeEach(() => {
         prometheus.register.clear();

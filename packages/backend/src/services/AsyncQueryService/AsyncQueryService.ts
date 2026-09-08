@@ -3052,6 +3052,10 @@ export class AsyncQueryService extends ProjectService {
                     errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
                         preAggregateError,
                     )}`,
+                    errorName:
+                        preAggregateError instanceof Error
+                            ? preAggregateError.name
+                            : undefined,
                     executionSource:
                         preAggregateExecution === 'duckdb'
                             ? 'pre_aggregate_duckdb'
@@ -3168,6 +3172,7 @@ export class AsyncQueryService extends ProjectService {
         queryTags,
         queryCreatedAt,
         errorMessage,
+        errorName,
         executionSource,
         warehouseType,
     }: Pick<
@@ -3183,6 +3188,7 @@ export class AsyncQueryService extends ProjectService {
         | 'queryCreatedAt'
     > & {
         errorMessage: string;
+        errorName?: string;
         executionSource:
             | 'warehouse'
             | 'pre_aggregate_duckdb'
@@ -3236,7 +3242,11 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: () => isRegisteredUser,
                 user: { id: userUuid },
             },
+            errorName,
         );
+        if (executionSource !== 'pre_aggregate_duckdb') {
+            this.prometheusMetrics?.incrementWarehouseQueryFailure();
+        }
         this.prometheusMetrics?.trackQueryStateTransition(
             QueryHistoryStatus.EXECUTING,
             QueryHistoryStatus.ERROR,
@@ -3817,6 +3827,7 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 queryCreatedAt,
                 errorMessage: getErrorMessage(e),
+                errorName: e instanceof Error ? e.name : undefined,
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
             });
