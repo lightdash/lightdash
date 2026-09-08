@@ -3068,6 +3068,23 @@ export type AiAgentToolCallEvent = BaseTrack & {
     };
 };
 
+// A tool returned an error to the model. Most of these are the model's own
+// mistakes that it retries, so they are tracked here as a rate rather than
+// reported to Sentry.
+export type AiAgentToolCallFailedEvent = BaseTrack & {
+    event: 'ai_agent_tool_call_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
+    };
+};
+
 export type ContentVerificationEvent = BaseTrack & {
     event: 'content_verification.created' | 'content_verification.deleted';
     userId: string;
@@ -3995,6 +4012,7 @@ type TypedEvent =
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
     | AiAgentToolCallEvent
+    | AiAgentToolCallFailedEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent

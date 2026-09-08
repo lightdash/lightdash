@@ -89,12 +89,19 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
     }
 };
 
-export const isPendingToolResult = (output: AnyType) =>
-    Boolean(output) &&
+const toolResultStatus = (output: AnyType): unknown =>
+    output &&
     typeof output === 'object' &&
-    typeof output.metadata === 'object' &&
-    Boolean(output.metadata) &&
-    output.metadata.status === 'pending';
+    output.metadata &&
+    typeof output.metadata === 'object'
+        ? output.metadata.status
+        : undefined;
+
+export const isPendingToolResult = (output: AnyType) =>
+    toolResultStatus(output) === 'pending';
+
+export const isErrorToolResult = (output: AnyType) =>
+    toolResultStatus(output) === 'error';
 
 export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (!output || typeof output !== 'object') return `Finished ${toolName}`;

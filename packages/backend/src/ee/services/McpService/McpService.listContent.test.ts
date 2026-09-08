@@ -9,6 +9,7 @@ const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
+    addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
     isEnabled: () => false,
     startSpan: (_options: unknown, callback: CallableFunction) =>
