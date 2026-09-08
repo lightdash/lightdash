@@ -10,7 +10,7 @@ import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 export const TOOL_GET_QUERY_RESULT_DESCRIPTION = `Poll for the result of a long-running MCP query started by a query tool such as run_metric_query.
 
 Use this tool when a query tool returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
-Each call waits up to the MCP wait window before returning another running response.
+For running queries, follow the polling instructions in the response.
 For completed run_metric_query results, ${buildMcpVisualizationFollowUpInstruction(
     'get_query_result',
 )} render_chart currently supports completed run_metric_query results.

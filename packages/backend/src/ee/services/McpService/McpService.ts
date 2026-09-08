@@ -52,6 +52,7 @@ import {
     MCP_ERROR_CODE_MISSING_REQUIRED_CAPABILITY,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
+    MCP_QUERY_TIMING_NOTE,
     MCP_TASKS_EXTENSION_NAME,
     McpCancelTaskResult,
     McpCreateTaskResult,
@@ -821,7 +822,7 @@ export class McpService extends BaseService {
             content: [
                 {
                     type: 'text' as const,
-                    text: `Query is still running. Poll get_query_result with queryUuid: ${queryUuid}. Last checked at ${heartbeatAt}.`,
+                    text: `Query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call get_query_result with queryUuid: ${queryUuid}. Do not resubmit the original query. ${MCP_QUERY_TIMING_NOTE} Last checked at ${heartbeatAt}.`,
                 },
             ],
             structuredContent: {
