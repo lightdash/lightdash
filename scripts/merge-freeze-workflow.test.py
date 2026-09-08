@@ -180,7 +180,7 @@ class MergeFreezeTests(unittest.TestCase):
         output, summary, _ = self.run_toggle(slack=SLACK_OTHER)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
         self.assertIn('changed=false', output)
-        self.assertIn(f'Only **{SLACK_OWNER}**', summary)
+        self.assertIn('Any Lightdash employee can ask Cloudy', summary)
         self.assertIn(SLACK_OWNER, self.state['statuses'][0]['description'])
         self.assertFalse(any('PUT' in c for c in self.state['calls']))
         self.assertFalse(any(c[1:4] == ['variable', 'set', 'MERGE_FREEZE_ACTOR'] for c in self.state['calls']))
@@ -213,24 +213,28 @@ class MergeFreezeTests(unittest.TestCase):
                 self.assertNotIn(slack, log)
                 self.assertEqual(self.mutations(), [])
 
-    def test_other_slack_user_cannot_unfreeze(self):
+    def test_other_verified_slack_employee_can_unfreeze(self):
+        original = copy.deepcopy(self.state['ruleset'])
         self.frozen()
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
-        self.assertEqual(self.mutations(), [])
+        output, _, _ = self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        self.assertEqual(self.state['ruleset'], original)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
+        self.assertIn(f'actor={SLACK_OTHER}', output)
 
     def test_github_user_cannot_unfreeze_slack_owner(self):
         self.frozen()
         self.run_toggle(action='unfreeze', actor='alice', slack='', success=False)
         self.assertEqual(self.mutations(), [])
 
-    def test_slack_cannot_unfreeze_github_or_unknown_owner(self):
+    def test_verified_slack_employee_can_unfreeze_github_or_unknown_owner(self):
         for owner in ['alice', 'cloudy[bot]', None]:
             with self.subTest(owner=owner):
                 self.state['variables'].pop('MERGE_FREEZE_ACTOR', None)
                 self.state['ruleset']['rules'][1]['parameters']['required_status_checks'] = [{'context': 'ci'}]
                 self.frozen(owner)
-                self.run_toggle(action='unfreeze', success=False)
-                self.assertEqual(self.mutations(), [])
+                self.run_toggle(action='unfreeze')
+                self.assertEqual(self.state['variables']['MERGE_FREEZE'], 'false')
+                self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
 
     def test_owner_unfreezes_and_preserves_ruleset(self):
         original = copy.deepcopy(self.state['ruleset'])
@@ -329,9 +333,9 @@ class MergeFreezeTests(unittest.TestCase):
     def test_serialized_requests_use_live_owner(self):
         self.run_toggle()
         self.run_toggle(slack=SLACK_OTHER)
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
-        self.run_toggle(action='unfreeze')
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
         self.run_toggle(slack=SLACK_OTHER)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OTHER)
 
@@ -348,7 +352,8 @@ class MergeFreezeTests(unittest.TestCase):
             'WEBHOOK': 'https://example.invalid/webhook', 'WORKFLOW_URL': 'https://example.invalid/workflow',
         })
         self.assertIn('<@U0123456789>', self.state['announcements'][0]['text'])
-        self.assertNotIn('cloudy', self.state['announcements'][0]['text'])
+        self.assertIn('Any Lightdash employee can ask Cloudy', self.state['announcements'][0]['text'])
+        self.assertNotIn('Only ', self.state['announcements'][0]['text'])
 
     def two_live_shaped_rulesets(self, pin='7546338'):
         main = copy.deepcopy(self.state['ruleset'])
@@ -503,15 +508,13 @@ class MergeFreezeTests(unittest.TestCase):
         self.state['rulesets']['7546338']['conditions']['ref_name']['include'] = ['~ALL']
         self.run_toggle()
 
-    def test_pin_preserves_owner_checks(self):
+    def test_pin_allows_another_employee_and_preserves_other_rulesets(self):
         self.two_live_shaped_rulesets()
-        self.run_toggle()
         original = copy.deepcopy(self.state['rulesets'])
-        self.state['calls'] = []
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
-        self.assertEqual(self.mutations(), [])
+        self.run_toggle()
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
         self.assertEqual(self.state['rulesets'], original)
-        self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
 
     def test_workflow_contract(self):
         workflow = WORKFLOW.read_text()

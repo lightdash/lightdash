@@ -228,15 +228,14 @@ jobs:
             fi
           fi
 
-          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ]; then
+          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ] && [ -z "${SLACK_ACTOR:-}" ]; then
             owner_key=$FREEZE_ACTOR
             effective_key=$effective_actor
-            if [[ "$FREEZE_ACTOR" != *:* ]] && [ -z "${SLACK_ACTOR:-}" ]; then
+            if [[ "$FREEZE_ACTOR" != *:* ]]; then
               owner_key=$(printf '%s' "$FREEZE_ACTOR" | tr '[:upper:]' '[:lower:]')
               effective_key=$actor_key
             fi
-            if { [ -n "$FREEZE_ACTOR" ] && [ "$owner_key" != "$effective_key" ]; } \
-               || { [ -z "$FREEZE_ACTOR" ] && [ -n "${SLACK_ACTOR:-}" ]; }; then
+            if [ -n "$FREEZE_ACTOR" ] && [ "$owner_key" != "$effective_key" ]; then
               echo "::error::Only the recorded freeze owner can unfreeze main. Ask the owner or a repository admin."
               exit 1
             fi
@@ -330,7 +329,7 @@ jobs:
           # than hunting the Actions tab to work out who to ask.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
-            description="Merges to main are frozen by $display_owner - ask them in Slack"
+            description="Merges to main are frozen by $display_owner - ask Cloudy in Slack"
           else
             state=success
             description="Merges to main are open"
@@ -416,16 +415,12 @@ jobs:
                 echo "> Main was **already frozen** - this run only refreshed the PR statuses."
                 echo
               fi
-              if [[ "$display_owner" == T0163M87MB9:U* ]]; then
-                echo "Ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`."
-              else
-                echo "Run this workflow again with **unfreeze** to reopen merges."
-              fi
+              echo "Any Lightdash employee can ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`."
               echo
               if [ "$display_owner" = "an unknown owner" ]; then
-                echo "No owner is recorded. Use a direct GitHub dispatch or ask a repository admin to recover the freeze."
+                echo "No owner is recorded. A direct GitHub dispatch or repository admin can also recover the freeze."
               else
-                echo "Only **$display_owner** can do that here. If they are unavailable, a repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
+                echo "Direct GitHub dispatch remains available to the recorded owner. A repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
               fi
             else
               if [ "$was_required" = "false" ]; then
@@ -468,15 +463,13 @@ jobs:
           # froze main can say why in the thread if it matters.
           if [[ "$ACTOR_LOGIN" == T0163M87MB9:U* ]]; then
             actor_mention="<@${ACTOR_LOGIN#*:}>"
-            unfreeze_instructions="ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`"
           else
             actor_mention="@$ACTOR_LOGIN"
-            unfreeze_instructions="<${WORKFLOW_URL}|Merge freeze / unfreeze>"
           fi
 
           if [ "$ACTION" = "freeze" ]; then
             text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by ${actor_mention}."
-            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Only ${actor_mention} can lift it: ${unfreeze_instructions}. If they are unavailable, a repo admin can remove the check from the main ruleset by hand."
+            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Any Lightdash employee can ask Cloudy to unfreeze merges to \`${REPO##*/}\`. A repo admin can also remove the check from the main ruleset by hand."
           else
             text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by ${actor_mention}."
             text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, push or reopen it to clear."
