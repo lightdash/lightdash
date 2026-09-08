@@ -19,7 +19,7 @@ Run these commands from this folder under `chart-types/<slug>/`. The upload path
 3. `lightdash upload --chart-types <slug> --path ../..` — the server rebuilds; the chart type then appears in the explorer's chart type picker for that project.
 4. Verify in Lightdash: open any explore, run a query, pick this chart type, and map its fields.
 
-There is no local preview for a chart type: `useVizContext()` waits for the Lightdash host, so the component renders nothing standalone (`lightdash apps preview` and `npm run dev` show a blank page). Upload and verify in the explorer instead.
+Preview locally with the fixture: `useVizContext()` normally waits for the Lightdash host, but the SDK has a dev-only fallback. Run `lightdash apps preview` (or `npm run dev`) and open the dev URL with `?vizFixture=/viz-fixture.json` — the scaffold's `viz-fixture.json` seeds `useVizContext()` so the chart renders. Edit that file to match your `vizSchema` (fieldMapping, rows as `{ value: { raw, formatted } }` cells, options, colorPalette, pivotDetails). It's fake data for layout/option iteration and never fires in production; the explorer with real data is still the source of truth — upload and verify there before finishing.
 
 Build with the template's preinstalled dependency set (see `package.json` — React, Recharts, d3, and more). Do not add npm packages or vendor library source into `src/`; chart types published to the official registry must stay template-deps-only.
 
