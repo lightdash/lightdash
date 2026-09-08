@@ -37,6 +37,16 @@ const BASE_ROLE_SCOPES = {
         'view:SpotlightTableConfig',
         'view:AiAgentThread@self',
         'view:OrganizationDesign',
+
+        // Embedded analytics controls
+        'view:EmbedDashboardFilters',
+        'view:EmbedDashboardFilterAddition',
+        'view:EmbedDashboardParameters',
+        'view:EmbedCsvExport',
+        'view:EmbedDashboardCsvExport',
+        'view:EmbedImageExport',
+        'view:EmbedPagePdfExport',
+        'view:EmbedDateZoom',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -73,6 +83,11 @@ const BASE_ROLE_SCOPES = {
         'manage:DataApp@self', // Own personal apps (created before demotion / under older rules)
         'view:ExternalConnection', // Link admin-enabled connections when editing space apps
         'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
+
+        // Embedded analytics controls
+        'view:EmbedExplore',
+        'view:EmbedUnderlyingData',
+        'view:EmbedDataApps',
     ],
 
     [ProjectMemberRole.EDITOR]: [

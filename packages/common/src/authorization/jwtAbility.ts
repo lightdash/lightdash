@@ -1,21 +1,34 @@
-import { type AbilityBuilder } from '@casl/ability';
+import { subject, type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
 import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
-import type { MemberAbility } from './types';
+import type { CaslSubjectNames, MemberAbility } from './types';
 
 type EmbeddedAbilityBuilderPayload = {
     embedUser: CreateEmbedJwt;
     content: EmbedContent;
     embed: OssEmbed;
-    builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
+    builder: Pick<AbilityBuilder<MemberAbility>, 'can' | 'build'>;
     externalId: string;
 };
 
 type EmbeddedAbilityBuilder = (
     options: EmbeddedAbilityBuilderPayload,
 ) => EmbeddedAbilityBuilderPayload;
+
+const canViewEmbedScope = (
+    resource: CaslSubjectNames,
+    builder: EmbeddedAbilityBuilderPayload['builder'],
+    embed: OssEmbed,
+): boolean =>
+    builder.build().can(
+        'view',
+        subject(resource, {
+            organizationUuid: embed.organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        }),
+    );
 
 const dashboardAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
@@ -34,7 +47,8 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'dashboard' &&
-        embedUser.content.canDateZoom
+        (embedUser.content.canDateZoom ||
+            canViewEmbedScope('EmbedDateZoom', builder, embed))
     ) {
         can('view', 'Dashboard', {
             dateZoom: true,
@@ -60,7 +74,8 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
     // by the JWT's user attributes via getFilteredExplore.
     if (
         embedUser.content.type === 'dashboard' &&
-        embedUser.content.canViewDataApps
+        (embedUser.content.canViewDataApps ||
+            canViewEmbedScope('EmbedDataApps', builder, embed))
     ) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
@@ -163,7 +178,11 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    if (embedUser.content.type === 'aiAgent' && embedUser.content.canExplore) {
+    if (
+        embedUser.content.type === 'aiAgent' &&
+        (embedUser.content.canExplore ||
+            canViewEmbedScope('EmbedExplore', builder, embed))
+    ) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
@@ -198,7 +217,8 @@ const metricsCatalogAbilities: EmbeddedAbilityBuilder = ({
 
     if (
         embedUser.content.type === 'metricsCatalog' &&
-        embedUser.content.canExplore
+        (embedUser.content.canExplore ||
+            canViewEmbedScope('EmbedExplore', builder, embed))
     ) {
         can('view', 'Explore', {
             organizationUuid: organization.organizationUuid,
@@ -221,11 +241,12 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
     const { can } = builder;
 
     const canExplore =
-        'canExplore' in permissions ? permissions.canExplore : undefined;
+        ('canExplore' in permissions && permissions.canExplore) ||
+        canViewEmbedScope('EmbedExplore', builder, embed);
     const canViewUnderlyingData =
-        'canViewUnderlyingData' in permissions
-            ? permissions.canViewUnderlyingData
-            : undefined;
+        ('canViewUnderlyingData' in permissions &&
+            permissions.canViewUnderlyingData) ||
+        canViewEmbedScope('EmbedUnderlyingData', builder, embed);
 
     if (canExplore || canViewUnderlyingData) {
         can('view', 'UnderlyingData', {
@@ -263,14 +284,20 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
     // Common abilities for both dashboard and chart
-    if (permissions.canExportImages) {
+    if (
+        permissions.canExportImages ||
+        canViewEmbedScope('EmbedImageExport', builder, embed)
+    ) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
-    if (permissions.canExportCsv) {
+    if (
+        permissions.canExportCsv ||
+        canViewEmbedScope('EmbedCsvExport', builder, embed)
+    ) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
@@ -283,7 +310,10 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     }
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
-        if (embedUser.content.canExportPagePdf) {
+        if (
+            embedUser.content.canExportPagePdf ||
+            canViewEmbedScope('EmbedPagePdfExport', builder, embed)
+        ) {
             can('export', 'Dashboard', {
                 organizationUuid: organization.organizationUuid,
                 type: 'pdf',
@@ -292,7 +322,10 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
 
         // Dashboard-level "Export all", scoped to the token's dashboard; the
         // JobStatus grant lets the embed poll the async export job it created.
-        if (embedUser.content.canExportDashboardCsv) {
+        if (
+            embedUser.content.canExportDashboardCsv ||
+            canViewEmbedScope('EmbedDashboardCsvExport', builder, embed)
+        ) {
             can('manage', 'ExportCsv', {
                 organizationUuid: organization.organizationUuid,
                 projectUuid: embed.projectUuid,

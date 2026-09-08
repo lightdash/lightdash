@@ -68,6 +68,7 @@ export type ParameterInteractivityOptions = z.infer<
     typeof ParameterInteractivityOptionsSchema
 >;
 
+/** Legacy capability flags remain supported; new permissions must use embed scopes. */
 export const InteractivityOptionsSchema = z.object({
     dashboardFiltersInteractivity:
         DashboardFilterInteractivityOptionsSchema.optional(),

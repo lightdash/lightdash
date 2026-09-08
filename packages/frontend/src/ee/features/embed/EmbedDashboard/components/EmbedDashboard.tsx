@@ -5,7 +5,6 @@ import {
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
-    isDashboardContent,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
     type SavedChart,
@@ -331,7 +330,6 @@ const EmbedDashboard: FC<{
     const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
 
     const {
-        content,
         embedToken,
         embedWriteContext,
         languageMap,
@@ -576,10 +574,7 @@ const EmbedDashboard: FC<{
     const canUseChartBuilder = canUseEmbeddedChartBuilder({
         canWriteDashboard,
         canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
-        canExplore:
-            content !== undefined &&
-            isDashboardContent(content) &&
-            content.canExplore === true,
+        canExplore: dashboard?.canExplore === true,
     });
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();

@@ -6,7 +6,11 @@ import { collapseAbilityRules } from './collapseAbilityRules';
 import { getUserAbilityBuilder } from './index';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
-import { type MemberAbility } from './types';
+import {
+    INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+    VIEWER_EMBED_SUBJECTS,
+    type MemberAbility,
+} from './types';
 
 const USER = 'user-1';
 
@@ -43,7 +47,33 @@ describe('collapseAbilityRules', () => {
 
         const collapsed = collapseAbilityRules(raw);
         // 125 projects of identical shape collapse to one project's worth of rules
-        expect(collapsed.length).toBeLessThan(100);
+        expect(collapsed).toHaveLength(
+            collapseAbilityRules(buildRawRules([projects[0]])).length,
+        );
+    });
+
+    it('compacts embed grants without mixing capabilities between projects', () => {
+        const { can, rules } = new AbilityBuilder<MemberAbility>(Ability);
+        can('view', 'EmbedExplore', { projectUuid: 'p1' });
+        can('view', 'EmbedExplore', { projectUuid: 'p2' });
+        can('view', 'EmbedCsvExport', { projectUuid: 'p2' });
+        can('view', 'EmbedCsvExport', { projectUuid: 'p3' });
+
+        const compacted = collapseAbilityRules(rules);
+        expect(compacted).toHaveLength(2);
+        const original = new Ability(rules);
+        const collapsed = new Ability(compacted);
+        ['p1', 'p2', 'p3', 'not-granted'].forEach((projectUuid) =>
+            [
+                ...VIEWER_EMBED_SUBJECTS,
+                ...INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+            ].forEach((name) => {
+                const resource = subject(name, { projectUuid });
+                expect(collapsed.can('view', resource)).toBe(
+                    original.can('view', resource),
+                );
+            }),
+        );
     });
 
     it('merges non-projectUuid scalar ids too (e.g. upstreamProjectUuid)', () => {
