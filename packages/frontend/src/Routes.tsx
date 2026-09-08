@@ -24,19 +24,6 @@ const FALLBACK_ROUTE: RouteObject = {
 };
 
 const PUBLIC_ROUTES: RouteObject[] = [
-    ...(import.meta.env.DEV
-        ? [
-              {
-                  path: '/dev/roadmap',
-                  handle: { hideAILauncher: true },
-                  lazy: async () => ({
-                      Component: (
-                          await import('./ee/features/roadmap/RoadmapPreview')
-                      ).default,
-                  }),
-              },
-          ]
-        : []),
     ...AUTH_ROUTES,
     {
         path: '/register',

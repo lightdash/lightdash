@@ -10,11 +10,11 @@ Control Center alone determines eligibility: a direct customer-to-project need f
 
 Search and the “Following” interest filter are applied before catalog pagination. Projects are alphabetical; tickets retain central priority/update ordering. Pages load on demand. The frontend hides expired titles and requests immediately, attempts refresh, and offers retry on failure. Expiry reflects the earlier of the provider snapshot's 10-minute freshness deadline and any approaching 30-day retention boundary.
 
-## Local review
+## Validation
 
-`/dev/roadmap` provides synthetic scenarios for populated, empty, loading, retry, access denied, removed projects, missing titles, pagination and expiry. The review expiry scenario uses 12 seconds. `VITE_ROADMAP_MOCK_API=true` in `packages/frontend/.env.development.local` also enables fixtures on the Settings page in development only. Turn it off to exercise the live consumer. Keep `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` enabled locally. The mock switch is ignored in production.
+The Settings page uses the live v2 API in every environment. Keep `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` enabled for local verification.
 
-Project metadata travels through the same response contract in the preview and live UI. Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner action and signup flow belong to a separate feature and are not included here.
+Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner action and signup flow belong to a separate feature and are not included here.
 
 ## Deployment and rollback
 

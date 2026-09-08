@@ -6,10 +6,9 @@ import {
     type RoadmapProjectResults,
     type RoadmapProjectRequestsResults,
 } from '@lightdash/common';
-import { createContext, useContext } from 'react';
 import { lightdashApi } from '../../../api';
 
-export interface RoadmapApi {
+interface RoadmapApi {
     getProjects: (query: RoadmapProjectQuery) => Promise<RoadmapProjectResults>;
     getRequests: (
         query: RoadmapProjectRequestsQuery,
@@ -24,7 +23,7 @@ function queryString(query: RoadmapProjectQuery | RoadmapProjectRequestsQuery) {
     ).toString();
 }
 
-const roadmapApi: RoadmapApi = {
+export const roadmapApi: RoadmapApi = {
     getProjects: async (query) =>
         RoadmapProjectResultsSchema.parse(
             await lightdashApi<RoadmapProjectResults>({
@@ -44,6 +43,3 @@ const roadmapApi: RoadmapApi = {
             }),
         ),
 };
-
-export const RoadmapApiContext = createContext(roadmapApi);
-export const useRoadmapApi = () => useContext(RoadmapApiContext);
