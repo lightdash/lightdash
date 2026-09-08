@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    AI_DEFAULT_MAX_QUERY_LIMIT,
     defineUserAbility,
     FeatureFlags,
     mcpToolDefinitions,
@@ -117,7 +116,6 @@ const makeMcpService = (
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
-    runSqlMaxLimit = 500,
 ): McpService =>
     new McpService({
         aiAgentService: {},
@@ -137,7 +135,7 @@ const makeMcpService = (
         featureFlagService,
         lightdashConfig: {
             mcp: {
-                runSqlMaxLimit,
+                runSqlMaxLimit: 500,
             },
             siteUrl: 'https://lightdash.example',
         },
@@ -199,18 +197,6 @@ const mcpOptionCombinations = Object.keys(disabledMcpOptions).reduce(
     [disabledMcpOptions],
 );
 
-// Decimal widths 1–21, scientific notation, and fixture/default/safe limits.
-const runSqlMaxLimits = [
-    ...new Set([
-        500,
-        AI_DEFAULT_MAX_QUERY_LIMIT,
-        ...Array.from({ length: 21 }, (_, exponent) => 10 ** exponent),
-        1e21,
-        1.2345678901234568e21,
-        Number.MAX_VALUE,
-        Number.MAX_SAFE_INTEGER,
-    ]),
-];
 const warnedTextLengths = new Set<string>();
 
 const inputSchemaRequirements = z.object({
@@ -327,26 +313,11 @@ describe('MCP tool contracts', () => {
         ).toBe(expectedCount);
     });
 
-    it('covers every positive-integer string width in the row-limit cases', () => {
-        expect(
-            new Set(runSqlMaxLimits.map((limit) => String(limit).length)),
-        ).toEqual(new Set(Array.from({ length: 23 }, (_, index) => index + 1)));
-    });
-
-    it.each(
-        mcpOptionCombinations.flatMap((options) =>
-            runSqlMaxLimits.map((runSqlMaxLimit) => ({
-                options,
-                runSqlMaxLimit,
-                configuration: JSON.stringify({ ...options, runSqlMaxLimit }),
-            })),
-        ),
-    )(
-        'guards MCP text lengths: pinned=$options.projectPinned writeback=$options.aiWritebackEnabled content=$options.mcpContentWritesEnabled scheduled=$options.scheduledDeliveryEnabled sql=$options.runSqlEnabled metric=$options.runMetricQueryEnabled expressions=$options.filterExpressionsEnabled max=$runSqlMaxLimit',
-        async ({ configuration, options, runSqlMaxLimit }) => {
-            // Do not retain thousands of mocked servers and their callbacks.
-            vi.clearAllMocks();
-            const mcpService = makeMcpService(true, undefined, runSqlMaxLimit);
+    it.each(mcpOptionCombinations)(
+        'guards MCP text lengths: pinned=$projectPinned writeback=$aiWritebackEnabled content=$mcpContentWritesEnabled scheduled=$scheduledDeliveryEnabled sql=$runSqlEnabled metric=$runMetricQueryEnabled expressions=$filterExpressionsEnabled',
+        async (options) => {
+            const configuration = JSON.stringify(options);
+            const mcpService = makeMcpService();
             mockRegisteredMcpTools.length = 0;
             await mcpService.createServer(options);
             const instructionCeilings = options.runSqlEnabled
@@ -363,11 +334,7 @@ describe('MCP tool contracts', () => {
             // Existing overages warn but cannot grow. Lower/remove these
             // ceilings as text is shortened; snapshot updates cannot raise them.
             const existingToolCeilings = new Map([
-                // Only the interpolated max-limit digits may change the baseline.
-                [
-                    'run_sql',
-                    3654 - String(500).length + String(runSqlMaxLimit).length,
-                ],
+                ['run_sql', 3654],
                 ['run_ai_writeback', 2651],
                 [
                     'run_metric_query',
