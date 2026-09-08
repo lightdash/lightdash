@@ -297,6 +297,101 @@ const LearnPage: FC = () => {
                             setQuery(event.currentTarget.value)
                         }
                     />
+                </Box>
+                {(resume || recommended) && (
+                    <Box component="section" className={styles.section}>
+                        <h2 className={styles.sectionTitle}>
+                            <MantineIcon icon={IconPlayerPlay} size={14} />
+                            Continue
+                        </h2>
+                        <Box className={styles.heroGrid}>
+                            {resume && (
+                                <Box
+                                    component="article"
+                                    className={styles.hero}
+                                    style={groupVars(resume.group)}
+                                    data-learn-resume={resume.scope}
+                                >
+                                    <span className={styles.heroTile}>
+                                        <MantineIcon
+                                            icon={GROUP_ICONS[resume.group]}
+                                            size={20}
+                                        />
+                                    </span>
+                                    <Box className={styles.heroBody}>
+                                        <span
+                                            className={`${styles.overline} ${styles.overlineAccent}`}
+                                        >
+                                            Resume
+                                        </span>
+                                        <h3>{resume.title}</h3>
+                                        <p>{resume.blurb}</p>
+                                        <Box className={styles.heroFoot}>
+                                            <span>
+                                                {resume.stepCount} steps
+                                            </span>
+                                            <Button
+                                                variant="light"
+                                                size="compact-md"
+                                                loading={
+                                                    opening === resume.scope
+                                                }
+                                                onClick={() =>
+                                                    start(resume.scope)
+                                                }
+                                            >
+                                                Resume module
+                                            </Button>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            )}
+                            {recommended && (
+                                <Box
+                                    component="article"
+                                    className={styles.hero}
+                                    style={groupVars(recommended.group)}
+                                    data-learn-recommended={recommended.scope}
+                                >
+                                    <span className={styles.heroTile}>
+                                        <MantineIcon
+                                            icon={
+                                                GROUP_ICONS[recommended.group]
+                                            }
+                                            size={20}
+                                        />
+                                    </span>
+                                    <Box className={styles.heroBody}>
+                                        <span className={styles.overline}>
+                                            Recommended next
+                                        </span>
+                                        <h3>{recommended.title}</h3>
+                                        <p>{recommended.blurb}</p>
+                                        <Box className={styles.heroFoot}>
+                                            <span>
+                                                {recommended.stepCount} steps
+                                            </span>
+                                            <Button
+                                                variant="default"
+                                                size="compact-md"
+                                                loading={
+                                                    opening ===
+                                                    recommended.scope
+                                                }
+                                                onClick={() =>
+                                                    start(recommended.scope)
+                                                }
+                                            >
+                                                Start
+                                            </Button>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
+                )}
+                <Box className={styles.filters}>
                     <Box
                         component="nav"
                         className={styles.chips}
@@ -422,83 +517,6 @@ const LearnPage: FC = () => {
                         </span>
                     </Box>
                 </Box>
-                {(resume || recommended) && (
-                    <Box component="section" className={styles.section}>
-                        <h2 className={styles.sectionTitle}>
-                            <MantineIcon icon={IconPlayerPlay} size={14} />
-                            Continue
-                        </h2>
-                        <Box className={styles.rows}>
-                            {resume && (
-                                <Box
-                                    component="article"
-                                    className={styles.row}
-                                    data-learn-resume={resume.scope}
-                                >
-                                    <span
-                                        className={styles.rowTile}
-                                        style={groupVars(resume.group)}
-                                    >
-                                        <MantineIcon
-                                            icon={GROUP_ICONS[resume.group]}
-                                            size={16}
-                                        />
-                                    </span>
-                                    <span className={styles.rowText}>
-                                        <b>{resume.title}</b>
-                                        <small>
-                                            Resume · {resume.stepCount} steps
-                                        </small>
-                                    </span>
-                                    <Button
-                                        className={styles.rowAction}
-                                        variant="light"
-                                        size="compact-sm"
-                                        loading={opening === resume.scope}
-                                        onClick={() => start(resume.scope)}
-                                    >
-                                        Resume
-                                    </Button>
-                                </Box>
-                            )}
-                            {recommended && (
-                                <Box
-                                    component="article"
-                                    className={styles.row}
-                                    data-learn-recommended={recommended.scope}
-                                >
-                                    <span
-                                        className={styles.rowTile}
-                                        style={groupVars(recommended.group)}
-                                    >
-                                        <MantineIcon
-                                            icon={
-                                                GROUP_ICONS[recommended.group]
-                                            }
-                                            size={16}
-                                        />
-                                    </span>
-                                    <span className={styles.rowText}>
-                                        <b>{recommended.title}</b>
-                                        <small>
-                                            Recommended next ·{' '}
-                                            {recommended.stepCount} steps
-                                        </small>
-                                    </span>
-                                    <Button
-                                        className={styles.rowAction}
-                                        variant="default"
-                                        size="compact-sm"
-                                        loading={opening === recommended.scope}
-                                        onClick={() => start(recommended.scope)}
-                                    >
-                                        Start
-                                    </Button>
-                                </Box>
-                            )}
-                        </Box>
-                    </Box>
-                )}
                 {groups.length === 0 && (
                     <Box className={styles.empty}>
                         No modules match this search.
