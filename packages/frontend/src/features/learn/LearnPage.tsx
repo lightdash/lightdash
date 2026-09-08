@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type ProjectMemberRole, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
+    IconChevronDown,
     IconFilter,
     IconLayoutGrid,
     IconPlayerPlay,
@@ -40,10 +41,8 @@ import {
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
-    roleFromOrganizationRole,
     roleHolds,
-    ROLE_LABELS,
-    ROLE_ORDER,
+    roleNote,
     sortForRole,
     type LearnGroup,
     type LearnModule,
@@ -53,6 +52,12 @@ import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
+import {
+    buildRoleViews,
+    defaultRoleView,
+    useLearnRoles,
+    type LearnRoleView,
+} from './roles';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useStartWalkthrough } from './useStartWalkthrough';
@@ -75,10 +80,11 @@ const stateOf = (
 const ModuleCard: FC<{
     module: LearnModule;
     state: CardState;
-    heldByRole: boolean;
+    /** What the chosen view lacks, named on the card; null when it holds it. */
+    note: string | null;
     opening: boolean;
     onStart: (scope: string) => void;
-}> = ({ module, state, heldByRole, opening, onStart }) => {
+}> = ({ module, state, note, opening, onStart }) => {
     const Glyph = GROUP_ICONS[module.group];
     const shot = thumbnailFor(module.scope);
     return (
@@ -118,9 +124,7 @@ const ModuleCard: FC<{
                     ) : (
                         <span>{module.stepCount} steps</span>
                     )}
-                    {module.minRole && !heldByRole && (
-                        <span>{ROLE_LABELS[module.minRole]} and above</span>
-                    )}
+                    {note && <span>{note}</span>}
                 </Box>
                 {state !== 'soon' && (
                     <Button
@@ -138,6 +142,65 @@ const ModuleCard: FC<{
                 )}
             </Box>
         </Box>
+    );
+};
+
+/**
+ * The roles as views: one control naming the role the library is being read
+ * as, and a menu of every role to read it as instead. A menu rather than a
+ * row of pills because an org's custom roles are as many as it has made,
+ * and the row has to stay on one line beside the count and the filter.
+ */
+const RolePicker: FC<{
+    views: LearnRoleView[];
+    chosen: LearnRoleView;
+    onChoose: (view: LearnRoleView) => void;
+}> = ({ views, chosen, onChoose }) => {
+    const custom = views.filter((view) => view.custom);
+    const item = (view: LearnRoleView) => (
+        <Menu.Item
+            key={view.key}
+            onClick={() => onChoose(view)}
+            data-learn-role-option={view.key}
+            aria-checked={view.key === chosen.key}
+            rightSection={
+                view.key === chosen.key ? (
+                    <MantineIcon icon={IconCheck} size={13} />
+                ) : null
+            }
+        >
+            {view.label}
+        </Menu.Item>
+    );
+    return (
+        <Menu position="bottom-start" withinPortal>
+            <Menu.Target>
+                <UnstyledButton
+                    type="button"
+                    className={styles.rolePicker}
+                    aria-label="Viewing as"
+                    aria-haspopup="menu"
+                    data-learn-role={chosen.key}
+                >
+                    Viewing as
+                    <span className={styles.rolePickerName}>
+                        {chosen.label}
+                    </span>
+                    <MantineIcon icon={IconChevronDown} size={13} />
+                </UnstyledButton>
+            </Menu.Target>
+            <Menu.Dropdown>
+                <Menu.Label>Roles</Menu.Label>
+                {views.filter((view) => !view.custom).map(item)}
+                {custom.length > 0 && (
+                    <>
+                        <Menu.Divider />
+                        <Menu.Label>Custom roles</Menu.Label>
+                        {custom.map(item)}
+                    </>
+                )}
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
@@ -209,9 +272,16 @@ const LearnPage: FC = () => {
         [isOpen],
     );
     const { completed, started, lastStarted } = useLearnProgress();
-    const [role, setRole] = useState<ProjectMemberRole>(() =>
-        roleFromOrganizationRole(user.data?.role),
-    );
+    // The roles as views: the five system roles, and the org's own custom
+    // roles, which arrive after the first render (and never on an instance
+    // without them). Until the learner picks one, the view is the role they
+    // hold, which their custom role becomes as soon as it lands.
+    const { data: customRoles } = useLearnRoles();
+    const roleViews = useMemo(() => buildRoleViews(customRoles), [customRoles]);
+    const [chosenRole, setChosenRole] = useState<string | null>(null);
+    const role =
+        roleViews.find((view) => view.key === chosenRole) ??
+        defaultRoleView(roleViews, user.data ?? undefined);
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(true);
     const [showSoon, setShowSoon] = useState(true);
@@ -409,26 +479,11 @@ const LearnPage: FC = () => {
                     </Box>
                 )}
                 <Box className={styles.libraryBar}>
-                    <Box
-                        component="nav"
-                        className={styles.views}
-                        aria-label="Viewing as"
-                        data-learn-role={role}
-                    >
-                        {ROLE_ORDER.map((candidate) => (
-                            <UnstyledButton
-                                key={candidate}
-                                type="button"
-                                className={`${styles.view} ${
-                                    candidate === role ? styles.viewOn : ''
-                                }`}
-                                aria-pressed={candidate === role}
-                                onClick={() => setRole(candidate)}
-                            >
-                                {ROLE_LABELS[candidate]}
-                            </UnstyledButton>
-                        ))}
-                    </Box>
+                    <RolePicker
+                        views={roleViews}
+                        chosen={role}
+                        onChoose={(view) => setChosenRole(view.key)}
+                    />
                     <span
                         className={styles.libraryCount}
                         data-learn-progress={`${doneCount}/${available.length}`}
@@ -561,7 +616,7 @@ const LearnPage: FC = () => {
                                             started,
                                             completed,
                                         )}
-                                        heldByRole={roleHolds(role, module)}
+                                        note={roleNote(role, module)}
                                         opening={opening === module.scope}
                                         onStart={startFromCard}
                                     />

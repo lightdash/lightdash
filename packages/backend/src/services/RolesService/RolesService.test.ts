@@ -2127,4 +2127,94 @@ describe('RolesService', () => {
             });
         });
     });
+    describe("the Learn library's role views", () => {
+        const sessionUser = (overrides: Record<string, unknown> = {}) =>
+            ({
+                userUuid: 'test-user-uuid',
+                organizationUuid: 'test-org-uuid',
+                ability: mockAccount.user.ability,
+                ...overrides,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            }) as any;
+        const orgRoles = [
+            { ...mockCustomRoleWithScopes, scopes: ['view:Dashboard'] },
+            {
+                ...mockCustomRoleWithScopes,
+                roleUuid: 'other-role-uuid',
+                name: "Someone else's role",
+                scopes: ['manage:Space'],
+            },
+        ];
+
+        beforeEach(() => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                orgRoles,
+            );
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+        });
+
+        afterEach(() => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockReset();
+            mockFeatureFlagModel.get.mockReset();
+        });
+
+        it("gives an org admin every one of the org's roles", async () => {
+            await expect(
+                service.getLearnRoles(sessionUser()),
+            ).resolves.toStrictEqual([
+                {
+                    roleUuid: mockCustomRoleWithScopes.roleUuid,
+                    name: mockCustomRoleWithScopes.name,
+                    scopes: ['view:Dashboard'],
+                },
+                {
+                    roleUuid: 'other-role-uuid',
+                    name: "Someone else's role",
+                    scopes: ['manage:Space'],
+                },
+            ]);
+            expect(
+                mockRolesModel.getRolesWithScopesByOrganizationUuid,
+            ).toHaveBeenCalledWith('test-org-uuid', 'user');
+        });
+
+        it('gives every other learner the one role they hold', async () => {
+            const learner = sessionUser({
+                ability: mockAccountNoAccess.user.ability,
+                roleUuid: mockCustomRoleWithScopes.roleUuid,
+            });
+
+            await expect(service.getLearnRoles(learner)).resolves.toStrictEqual(
+                [
+                    {
+                        roleUuid: mockCustomRoleWithScopes.roleUuid,
+                        name: mockCustomRoleWithScopes.name,
+                        scopes: ['view:Dashboard'],
+                    },
+                ],
+            );
+        });
+
+        it('gives a learner on a system role nothing to add', async () => {
+            await expect(
+                service.getLearnRoles(
+                    sessionUser({ ability: mockAccountNoAccess.user.ability }),
+                ),
+            ).resolves.toStrictEqual([]);
+        });
+
+        it('answers with no roles when custom roles are not in force', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.getLearnRoles(sessionUser()),
+            ).resolves.toStrictEqual([]);
+
+            await expect(
+                buildService(false).getLearnRoles(sessionUser()),
+            ).resolves.toStrictEqual([]);
+            expect(
+                mockRolesModel.getRolesWithScopesByOrganizationUuid,
+            ).not.toHaveBeenCalled();
+        });
+    });
 });

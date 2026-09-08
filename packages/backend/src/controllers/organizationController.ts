@@ -8,6 +8,7 @@ import {
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiImpersonationOrganizationSettingsResponse,
+    ApiLearnRolesResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationBrandResponse,
@@ -890,6 +891,29 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .enableLearn(toSessionUser(req.account)),
+        };
+    }
+
+    /**
+     * The roles the Learn library can be viewed as: the org's own custom
+     * roles, with the scopes each one holds. An org admin gets all of them;
+     * every other member gets the one role they hold. The five system roles
+     * are the same on every instance, so the library builds those itself.
+     * @summary Get Learn role views
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/training-project/roles')
+    @OperationId('GetLearnRoles')
+    async getLearnRoles(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnRolesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRolesService()
+                .getLearnRoles(toSessionUser(req.account)),
         };
     }
 

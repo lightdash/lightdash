@@ -276,38 +276,37 @@
     padding-top: 6px;
 }
 
-/* The roles as views, Linear's way: one pill per role, the chosen one
-   filled; the library is the modules that role can practise. */
-.views {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+/* The roles as views: one control naming the role the library is read as,
+   with every role behind it. The library is the modules that role can
+   practise. A menu, not a row of pills, so an org's custom roles fit
+   however many it has. */
+.rolePicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     margin-right: auto;
-}
-
-.view {
-    padding: 5px 12px;
+    padding: 5px 10px;
     border-radius: 999px;
     font: inherit;
     font-size: 12.5px;
     color: var(--lu-muted);
-    background: transparent;
+    background: var(--lu-sunken);
+    box-shadow: 0 0 0 1px var(--lu-border) inset;
     cursor: pointer;
-    transition:
-        background 120ms ease,
-        color 120ms ease;
+    transition: color 120ms ease;
 }
 
-.view:hover {
-    background: var(--lu-sunken);
+.rolePicker:hover {
     color: var(--lu-ink);
 }
 
-.viewOn {
-    background: var(--lu-sunken);
+.rolePickerName {
     color: var(--lu-ink);
     font-weight: 600;
-    box-shadow: 0 0 0 1px var(--lu-border) inset;
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .libraryCount {

@@ -15,6 +15,7 @@ import {
     isOrganizationMemberRole,
     isScopeAssignableAtLevel,
     isSystemRole,
+    LearnRole,
     NotFoundError,
     OrganizationMemberRole,
     OrganizationRoleSet,
@@ -27,6 +28,7 @@ import {
     RoleAssignment,
     RoleLevel,
     RoleWithScopes,
+    SessionUser,
     UpdateRole,
     UpdateRoleAssignmentRequest,
     UpsertUserRoleAssignmentRequest,
@@ -431,6 +433,57 @@ export class RolesService extends BaseService {
             organizationUuid,
             roleTypeFilter,
         );
+    }
+
+    /**
+     * The org's own roles as the Learn library's views (CS-267). The library
+     * lets a learner see the modules a role holds; custom roles are views
+     * like the system roles are, so it needs their scope sets.
+     *
+     * Who sees which: an org admin gets every custom role, so they can look
+     * at the library through the eyes of any role they have made. Everyone
+     * else gets only the role they hold themselves, which is a description
+     * of their own permissions rather than a look at the org's role design.
+     * Nothing is returned when custom roles are not licensed or switched on,
+     * because a role that is not in force is not a view of anything.
+     */
+    async getLearnRoles(user: SessionUser): Promise<LearnRole[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) return [];
+        if (!(await this.areCustomRolesInForce(user))) return [];
+
+        const roles =
+            await this.rolesModel.getRolesWithScopesByOrganizationUuid(
+                organizationUuid,
+                'user',
+            );
+        const canSeeEveryRole = this.createAuditedAbility(user).can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        );
+        return roles
+            .filter(
+                (role) => canSeeEveryRole || role.roleUuid === user.roleUuid,
+            )
+            .map((role) => ({
+                roleUuid: role.roleUuid,
+                name: role.name,
+                scopes: role.scopes,
+            }));
+    }
+
+    /** Whether this org's custom roles are licensed and switched on. */
+    private async areCustomRolesInForce(user: SessionUser): Promise<boolean> {
+        if (!this.licenseService.getLicenseStatus().valid) return false;
+        if (this.lightdashConfig.customRoles.enabled) return true;
+        const flag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            },
+            featureFlagId: CommercialFeatureFlags.CustomRoles,
+        });
+        return flag.enabled;
     }
 
     async getCustomRolesAsCode(

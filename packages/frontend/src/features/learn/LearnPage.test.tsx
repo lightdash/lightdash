@@ -1,20 +1,31 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
+import type * as LearnRoles from './roles';
 
-const { track, projectState, healthState, availabilityState } = vi.hoisted(
-    () => ({
-        track: vi.fn(),
-        projectState: { current: [] as unknown[] },
-        healthState: { current: { learn: { enabled: true } } },
-        availabilityState: { current: { isSettled: true } },
-    }),
-);
+const {
+    track,
+    projectState,
+    healthState,
+    availabilityState,
+    rolesState,
+    userState,
+} = vi.hoisted(() => ({
+    track: vi.fn(),
+    projectState: { current: [] as unknown[] },
+    healthState: { current: { learn: { enabled: true } } },
+    availabilityState: { current: { isSettled: true } },
+    rolesState: { current: [] as unknown[] },
+    userState: {
+        current: { role: 'admin', roleUuid: undefined as string | undefined },
+    },
+}));
 
 vi.mock('react-router', () => ({
     Navigate: () => null,
@@ -29,13 +40,21 @@ vi.mock('../../providers/App/useApp', () => ({
         user: {
             data: {
                 organizationUuid: 'org-1',
-                role: 'admin',
+                role: userState.current.role,
+                roleUuid: userState.current.roleUuid,
                 ability: new Ability([
                     { action: 'manage', subject: 'Organization' },
                 ]),
             },
         },
     }),
+}));
+
+// The org's own roles come from the instance; the views built from them are
+// the real ones.
+vi.mock('./roles', async (importOriginal) => ({
+    ...(await importOriginal<typeof LearnRoles>()),
+    useLearnRoles: () => ({ data: rolesState.current }),
 }));
 
 vi.mock('../../hooks/health/useHealth', () => ({
@@ -93,6 +112,8 @@ describe('LearnPage analytics', () => {
         track.mockClear();
         healthState.current = { learn: { enabled: true } };
         availabilityState.current = { isSettled: true };
+        rolesState.current = [];
+        userState.current = { role: 'admin', roleUuid: undefined };
         projectState.current = [
             { projectUuid: 'training-1', type: ProjectType.TRAINING },
         ];
@@ -177,5 +198,125 @@ describe('LearnPage analytics', () => {
         renderPage();
 
         expect(viewEvents()).toEqual([]);
+    });
+});
+
+describe('LearnPage role views', () => {
+    const analyst = {
+        roleUuid: 'role-1',
+        name: 'Analyst',
+        scopes: ['view:Dashboard', 'manage:Validation'],
+    };
+
+    beforeEach(() => {
+        localStorage.clear();
+        track.mockClear();
+        healthState.current = { learn: { enabled: true } };
+        availabilityState.current = { isSettled: true };
+        rolesState.current = [];
+        userState.current = { role: 'admin', roleUuid: undefined };
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+        ];
+    });
+
+    const openPicker = async () => {
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Viewing as' }),
+        );
+        return screen.getByRole('menu');
+    };
+
+    it('offers the system roles alone when the org has no custom roles', async () => {
+        renderPage();
+
+        const menu = await openPicker();
+        expect(within(menu).getByText('Roles')).toBeTruthy();
+        expect(within(menu).queryByText('Custom roles')).toBeNull();
+        expect(
+            within(menu)
+                .getAllByRole('menuitem')
+                .map((item) => item.textContent),
+        ).toEqual([
+            'Viewer',
+            'Interactive viewer',
+            'Editor',
+            'Developer',
+            'Admin',
+        ]);
+    });
+
+    it("lists the org's custom roles under their own heading", async () => {
+        rolesState.current = [
+            { roleUuid: 'role-2', name: 'Steward', scopes: [] },
+            analyst,
+        ];
+
+        renderPage();
+
+        const menu = await openPicker();
+        expect(within(menu).getByText('Custom roles')).toBeTruthy();
+        expect(
+            within(menu)
+                .getAllByRole('menuitem')
+                .map((item) => item.textContent)
+                .slice(5),
+        ).toEqual(['Analyst', 'Steward']);
+    });
+
+    it('opens on the custom role the learner holds', () => {
+        rolesState.current = [analyst];
+        userState.current = { role: 'member', roleUuid: 'role-1' };
+
+        const { container } = renderPage();
+
+        expect(
+            container
+                .querySelector('[data-learn-role]')
+                ?.getAttribute('data-learn-role'),
+        ).toBe('role-1');
+        expect(
+            screen.getByRole('button', { name: 'Viewing as' }).textContent,
+        ).toContain('Analyst');
+    });
+
+    it('opens on the matching system role when the learner holds no custom one', () => {
+        userState.current = { role: 'editor', roleUuid: undefined };
+
+        const { container } = renderPage();
+
+        expect(
+            container
+                .querySelector('[data-learn-role]')
+                ?.getAttribute('data-learn-role'),
+        ).toBe('editor');
+    });
+
+    it('reads the library as the role that is picked', async () => {
+        rolesState.current = [analyst];
+
+        const { container } = renderPage();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Viewing as' }),
+        );
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Analyst' }),
+        );
+
+        expect(
+            container
+                .querySelector('[data-learn-role]')
+                ?.getAttribute('data-learn-role'),
+        ).toBe('role-1');
+        // A module the custom role holds carries no note; one it lacks names
+        // the role rather than a rung of the system ladder.
+        const validation = container.querySelector(
+            '[data-learn-module="manage:Validation"]',
+        );
+        expect(validation?.textContent).not.toContain('Not in Analyst');
+        const pinning = container.querySelector(
+            '[data-learn-module="manage:PinnedItems"]',
+        );
+        expect(pinning?.textContent).toContain('Not in Analyst');
     });
 });
