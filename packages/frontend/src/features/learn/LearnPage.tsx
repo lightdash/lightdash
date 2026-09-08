@@ -16,7 +16,14 @@ import {
     IconSearch,
     IconCircleCheck,
 } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useState } from 'react';
+import {
+    type FC,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
@@ -24,6 +31,8 @@ import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { useLearnAvailability } from './availability';
 import {
     buildLearnCatalogue,
@@ -194,7 +203,7 @@ const LearnPage: FC = () => {
 
     // Only modules this instance can run: a walkthrough clicks the real
     // product, so a feature the instance hides has nothing to click.
-    const { isOpen } = useLearnAvailability();
+    const { isOpen, isSettled } = useLearnAvailability();
     const catalogue = useMemo(
         () => buildLearnCatalogue().filter(isOpen),
         [isOpen],
@@ -251,6 +260,55 @@ const LearnPage: FC = () => {
     const { start, opening } = useStartWalkthrough(
         trainingProject?.projectUuid,
     );
+    const startFromCard = useCallback(
+        (scope: string) => start(scope, 'card'),
+        [start],
+    );
+
+    // One view per visit to the library, once the page knows what it is
+    // showing: the projects, the instance switch, and the gates that decide
+    // which modules are in the catalogue (they answer after the projects
+    // do, and the counts below would be short without them). The redirects
+    // below are not views of it, and the call to action before an admin
+    // has enabled Learn is (hasTrainingProject false): it is the page a
+    // learner lands on.
+    const { track } = useTracking();
+    const trackedViewRef = useRef(false);
+    useEffect(() => {
+        if (trackedViewRef.current) return;
+        if (!projects || !health || !isSettled) return;
+        if (previewRedirect || !health.learn.enabled) return;
+        trackedViewRef.current = true;
+        track({
+            name: EventName.LEARN_LIBRARY_VIEWED,
+            properties: {
+                organizationUuid: organizationUuid ?? null,
+                trainingProjectUuid: trainingProject?.projectUuid ?? null,
+                hasTrainingProject: !!trainingProject,
+                // Counted against this instance's catalogue, so the numbers
+                // are the ones the learner sees rather than every scope the
+                // browser has ever recorded progress for.
+                moduleCount: catalogue.length,
+                startedCount: catalogue.filter((module) =>
+                    started.includes(module.scope),
+                ).length,
+                completedCount: catalogue.filter((module) =>
+                    completed.includes(module.scope),
+                ).length,
+            },
+        });
+    }, [
+        projects,
+        health,
+        isSettled,
+        previewRedirect,
+        organizationUuid,
+        trainingProject,
+        catalogue,
+        started,
+        completed,
+        track,
+    ]);
 
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     // Learn switched off for the instance: the route falls through to the
@@ -334,7 +392,14 @@ const LearnPage: FC = () => {
                                         color="indigo"
                                         size="compact-md"
                                         loading={opening === upNext.scope}
-                                        onClick={() => start(upNext.scope)}
+                                        onClick={() =>
+                                            start(
+                                                upNext.scope,
+                                                recommended
+                                                    ? 'recommended'
+                                                    : 'resume',
+                                            )
+                                        }
                                     >
                                         Start
                                     </Button>
@@ -498,7 +563,7 @@ const LearnPage: FC = () => {
                                         )}
                                         heldByRole={roleHolds(role, module)}
                                         opening={opening === module.scope}
-                                        onStart={start}
+                                        onStart={startFromCard}
                                     />
                                 ))}
                         </Box>

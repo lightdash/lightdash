@@ -19,9 +19,16 @@ import { GuidedTour, type TourPoint } from '../../components/common/GuidedTour';
 import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
 import { readLearnOrigin } from '../learn/origin';
-import { markScopeCompleted, markScopeStarted } from '../learn/progress';
+import {
+    markScopeCompleted,
+    markScopeStarted,
+    useLearnProgress,
+} from '../learn/progress';
 import { SCOPE_TOURS } from './generated';
 import {
     createTrainingPreview,
@@ -46,6 +53,11 @@ type StoredTour = {
     returnTo?: ReturnTo;
     /** Where the ring collapsed to on the click that reached this step. */
     beacon?: TourPoint | null;
+    /**
+     * When the tour began, so the time a walkthrough took survives the
+     * remounts and reloads the tour itself survives.
+     */
+    startedAt?: number;
 };
 const readStoredTour = (): StoredTour | null => {
     try {
@@ -64,6 +76,10 @@ const writeStoredTour = (tour: StoredTour | null) => {
         // a remount.
     }
 };
+
+/** Whole seconds since a tour started; 0 when the start was not recorded. */
+const secondsSince = (from: number | null) =>
+    from === null ? 0 : Math.max(0, Math.round((Date.now() - from) / 1000));
 
 /**
  * Docs text keeps `**...**` around permission and control names (shown bold)
@@ -134,6 +150,18 @@ const ScopeTourHost: FC = () => {
     const [reachedStep, setReachedStep] = useState(0);
     const [reachedBeacon, setReachedBeacon] = useState<TourPoint | null>(null);
     const [returnTo, setReturnTo] = useState<ReturnTo>('home');
+    const { user } = useApp();
+    const { track } = useTracking();
+    const { completed } = useLearnProgress();
+    // The step the learner has actually reached, and when the tour began.
+    // Both are refs: they are read when a tour ends, and re-rendering on
+    // every step would hand GuidedTour a new starting step mid-tour.
+    const currentStepRef = useRef(0);
+    const startedAtRef = useRef<number | null>(null);
+    // The scope whose link-opened start has been recorded, so the effect
+    // below records it once however many times it settles.
+    const deepLinkTrackedRef = useRef<string | null>(null);
+    const organizationUuid = user.data?.organizationUuid ?? null;
     // A tour already under way in this project resumes where it was left,
     // once the host knows which project it is on. Read once per mount and
     // consumed on resume, so a tour that has just been closed is not picked
@@ -146,6 +174,8 @@ const ScopeTourHost: FC = () => {
         if (stored.projectUuid !== projectUuid || !SCOPE_TOURS[stored.scope])
             return;
         storedRef.current = null;
+        currentStepRef.current = stored.stepIndex;
+        startedAtRef.current = stored.startedAt ?? null;
         setReachedStep(stored.stepIndex);
         setReachedBeacon(stored.beacon ?? null);
         setReturnTo(stored.returnTo ?? 'home');
@@ -188,6 +218,10 @@ const ScopeTourHost: FC = () => {
             },
         },
     );
+    const upstream =
+        project?.type === ProjectType.PREVIEW
+            ? (project.upstreamProjectUuid ?? null)
+            : null;
     // Got it and Skip share handleClose. GuidedTour fires onFinish and then
     // onClose in the same click, so state set in onFinish would not be
     // visible yet; a ref carries the distinction across the two calls.
@@ -196,13 +230,21 @@ const ScopeTourHost: FC = () => {
     // it was pressed. The copy stays until a choice is made.
     const [finishedScope, setFinishedScope] = useState<string | null>(null);
     const handleFinish = () => {
-        if (activeScope) markScopeCompleted(activeScope);
+        if (activeScope) {
+            markScopeCompleted(activeScope);
+            track({
+                name: EventName.LEARN_WALKTHROUGH_COMPLETED,
+                properties: {
+                    organizationUuid,
+                    trainingProjectUuid: upstream,
+                    scope: activeScope,
+                    stepCount: SCOPE_TOURS[activeScope]?.steps.length ?? 0,
+                    durationSeconds: secondsSince(startedAtRef.current),
+                },
+            });
+        }
         finishedRef.current = true;
     };
-    const upstream =
-        project?.type === ProjectType.PREVIEW
-            ? (project.upstreamProjectUuid ?? null)
-            : null;
     // Where the learner goes when the copy is put away: the project the
     // library was opened from (its library, or its home), if it is still
     // theirs, else the training project. The library renders on any
@@ -231,6 +273,21 @@ const ScopeTourHost: FC = () => {
         setActiveScope(null);
         storedRef.current = null;
         writeStoredTour(null);
+        if (!finished && scope) {
+            track({
+                name: EventName.LEARN_WALKTHROUGH_DISMISSED,
+                properties: {
+                    organizationUuid,
+                    trainingProjectUuid: upstream,
+                    scope,
+                    stepIndex: currentStepRef.current,
+                    stepCount: SCOPE_TOURS[scope]?.steps.length ?? 0,
+                    durationSeconds: secondsSince(startedAtRef.current),
+                },
+            });
+        }
+        startedAtRef.current = null;
+        deepLinkTrackedRef.current = null;
         if (!upstream) return;
         if (finished && scope) {
             setFinishedScope(scope);
@@ -300,6 +357,16 @@ const ScopeTourHost: FC = () => {
     const handleNext = (nextScope: string) => {
         if (!upstream || openingCopy) return;
         markScopeStarted(nextScope);
+        track({
+            name: EventName.LEARN_WALKTHROUGH_STARTED,
+            properties: {
+                organizationUuid,
+                trainingProjectUuid: upstream,
+                scope: nextScope,
+                source: 'next_from_completion',
+                isRestart: completed.includes(nextScope),
+            },
+        });
         startInFreshCopy({
             trainingProjectUuid: upstream,
             scope: nextScope,
@@ -342,6 +409,31 @@ const ScopeTourHost: FC = () => {
             return;
         }
         copyRequestedRef.current = false;
+        // Starts from the library and from Next were recorded where they
+        // were clicked, and arrive with from=learn. Anything else is a tour
+        // link opened directly (docs, the smoke), so this is the first
+        // anyone hears of it: record the start here, as local progress and
+        // as the event, or its completion would have nothing to pair with.
+        if (
+            requestedFrom !== 'learn' &&
+            upstream &&
+            deepLinkTrackedRef.current !== requested
+        ) {
+            deepLinkTrackedRef.current = requested;
+            markScopeStarted(requested);
+            track({
+                name: EventName.LEARN_WALKTHROUGH_STARTED,
+                properties: {
+                    organizationUuid,
+                    trainingProjectUuid: upstream,
+                    scope: requested,
+                    source: 'deep_link',
+                    isRestart: completed.includes(requested),
+                },
+            });
+        }
+        currentStepRef.current = 0;
+        startedAtRef.current = Date.now();
         setActiveScope(requested);
         setReachedStep(0);
         setReturnTo(requestedFrom);
@@ -350,6 +442,7 @@ const ScopeTourHost: FC = () => {
             projectUuid,
             stepIndex: 0,
             returnTo: requestedFrom,
+            startedAt: startedAtRef.current,
         });
         // Consume the parameters so a reload does not restart the tour.
         const next = new URLSearchParams(searchParams);
@@ -369,6 +462,10 @@ const ScopeTourHost: FC = () => {
         searchParams,
         requestedFrom,
         setSearchParams,
+        upstream,
+        track,
+        completed,
+        organizationUuid,
     ]);
 
     const steps = useMemo(() => {
@@ -383,12 +480,14 @@ const ScopeTourHost: FC = () => {
     const handleStepChange = useCallback(
         (stepIndex: number, beacon: TourPoint | null) => {
             if (!activeScope || !projectUuid) return;
+            currentStepRef.current = stepIndex;
             writeStoredTour({
                 scope: activeScope,
                 projectUuid,
                 stepIndex,
                 beacon,
                 returnTo,
+                startedAt: startedAtRef.current ?? undefined,
             });
         },
         [activeScope, projectUuid, returnTo],

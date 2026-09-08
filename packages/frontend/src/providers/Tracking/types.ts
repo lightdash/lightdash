@@ -1020,6 +1020,68 @@ type ChartTypeForkModalOpenedEvent = {
     };
 };
 
+/**
+ * Where a walkthrough was started from: a library card, the library's
+ * Resume or Recommended card, Next on the completion dialog, or a tour
+ * link opened directly (docs, the smoke) without going through the library.
+ */
+export type LearnStartSource =
+    | 'card'
+    | 'resume'
+    | 'recommended'
+    | 'next_from_completion'
+    | 'deep_link';
+
+type LearnLibraryViewedEvent = {
+    name: EventName.LEARN_LIBRARY_VIEWED;
+    properties: {
+        organizationUuid: string | null;
+        /** Null until an admin has enabled Learn for the organization. */
+        trainingProjectUuid: string | null;
+        hasTrainingProject: boolean;
+        /** Modules this instance can run, so the counts match the page. */
+        moduleCount: number;
+        startedCount: number;
+        completedCount: number;
+    };
+};
+
+type LearnWalkthroughStartedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_STARTED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string;
+        scope: string;
+        source: LearnStartSource;
+        /** The learner had already finished this walkthrough. */
+        isRestart: boolean;
+    };
+};
+
+type LearnWalkthroughCompletedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_COMPLETED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string | null;
+        scope: string;
+        stepCount: number;
+        durationSeconds: number;
+    };
+};
+
+type LearnWalkthroughDismissedEvent = {
+    name: EventName.LEARN_WALKTHROUGH_DISMISSED;
+    properties: {
+        organizationUuid: string | null;
+        trainingProjectUuid: string | null;
+        scope: string;
+        /** Furthest step reached, zero-based. */
+        stepIndex: number;
+        stepCount: number;
+        durationSeconds: number;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | DashboardWorkbookEvent
@@ -1113,7 +1175,11 @@ export type EventData =
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
-    | DashboardFilterLockToggledEvent;
+    | DashboardFilterLockToggledEvent
+    | LearnLibraryViewedEvent
+    | LearnWalkthroughStartedEvent
+    | LearnWalkthroughCompletedEvent
+    | LearnWalkthroughDismissedEvent;
 
 export type IdentifyData = {
     id: string;

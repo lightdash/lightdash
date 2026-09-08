@@ -42,5 +42,10 @@ export const useLearnAvailability = () => {
         (module: LearnModule) => module.gate === null || open[module.gate],
         [open],
     );
-    return { isOpen };
+    // The licence rides on health, which the page already waits for; the
+    // other gates are their own requests. Until they have answered, isOpen
+    // is provisional and anything counting the catalogue should wait.
+    const isSettled =
+        !dataApps.isLoading && !copilot.isLoading && !aiSettings.isLoading;
+    return { isOpen, isSettled };
 };

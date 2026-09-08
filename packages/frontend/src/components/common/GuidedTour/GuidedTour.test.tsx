@@ -63,4 +63,39 @@ describe('GuidedTour', () => {
         await user.click(finish);
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    // Hosts tell Got it from Skip by onFinish having run first, and record a
+    // completion rather than a dismissal on that basis.
+    it('fires onFinish before onClose on Got it, and not on Skip', async () => {
+        const user = userEvent.setup();
+        const calls: string[] = [];
+        const onClose = vi.fn(() => calls.push('close'));
+        const onFinish = vi.fn(() => calls.push('finish'));
+        const { unmount } = renderWithProviders(
+            <GuidedTour
+                steps={steps}
+                opened
+                onClose={onClose}
+                onFinish={onFinish}
+            />,
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Skip' }));
+        expect(calls).toEqual(['close']);
+        unmount();
+
+        calls.length = 0;
+        renderWithProviders(
+            <GuidedTour
+                steps={steps}
+                opened
+                onClose={onClose}
+                onFinish={onFinish}
+            />,
+        );
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        await user.click(screen.getByRole('button', { name: 'Next' }));
+        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(calls).toEqual(['finish', 'close']);
+    });
 });
