@@ -17,6 +17,7 @@ import { type ResultRow } from '../../types/results';
 import { type ChartConfig, type SavedChart } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
+import { type ChartTypeIcon } from './chartTypeIcons';
 import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -530,17 +531,23 @@ export type ApiGetAppResponse = ApiSuccess<{
     // The registry slug it was installed from, or null for a project-authored
     // (or forked) app. Registry-installed chart types are read-only.
     registrySlug: string | null;
+    // Curated Tabler icon name of a custom chart type; null for other apps
+    // and for chart types with no icon chosen.
+    icon: ChartTypeIcon | null;
 }>;
 
 export type ApiUpdateAppRequest = {
     name?: string;
     description?: string;
+    // Custom chart types only; null clears the icon.
+    icon?: ChartTypeIcon | null;
 };
 
 export type ApiUpdateAppResponse = ApiSuccess<{
     appUuid: string;
     name: string;
     description: string;
+    icon: ChartTypeIcon | null;
 }>;
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
@@ -1120,6 +1127,8 @@ export type DataAppViz = {
     projectUuid: string;
     spaceUuid: string | null;
     schema: DataAppVizSchema | null;
+    // Tabler icon name from the curated set; null renders the puzzle piece.
+    icon: ChartTypeIcon | null;
     createdAt: Date;
     createdByUserUuid: string;
     // Registry slug it was installed from, or null if project-authored (or

@@ -1,6 +1,7 @@
 import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
 import { type ContentAsCodeDirectAccess } from '../../types/contentAsCode/directAccess';
+import { type ChartTypeIcon } from './chartTypeIcons';
 import { type DataAppTemplate, type DataAppVizSchema } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
@@ -33,6 +34,9 @@ export type DataAppManifest = {
     version: number;
     name: string;
     description: string;
+    // Curated Tabler icon name of a custom chart type. Absent for non-viz
+    // apps and bundles downloaded before this field; null clears it.
+    icon?: ChartTypeIcon | null;
     // The app's stored template flavor (includes data_app_viz); null for
     // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;

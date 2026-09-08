@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type ApiSuccess } from '../../types/api/success';
+import { chartTypeIconSchema, type ChartTypeIcon } from './chartTypeIcons';
 import { isValidDataAppSlug } from './code';
 import { dataAppVizSchema, type DataAppVizSchema } from './types';
 
@@ -66,6 +67,8 @@ export type ChartRegistryEntry = {
     vizSchema: DataAppVizSchema;
     thumbnail: string | null;
     screenshots: string[];
+    // Curated Tabler icon name; copied onto the app on install and upgrade.
+    icon: ChartTypeIcon | null;
     artifacts: {
         source: ChartRegistryArtifact;
         dist: ChartRegistryArtifact;
@@ -85,6 +88,7 @@ const registryEntrySchema = z.object({
     vizSchema: dataAppVizSchema,
     thumbnail: z.string().nullable().default(null),
     screenshots: z.array(z.string()).default([]),
+    icon: chartTypeIconSchema.nullable().default(null),
     artifacts: z.object({
         source: registryArtifactSchema,
         dist: registryArtifactSchema,
