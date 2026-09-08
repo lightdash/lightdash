@@ -453,11 +453,9 @@ function BoardError({
 export function RoadmapProjects({
     cacheKey,
     showDesignPartnerPreview = false,
-    preview = false,
 }: {
     cacheKey: string;
     showDesignPartnerPreview?: boolean;
-    preview?: boolean;
 }) {
     const [view, setView] = useState('board');
     const [onlyInterested, setOnlyInterested] = useState(false);
@@ -629,11 +627,10 @@ export function RoadmapProjects({
                         : 'Project board'
                     : 'Roadmap'
             }
-            isBeta={!projectBoard}
             description={
                 projectBoard
                     ? 'Tickets your organization follows in this project.'
-                    : 'Shared projects and your organization’s feature requests.'
+                    : 'Explore the Lightdash roadmap and track your organization’s feature requests.'
             }
             actions={
                 projectBoard ? (
@@ -665,10 +662,6 @@ export function RoadmapProjects({
                             Back to roadmap
                         </Button>
                     </Group>
-                ) : preview ? (
-                    <Badge size="sm" variant="light">
-                        Preview
-                    </Badge>
                 ) : undefined
             }
         >

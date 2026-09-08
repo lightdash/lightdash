@@ -21,7 +21,6 @@ export default function RoadmapMockContent({
         <QueryClientProvider client={client}>
             <RoadmapApiContext.Provider value={api}>
                 <RoadmapProjects
-                    preview
                     cacheKey={`preview-${scenario}`}
                     showDesignPartnerPreview
                 />
