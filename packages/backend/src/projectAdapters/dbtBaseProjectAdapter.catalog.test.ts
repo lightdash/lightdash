@@ -181,14 +181,16 @@ const makeHarness = ({
 describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockedIterateExplores.mockImplementation(async function* (models) {
-            for (const model of models) {
-                yield {
-                    name: model.name,
-                    typed: model.columns.id.data_type,
-                } as unknown as Explore;
-            }
-        });
+        mockedIterateExplores.mockImplementation(
+            async function* exploreIterator(models) {
+                for (const model of models) {
+                    yield {
+                        name: model.name,
+                        typed: model.columns.id.data_type,
+                    } as unknown as Explore;
+                }
+            },
+        );
     });
 
     afterEach(() => {

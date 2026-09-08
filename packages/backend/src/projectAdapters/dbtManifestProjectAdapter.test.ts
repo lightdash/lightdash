@@ -116,10 +116,7 @@ describe('DbtManifestProjectAdapter', () => {
                 await mockProjectAdapter.dbtClient.getDbtManifest();
             const adapter = new DbtManifestProjectAdapter({
                 warehouseClient: mockWarehouseClient,
-                cachedWarehouse: {
-                    warehouseCatalog: undefined,
-                    onWarehouseCatalogChange: vi.fn(),
-                },
+                cachedWarehouse: makeCachedWarehouse(),
                 dbtVersion: SupportedDbtVersions.V1_8,
                 parsedManifest: manifest,
                 selectedModelIds,
