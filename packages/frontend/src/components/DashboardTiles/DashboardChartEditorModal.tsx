@@ -185,6 +185,8 @@ type Props = {
     dashboardUuid: string;
     dashboardName: string;
     editChart?: SavedChart;
+    /** Shared-metrics layer: seed, collect, badge, registry mutations */
+    customMetricsEnabled: boolean;
     onChartSaved: (chart: SavedChart) => void;
     onRegistryMetricEdited: (metric: AdditionalMetric) => void;
     onRegistryMetricDeleted: (metric: AdditionalMetric) => void;
@@ -200,6 +202,7 @@ const DashboardChartEditorModal: FC<Props> = ({
     dashboardUuid,
     dashboardName,
     editChart,
+    customMetricsEnabled,
     onChartSaved,
     onRegistryMetricEdited,
     onRegistryMetricDeleted,
@@ -212,7 +215,9 @@ const DashboardChartEditorModal: FC<Props> = ({
         seededMetrics,
         dashboardMetricIds,
         isLoading: isSeedLoading,
-    } = useDashboardCustomMetricSeed(exploreId);
+    } = useDashboardCustomMetricSeed(
+        customMetricsEnabled ? exploreId : undefined,
+    );
 
     const { showToastSuccess, showToastError } = useToaster();
     const deleteRegistryMetric = useDeleteDashboardCustomMetric(dashboardUuid);
@@ -293,7 +298,9 @@ const DashboardChartEditorModal: FC<Props> = ({
             isModalHosted: true,
             onChartSaved: handleChartSaved,
             dashboard: { uuid: dashboardUuid, name: dashboardName },
-            dashboardMetricIds,
+            dashboardMetricIds: customMetricsEnabled
+                ? dashboardMetricIds
+                : undefined,
             onRegistryMetricEdited,
             requestRegistryMetricDelete,
         }),
@@ -302,6 +309,7 @@ const DashboardChartEditorModal: FC<Props> = ({
             dashboardUuid,
             dashboardName,
             dashboardMetricIds,
+            customMetricsEnabled,
             onRegistryMetricEdited,
             requestRegistryMetricDelete,
         ],

@@ -323,6 +323,11 @@ export enum FeatureFlags {
      * Off by default.
      */
     DashboardCustomMetrics = 'dashboard-custom-metrics',
+    /**
+     * Build and edit charts in a full-screen modal over the dashboard
+     * instead of navigating away. Off by default.
+     */
+    InDashboardChartEditor = 'in-dashboard-chart-editor',
 
     /**
      * AI agent battle mode: send one prompt to two models in paired threads

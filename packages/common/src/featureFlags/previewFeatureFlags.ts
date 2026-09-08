@@ -26,7 +26,9 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.AiMcpGithubPat,
     // Same reason: the dashboard E2E specs drive the navigate-away "New chart"
     // flow, which the in-dashboard modal replaces. Opt-in POC — keep previews
-    // on the shipped path until it has its own coverage.
+    // on the shipped path until it has its own coverage. The metrics layer
+    // rides inside the modal, so it must stay off with it.
+    FeatureFlags.InDashboardChartEditor,
     FeatureFlags.DashboardCustomMetrics,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.

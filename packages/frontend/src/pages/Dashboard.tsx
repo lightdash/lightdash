@@ -825,10 +825,17 @@ const Dashboard: FC = () => {
         (c) => c.hasTilesThatSupportFilters,
     );
 
+    // The modal editor and the shared-metrics layer roll out independently;
+    // metrics only ever activate through the modal's surfaces.
+    const chartEditorFlag = useServerFeatureFlag(
+        FeatureFlags.InDashboardChartEditor,
+    );
+    const isChartEditorEnabled = chartEditorFlag.data?.enabled === true;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
     );
     const isDashboardCustomMetricsEnabled =
+        isChartEditorEnabled &&
         dashboardCustomMetricsFlag.data?.enabled === true;
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart | undefined>();
@@ -873,14 +880,17 @@ const Dashboard: FC = () => {
 
     const handleChartEditorSaved = useCallback(
         (chart: SavedChart) => {
-            // Only the in-dashboard builder contributes to the registry.
+            // Only the in-dashboard builder contributes to the registry, and
+            // only while the shared-metrics layer is enabled.
             const previousRegistryIds = new Set(
                 dashboardCustomMetrics.map(getItemId),
             );
-            const mergedCustomMetrics = mergeDashboardCustomMetrics(
-                dashboardCustomMetrics,
-                chart.metricQuery.additionalMetrics ?? [],
-            );
+            const mergedCustomMetrics = isDashboardCustomMetricsEnabled
+                ? mergeDashboardCustomMetrics(
+                      dashboardCustomMetrics,
+                      chart.metricQuery.additionalMetrics ?? [],
+                  )
+                : dashboardCustomMetrics;
             if (mergedCustomMetrics !== dashboardCustomMetrics) {
                 setDashboardCustomMetrics(mergedCustomMetrics);
                 setHaveCustomMetricsChanged(true);
@@ -898,23 +908,25 @@ const Dashboard: FC = () => {
                         mergedCustomMetrics.map((metric) => metric.table),
                     ).size,
                 };
-                mergedCustomMetrics.forEach((metric) => {
-                    if (!previousRegistryIds.has(getItemId(metric))) {
-                        track({
-                            name: EventName.DASHBOARD_CUSTOM_METRIC_CREATED,
-                            properties: workbookEventProperties,
-                        });
-                    }
-                });
-                // Selected metrics that were already shared = duplication avoided
-                (chart.metricQuery.metrics ?? []).forEach((metricId) => {
-                    if (previousRegistryIds.has(metricId)) {
-                        track({
-                            name: EventName.DASHBOARD_CUSTOM_METRIC_REUSED,
-                            properties: workbookEventProperties,
-                        });
-                    }
-                });
+                if (isDashboardCustomMetricsEnabled) {
+                    mergedCustomMetrics.forEach((metric) => {
+                        if (!previousRegistryIds.has(getItemId(metric))) {
+                            track({
+                                name: EventName.DASHBOARD_CUSTOM_METRIC_CREATED,
+                                properties: workbookEventProperties,
+                            });
+                        }
+                    });
+                    // Selected metrics that were already shared = duplication avoided
+                    (chart.metricQuery.metrics ?? []).forEach((metricId) => {
+                        if (previousRegistryIds.has(metricId)) {
+                            track({
+                                name: EventName.DASHBOARD_CUSTOM_METRIC_REUSED,
+                                properties: workbookEventProperties,
+                            });
+                        }
+                    });
+                }
                 track({
                     name:
                         chart.uuid !== chartToEdit?.uuid
@@ -960,6 +972,7 @@ const Dashboard: FC = () => {
             projectUuid,
             user.data?.organizationUuid,
             track,
+            isDashboardCustomMetricsEnabled,
         ],
     );
 
@@ -1091,9 +1104,7 @@ const Dashboard: FC = () => {
             hasDateZoomConfigChanged,
         onAddTiles: handleAddTiles,
         onNewChart:
-            isDashboardCustomMetricsEnabled && isEditMode
-                ? handleOpenNewChart
-                : undefined,
+            isChartEditorEnabled && isEditMode ? handleOpenNewChart : undefined,
         onSaveDashboard: () => {
             if (shouldShowVerificationSaveOptions) {
                 saveVerificationModalHandlers.open();
@@ -1217,12 +1228,15 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
-                    {isDashboardCustomMetricsEnabled && dashboard.uuid ? (
+                    {isChartEditorEnabled && dashboard.uuid ? (
                         <DashboardChartEditorModal
                             opened={isNewChartOpen || chartToEdit !== undefined}
                             dashboardUuid={dashboard.uuid}
                             dashboardName={dashboard.name}
                             editChart={chartToEdit}
+                            customMetricsEnabled={
+                                isDashboardCustomMetricsEnabled
+                            }
                             onChartSaved={handleChartEditorSaved}
                             onRegistryMetricEdited={handleRegistryMetricEdited}
                             onRegistryMetricDeleted={
@@ -1269,9 +1283,7 @@ const Dashboard: FC = () => {
                     {/* Coordinates filter chip / rules popovers across the dashboard */}
                     <DashboardChartEditContext.Provider
                         value={
-                            isDashboardCustomMetricsEnabled
-                                ? setChartToEdit
-                                : undefined
+                            isChartEditorEnabled ? setChartToEdit : undefined
                         }
                     >
                         <FilterBarPopoversProvider>
@@ -1305,8 +1317,7 @@ const Dashboard: FC = () => {
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
                                 onNewChart={
-                                    isDashboardCustomMetricsEnabled &&
-                                    isEditMode
+                                    isChartEditorEnabled && isEditMode
                                         ? handleOpenNewChart
                                         : undefined
                                 }
