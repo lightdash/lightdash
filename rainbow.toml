@@ -152,6 +152,24 @@ name = "formula-build"
 files = ["packages/formula/**"]
 run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
 
+# `pnpm dev` runs tsc watchers over common and warehouses, so a change to
+# either is a hot reload for a serving environment. The rungs below are the
+# exception: they import those packages' `dist` and they run seconds after
+# the fork, with the app's units stopped, before any watcher has caught up.
+# Without these two they read the parent's build — `migrate` died on a
+# half-written barrel, and `tsoa` could not resolve types the branch had
+# just added (2026-09-08). Each fires only when its own package changes.
+[[tier]]
+name = "common-build"
+files = ["packages/common/**"]
+run = "pnpm common-build"
+memory = "12gb"                    # the barrel is large; the same headroom migrate takes
+
+[[tier]]
+name = "warehouses-build"
+files = ["packages/warehouses/**"]
+run = "pnpm warehouses-build"
+
 [[tier]]
 name = "migrate"
 files = ["packages/backend/src/database/migrations/**"]
