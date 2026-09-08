@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { FeatureFlags, ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -27,9 +27,9 @@ import {
 import { Navigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
-import useHealth from '../../hooks/health/useHealth';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -147,7 +147,8 @@ const ModuleCard: FC<{
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
-    const { data: health } = useHealth();
+    const { data: learnFlag, isLoading: isLearnFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
@@ -276,8 +277,8 @@ const LearnPage: FC = () => {
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !health || !isSettled) return;
-        if (previewRedirect || !health.learn.enabled) return;
+        if (!projects || !learnFlag || !isSettled) return;
+        if (previewRedirect || !learnFlag.enabled) return;
         trackedViewRef.current = true;
         track({
             name: EventName.LEARN_LIBRARY_VIEWED,
@@ -299,7 +300,7 @@ const LearnPage: FC = () => {
         });
     }, [
         projects,
-        health,
+        learnFlag,
         isSettled,
         previewRedirect,
         organizationUuid,
@@ -310,10 +311,10 @@ const LearnPage: FC = () => {
         track,
     ]);
 
-    if (previewRedirect) return <Navigate to={previewRedirect} replace />;
-    // Learn switched off for the instance: the route falls through to the
+    if (isLearnFlagLoading) return null;
+    // Learn switched off for the org: the route falls through to the
     // project's home.
-    if (health && !health.learn.enabled) {
+    if (!learnFlag?.enabled) {
         return (
             <Navigate
                 to={
@@ -325,6 +326,7 @@ const LearnPage: FC = () => {
             />
         );
     }
+    if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     if (projects && !trainingProject) {
         return (
             <EnableLearnPanel

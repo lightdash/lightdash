@@ -768,12 +768,10 @@ export class ProjectService extends BaseService {
     /**
      * Enable Learn for the user's organization (CS-257): create the training
      * project, seeded, with the caller as its assigned admin. Idempotent.
-     * Org admins only; 404 when the instance has Learn switched off.
+     * Org admins only; 404 when the org has Learn switched off.
      */
     async enableLearn(user: SessionUser): Promise<EnableLearnResults> {
-        if (!this.lightdashConfig.learn.enabled) {
-            throw new NotFoundError('Learn is not enabled on this instance');
-        }
+        await this.assertLearnEnabled(user);
         if (!this.provisionTrainingProject) {
             throw new NotFoundError('Learn is not available');
         }
@@ -11264,10 +11262,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<CreateTrainingPreviewResults> {
-        // Learn off for the instance closes the sandbox: no copies either.
-        if (!this.lightdashConfig.learn.enabled) {
-            throw new NotFoundError('Learn is not enabled on this instance');
-        }
+        await this.assertLearnEnabled(user);
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -11417,6 +11412,21 @@ export class ProjectService extends BaseService {
 
     private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;
 
+    private async assertLearnEnabled(user: SessionUser): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.EnableLearn,
+        });
+        if (!enabled) {
+            throw new NotFoundError(
+                'Learn is not enabled for this organization',
+            );
+        }
+    }
+
     /**
      * Remove the caller's own copies of the training project (a finished or
      * abandoned walkthrough). Other learners' copies are untouched.
@@ -11425,9 +11435,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<{ deleted: number }> {
-        if (!this.lightdashConfig.learn.enabled) {
-            throw new NotFoundError('Learn is not enabled on this instance');
-        }
+        await this.assertLearnEnabled(user);
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

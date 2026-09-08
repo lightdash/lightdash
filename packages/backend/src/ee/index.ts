@@ -1131,7 +1131,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         provisionTrainingProject({
                             user,
                             projectService,
-                            learnEnabled: context.lightdashConfig.learn.enabled,
+                            featureFlagModel: models.getFeatureFlagModel(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),

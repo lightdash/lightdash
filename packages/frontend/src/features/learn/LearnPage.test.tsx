@@ -8,11 +8,11 @@ import { EventName } from '../../types/Events';
 import { buildLearnCatalogue } from './catalogue';
 import LearnPage from './LearnPage';
 
-const { track, projectState, healthState, availabilityState, accessState } =
+const { track, projectState, learnFlagState, availabilityState, accessState } =
     vi.hoisted(() => ({
         track: vi.fn(),
         projectState: { current: [] as unknown[] },
-        healthState: { current: { learn: { enabled: true } } },
+        learnFlagState: { current: { enabled: true }, isLoading: false },
         availabilityState: { current: { isSettled: true } },
         // Everything the learner can do, anywhere.
         accessState: { current: [] as string[] },
@@ -52,8 +52,11 @@ vi.mock('./useLearnAccess', async () => {
     };
 });
 
-vi.mock('../../hooks/health/useHealth', () => ({
-    default: () => ({ data: healthState.current }),
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: learnFlagState.current,
+        isLoading: learnFlagState.isLoading,
+    }),
 }));
 
 vi.mock('../../hooks/useProjects', () => ({
@@ -105,7 +108,8 @@ describe('LearnPage analytics', () => {
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
-        healthState.current = { learn: { enabled: true } };
+        learnFlagState.current = { enabled: true };
+        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true };
         accessState.current = scopes;
         projectState.current = [
@@ -187,7 +191,7 @@ describe('LearnPage analytics', () => {
     });
 
     it('records nothing when Learn is switched off for the instance', () => {
-        healthState.current = { learn: { enabled: false } };
+        learnFlagState.current = { enabled: false };
 
         renderPage();
 
@@ -201,7 +205,7 @@ describe('LearnPage access', () => {
     beforeEach(() => {
         localStorage.clear();
         track.mockClear();
-        healthState.current = { learn: { enabled: true } };
+        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [

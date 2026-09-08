@@ -22,7 +22,8 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
   `data-tour-*` markers beside the permission checks that gate them; a build-time script reads those markers and
   the docs repository and writes each walkthrough's steps as data. The library, the titles, the explanatory text
   and the checks that enforce the rules all derive from that.
-- **Off by default.** `LIGHTDASH_LEARN_ENABLED` (config `learn.enabled`) turns the whole thing on. When it is off
+- **Off by default.** The `enable-learn` feature flag turns Learn on per organization through the Console.
+  Self-hosted operators add it to `LIGHTDASH_ENABLE_FEATURE_FLAGS`; previews enable it automatically. When it is off
   there is no Learn icon, no page, no endpoints and no permission layer, even if a training project already
   exists.
 
@@ -121,7 +122,7 @@ engineering sense: no branch, nothing to promote.
 | No real data reachable                            | embedded read-only DuckDB file, SELECT-only gate, no filesystem or network functions |
 | No way outside the copy                           | trainee set excludes deliveries, sheets, git, source, external connections; agents in training refuse Slack and MCP; moving an agent checks the destination |
 | One copy per learner, bounded lifetime            | per-user advisory lock, cooldown, 24 h expiry, app files deleted with the copy |
-| Nothing shows when Learn is off                   | `learn.enabled` gates the icon, page, endpoints and the permission layer   |
+| Nothing shows when Learn is off                   | `enable-learn` gates the icon, page, endpoints and the permission layer    |
 
 ## Traps
 
@@ -140,8 +141,8 @@ engineering sense: no branch, nothing to promote.
 - **A fresh checkout serves stale routes.** `routes.ts` is committed only by the release workflow; run
   `pnpm -F backend generate-api` after checking out a branch that adds the Learn endpoints, or every one of them
   answers 404. The Rainbow recipe does this in its build.
-- **`LIGHTDASH_LEARN_ENABLED` off is total.** No icon, no page, no endpoints and no trainee scopes, even with a
-  training project in the database. An instance that looks like "Learn vanished" almost always has the switch off.
+- **`enable-learn` off closes Learn for the organization.** No icon, no page, no endpoints and no trainee scopes,
+  even with a training project in the database. Cached session abilities expire on their existing TTL.
 
 ## Where it is going
 
@@ -154,4 +155,5 @@ module" route (CS-258, CS-259), and progress stored server-side rather than in t
 
 Stack 1 (PRs #28710 to #28716) carries the type, the permission layer and copies, the seeded content, the tour
 kit, the host and generator, the library, and Enable Learn. Walkthrough content follows in further pull requests.
-Merging the stack changes nothing on an instance until `LIGHTDASH_LEARN_ENABLED=true` is set.
+Learn remains off until `enable-learn` is enabled for the organization in the Console, or added to
+`LIGHTDASH_ENABLE_FEATURE_FLAGS` on self-hosted instances. Previews enable the flag automatically.

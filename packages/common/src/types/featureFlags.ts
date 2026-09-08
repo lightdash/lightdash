@@ -87,6 +87,8 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
+    // Enable the Learn library, walkthroughs and training project per org.
+    EnableLearn = 'enable-learn',
 
     /**
      * Per-organization gate for declaring custom npm dependencies in data

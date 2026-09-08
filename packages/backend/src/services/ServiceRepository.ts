@@ -971,8 +971,7 @@ export class ServiceRepository
                         provisionTrainingProject({
                             user,
                             projectService,
-                            learnEnabled:
-                                this.context.lightdashConfig.learn.enabled,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
                             projectModel: this.models.getProjectModel(),
                             onboardingModel: this.models.getOnboardingModel(),
                             catalogService: this.getCatalogService(),
