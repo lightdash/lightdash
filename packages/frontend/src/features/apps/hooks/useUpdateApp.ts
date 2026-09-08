@@ -39,6 +39,18 @@ export const useUpdateApp = (options?: { resourceLabel?: string }) => {
                 queryKey: ['app', variables.projectUuid, variables.appUuid],
             });
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
+            // Chart types are apps too; refresh the viz queries their picker,
+            // header and builder read from (icon and name/description edits).
+            void queryClient.invalidateQueries({
+                queryKey: [
+                    'data-app-viz',
+                    variables.projectUuid,
+                    variables.appUuid,
+                ],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['data-app-vizs'],
+            });
             void invalidateContent(queryClient, variables.projectUuid);
             const field = variables.name
                 ? 'name'

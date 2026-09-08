@@ -1,8 +1,14 @@
+import { type ChartTypeIcon, CHART_TYPE_ICONS } from '@lightdash/common';
 import {
+    Box,
     Button,
+    ScrollArea,
     Stack,
+    Text,
     Textarea,
     TextInput,
+    Tooltip,
+    UnstyledButton,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -11,7 +17,10 @@ import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
+import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
+import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
+import classes from './AppUpdateModal.module.css';
 
 interface AppUpdateModalProps {
     opened: ModalProps['opened'];
@@ -23,6 +32,9 @@ interface AppUpdateModalProps {
     /** What the app is called to the user; chart types are apps too. */
     resourceLabel?: string;
     icon?: IconType;
+    /** Shows the chart type icon picker section; null hides it (plain data
+     *  apps have no icon of their own). */
+    iconPicker: { initialIcon: ChartTypeIcon | null } | null;
     onConfirm?: () => void;
 }
 
@@ -31,7 +43,53 @@ const updateAppSchema = z.object({
     description: z.string(),
 });
 
-type FormState = z.infer<typeof updateAppSchema>;
+type FormState = z.infer<typeof updateAppSchema> & {
+    icon: ChartTypeIcon | null;
+};
+
+const IconPickerField: FC<{
+    value: ChartTypeIcon | null;
+    onChange: (icon: ChartTypeIcon | null) => void;
+    disabled: boolean;
+}> = ({ value, onChange, disabled }) => (
+    <Box>
+        <Text size="sm" fw={500} mb={4}>
+            Icon
+        </Text>
+        <ScrollArea.Autosize mah={180} type="scroll">
+            <Box className={classes.iconGrid}>
+                <Tooltip label="No icon">
+                    <UnstyledButton
+                        type="button"
+                        className={classes.iconButton}
+                        data-selected={value === null}
+                        aria-pressed={value === null}
+                        aria-label="No icon"
+                        disabled={disabled}
+                        onClick={() => onChange(null)}
+                    >
+                        <MantineIcon icon={getChartTypeIcon(null)} />
+                    </UnstyledButton>
+                </Tooltip>
+                {CHART_TYPE_ICONS.map((iconName) => (
+                    <Tooltip key={iconName} label={iconName}>
+                        <UnstyledButton
+                            type="button"
+                            className={classes.iconButton}
+                            data-selected={value === iconName}
+                            aria-pressed={value === iconName}
+                            aria-label={iconName}
+                            disabled={disabled}
+                            onClick={() => onChange(iconName)}
+                        >
+                            <MantineIcon icon={getChartTypeIcon(iconName)} />
+                        </UnstyledButton>
+                    </Tooltip>
+                ))}
+            </Box>
+        </ScrollArea.Autosize>
+    </Box>
+);
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
@@ -40,6 +98,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     initialDescription,
     resourceLabel = 'Data App',
     icon = IconAppWindow,
+    iconPicker,
     onConfirm,
     ...modalProps
 }) => {
@@ -47,10 +106,12 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
         resourceLabel,
     });
 
+    const initialIcon = iconPicker?.initialIcon ?? null;
     const form = useForm<FormState>({
         initialValues: {
             name: initialName,
             description: initialDescription,
+            icon: initialIcon,
         },
         validate: zodResolver(updateAppSchema),
         validateInputOnChange: true,
@@ -59,10 +120,17 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
     const handleConfirm = form.onSubmit(async (data) => {
         const trimmedName = data.name.trim();
         const trimmedDescription = data.description.trim();
-        const patch: { name?: string; description?: string } = {};
+        const patch: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+        } = {};
         if (trimmedName !== initialName) patch.name = trimmedName;
         if (trimmedDescription !== initialDescription) {
             patch.description = trimmedDescription;
+        }
+        if (iconPicker !== null && data.icon !== initialIcon) {
+            patch.icon = data.icon;
         }
         if (Object.keys(patch).length > 0) {
             await mutateAsync({
@@ -108,6 +176,16 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
                         maxRows={3}
                         {...form.getInputProps('description')}
                     />
+
+                    {iconPicker !== null && (
+                        <IconPickerField
+                            value={form.values.icon}
+                            onChange={(next) =>
+                                form.setFieldValue('icon', next)
+                            }
+                            disabled={isUpdating}
+                        />
+                    )}
                 </Stack>
             </form>
         </MantineModal>

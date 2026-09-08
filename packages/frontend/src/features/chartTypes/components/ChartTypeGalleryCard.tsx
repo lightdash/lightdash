@@ -28,6 +28,7 @@ import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPa
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import classes from './ChartTypeGalleryCard.module.css';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
@@ -72,13 +73,21 @@ const ChartTypeGalleryCard: FC<Props> = ({
                     <ChartTypeSamplePreview
                         projectUuid={dataAppViz.projectUuid}
                         dataAppVizUuid={dataAppViz.dataAppVizUuid}
+                        icon={dataAppViz.icon}
                     />
                 </Box>
                 <Stack gap="xs" p="sm">
                     <Group gap="xs" wrap="nowrap" justify="space-between">
-                        <Text fz="sm" fw={600} truncate="end">
-                            {displayName}
-                        </Text>
+                        <Group gap={6} wrap="nowrap" miw={0}>
+                            <MantineIcon
+                                icon={getChartTypeIcon(dataAppViz.icon)}
+                                color="dimmed"
+                                size="sm"
+                            />
+                            <Text fz="sm" fw={600} truncate="end">
+                                {displayName}
+                            </Text>
+                        </Group>
                         {isOfficial && <OfficialChartTypeBadge />}
                     </Group>
                     <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>

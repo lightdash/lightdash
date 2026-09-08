@@ -21,6 +21,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../apps/hooks/useSdkUpgradeStatus';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import { type ChartTypeAppMeta } from './appMeta';
 import classes from './ChartTypeBuilderHeader.module.css';
 
@@ -77,6 +78,10 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                 <Box className={classes.nameCluster}>
                     {app ? (
                         <>
+                            <MantineIcon
+                                icon={getChartTypeIcon(app.icon)}
+                                color="dimmed"
+                            />
                             <Title
                                 className={classes.name}
                                 order={6}
@@ -165,6 +170,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     initialDescription={app.description}
                     resourceLabel="Chart Type"
                     icon={IconPencil}
+                    iconPicker={{ initialIcon: app.icon }}
                 />
             )}
             {app && upgrade && isUpgradeModalOpen && (
