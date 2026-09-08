@@ -44,11 +44,12 @@
 }
 .projectCard:hover,
 .ticketCard:hover {
-    border-color: var(--mantine-color-dimmed);
+    border-color: var(--mantine-color-indigo-outline);
+    background: var(--mantine-color-indigo-light);
 }
 .projectCard:focus-visible,
 .ticketCard:focus-visible {
-    outline: 2px solid var(--mantine-color-text);
+    outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
 }
 .projectTitle,
@@ -95,6 +96,7 @@
 }
 .projectIcon {
     flex-shrink: 0;
+    color: var(--mantine-color-indigo-light-color);
 }
 .review {
     height: 100dvh;
@@ -124,6 +126,9 @@
 .nameCell {
     width: 38%;
 }
+.table {
+    --table-highlight-on-hover-color: var(--mantine-color-indigo-light);
+}
 .tableTitle {
     display: flex;
     align-items: center;
@@ -132,7 +137,7 @@
     min-height: 32px;
 }
 .tableTitle:focus-visible {
-    outline: 2px solid var(--mantine-color-text);
+    outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
 }
 @media (max-width: 600px) {

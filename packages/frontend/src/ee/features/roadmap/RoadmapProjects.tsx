@@ -189,6 +189,7 @@ function ProjectProgress({
                 <Progress
                     className={classes.progress}
                     value={value}
+                    color="indigo"
                     size="xs"
                     aria-label="Overall project completion"
                 />
@@ -233,6 +234,7 @@ function ProjectCard({
             <Group gap="sm" align="flex-start" wrap="nowrap">
                 <ThemeIcon
                     variant="light"
+                    color="indigo"
                     size="md"
                     className={classes.projectIcon}
                 >
@@ -280,7 +282,11 @@ function TicketCard({
         >
             <Group justify="space-between" gap="xs">
                 <Group gap={4}>
-                    <MantineIcon icon={IconTicket} size="sm" color="dimmed" />
+                    <MantineIcon
+                        icon={IconTicket}
+                        size="sm"
+                        className={classes.projectIcon}
+                    />
                     <Text fz="xs" c="dimmed">
                         Ticket
                     </Text>
@@ -339,6 +345,7 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                 verticalSpacing="md"
                 horizontalSpacing="md"
                 highlightOnHover
+                className={classes.table}
                 aria-label="Roadmap items"
             >
                 <Table.Thead>
