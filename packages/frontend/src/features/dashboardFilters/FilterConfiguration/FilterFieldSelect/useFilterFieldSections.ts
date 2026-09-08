@@ -1,5 +1,5 @@
 import {
-    getItemId,
+    getDashboardFilterableFieldId,
     getItemLabel,
     getItemLabelWithoutTableName,
     isCustomDimension,
@@ -85,11 +85,12 @@ const groupByTable = (fields: DashboardFilterableField[]): FieldGroup[] => {
         const tableName = field.table;
         const tableLabel = field.tableLabel || field.table;
 
-        const existing = groupMap.get(tableName);
+        const groupKey = `${field.exploreName ?? ''}:${tableName}`;
+        const existing = groupMap.get(groupKey);
         if (existing) {
             existing.fields.push(field);
         } else {
-            groupMap.set(tableName, { tableLabel, tableName, fields: [field] });
+            groupMap.set(groupKey, { tableLabel, tableName, fields: [field] });
         }
     }
 
@@ -147,7 +148,7 @@ export const useFilterFieldSections = ({
         )) {
             if (activeTabTileUuids.has(tileUuid)) {
                 for (const f of tileFields) {
-                    activeTabFieldIds.add(getItemId(f));
+                    activeTabFieldIds.add(getDashboardFilterableFieldId(f));
                 }
             }
         }
@@ -156,7 +157,7 @@ export const useFilterFieldSections = ({
         const otherFields: DashboardFilterableField[] = [];
 
         for (const field of filtered) {
-            if (activeTabFieldIds.has(getItemId(field))) {
+            if (activeTabFieldIds.has(getDashboardFilterableFieldId(field))) {
                 activeTabFields.push(field);
             } else {
                 otherFields.push(field);

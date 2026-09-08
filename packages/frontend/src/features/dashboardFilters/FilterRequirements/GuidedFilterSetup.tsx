@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterField,
     DimensionType,
     getFilterTypeFromItem,
     getFilterTypeFromItemType,
@@ -132,6 +133,9 @@ type RuleSummaryProps = {
 };
 
 const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     const getUiString = useUiStrings();
     // Same test as isRequirementRuleSatisfied, so the summary always shows
     // the member that actually satisfies the rule
@@ -140,7 +144,11 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
     );
     if (!setMember) return null;
 
-    const field = fieldsMap[setMember.target.fieldId];
+    const field = getDashboardFilterField(
+        fieldsMap,
+        setMember,
+        filterableFieldsByTileUuid,
+    );
     const ruleLabels = field
         ? getConditionalRuleLabelFromItem(setMember, field)
         : undefined;
@@ -152,7 +160,11 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, fieldsMap, onChange }) => {
         <Group gap="xs" wrap="nowrap" className={classes.summaryRow}>
             <RuleStatusIcon satisfied />
             <Text size="xs" fw={500} truncate>
-                {getDashboardFilterRuleLabel(setMember, fieldsMap)}
+                {getDashboardFilterRuleLabel(
+                    setMember,
+                    fieldsMap,
+                    filterableFieldsByTileUuid,
+                )}
             </Text>
             <Text size="xs" c="dimmed" truncate flex={1}>
                 {valueLabel}
@@ -258,8 +270,11 @@ const GuidedFilterSetup: FC<Props> = ({
                             isSatisfied && !expandedRuleIds.includes(rule.id);
                         const isMultiMember = rule.members.length > 1;
                         const firstMember = rule.members[0];
-                        const firstMemberField =
-                            fieldsMap[firstMember.target.fieldId];
+                        const firstMemberField = getDashboardFilterField(
+                            fieldsMap,
+                            firstMember,
+                            filterableFieldsByTileUuid,
+                        );
 
                         return (
                             <Fragment key={rule.id}>
@@ -301,6 +316,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             : getDashboardFilterRuleLabel(
                                                                   firstMember,
                                                                   fieldsMap,
+                                                                  filterableFieldsByTileUuid,
                                                               )}
                                                     </Text>
                                                     {!isMultiMember && (
@@ -316,6 +332,7 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             label={getDashboardFilterRuleLabel(
                                                                 firstMember,
                                                                 fieldsMap,
+                                                                filterableFieldsByTileUuid,
                                                             )}
                                                             onChange={
                                                                 handleChangeFilterRule
@@ -345,16 +362,15 @@ const GuidedFilterSetup: FC<Props> = ({
                                                             )}
                                                             <MemberInput
                                                                 member={member}
-                                                                field={
-                                                                    fieldsMap[
-                                                                        member
-                                                                            .target
-                                                                            .fieldId
-                                                                    ]
-                                                                }
+                                                                field={getDashboardFilterField(
+                                                                    fieldsMap,
+                                                                    member,
+                                                                    filterableFieldsByTileUuid,
+                                                                )}
                                                                 label={getDashboardFilterRuleLabel(
                                                                     member,
                                                                     fieldsMap,
+                                                                    filterableFieldsByTileUuid,
                                                                 )}
                                                                 showLabel={
                                                                     isMultiMember

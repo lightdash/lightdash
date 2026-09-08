@@ -1,5 +1,5 @@
 import {
-    getItemId,
+    getDashboardFilterableFieldId,
     getItemLabelWithoutTableName,
     isField,
     type DashboardFilterableField,
@@ -152,14 +152,18 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     });
 
     const handleOptionSubmit = (value: string) => {
-        const field = fields.find((f) => getItemId(f) === value);
+        const field = fields.find(
+            (f) => getDashboardFilterableFieldId(f) === value,
+        );
         if (field) {
             onChange(field);
         }
         combobox.closeDropdown();
     };
 
-    const selectedFieldId = selectedField ? getItemId(selectedField) : null;
+    const selectedFieldId = selectedField
+        ? getDashboardFilterableFieldId(selectedField)
+        : null;
 
     const renderVirtualItem = useCallback(
         (item: VirtualItem) => {
@@ -185,7 +189,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         </div>
                     );
                 case 'field': {
-                    const fieldId = getItemId(item.field);
+                    const fieldId = getDashboardFilterableFieldId(item.field);
                     return (
                         <Combobox.Option
                             value={fieldId}

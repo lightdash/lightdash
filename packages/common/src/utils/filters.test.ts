@@ -19,6 +19,7 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     applyDashboardFiltersForTile,
+    createDashboardFilterRuleFromField,
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     excludeTilesFromTabScopedFilters,
@@ -2580,5 +2581,30 @@ describe('excludeTilesFromTabScopedFilters', () => {
             existing,
         );
         expect(result).toBe(input);
+    });
+});
+
+describe('dashboard field identity', () => {
+    test('remembers the selected explore without changing query or tile target field IDs', () => {
+        const field = { ...dimension('name', 'team'), exploreName: 'event_b' };
+        const availableTileFilters = {
+            'tile-a': [{ ...field, exploreName: 'event_a' }],
+            'tile-b': [field],
+        };
+        const rule = createDashboardFilterRuleFromField({
+            field,
+            availableTileFilters,
+            isTemporary: false,
+        });
+        expect(rule.target).toEqual({
+            fieldId: 'team_name',
+            tableName: 'team',
+            fieldName: 'name',
+            exploreName: 'event_b',
+        });
+        expect(rule.tileTargets).toEqual({
+            'tile-a': { fieldId: 'team_name', tableName: 'team' },
+            'tile-b': { fieldId: 'team_name', tableName: 'team' },
+        });
     });
 });

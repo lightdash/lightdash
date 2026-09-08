@@ -16,6 +16,7 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
+    type DashboardFieldMetadata,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -617,9 +618,11 @@ export const createDashboardFilterRuleFromField = ({
     isTemporary,
     value,
 }: {
-    field:
+    field: (
         | Exclude<FilterableItem, TableCalculation | CustomSqlDimension>
-        | CompiledField;
+        | CompiledField
+    ) &
+        DashboardFieldMetadata;
     availableTileFilters: Record<
         string,
         (FilterableDimension | Metric)[] | undefined
@@ -637,6 +640,9 @@ export const createDashboardFilterRuleFromField = ({
                 fieldId: getItemId(field),
                 tableName: field.table,
                 fieldName: field.name,
+                ...(field.exploreName
+                    ? { exploreName: field.exploreName }
+                    : {}),
             },
             tileTargets: getDefaultTileTargets(field, availableTileFilters),
             disabled: !isTemporary,

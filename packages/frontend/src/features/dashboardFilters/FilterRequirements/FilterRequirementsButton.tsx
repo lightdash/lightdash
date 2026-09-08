@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterField,
     type DashboardFilterRule,
     type FilterableItem,
 } from '@lightdash/common';
@@ -157,17 +158,28 @@ const FilterRequirementsButton: FC = () => {
     );
 
     const fieldsMap = useFilterableItemsMap();
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     const getFilterLabel = useCallback(
         (filterRule: DashboardFilterRule) =>
-            getDashboardFilterRuleLabel(filterRule, fieldsMap),
-        [fieldsMap],
+            getDashboardFilterRuleLabel(
+                filterRule,
+                fieldsMap,
+                filterableFieldsByTileUuid,
+            ),
+        [fieldsMap, filterableFieldsByTileUuid],
     );
 
     const getFilterItem = useCallback(
         (filterRule: DashboardFilterRule) =>
-            fieldsMap[filterRule.target.fieldId],
-        [fieldsMap],
+            getDashboardFilterField(
+                fieldsMap,
+                filterRule,
+                filterableFieldsByTileUuid,
+            ),
+        [fieldsMap, filterableFieldsByTileUuid],
     );
 
     // Saved filters with staged edits applied on top; drives the rule cards
@@ -198,8 +210,13 @@ const FilterRequirementsButton: FC = () => {
 
     const selectableFiltersFor = useCallback(
         (memberIds: string[]): SelectableFilter[] =>
-            getSelectableFilters(allFilterRules, memberIds, fieldsMap),
-        [allFilterRules, fieldsMap],
+            getSelectableFilters(
+                allFilterRules,
+                memberIds,
+                fieldsMap,
+                filterableFieldsByTileUuid,
+            ),
+        [allFilterRules, fieldsMap, filterableFieldsByTileUuid],
     );
 
     const updateFilterRule = useUpdateDashboardFilterRule();

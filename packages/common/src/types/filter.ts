@@ -153,6 +153,8 @@ export const isJoinModelRequiredFilter = (
 ): filter is JoinModelRequiredFilterRule => 'tableName' in filter.target;
 
 export type DashboardFieldTarget = {
+    /** Source explore for display metadata, independent of tile targeting. */
+    exploreName?: string;
     fieldId: string;
     tableName: string;
     isSqlColumn?: boolean; // If true, fieldId is a SQL column name and tableName is redundant

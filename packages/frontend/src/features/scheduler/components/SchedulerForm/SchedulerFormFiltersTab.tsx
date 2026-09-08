@@ -97,9 +97,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     removeTooltip = 'Remove filter',
     tilesWithFilter,
 }) => {
-    const { itemsMap } =
+    const { getField } =
         useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
+    const field = getField(dashboardFilter);
     const [isEditing, setIsEditing] = useState(false);
 
     const filterType = useMemo(() => {
@@ -283,9 +283,9 @@ const RemovedFilterItem: FC<RemovedFilterItemProps> = ({
     dashboardFilter,
     onRestore,
 }) => {
-    const { itemsMap } =
+    const { getField } =
         useFiltersContext<Record<string, FilterableDimension>>();
-    const field = itemsMap[dashboardFilter.target.fieldId];
+    const field = getField(dashboardFilter);
 
     if (!field) return null;
 
@@ -401,6 +401,9 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         (c) => c.isLoadingDashboardFilters,
     );
     const currentDashboardFilters = useDashboardContext((c) => c.allFilters);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -512,6 +515,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
             popoverProps={{ withinPortal: true }}
             projectUuid={project.projectUuid}
             itemsMap={allFilterableFieldsMap}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
             dashboardFilters={currentDashboardFilters}
         >

@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterableFieldId,
     applyDimensionOverrides,
     applyMetricOverrides,
     compressDashboardFiltersToParam,
@@ -8,7 +9,6 @@ import {
     EMPTY_DATE_ZOOM_CONFIG,
     FilterInteractivityValues,
     getFilterInteractivityValue,
-    getItemId,
     getMissingRequiredParameters,
     getUnmetFilterRequirements,
     isDashboardChartTileType,
@@ -1486,7 +1486,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
               >(
                   (sum, field) => ({
                       ...sum,
-                      [getItemId(field)]: field,
+                      [getDashboardFilterableFieldId(field)]: field,
                   }),
                   {},
               )
@@ -1501,7 +1501,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
               >(
                   (sum, field) => ({
                       ...sum,
-                      [getItemId(field)]: field,
+                      [getDashboardFilterableFieldId(field)]: field,
                   }),
                   {},
               )

@@ -1,6 +1,8 @@
 import {
+    getDashboardFilterField,
     isValuelessDashboardFilterRule,
     type DashboardFilterRule,
+    type DashboardFilterableField,
     type FilterableItem,
 } from '@lightdash/common';
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
@@ -33,10 +35,11 @@ export const getRequirementIneligibilityReason = (
 export const getDashboardFilterRuleLabel = (
     filterRule: DashboardFilterRule,
     fieldsMap: Record<string, FilterableItem>,
+    fieldsByTile?: Record<string, DashboardFilterableField[]>,
 ): string => {
     if (filterRule.label) return filterRule.label;
 
-    const field = fieldsMap[filterRule.target.fieldId];
+    const field = getDashboardFilterField(fieldsMap, filterRule, fieldsByTile);
     return field
         ? getConditionalRuleLabelFromItem(filterRule, field).field
         : filterRule.target.fieldId;
@@ -47,6 +50,7 @@ export const getSelectableFilters = (
     allFilterRules: DashboardFilterRule[],
     excludedIds: string[],
     fieldsMap: Record<string, FilterableItem>,
+    fieldsByTile?: Record<string, DashboardFilterableField[]>,
 ): SelectableFilter[] =>
     allFilterRules
         .filter((rule) => !excludedIds.includes(rule.id))
@@ -54,7 +58,11 @@ export const getSelectableFilters = (
             const reason = getRequirementIneligibilityReason(rule);
             return {
                 value: rule.id,
-                label: getDashboardFilterRuleLabel(rule, fieldsMap),
+                label: getDashboardFilterRuleLabel(
+                    rule,
+                    fieldsMap,
+                    fieldsByTile,
+                ),
                 disabled: reason !== null,
                 reason,
             };

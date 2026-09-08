@@ -41,6 +41,9 @@ const RequiredFilterCard: FC<Props> = ({
     const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
 
     const fieldsMap = useFilterableItemsMap();
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     const allFilterRules = useMemo(
         () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
@@ -72,8 +75,14 @@ const RequiredFilterCard: FC<Props> = ({
     );
 
     const selectableFilters = useMemo<SelectableFilter[]>(
-        () => getSelectableFilters(allFilterRules, [filterRule.id], fieldsMap),
-        [allFilterRules, filterRule.id, fieldsMap],
+        () =>
+            getSelectableFilters(
+                allFilterRules,
+                [filterRule.id],
+                fieldsMap,
+                filterableFieldsByTileUuid,
+            ),
+        [allFilterRules, filterRule.id, fieldsMap, filterableFieldsByTileUuid],
     );
 
     const handleAddAlternative = useCallback(
@@ -167,7 +176,11 @@ const RequiredFilterCard: FC<Props> = ({
                                 color="yellow"
                                 radius="xl"
                             >
-                                {getDashboardFilterRuleLabel(member, fieldsMap)}
+                                {getDashboardFilterRuleLabel(
+                                    member,
+                                    fieldsMap,
+                                    filterableFieldsByTileUuid,
+                                )}
                             </Badge>
                         ))}
                         {onEditRules && (
