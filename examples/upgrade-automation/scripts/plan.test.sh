@@ -275,6 +275,61 @@ printf 'plan custom branch prefix test passed\n'
 printf 'image:\n  tag: 1.0.0\n' >"$test_dir/values.yml"
 : >"$test_dir/gh.log"
 : >"$test_dir/gate.log"
+rm -f "$test_dir/pr-title" "$test_dir/graphql-input"
+
+set +e
+output=$(PATH="$test_dir/bin:$PATH" \
+    TEST_SCENARIO_DIR="$test_dir" \
+    RUNNER_TEMP="$test_dir/runner-temp" \
+    GITHUB_REPOSITORY=example/upgrade-test \
+    BUMP_TARGET=values.yml#image.tag \
+    TITLE_SCOPE=staging \
+    FREEZE_LABEL=upgrade-freeze \
+    GH_TOKEN=test-token \
+    "${BASH:-bash}" "$root/examples/upgrade-automation/scripts/plan.sh" 2>&1)
+status=$?
+set -e
+
+if [[ $status -ne 0 ]]; then
+    printf 'expected a title scope to plan successfully, got status %s:\n%s\n' "$status" "$output" >&2
+    exit 1
+fi
+
+if [[ "$(cat "$test_dir/pr-title")" != 'HOLD: chore(staging): upgrade Lightdash to 1.0.1' ]]; then
+    printf 'expected the title scope in the pull request title, got: %s\n' "$(cat "$test_dir/pr-title")" >&2
+    exit 1
+fi
+
+if [[ "$(jq -r '.variables.input.message.headline' "$test_dir/graphql-input")" != 'chore(staging): upgrade Lightdash to 1.0.1' ]]; then
+    printf 'expected the title scope in the pin commit message, graphql input was:\n%s\n' "$(cat "$test_dir/graphql-input")" >&2
+    exit 1
+fi
+
+printf 'plan title scope test passed\n'
+
+set +e
+output=$(PATH="$test_dir/bin:$PATH" \
+    TEST_SCENARIO_DIR="$test_dir" \
+    RUNNER_TEMP="$test_dir/runner-temp" \
+    GITHUB_REPOSITORY=example/upgrade-test \
+    BUMP_TARGET=values.yml#image.tag \
+    TITLE_SCOPE='bad scope' \
+    FREEZE_LABEL=upgrade-freeze \
+    GH_TOKEN=test-token \
+    "${BASH:-bash}" "$root/examples/upgrade-automation/scripts/plan.sh" 2>&1)
+status=$?
+set -e
+
+if [[ $status -eq 0 ]] || [[ "$output" != *'title_scope must be empty or match'* ]]; then
+    printf 'expected an invalid title scope to fail, got status %s:\n%s\n' "$status" "$output" >&2
+    exit 1
+fi
+
+printf 'plan invalid title scope test passed\n'
+
+printf 'image:\n  tag: 1.0.0\n' >"$test_dir/values.yml"
+: >"$test_dir/gh.log"
+: >"$test_dir/gate.log"
 : >"$test_dir/npm.log"
 rm -f "$test_dir/pr-body"
 
