@@ -3304,6 +3304,8 @@ describe('nested and repeated columns', () => {
                     'hits.product': DimensionType.STRING,
                     'hits.product.productSKU': DimensionType.STRING,
                     'hits.product.productRevenue': DimensionType.NUMBER,
+                    tags: DimensionType.STRING,
+                    'hits.page.keywords': DimensionType.STRING,
                 },
             },
         },
@@ -3314,6 +3316,8 @@ describe('nested and repeated columns', () => {
         hits: { repeated: true, record: true },
         'hits.page': { repeated: false, record: true },
         'hits.product': { repeated: true, record: true },
+        tags: { repeated: true, record: false },
+        'hits.page.keywords': { repeated: true, record: false },
     }).forEach(([path, shape]) =>
         setCatalogNestedColumnShape(
             catalog,
@@ -3581,6 +3585,85 @@ describe('nested and repeated columns', () => {
             'SUM(`second_session__hits__product`.productRevenue)',
         );
         expect(explore.tables.ga_sessions__hits).toBeUndefined();
+    });
+
+    it('unnests an array of scalars into a virtual table with a value dimension', async () => {
+        const taggedSessions: DbtModelNode = {
+            ...gaSessions,
+            columns: {
+                visitId: nestedColumn('visitId'),
+                tags: nestedColumn('tags', {
+                    description: 'Session tags',
+                    meta: {
+                        dimension: { label: 'Tag list' },
+                        metrics: {
+                            last_tag: { type: MetricType.MAX },
+                        },
+                    },
+                }),
+                'hits.page.keywords': nestedColumn('hits.page.keywords'),
+            },
+        };
+        const explore = await compile(
+            attachTypesToModels([taggedSessions], catalog, true),
+            true,
+        );
+        expect(Object.keys(explore.tables).sort()).toEqual([
+            'ga_sessions',
+            'ga_sessions__hits',
+            'ga_sessions__hits__page__keywords',
+            'ga_sessions__tags',
+        ]);
+        expect(Object.keys(explore.tables.ga_sessions.dimensions)).toEqual([
+            'visitId',
+        ]);
+
+        const tags = explore.tables.ga_sessions__tags;
+        expect(tags.label).toEqual('Tag list');
+        expect(tags.description).toEqual('Session tags');
+        expect(tags.sqlTable).toEqual(
+            'UNNEST(`ga_sessions`.tags) AS `ga_sessions__tags` WITH OFFSET AS `ga_sessions__tags__offset`',
+        );
+        expect(Object.keys(tags.dimensions).sort()).toEqual([
+            'offset',
+            'value',
+        ]);
+        expect(tags.dimensions.value).toMatchObject({
+            type: DimensionType.STRING,
+            label: 'Value',
+            compiledSql: '`ga_sessions__tags`',
+        });
+        expect(tags.metrics.last_tag.compiledSql).toEqual(
+            'MAX(`ga_sessions__tags`)',
+        );
+
+        // An array below a struct inside a repeated record unnests from the
+        // repeated parent, with the struct path in the segment.
+        const keywords = explore.tables.ga_sessions__hits__page__keywords;
+        expect(keywords.nestedFrom).toEqual({
+            parentTable: 'ga_sessions__hits',
+            columnPath: 'hits.page.keywords',
+        });
+        expect(keywords.sqlTable).toEqual(
+            'UNNEST(`ga_sessions__hits`.page.keywords) AS `ga_sessions__hits__page__keywords` WITH OFFSET AS `ga_sessions__hits__page__keywords__offset`',
+        );
+        expect(keywords.label).toEqual('Ga sessions: Hits: Page: Keywords');
+        expect(keywords.dimensions.value.compiledSql).toEqual(
+            '`ga_sessions__hits__page__keywords`',
+        );
+        expect(
+            Object.keys(explore.tables.ga_sessions__hits.dimensions),
+        ).toEqual(['offset']);
+        expect(
+            explore.joinedTables.map(({ table, tablesReferences }) => [
+                table,
+                tablesReferences,
+            ]),
+        ).toEqual([
+            ['ga_sessions__hits', ['ga_sessions']],
+            ['ga_sessions__tags', ['ga_sessions']],
+            ['ga_sessions__hits__page__keywords', ['ga_sessions__hits']],
+        ]);
     });
 
     it('fails the model when a virtual table name collides with a model', async () => {

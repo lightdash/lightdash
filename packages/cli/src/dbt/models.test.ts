@@ -46,10 +46,12 @@ describe('Models', () => {
                 true,
             );
         });
-        test('skips container nodes and repeated scalars', () => {
+        test('keeps an array of scalars, exposed through its container entry', () => {
+            expect(isGeneratableColumn(catalog, ref, 'tags')).toBe(true);
+        });
+        test('skips struct and repeated record containers', () => {
             expect(isGeneratableColumn(catalog, ref, 'totals')).toBe(false);
             expect(isGeneratableColumn(catalog, ref, 'hits')).toBe(false);
-            expect(isGeneratableColumn(catalog, ref, 'tags')).toBe(false);
         });
         test('skips leaves beneath a repeated node', () => {
             expect(isGeneratableColumn(catalog, ref, 'hits.page')).toBe(false);
