@@ -173,7 +173,11 @@ export class NatsWorker {
                 );
         }
 
-        if (subject === STREAM_CONFIGS.duckdb.subjects.query) {
+        const preAgg = STREAM_CONFIGS['pre-aggregate'];
+        if (
+            subject === STREAM_CONFIGS.duckdb.subjects.query ||
+            (preAgg && subject === preAgg.subjects.duckdb)
+        ) {
             return (queryUuid, worker, queryTags) =>
                 this.asyncQueryService.runAsyncDuckdbQueryFromHistory(
                     queryUuid,
@@ -182,7 +186,6 @@ export class NatsWorker {
                 );
         }
 
-        const preAgg = STREAM_CONFIGS['pre-aggregate'];
         if (preAgg && subject === preAgg.subjects.query) {
             return (queryUuid, worker, queryTags) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
