@@ -1177,45 +1177,25 @@ const getUnnestFromSql = (
     }
 };
 
-type ConvertNestedTablesArgs = {
-    adapterType: SupportedDbtAdapter;
-    model: DbtModelNode;
-    modelLabel: string;
-    reservedTableNames: Set<string>;
-    fieldQuoteChar: string;
-    spotlightConfig: LightdashProjectConfig['spotlight'];
-    startOfWeek?: WeekDay | null;
-    disableTimestampConversion?: boolean;
-    customGranularities?: Record<string, CustomGranularity>;
-    allowPartialCompilation?: boolean;
-    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals;
-    granularityLabels?: Partial<Record<TimeFrames, string>>;
+type NestedTableTemplate = {
+    nodePath: string;
+    segment: string;
+    parentPath: string;
+    /** Leaf columns renamed to the remainder of their path below the node. */
+    columns: DbtModelColumn[];
+    label: string | undefined;
+    description: string | undefined;
 };
 
 /**
- * One virtual table per repeated node reached by a documented leaf. Each is
- * a synthetic model run through convertTable, so leaves keep every column
- * feature; its FROM item is the UNNEST of the parent's column and it is
- * joined ON TRUE as one-to-many. Nodes are emitted outermost first so a
- * child's join always follows its parent's.
+ * One template per repeated node reached by a documented leaf, outermost
+ * first so a child's join always follows its parent's. Templates carry no
+ * table names: the same model can be joined under several aliases, and the
+ * UNNEST has to reference the parent by the name it has in that explore.
  */
-export const convertNestedTables = ({
-    adapterType,
-    model,
-    modelLabel,
-    reservedTableNames,
-    fieldQuoteChar,
-    spotlightConfig,
-    startOfWeek,
-    disableTimestampConversion,
-    customGranularities,
-    allowPartialCompilation,
-    additionalTimeIntervals,
-    granularityLabels,
-}: ConvertNestedTablesArgs): {
-    tables: Omit<Table, 'lineageGraph'>[];
-    joins: NonNullable<DbtModelNode['meta']['joins']>;
-} => {
+export const getNestedTableTemplates = (
+    model: DbtModelNode,
+): NestedTableTemplate[] => {
     const columns = Object.values(model.columns);
     const isRoutedLeaf = (column: DbtModelColumn) =>
         hasRepeatedAncestor(column) && !getColumnMeta(column).dimension?.sql;
@@ -1229,36 +1209,14 @@ export const convertNestedTables = ({
         (a, b) =>
             a.split('.').length - b.split('.').length || a.localeCompare(b),
     );
-
-    const labelsByPath = new Map<string, string>();
-    return nodePaths.reduce<{
-        tables: Omit<Table, 'lineageGraph'>[];
-        joins: NonNullable<DbtModelNode['meta']['joins']>;
-    }>(
-        (acc, nodePath) => {
-            const segments = nodePath.split('.');
-            const segment = segments[segments.length - 1];
-            const parentPath = segments.slice(0, -1).join('.');
-            const parentTable = parentPath
-                ? getNestedTableName(model.name, parentPath)
-                : model.name;
-            const parentLabel = labelsByPath.get(parentPath) ?? modelLabel;
-            const tableName = getNestedTableName(model.name, nodePath);
-            if (reservedTableNames.has(tableName)) {
-                throw new ParseError(
-                    `Repeated column "${nodePath}" in model "${model.name}" would be unnested as table "${tableName}", which is already a model name. Rename one of them.`,
-                );
-            }
-            const container = model.columns[nodePath];
-            const containerMeta = container
-                ? getColumnMeta(container)
-                : undefined;
-            const label =
-                containerMeta?.dimension?.label ??
-                `${parentLabel}: ${friendlyName(segment)}`;
-            labelsByPath.set(nodePath, label);
-
-            const leafColumns = columns
+    return nodePaths.map((nodePath) => {
+        const segments = nodePath.split('.');
+        const container = model.columns[nodePath];
+        return {
+            nodePath,
+            segment: segments[segments.length - 1],
+            parentPath: segments.slice(0, -1).join('.'),
+            columns: columns
                 .filter(
                     (column) =>
                         isRoutedLeaf(column) &&
@@ -1276,7 +1234,82 @@ export const convertNestedTables = ({
                         name: column.name.slice(nodePath.length + 1),
                         ...(nestedShape ? { nested_shape: nestedShape } : {}),
                     }),
+                ),
+            label: container
+                ? getColumnMeta(container).dimension?.label
+                : undefined,
+            description: container?.description,
+        };
+    });
+};
+
+type InstantiateNestedTablesArgs = {
+    adapterType: SupportedDbtAdapter;
+    model: DbtModelNode;
+    templates: NestedTableTemplate[];
+    /** Name the parent model has in the explore: its own name or its join alias. */
+    parentAlias: string;
+    parentLabel: string;
+    reservedTableNames: Set<string>;
+    fieldQuoteChar: string;
+    spotlightConfig: LightdashProjectConfig['spotlight'];
+    startOfWeek?: WeekDay | null;
+    disableTimestampConversion?: boolean;
+    customGranularities?: Record<string, CustomGranularity>;
+    allowPartialCompilation?: boolean;
+    additionalTimeIntervals?: ResolvedAdditionalTimeIntervals;
+    granularityLabels?: Partial<Record<TimeFrames, string>>;
+};
+
+/**
+ * Turns a model's templates into virtual tables for one parent alias. Each is
+ * a synthetic model run through convertTable, so leaves keep every column
+ * feature; its FROM item is the UNNEST of the parent's column and it is
+ * joined ON TRUE as one-to-many. Field ids follow the alias, exactly as an
+ * aliased join renames its own fields.
+ */
+export const instantiateNestedTables = ({
+    adapterType,
+    model,
+    templates,
+    parentAlias,
+    parentLabel,
+    reservedTableNames,
+    fieldQuoteChar,
+    spotlightConfig,
+    startOfWeek,
+    disableTimestampConversion,
+    customGranularities,
+    allowPartialCompilation,
+    additionalTimeIntervals,
+    granularityLabels,
+}: InstantiateNestedTablesArgs): {
+    tables: Omit<Table, 'lineageGraph'>[];
+    joins: NonNullable<DbtModelNode['meta']['joins']>;
+} => {
+    const labelsByPath = new Map<string, string>();
+    return templates.reduce<{
+        tables: Omit<Table, 'lineageGraph'>[];
+        joins: NonNullable<DbtModelNode['meta']['joins']>;
+    }>(
+        (acc, template) => {
+            const { nodePath, segment, parentPath } = template;
+            const parentTable = parentPath
+                ? getNestedTableName(parentAlias, parentPath)
+                : parentAlias;
+            const tableName = getNestedTableName(parentAlias, nodePath);
+            if (reservedTableNames.has(tableName)) {
+                throw new ParseError(
+                    `Repeated column "${nodePath}" in model "${model.name}" would be unnested as table "${tableName}" under "${parentAlias}", but that name is already used by another table in the explore. Rename one of them.`,
                 );
+            }
+            const label =
+                template.label ??
+                `${labelsByPath.get(parentPath) ?? parentLabel}: ${friendlyName(
+                    segment,
+                )}`;
+            labelsByPath.set(nodePath, label);
+
             const offsetColumn: DbtModelColumn = {
                 name: 'offset',
                 description: `Position of the element within ${nodePath}, starting at 0`,
@@ -1292,10 +1325,10 @@ export const convertNestedTables = ({
                 ...model,
                 name: tableName,
                 alias: tableName,
-                unique_id: `${model.unique_id}.${nodePath}`,
+                unique_id: `${model.unique_id}.${parentAlias}.${nodePath}`,
                 description:
-                    container?.description ??
-                    `Elements of ${nodePath} in ${model.name}`,
+                    template.description ??
+                    `Elements of ${nodePath} in ${parentAlias}`,
                 relation_name: getUnnestFromSql(
                     adapterType,
                     fieldQuoteChar,
@@ -1304,7 +1337,7 @@ export const convertNestedTables = ({
                     tableName,
                 ),
                 columns: Object.fromEntries(
-                    [...leafColumns, offsetColumn].map((column) => [
+                    [...template.columns, offsetColumn].map((column) => [
                         column.name,
                         column,
                     ]),
@@ -1446,23 +1479,10 @@ export async function* iterateExplores(
         models.map((model) => [model.unique_id, model.name]),
     );
     const tableLineage = translateDbtModelsToTableLineage(resolvedModels);
-    const modelNames = new Set(resolvedModels.map((model) => model.name));
-    const nestedJoinsByModel = new Map<
+    const nestedTemplatesByModel = new Map<
         string,
-        NonNullable<DbtModelNode['meta']['joins']>
+        { model: DbtModelNode; templates: NestedTableTemplate[] }
     >();
-    // A model's unnested tables join right after the model itself; an aliased
-    // join is skipped because the UNNEST references the parent by name.
-    const withNestedJoins = (
-        baseModelName: string,
-        joins: NonNullable<DbtModelNode['meta']['joins']>,
-    ): NonNullable<DbtModelNode['meta']['joins']> => [
-        ...(nestedJoinsByModel.get(baseModelName) ?? []),
-        ...joins.flatMap((join) => [
-            join,
-            ...(join.alias ? [] : (nestedJoinsByModel.get(join.join) ?? [])),
-        ]),
-    ];
     const additionalTimeIntervals = resolveAdditionalTimeIntervals(
         lightdashProjectConfig.defaults?.additional_time_intervals,
         lightdashProjectConfig.custom_granularities,
@@ -1515,30 +1535,16 @@ export async function* iterateExplores(
                 ...tableLineage[model.name],
             };
 
-            const nested = unnestRepeatedColumns
-                ? convertNestedTables({
-                      adapterType,
-                      model,
-                      modelLabel: table.label,
-                      reservedTableNames: modelNames,
-                      fieldQuoteChar: warehouseSqlBuilder.getFieldQuoteChar(),
-                      spotlightConfig: lightdashProjectConfig.spotlight,
-                      startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
-                      disableTimestampConversion,
-                      customGranularities:
-                          lightdashProjectConfig.custom_granularities,
-                      allowPartialCompilation,
-                      additionalTimeIntervals,
-                      granularityLabels,
-                  })
-                : { tables: [], joins: [] };
-            if (nested.joins.length > 0) {
-                nestedJoinsByModel.set(model.name, nested.joins);
-            }
             tables.push(tableWithLineage);
-            nested.tables.forEach((nestedTable) =>
-                tables.push({ ...nestedTable, lineageGraph: {} }),
-            );
+            if (unnestRepeatedColumns) {
+                const templates = getNestedTableTemplates(model);
+                if (templates.length > 0) {
+                    nestedTemplatesByModel.set(model.name, {
+                        model,
+                        templates,
+                    });
+                }
+            }
         } catch (e: unknown) {
             const exploreError: ExploreError = {
                 name: model.name,
@@ -1573,6 +1579,75 @@ export async function* iterateExplores(
     tables.forEach((table) => {
         tableLookup[table.name] = table;
     });
+    // Virtual tables are instantiated per explore, once for the base model
+    // and once per join, named after the join alias; their joins go right
+    // after the parent's so a child never precedes its parent.
+    const attachNestedTables = (
+        baseModelName: string,
+        joins: NonNullable<DbtModelNode['meta']['joins']>,
+        exploreTables: Record<string, Table>,
+    ): {
+        joins: NonNullable<DbtModelNode['meta']['joins']>;
+        tables: Record<string, Table>;
+    } => {
+        // Copying the table map per explore is quadratic in project size, so
+        // explores without repeated columns are passed through untouched.
+        if (
+            !nestedTemplatesByModel.has(baseModelName) &&
+            !joins.some((join) => nestedTemplatesByModel.has(join.join))
+        ) {
+            return { joins, tables: exploreTables };
+        }
+        const reservedTableNames = new Set([
+            ...Object.keys(exploreTables),
+            ...joins.map((join) => join.alias ?? join.join),
+        ]);
+        const nestedTables: Record<string, Table> = {};
+        const instantiate = (
+            modelName: string,
+            parentAlias: string,
+            parentLabel: string | undefined,
+        ): NonNullable<DbtModelNode['meta']['joins']> => {
+            const entry = nestedTemplatesByModel.get(modelName);
+            if (!entry) return [];
+            const nested = instantiateNestedTables({
+                adapterType,
+                model: entry.model,
+                templates: entry.templates,
+                parentAlias,
+                parentLabel:
+                    parentLabel ??
+                    exploreTables[modelName]?.label ??
+                    friendlyName(parentAlias),
+                reservedTableNames,
+                fieldQuoteChar: warehouseSqlBuilder.getFieldQuoteChar(),
+                spotlightConfig: lightdashProjectConfig.spotlight,
+                startOfWeek: warehouseSqlBuilder.getStartOfWeek(),
+                disableTimestampConversion,
+                customGranularities:
+                    lightdashProjectConfig.custom_granularities,
+                allowPartialCompilation,
+                additionalTimeIntervals,
+                granularityLabels,
+            });
+            nested.tables.forEach((table) => {
+                reservedTableNames.add(table.name);
+                nestedTables[table.name] = { ...table, lineageGraph: {} };
+            });
+            return nested.joins;
+        };
+        const nestedJoins = [
+            ...instantiate(baseModelName, baseModelName, undefined),
+            ...joins.flatMap((join) => [
+                join,
+                ...instantiate(join.join, join.alias ?? join.join, join.label),
+            ]),
+        ];
+        return {
+            joins: nestedJoins,
+            tables: { ...exploreTables, ...nestedTables },
+        };
+    };
     const validModels = resolvedModels.filter(
         (model) =>
             tableLookup[model.name] !== undefined &&
@@ -1612,7 +1687,7 @@ export async function* iterateExplores(
                           ...(meta.groups && meta.groups.length > 0
                               ? { groups: meta.groups }
                               : {}),
-                          joins: withNestedJoins(model.name, meta?.joins || []),
+                          joins: meta?.joins || [],
                           description: meta.description,
                           caseSensitive: meta.case_sensitive,
                           tables: tableLookup,
@@ -1677,10 +1752,7 @@ export async function* iterateExplores(
                                     }
                                   : {}),
                               // Inherit joins from base model if not specified in explore config
-                              joins: withNestedJoins(
-                                  model.name,
-                                  exploreConfig.joins || meta?.joins || [],
-                              ),
+                              joins: exploreConfig.joins || meta?.joins || [],
                               description: exploreConfig.description,
                               caseSensitive: exploreConfig.case_sensitive,
                               tables: {
@@ -1717,6 +1789,12 @@ export async function* iterateExplores(
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
         const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
+                const { joins: exploreJoins, tables: exploreTables } =
+                    attachNestedTables(
+                        model.name,
+                        exploreToCreate.joins,
+                        exploreToCreate.tables,
+                    );
                 const compiled = exploreCompiler.compileExplore({
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
@@ -1728,7 +1806,7 @@ export async function* iterateExplores(
                         ? { groups: exploreToCreate.groups }
                         : {}),
                     caseSensitive: exploreToCreate.caseSensitive,
-                    joinedTables: exploreToCreate.joins.map((join) => ({
+                    joinedTables: exploreJoins.map((join) => ({
                         table: join.join,
                         sqlOn: join.sql_on,
                         type: join.type,
@@ -1740,7 +1818,7 @@ export async function* iterateExplores(
                         relationship: join.relationship,
                         description: join.description,
                     })),
-                    tables: exploreToCreate.tables,
+                    tables: exploreTables,
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
