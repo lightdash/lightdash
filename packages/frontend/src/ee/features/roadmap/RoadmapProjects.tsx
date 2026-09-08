@@ -74,6 +74,8 @@ const columns = [
     { id: 'canceled', label: 'Canceled', icon: IconCircleX, color: 'dimmed' },
 ] as const;
 
+const COLUMN_PREVIEW_LIMIT = 20;
+
 function customerStage(stage: RoadmapBoardStage): RoadmapBoardStage {
     if (stage === 'backlog') return 'planned';
     if (stage === 'paused') return 'started';
@@ -99,6 +101,7 @@ function Board({
     projectBoard: boolean;
     statuses: string[];
 }) {
+    const [expandedColumns, setExpandedColumns] = useState<string[]>([]);
     const visibleColumns = columns.filter((column) =>
         statuses.length
             ? statuses.includes(column.id)
@@ -115,6 +118,12 @@ function Board({
                 const cards = entries.filter(
                     (entry) => entry.stage === column.id,
                 );
+                const isCollapsed =
+                    cards.length > COLUMN_PREVIEW_LIMIT &&
+                    !expandedColumns.includes(column.id);
+                const visibleCards = isCollapsed
+                    ? cards.slice(0, COLUMN_PREVIEW_LIMIT)
+                    : cards;
                 return (
                     <section
                         className={classes.column}
@@ -146,9 +155,24 @@ function Board({
                             )}
                         </Group>
                         <Stack gap="xs" className={classes.columnCards}>
-                            {cards.map((entry) => (
+                            {visibleCards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
                             ))}
+                            {isCollapsed && (
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    fullWidth
+                                    onClick={() =>
+                                        setExpandedColumns((expanded) => [
+                                            ...expanded,
+                                            column.id,
+                                        ])
+                                    }
+                                >
+                                    Show all ({cards.length})
+                                </Button>
+                            )}
                             {!cards.length && (
                                 <Text
                                     className={classes.emptyColumn}
@@ -850,6 +874,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 <>
                     {view === 'board' ? (
                         <Board
+                            key={selectedProjectId ?? 'roadmap'}
                             entries={entries}
                             projectBoard={projectBoard}
                             statuses={statuses}

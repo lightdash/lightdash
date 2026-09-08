@@ -355,6 +355,60 @@ describe('Project roadmap', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('limits long columns to 20 cards until expanded, without limiting the table', async () => {
+        setup('pagination');
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Load more projects' }),
+        );
+        await screen.findByRole('button', { name: 'Show all (26)' });
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Load more projects' }),
+        );
+        await screen.findByRole('button', { name: 'Show all (31)' });
+        const backlog = () =>
+            within(
+                screen.getByRole('region', { name: 'Backlog roadmap items' }),
+            );
+        expect(
+            backlog().getAllByRole('button', { name: /^Open/ }),
+        ).toHaveLength(20);
+        expect(backlog().getByText('31')).toBeInTheDocument();
+        expect(
+            within(
+                screen.getByRole('region', {
+                    name: 'In progress roadmap items',
+                }),
+            ).queryByRole('button', { name: /Show all/ }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        expect(
+            within(screen.getByRole('table')).getAllByText('Backlog'),
+        ).toHaveLength(31);
+        fireEvent.click(screen.getByRole('radio', { name: 'Board' }));
+        fireEvent.click(
+            backlog().getByRole('button', { name: 'Show all (31)' }),
+        );
+        expect(
+            backlog().getAllByRole('button', { name: /^Open/ }),
+        ).toHaveLength(31);
+        expect(
+            backlog().queryByRole('button', { name: /Show all/ }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Open More flexible dashboard filters',
+            }),
+        );
+        await screen.findByRole('region', { name: 'Backlog tickets' });
+        fireEvent.click(screen.getByRole('link', { name: 'Roadmap' }));
+        await screen.findByRole('button', { name: 'Show all (31)' });
+        expect(
+            backlog().getAllByRole('button', { name: /^Open/ }),
+        ).toHaveLength(20);
+    });
+
     it('removes expired project titles and tickets when refresh fails', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         setup('expiry');
