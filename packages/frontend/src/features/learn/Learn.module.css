@@ -394,17 +394,6 @@
     background: var(--mi-band);
 }
 
-.band::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.16;
-    background-image: radial-gradient(var(--mi-fg) 1.2px, transparent 1.3px);
-    background-size: 12px 12px;
-    background-position: 6px 4px;
-}
-
 .blob {
     position: relative;
     width: 38px;
