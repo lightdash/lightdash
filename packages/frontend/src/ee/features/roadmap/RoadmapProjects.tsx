@@ -7,13 +7,13 @@ import {
     Badge,
     Box,
     Button,
-    Checkbox,
     Group,
     Paper,
     Progress,
     SegmentedControl,
     Table,
     Stack,
+    Switch,
     Text,
     TextInput,
     ThemeIcon,
@@ -661,8 +661,9 @@ export function RoadmapProjects({
                 </Group>
                 <Group gap="md" className={classes.viewControls}>
                     {!projectBoard && (
-                        <Checkbox
-                            size="xs"
+                        <Switch
+                            size="sm"
+                            role="switch"
                             label="Only our interests"
                             checked={onlyInterested}
                             onChange={(event) =>

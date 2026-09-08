@@ -143,7 +143,7 @@ describe('Project roadmap', () => {
             screen.getByRole('region', { name: 'Done roadmap items' }),
         ).toContainElement(completed);
         fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Only our interests' }),
+            screen.getByRole('switch', { name: 'Only our interests' }),
         );
         await waitFor(() =>
             expect(
@@ -170,7 +170,7 @@ describe('Project roadmap', () => {
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         expect(screen.getByRole('table')).toHaveTextContent('Interested');
         fireEvent.click(
-            screen.getByRole('checkbox', { name: 'Only our interests' }),
+            screen.getByRole('switch', { name: 'Only our interests' }),
         );
         await screen.findByRole('button', {
             name: 'Open Instant dashboard previews',
