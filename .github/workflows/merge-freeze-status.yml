@@ -58,7 +58,7 @@ jobs:
           # the sort of sentence that names a customer. A username carries
           # nothing sensitive and tells the author who to go and ask.
           if [ -n "${FREEZE_ACTOR:-}" ]; then
-            description="Merges to main are frozen by $FREEZE_ACTOR - ask them in Slack"
+            description="Merges to main are frozen by $FREEZE_ACTOR - ask Cloudy in Slack"
           else
             description="Merges to main are frozen while a release is cut"
           fi
