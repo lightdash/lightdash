@@ -355,9 +355,9 @@ describe('Editor can create content', () => {
         cy.findByPlaceholderText('eg. KPI Dashboard').type(dashboardName);
         cy.get('[data-testid="DashboardCreateModal/Next"]').click();
         cy.get('button').contains('Create').click();
-        cy.wait(1500);
+        cy.location('pathname').should('match', /\/dashboards\/[^/]+\/edit$/);
         cy.go('back');
-        cy.wait(1500);
+        cy.location('pathname').should('include', '/spaces/');
         cy.contains(dashboardName);
 
         cy.get(
