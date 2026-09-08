@@ -9,6 +9,17 @@ import {
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 
+export const buildAgentRunSqlDescription = (
+    defaultLimit: number,
+    maxLimit: number,
+) => `Execute a read-only SQL query against the project's data warehouse. Prefer the semantic layer when it can answer the question; use SQL for ad-hoc analysis or queries the semantic layer cannot express.
+
+Use a valid SELECT statement in the connected warehouse's SQL dialect.
+The tool handles execution and returns a row/column summary, plus a CSV preview when data access is enabled. Empty results report zero rows. Correct validation or execution errors before retrying.
+
+The row limit defaults to ${defaultLimit}, max ${maxLimit}.
+Do not invent SQL Runner links.`;
+
 export const buildRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,

@@ -292,6 +292,7 @@ import {
     toolRunSavedChartOutputSchema,
 } from './toolRunSavedChartArgs';
 import {
+    buildAgentRunSqlDescription,
     buildRunSqlDescription,
     DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
@@ -664,10 +665,16 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
 > = defineTool({
     name: 'runSql',
     title: 'Run SQL',
-    description: buildRunSqlDescription(
-        DEFAULT_RUN_SQL_LIMIT,
-        DEFAULT_RUN_SQL_MAX_LIMIT,
-    ),
+    description: ({ runtime }) =>
+        (
+            ({
+                agent: buildAgentRunSqlDescription,
+                mcp: buildRunSqlDescription,
+            }) satisfies Record<
+                ToolDescriptionContext['runtime'],
+                typeof buildRunSqlDescription
+            >
+        )[runtime](DEFAULT_RUN_SQL_LIMIT, DEFAULT_RUN_SQL_MAX_LIMIT),
     availability: ['agent', 'mcp'],
     inputSchema: toolRunSqlArgsSchema,
     agent: { outputSchema: toolRunSqlOutputSchema },
