@@ -63,7 +63,7 @@ const createSuccessfulExecaProcess = () =>
 const createFailedExecaProcess = () =>
     createExecaProcess(Promise.reject(cliMocks.error));
 
-const createPendingExecaProcess = (pid?: number) => {
+const createPendingExecaProcess = (pid?: number, cancelRejects = true) => {
     let resolve: (value: ExecaReturnValue) => void = () => undefined;
     let reject: (reason: unknown) => void = () => undefined;
     const result = new Promise<ExecaReturnValue>(
@@ -73,7 +73,9 @@ const createPendingExecaProcess = (pid?: number) => {
         },
     );
     const cancel = vi.fn(() => {
-        reject(Object.assign(new Error('cancelled'), { isCanceled: true }));
+        if (cancelRejects) {
+            reject(Object.assign(new Error('cancelled'), { isCanceled: true }));
+        }
     });
     const process = createExecaProcess(result, cancel, pid);
     return { process, cancel, resolve };
@@ -319,4 +321,48 @@ describe('DbtCliClient cancellation', () => {
 
         expect(pending.cancel).not.toHaveBeenCalled();
     });
+
+    it.each([
+        {
+            state: 'exited',
+            exitCode: 0,
+            signalCode: null,
+        },
+        {
+            state: 'signalled',
+            exitCode: null,
+            signalCode: 'SIGTERM' as NodeJS.Signals,
+        },
+    ])(
+        'does not kill the process group after a $state child is awaiting settlement',
+        async ({ exitCode, signalCode }) => {
+            const pending = createPendingExecaProcess(12345, false);
+            const processWithLifecycle = Object.defineProperties(
+                pending.process,
+                {
+                    exitCode: { configurable: true, value: exitCode },
+                    signalCode: { configurable: true, value: signalCode },
+                },
+            );
+            const kill = vi.spyOn(process, 'kill').mockReturnValue(true);
+            execaMock.mockReturnValueOnce(processWithLifecycle);
+            const controller = new AbortController();
+            const client = new DbtCliClient(cliArgs);
+            client.setAbortSignal(controller.signal);
+            try {
+                const command = client.installDeps();
+                await vi.waitFor(() =>
+                    expect(execaMock).toHaveBeenCalledTimes(1),
+                );
+                controller.abort();
+
+                expect(pending.cancel).toHaveBeenCalledTimes(1);
+                expect(kill).not.toHaveBeenCalled();
+                pending.resolve(successfulExecaResult());
+                await command;
+            } finally {
+                kill.mockRestore();
+            }
+        },
+    );
 });

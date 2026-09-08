@@ -56,7 +56,14 @@ export const runAbortableProcess = async (
     );
     const abort = () => {
         child.cancel();
-        if (process.platform === 'win32' || child.pid === undefined) return;
+        if (
+            process.platform === 'win32' ||
+            child.pid === undefined ||
+            child.exitCode !== null ||
+            child.signalCode !== null
+        ) {
+            return;
+        }
         try {
             process.kill(-child.pid, 'SIGKILL');
         } catch (error) {
