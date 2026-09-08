@@ -32995,12 +32995,131 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "RoadmapItemStatus": {
-                "enum": ["Backlog", "Building", "Shipped", "Canceled"],
-                "type": "string"
-            },
             "RoadmapItemPriority": {
                 "enum": ["Urgent", "High", "Medium", "Low", "No priority"],
+                "type": "string"
+            },
+            "RoadmapProject": {
+                "properties": {
+                    "priority": {
+                        "$ref": "#/components/schemas/RoadmapItemPriority"
+                    },
+                    "progress": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stage": {
+                        "type": "string",
+                        "enum": [
+                            "backlog",
+                            "planned",
+                            "started",
+                            "paused",
+                            "completed"
+                        ]
+                    },
+                    "icon": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "priority",
+                    "progress",
+                    "stage",
+                    "icon",
+                    "title",
+                    "projectId"
+                ],
+                "type": "object"
+            },
+            "RoadmapProjectGroup": {
+                "properties": {
+                    "hasDirectNeed": {
+                        "type": "boolean"
+                    },
+                    "ownRequestCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "project": {
+                        "$ref": "#/components/schemas/RoadmapProject"
+                    }
+                },
+                "required": ["hasDirectNeed", "ownRequestCount", "project"],
+                "type": "object"
+            },
+            "RoadmapProjectPagination": {
+                "properties": {
+                    "totalPages": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalResults": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["totalPages", "totalResults", "pageSize", "page"],
+                "type": "object"
+            },
+            "RoadmapProjectResults": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/RoadmapProjectPagination"
+                    },
+                    "otherRequestCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "projects": {
+                        "items": {
+                            "$ref": "#/components/schemas/RoadmapProjectGroup"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "expiresAt",
+                    "pagination",
+                    "otherRequestCount",
+                    "projects"
+                ],
+                "type": "object"
+            },
+            "ApiRoadmapProjectResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapProjectResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RoadmapItemStatus": {
+                "enum": ["Backlog", "Building", "Shipped", "Canceled"],
                 "type": "string"
             },
             "RoadmapItem": {
@@ -33047,6 +33166,48 @@
                     "title",
                     "ticketId"
                 ],
+                "type": "object"
+            },
+            "RoadmapProjectRequestsResults": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "pagination": {
+                        "$ref": "#/components/schemas/RoadmapProjectPagination"
+                    },
+                    "requests": {
+                        "items": {
+                            "properties": {
+                                "projectId": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "request": {
+                                    "$ref": "#/components/schemas/RoadmapItem"
+                                }
+                            },
+                            "required": ["projectId", "request"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["expiresAt", "pagination", "requests"],
+                "type": "object"
+            },
+            "ApiRoadmapProjectRequestsResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RoadmapProjectRequestsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "RoadmapPagination": {
