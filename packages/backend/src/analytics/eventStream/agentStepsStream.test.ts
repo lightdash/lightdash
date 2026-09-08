@@ -2,8 +2,8 @@ import type {
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
 } from '../LightdashAnalytics';
-import { EventStreamSink } from './EventStreamSink';
 import { agentStepsCompactedColumns } from './agentStepsStream';
+import { EventStreamSink } from './EventStreamSink';
 import { EVENT_STREAM_SCHEMA_VERSION } from './projection';
 import { eventStreamRegistry } from './registry';
 import { EventStreamRow } from './types';

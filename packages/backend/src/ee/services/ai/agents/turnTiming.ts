@@ -154,7 +154,8 @@ export class TurnTimingTracker {
         // Ran tools, but nothing told us when they started: report the step
         // total and leave the split empty rather than crediting tool time to
         // the model.
-        const splitUnobservable = calls > 0 && this.stepFirstToolCallAt === null;
+        const splitUnobservable =
+            calls > 0 && this.stepFirstToolCallAt === null;
 
         const timing: StepTiming = {
             stepIndex: this.stepIndex,
