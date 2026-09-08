@@ -268,7 +268,8 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                             })}
                         />
                     )}
-                {format === SchedulerFormat.CSV && (
+                {(format === SchedulerFormat.CSV ||
+                    format === SchedulerFormat.XLSX) && (
                     <Tooltip
                         label="Add an email or Slack recipient to attach the file"
                         position="top-start"

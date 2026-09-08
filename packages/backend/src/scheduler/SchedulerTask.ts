@@ -644,7 +644,7 @@ export default class SchedulerTask {
         channel: string;
         threadTs: string;
         files: SlackDeliveryFile[];
-        fileType: SchedulerFormat.CSV;
+        fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
     }): Promise<void> {
         await files.reduce<Promise<void>>(async (previous, file) => {
             await previous;
@@ -663,7 +663,7 @@ export default class SchedulerTask {
                     threadTs,
                     file: Buffer.from(await response.arrayBuffer()),
                     title: file.chartName ?? file.filename,
-                    // Dashboard files are named after the chart; Slack needs the extension to preview them as a table
+                    // Dashboard files are named after the chart or workbook; Slack needs the extension to preview them
                     filename: file.filename.endsWith(extension)
                         ? file.filename
                         : `${file.filename}${extension}`,
@@ -2329,7 +2329,8 @@ export default class SchedulerTask {
                 const csvOptions = SchedulerTask.getCsvOptions(scheduler);
                 if (
                     message.ts &&
-                    format === SchedulerFormat.CSV &&
+                    (format === SchedulerFormat.CSV ||
+                        format === SchedulerFormat.XLSX) &&
                     csvOptions?.asAttachment
                 ) {
                     await this.postDeliveryFilesToSlackThread({
