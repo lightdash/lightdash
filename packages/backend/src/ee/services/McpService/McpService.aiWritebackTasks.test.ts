@@ -1,6 +1,7 @@
 import { ForbiddenError, NotFoundError } from '@lightdash/common';
 import { McpError } from '@modelcontextprotocol/sdk/types.js'; // eslint-disable-line import/extensions
 import { McpService, McpToolName } from './McpService';
+import { makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredToolCallback = (
     args: Record<string, unknown>,
@@ -172,7 +173,7 @@ const createServerWithWriteback = async (
     mockRegisteredMcpTools.clear();
     mockRegisteredRequestHandlers.clear();
     mockRegisterCapabilities.mockClear();
-    await mcpService.createServer();
+    await mcpService.createServer(makeMcpServerOptions());
 };
 
 describe('McpService AI writeback MCP tasks', () => {
@@ -197,13 +198,15 @@ describe('McpService AI writeback MCP tasks', () => {
             const mcpService = makeMcpService({ aiWritebackService: {} });
             mockRegisteredMcpTools.clear();
             mockRegisteredRequestHandlers.clear();
-            await mcpService.createServer({
-                projectPinned: true,
-                runSqlEnabled: false,
-                runMetricQueryEnabled: false,
-                mcpContentWritesEnabled: false,
-                scheduledDeliveryEnabled: false,
-            });
+            await mcpService.createServer(
+                makeMcpServerOptions(
+                    {
+                        mcpContentWritesEnabled: false,
+                        scheduledDeliveryEnabled: false,
+                    },
+                    projectUuid,
+                ),
+            );
 
             expect(
                 mockRegisteredMcpTools.has(McpToolName.RUN_AI_WRITEBACK),
