@@ -3,7 +3,11 @@ import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { request as httpRequest, type Server, type ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
-import { McpService } from '../ee/services/McpService/McpService';
+import {
+    MCP_SUPPORTED_PROTOCOL_VERSIONS,
+    McpService,
+} from '../ee/services/McpService/McpService';
+import Logger from '../logging/logger';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
 
 const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
@@ -76,11 +80,13 @@ const sendHttpRequest = ({
     path = '/api/v1/mcp',
     port,
     requestBody,
+    requestHeaders,
 }: {
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     port: number;
     requestBody?: Record<string, unknown>;
+    requestHeaders?: Record<string, string>;
 }) =>
     new Promise<{ body: string; status: number }>((resolve, reject) => {
         const request = httpRequest(
@@ -88,6 +94,7 @@ const sendHttpRequest = ({
                 headers: {
                     authorization: 'Bearer test-token',
                     'content-type': 'application/json',
+                    ...requestHeaders,
                 },
                 hostname: '127.0.0.1',
                 method,
@@ -114,11 +121,13 @@ const requestMcp = async ({
     method,
     path,
     requestBody,
+    requestHeaders,
 }: {
     account: Account;
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     requestBody?: Record<string, unknown>;
+    requestHeaders?: Record<string, string>;
 }) => {
     const app = express();
     const mcpService = createMcpService();
@@ -145,6 +154,7 @@ const requestMcp = async ({
         path,
         port: address.port,
         requestBody,
+        requestHeaders,
     });
 
     return { response, mcpService };
@@ -166,6 +176,41 @@ afterEach(async () => {
                 }),
         ),
     );
+});
+
+describe('MCP protocol version compatibility', () => {
+    it('returns supported versions without reaching the MCP server for an unsupported version', async () => {
+        const unsupportedProtocolVersion = '2026-06-18';
+        transport.handleRequest.mockRejectedValue(
+            new Error(
+                `Bad Request: Unsupported protocol version: ${unsupportedProtocolVersion}`,
+            ),
+        );
+
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'POST',
+            requestHeaders: {
+                'mcp-protocol-version': unsupportedProtocolVersion,
+            },
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/list',
+            },
+        });
+
+        expect(response).toEqual({
+            body: JSON.stringify({
+                error: `Unsupported MCP protocol version: ${unsupportedProtocolVersion}`,
+                supportedProtocolVersions: MCP_SUPPORTED_PROTOCOL_VERSIONS,
+            }),
+            status: 400,
+        });
+        expect(mcpService.createServer).not.toHaveBeenCalled();
+        expect(transport.handleRequest).not.toHaveBeenCalled();
+        expect(Logger.error).not.toHaveBeenCalled();
+    });
 });
 
 describe('MCP router OAuth scope authorization', () => {
