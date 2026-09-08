@@ -4,13 +4,12 @@ import {
     LightdashSdkVersionHeader,
     LightdashVersionHeader,
     RequestMethod,
-    getErrorMessage,
     isApiError,
     type AnyType,
     type ApiError,
     type ApiResponse,
 } from '@lightdash/common';
-import { spanToTraceHeader, startSpan } from '@sentry/react';
+import { addBreadcrumb, spanToTraceHeader, startSpan } from '@sentry/react';
 // No fetch import on purpose: `isomorphic-fetch` captures `window.fetch` at
 // module evaluation, so a host page (SDK embeds) that patches and later
 // restores fetch strands us with a stale reference. The global `fetch`
@@ -18,6 +17,11 @@ import { spanToTraceHeader, startSpan } from '@sentry/react';
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
 import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHandshake';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
+import {
+    diagnoseTransportFailure,
+    networkFailureMessage,
+    UnexpectedResponseError,
+} from './utils/networkDiagnostics';
 
 // TODO: import from common or fix the instantiation of the request module
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
@@ -105,56 +109,22 @@ function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
     return url;
 }
 
-// A response arrived but its body is not the Lightdash API JSON envelope, e.g.
-// a proxy block page, a gateway error page, or a load balancer timeout.
-class UnexpectedResponseError extends Error {
-    readonly status: number;
-
-    constructor(status: number) {
-        super(`Unexpected response with HTTP status ${status}`);
-        this.name = 'UnexpectedResponseError';
-        this.status = status;
-    }
-}
-
 const parseJsonBody = (r: Response): Promise<AnyType> =>
     r.json().catch(() => {
         throw new UnexpectedResponseError(r.status);
     });
 
-type RequestDescriptor = { method: string; url: string };
-
-const GENERIC_NETWORK_ERROR_MESSAGE =
-    'We are currently unable to reach the Lightdash server. Please try again in a few moments.';
-
-const networkErrorMessage = (
-    err: unknown,
-    { method, url }: RequestDescriptor,
-): string => {
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        return 'You appear to be offline. Check your internet connection and try again.';
-    }
-    if (err instanceof UnexpectedResponseError) {
-        return `The Lightdash server returned an unexpected response (HTTP ${err.status}) to ${method} ${url}. A proxy, firewall or load balancer may have intercepted the request. Please try again in a few moments.`;
-    }
-    // DOMException does not extend Error in every realm, so match by name.
-    if (
-        typeof err === 'object' &&
-        err !== null &&
-        'name' in err &&
-        err.name === 'AbortError'
-    ) {
-        return `The request ${method} ${url} was cancelled before the Lightdash server responded.`;
-    }
-    // fetch() rejects with a TypeError when no response came back at all:
-    // DNS, CORS, connection reset, or a proxy dropping the request.
-    if (err instanceof TypeError) {
-        return `The request ${method} ${url} never reached the Lightdash server. Your browser, network, VPN or a corporate proxy may have blocked it. Check the Network tab in your browser developer tools, or try again from another network.`;
-    }
-    return GENERIC_NETWORK_ERROR_MESSAGE;
+type FailedRequest = {
+    method: string;
+    url: string;
+    apiPrefix: string;
+    traceId: string | null;
 };
 
-const handleError = (err: unknown, request: RequestDescriptor): ApiError => {
+const handleError = async (
+    err: unknown,
+    request: FailedRequest,
+): Promise<ApiError> => {
     if (isApiError(err) && err.error?.statusCode && err.error?.name) {
         if (
             err.error.name === 'DeactivatedAccountError' &&
@@ -168,13 +138,23 @@ const handleError = (err: unknown, request: RequestDescriptor): ApiError => {
     // Surface the real transport error (abort, CORS, DNS, connection reset)
     // instead of silently masking it as the generic message below.
     console.error('Failed to reach the Lightdash server:', err);
+    const diagnostics = await diagnoseTransportFailure({
+        ...request,
+        error: err,
+    });
+    addBreadcrumb({
+        category: 'network',
+        level: 'warning',
+        message: `Transport failure: ${diagnostics.kind}`,
+        data: diagnostics,
+    });
     return {
         status: 'error',
         error: {
             name: 'NetworkError',
             statusCode: 500,
-            message: networkErrorMessage(err, request),
-            data: { cause: getErrorMessage(err) },
+            message: networkFailureMessage(diagnostics),
+            data: diagnostics,
         },
     };
 };
@@ -285,28 +265,37 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
                     throw d;
             }
         })
-        .catch((err) => {
+        .catch(async (err) => {
+            const apiError = await handleError(err, {
+                method,
+                url,
+                apiPrefix,
+                traceId: sentryTrace?.split('-')[0] ?? null,
+            });
             networkHistory.push(
                 sensitive
                     ? {
                           method,
-                          status: err.status,
+                          status: apiError.error.statusCode,
                           url,
                           body: SENSITIVE_DATA_REDACTED,
                           error: SENSITIVE_DATA_REDACTED,
                       }
                     : {
                           method,
-                          status: err.status,
+                          status: apiError.error.statusCode,
                           url,
                           body,
-                          error: JSON.stringify(err).substring(0, 500),
+                          error: JSON.stringify(apiError.error).substring(
+                              0,
+                              1000,
+                          ),
                       },
             );
             // only store last MAX_NETWORK_HISTORY requests
             if (networkHistory.length > MAX_NETWORK_HISTORY)
                 networkHistory.shift();
-            throw handleError(err, { method, url });
+            throw apiError;
         });
 };
 
@@ -351,7 +340,13 @@ export const lightdashApiStream = ({
     }).then(async (r) => {
         if (!r.ok) {
             const error: unknown = await parseJsonBody(r).catch((e) => e);
-            throw new Error(handleError(error, { method, url }).error.message);
+            const apiError = await handleError(error, {
+                method,
+                url,
+                apiPrefix,
+                traceId: sentryTrace?.split('-')[0] ?? null,
+            });
+            throw new Error(apiError.error.message);
         }
         return r;
     });

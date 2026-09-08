@@ -237,6 +237,9 @@ describe('network error messages', () => {
         vi.restoreAllMocks();
     });
 
+    const healthOk = () =>
+        new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
+
     const request = () =>
         lightdashApi({
             method: 'PATCH',
@@ -244,10 +247,11 @@ describe('network error messages', () => {
             body: JSON.stringify({}),
         });
 
-    it('says the request never reached the server when fetch rejects', async () => {
+    it('says the request was blocked when fetch rejects but the server answers a probe', async () => {
         globalThis.fetch = vi
             .fn()
-            .mockRejectedValue(new TypeError('Failed to fetch'));
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(healthOk());
 
         await expect(request()).rejects.toMatchObject({
             status: 'error',
@@ -255,9 +259,29 @@ describe('network error messages', () => {
                 name: 'NetworkError',
                 statusCode: 500,
                 message: expect.stringContaining(
-                    'The request PATCH /projects/abc never reached the Lightdash server',
+                    'Lightdash is reachable, but PATCH http://test.lightdash/api/v1/projects/abc was blocked before it arrived',
                 ),
-                data: { cause: 'Failed to fetch' },
+                data: {
+                    kind: 'blocked',
+                    cause: 'Failed to fetch',
+                    probe: { ok: true, status: 200 },
+                },
+            },
+        });
+    });
+
+    it('says the server is unreachable when the probe fails too', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValue(new TypeError('Failed to fetch'));
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message: expect.stringContaining(
+                    'Lightdash cannot be reached from your network right now',
+                ),
+                data: { kind: 'unreachable' },
             },
         });
     });
@@ -274,8 +298,9 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message: expect.stringContaining(
-                    'unexpected response (HTTP 502) to PATCH /projects/abc',
+                    'with HTTP 502 instead of Lightdash',
                 ),
+                data: { kind: 'intercepted', responseStatus: 502 },
             },
         });
     });
@@ -289,6 +314,7 @@ describe('network error messages', () => {
             error: {
                 name: 'NetworkError',
                 message: expect.stringContaining('was cancelled'),
+                data: { kind: 'cancelled' },
             },
         });
     });
@@ -304,8 +330,22 @@ describe('network error messages', () => {
                 name: 'NetworkError',
                 message:
                     'You appear to be offline. Check your internet connection and try again.',
+                data: { kind: 'offline' },
             },
         });
+    });
+
+    it('records the diagnosed error in networkHistory', async () => {
+        networkHistory.length = 0;
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(healthOk());
+
+        await expect(request()).rejects.toBeDefined();
+
+        expect(networkHistory).toHaveLength(1);
+        expect(networkHistory[0].error).toContain('"kind":"blocked"');
     });
 
     it('passes real API errors through untouched', async () => {
@@ -347,7 +387,7 @@ describe('network error messages', () => {
                 url: '/stream',
                 body: JSON.stringify({}),
             }),
-        ).rejects.toThrow('unexpected response (HTTP 403) to POST /stream');
+        ).rejects.toThrow('with HTTP 403 instead of Lightdash');
     });
 });
 
