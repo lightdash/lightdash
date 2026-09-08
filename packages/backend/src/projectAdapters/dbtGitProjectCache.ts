@@ -1156,6 +1156,101 @@ const evictFirstAvailableEntry = async (
     return retirement ?? evictFirstAvailableEntry(remaining);
 };
 
+type RetentionVictim = {
+    entry: OwnedEntry;
+    lease: DirectoryLease;
+};
+
+const releaseRetentionVictims = async (victims: RetentionVictim[]) => {
+    await Promise.all(
+        victims.map(({ lease }) =>
+            releaseDirectoryLease(lease).catch((error) => {
+                warnSwallowedFilesystemError(
+                    'Failed to release dbt git cache retention victim lease',
+                    error,
+                );
+            }),
+        ),
+    );
+};
+
+const selectRetentionVictims = async (
+    entries: OwnedEntry[],
+    bytesNeeded: number,
+    countNeeded: number,
+    selected: RetentionVictim[] = [],
+): Promise<RetentionVictim[] | undefined> => {
+    if (bytesNeeded <= 0 && countNeeded <= 0) return selected;
+    const [entry, ...remaining] = entries;
+    if (!entry) {
+        await releaseRetentionVictims(selected);
+        return undefined;
+    }
+    let lease: DirectoryLease | undefined;
+    try {
+        lease = await tryEntryLease(entry.entryDirectory);
+    } catch (error) {
+        await releaseRetentionVictims(selected);
+        throw error;
+    }
+    if (!lease) {
+        return selectRetentionVictims(
+            remaining,
+            bytesNeeded,
+            countNeeded,
+            selected,
+        );
+    }
+    return selectRetentionVictims(
+        remaining,
+        bytesNeeded - (entry.metadata?.sizeBytes ?? 0),
+        countNeeded - 1,
+        [...selected, { entry, lease }],
+    );
+};
+
+const retireRetentionVictims = async (
+    victims: RetentionVictim[],
+): Promise<Promise<boolean>[] | undefined> => {
+    const [victim, ...remaining] = victims;
+    if (!victim) return [];
+    const retirement = await removeWhileLeased(
+        toPublicLease(
+            victim.entry.key,
+            victim.entry.entryDirectory,
+            victim.lease,
+            true,
+        ),
+    );
+    if (!retirement) {
+        await releaseRetentionVictims(remaining);
+        return undefined;
+    }
+    const remainingCleanups = await retireRetentionVictims(remaining);
+    return remainingCleanups
+        ? [retirement.cleanup, ...remainingCleanups]
+        : undefined;
+};
+
+const reserveRetentionVictims = async (
+    entries: OwnedEntry[],
+    bytesNeeded: number,
+    countNeeded: number,
+) => {
+    const victims = await selectRetentionVictims(
+        entries,
+        bytesNeeded,
+        countNeeded,
+    );
+    if (!victims) return undefined;
+    try {
+        return await retireRetentionVictims(victims);
+    } catch (error) {
+        await releaseRetentionVictims(victims);
+        throw error;
+    }
+};
+
 type AbandonedEntry = {
     entry: OwnedEntry;
     stat: Stats;
@@ -1558,15 +1653,9 @@ const retainDbtGitProjectCache = async (
     lease: DbtGitCacheLease,
     sizeBytes: number,
     totalDeadline: number,
-    attempt: number,
 ): Promise<void> => {
-    if (Date.now() >= totalDeadline || attempt >= PUBLICATION_MAX_ATTEMPTS) {
-        await declineDbtGitCacheRetention(
-            lease,
-            attempt >= PUBLICATION_MAX_ATTEMPTS
-                ? 'publication-attempt-limit'
-                : 'publication-deadline',
-        );
+    if (Date.now() >= totalDeadline) {
+        await declineDbtGitCacheRetention(lease, 'publication-deadline');
         return;
     }
     const cacheLock = await acquireCacheLock(
@@ -1576,7 +1665,7 @@ const retainDbtGitProjectCache = async (
         await declineDbtGitCacheRetention(lease, 'reservation-lock-timeout');
         return;
     }
-    let cleanup: Promise<boolean> | undefined;
+    let cleanup: Promise<boolean>[] = [];
     let declineRetention: string | undefined;
     let declineRetentionPaths: string[] | undefined;
     try {
@@ -1627,24 +1716,7 @@ const retainDbtGitProjectCache = async (
                     entry.kind === 'tombstone' ||
                     entry.metadata?.state === 'retained',
             ).length;
-            if (
-                retainedBytes + sizeBytes > configuration.maxBytes ||
-                retainedCount + 1 > DBT_GIT_CACHE_MAX_ENTRIES
-            ) {
-                const candidates = others
-                    .filter(
-                        (entry) =>
-                            entry.kind === 'entry' &&
-                            entry.metadata?.state === 'retained',
-                    )
-                    .sort(
-                        (left, right) =>
-                            (left.metadata?.lastUsedAt ?? 0) -
-                            (right.metadata?.lastUsedAt ?? 0),
-                    );
-                cleanup = (await evictFirstAvailableEntry(candidates))?.cleanup;
-                if (!cleanup) declineRetention = 'capacity-unavailable';
-            } else {
+            const publish = async () => {
                 const current = await readJson(
                     path.join(lease.entryDirectory, METADATA),
                 );
@@ -1668,35 +1740,59 @@ const retainDbtGitProjectCache = async (
                     } else {
                         declineRetention = 'invalid-metadata';
                     }
-                } else {
-                    await atomicWriteJson(
-                        path.join(lease.entryDirectory, METADATA),
-                        {
-                            ...current,
-                            state: 'retained',
-                            sizeBytes,
-                            lastUsedAt: Date.now(),
-                        } satisfies EntryMetadata,
-                    );
-                    await releaseDirectoryLease({
-                        leaseId: lease.leaseId,
-                        directory: path.join(
-                            lease.entryDirectory,
-                            LEASE_DIRECTORY,
-                        ),
-                        heartbeat: lease.heartbeat,
-                    });
-                    if (
-                        activeLeases.get(lease.key)?.leaseId === lease.leaseId
-                    ) {
-                        activeLeases.delete(lease.key);
-                    }
-                    Object.assign(lease, {
-                        closed: true,
-                        retained: true,
-                        retentionReason: undefined,
-                    });
+                    return;
                 }
+                await atomicWriteJson(
+                    path.join(lease.entryDirectory, METADATA),
+                    {
+                        ...current,
+                        state: 'retained',
+                        sizeBytes,
+                        lastUsedAt: Date.now(),
+                    } satisfies EntryMetadata,
+                );
+                await releaseDirectoryLease({
+                    leaseId: lease.leaseId,
+                    directory: path.join(lease.entryDirectory, LEASE_DIRECTORY),
+                    heartbeat: lease.heartbeat,
+                });
+                if (activeLeases.get(lease.key)?.leaseId === lease.leaseId) {
+                    activeLeases.delete(lease.key);
+                }
+                Object.assign(lease, {
+                    closed: true,
+                    retained: true,
+                    retentionReason: undefined,
+                });
+            };
+            if (
+                retainedBytes + sizeBytes > configuration.maxBytes ||
+                retainedCount + 1 > DBT_GIT_CACHE_MAX_ENTRIES
+            ) {
+                const candidates = others
+                    .filter(
+                        (entry) =>
+                            entry.kind === 'entry' &&
+                            entry.metadata?.state === 'retained',
+                    )
+                    .sort(
+                        (left, right) =>
+                            (left.metadata?.lastUsedAt ?? 0) -
+                            (right.metadata?.lastUsedAt ?? 0),
+                    );
+                const reserved = await reserveRetentionVictims(
+                    candidates,
+                    retainedBytes + sizeBytes - configuration.maxBytes,
+                    retainedCount + 1 - DBT_GIT_CACHE_MAX_ENTRIES,
+                );
+                if (!reserved) {
+                    declineRetention = 'capacity-unavailable';
+                } else {
+                    cleanup = reserved;
+                    await publish();
+                }
+            } else {
+                await publish();
             }
         }
     } finally {
@@ -1710,22 +1806,7 @@ const retainDbtGitProjectCache = async (
         );
         return;
     }
-    if (cleanup) {
-        if (
-            await waitForTombstoneCleanup(
-                cleanup,
-                Math.min(totalDeadline, Date.now() + TOMBSTONE_CLEANUP_WAIT_MS),
-            )
-        ) {
-            return retainDbtGitProjectCache(
-                lease,
-                sizeBytes,
-                totalDeadline,
-                attempt + 1,
-            );
-        }
-        await declineDbtGitCacheRetention(lease, 'cleanup-timeout');
-    }
+    void Promise.all(cleanup);
 };
 
 export const releaseDbtGitProjectCache = async (
@@ -1747,7 +1828,6 @@ export const releaseDbtGitProjectCache = async (
         lease,
         sizeBytes,
         Date.now() + RETENTION_TOTAL_WAIT_MS,
-        0,
     );
 };
 

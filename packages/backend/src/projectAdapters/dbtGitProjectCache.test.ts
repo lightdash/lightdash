@@ -673,7 +673,7 @@ describe('dbt git project cache', () => {
         await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
     });
 
-    it('does not publish while eviction cleanup remains charged', async () => {
+    it('publishes only against its own charged eviction reservation', async () => {
         const root = await configure({ maxBytes: 150 });
         const first = await acquireDbtGitProjectCache(
             identity(1),
@@ -708,15 +708,10 @@ describe('dbt git project cache', () => {
             return actualFs.rm(target, options);
         });
         try {
-            let secondReleased = false;
-            const secondRelease = releaseDbtGitProjectCache(second!, 100).then(
-                () => {
-                    secondReleased = true;
-                },
-            );
+            const secondRelease = releaseDbtGitProjectCache(second!, 100);
             await cleanupStarted;
-            await Promise.resolve();
-            expect(secondReleased).toBe(false);
+            await secondRelease;
+            expect(second).toMatchObject({ retained: true });
             expect(await tombstoneDirectories(root)).toHaveLength(1);
 
             const third = await acquireDbtGitProjectCache(
@@ -725,6 +720,13 @@ describe('dbt git project cache', () => {
             );
             await fs.mkdir(third!.checkoutDirectory);
             await releaseDbtGitProjectCache(third!, 1);
+            expect(third).toMatchObject({
+                retained: false,
+                retentionReason: 'capacity-unavailable',
+            });
+            await expect(
+                fs.access(second!.entryDirectory),
+            ).resolves.toBeUndefined();
             const thirdAgain = await acquireDbtGitProjectCache(
                 identity(3),
                 'repository-3',
@@ -742,12 +744,13 @@ describe('dbt git project cache', () => {
             await releaseDbtGitProjectCache(secondAgain!, 100);
         } finally {
             finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
             rm.mockImplementation(actualFs.rm);
         }
     });
 
-    it('does not extend the retention deadline after accounting consumes it', async () => {
-        await configure({ maxBytes: 150 });
+    it('reserves enough idle victim bytes before optimistic publication', async () => {
+        const root = await configure({ maxBytes: 250 });
         const first = await acquireDbtGitProjectCache(
             identity(1),
             'repository-1',
@@ -759,70 +762,101 @@ describe('dbt git project cache', () => {
             'repository-2',
         );
         await fs.mkdir(second!.checkoutDirectory);
+        await releaseDbtGitProjectCache(second!, 100);
+        const third = await acquireDbtGitProjectCache(
+            identity(3),
+            'repository-3',
+        );
+        await fs.mkdir(third!.checkoutDirectory);
         const actualFs =
             await vi.importActual<typeof import('fs/promises')>('fs/promises');
-        const readFile = vi.mocked(fs.readFile);
         const rm = vi.mocked(fs.rm);
-        const clock = { now: Date.now(), advanced: false };
-        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        let cleanupCount = 0;
+        let startCleanup: () => void = () => undefined;
         let finishCleanup: () => void = () => undefined;
         const cleanupStarted = new Promise<void>((resolve) => {
-            rm.mockImplementation(async (target, options) => {
-                if (
-                    typeof target === 'string' &&
-                    path
-                        .basename(target)
-                        .startsWith(`.tombstone-${first!.key}-`)
-                ) {
-                    resolve();
-                    await new Promise<void>((finish) => {
-                        finishCleanup = finish;
-                    });
-                }
-                return actualFs.rm(target, options);
-            });
+            startCleanup = resolve;
         });
-        readFile.mockImplementation(
-            async (...args: Parameters<typeof fs.readFile>) => {
-                if (
-                    !clock.advanced &&
-                    typeof args[0] === 'string' &&
-                    args[0].endsWith('.lightdash-cache-entry.json')
-                ) {
-                    clock.advanced = true;
-                    clock.now += 4_950;
-                }
-                return actualFs.readFile(...args);
-            },
-        );
+        const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        rm.mockImplementation(async (target, options) => {
+            if (
+                typeof target === 'string' &&
+                [first!.key, second!.key].some((key) =>
+                    path.basename(target).startsWith(`.tombstone-${key}-`),
+                )
+            ) {
+                cleanupCount += 1;
+                if (cleanupCount === 2) startCleanup();
+                await cleanupFinished;
+            }
+            return actualFs.rm(target, options);
+        });
         try {
-            let released = false;
-            const release = releaseDbtGitProjectCache(second!, 100).then(() => {
-                released = true;
-            });
+            const release = releaseDbtGitProjectCache(third!, 250);
             await cleanupStarted;
-            await new Promise<void>((resolve) => {
-                setTimeout(resolve, 100);
-            });
-            expect(released).toBe(true);
-            expect(second).toMatchObject({
-                retained: false,
-                retentionReason: 'cleanup-timeout',
-            });
-            finishCleanup();
+
             await release;
-            const replacement = await acquireDbtGitProjectCache(
-                identity(2),
-                'repository-2',
+            expect(third).toMatchObject({ retained: true });
+            expect(await tombstoneDirectories(root)).toHaveLength(2);
+            finishCleanup();
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            const reused = await acquireDbtGitProjectCache(
+                identity(3),
+                'repository-3',
             );
-            expect(replacement?.reused).toBe(false);
-            await invalidateOwnedDbtGitCacheLease(replacement!);
+            expect(reused?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reused!, 250);
         } finally {
             finishCleanup();
-            now.mockRestore();
-            readFile.mockImplementation(actualFs.readFile);
             rm.mockImplementation(actualFs.rm);
         }
+    });
+
+    it('releases untouched victim leases after a multi-victim rename failure', async () => {
+        await configure({ maxBytes: 250 });
+        const first = await acquireDbtGitProjectCache(
+            identity(1),
+            'repository-1',
+        );
+        await fs.mkdir(first!.checkoutDirectory);
+        await releaseDbtGitProjectCache(first!, 100);
+        const second = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        await fs.mkdir(second!.checkoutDirectory);
+        await releaseDbtGitProjectCache(second!, 100);
+        const third = await acquireDbtGitProjectCache(
+            identity(3),
+            'repository-3',
+        );
+        await fs.mkdir(third!.checkoutDirectory);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === first!.entryDirectory) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await expect(
+                releaseDbtGitProjectCache(third!, 250),
+            ).rejects.toThrow('rename failed');
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
+
+        const untouched = await acquireDbtGitProjectCache(
+            identity(2),
+            'repository-2',
+        );
+        expect(untouched?.reused).toBe(true);
+        await invalidateOwnedDbtGitCacheLease(untouched!);
+        await invalidateOwnedDbtGitCacheLease(third!);
     });
 
     it('allows only one contender to reclaim a stale entry lease', async () => {
@@ -1354,7 +1388,7 @@ describe('dbt git project cache', () => {
         }
     });
 
-    it('caps retention cleanup waits at the retention budget', async () => {
+    it('retains a fresh checkout when background victim cleanup fails', async () => {
         const root = await configure({ maxBytes: 150 });
         const first = await acquireDbtGitProjectCache(
             identity(1),
@@ -1370,41 +1404,32 @@ describe('dbt git project cache', () => {
         const actualFs =
             await vi.importActual<typeof import('fs/promises')>('fs/promises');
         const rm = vi.mocked(fs.rm);
-        const clock = { now: Date.now() };
-        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
-        let startCleanup: () => void = () => undefined;
-        let finishCleanup: () => void = () => undefined;
-        const cleanupStarted = new Promise<void>((resolve) => {
-            startCleanup = resolve;
-        });
-        const cleanupFinished = new Promise<void>((resolve) => {
-            finishCleanup = resolve;
-        });
+        let failCleanup = true;
         rm.mockImplementation(async (target, options) => {
             if (
+                failCleanup &&
                 typeof target === 'string' &&
                 path.basename(target).startsWith(`.tombstone-${first!.key}-`)
             ) {
-                clock.now += 3_001;
-                startCleanup();
-                await cleanupFinished;
+                failCleanup = false;
+                throw new Error('cleanup failed');
             }
             return actualFs.rm(target, options);
         });
         try {
-            const release = releaseDbtGitProjectCache(second!, 100);
-            await cleanupStarted;
+            await releaseDbtGitProjectCache(second!, 100);
 
-            await release;
-            expect(second).toMatchObject({
-                retained: false,
-                retentionReason: 'cleanup-timeout',
-            });
-            finishCleanup();
+            expect(second).toMatchObject({ retained: true });
+            await expect.poll(() => tombstoneDirectories(root)).toHaveLength(1);
+            await maintainDbtGitProjectCache();
             await expect.poll(() => tombstoneDirectories(root)).toHaveLength(0);
+            const reused = await acquireDbtGitProjectCache(
+                identity(2),
+                'repository-2',
+            );
+            expect(reused?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reused!, 100);
         } finally {
-            finishCleanup();
-            now.mockRestore();
             rm.mockImplementation(actualFs.rm);
         }
     });
