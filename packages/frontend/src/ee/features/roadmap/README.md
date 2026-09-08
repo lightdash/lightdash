@@ -14,7 +14,7 @@ Search and “Only our interests” are applied before catalog pagination. Proje
 
 `/dev/roadmap` provides synthetic scenarios for populated, empty, loading, retry, access denied, removed projects, missing titles, pagination and expiry. The review expiry scenario uses 12 seconds. `VITE_ROADMAP_MOCK_API=true` in `packages/frontend/.env.development.local` also enables fixtures on the Settings page in development only. Turn it off to exercise the live consumer. Keep `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` enabled locally. The mock switch is ignored in production.
 
-Project metadata travels through the same response contract in the preview and live UI. Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner entry point remains a preview only; signup writes belong to the separate signup feature.
+Project metadata travels through the same response contract in the preview and live UI. Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner action and signup flow belong to a separate feature and are not included here.
 
 ## Deployment and rollback
 

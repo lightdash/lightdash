@@ -450,13 +450,7 @@ function BoardError({
     );
 }
 
-export function RoadmapProjects({
-    cacheKey,
-    showDesignPartnerPreview = false,
-}: {
-    cacheKey: string;
-    showDesignPartnerPreview?: boolean;
-}) {
+export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const [view, setView] = useState('board');
     const [onlyInterested, setOnlyInterested] = useState(false);
     const [mainStatuses, setMainStatuses] = useState<string[]>([]);
@@ -476,7 +470,6 @@ export function RoadmapProjects({
     const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
         null,
     );
-    const [interestProject, setInterestProject] = useState<string | null>(null);
     const projectsQuery = useRoadmapProjects(
         {
             pageSize: 10,
@@ -563,7 +556,6 @@ export function RoadmapProjects({
         setSelectedProjectId(null);
         setProjectSearch('');
         setSelectedTicket(null);
-        setInterestProject(null);
     };
     const entries: RoadmapEntry[] = [
         ...(!projectBoard
@@ -638,19 +630,6 @@ export function RoadmapProjects({
                         {!failed && selectedProject && (
                             <ProjectProgress value={presentation.progress} />
                         )}
-                        {!failed &&
-                            selectedProject &&
-                            showDesignPartnerPreview && (
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    onClick={() =>
-                                        setInterestProject(selectedProjectId)
-                                    }
-                                >
-                                    Become a design partner
-                                </Button>
-                            )}
                         <Button
                             leftSection={
                                 <MantineIcon icon={IconArrowLeft} size="sm" />
@@ -772,11 +751,6 @@ export function RoadmapProjects({
                     />
                 </Group>
             </Group>
-            {interestProject !== null && !failed && (
-                <Text fz="xs" c="dimmed" px="xl" py="sm" role="status">
-                    Preview only — no interest has been submitted.
-                </Text>
-            )}
             {unavailable ? (
                 <Box p="xl">
                     <SuboptimalState

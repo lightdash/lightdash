@@ -20,10 +20,7 @@ export default function RoadmapMockContent({
     return (
         <QueryClientProvider client={client}>
             <RoadmapApiContext.Provider value={api}>
-                <RoadmapProjects
-                    cacheKey={`preview-${scenario}`}
-                    showDesignPartnerPreview
-                />
+                <RoadmapProjects cacheKey={`preview-${scenario}`} />
             </RoadmapApiContext.Provider>
         </QueryClientProvider>
     );
