@@ -1,3 +1,26 @@
+# [2.162.0](https://github.com/lightdash/lightdash/compare/2.161.0...2.162.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **explorer:** mount gallery in alternate hosts ([#28839](https://github.com/lightdash/lightdash/issues/28839)) ([dc07b58](https://github.com/lightdash/lightdash/commit/dc07b58cd1974baf564bc7babc77b1ac3b396282))
+* handle expected client compatibility errors ([#28307](https://github.com/lightdash/lightdash/issues/28307)) ([3e996d6](https://github.com/lightdash/lightdash/commit/3e996d69595b61367ad1400cc11637b74168bdeb))
+* **merge-queries:** make the active source card legible in dark mode ([#28845](https://github.com/lightdash/lightdash/issues/28845)) ([9b07bba](https://github.com/lightdash/lightdash/commit/9b07bba5d410d56860e644a4d7d895ef3af4267f))
+* preserve async warehouse query error names ([#28308](https://github.com/lightdash/lightdash/issues/28308)) ([c2c8c02](https://github.com/lightdash/lightdash/commit/c2c8c02469dd21900b87c8b9eec32e5fa48becb8))
+* **sandboxes:** run sandbox images on Node 24 so the pinned CLI can upload ([#28843](https://github.com/lightdash/lightdash/issues/28843)) ([563f23a](https://github.com/lightdash/lightdash/commit/563f23a84d8fe1ddaa69428c1f92467e4d082a43)), closes [#26320](https://github.com/lightdash/lightdash/issues/26320) [#26611](https://github.com/lightdash/lightdash/issues/26611)
+
+
+### Features
+
+* **agent-onboarding:** overhaul the run page ([#28844](https://github.com/lightdash/lightdash/issues/28844)) ([9d53d2f](https://github.com/lightdash/lightdash/commit/9d53d2fba28172f83827b472cabbae010165ad7a)), closes [#28843](https://github.com/lightdash/lightdash/issues/28843)
+* **explorer:** graduate chart gallery ([#28833](https://github.com/lightdash/lightdash/issues/28833)) ([77d91a0](https://github.com/lightdash/lightdash/commit/77d91a0e3d8f34c086e71758ae2b6607058057ea))
+* preserve Slack ownership for merge freezes ([#28837](https://github.com/lightdash/lightdash/issues/28837)) ([971fca3](https://github.com/lightdash/lightdash/commit/971fca335ddec42a5723013a0322561c8da1f3fb))
+
+
+### Reverts
+
+* three merges that were not part of the managed sign-in work ([#28851](https://github.com/lightdash/lightdash/issues/28851)) ([21e876f](https://github.com/lightdash/lightdash/commit/21e876fa940354626baf6022f0f0ae58aa8a3e10)), closes [#28615](https://github.com/lightdash/lightdash/issues/28615) [#28308](https://github.com/lightdash/lightdash/issues/28308) [#28307](https://github.com/lightdash/lightdash/issues/28307)
+
 # [2.161.0](https://github.com/lightdash/lightdash/compare/2.160.0...2.161.0) (2026-09-08)
 
 
