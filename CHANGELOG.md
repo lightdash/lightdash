@@ -1,3 +1,10 @@
+# [2.151.0](https://github.com/lightdash/lightdash/compare/2.150.0...2.151.0) (2026-09-08)
+
+
+### Features
+
+* **embed:** resolve capabilities from actor scopes ([#28749](https://github.com/lightdash/lightdash/issues/28749)) ([ff27fec](https://github.com/lightdash/lightdash/commit/ff27fec732b161aa4faa6699ed04e86abb6043c8)), closes [#28762](https://github.com/lightdash/lightdash/issues/28762)
+
 # [2.150.0](https://github.com/lightdash/lightdash/compare/2.149.4...2.150.0) (2026-09-07)
 
 
