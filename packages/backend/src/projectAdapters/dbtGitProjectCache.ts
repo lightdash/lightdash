@@ -1237,7 +1237,11 @@ const reserveAbandonedEntryCleanup = async (
                 );
             });
         }
-        throw error;
+        warnSwallowedFilesystemError(
+            'Failed to reserve abandoned dbt git cache entry cleanup',
+            error,
+        );
+        return undefined;
     }
     return {
         path: tombstonePath,

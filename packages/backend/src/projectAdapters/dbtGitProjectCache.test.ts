@@ -1539,6 +1539,45 @@ describe('dbt git project cache', () => {
         }
     });
 
+    it('drains other reservations when an abandoned entry rename fails', async () => {
+        const root = await configure();
+        const seeds = await Promise.all([
+            acquireDbtGitProjectCache(identity(1), 'repository-1'),
+            acquireDbtGitProjectCache(identity(2), 'repository-2'),
+        ]);
+        await Promise.all(
+            seeds.map((seed) => invalidateOwnedDbtGitCacheLease(seed!)),
+        );
+        const failedPath = path.join(root, seeds[0]!.key);
+        const drainedPath = path.join(root, seeds[1]!.key);
+        await fs.mkdir(failedPath, { mode: 0o700 });
+        await fs.mkdir(drainedPath, { mode: 0o700 });
+        const stale = new Date(Date.now() - 6 * 60_000);
+        await fs.utimes(failedPath, stale, stale);
+        await fs.utimes(drainedPath, stale, stale);
+        const actualFs =
+            await vi.importActual<typeof import('fs/promises')>('fs/promises');
+        const rename = vi.mocked(fs.rename);
+        const error = new Error('rename failed') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        rename.mockImplementation(async (oldPath, newPath) => {
+            if (oldPath === failedPath) throw error;
+            return actualFs.rename(oldPath, newPath);
+        });
+        try {
+            await maintainDbtGitProjectCache();
+
+            await expect(fs.access(failedPath)).resolves.toBeUndefined();
+            await expect(fs.access(drainedPath)).rejects.toThrow();
+            expect(vi.mocked(Logger.warn)).toHaveBeenCalledWith(
+                'Failed to reserve abandoned dbt git cache entry cleanup',
+                { error },
+            );
+        } finally {
+            rename.mockImplementation(actualFs.rename);
+        }
+    });
+
     it('protects an active unowned entry during abandoned object cleanup', async () => {
         const root = await configure();
         const lease = await acquireDbtGitProjectCache(
