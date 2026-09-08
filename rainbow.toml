@@ -40,12 +40,17 @@ mailpit = true                     # catches the mail the backend sends
 [env]
 PORT = "8080"
 NODE_ENV = "development"
-LIGHTDASH_MODE = "development"
+# PR mode is what the Okteto previews ran as: the preview flag set and its
+# management API, a fixed 000000 email passcode, the relaxed cross-origin
+# opener policy, /api/docs. Hot reload is unaffected: it belongs to the dev
+# processes, not the mode. packages/backend's dev script defers to a mode
+# already set in the environment, so this value reaches the backend.
+LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
 SECURE_COOKIES = "false"
 TRUST_PROXY = "false"
-SCHEDULER_ENABLED = "false"
-ALLOW_MULTIPLE_ORGS = "false"
+SCHEDULER_ENABLED = "true"
+ALLOW_MULTIPLE_ORGS = "true"
 HEADLESS = "true"
 CI = "true"
 PGHOST = "localhost"
@@ -69,9 +74,8 @@ EMAIL_SMTP_USE_AUTH = "false"
 EMAIL_SMTP_ALLOW_INVALID_CERT = "true"
 EMAIL_SMTP_SENDER_NAME = "Lightdash"
 EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
-# Previews exercise unreleased work: enable the curated preview flag set and the
-# flag-management API (docs/preview-feature-flags.md). Okteto got this from
-# LIGHTDASH_MODE=pr; LIGHTDASH_MODE=development here, so set it outright.
+# PR mode implies this (docs/preview-feature-flags.md); kept explicit so a
+# later mode change cannot silently drop the flag-management API.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # Learn is off by default everywhere (docs/learn/architecture.md); previews
 # exist to try unreleased work, so switch it on here and let an admin press
@@ -84,6 +88,32 @@ LIGHTDASH_LEARN_ENABLED = "true"
 # outside the egress list that was four TCP timeouts, 8m47s, on every fork;
 # with this set the same command takes 2.5s.
 RUDDERSTACK_ANALYTICS_DISABLED = "true"
+
+# Parity with the Okteto previews (docker/docker-compose.preview.yml): the
+# settings that switch on the surfaces e2e and QA exercise. Values that name
+# a credential are declared under [secrets] below, not here.
+IS_PULL_REQUEST = "true"
+CUSTOM_ROLES_ENABLED = "true"
+MCP_ENABLED = "true"
+SERVICE_ACCOUNT_ENABLED = "true"       # also lights the semantic-layer connection page
+EMBEDDING_ENABLED = "true"             # the embed specs need it
+PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
+GROUPS_ENABLED = "true"
+EXTENDED_USAGE_ANALYTICS = "true"
+MICROSOFT_TEAMS_ENABLED = "true"
+APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
+ALLOW_MISSING_MIGRATIONS = "true"
+# Postgres wire-protocol server for the semantic layer: setting the port
+# starts the listener and renders the project settings page. No TLS certs in
+# a preview, and the port stays private to the environment.
+PGWIRE_PORT = "5433"
+PGWIRE_SSL_MODE = "disabled"
+# Ask AI. The copilot follows instance config rather than the preview flag
+# set, so it is enabled here and made real by the Anthropic key in [secrets];
+# with no key stored it stays off.
+AI_COPILOT_ENABLED = "true"
+AI_COPILOT_REQUIRES_FEATURE_FLAG = "true"
+AI_DEFAULT_PROVIDER = "anthropic"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
@@ -147,6 +177,29 @@ watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers no
 host = "api.keygen.sh"
 port = 443
 
+# Each integration a preview can exercise, one flow per service. A key in
+# [secrets] does nothing on its own: the connect is refused unless the host
+# is listed here.
+[[egress.allow]]
+host = "api.anthropic.com"          # Ask AI, data apps
+port = 443
+
+[[egress.allow]]
+host = "api.brandfetch.io"          # organization brand lookup
+port = 443
+
+[[egress.allow]]
+host = "api.e2b.dev"                # data-app sandboxes (control plane only; sandbox hosts are per-run)
+port = 443
+
+[[egress.allow]]
+host = "api.github.com"             # GitHub App: repo access for dbt projects
+port = 443
+
+[[egress.allow]]
+host = "github.com"                 # GitHub OAuth login
+port = 443
+
 # The browser learns its origin from one field of one response, so the ingress
 # corrects it in flight; nothing is re-execed on fork.
 [origin]
@@ -164,3 +217,13 @@ LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
 LIGHTDASH_LICENSE_KEY = "licence"
 LIGHTDASH_LICENSE_CERTIFICATE = "licence"
+# Integrations, in the order of the [[egress.allow]] list. Each is optional:
+# with no value stored the variable is absent and the feature stays off.
+ANTHROPIC_API_KEY = "api-key"
+BRANDFETCH_API_KEY = "api-key"
+E2B_API_KEY = "api-key"
+GITHUB_APP_ID = "github-app"
+GITHUB_APP_NAME = "github-app"
+GITHUB_CLIENT_ID = "github-app"
+GITHUB_CLIENT_SECRET = "github-app"
+GITHUB_PRIVATE_KEY = "github-app"
