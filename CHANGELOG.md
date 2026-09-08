@@ -1,3 +1,17 @@
+# [2.154.0](https://github.com/lightdash/lightdash/compare/2.153.1...2.154.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **merge-queries:** run DuckDB jobs on the pre-aggregate worker, in-process when no worker takes them ([#28810](https://github.com/lightdash/lightdash/issues/28810)) ([9ba8348](https://github.com/lightdash/lightdash/commit/9ba834844e191aedbee50dc2462f4869c5d7a344))
+* **upgrade-automation:** quote the title_scope description so the manifest parses ([#28814](https://github.com/lightdash/lightdash/issues/28814)) ([53635dc](https://github.com/lightdash/lightdash/commit/53635dc6a711c7ca0b87b0a097527b636bbddb8e))
+
+
+### Features
+
+* **cli:** scaffold custom chart types with apps create --chart-type ([#28763](https://github.com/lightdash/lightdash/issues/28763)) ([76a76b2](https://github.com/lightdash/lightdash/commit/76a76b2c117b189655fa4ea70cc8044a3d3f8dd5))
+* **cli:** ship a developing-chart-types-locally skill in the scaffold ([#28764](https://github.com/lightdash/lightdash/issues/28764)) ([c24f5af](https://github.com/lightdash/lightdash/commit/c24f5af816ae7074fd43d2bbc7717b913730a566)), closes [#28763](https://github.com/lightdash/lightdash/issues/28763) [#28763](https://github.com/lightdash/lightdash/issues/28763)
+
 ## [2.153.1](https://github.com/lightdash/lightdash/compare/2.153.0...2.153.1) (2026-09-08)
 
 
