@@ -13,6 +13,34 @@ const baseJwt = {
     exp: 1234567890,
 };
 
+describe('embed permissions mode', () => {
+    const writeActions = {
+        userUuid: '00000000-0000-4000-8000-000000000001',
+        spaceUuid: '00000000-0000-4000-8000-000000000002',
+    };
+    it.each([undefined, 'default', 'roles'] as const)(
+        'accepts %s without changing the default',
+        (permissionsMode) => {
+            const result = EmbedJwtSchema.parse({
+                ...baseJwt,
+                writeActions: { ...writeActions, permissionsMode },
+            });
+            expect(result.writeActions?.permissionsMode).toBe(permissionsMode);
+        },
+    );
+    it.each(['jwt', 'legacy', 'invalid', '', null, true])(
+        'rejects unknown mode %s',
+        (permissionsMode) => {
+            expect(
+                EmbedJwtSchema.safeParse({
+                    ...baseJwt,
+                    writeActions: { ...writeActions, permissionsMode },
+                }).success,
+            ).toBe(false);
+        },
+    );
+});
+
 describe('EmbedJwtSchema canAddFilters', () => {
     it('accepts a dashboard JWT with canAddFilters set', () => {
         const result = EmbedJwtSchema.parse({

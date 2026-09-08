@@ -94,6 +94,28 @@ describe('JwtUtil', () => {
     });
 
     describe('decodeJwt', () => {
+        it.each(['jwt', 'legacy', 'invalid', '', null, true])(
+            'rejects signed AI tokens with invalid permission mode %s',
+            (permissionsMode) => {
+                const token = encodeLightdashJwt(
+                    {
+                        ...mockJwtData,
+                        content: { type: 'aiAgent', agentUuid: 'agent' },
+                        writeActions: {
+                            userUuid: 'actor',
+                            spaceUuid: 'space',
+                            permissionsMode,
+                        },
+                    } as unknown as CreateEmbedJwt,
+                    encodedSecret,
+                    '1h',
+                );
+                expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                    ForbiddenError,
+                );
+            },
+        );
+
         it('should decode and validate a valid JWT token', () => {
             const token = encodeLightdashJwt(mockJwtData, encodedSecret, '1h');
             const decoded = decodeLightdashJwt(token, encodedSecret);

@@ -383,6 +383,60 @@ filter scope grants interactivity for all dashboard filters, while preserving
 hidden-filter presentation. Without that scope, retain the JWT's `enabled`
 and `allowedFilters` behavior.
 
+#### AI access: opt-in role-based authorization
+
+**Current scope: AI access only (SPK-1967).** Dashboard role-mode enforcement
+is separate work in SPK-1970. This change does not alter dashboard flags,
+filter/parameter interactivity, exports, or existing Explore permissions.
+
+AI integrations opt into the new scope check through the signed JWT:
+
+```typescript
+writeActions: {
+    userUuid: '...', // Or serviceAccountUserUuid.
+    spaceUuid: '...',
+    permissionsMode: 'roles',
+}
+```
+
+- Omitted or `'default'`: preserve pre-scope AI access. Existing integrations
+  do not need to change their tokens or roles.
+- `'roles'`: additionally require `view:EmbedAiAgent` from the resolved write
+  actor. Removing the last effective grant blocks subsequent AI requests with
+  the same JWT; re-granting restores access.
+- Both paths still require an AI agent JWT, a resolved user/service-account
+  actor, project view, chart creation in the write space, and existing agent,
+  space, and thread restrictions. Dashboard JWTs do not authorize AI endpoints.
+- Reject unknown AI modes rather than silently falling back. The mode is part
+  of the signed JWT, not a trusted browser override.
+
+No data migration or custom-role backfill is needed. Missing scopes cannot
+distinguish old roles from deliberate revocation, so integrations explicitly
+opt in through token generation. Existing and newly issued tokens omitting the
+mode retain legacy behavior; removing a scope is not legacy-token revocation.
+Organization/project grants remain additive. Test both modes with users and
+service accounts and grant/revoke/re-grant using identical JWTs.
+
+#### Future dashboard role mode (SPK-1970; not implemented here)
+
+Dashboard permissions currently remain **legacy flags OR actor scopes** even
+if `permissionsMode: 'roles'` is present. Dashboard opt-in enforcement is
+implemented separately in SPK-1970.
+
+That follow-up makes omitted/`'default'` use JWT flags only and `'roles'` use
+JWT flags OR embed scopes. True flags remain grants in either mode.
+Apply it consistently to backend abilities, dashboard response capabilities,
+and structured filter/parameter controls, preserving hidden-filter presentation.
+Retain existing payload/response shapes and reject unresolved role-mode actors.
+Test true/false/omitted flags (especially PDF's default), structured controls,
+tenant boundaries, and UI/backend agreement.
+
+For future dashboard capabilities, add independent scopes under
+`ScopeGroup.EMBED`, not new JWT capability booleans or per-feature enforcement
+switches. Keep existing flags for backward compatibility. External documentation
+and dashboard-mode examples are follow-up work after implementation and live
+validation.
+
 #### Implementation checklist for embed capabilities
 
 1. Define an independent `Embed...` CASL subject and its `view:Embed...` scope in

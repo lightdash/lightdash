@@ -1352,6 +1352,16 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
+    {
+        name: 'view:EmbedAiAgent',
+        description:
+            'Use embedded AI agents, subject to existing agent and space access',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+
     // AI Agent
     {
         name: 'view:AiAgent',
