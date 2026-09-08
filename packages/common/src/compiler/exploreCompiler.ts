@@ -195,18 +195,14 @@ export const getParsedReference = (
     ref: string,
     currentTable: string,
 ): Reference => {
-    // Reference to another dimension
-    const split = ref.split('.');
-    if (split.length > 2) {
-        throw new CompileError(
-            `Model "${currentTable}" cannot resolve dimension reference: \${${ref}}`,
-            {},
-        );
+    // Reference to another dimension. The first segment is always the table
+    // when there is more than one, so a nested field on the current table is
+    // written with its table prefix: ${orders.customer.city}.
+    const [head, ...rest] = ref.split('.');
+    if (rest.length === 0) {
+        return { refTable: currentTable, refName: head };
     }
-    const refTable = split.length === 1 ? currentTable : split[0];
-    const refName = split.length === 1 ? split[0] : split[1];
-
-    return { refTable, refName };
+    return { refTable: head, refName: rest.join('.') };
 };
 
 /**
@@ -1753,6 +1749,13 @@ export class ExploreCompiler {
             },
             tables,
         );
+        // An unnested table's ON clause is TRUE; its dependency on the parent
+        // lives in the FROM item, so it is recorded here for join ordering
+        // and fan-out detection.
+        const nestedFrom = tables[join.table]?.nestedFrom;
+        if (nestedFrom) {
+            tablesReferences.add(nestedFrom.parentTable);
+        }
 
         // Extract parameter references from sqlOn
         const parameterReferences = getParameterReferences(sql);

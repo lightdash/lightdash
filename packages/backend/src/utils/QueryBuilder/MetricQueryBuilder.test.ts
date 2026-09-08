@@ -33,6 +33,7 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    emptyTable,
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_AVERAGE_DISTINCT,
@@ -2013,6 +2014,103 @@ LIMIT 10`;
             expect(result.query).toContain(
                 'LEFT OUTER JOIN orders AS "orders"',
             );
+        });
+
+        test('Should render an unnested table with the alias its FROM item already carries', () => {
+            const explore: Explore = {
+                targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                name: 'sessions',
+                label: 'Sessions',
+                baseTable: 'sessions',
+                tags: [],
+                tables: {
+                    sessions: {
+                        ...emptyTable('sessions'),
+                        primaryKey: ['id'],
+                        dimensions: {
+                            id: {
+                                type: DimensionType.NUMBER,
+                                name: 'id',
+                                label: 'Id',
+                                table: 'sessions',
+                                tableLabel: 'Sessions',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.id',
+                                compiledSql: '"sessions".id',
+                                tablesReferences: ['sessions'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                    sessions__hits: {
+                        ...emptyTable('sessions__hits'),
+                        sqlTable:
+                            'UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"',
+                        nestedFrom: {
+                            parentTable: 'sessions',
+                            columnPath: 'hits',
+                        },
+                        dimensions: {
+                            'page.pagePath': {
+                                type: DimensionType.STRING,
+                                name: 'page.pagePath',
+                                label: 'Page path',
+                                table: 'sessions__hits',
+                                tableLabel: 'Sessions: Hits',
+                                fieldType: FieldType.DIMENSION,
+                                sql: '${TABLE}.page.pagePath',
+                                compiledSql: '"sessions__hits".page.pagePath',
+                                tablesReferences: ['sessions__hits'],
+                                hidden: false,
+                            },
+                        },
+                    },
+                },
+                joinedTables: [
+                    {
+                        table: 'sessions__hits',
+                        sqlOn: 'TRUE',
+                        compiledSqlOn: 'TRUE',
+                        type: 'left',
+                        relationship: JoinRelationship.ONE_TO_MANY,
+                        tablesReferences: ['sessions'],
+                    },
+                ],
+            };
+            const result = buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    exploreName: 'sessions',
+                    dimensions: [
+                        'sessions_id',
+                        'sessions__hits_page__pagePath',
+                    ],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 10,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    compiledTableCalculations: [],
+                    compiledAdditionalMetrics: [],
+                    compiledCustomDimensions: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toContain(
+                'LEFT OUTER JOIN UNNEST("sessions".hits) AS "sessions__hits" WITH OFFSET AS "sessions__hits__offset"\n  ON TRUE',
+            );
+            expect(result.query).toContain(
+                '"sessions__hits".page.pagePath AS "sessions__hits_page__pagePath"',
+            );
+            expect(
+                result.warnings.some((w) =>
+                    w.message.includes('missing a primary key definition'),
+                ),
+            ).toBe(false);
         });
 
         test('Should throw when the referenced dimension table is aggregated in its own CTE', () => {

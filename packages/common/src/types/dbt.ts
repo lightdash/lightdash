@@ -34,6 +34,7 @@ import { type LightdashProjectConfig } from './lightdashProjectConfig';
 import { type PreAggregateSort } from './preAggregate';
 import { type OrderFieldsByStrategy, type TableBase } from './table';
 import { type DefaultTimeDimension, type TimeFrames } from './timeFrames';
+import { type WarehouseNestedColumnShape } from './warehouse';
 
 export enum SupportedDbtAdapter {
     BIGQUERY = 'bigquery',
@@ -86,6 +87,10 @@ export type DbtModelColumn = ColumnInfo & {
     /** Catalog-derived timestamp domain; sibling of data_type because
      *  attachTypesToModels overwrites data_type wholesale. */
     timestamp_domain?: TimestampDomain;
+    /** Catalog-derived shape when the column is a struct or an array. */
+    nested_shape?: WarehouseNestedColumnShape;
+    /** Dotted prefixes of the column path that are arrays, outermost first. */
+    repeated_ancestors?: string[];
     config?: {
         meta?: DbtColumnMetadata;
     };

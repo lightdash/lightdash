@@ -948,6 +948,51 @@ describe('applyLimitToSqlQuery', () => {
 });
 
 describe('findMetricInflationWarnings', () => {
+    it('does not ask unnested tables for a primary key but still flags parent metrics', () => {
+        const result = findMetricInflationWarnings({
+            tables: {
+                sessions: { primaryKey: ['id'] },
+                sessions__hits: {
+                    nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+                },
+            },
+            possibleJoins: [
+                {
+                    table: 'sessions__hits',
+                    sqlOn: 'TRUE',
+                    compiledSqlOn: 'TRUE',
+                    tablesReferences: ['sessions'],
+                    relationship: JoinRelationship.ONE_TO_MANY,
+                },
+            ],
+            baseTable: 'sessions',
+            joinedTables: new Set(['sessions__hits']),
+            metrics: [
+                {
+                    name: 'total_pageviews',
+                    type: MetricType.SUM,
+                    table: 'sessions',
+                    label: 'Total pageviews',
+                },
+                {
+                    name: 'total_revenue',
+                    type: MetricType.SUM,
+                    table: 'sessions__hits',
+                    label: 'Total revenue',
+                },
+            ],
+        });
+
+        expect(
+            result.some((warning) =>
+                warning.message.includes('missing a primary key definition'),
+            ),
+        ).toBe(false);
+        expect(result.map((warning) => warning.fields)).toEqual([
+            ['sessions_total_pageviews'],
+        ]);
+    });
+
     it('should return no warnings when there are no metrics', () => {
         const result = findMetricInflationWarnings({
             tables: {

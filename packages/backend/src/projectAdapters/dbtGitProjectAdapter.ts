@@ -19,7 +19,12 @@ import simpleGit, {
 } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
-import { CachedWarehouse, ProjectAdapter, type TrackingParams } from '../types';
+import {
+    CachedWarehouse,
+    ProjectAdapter,
+    type ExploreCompileOptions,
+    type TrackingParams,
+} from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 
 export type DbtGitProjectAdapterArgs = {
@@ -236,12 +241,14 @@ export class DbtGitProjectAdapter
         trackingParams?: TrackingParams,
         loadSources?: boolean,
         allowPartialCompilation?: boolean,
+        compileOptions?: ExploreCompileOptions,
     ) {
         await this._refreshRepo();
         return super.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
+            compileOptions,
         );
     }
 

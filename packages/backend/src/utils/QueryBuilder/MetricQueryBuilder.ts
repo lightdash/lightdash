@@ -2574,6 +2574,11 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder,
                 );
 
+                // An unnested table's FROM item already carries its alias
+                // (and the offset alias that must follow it).
+                if (explore.tables[join.table].nestedFrom) {
+                    return `${joinType} ${joinTable}\n  ON ${parsedSqlOn}`;
+                }
                 return `${joinType} ${joinTable} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}\n  ON ${parsedSqlOn}`;
             })
             .join('\n');

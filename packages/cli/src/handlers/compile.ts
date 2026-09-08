@@ -7,6 +7,7 @@ import {
     DbtModelNode,
     Explore,
     ExploreError,
+    FeatureFlags,
     getCompiledModels,
     getDbtManifestVersion,
     getErrorMessage,
@@ -21,6 +22,7 @@ import {
     preAggregatePostProcessor,
     QueryExecutionContext,
     WarehouseCatalog,
+    type FeatureFlag,
     type WarehouseClient,
 } from '@lightdash/common';
 import {
@@ -42,10 +44,28 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
 import { detectProjectType } from '../lightdash/projectType';
 import * as styles from '../styles';
-import { lightdashRawApi } from './dbt/apiClient';
+import { lightdashApi, lightdashRawApi } from './dbt/apiClient';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
+
+// Compile-time behaviour the server gates behind a feature flag. Unreachable
+// servers and older ones that don't know the flag both mean "off".
+const getUnnestRepeatedColumns = async (): Promise<boolean> => {
+    try {
+        const flag = await lightdashApi<FeatureFlag>({
+            method: 'GET',
+            url: `/api/v2/feature-flag/${FeatureFlags.UnnestRepeatedColumns}`,
+            body: undefined,
+        });
+        return flag.enabled;
+    } catch (e) {
+        GlobalState.debug(
+            `> Could not read the ${FeatureFlags.UnnestRepeatedColumns} flag, compiling without it: ${getErrorMessage(e)}`,
+        );
+        return false;
+    }
+};
 
 export type CompileHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -748,6 +768,7 @@ export const compileProject = async (
                 disableTimestampConversion: options.disableTimestampConversion,
                 allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
+                unnestRepeatedColumns: await getUnnestRepeatedColumns(),
             },
         );
         const validatedExplores =
