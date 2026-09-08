@@ -131,7 +131,8 @@ function Board({
                                 {column.label}
                             </Text>
                             <Badge size="sm">{cards.length}</Badge>
-                            {column.id === 'completed' && (
+                            {(column.id === 'completed' ||
+                                column.id === 'canceled') && (
                                 <Text fz="xs" c="dimmed">
                                     this month
                                 </Text>
