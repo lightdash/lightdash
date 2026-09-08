@@ -35,7 +35,6 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
-    type WarehousePhaseTimings,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -65,6 +64,7 @@ import {
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,

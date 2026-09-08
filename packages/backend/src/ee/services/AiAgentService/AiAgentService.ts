@@ -11856,13 +11856,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 return updateWithCitationTelemetryPromise.then(() => undefined);
             },
-            trackEvent: (
-                event:
-                    | AiAgentResponseStreamed
-                    | AiAgentToolCallEvent
-                    | AiAgentToolCallFailedEvent
-                    | AiAgentFindContentCoverageEvent,
-            ) => this.analytics.track(event),
+            trackEvent: (event) => this.analytics.track(event),
 
             createOrUpdateArtifact: async (data) => {
                 const artifact =
