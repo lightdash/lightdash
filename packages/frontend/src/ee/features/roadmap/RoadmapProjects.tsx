@@ -33,7 +33,7 @@ import {
     IconLayoutKanban,
     IconTable,
 } from '@tabler/icons-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
@@ -51,11 +51,7 @@ import {
 } from './roadmapPresentation';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
-import {
-    useRoadmapExpiry,
-    useRoadmapProjects,
-    useRoadmapRequests,
-} from './useRoadmapProjects';
+import { useRoadmapProjects, useRoadmapRequests } from './useRoadmapProjects';
 
 const columns = [
     {
@@ -547,22 +543,8 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const projects =
         projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
     const tickets = ticketsQuery.data?.pages.flatMap((page) => page.data) ?? [];
-    const expiresAt = [
-        ...(projectsQuery.data?.pages ?? []),
-        ...(ticketsQuery.data?.pages ?? []),
-    ]
-        .map((page) => page.expiresAt)
-        .sort()[0];
-    const expired = useRoadmapExpiry(expiresAt);
     const { refetch: refetchProjects } = projectsQuery;
     const { refetch: refetchTickets } = ticketsQuery;
-    useEffect(() => {
-        if (expired) {
-            setSelectedTicket(null);
-            void refetchProjects();
-            void refetchTickets();
-        }
-    }, [expired, refetchProjects, refetchTickets]);
     const selectedProject = projects.find(
         (group) => group.project.projectId === selectedProjectId,
     );
@@ -584,13 +566,11 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         (projectBoard ? setProjectSearch : setMainSearch)('');
     };
     const loading =
-        projectsQuery.isInitialLoading ||
-        ticketsQuery.isInitialLoading ||
-        (expired && (projectsQuery.isFetching || ticketsQuery.isFetching));
+        projectsQuery.isInitialLoading || ticketsQuery.isInitialLoading;
     const unavailable =
         projectsQuery.error?.error?.statusCode === 403 ||
         ticketsQuery.error?.error?.statusCode === 403;
-    const failed = projectsQuery.isError || ticketsQuery.isError || expired;
+    const failed = projectsQuery.isError || ticketsQuery.isError;
     const retry = () => {
         void refetchProjects();
         if (projectsQuery.isSuccess) void refetchTickets();

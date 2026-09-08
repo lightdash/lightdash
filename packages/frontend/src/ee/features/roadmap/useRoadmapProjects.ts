@@ -4,31 +4,7 @@ import {
     type RoadmapProjectRequestsQuery,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
 import { roadmapApi } from './roadmapApi';
-
-export function useRoadmapExpiry(expiresAt: string | undefined) {
-    const [now, setNow] = useState(Date.now);
-    useEffect(() => {
-        if (!expiresAt) return;
-        const refresh = () => setNow(Date.now());
-        const timer = window.setTimeout(
-            refresh,
-            Math.max(0, Date.parse(expiresAt) - Date.now()) + 1,
-        );
-        window.addEventListener('focus', refresh);
-        document.addEventListener('visibilitychange', refresh);
-        return () => {
-            window.clearTimeout(timer);
-            window.removeEventListener('focus', refresh);
-            document.removeEventListener('visibilitychange', refresh);
-        };
-    }, [expiresAt]);
-    return (
-        expiresAt !== undefined &&
-        Date.parse(expiresAt) <= Math.max(now, Date.now())
-    );
-}
 
 export function useRoadmapProjects(
     query: RoadmapProjectQuery,
