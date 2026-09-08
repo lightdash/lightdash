@@ -1,3 +1,10 @@
+## [2.164.1](https://github.com/lightdash/lightdash/compare/2.164.0...2.164.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **dashboards:** fire auto-refresh on the chosen interval instead of continuously ([#28876](https://github.com/lightdash/lightdash/issues/28876)) ([3bd8546](https://github.com/lightdash/lightdash/commit/3bd8546ba746150c4ffd1d7cdc2df7a95a76c461))
+
 # [2.164.0](https://github.com/lightdash/lightdash/compare/2.163.2...2.164.0) (2026-09-08)
 
 
