@@ -55,6 +55,38 @@ describe('selectProject', () => {
         });
     });
 
+    it('uses an explicit --project UUID as-is, without any API call, even when a preview is active', async () => {
+        const config: Config = {
+            context: {
+                project: MAIN_UUID,
+                previewProject: PREVIEW_UUID,
+            },
+        } as Config;
+        const explicitUuid = '00000000-0000-0000-0000-000000000003';
+
+        const selection = await selectProject(config, explicitUuid);
+
+        expect(selection).toEqual({
+            projectUuid: explicitUuid,
+            isPreview: false,
+        });
+        expect(mockLightdashApi).not.toHaveBeenCalled();
+    });
+
+    it('resolves an explicit --project slug through the org projects list', async () => {
+        const config: Config = {
+            context: { project: MAIN_UUID },
+        } as Config;
+        mockLightdashApi.mockResolvedValueOnce([
+            { projectUuid: PREVIEW_UUID, slug: 'other', name: 'Other' },
+            { projectUuid: MAIN_UUID, slug: 'jaffle-shop', name: 'Jaffle' },
+        ] as never);
+
+        const selection = await selectProject(config, 'jaffle-shop');
+
+        expect(selection).toEqual({ projectUuid: MAIN_UUID, isPreview: false });
+    });
+
     it('returns the main project when only the main project is configured', async () => {
         const config: Config = {
             context: {
