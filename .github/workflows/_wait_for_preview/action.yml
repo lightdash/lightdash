@@ -1,0 +1,39 @@
+name: Wait for preview environment
+
+description: Polls a preview environment until its health endpoint answers 200.
+
+inputs:
+    url:
+        description: Base URL of the preview environment
+        required: true
+    timeout-seconds:
+        description: How long to wait before failing
+        required: false
+        default: '900'
+
+runs:
+    using: 'composite'
+    steps:
+        - name: Wait for preview to be healthy
+          shell: bash
+          env:
+              PREVIEW_URL: ${{ inputs.url }}
+              TIMEOUT_SECONDS: ${{ inputs.timeout-seconds }}
+          run: |
+              set -uo pipefail
+              deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
+              while true; do
+                  status=$(curl -sSL -o /tmp/preview-health.json -w '%{http_code}' "$PREVIEW_URL/api/v1/health" || echo "000")
+                  if [ "$status" = "200" ]; then
+                      echo "Preview ready at $PREVIEW_URL"
+                      cat /tmp/preview-health.json
+                      exit 0
+                  fi
+                  if [ "$(date +%s)" -ge "$deadline" ]; then
+                      echo "Preview $PREVIEW_URL did not become healthy within ${TIMEOUT_SECONDS}s (last status: $status)"
+                      head -c 2000 /tmp/preview-health.json || true
+                      exit 1
+                  fi
+                  echo "Waiting for $PREVIEW_URL (status $status)..."
+                  sleep 10
+              done
