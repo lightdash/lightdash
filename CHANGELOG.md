@@ -1,3 +1,15 @@
+# [2.152.0](https://github.com/lightdash/lightdash/compare/2.151.1...2.152.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **learn:** add the embed scope group to the Learn library maps ([#28807](https://github.com/lightdash/lightdash/issues/28807)) ([7da8a38](https://github.com/lightdash/lightdash/commit/7da8a3829690da7f4862f34baccc176f0075e5df))
+
+
+### Features
+
+* add frontend funnel events for the chart type library ([#28752](https://github.com/lightdash/lightdash/issues/28752)) ([eb32b5f](https://github.com/lightdash/lightdash/commit/eb32b5f5bf384f52d65a5f6897219613d01c3486))
+
 ## [2.151.1](https://github.com/lightdash/lightdash/compare/2.151.0...2.151.1) (2026-09-08)
 
 
