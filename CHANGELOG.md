@@ -1,3 +1,10 @@
+## [2.153.1](https://github.com/lightdash/lightdash/compare/2.153.0...2.153.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* prepare SDK automatically for Cloud Run sandbox images ([#28758](https://github.com/lightdash/lightdash/issues/28758)) ([a4a5f2c](https://github.com/lightdash/lightdash/commit/a4a5f2ca20db3fb0ccad5c6a531bd547a66e539b))
+
 # [2.153.0](https://github.com/lightdash/lightdash/compare/2.152.0...2.153.0) (2026-09-08)
 
 
