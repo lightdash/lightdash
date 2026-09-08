@@ -1,3 +1,10 @@
+## [2.155.1](https://github.com/lightdash/lightdash/compare/2.155.0...2.155.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* use slugs in chart type edit links ([#28768](https://github.com/lightdash/lightdash/issues/28768)) ([0f70e85](https://github.com/lightdash/lightdash/commit/0f70e85afc9bea3e8468064f9eb9efe383437a0c))
+
 # [2.155.0](https://github.com/lightdash/lightdash/compare/2.154.0...2.155.0) (2026-09-08)
 
 

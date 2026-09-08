@@ -18035,6 +18035,7 @@ const models: TsoaRoute.Models = {
                 projectUuid: { dataType: 'string', required: true },
                 description: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+                slug: { dataType: 'string', required: true },
                 dataAppVizUuid: { dataType: 'string', required: true },
             },
             validators: {},
