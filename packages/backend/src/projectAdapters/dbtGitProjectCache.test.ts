@@ -984,6 +984,86 @@ describe('dbt git project cache', () => {
         }
     });
 
+    it('evicts the oldest of 256 future heartbeat observations', async () => {
+        const clock = { now: Date.now() };
+        const now = vi.spyOn(Date, 'now').mockImplementation(() => clock.now);
+        const maxAgeMs = 20 * 60_000;
+        const observeFutureHeartbeat = async (index: number) => {
+            const root = await configure({ maxAgeMs });
+            const cacheIdentity = identity(index);
+            const repositoryIdentity = `repository-${index}`;
+            const lease = await acquireDbtGitProjectCache(
+                cacheIdentity,
+                repositoryIdentity,
+            );
+            await fs.mkdir(lease!.checkoutDirectory);
+            await releaseDbtGitProjectCache(lease!, 100);
+            const leaseDirectory = path.join(lease!.entryDirectory, 'lease');
+            const owner = staleOwner({
+                leaseId: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+                hostname: `clock-skewed-pod-${index}`,
+                heartbeatAt: clock.now - 11 * 60_000,
+            });
+            await fs.mkdir(leaseDirectory);
+            await fs.writeFile(
+                path.join(leaseDirectory, 'owner.json'),
+                JSON.stringify(owner),
+            );
+            await fs.writeFile(
+                path.join(leaseDirectory, `.heartbeat-${owner.leaseId}.json`),
+                JSON.stringify({
+                    ...owner,
+                    heartbeatAt: clock.now + 60 * 60_000,
+                }),
+            );
+            await expect(
+                acquireDbtGitProjectCache(cacheIdentity, repositoryIdentity),
+            ).resolves.toBeUndefined();
+            return { root, cacheIdentity, repositoryIdentity };
+        };
+        const selectFixture = (fixture: {
+            root: string;
+            cacheIdentity: DbtGitCacheIdentity;
+            repositoryIdentity: string;
+        }) => {
+            configureDbtGitProjectCache({
+                root: fixture.root,
+                maxBytes: 1024 * 1024,
+                maxAgeMs,
+                livenessCheck: async (identities) =>
+                    new Set(identities.map(dbtGitCacheIdentityKey)),
+            });
+        };
+        try {
+            const oldest = await observeFutureHeartbeat(1_000);
+            const newest = await Array.from({ length: 256 }).reduce<
+                Promise<Awaited<ReturnType<typeof observeFutureHeartbeat>>>
+            >(async (pending, _, index) => {
+                await pending;
+                return observeFutureHeartbeat(index + 2_000);
+            }, Promise.resolve(oldest));
+            clock.now += 11 * 60_000;
+
+            selectFixture(newest);
+            const reclaimedNewest = await acquireDbtGitProjectCache(
+                newest.cacheIdentity,
+                newest.repositoryIdentity,
+            );
+            expect(reclaimedNewest?.reused).toBe(true);
+            await releaseDbtGitProjectCache(reclaimedNewest!, 100);
+
+            selectFixture(oldest);
+            await expect(
+                acquireDbtGitProjectCache(
+                    oldest.cacheIdentity,
+                    oldest.repositoryIdentity,
+                ),
+            ).resolves.toBeUndefined();
+        } finally {
+            now.mockRestore();
+        }
+    }, 30_000);
+
     it('serializes concurrent reclaim of a stale reservation lock', async () => {
         const root = await configure();
         const seed = await acquireDbtGitProjectCache(identity(0), 'seed');
