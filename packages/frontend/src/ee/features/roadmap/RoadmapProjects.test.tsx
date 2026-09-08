@@ -279,6 +279,38 @@ describe('Project roadmap', () => {
         expect(within(table).queryByText('Planned')).not.toBeInTheDocument();
     });
 
+    it('shows paused projects as in progress and includes them in the status filter', async () => {
+        const { getRequests } = setup();
+        const project = await screen.findByRole('button', {
+            name: 'Open Self-serve analytics for everyone',
+        });
+        expect(
+            screen.getByRole('region', { name: 'In progress roadmap items' }),
+        ).toContainElement(project);
+        expect(screen.queryByText('Paused')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+        expect(
+            screen.queryByRole('button', { name: 'Paused' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'In progress' }));
+        fireEvent.click(screen.getByRole('button', { name: /Status/ }));
+        await waitFor(() =>
+            expect(getRequests).toHaveBeenCalledWith(
+                expect.objectContaining({ statuses: 'started,paused' }),
+            ),
+        );
+        await screen.findByRole('button', {
+            name: 'Open Self-serve analytics for everyone',
+        });
+        fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        expect(
+            screen.getByRole('row', {
+                name: /Self-serve analytics for everyone/,
+            }),
+        ).toHaveTextContent('In progress');
+        expect(screen.queryByText('Paused')).not.toBeInTheDocument();
+    });
+
     it('puts followed tickets from removed projects directly on the main board', async () => {
         setup('removed');
         await screen.findByRole('button', {

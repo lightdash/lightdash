@@ -25,7 +25,6 @@ import {
     IconCircleDashed,
     IconCircleHalf2,
     IconCircleX,
-    IconPlayerPause,
     IconEye,
     IconFlag,
     IconRoad,
@@ -71,20 +70,23 @@ const columns = [
         icon: IconCircleHalf2,
         color: 'yellow.6',
     },
-    { id: 'paused', label: 'Paused', icon: IconPlayerPause, color: 'orange.6' },
     { id: 'completed', label: 'Done', icon: IconCircleCheck, color: 'green.6' },
     { id: 'canceled', label: 'Canceled', icon: IconCircleX, color: 'dimmed' },
 ] as const;
 
 function customerStage(stage: RoadmapBoardStage): RoadmapBoardStage {
-    return stage === 'backlog' ? 'planned' : stage;
+    if (stage === 'backlog') return 'planned';
+    if (stage === 'paused') return 'started';
+    return stage;
 }
 
 function statusQuery(statuses: string[]): string {
     return statuses
-        .flatMap((status) =>
-            status === 'planned' ? ['backlog', 'planned'] : [status],
-        )
+        .flatMap((status) => {
+            if (status === 'planned') return ['backlog', 'planned'];
+            if (status === 'started') return ['started', 'paused'];
+            return [status];
+        })
         .join(',');
 }
 
@@ -104,7 +106,7 @@ function Board({
               ? ['planned', 'started', 'completed', 'canceled'].includes(
                     column.id,
                 )
-              : ['planned', 'started', 'paused'].includes(column.id) ||
+              : ['planned', 'started'].includes(column.id) ||
                 entries.some((entry) => entry.stage === column.id),
     );
     return (
