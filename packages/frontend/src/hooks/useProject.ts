@@ -4,6 +4,8 @@ import {
     type ApiCreateProjectResults,
     type ApiError,
     type ApiJobStartedResults,
+    type ApiWarehouseConnectionTestBody,
+    type WarehouseConnectionTestResults,
     type CreateProject,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
@@ -220,6 +222,38 @@ const updateWarehouseCredentials = async (
         }),
         sensitive: true,
     });
+
+const testWarehouseConnection = async (
+    uuid: string,
+    body: ApiWarehouseConnectionTestBody,
+) =>
+    lightdashApi<WarehouseConnectionTestResults>({
+        url: `/projects/${uuid}/warehouse/test`,
+        method: 'POST',
+        body: JSON.stringify(body),
+        sensitive: true,
+    });
+
+export const useTestWarehouseConnectionMutation = (uuid: string) => {
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        WarehouseConnectionTestResults,
+        ApiError,
+        CreateWarehouseCredentials
+    >(
+        (warehouseConnection) =>
+            testWarehouseConnection(uuid, { warehouseConnection }),
+        {
+            mutationKey: ['project_warehouse_connection_test', uuid],
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Could not run the connection test',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useUpdateWarehouseCredentialsMutation = (uuid: string) => {
     const queryClient = useQueryClient();

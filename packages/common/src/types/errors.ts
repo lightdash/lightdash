@@ -664,12 +664,12 @@ export class ScreenshotError extends LightdashError {
 }
 
 export class SshTunnelError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'SshTunnelError',
             statusCode: 400,
-            data: {},
+            data,
         });
     }
 }

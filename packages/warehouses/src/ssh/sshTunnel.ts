@@ -4,11 +4,32 @@ import {
     CreateWarehouseCredentials,
     getErrorMessage,
     SshTunnelError,
+    SshTunnelStage,
     WarehouseTypes,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import * as net from 'net';
 import * as ssh2 from 'ssh2';
+import {
+    classifySshClientError,
+    describeSshTunnelFailure,
+    SshClientError,
+    sshClientErrorMessage,
+} from './sshTunnelFailure';
+
+// ssh2 default is 20s. A bastion that drops packets should classify as a
+// tcp failure in a few seconds, not hang the connection test.
+const SSH_READY_TIMEOUT_MS = 15000;
+
+class SshTunnelStageFailure extends Error {
+    readonly stage: SshTunnelStage;
+
+    constructor(stage: SshTunnelStage, cause: string) {
+        super(cause);
+        this.name = 'SshTunnelStageFailure';
+        this.stage = stage;
+    }
+}
 
 class SSH2Tunnel {
     private readonly id: string;
@@ -25,9 +46,13 @@ class SSH2Tunnel {
 
     private error: Error | undefined = undefined;
 
+    private handshakeCompleted = false;
+
     // Wall-clock (ms) when this tunnel was constructed. Used only for logging:
     // how long a connection survived before it was closed / dropped / timed out.
     private readonly openedAt: number = Date.now();
+
+    private readonly probeForwardOnConnect: boolean;
 
     constructor(args: {
         sshHost: string;
@@ -36,8 +61,10 @@ class SSH2Tunnel {
         sshPrivateKey: string;
         databaseHostOnRemote: string;
         databasePortOnRemote: number;
+        probeForward: boolean;
     }) {
         this.id = crypto.randomBytes(8).toString('hex');
+        this.probeForwardOnConnect = args.probeForward;
         this.databaseHostOnRemote = args.databaseHostOnRemote;
         this.databasePortOnRemote = args.databasePortOnRemote;
         this.sshConnectConfig = {
@@ -45,6 +72,7 @@ class SSH2Tunnel {
             privateKey: args.sshPrivateKey,
             host: args.sshHost,
             port: args.sshPort,
+            readyTimeout: SSH_READY_TIMEOUT_MS,
         };
         this.sshClient = new ssh2.Client();
         this.localTcpServer = net.createServer();
@@ -77,6 +105,7 @@ class SSH2Tunnel {
         });
 
         this.sshClient.on('handshake', () => {
+            this.handshakeCompleted = true;
             console.log(`SSH tunnel ${this.id} - ssh client handshake success`);
         });
 
@@ -197,41 +226,112 @@ class SSH2Tunnel {
         this.localTcpServer.close(onClose);
     }
 
+    // Opens one forward to the database host and closes it straight away, so
+    // a bastion that cannot reach the database fails here as a "forward"
+    // stage instead of later as an opaque database error.
+    private probeForward(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.sshClient.forwardOut(
+                '127.0.0.1',
+                0,
+                this.databaseHostOnRemote,
+                this.databasePortOnRemote,
+                (err, stream) => {
+                    if (err) {
+                        console.error(
+                            `SSH tunnel ${this.id} - forward probe to ${this.databaseHostOnRemote}:${this.databasePortOnRemote} failed: ${err.message}`,
+                        );
+                        reject(
+                            new SshTunnelStageFailure('forward', err.message),
+                        );
+                        return;
+                    }
+                    console.log(
+                        `SSH tunnel ${this.id} - forward probe to ${this.databaseHostOnRemote}:${this.databasePortOnRemote} succeeded`,
+                    );
+                    stream.close();
+                    resolve();
+                },
+            );
+        });
+    }
+
     public async connect(): Promise<number> {
         return new Promise((resolve, reject) => {
+            let settled = false;
+            const fail = (stage: SshTunnelStage, cause: string) => {
+                if (settled) return;
+                settled = true;
+                reject(new SshTunnelStageFailure(stage, cause));
+            };
             if (this.error) {
-                reject(this.error);
+                fail('tcp', this.error.message);
+                return;
             }
             this.localTcpServer.on('error', (e) => {
-                reject(e);
+                fail('forward', e.message);
             });
-            this.sshClient.on('error', (e) => {
-                reject(e);
+            this.sshClient.on('error', (e: SshClientError) => {
+                fail(
+                    classifySshClientError(e, this.handshakeCompleted),
+                    sshClientErrorMessage(e),
+                );
             });
 
             this.sshClient.connect(this.sshConnectConfig);
 
-            // When SSH Client has connected - start listening on local tcp server
+            // When SSH Client has connected and the forward works - start
+            // listening on local tcp server
             this.sshClient.on('ready', () => {
                 console.log(`SSH tunnel ${this.id} - ssh client ready`);
-                this.localTcpServer.listen(0); // random port
+                const probe = this.probeForwardOnConnect
+                    ? this.probeForward()
+                    : Promise.resolve();
+                probe
+                    .then(() => {
+                        this.localTcpServer.listen(0); // random port
+                    })
+                    .catch((e: unknown) => {
+                        this.close();
+                        if (e instanceof SshTunnelStageFailure) {
+                            fail(e.stage, e.message);
+                        } else {
+                            fail('forward', getErrorMessage(e));
+                        }
+                    });
             });
 
             // When local tcp server is listening - resolve
             this.localTcpServer.on('listening', () => {
                 const address = this.localTcpServer.address();
                 if (address === null || typeof address === 'string') {
-                    reject(new Error('local tcp server address has no port'));
+                    fail('forward', 'local tcp server address has no port');
                     return;
                 }
                 console.log(
                     `SSH tunnel ${this.id} - local tcp server listening on ${address.port}`,
                 );
+                settled = true;
                 resolve(address.port);
             });
         });
     }
 }
+
+export type SshTunnelOptions = {
+    // Egress IP Lightdash connects from, shown in failure messages so the
+    // bastion admin knows what to allow-list.
+    staticIp: string | null;
+    // Open and close one forward to the database at connect time so a bastion
+    // that cannot reach the database fails as a "forward" stage. Used by
+    // connection tests only; the query path keeps the lazy forward.
+    probeForward: boolean;
+};
+
+const DEFAULT_SSH_TUNNEL_OPTIONS: SshTunnelOptions = {
+    staticIp: null,
+    probeForward: false,
+};
 
 export class SshTunnel<T extends CreateWarehouseCredentials> {
     readonly originalCredentials: T;
@@ -242,11 +342,17 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
 
     private sshConnection: SSH2Tunnel | undefined;
 
-    constructor(credentials: T) {
+    private readonly options: SshTunnelOptions;
+
+    constructor(
+        credentials: T,
+        options: SshTunnelOptions = DEFAULT_SSH_TUNNEL_OPTIONS,
+    ) {
         this.originalCredentials = credentials;
         this.overrideCredentials = credentials;
         this.localPort = undefined;
         this.sshConnection = undefined;
+        this.options = options;
     }
 
     connect = async (): Promise<T> => {
@@ -255,18 +361,15 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.REDSHIFT:
                 if (this.originalCredentials.useSshTunnel) {
+                    const remoteHostConfig = {
+                        host: this.originalCredentials.sshTunnelHost || '',
+                        port: this.originalCredentials.sshTunnelPort || 22,
+                        username: this.originalCredentials.sshTunnelUser || '',
+                        privateKey:
+                            this.originalCredentials.sshTunnelPrivateKey || '',
+                        reconnect: false,
+                    };
                     try {
-                        const remoteHostConfig = {
-                            host: this.originalCredentials.sshTunnelHost || '',
-                            port: this.originalCredentials.sshTunnelPort || 22,
-                            username:
-                                this.originalCredentials.sshTunnelUser || '',
-                            privateKey:
-                                this.originalCredentials.sshTunnelPrivateKey ||
-                                '',
-                            reconnect: false,
-                        };
-
                         this.sshConnection = new SSH2Tunnel({
                             sshHost: remoteHostConfig.host,
                             sshPort: remoteHostConfig.port,
@@ -274,6 +377,7 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                             sshPrivateKey: remoteHostConfig.privateKey,
                             databaseHostOnRemote: this.originalCredentials.host,
                             databasePortOnRemote: this.originalCredentials.port,
+                            probeForward: this.options.probeForward,
                         });
                         console.info(
                             `Opening SSH tunnel to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
@@ -288,9 +392,29 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
                         console.error(
                             `Failed to connect to remote host: ${this.originalCredentials.host}:${this.originalCredentials.port}`,
                         );
-
+                        const stage: SshTunnelStage =
+                            e instanceof SshTunnelStageFailure
+                                ? e.stage
+                                : 'tcp';
+                        const cause = getErrorMessage(e);
                         throw new SshTunnelError(
-                            `Could not open SSH tunnel: ${getErrorMessage(e)}`,
+                            describeSshTunnelFailure({
+                                stage,
+                                sshHost: remoteHostConfig.host,
+                                sshPort: remoteHostConfig.port,
+                                sshUser: remoteHostConfig.username,
+                                databaseHost: this.originalCredentials.host,
+                                databasePort: this.originalCredentials.port,
+                                staticIp: this.options.staticIp,
+                                cause,
+                            }),
+                            {
+                                stage,
+                                sshHost: remoteHostConfig.host,
+                                sshPort: remoteHostConfig.port,
+                                sshUser: remoteHostConfig.username,
+                                cause,
+                            },
                         );
                     }
                 }
