@@ -1,9 +1,9 @@
 import { useMediaQuery } from '@mantine/hooks';
 import * as Sentry from '@sentry/react';
 import { Outlet } from 'react-router';
+import { MobileNavBar } from '../../../components/Mobile/MobileNavBar';
 import NavBar from '../../../components/NavBar';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
-import { MobileNavBar } from '../../../MobileRoutes';
 
 const AiAgentsRootLayout = () => {
     const isMobile = useMediaQuery('(max-width: 768px)');

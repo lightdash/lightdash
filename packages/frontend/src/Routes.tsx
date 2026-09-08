@@ -7,6 +7,7 @@ import ProjectLayout from './components/common/ProjectLayout';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import JobDetailsDrawer from './components/JobDetailsDrawer';
 import NavBar from './components/NavBar';
+import { NavBarLayout } from './components/NavBarLayout';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import CreateProjectSettings from './components/Settings/CreateProjectSettings';
@@ -21,13 +22,6 @@ const FALLBACK_ROUTE: RouteObject = {
     path: '*',
     element: <Navigate to="/projects" />,
 };
-
-const NavBarLayout: FC = () => (
-    <>
-        <NavBar />
-        <Outlet />
-    </>
-);
 
 const PUBLIC_ROUTES: RouteObject[] = [
     ...AUTH_ROUTES,

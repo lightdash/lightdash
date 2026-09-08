@@ -43,6 +43,7 @@ module.exports = {
             // turns every common rebuild into thousands of API restarts.
             ignore_watch: [
                 'src/generated/swagger.json',
+                '**/*.test.ts',
                 '**/node_modules',
                 '**/node_modules/**',
             ],
@@ -58,12 +59,16 @@ module.exports = {
         {
             name: 'agent-${AGENT_ID}-api-routes-watch',
             script: 'pnpm',
-            args: 'generate-api-dev',
+            // common-watch already emits ../common/dist, so skip the root
+            // script's extra common-build: it duplicates work and crash-loops
+            // at 1Hz whenever a stale incremental build reports errors.
+            args: '-F backend generate-api-dev',
             interpreter: 'none',
             cwd: __dirname,
             env: envWithPath,
             watch: false,
             autorestart: true,
+            exp_backoff_restart_delay: 1000,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
