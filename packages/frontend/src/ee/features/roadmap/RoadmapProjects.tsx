@@ -518,7 +518,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     );
     const projectsQuery = useRoadmapProjects(
         {
-            pageSize: 10,
+            pageSize: COLUMN_PREVIEW_LIMIT,
             search: debouncedMainSearch,
             onlyInterested,
             statuses: statusQuery(mainStatuses),
@@ -536,7 +536,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 ? projectPriorities
                 : mainPriorities
             ).join(','),
-            pageSize: 10,
+            pageSize: COLUMN_PREVIEW_LIMIT,
             search: selectedProjectId
                 ? debouncedProjectSearch
                 : debouncedMainSearch,

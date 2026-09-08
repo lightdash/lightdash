@@ -285,6 +285,56 @@ const requests = [
             'This approach was canceled in favor of one scheduled delivery with selectable dashboard tabs, keeping related reports together.',
         ),
     },
+    ...[
+        [
+            'Pin favorite dashboards',
+            'Keep frequently used dashboards at the top of your home page.',
+        ],
+        [
+            'Add notes to chart data points',
+            'Explain important changes with annotations directly on a chart.',
+        ],
+        [
+            'Format negative values with parentheses',
+            'Use accounting-style formatting in tables and summary values.',
+        ],
+        [
+            'Compare two custom date ranges',
+            'Compare results across independently selected time periods.',
+        ],
+        [
+            'Display totals above stacked bars',
+            'Show the combined value of each stacked bar.',
+        ],
+        [
+            'Reorder dashboard tabs',
+            'Drag dashboard tabs into the order that works for your team.',
+        ],
+        [
+            'Add descriptions to saved filters',
+            'Explain when and how to use a shared filter.',
+        ],
+        [
+            'Search chart descriptions',
+            'Find relevant charts using the context in their descriptions.',
+        ],
+        [
+            'Download charts as SVG',
+            'Export sharp, scalable charts for reports and presentations.',
+        ],
+        [
+            'Set a minimum chart axis value',
+            'Choose where an axis starts to make comparisons easier to read.',
+        ],
+    ].map(([title, description], index) => ({
+        projectId: null,
+        request: request(
+            50 + index,
+            title,
+            RoadmapItemStatus.BACKLOG,
+            description,
+        ),
+    })),
 ];
 
 function paginate<T>(items: T[], query: RoadmapProjectQuery) {
@@ -334,13 +384,14 @@ export function createRoadmapMockApi(
         'DEMO-7',
         'DEMO-9',
         ...Array.from({ length: 9 }, (_, index) => `DEMO-${10 + index}`),
+        ...Array.from({ length: 10 }, (_, index) => `DEMO-${50 + index}`),
     ]);
     const followedRequests = requests.filter((item) =>
         followedTicketIds.has(item.request.ticketId),
     );
     if (scenario === 'pagination')
         followedRequests.push(
-            ...Array.from({ length: 12 }, (_, i) => ({
+            ...Array.from({ length: 22 }, (_, i) => ({
                 projectId: 'dashboard-filters',
                 request: request(
                     20 + i,

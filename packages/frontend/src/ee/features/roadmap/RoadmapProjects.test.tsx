@@ -275,7 +275,7 @@ describe('Project roadmap', () => {
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         const table = screen.getByRole('table');
-        expect(within(table).getAllByText('Backlog')).toHaveLength(13);
+        expect(within(table).getAllByText('Backlog')).toHaveLength(23);
         expect(within(table).queryByText('Planned')).not.toBeInTheDocument();
     });
 
@@ -333,10 +333,6 @@ describe('Project roadmap', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Load more projects' }),
         );
-        await screen.findByRole('button', { name: 'Open Example project 18' });
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Load more projects' }),
-        );
         const project = await screen.findByRole('button', {
             name: 'Open More flexible dashboard filters',
         });
@@ -345,11 +341,12 @@ describe('Project roadmap', () => {
             await screen.findByRole('button', { name: 'Load more tickets' }),
         );
         await screen.findByRole('button', {
-            name: 'Open ticket Followed filter improvement 12',
+            name: 'Show all (23)',
         });
+        fireEvent.click(screen.getByRole('button', { name: 'Show all (23)' }));
         expect(
             screen.getAllByRole('button', { name: /^Open ticket/ }),
-        ).toHaveLength(16);
+        ).toHaveLength(26);
         expect(
             screen.queryByText('Set workspace-wide filter defaults'),
         ).not.toBeInTheDocument();
@@ -357,14 +354,11 @@ describe('Project roadmap', () => {
 
     it('limits long columns to 20 cards until expanded, without limiting the table', async () => {
         setup('pagination');
-        fireEvent.click(
-            await screen.findByRole('button', { name: 'Load more projects' }),
-        );
-        await screen.findByRole('button', { name: 'Show all (26)' });
+        await screen.findByRole('button', { name: 'Show all (36)' });
         fireEvent.click(
             screen.getByRole('button', { name: 'Load more projects' }),
         );
-        await screen.findByRole('button', { name: 'Show all (31)' });
+        await screen.findByRole('button', { name: 'Show all (41)' });
         const backlog = () =>
             within(
                 screen.getByRole('region', { name: 'Backlog roadmap items' }),
@@ -372,7 +366,7 @@ describe('Project roadmap', () => {
         expect(
             backlog().getAllByRole('button', { name: /^Open/ }),
         ).toHaveLength(20);
-        expect(backlog().getByText('31')).toBeInTheDocument();
+        expect(backlog().getByText('41')).toBeInTheDocument();
         expect(
             within(
                 screen.getByRole('region', {
@@ -384,14 +378,14 @@ describe('Project roadmap', () => {
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         expect(
             within(screen.getByRole('table')).getAllByText('Backlog'),
-        ).toHaveLength(31);
+        ).toHaveLength(41);
         fireEvent.click(screen.getByRole('radio', { name: 'Board' }));
         fireEvent.click(
-            backlog().getByRole('button', { name: 'Show all (31)' }),
+            backlog().getByRole('button', { name: 'Show all (41)' }),
         );
         expect(
             backlog().getAllByRole('button', { name: /^Open/ }),
-        ).toHaveLength(31);
+        ).toHaveLength(41);
         expect(
             backlog().queryByRole('button', { name: /Show all/ }),
         ).not.toBeInTheDocument();
@@ -403,7 +397,7 @@ describe('Project roadmap', () => {
         );
         await screen.findByRole('region', { name: 'Backlog tickets' });
         fireEvent.click(screen.getByRole('link', { name: 'Roadmap' }));
-        await screen.findByRole('button', { name: 'Show all (31)' });
+        await screen.findByRole('button', { name: 'Show all (41)' });
         expect(
             backlog().getAllByRole('button', { name: /^Open/ }),
         ).toHaveLength(20);
