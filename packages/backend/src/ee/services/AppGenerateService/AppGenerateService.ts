@@ -8865,6 +8865,11 @@ export class AppGenerateService extends BaseService {
                     vizSchema,
                     { registryVersion: entry.version },
                 );
+                // Registry-installed apps are read-only, so the registry's
+                // icon always wins on upgrade.
+                await this.appModel.updateApp(appUuid, projectUuid, {
+                    icon: entry.icon,
+                });
             } else {
                 await this.appModel.createWithVersion(
                     {
@@ -8875,6 +8880,7 @@ export class AppGenerateService extends BaseService {
                         description: entry.description,
                         slug: entry.slug,
                         template: DATA_APP_VIZ_TEMPLATE,
+                        icon: entry.icon,
                         registry_slug: entry.slug,
                         registry_url: this.chartRegistryClient.getBaseUrl(),
                     },
@@ -11140,6 +11146,11 @@ export class AppGenerateService extends BaseService {
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only chart types carry an icon; omit the key entirely for other
+            // apps so their manifests stay unchanged.
+            ...(app.template === DATA_APP_VIZ_TEMPLATE
+                ? { icon: isChartTypeIcon(app.icon) ? app.icon : null }
+                : {}),
             // Only viz versions carry a schema; omit the key entirely otherwise
             // so non-viz manifests stay unchanged.
             ...(versionRow?.viz_schema
@@ -11404,18 +11415,48 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Applies manifest name/description to the app row when they differ.
-     * App-level metadata only — never touches versions or builds.
+     * Validates a manifest icon value: null clears it, a curated icon name
+     * passes through, anything else is rejected loudly (a hand-edited
+     * lightdash-app.yml is the only way to get a bad value here).
+     */
+    private static resolveManifestIcon(
+        manifestIcon: unknown,
+    ): ChartTypeIcon | null {
+        if (manifestIcon === null) return null;
+        if (isChartTypeIcon(manifestIcon)) return manifestIcon;
+        throw new ParameterError(
+            `Invalid icon "${String(manifestIcon)}" in the app manifest. Use one of the curated chart type icons, or null to clear it.`,
+        );
+    }
+
+    /**
+     * Applies manifest name/description/icon to the app row when they
+     * differ. App-level metadata only — never touches versions or builds.
+     * The icon is only meaningful on chart types; a manifest icon on any
+     * other app is ignored, not rejected.
      */
     private async updateAppMetadataIfChanged(
-        existingApp: Pick<DbApp, 'app_id' | 'name' | 'description'>,
+        existingApp: Pick<
+            DbApp,
+            'app_id' | 'name' | 'description' | 'template' | 'icon'
+        >,
         manifest: DataAppCode['manifest'],
         projectUuid: string,
     ): Promise<void> {
-        const update: Partial<Pick<DbApp, 'name' | 'description'>> = {};
+        const update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>> =
+            {};
         if (manifest.name !== existingApp.name) update.name = manifest.name;
         if (manifest.description !== existingApp.description)
             update.description = manifest.description;
+        if (
+            manifest.icon !== undefined &&
+            existingApp.template === DATA_APP_VIZ_TEMPLATE
+        ) {
+            const resolvedIcon = AppGenerateService.resolveManifestIcon(
+                manifest.icon,
+            );
+            if (resolvedIcon !== existingApp.icon) update.icon = resolvedIcon;
+        }
         if (Object.keys(update).length > 0) {
             await this.appModel.updateApp(
                 existingApp.app_id,
@@ -11992,6 +12033,16 @@ export class AppGenerateService extends BaseService {
                     description: code.manifest.description,
                     template: code.manifest.template,
                     space_uuid: targetSpaceUuid,
+                    // The icon is only meaningful on chart types; a manifest
+                    // icon on any other app is ignored, not rejected.
+                    ...(code.manifest.icon !== undefined &&
+                    code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                        ? {
+                              icon: AppGenerateService.resolveManifestIcon(
+                                  code.manifest.icon,
+                              ),
+                          }
+                        : {}),
                     // Round-trip the manifest slug exactly; createNew and
                     // pre-slug bundles let the model generate a unique one.
                     ...(manifestSlug !== undefined && !body.createNew

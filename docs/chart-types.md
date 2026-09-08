@@ -33,7 +33,8 @@ pipeline, and authoring runbook are documented in
   helpers in `packages/common/src/ee/apps/registry.ts` validate the index
   both in the product (on fetch) and in the gallery repo's CI (on publish).
   Entries carry slug, name, description, semver version, tags, changelog,
-  `minLightdashVersion`, the viz schema, screenshots, and artifact digests.
+  `minLightdashVersion`, the viz schema, a curated icon, screenshots, and
+  artifact digests.
 - Published versions are immutable in their entirety — artifacts,
   screenshots, and metadata. Changes ship as a new semver version; the
   publish pipeline digest-verifies already-published versions and hard-fails
@@ -65,7 +66,9 @@ pipeline, and authoring runbook are documented in
 - The result is a project-owned app with provenance: `apps.registry_slug`
   and `apps.registry_url` identify the upstream chart, and each installed
   version records `app_versions.registry_version` (the semver it came
-  from). Once installed, the chart type behaves like any custom chart type
+  from). The entry's icon is copied onto the app on install and re-synced
+  from the registry on every upgrade — read-only types never drift from it.
+  Once installed, the chart type behaves like any custom chart type
   in the explorer.
 
 ## Read-only, fork, upgrade, uninstall
