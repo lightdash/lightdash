@@ -67,6 +67,24 @@ const mockProjectPresentation: Record<string, RoadmapProjectPresentation> = {
         progress: 24,
         priority: RoadmapItemPriority.NO_PRIORITY,
     },
+    'metric-governance': {
+        stage: 'backlog',
+        icon: 'chart',
+        progress: 0,
+        priority: RoadmapItemPriority.HIGH,
+    },
+    'dashboard-history': {
+        stage: 'planned',
+        icon: 'folder',
+        progress: 5,
+        priority: RoadmapItemPriority.MEDIUM,
+    },
+    subscriptions: {
+        stage: 'backlog',
+        icon: 'calendar',
+        progress: 0,
+        priority: RoadmapItemPriority.LOW,
+    },
     ...Object.fromEntries(
         Array.from({ length: 18 }, (_, i) => [
             `example-${i}`,
@@ -94,6 +112,9 @@ const projects: RoadmapProject[] = [
         title: 'Scheduled reports that fit your workflow',
     },
     { projectId: 'self-serve', title: 'Self-serve analytics for everyone' },
+    { projectId: 'metric-governance', title: 'Governed metric definitions' },
+    { projectId: 'dashboard-history', title: 'Version history for dashboards' },
+    { projectId: 'subscriptions', title: 'Smarter dashboard subscriptions' },
 ].map((project) => ({
     ...project,
     ...mockProjectPresentation[project.projectId],
@@ -203,6 +224,58 @@ const requests = [
             'This approach was replaced with explicit filter controls.',
         ),
     },
+    {
+        projectId: 'dashboard-history',
+        request: request(
+            10,
+            'Restore a previous dashboard version',
+            RoadmapItemStatus.BACKLOG,
+            'Browse earlier versions of a dashboard and restore its charts, layout, and filters.',
+        ),
+    },
+    {
+        projectId: 'dashboard-history',
+        request: request(
+            11,
+            'Compare changes between dashboard versions',
+            RoadmapItemStatus.BACKLOG,
+            'See which charts and settings changed before restoring or publishing a dashboard.',
+        ),
+    },
+    ...[
+        [
+            'Export dashboard tables to Excel',
+            'Download an Excel workbook with a separate sheet for each table on the dashboard.',
+        ],
+        [
+            'Add reference lines to time-series charts',
+            'Mark a target or important date on a chart so changes have more context.',
+        ],
+        [
+            'Keep column widths when saving a table',
+            'Remember resized columns when saving and reopening a chart.',
+        ],
+        [
+            'Search for values in long filter lists',
+            'Find the right value quickly when a filter contains hundreds of options.',
+        ],
+        [
+            'Copy a chart as an image',
+            'Copy a chart to the clipboard to share it in a document or presentation.',
+        ],
+        [
+            'Choose custom colors for individual series',
+            'Assign a consistent color to each series so charts match the team’s reporting conventions.',
+        ],
+    ].map(([title, description], index) => ({
+        projectId: null,
+        request: request(
+            12 + index,
+            title,
+            RoadmapItemStatus.BACKLOG,
+            description,
+        ),
+    })),
 ];
 
 function paginate<T>(items: T[], query: RoadmapProjectQuery) {
@@ -251,6 +324,7 @@ export function createRoadmapMockApi(
         'DEMO-6',
         'DEMO-7',
         'DEMO-9',
+        ...Array.from({ length: 8 }, (_, index) => `DEMO-${10 + index}`),
     ]);
     const followedRequests = requests.filter((item) =>
         followedTicketIds.has(item.request.ticketId),

@@ -275,7 +275,7 @@ describe('Project roadmap', () => {
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
         const table = screen.getByRole('table');
-        expect(within(table).getAllByText('Backlog')).toHaveLength(4);
+        expect(within(table).getAllByText('Backlog')).toHaveLength(13);
         expect(within(table).queryByText('Planned')).not.toBeInTheDocument();
     });
 
