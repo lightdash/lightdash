@@ -122,6 +122,11 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 properties: expect.objectContaining({
                     vizType: AiResultType.TABLE_RESULT,
                     source: 'sql',
+                    // Ties the render round-trip to the turn that produced
+                    // the artifact, and to query_events for warehouse timings.
+                    promptId: 'prompt-uuid',
+                    queryId: 'fresh-query-uuid',
+                    durationMs: expect.any(Number),
                 }),
             }),
         );

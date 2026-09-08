@@ -64,6 +64,7 @@ import {
     type PersistentDownloadFileAccessMode,
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
+    type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -486,6 +487,9 @@ export type QueryCompletedEvent = BaseTrack & {
         executionSource: QueryExecutionSource | null;
         warehouseType: WarehouseTypes | null;
         warehouseExecutionTimeMs: number | null;
+        // Phase breakdown of warehouseExecutionTimeMs. Absent phases mean the
+        // adapter does not report them.
+        warehousePhaseTimings: WarehousePhaseTimings | null;
         totalRowCount: number | null;
         columnsCount: number | null;
     };
@@ -2914,6 +2918,8 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         threadId: string | undefined;
+        // Joins turn start to its steps, tool calls and response.
+        promptId: string;
         context: 'slack' | 'web_app';
         hasPinnedContext: boolean;
         pinnedContextCount: number;
@@ -2941,6 +2947,8 @@ export type AiAgentResponseStreamed = BaseTrack & {
         projectId: string;
         aiAgentId: string;
         agentName: string;
+        promptId: string;
+        threadId: string;
         usageTokensCount: number;
         stepsCount: number;
         model: string;
@@ -2949,6 +2957,40 @@ export type AiAgentResponseStreamed = BaseTrack & {
         stepCapReached: boolean;
         timeToFirstTokenMs: number | null;
         durationMs: number;
+    };
+};
+
+/**
+ * One row per iteration of the agent loop. `toolWallMs` is wall time, not the
+ * sum of the step's tool durations, so a concurrent fan-out counts once.
+ */
+export type AiAgentStepCompletedEvent = BaseTrack & {
+    event: 'ai_agent.step_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        promptId: string;
+        threadId: string;
+        stepIndex: number;
+        model: string;
+        modelProvider: string | null;
+        // Order steps by this, not event timestamps, which carry ingestion jitter.
+        stepOffsetMs: number;
+        stepTotalMs: number;
+        // Null when the transport hid the decide/execute boundary.
+        inferenceMs: number | null;
+        toolWallMs: number | null;
+        ttftMs: number | null;
+        toolCallCount: number;
+        reasoningChars: number;
+        inputTokens: number | null;
+        outputTokens: number | null;
+        cacheReadTokens: number | null;
+        cacheWriteTokens: number | null;
+        reasoningTokens: number | null;
+        totalTokens: number | null;
     };
 };
 
@@ -3065,6 +3107,31 @@ export type AiAgentToolCallEvent = BaseTrack & {
         toolName: string;
         threadId: string;
         promptId: string;
+        toolCallId: string;
+        // Calls sharing a stepIndex ran concurrently; do not sum their durations.
+        stepIndex: number;
+    };
+};
+
+/**
+ * Its own event rather than a second `ai_agent_tool_call`, which stays
+ * one-row-per-call for the models that count it; join on `toolCallId`. A call
+ * that never returns has no row here, so left join, not inner.
+ */
+export type AiAgentToolCallCompletedEvent = BaseTrack & {
+    event: 'ai_agent.tool_call_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        toolName: string;
+        threadId: string;
+        promptId: string;
+        toolCallId: string;
+        stepIndex: number;
+        durationMs: number;
+        status: 'success' | 'error';
     };
 };
 
@@ -3156,6 +3223,31 @@ export type ContentReviewSimilarContentFoundEvent = BaseTrack & {
         contentId: string | null;
         matchCount: number;
         verifiedMatchCount: number;
+    };
+};
+
+/**
+ * The browser fetching an artifact's chart data. Runs after the turn closed,
+ * re-executing the query from the persisted config, so it is on the user's
+ * path to the chart but outside the turn's duration. `queryId` joins to
+ * `query.completed` for cache-hit and warehouse timings.
+ */
+export type AiAgentArtifactVizQueryEvent = BaseTrack & {
+    event: 'ai_agent.artifact_viz_query';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        agentName: string;
+        artifactId: string;
+        artifactVersionId: string;
+        vizType: string;
+        source: string;
+        // Null for artifacts persisted without a prompt.
+        promptId: string | null;
+        durationMs: number;
+        queryId: string | null;
     };
 };
 
@@ -4012,7 +4104,10 @@ type TypedEvent =
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
     | AiAgentToolCallEvent
+    | AiAgentToolCallCompletedEvent
     | AiAgentToolCallFailedEvent
+    | AiAgentStepCompletedEvent
+    | AiAgentArtifactVizQueryEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | AiAgentFindContentCoverageEvent

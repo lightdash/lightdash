@@ -3222,6 +3222,8 @@ export class AsyncQueryService extends ProjectService {
                 executionSource,
                 warehouseType,
                 warehouseExecutionTimeMs: null,
+                // Error path: the query never reported phases.
+                warehousePhaseTimings: null,
                 totalRowCount: null,
                 columnsCount: null,
                 ...(isRegisteredUser ? undefined : { externalId: userUuid }),
@@ -3646,6 +3648,7 @@ export class AsyncQueryService extends ProjectService {
                     executionSource,
                     warehouseType: warehouseClient.credentials.type,
                     warehouseExecutionTimeMs: Math.round(durationMs),
+                    warehousePhaseTimings,
                     totalRowCount: pivotDetails?.totalRows ?? totalRows,
                     columnsCount:
                         pivotDetails?.totalColumnCount ??
@@ -4696,6 +4699,8 @@ export class AsyncQueryService extends ProjectService {
                                 warehouseExecutionTimeMs: outcome.cacheHit
                                     ? 0
                                     : null,
+                                // Phases come from the executor, not this path.
+                                warehousePhaseTimings: null,
                                 totalRowCount: outcome.totalRowCount ?? null,
                                 columnsCount: outcome.columnsCount ?? null,
                             },
@@ -8639,6 +8644,8 @@ export class AsyncQueryService extends ProjectService {
                 executionSource: 'pre_aggregate_duckdb',
                 warehouseType,
                 warehouseExecutionTimeMs: 0,
+                // Served from cache — no warehouse phases to report.
+                warehousePhaseTimings: null,
                 totalRowCount: cached.totalRowCount,
                 columnsCount: cached.columns
                     ? Object.keys(cached.columns).length
