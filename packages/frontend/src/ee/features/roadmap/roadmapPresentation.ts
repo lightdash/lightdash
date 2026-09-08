@@ -4,15 +4,6 @@ import {
     RoadmapItemPriority,
     type RoadmapProject,
 } from '@lightdash/common';
-import {
-    IconBolt,
-    IconCalendar,
-    IconChartBar,
-    IconFilter,
-    IconFolder,
-    IconSparkles,
-    IconUsers,
-} from '@tabler/icons-react';
 
 export type RoadmapBoardStage =
     | 'backlog'
@@ -23,20 +14,10 @@ export type RoadmapBoardStage =
     | 'canceled';
 export type RoadmapProjectPresentation = Pick<
     RoadmapProject,
-    'stage' | 'icon' | 'progress' | 'priority'
+    'stage' | 'progress' | 'priority'
 >;
-export const projectIcons = {
-    sparkles: IconSparkles,
-    filter: IconFilter,
-    chart: IconChartBar,
-    bolt: IconBolt,
-    calendar: IconCalendar,
-    users: IconUsers,
-    folder: IconFolder,
-};
 export const defaultProjectPresentation: RoadmapProjectPresentation = {
     stage: 'backlog',
-    icon: 'folder',
     progress: 0,
     priority: RoadmapItemPriority.NO_PRIORITY,
 };

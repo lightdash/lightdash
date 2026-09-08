@@ -21,6 +21,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
+    IconBoxMultiple,
     IconCircleCheck,
     IconCircleDashed,
     IconCircleHalf2,
@@ -44,7 +45,6 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
     defaultProjectPresentation,
-    projectIcons,
     ticketStage,
     type RoadmapBoardStage,
     type RoadmapProjectPresentation,
@@ -224,24 +224,6 @@ function ProjectProgress({
     );
 }
 
-function ProjectIcon({ icon }: { icon: string | null }) {
-    if (icon && /\p{Extended_Pictographic}/u.test(icon)) {
-        return (
-            <Text
-                component="span"
-                aria-hidden="true"
-                className={classes.projectIcon}
-            >
-                {icon}
-            </Text>
-        );
-    }
-    const key = icon?.replace(/^Icon/, '').toLowerCase();
-    const glyph =
-        projectIcons[key as keyof typeof projectIcons] ?? projectIcons.folder;
-    return <MantineIcon icon={glyph} className={classes.projectIcon} />;
-}
-
 function ProjectCard({
     group,
     presentation,
@@ -264,7 +246,10 @@ function ProjectCard({
                     size="md"
                     className={classes.projectIcon}
                 >
-                    <ProjectIcon icon={presentation.icon} />
+                    <MantineIcon
+                        icon={IconBoxMultiple}
+                        className={classes.projectIcon}
+                    />
                 </ThemeIcon>
                 <Title order={5} className={classes.projectTitle}>
                     {group.project.title}
@@ -348,7 +333,6 @@ type RoadmapEntry = {
     title: string;
     type: 'project' | 'ticket';
     icon: typeof IconTicket;
-    projectIcon?: string | null;
     stage: RoadmapBoardStage;
     priority: RoadmapItemPriority;
     progress: number | null;
@@ -397,16 +381,10 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                         onClick={entry.onOpen}
                                         aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
                                     >
-                                        {entry.type === 'project' ? (
-                                            <ProjectIcon
-                                                icon={entry.projectIcon ?? null}
-                                            />
-                                        ) : (
-                                            <MantineIcon
-                                                icon={entry.icon}
-                                                className={classes.projectIcon}
-                                            />
-                                        )}
+                                        <MantineIcon
+                                            icon={entry.icon}
+                                            className={classes.projectIcon}
+                                        />
                                         <Text
                                             fz="sm"
                                             fw={
@@ -606,8 +584,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                       id: `project-${group.project.projectId}`,
                       title: group.project.title,
                       type: 'project',
-                      icon: IconTicket,
-                      projectIcon: metadata.icon,
+                      icon: IconBoxMultiple,
                       stage: customerStage(metadata.stage),
                       priority: metadata.priority,
                       progress: metadata.progress,

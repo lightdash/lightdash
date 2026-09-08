@@ -204,7 +204,6 @@ describe('RoadmapService', () => {
                     project: {
                         projectId: 'project-1',
                         title: 'Filters',
-                        icon: '🔎',
                         stage: 'completed',
                         progress: 100,
                         priority: 'High',
