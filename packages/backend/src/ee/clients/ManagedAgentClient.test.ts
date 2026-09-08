@@ -18,9 +18,11 @@ const anthropic = vi.hoisted(() => ({
         environments: {
             create: vi.fn(),
             list: vi.fn(),
+            retrieve: vi.fn(),
         },
         vaults: {
             create: vi.fn(),
+            retrieve: vi.fn(),
             credentials: {
                 create: vi.fn(),
             },
@@ -38,11 +40,11 @@ vi.mock('@anthropic-ai/sdk', () => ({
     },
 }));
 
-const createClient = () =>
+const createClient = (anthropicApiKey = 'anthropic-api-key') =>
     new ManagedAgentClient({
         lightdashConfig: {
             siteUrl: SITE_URL,
-            managedAgent: { anthropicApiKey: 'anthropic-api-key' },
+            managedAgent: { anthropicApiKey },
             preAggregates: { enabled: false },
         },
     } as AnyType);
@@ -83,7 +85,14 @@ describe('ManagedAgentClient.syncAgent', () => {
                 { id: 'environment-id', name: 'Env Organization:org:project' },
             ],
         });
+        anthropic.beta.environments.retrieve.mockResolvedValue({
+            id: 'environment-id',
+        });
         anthropic.beta.vaults.create.mockResolvedValue({ id: 'new-vault-id' });
+        anthropic.beta.vaults.retrieve.mockResolvedValue({
+            id: 'new-vault-id',
+            archived_at: null,
+        });
         anthropic.beta.vaults.credentials.create.mockResolvedValue({});
     });
 
@@ -151,6 +160,117 @@ describe('ManagedAgentClient.syncAgent', () => {
 
         expect(anthropic.beta.vaults.create).toHaveBeenCalledTimes(1);
         expect(onResourcesCreated).toHaveBeenCalledTimes(1);
+    });
+
+    it('reprovisions when the persisted vault no longer exists', async () => {
+        const client = createClient();
+        const onAgentSynced = vi.fn().mockResolvedValue(undefined);
+        const onResourcesCreated = vi.fn().mockResolvedValue(undefined);
+        await client.syncAgent(
+            createSessionConfig({ onAgentSynced, onResourcesCreated }),
+        );
+        const vaultConfigHash = onResourcesCreated.mock.calls[0][2];
+        anthropic.beta.vaults.retrieve.mockRejectedValue(
+            new Error('404 vault not found'),
+        );
+
+        await client.syncAgent(
+            createSessionConfig({
+                persistedAgentConfigHash: onAgentSynced.mock.calls[0][1],
+                persistedAgentVersion: 2,
+                persistedEnvironmentId: 'environment-id',
+                persistedVaultId: 'new-vault-id',
+                persistedVaultConfigHash: vaultConfigHash,
+                onAgentSynced,
+                onResourcesCreated,
+            }),
+        );
+
+        expect(anthropic.beta.vaults.create).toHaveBeenCalledTimes(2);
+        expect(onResourcesCreated).toHaveBeenLastCalledWith(
+            'environment-id',
+            'new-vault-id',
+            vaultConfigHash,
+        );
+    });
+
+    it('reprovisions when the persisted environment no longer exists', async () => {
+        const client = createClient();
+        const onAgentSynced = vi.fn().mockResolvedValue(undefined);
+        const onResourcesCreated = vi.fn().mockResolvedValue(undefined);
+        await client.syncAgent(
+            createSessionConfig({ onAgentSynced, onResourcesCreated }),
+        );
+        anthropic.beta.environments.retrieve.mockRejectedValue(
+            new Error('404 environment not found'),
+        );
+
+        await client.syncAgent(
+            createSessionConfig({
+                persistedAgentConfigHash: onAgentSynced.mock.calls[0][1],
+                persistedAgentVersion: 2,
+                persistedEnvironmentId: 'environment-id',
+                persistedVaultId: 'new-vault-id',
+                persistedVaultConfigHash: onResourcesCreated.mock.calls[0][2],
+                onAgentSynced,
+                onResourcesCreated,
+            }),
+        );
+
+        expect(anthropic.beta.vaults.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('reprovisions when the persisted vault is archived', async () => {
+        const client = createClient();
+        const onAgentSynced = vi.fn().mockResolvedValue(undefined);
+        const onResourcesCreated = vi.fn().mockResolvedValue(undefined);
+        await client.syncAgent(
+            createSessionConfig({ onAgentSynced, onResourcesCreated }),
+        );
+        anthropic.beta.vaults.retrieve.mockResolvedValue({
+            id: 'new-vault-id',
+            archived_at: '2026-09-01T00:00:00Z',
+        });
+
+        await client.syncAgent(
+            createSessionConfig({
+                persistedAgentConfigHash: onAgentSynced.mock.calls[0][1],
+                persistedAgentVersion: 2,
+                persistedEnvironmentId: 'environment-id',
+                persistedVaultId: 'new-vault-id',
+                persistedVaultConfigHash: onResourcesCreated.mock.calls[0][2],
+                onAgentSynced,
+                onResourcesCreated,
+            }),
+        );
+
+        expect(anthropic.beta.vaults.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('reprovisions when the Anthropic API key changes', async () => {
+        const onAgentSynced = vi.fn().mockResolvedValue(undefined);
+        const onResourcesCreated = vi.fn().mockResolvedValue(undefined);
+        await createClient('first-api-key').syncAgent(
+            createSessionConfig({ onAgentSynced, onResourcesCreated }),
+        );
+        const vaultConfigHash = onResourcesCreated.mock.calls[0][2];
+
+        await createClient('rotated-api-key').syncAgent(
+            createSessionConfig({
+                persistedAgentConfigHash: onAgentSynced.mock.calls[0][1],
+                persistedAgentVersion: 2,
+                persistedEnvironmentId: 'environment-id',
+                persistedVaultId: 'new-vault-id',
+                persistedVaultConfigHash: vaultConfigHash,
+                onAgentSynced,
+                onResourcesCreated,
+            }),
+        );
+
+        expect(anthropic.beta.vaults.create).toHaveBeenCalledTimes(2);
+        expect(onResourcesCreated.mock.calls[1][2]).not.toEqual(
+            vaultConfigHash,
+        );
     });
 
     it('retries vault creation when resource persistence fails', async () => {
