@@ -284,6 +284,16 @@ const pathExists = async (filePath: string) => {
     }
 };
 
+const cacheRootExists = async () => {
+    try {
+        await fs.lstat(configuration.root);
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+    }
+};
+
 const atomicWriteJson = async (filePath: string, value: unknown) => {
     const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
     try {
@@ -1705,6 +1715,7 @@ export const releaseDbtGitProjectCache = async (
 const invalidateMatchingEntries = async (
     predicate: (identity: DbtGitCacheIdentity) => boolean,
 ) => {
+    if (configuration.maxBytes <= 0 && !(await cacheRootExists())) return;
     const cacheLock = await acquireCacheLock();
     if (!cacheLock) return;
     try {
@@ -1751,6 +1762,7 @@ export const invalidateDbtGitProjectCacheSource = async (
 
 export async function maintainDbtGitProjectCache() {
     const disabled = configuration.maxBytes <= 0;
+    if (disabled && !(await cacheRootExists())) return;
     const entries = await listOwnedEntries();
     const rootDebris = await listRootDebris();
     const identities = entries.flatMap((entry) =>

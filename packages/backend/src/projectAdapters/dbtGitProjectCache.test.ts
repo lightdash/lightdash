@@ -1728,6 +1728,9 @@ describe('dbt git project cache', () => {
 
             expect(onMiss).toHaveBeenCalledWith('disabled');
             await expect(fs.access(root)).rejects.toThrow();
+            await maintainDbtGitProjectCache();
+            await invalidateDbtGitProjectCacheSource('project', 'source-1');
+            await expect(fs.access(root)).rejects.toThrow();
         },
     );
 
