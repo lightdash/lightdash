@@ -1,15 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 
-type Options = {
-    // The gallery sidebar host can be replaced while open; follow it across remounts.
-    followHost: boolean;
-};
-
-const useVisualizationConfigPortalTarget = (
-    isOpen: boolean,
-    { followHost }: Options,
-) => {
+const useVisualizationConfigPortalTarget = (isOpen: boolean) => {
     const [target, setTarget] = useState<HTMLElement | null>(null);
 
     useLayoutEffect(() => {
@@ -31,16 +23,11 @@ const useVisualizationConfigPortalTarget = (
 
         updateTarget();
 
-        // On a fresh page load with the config already open, the host mounts
-        // after this lookup — keep watching until one is found. Only the
-        // gallery host keeps being followed across replacements after that.
-        if (!followHost && target !== null) return;
-
         const observer = new MutationObserver(updateTarget);
         observer.observe(document.body, { childList: true, subtree: true });
 
         return () => observer.disconnect();
-    }, [isOpen, followHost, target]);
+    }, [isOpen]);
 
     return target;
 };

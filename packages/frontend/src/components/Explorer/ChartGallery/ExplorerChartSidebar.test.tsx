@@ -70,7 +70,7 @@ const { getSelectedChartTypeItem } = vi.hoisted(() => ({
     })),
 }));
 
-vi.mock('../VisualizationCardOptions/useChartTypeOptions', () => ({
+vi.mock('./useChartTypeOptions', () => ({
     useChartTypeOptions: () => ({ getSelectedChartTypeItem }),
 }));
 

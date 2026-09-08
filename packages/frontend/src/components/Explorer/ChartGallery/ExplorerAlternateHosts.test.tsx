@@ -54,9 +54,7 @@ vi.mock('../index', async () => {
     const ExplorerHostProbe = () => {
         const dispatch = useExplorerDispatch();
         const isOpen = useExplorerSelector(selectIsVisualizationConfigOpen);
-        const target = useVisualizationConfigPortalTarget(isOpen, {
-            followHost: true,
-        });
+        const target = useVisualizationConfigPortalTarget(isOpen);
 
         return (
             <ChartColorMappingContextProvider>
@@ -124,10 +122,6 @@ vi.mock('../../../hooks/useExplore', () => ({
 
 vi.mock('../../../hooks/useExplorerQueryEffects', () => ({
     useExplorerQueryEffects: vi.fn(),
-}));
-
-vi.mock('./useIsChartGalleryEnabled', () => ({
-    useIsChartGalleryEnabled: () => true,
 }));
 
 vi.mock('../../../hooks/dashboard/useDashboardCustomMetricSeed', () => ({

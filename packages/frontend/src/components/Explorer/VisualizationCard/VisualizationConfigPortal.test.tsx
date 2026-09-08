@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { createPortal } from 'react-dom';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -7,14 +7,8 @@ import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import useVisualizationConfigPortalTarget from './useVisualizationConfigPortalTarget';
 import VisualizationConfigPortal from './VisualizationConfigPortal';
 
-const PortalProducer = ({
-    isOpen,
-    followHost = false,
-}: {
-    isOpen: boolean;
-    followHost?: boolean;
-}) => {
-    const target = useVisualizationConfigPortalTarget(isOpen, { followHost });
+const PortalProducer = ({ isOpen }: { isOpen: boolean }) => {
+    const target = useVisualizationConfigPortalTarget(isOpen);
 
     return target ? createPortal(<div>Configure content</div>, target) : null;
 };
@@ -65,7 +59,7 @@ describe('VisualizationConfigPortal', () => {
                 isRightSidebarOpen
                 keepRightSidebarMounted
             >
-                <PortalProducer isOpen followHost />
+                <PortalProducer isOpen />
             </Page>,
         );
         const originalTarget = document.getElementById(
@@ -104,31 +98,5 @@ describe('VisualizationConfigPortal', () => {
         );
 
         lateHost.remove();
-    });
-
-    it('keeps the original target when not following the host', async () => {
-        renderWithProviders(
-            <Page
-                withNavbar={false}
-                rightSidebar={<VisualizationConfigPortal />}
-                isRightSidebarOpen
-                keepRightSidebarMounted
-            >
-                <PortalProducer isOpen />
-            </Page>,
-        );
-        const originalTarget = document.getElementById(
-            VisualizationConfigPortalId,
-        );
-        const replacementTarget = document.createElement('div');
-        replacementTarget.id = VisualizationConfigPortalId;
-
-        originalTarget?.replaceWith(replacementTarget);
-
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(replacementTarget).toBeEmptyDOMElement();
-        expect(
-            within(originalTarget!).queryByText('Configure content'),
-        ).not.toBeNull();
     });
 });
