@@ -56,6 +56,7 @@ const sourceApp = {
     name: 'My Viz',
     slug: 'my-viz',
     description: 'A viz',
+    icon: 'gauge',
     created_by_user_uuid: USER_UUID,
     deleted_at: null,
     deleted_by_user_uuid: null,
@@ -213,7 +214,10 @@ describe('version metadata propagation on app copy paths', () => {
         await service.duplicateApp(makeUser(), PROJECT_UUID, SOURCE_APP_UUID);
 
         expect(appModel.createWithVersion).toHaveBeenCalledWith(
-            expect.objectContaining({ template: 'data_app_viz' }),
+            expect.objectContaining({
+                template: 'data_app_viz',
+                icon: 'gauge',
+            }),
             expect.anything(),
             'ready',
             expect.any(Object),
@@ -255,6 +259,7 @@ describe('version metadata propagation on app copy paths', () => {
             expect.objectContaining({
                 project_uuid: UPSTREAM_PROJECT_UUID,
                 template: 'data_app_viz',
+                icon: 'gauge',
             }),
             expect.anything(),
             'ready',
@@ -298,6 +303,10 @@ describe('version metadata propagation on app copy paths', () => {
             expect.any(Object),
             undefined, // no declared dependencies
             VIZ_SCHEMA,
+        );
+        expect(appModel.syncPromotedApp).toHaveBeenCalledWith(
+            UPSTREAM_APP_UUID,
+            expect.objectContaining({ icon: 'gauge' }),
         );
     });
 
@@ -410,6 +419,7 @@ describe('version metadata propagation on app copy paths', () => {
                 project_uuid: PREVIEW_PROJECT_UUID,
                 template: 'data_app_viz',
                 slug: 'my-viz',
+                icon: 'gauge',
             }),
             expect.anything(),
             'ready',
