@@ -499,6 +499,16 @@ describe('computeUpsertedTotal', () => {
 });
 
 describe('shouldWarnAllSkipped', () => {
+    it.each(['data apps skipped', 'chart types skipped', 'data apps failed'])(
+        'does not suggest --force for %s, even with unchanged charts',
+        (key) => {
+            expect(shouldWarnAllSkipped({ [key]: 1 })).toBe(false);
+            expect(
+                shouldWarnAllSkipped({ [key]: 1, 'charts skipped': 3 }),
+            ).toBe(false);
+        },
+    );
+
     it('returns true when everything was skipped', () => {
         expect(shouldWarnAllSkipped({ 'charts skipped': 3 })).toBe(true);
     });

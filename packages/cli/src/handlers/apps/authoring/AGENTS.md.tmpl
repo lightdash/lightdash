@@ -2,7 +2,9 @@
 
 Two skills in `.claude/skills/` describe how to edit this app:
 - `lightdash-data-app` — the Lightdash SDK surface (querying data, filters, downloads).
-- `developing-data-apps-locally` — the local workflow: edit `src/`, `lightdash apps validate --build`, `lightdash apps preview`, `lightdash upload --apps <slug>`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
+- `developing-data-apps-locally` — the local workflow: edit `src/`, `lightdash apps validate --build`, `lightdash apps preview`, `lightdash upload --apps <slug> --path ../..`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
+
+Run these commands from this folder under `apps/<slug>/`. The upload path `../..` selects the Lightdash content root.
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
 

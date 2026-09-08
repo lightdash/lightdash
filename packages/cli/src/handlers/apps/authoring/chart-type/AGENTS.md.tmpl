@@ -12,9 +12,11 @@ Edit only `src/`. Root config files are read-only reference — the server rebui
 
 ## The loop
 
+Run these commands from this folder under `chart-types/<slug>/`. The upload path `../..` selects the Lightdash content root.
+
 1. Edit `src/` (and `vizSchema` in `lightdash-app.yml` when the declaration changes).
 2. `lightdash apps validate --build` — Cloud-parity Vite build; a failure is a validation error with the Vite output.
-3. `lightdash upload --chart-types <slug>` — the server rebuilds; the chart type then appears in the explorer's chart type picker for that project.
+3. `lightdash upload --chart-types <slug> --path ../..` — the server rebuilds; the chart type then appears in the explorer's chart type picker for that project.
 4. Verify in Lightdash: open any explore, run a query, pick this chart type, and map its fields.
 
 There is no local preview for a chart type: `useVizContext()` waits for the Lightdash host, so the component renders nothing standalone (`lightdash apps preview` and `npm run dev` show a blank page). Upload and verify in the explorer instead.

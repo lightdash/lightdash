@@ -331,7 +331,12 @@ export const createAppHandler = async (
 
     try {
         const slug = resolveLocalAppSlug(name, options.slug);
-        const appDir = path.join(getDownloadFolder(options.path), 'apps', slug);
+        const contentRoot = getDownloadFolder(options.path);
+        const appDir = path.join(
+            contentRoot,
+            isChartType ? 'chart-types' : 'apps',
+            slug,
+        );
         await assertAppDirectoryAvailable(appDir);
         await assertNpmAvailable();
 
@@ -438,10 +443,10 @@ export const createAppHandler = async (
             isChartType
                 ? `\nNext:\n  cd ${JSON.stringify(
                       appDir,
-                  )}\n  lightdash apps validate --build\n  lightdash upload --chart-types ${slug}\n\nThen open any explore in Lightdash and pick "${name}" in the chart type picker.`
+                  )}\n  lightdash apps validate --build\n  lightdash upload --chart-types ${slug} --path ${JSON.stringify(contentRoot)}\n\nThen open any explore in Lightdash and pick "${name}" in the chart type picker.`
                 : `\nNext:\n  cd ${JSON.stringify(
                       appDir,
-                  )}\n  npm run build\n  lightdash upload --apps ${slug}`,
+                  )}\n  npm run build\n  lightdash upload --apps ${slug} --path ${JSON.stringify(contentRoot)}`,
         );
         success = true;
     } finally {

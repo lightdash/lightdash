@@ -19,9 +19,11 @@ The correspondence must be exact in both directions: every key the component rea
 
 ## The edit → validate → upload → verify loop
 
+Run these commands from this folder under `chart-types/<slug>/`. The upload path `../..` selects the Lightdash content root.
+
 1. Edit files under `src/` (and `vizSchema` when the declaration changes).
 2. `lightdash apps validate` checks source and manifest (including that `vizSchema` parses); `lightdash apps validate --build` adds the Cloud-parity Vite production build. A build failure is a validation error with the Vite output.
-3. `lightdash upload --chart-types <slug>` (the `slug` from `lightdash-app.yml`) — the server rebuilds and serves it.
+3. `lightdash upload --chart-types <slug> --path ../..` (the `slug` from `lightdash-app.yml`) — the server rebuilds and serves it.
 4. Verify in Lightdash: open any explore, run a query with at least the required fields' shapes (e.g. a dimension and a metric), pick this chart type in the chart type picker, and map its fields. Check every config option you declared actually changes the chart.
 
 **There is no standalone preview.** `useVizContext()` waits for the Lightdash host to push context, so outside Lightdash the component renders nothing: `npm run dev` and `lightdash apps preview` show a blank page. Do not build a mock harness or feed the hook fake data to work around this — upload and verify in the explorer instead.

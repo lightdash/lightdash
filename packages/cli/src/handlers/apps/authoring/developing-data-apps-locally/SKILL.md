@@ -27,9 +27,11 @@ You are editing a Lightdash **data app** that was created or downloaded with the
 
 ## The edit → build → upload loop
 
+Run these commands from this folder under `apps/<slug>/`. The upload path `../..` selects the Lightdash content root.
+
 1. Edit files under `src/` only.
 2. Run `lightdash apps validate` to check the source, manifest, dependencies, external-connection aliases, and semantic references against the downloaded context. Use `lightdash apps validate --build` to add the Cloud-parity Vite production build; use `--live` to check against fresh project explores or `--format json` in CI. A green run reports any call sites it could not fully analyze instead of silently claiming complete coverage.
-3. `lightdash upload --apps <slug>` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild remains the final result that ships.
+3. `lightdash upload --apps <slug> --path ../..` (the `slug` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild remains the final result that ships.
 
 ## Cloud-parity local builds
 

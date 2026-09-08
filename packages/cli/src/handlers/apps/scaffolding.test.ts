@@ -1,5 +1,6 @@
 import { mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
+import { parse } from 'yaml';
 import {
     buildStaticAuthoringFiles,
     firstExistingDir,
@@ -97,6 +98,14 @@ describe('buildStaticAuthoringFiles', () => {
         ).toContain('run `npm install` before');
         expect(text('.npmrc')).toContain('ignore-scripts=true');
         expect(text('.npmrc')).not.toContain('shamefully-hoist');
+    });
+
+    it('ships a release-age policy for pnpm with the SDK exemption', () => {
+        expect(parse(text('pnpm-workspace.yaml'))).toMatchObject({
+            minimumReleaseAge: 4320,
+            minimumReleaseAgeExclude: ['@lightdash/query-sdk'],
+            ignoreScripts: true,
+        });
     });
 
     it('documents Cloud-parity validation builds', () => {
