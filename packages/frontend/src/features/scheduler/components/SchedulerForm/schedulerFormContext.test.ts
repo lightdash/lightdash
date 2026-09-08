@@ -22,6 +22,21 @@ describe('transformFormValues', () => {
         expect(result.options).toMatchObject({ asAttachment: true });
     });
 
+    test('keeps the xlsx attachment on for a Slack recipient', () => {
+        const result = transformFormValues(
+            {
+                ...DEFAULT_VALUES,
+                format: SchedulerFormat.XLSX,
+                options: { ...DEFAULT_VALUES.options, asAttachment: true },
+                emailTargets: [],
+                slackTargets: ['C123'],
+            },
+            'chart',
+        );
+
+        expect(result.options).toMatchObject({ asAttachment: true });
+    });
+
     test('forces the csv attachment off when there is nobody to attach it for', () => {
         const result = transformFormValues(
             {

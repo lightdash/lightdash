@@ -240,11 +240,9 @@ export const transformFormValues = (
                 values.options.limit === Limit.CUSTOM
                     ? values.options.customLimit
                     : values.options.limit,
-            asAttachment:
-                values.format === SchedulerFormat.CSV &&
-                hasFileAttachmentTargets(values)
-                    ? values.options.asAttachment
-                    : false,
+            asAttachment: hasFileAttachmentTargets(values)
+                ? values.options.asAttachment
+                : false,
             exportPivotedData: values.options.exportPivotedData,
             xlsxFileLayout:
                 values.format === SchedulerFormat.XLSX

@@ -3632,13 +3632,63 @@ describe('app delivery target senders', () => {
             expect(postFileToThread).not.toHaveBeenCalled();
         });
 
-        it('does not attach xlsx deliveries', async () => {
+        it('uploads xlsx files typed as xlsx', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Revenue',
+                        path: 'https://files.example.com/revenue.xlsx?sig=1',
+                        localPath: 'https://files.example.com/revenue.xlsx',
+                        chartName: 'Revenue',
+                        truncated: false,
+                    },
+                ],
+            });
+
             const { postFileToThread } = await sendToSlack(
                 attachingScheduler({ format: SchedulerFormat.XLSX }),
-                senderPage(),
+                page,
             );
 
-            expect(postFileToThread).not.toHaveBeenCalled();
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Revenue.xlsx',
+                title: 'Revenue',
+                fileType: 'xlsx',
+            });
+        });
+
+        it('uploads the single workbook when the dashboard xlsx layout is workbook', async () => {
+            const page = senderPage({
+                csvUrls: [
+                    {
+                        filename: 'Sales App',
+                        path: 'https://files.example.com/workbook.xlsx?sig=1',
+                        localPath: 'https://files.example.com/workbook.xlsx',
+                        truncated: false,
+                    },
+                ],
+            });
+
+            const { postFileToThread } = await sendToSlack(
+                attachingScheduler({
+                    format: SchedulerFormat.XLSX,
+                    options: {
+                        formatted: true,
+                        limit: 'table',
+                        asAttachment: true,
+                        xlsxFileLayout: 'workbook',
+                    },
+                }),
+                page,
+            );
+
+            expect(postFileToThread).toHaveBeenCalledTimes(1);
+            expect(postFileToThread.mock.calls[0][0]).toMatchObject({
+                filename: 'Sales App.xlsx',
+                title: 'Sales App',
+                fileType: 'xlsx',
+            });
         });
 
         it('skips empty results and carries on after a file that fails to download', async () => {
