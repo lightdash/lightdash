@@ -15894,6 +15894,29 @@ const models: TsoaRoute.Models = {
         enums: ['virtual', 'default', 'pre_aggregate', 'external_source'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CustomMetaValue: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'string' },
+                { dataType: 'double' },
+                { dataType: 'boolean' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.CustomMetaValue_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'CustomMetaValue' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Partial_Record_TimeFrames.string__': {
         dataType: 'refAlias',
         type: {
@@ -16189,6 +16212,7 @@ const models: TsoaRoute.Models = {
                     ref: 'Partial_Record_TimeFrames.string__',
                 },
                 parameters: { ref: 'Record_string.LightdashProjectParameter_' },
+                customMeta: { ref: 'Record_string.CustomMetaValue_' },
                 aiHint: {
                     dataType: 'union',
                     subSchemas: [
@@ -48467,6 +48491,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                customMeta: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.CustomMetaValue_' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 parameters: {
                     dataType: 'union',
                     subSchemas: [
@@ -52890,6 +52921,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                customMeta: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.CustomMetaValue_' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 preAggregateSource: {
                     dataType: 'union',
                     subSchemas: [
@@ -52962,6 +53000,13 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                customMeta: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.CustomMetaValue_' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -53178,6 +53223,13 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                customMeta: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.CustomMetaValue_' },
                         { dataType: 'undefined' },
                     ],
                 },

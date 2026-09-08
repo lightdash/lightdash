@@ -17075,6 +17075,28 @@
                 ],
                 "type": "string"
             },
+            "CustomMetaValue": {
+                "anyOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    {
+                        "type": "boolean"
+                    }
+                ]
+            },
+            "Record_string.CustomMetaValue_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/CustomMetaValue"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "Partial_Record_TimeFrames.string__": {
                 "properties": {
                     "RAW": {
@@ -17310,6 +17332,9 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
                     },
                     "aiHint": {
                         "anyOf": [
@@ -48650,6 +48675,9 @@
                             }
                         ]
                     },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
@@ -53117,6 +53145,9 @@
                             }
                         ]
                     },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
+                    },
                     "preAggregateSource": {
                         "$ref": "#/components/schemas/PreAggregateSource"
                     },
@@ -53184,6 +53215,9 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
                     },
                     "errors": {
                         "items": {
@@ -53344,6 +53378,9 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "customMeta": {
+                        "$ref": "#/components/schemas/Record_string.CustomMetaValue_"
                     },
                     "granularityLabels": {
                         "$ref": "#/components/schemas/Partial_Record_TimeFrames.string__",
@@ -60126,7 +60163,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.163.2",
+        "version": "2.164.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

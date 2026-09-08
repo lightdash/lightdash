@@ -1,3 +1,15 @@
+# [2.164.0](https://github.com/lightdash/lightdash/compare/2.163.2...2.164.0) (2026-09-08)
+
+
+### Bug Fixes
+
+* **explorer:** call custom chart types Custom, not Project ([#28864](https://github.com/lightdash/lightdash/issues/28864)) ([bb0bdc5](https://github.com/lightdash/lightdash/commit/bb0bdc547cd95e257c226c2093ea5561a665025b))
+
+
+### Features
+
+* carry custom scalar model metadata onto compiled explores ([#28854](https://github.com/lightdash/lightdash/issues/28854)) ([6ac253e](https://github.com/lightdash/lightdash/commit/6ac253e585d6b855104ac73bfed3e24b8557c4f4))
+
 ## [2.163.2](https://github.com/lightdash/lightdash/compare/2.163.1...2.163.2) (2026-09-08)
 
 
