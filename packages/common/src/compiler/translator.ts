@@ -30,6 +30,7 @@ import {
     InlineErrorType,
     isExploreError,
     JoinRelationship,
+    type CustomMetaValue,
     type Explore,
     type ExploreError,
     type InlineError,
@@ -1453,6 +1454,8 @@ export type ConvertExploresOptions = {
     unnestRepeatedColumns?: boolean;
 };
 
+const RESERVED_MODEL_META_KEY_SET = new Set<string>(RESERVED_MODEL_META_KEYS);
+
 const MODELS_PER_EVENT_LOOP_YIELD = 200;
 
 // setImmediate has no timer clamp but exists only on Node; this package is
@@ -1732,8 +1735,8 @@ export async function* iterateExplores(
         const meta = merge({}, model.meta, model.config?.meta);
         const customMeta = Object.fromEntries(
             Object.entries(meta).filter(
-                (entry): entry is [string, string | number | boolean] =>
-                    !RESERVED_MODEL_META_KEYS.some((key) => key === entry[0]) &&
+                (entry): entry is [string, CustomMetaValue] =>
+                    !RESERVED_MODEL_META_KEY_SET.has(entry[0]) &&
                     (typeof entry[1] === 'string' ||
                         typeof entry[1] === 'number' ||
                         typeof entry[1] === 'boolean'),

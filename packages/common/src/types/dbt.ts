@@ -216,7 +216,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         pre_aggregates?: DbtPreAggregateDef[];
     };
 
-// Add new DbtModelLightdashConfig keys here so they are not exposed as custom metadata.
+// Recognised config keys are excluded from explore customMeta.
 export const RESERVED_MODEL_META_KEYS = [
     'label',
     'description',
