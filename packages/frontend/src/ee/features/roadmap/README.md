@@ -2,7 +2,7 @@
 
 The Settings roadmap consumes `/api/v2/org/roadmap/projects` and `/api/v2/org/roadmap/requests`. Both derive organization identity from the authenticated account and retain the existing roadmap permission, feature flag and license checks. Lightdash validates the Control Center response before returning it. Provider credentials never reach the browser. The v1 endpoint and its response remain compatible with older installations.
 
-The roadmap uses the shared Settings page header and search input, with Status and Priority facets on the left and the interests switch and board/table controls on the right. Filters apply before pagination; project ticket filters are separate from the main board filters.
+The roadmap uses the shared Settings page header and search input, with Status and Priority facets on the left and the interests switch and board/table controls on the right. Backlog and planned items share the customer-facing “Planned” status in the board, table, and filters. Filters apply before pagination; project ticket filters are separate from the main board filters.
 
 Projects and loose tickets share a board or table. Opening a project shows the organization's visible linked requests in the selected view. Project cards show their icon, priority and overall progress, with positive followed-ticket counts below the title. Direct project interest with no visible tickets displays “Interested.” The “Only our interests” filter includes direct organization project needs or projects with visible organization requests. Loose tickets already belong to the organization. Following is organization-level customer relevance, not an individual subscription system.
 

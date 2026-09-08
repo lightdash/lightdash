@@ -25,7 +25,6 @@ import {
     IconArrowLeft,
     IconCircleCheck,
     IconCircleDashed,
-    IconCircleDotted,
     IconCircleHalf2,
     IconCircleX,
     IconPlayerPause,
@@ -62,12 +61,6 @@ import {
 
 const columns = [
     {
-        id: 'backlog',
-        label: 'Backlog',
-        icon: IconCircleDotted,
-        color: 'dimmed',
-    },
-    {
         id: 'planned',
         label: 'Planned',
         icon: IconCircleDashed,
@@ -84,6 +77,18 @@ const columns = [
     { id: 'canceled', label: 'Canceled', icon: IconCircleX, color: 'dimmed' },
 ] as const;
 
+function customerStage(stage: RoadmapBoardStage): RoadmapBoardStage {
+    return stage === 'backlog' ? 'planned' : stage;
+}
+
+function statusQuery(statuses: string[]): string {
+    return statuses
+        .flatMap((status) =>
+            status === 'planned' ? ['backlog', 'planned'] : [status],
+        )
+        .join(',');
+}
+
 function Board({
     entries,
     projectBoard,
@@ -97,12 +102,11 @@ function Board({
         statuses.length
             ? statuses.includes(column.id)
             : projectBoard
-              ? ['backlog', 'started', 'completed', 'canceled'].includes(
+              ? ['planned', 'started', 'completed', 'canceled'].includes(
                     column.id,
                 )
-              : ['backlog', 'planned', 'started', 'paused'].includes(
-                    column.id,
-                ) || entries.some((entry) => entry.stage === column.id),
+              : ['planned', 'started', 'paused'].includes(column.id) ||
+                entries.some((entry) => entry.stage === column.id),
     );
     return (
         <Box className={classes.board}>
@@ -480,7 +484,7 @@ export function RoadmapProjects({
             pageSize: 10,
             search: debouncedMainSearch,
             onlyInterested,
-            statuses: mainStatuses.join(','),
+            statuses: statusQuery(mainStatuses),
             priorities: mainPriorities.join(','),
         },
         cacheKey,
@@ -488,8 +492,8 @@ export function RoadmapProjects({
     const ticketsQuery = useRoadmapRequests(
         {
             groupId: selectedProjectId ?? 'other',
-            statuses: (selectedProjectId ? projectStatuses : mainStatuses).join(
-                ',',
+            statuses: statusQuery(
+                selectedProjectId ? projectStatuses : mainStatuses,
             ),
             priorities: (selectedProjectId
                 ? projectPriorities
@@ -579,7 +583,7 @@ export function RoadmapProjects({
                       type: 'project',
                       icon: IconTicket,
                       projectIcon: metadata.icon,
-                      stage: metadata.stage,
+                      stage: customerStage(metadata.stage),
                       priority: metadata.priority,
                       progress: metadata.progress,
                       following: group.ownRequestCount,
@@ -601,7 +605,7 @@ export function RoadmapProjects({
                 title: ticket.title,
                 type: 'ticket',
                 icon: IconTicket,
-                stage: ticketStage(ticket.status),
+                stage: customerStage(ticketStage(ticket.status)),
                 priority: ticket.priority,
                 progress: null,
                 following: null,
@@ -703,7 +707,7 @@ export function RoadmapProjects({
                                 (column) =>
                                     !projectBoard ||
                                     [
-                                        'backlog',
+                                        'planned',
                                         'started',
                                         'completed',
                                         'canceled',

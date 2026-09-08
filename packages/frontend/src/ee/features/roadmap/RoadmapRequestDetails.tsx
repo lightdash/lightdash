@@ -1,4 +1,4 @@
-import { type RoadmapItem } from '@lightdash/common';
+import { RoadmapItemStatus, type RoadmapItem } from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import rehypeExternalLinks from 'rehype-external-links';
@@ -36,7 +36,9 @@ export function RoadmapRequestDetails({
                                     : getStatusColor(item.status)
                             }
                         >
-                            {item.status}
+                            {item.status === RoadmapItemStatus.BACKLOG
+                                ? 'Planned'
+                                : item.status}
                         </Badge>
                         <Badge
                             color={

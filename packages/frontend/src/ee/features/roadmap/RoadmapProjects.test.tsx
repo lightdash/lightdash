@@ -195,7 +195,7 @@ describe('Project roadmap', () => {
             screen.queryByRole('button', { name: 'Load more projects' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('region', { name: 'Backlog roadmap items' }),
+            screen.queryByRole('region', { name: 'Planned roadmap items' }),
         ).not.toBeInTheDocument();
         fireEvent.click(project);
         await screen.findByRole('button', {
@@ -219,11 +219,52 @@ describe('Project roadmap', () => {
             name: 'Open More flexible dashboard filters',
         });
         expect(
-            screen.queryByRole('region', { name: 'Backlog roadmap items' }),
+            screen.queryByRole('region', { name: 'Planned roadmap items' }),
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Priority' }),
         ).toBeInTheDocument();
+    });
+
+    it('combines backlog and planned projects and tickets in one customer status', async () => {
+        const { getRequests } = setup();
+        await screen.findByRole('button', {
+            name: 'Open A single home for your metrics',
+        });
+        const planned = screen.getByRole('region', {
+            name: 'Planned roadmap items',
+        });
+        expect(planned).toHaveTextContent(
+            'Scheduled reports that fit your workflow',
+        );
+        expect(planned).toHaveTextContent('A single home for your metrics');
+        expect(planned).toHaveTextContent(
+            'Export tables with their number formatting',
+        );
+        expect(screen.queryByText('Backlog')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Status' }));
+        expect(
+            screen.queryByRole('button', { name: 'Backlog' }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Planned' }));
+        fireEvent.click(screen.getByRole('button', { name: /Status/ }));
+        await waitFor(() =>
+            expect(getRequests).toHaveBeenCalledWith(
+                expect.objectContaining({ statuses: 'backlog,planned' }),
+            ),
+        );
+        await screen.findByRole('button', {
+            name: 'Open Scheduled reports that fit your workflow',
+        });
+        expect(
+            screen.getByRole('button', {
+                name: 'Open A single home for your metrics',
+            }),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('radio', { name: 'Table' }));
+        const table = screen.getByRole('table');
+        expect(within(table).getAllByText('Planned')).toHaveLength(4);
+        expect(within(table).queryByText('Backlog')).not.toBeInTheDocument();
     });
 
     it('puts followed tickets from removed projects directly on the main board', async () => {
