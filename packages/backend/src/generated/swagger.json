@@ -51380,6 +51380,33 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "LearnAccess": {
+                "properties": {
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["scopes"],
+                "type": "object",
+                "description": "What a learner can do, anywhere (CS-267): every scope they hold through\ntheir organization role, any organization-level custom roles, and every\nproject role they hold directly or through a group. The library shows the\nfeatures in this set and keeps the rest behind a toggle."
+            },
+            "ApiLearnAccessResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LearnAccess"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ImpersonationOrganizationSettings": {
                 "properties": {
                     "impersonationEnabled": {
@@ -60236,7 +60263,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.165.2",
+        "version": "2.167.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -88506,6 +88533,38 @@
                 },
                 "description": "Enable Learn for the current organization: create the training project\nwith the caller as its admin. Org admins only. Idempotent.",
                 "summary": "Enable Learn",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/org/training-project/access": {
+            "get": {
+                "operationId": "GetLearnAccess",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLearnAccessResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Everything the caller can do, anywhere: the scopes they hold through\ntheir organization role, any organization-level custom roles, and\nevery project role they hold directly or through a group. The Learn\nlibrary shows those features and keeps the rest behind a toggle.",
+                "summary": "Get Learn access",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []

@@ -9,6 +9,7 @@ import {
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
+    getAllScopesForRole,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
@@ -894,6 +895,73 @@ export class UserModel {
         });
 
         return scopesRecord;
+    }
+
+    /**
+     * Every scope the user holds anywhere: their organization role, the
+     * custom roles held at organization level, and every project role they
+     * hold directly or through a group, with the scopes of any custom role
+     * among them. Learn asks for this to show a learner the features they
+     * can actually practise, which follows their real access rather than one
+     * role's rank.
+     */
+    async getScopesHeldAnywhere(
+        userUuid: string,
+        { includeCustomRoles = true }: { includeCustomRoles?: boolean } = {},
+    ): Promise<string[]> {
+        const [user] = await userDetailsQueryBuilder(this.database)
+            .where('user_uuid', userUuid)
+            .select('*', 'organizations.created_at as organization_created_at');
+        if (user === undefined) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
+        }
+
+        const [projectRoles, groupProjectRoles, orgExtraRoleUuids] =
+            await Promise.all([
+                this.getUserProjectRoles(user.user_uuid),
+                this.getUserGroupProjectRoles(
+                    user.user_id,
+                    user.organization_id,
+                    user.user_uuid,
+                ),
+                this.getOrganizationExtraRoleUuids(
+                    user.user_id,
+                    user.organization_id,
+                ),
+            ]);
+
+        const roleUuids = [
+            user.role_uuid,
+            ...orgExtraRoleUuids,
+            ...[...projectRoles, ...groupProjectRoles].flatMap((role) => [
+                role.roleUuid,
+                ...(role.extraRoleUuids ?? []),
+            ]),
+        ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
+        const customScopes = includeCustomRoles
+            ? await this.customRoleScopes(roleUuids)
+            : {};
+
+        // An organization role and a project role are named alike, so the
+        // system role's scope set is the same mapping either way; a `member`
+        // holds nothing on its own.
+        const systemRoles = [
+            user.role,
+            ...[...projectRoles, ...groupProjectRoles].map((role) => role.role),
+        ].filter((role): role is ProjectMemberRole =>
+            Object.values(ProjectMemberRole).includes(
+                role as ProjectMemberRole,
+            ),
+        );
+
+        return [
+            ...new Set([
+                ...systemRoles.flatMap((role) => getAllScopesForRole(role)),
+                ...roleUuids.flatMap(
+                    (roleUuid) => customScopes[roleUuid] ?? [],
+                ),
+            ]),
+        ];
     }
 
     /**

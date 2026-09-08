@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { type ProjectMemberRole, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -35,16 +35,14 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { useLearnAvailability } from './availability';
 import {
+    accessNote,
     buildLearnCatalogue,
     focusModules,
     GROUP_DESCRIPTIONS,
     GROUP_LABELS,
     GROUP_ORDER,
-    roleFromOrganizationRole,
-    roleHolds,
-    ROLE_LABELS,
-    ROLE_ORDER,
-    sortForRole,
+    holds,
+    sortForLearner,
     type LearnGroup,
     type LearnModule,
 } from './catalogue';
@@ -55,6 +53,7 @@ import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
+import { useLearnAccess } from './useLearnAccess';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
 type CardState = 'soon' | 'ready' | 'started' | 'done';
@@ -75,10 +74,11 @@ const stateOf = (
 const ModuleCard: FC<{
     module: LearnModule;
     state: CardState;
-    heldByRole: boolean;
+    /** What the chosen view lacks, named on the card; null when it holds it. */
+    note: string | null;
     opening: boolean;
     onStart: (scope: string) => void;
-}> = ({ module, state, heldByRole, opening, onStart }) => {
+}> = ({ module, state, note, opening, onStart }) => {
     const Glyph = GROUP_ICONS[module.group];
     const shot = thumbnailFor(module.scope);
     return (
@@ -118,9 +118,7 @@ const ModuleCard: FC<{
                     ) : (
                         <span>{module.stepCount} steps</span>
                     )}
-                    {module.minRole && !heldByRole && (
-                        <span>{ROLE_LABELS[module.minRole]} and above</span>
-                    )}
+                    {note && <span>{note}</span>}
                 </Box>
                 {state !== 'soon' && (
                     <Button
@@ -209,26 +207,28 @@ const LearnPage: FC = () => {
         [isOpen],
     );
     const { completed, started, lastStarted } = useLearnProgress();
-    const [role, setRole] = useState<ProjectMemberRole>(() =>
-        roleFromOrganizationRole(user.data?.role),
-    );
+    // What the learner can do, anywhere: their organization role, any
+    // organization-level custom roles, and every project role they hold. The
+    // library is that; everything else waits behind the Extra modules
+    // toggle.
+    const { held } = useLearnAccess();
     const [query, setQuery] = useState('');
-    const [showExtra, setShowExtra] = useState(true);
+    const [showExtra, setShowExtra] = useState(false);
     const [showSoon, setShowSoon] = useState(true);
     // One group tab, or All.
     const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
-        return sortForRole(role, catalogue).filter(
+        return sortForLearner(held, catalogue).filter(
             (module) =>
-                (showExtra || roleHolds(role, module)) &&
+                (showExtra || holds(held, module)) &&
                 (showSoon || module.available) &&
                 (needle === '' ||
                     module.title.toLowerCase().includes(needle) ||
                     module.scope.toLowerCase().includes(needle)),
         );
-    }, [catalogue, role, showExtra, showSoon, query]);
+    }, [catalogue, held, showExtra, showSoon, query]);
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
@@ -246,7 +246,7 @@ const LearnPage: FC = () => {
     // recommendation is the first unfinished walkthrough, held-by-role ones
     // first (sortForRole), rather than nothing for a viewer.
     const { resume, recommended } = focusModules(
-        role,
+        held,
         available,
         completed,
         lastStarted,
@@ -409,26 +409,9 @@ const LearnPage: FC = () => {
                     </Box>
                 )}
                 <Box className={styles.libraryBar}>
-                    <Box
-                        component="nav"
-                        className={styles.views}
-                        aria-label="Viewing as"
-                        data-learn-role={role}
-                    >
-                        {ROLE_ORDER.map((candidate) => (
-                            <UnstyledButton
-                                key={candidate}
-                                type="button"
-                                className={`${styles.view} ${
-                                    candidate === role ? styles.viewOn : ''
-                                }`}
-                                aria-pressed={candidate === role}
-                                onClick={() => setRole(candidate)}
-                            >
-                                {ROLE_LABELS[candidate]}
-                            </UnstyledButton>
-                        ))}
-                    </Box>
+                    <span className={styles.libraryHeading}>
+                        {showExtra ? 'Every module' : 'What you can do'}
+                    </span>
                     <span
                         className={styles.libraryCount}
                         data-learn-progress={`${doneCount}/${available.length}`}
@@ -561,7 +544,7 @@ const LearnPage: FC = () => {
                                             started,
                                             completed,
                                         )}
-                                        heldByRole={roleHolds(role, module)}
+                                        note={accessNote(held, module)}
                                         opening={opening === module.scope}
                                         onStart={startFromCard}
                                     />

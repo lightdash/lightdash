@@ -498,6 +498,31 @@ const swallowQuietly = (event: React.SyntheticEvent) => {
     event.stopPropagation();
 };
 
+/** Menus, selects and hover cards all render one of these. */
+const DROPDOWN_SELECTOR = '.mantine-Popover-dropdown';
+
+/**
+ * Put away the menus a step left open. Swallowing the presses outside the
+ * spotlight is what holds a menu open through the click that moves the
+ * walkthrough on, and nothing else will close it afterwards: it would sit
+ * over the steps that follow and over whatever the host shows when the tour
+ * ends. The one the tour is pointing inside is left alone (a comment thread
+ * stays open while its step types into it).
+ *
+ * Escape is dispatched on the dropdown and does not bubble: React still runs
+ * the dropdown's own capture handler, while the window-level listeners that
+ * close a modal or a drawer never hear it, so a dialog a step opened on
+ * purpose survives.
+ */
+const closeOpenDropdowns = (keep: Element | null) => {
+    document.querySelectorAll(DROPDOWN_SELECTOR).forEach((dropdown) => {
+        if (keep && dropdown.contains(keep)) return;
+        dropdown.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: false }),
+        );
+    });
+};
+
 const BLOCKER_HANDLERS = {
     onPointerDown: swallow,
     onMouseDown: swallow,
@@ -562,10 +587,15 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // The position transition is on only for a moment after a move starts,
     // so scroll and resize still track instantly afterwards.
     const [gliding, setGliding] = useState(false);
+    // Held so the timer is cleared on unmount: its callback sets state, and
+    // firing after teardown throws on a window that no longer exists.
+    const glideTimer = useRef<number | undefined>(undefined);
     const glideFor = useCallback((ms: number) => {
         setGliding(true);
-        window.setTimeout(() => setGliding(false), ms);
+        window.clearTimeout(glideTimer.current);
+        glideTimer.current = window.setTimeout(() => setGliding(false), ms);
     }, []);
+    useEffect(() => () => window.clearTimeout(glideTimer.current), []);
     // The ring effect below answers to the target rect alone: the beacon,
     // card phase and step it reads are mirrored into refs so a change in
     // any of them does not re-run it (a click's beacon must wait for the
@@ -609,10 +639,14 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             glidedForStepRef.current = stepIndexRef.current;
             glideFor(GLIDE_MS);
             expandTimeoutRef.current = window.setTimeout(() => {
-                expandTimeoutRef.current = null;
                 setCardRect(latestRectRef.current);
                 setCardPhase('expanding');
-                window.setTimeout(() => setCardPhase('shown'), CARD_EXPAND_MS);
+                // Chained onto the same ref, which the outer timer has just
+                // released, so unmount clears whichever is still pending.
+                expandTimeoutRef.current = window.setTimeout(() => {
+                    expandTimeoutRef.current = null;
+                    setCardPhase('shown');
+                }, CARD_EXPAND_MS);
             }, GLIDE_MS);
             return;
         }
@@ -714,6 +748,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     const isLast = stepIndex === steps.length - 1;
 
     const handleClose = useCallback(() => {
+        // Whatever the walkthrough left open goes with it: the host shows the
+        // completion dialog on the page behind, and a menu floats over it.
+        closeOpenDropdowns(null);
         setStepIndex(0);
         onClose();
     }, [onClose]);
@@ -743,6 +780,33 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     useEffect(() => {
         if (route) onNavigate?.(route);
     }, [route, onNavigate]);
+
+    // A step pointing outside a menu the learner opened closes that menu,
+    // once its own control is on the page: waiting for the control is what
+    // spares the menu a step is about to point into, whose items appear with
+    // it. A step pointing at nothing (a centred explainer) closes them all.
+    const stepTarget = opened ? (step?.target ?? null) : null;
+    useEffect(() => {
+        if (!opened) return undefined;
+        if (!stepTarget) {
+            closeOpenDropdowns(null);
+            return undefined;
+        }
+        // Once per step: a menu the learner opens for themselves on a
+        // hands-on step is theirs to keep.
+        let poll = 0;
+        let closed = false;
+        const tick = () => {
+            const el = document.querySelector(stepTarget);
+            if (!el) return;
+            closed = true;
+            window.clearInterval(poll);
+            closeOpenDropdowns(el);
+        };
+        tick();
+        if (!closed) poll = window.setInterval(tick, 150);
+        return () => window.clearInterval(poll);
+    }, [opened, stepIndex, stepTarget]);
 
     // "Do this" steps advance themselves when the target is clicked. The
     // target may render late (e.g. a menu item), so keep looking for it.

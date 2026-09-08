@@ -201,6 +201,7 @@ export const mockEmailClient: Record<string, MockFn> = {
 
 export const mockUserModel: Record<string, MockFn> = {
     findUserByEmail: vi.fn(),
+    getScopesHeldAnywhere: vi.fn().mockResolvedValue([]),
     createPendingUser: vi.fn(),
     joinOrg: vi.fn(),
     updateUser: vi.fn(),

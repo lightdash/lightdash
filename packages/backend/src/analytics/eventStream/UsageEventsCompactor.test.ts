@@ -206,7 +206,9 @@ describe('buildCompactionSql', () => {
             'COPY (SELECT "event_name", "org_id", "user_id", "event_ts", "schema_version", ' +
                 '"project_id", "query_id", "status", "context", "explore_name", "chart_id", ' +
                 '"dashboard_id", "cache_hit", "execution_source", "warehouse_type", ' +
-                '"warehouse_execution_time_ms", "total_row_count", "columns_count" ' +
+                '"warehouse_execution_time_ms", "warehouse_ssh_tunnel_ms", ' +
+                '"warehouse_connect_ms", "warehouse_session_ms", "warehouse_query_ms", ' +
+                '"warehouse_fetch_ms", "total_row_count", "columns_count" ' +
                 "FROM read_json(['s3://events-bucket/events/raw/org_id=org-1/stream=query_events/dt=2026-07-01/a.jsonl.gz', " +
                 "'s3://events-bucket/events/raw/org_id=org-1/stream=query_events/dt=2026-07-01/b.jsonl.gz'], " +
                 "format='newline_delimited', " +
@@ -216,6 +218,9 @@ describe('buildCompactionSql', () => {
                 '"explore_name": \'VARCHAR\', "chart_id": \'VARCHAR\', "dashboard_id": \'VARCHAR\', ' +
                 '"cache_hit": \'BOOLEAN\', "execution_source": \'VARCHAR\', "warehouse_type": \'VARCHAR\', ' +
                 '"warehouse_execution_time_ms": \'BIGINT\', ' +
+                '"warehouse_ssh_tunnel_ms": \'BIGINT\', "warehouse_connect_ms": \'BIGINT\', ' +
+                '"warehouse_session_ms": \'BIGINT\', "warehouse_query_ms": \'BIGINT\', ' +
+                '"warehouse_fetch_ms": \'BIGINT\', ' +
                 '"total_row_count": \'BIGINT\', "columns_count": \'INTEGER\'})) ' +
                 `TO 's3://events-bucket/${compactedKey}' (FORMAT PARQUET, COMPRESSION zstd)`,
         );

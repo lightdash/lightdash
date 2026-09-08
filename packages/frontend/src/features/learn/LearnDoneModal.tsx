@@ -1,16 +1,12 @@
 import { Box, Button, Group, Stack, Text } from '@mantine/core';
 import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
-import useApp from '../../providers/App/useApp';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { useLearnAvailability } from './availability';
-import {
-    buildLearnCatalogue,
-    focusModules,
-    roleFromOrganizationRole,
-} from './catalogue';
+import { buildLearnCatalogue, focusModules } from './catalogue';
 import styles from './Learn.module.css';
 import { useLearnProgress } from './progress';
+import { useLearnAccess } from './useLearnAccess';
 
 type Props = {
     /** The module just finished. */
@@ -35,13 +31,15 @@ export const LearnDoneModal: FC<Props> = ({
     onNext,
     opening = false,
 }) => {
-    const { user } = useApp();
     const { isOpen } = useLearnAvailability();
     const catalogue = useMemo(
         () => buildLearnCatalogue().filter(isOpen),
         [isOpen],
     );
     const { completed, lastStarted } = useLearnProgress();
+    // The same access the library reads, so the two pages never disagree
+    // about what comes next.
+    const { held } = useLearnAccess();
     const tour = SCOPE_TOURS[scope];
     const available = catalogue.filter((m) => m.available);
     // The finished module counts as complete here whatever the stored
@@ -54,7 +52,7 @@ export const LearnDoneModal: FC<Props> = ({
         completedHere.includes(m.scope),
     ).length;
     const { resume, recommended } = focusModules(
-        roleFromOrganizationRole(user.data?.role),
+        held,
         available,
         completedHere,
         lastStarted,

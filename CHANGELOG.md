@@ -1,3 +1,31 @@
+## [2.167.1](https://github.com/lightdash/lightdash/compare/2.167.0...2.167.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **learn:** clear GuidedTour glide timers on unmount ([#28895](https://github.com/lightdash/lightdash/issues/28895)) ([8189182](https://github.com/lightdash/lightdash/commit/8189182bee72d73bee6d3eb7a73d6cdffc7c44cf))
+
+# [2.167.0](https://github.com/lightdash/lightdash/compare/2.166.1...2.167.0) (2026-09-08)
+
+
+### Features
+
+* **learn:** the library is what the learner can do ([#28847](https://github.com/lightdash/lightdash/issues/28847)) ([22547f2](https://github.com/lightdash/lightdash/commit/22547f22726317fe62604c6e6642f4efaf4ae349))
+
+## [2.166.1](https://github.com/lightdash/lightdash/compare/2.166.0...2.166.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **learn:** close a menu a walkthrough opened once it points elsewhere ([#28868](https://github.com/lightdash/lightdash/issues/28868)) ([7e62220](https://github.com/lightdash/lightdash/commit/7e62220aeaa5146b4c35ff24a5ddece486095438))
+
+# [2.166.0](https://github.com/lightdash/lightdash/compare/2.165.2...2.166.0) (2026-09-08)
+
+
+### Features
+
+* **ai:** instrument the agent turn waterfall ([#28872](https://github.com/lightdash/lightdash/issues/28872)) ([19898e3](https://github.com/lightdash/lightdash/commit/19898e38b6e4078b5b15dcec3f266165aaf45a65))
+
 ## [2.165.2](https://github.com/lightdash/lightdash/compare/2.165.1...2.165.2) (2026-09-08)
 
 

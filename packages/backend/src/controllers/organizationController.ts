@@ -8,6 +8,7 @@ import {
     ApiErrorPayload,
     ApiGroupListResponse,
     ApiImpersonationOrganizationSettingsResponse,
+    ApiLearnAccessResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
     ApiOrganizationBrandResponse,
@@ -890,6 +891,29 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .enableLearn(toSessionUser(req.account)),
+        };
+    }
+
+    /**
+     * Everything the caller can do, anywhere: the scopes they hold through
+     * their organization role, any organization-level custom roles, and
+     * every project role they hold directly or through a group. The Learn
+     * library shows those features and keeps the rest behind a toggle.
+     * @summary Get Learn access
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/training-project/access')
+    @OperationId('GetLearnAccess')
+    async getLearnAccess(
+        @Request() req: express.Request,
+    ): Promise<ApiLearnAccessResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRolesService()
+                .getLearnAccess(toSessionUser(req.account)),
         };
     }
 
