@@ -250,6 +250,7 @@ type RawSummaryRow = {
         | null;
     baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'] | null;
     aiHint: Explore['aiHint'] | null;
+    customMeta: Explore['customMeta'] | null;
 };
 
 type PreviewChartUuidMapping = {
@@ -2028,7 +2029,8 @@ export class ProjectModel {
                     explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
                     explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
                     explore->'tables'->(explore->>'baseTable')->'anyAttributes' as "baseTableAnyAttributes",
-                    explore->'aiHint' as "aiHint"
+                    explore->'aiHint' as "aiHint",
+                    explore->'customMeta' as "customMeta"
                 `),
             )
             .where('project_uuid', projectUuid);
@@ -2043,6 +2045,7 @@ export class ProjectModel {
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
             aiHint: row.aiHint ?? undefined,
+            customMeta: row.customMeta ?? undefined,
             type: row.type ?? undefined,
             preAggregateSource: row.preAggregateSource ?? undefined,
             externalSource: row.externalSource ?? undefined,
