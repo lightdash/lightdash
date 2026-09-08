@@ -1,4 +1,9 @@
-import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
+import {
+    SupportedDbtAdapter,
+    type DbtModelLightdashConfig,
+    type DbtModelNode,
+    type RESERVED_MODEL_META_KEYS,
+} from '../types/dbt';
 import {
     getExploreSplitCandidates,
     InlineErrorType,
@@ -1830,6 +1835,96 @@ describe('dbt Mesh model qualification', () => {
         ).rejects.toThrow(
             'dbt Mesh model name "analytics__orders" is ambiguous after qualification: model "orders" from package "analytics" (model.analytics.orders) and model "analytics__orders" from package "warehouse" (model.warehouse.analytics__orders). Rename the package or model before deploying.',
         );
+    });
+});
+
+describe('custom model metadata', () => {
+    it('reserves every recognised model config key', () => {
+        expectTypeOf<(typeof RESERVED_MODEL_META_KEYS)[number]>().toEqualTypeOf<
+            keyof DbtModelLightdashConfig
+        >();
+    });
+
+    it.each([
+        {},
+        {
+            label: 'Orders',
+            ai_hint: 'Use for orders',
+            sql_filter: '1 = 1',
+            sql_where: '1 = 1',
+            case_sensitive: false,
+            hidden: false,
+            metrics: {},
+            required_filters: [],
+        },
+        { nested: { tier: 2 }, list: [1, 'two'], absent: null },
+    ])(
+        'omits customMeta when meta contains no custom scalars (%j)',
+        async (meta) => {
+            const explores = await convertExplores(
+                [{ ...model, meta: { ...meta, explores: { curated: {} } } }],
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            );
+
+            expect(explores).toHaveLength(2);
+            explores.forEach((explore) => {
+                expect(explore).not.toHaveProperty('errors');
+                expect(explore).not.toHaveProperty('customMeta');
+            });
+        },
+    );
+
+    it('inherits merged scalar metadata on base and curated explores', async () => {
+        const modelMeta = {
+            model_tier: 1,
+            domain: 'finance',
+            certified: false,
+            zero: 0,
+            empty: '',
+        };
+        const configMeta = {
+            model_tier: 2,
+            nested: { tier: 3 },
+            list: ['a'],
+            absent: null,
+        };
+        const explores = await convertExplores(
+            [
+                {
+                    ...model,
+                    meta: { ...modelMeta, label: 'Base model' },
+                    config: {
+                        ...model.config,
+                        meta: {
+                            ...configMeta,
+                            explores: { curated: { label: 'Curated' } },
+                        },
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(explores.map((explore) => explore.name)).toEqual([
+            model.name,
+            'curated',
+        ]);
+        explores.forEach((explore) => {
+            expect(explore).not.toHaveProperty('errors');
+            expect(explore).toHaveProperty('customMeta', {
+                model_tier: 2,
+                domain: 'finance',
+                certified: false,
+                zero: 0,
+                empty: '',
+            });
+        });
     });
 });
 
