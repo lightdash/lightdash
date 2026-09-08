@@ -3,10 +3,10 @@
     border-radius: var(--mantine-radius-md);
     display: grid;
     grid-auto-flow: column;
-    grid-auto-columns: minmax(280px, 1fr);
+    grid-auto-columns: minmax(250px, 1fr);
     gap: var(--mantine-spacing-sm);
-    height: calc(100dvh - 320px);
-    min-height: 400px;
+    flex: 1;
+    min-height: 0;
     overflow-x: auto;
     padding: var(--mantine-spacing-sm);
     align-items: stretch;
@@ -97,7 +97,8 @@
     flex-shrink: 0;
 }
 .review {
-    min-height: 100dvh;
+    height: 100dvh;
+    min-height: 0;
     background: var(--ld-color-page);
     padding: var(--mantine-spacing-xl);
 }
@@ -116,7 +117,9 @@
 .tableContainer {
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    min-height: 400px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
 }
 .nameCell {
     width: 38%;
@@ -136,4 +139,10 @@
     .viewControls {
         width: 100%;
     }
+}
+
+.toolbar,
+.pagination,
+.reviewToolbar {
+    flex-shrink: 0;
 }

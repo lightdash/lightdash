@@ -323,10 +323,12 @@ type RoadmapEntry = {
 function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
     return (
         <Table.ScrollContainer
+            type="native"
             minWidth={840}
             className={classes.tableContainer}
         >
             <Table
+                stickyHeader
                 verticalSpacing="md"
                 horizontalSpacing="md"
                 highlightOnHover
@@ -612,6 +614,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     ];
     return (
         <SettingsPage
+            fillHeight
             title={
                 projectBoard
                     ? !failed && selectedProject
@@ -635,7 +638,12 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 ) : undefined
             }
         >
-            <Group justify="space-between" gap="sm" wrap="wrap">
+            <Group
+                justify="space-between"
+                gap="sm"
+                wrap="wrap"
+                className={classes.toolbar}
+            >
                 <Group gap="sm">
                     <ContentTableSearchInput
                         tooltipLabel={
@@ -829,32 +837,39 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                     ) : (
                         <RoadmapTable entries={entries} />
                     )}
-                    <Group justify="center" gap="sm" p="md">
-                        {!projectBoard && projectsQuery.hasNextPage && (
-                            <Button
-                                variant="default"
-                                size="xs"
-                                loading={projectsQuery.isFetchingNextPage}
-                                onClick={() =>
-                                    void projectsQuery.fetchNextPage()
-                                }
-                            >
-                                Load more projects
-                            </Button>
-                        )}
-                        {ticketsQuery.hasNextPage && (
-                            <Button
-                                variant="default"
-                                size="xs"
-                                loading={ticketsQuery.isFetchingNextPage}
-                                onClick={() =>
-                                    void ticketsQuery.fetchNextPage()
-                                }
-                            >
-                                Load more tickets
-                            </Button>
-                        )}
-                    </Group>
+                    {((!projectBoard && projectsQuery.hasNextPage) ||
+                        ticketsQuery.hasNextPage) && (
+                        <Group
+                            justify="center"
+                            gap="sm"
+                            className={classes.pagination}
+                        >
+                            {!projectBoard && projectsQuery.hasNextPage && (
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    loading={projectsQuery.isFetchingNextPage}
+                                    onClick={() =>
+                                        void projectsQuery.fetchNextPage()
+                                    }
+                                >
+                                    Load more projects
+                                </Button>
+                            )}
+                            {ticketsQuery.hasNextPage && (
+                                <Button
+                                    variant="default"
+                                    size="xs"
+                                    loading={ticketsQuery.isFetchingNextPage}
+                                    onClick={() =>
+                                        void ticketsQuery.fetchNextPage()
+                                    }
+                                >
+                                    Load more tickets
+                                </Button>
+                            )}
+                        </Group>
+                    )}
                 </>
             )}
             <RoadmapRequestDetails

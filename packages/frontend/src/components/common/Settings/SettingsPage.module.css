@@ -46,3 +46,18 @@
         align-self: flex-start;
     }
 }
+
+.page[data-fill-height='true'] {
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 0;
+}
+
+.page[data-fill-height='true'] > .container {
+    flex-shrink: 0;
+}
+
+.page[data-fill-height='true'] > .content {
+    flex: 1;
+    min-height: 0;
+}

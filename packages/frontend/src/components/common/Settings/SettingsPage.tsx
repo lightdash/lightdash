@@ -8,6 +8,7 @@ import classes from './SettingsPage.module.css';
 
 type SettingsPageProps = {
     title: string;
+    fillHeight?: boolean;
     breadcrumbs?: PageBreadcrumbsProps['items'];
     isBeta?: boolean;
     description?: ReactNode;
@@ -43,13 +44,14 @@ const SettingsPageDocumentationLink: FC<{
 
 const SettingsPage: FC<PropsWithChildren<SettingsPageProps>> = ({
     title,
+    fillHeight = false,
     breadcrumbs,
     isBeta,
     description,
     actions,
     children,
 }) => (
-    <Stack gap="lg" className={classes.page}>
+    <Stack gap="lg" className={classes.page} data-fill-height={fillHeight}>
         <SettingsPageContainer>
             <Group
                 justify="space-between"
