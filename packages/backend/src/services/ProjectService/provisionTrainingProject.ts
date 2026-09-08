@@ -72,6 +72,13 @@ const describe = (error: unknown): string =>
  * The bundle is the playground's (same DuckDB dataset and explores); only
  * the project type, name and the seeded space differ. The training bundle
  * of CS-207 Slice 1 replaces it when it lands.
+ *
+ * Authorisation is the caller's: `ProjectService.enableLearn` checks
+ * `manage:Organization` before calling this, and it is the only route
+ * reachable by users. The service wiring and the dev provisioning script
+ * also call it, deliberately without a user check, for an org they already
+ * administer. The organisation guard here narrows the type; it is not the
+ * permission check.
  */
 export const provisionTrainingProject = async ({
     user,

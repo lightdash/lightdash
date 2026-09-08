@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useIsCopilotEnabled } from '../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -24,21 +24,23 @@ export const useLearnAvailability = () => {
     const copilot = useIsCopilotEnabled();
     const aiSettings = useAiOrganizationSettings();
     const isEnterprise = health.data?.license?.hasLicenseKey === true;
-    const open: Record<LearnGate, boolean> = {
-        enterprise: isEnterprise,
-        // Data apps are Enterprise as well as flagged: without a licence the
-        // app endpoints refuse and nothing seeds an app to practise on.
-        dataApps: isEnterprise && dataApps.data?.enabled === true,
-        aiAgents:
-            isEnterprise &&
-            copilot.isCopilotEnabled &&
-            aiSettings.data?.aiAgentsVisible === true,
-    };
-    const key = JSON.stringify(open);
+    const dataAppsOn = dataApps.data?.enabled === true;
+    const copilotOn = copilot.isCopilotEnabled;
+    const agentsVisible = aiSettings.data?.aiAgentsVisible === true;
+    const open = useMemo<Record<LearnGate, boolean>>(
+        () => ({
+            enterprise: isEnterprise,
+            // Data apps are Enterprise as well as flagged: without a licence
+            // the app endpoints refuse and nothing seeds an app to practise
+            // on.
+            dataApps: isEnterprise && dataAppsOn,
+            aiAgents: isEnterprise && copilotOn && agentsVisible,
+        }),
+        [isEnterprise, dataAppsOn, copilotOn, agentsVisible],
+    );
     const isOpen = useCallback(
         (module: LearnModule) => module.gate === null || open[module.gate],
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [key],
+        [open],
     );
     return { isOpen };
 };

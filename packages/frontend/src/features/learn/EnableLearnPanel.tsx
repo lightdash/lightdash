@@ -1,4 +1,4 @@
-import { Box, Button, Text } from '@mantine/core';
+import { Box, Button, List, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import {
@@ -40,21 +40,22 @@ export const EnableLearnPanel: FC<Props> = ({
         <Box className={styles.enableShell} data-learn-enable-panel>
             <Box className={styles.enableColumn}>
                 <Box>
-                    <span
+                    <Text
+                        component="span"
                         className={`${styles.overline} ${styles.overlineAccent}`}
                     >
                         Learn
-                    </span>
-                    <h1 className={styles.enableTitle}>
+                    </Text>
+                    <Title order={1} className={styles.enableTitle}>
                         Learn Lightdash by doing, on data nobody can break
-                    </h1>
-                    <p className={styles.enableLede}>
+                    </Title>
+                    <Text component="p" className={styles.enableLede}>
                         Learn gives everyone in your organisation a sample
                         project to practise on, with a guided walkthrough for
                         each thing Lightdash can do. Every walkthrough runs in a
                         fresh copy of that project and the copy is removed when
                         it ends, so nothing here touches your real projects.
-                    </p>
+                    </Text>
                 </Box>
 
                 <Box className={styles.enableGrid}>
@@ -67,12 +68,19 @@ export const EnableLearnPanel: FC<Props> = ({
                                     className={styles.enableGroup}
                                     style={groupVars(group)}
                                 >
-                                    <span className={styles.enableGroupIcon}>
+                                    <Box
+                                        component="span"
+                                        className={styles.enableGroupIcon}
+                                    >
                                         <MantineIcon icon={Glyph} size={18} />
-                                    </span>
+                                    </Box>
                                     <Box>
-                                        <h3>{GROUP_LABELS[group]}</h3>
-                                        <p>{GROUP_DESCRIPTIONS[group]}</p>
+                                        <Title order={3}>
+                                            {GROUP_LABELS[group]}
+                                        </Title>
+                                        <Text component="p">
+                                            {GROUP_DESCRIPTIONS[group]}
+                                        </Text>
                                     </Box>
                                 </Box>
                             );
@@ -80,22 +88,30 @@ export const EnableLearnPanel: FC<Props> = ({
                     </Box>
 
                     <Box component="aside" className={styles.enableCard}>
-                        <span className={styles.overline}>Not enabled yet</span>
+                        <Text component="span" className={styles.overline}>
+                            Not enabled yet
+                        </Text>
                         {canEnable ? (
                             <>
-                                <h2>Enable Learn for your organisation</h2>
-                                <p>Enabling does three things:</p>
-                                <ul>
-                                    <li>
+                                <Title order={2}>
+                                    Enable Learn for your organisation
+                                </Title>
+                                <Text component="p">
+                                    Enabling does three things:
+                                </Text>
+                                <List>
+                                    <List.Item>
                                         creates a project named Training (sample
                                         data), on a small built-in dataset;
-                                    </li>
-                                    <li>
+                                    </List.Item>
+                                    <List.Item>
                                         gives everyone the permissions to
                                         practise there, and only there;
-                                    </li>
-                                    <li>makes you that project's admin.</li>
-                                </ul>
+                                    </List.Item>
+                                    <List.Item>
+                                        makes you that project's admin.
+                                    </List.Item>
+                                </List>
                                 <Button
                                     color="indigo"
                                     size="md"
@@ -109,12 +125,14 @@ export const EnableLearnPanel: FC<Props> = ({
                             </>
                         ) : (
                             <>
-                                <h2>Ask an admin to enable Learn</h2>
-                                <p data-learn-ask-admin>
+                                <Title order={2}>
+                                    Ask an admin to enable Learn
+                                </Title>
+                                <Text component="p" data-learn-ask-admin>
                                     An organisation admin turns Learn on from
                                     this page. Once they have, every walkthrough
                                     here is yours to start.
-                                </p>
+                                </Text>
                             </>
                         )}
                         {error && (

@@ -8,8 +8,10 @@
        the surface differ per scheme. */
     --lu-accent: var(--mantine-color-ldBrandViolet-6);
     --lu-track: var(--mantine-color-ldGray-2);
-    --lu-done-fg: light-dark(#2f9e44, #69db7c);
-    --lu-done-border: light-dark(#b7e4c0, #2b5e3a);
+    --lu-done-fg: light-dark(
+        var(--mantine-color-green-7),
+        var(--mantine-color-green-4)
+    );
     --lu-surface: var(--mantine-color-background-0);
     --lu-sunken: var(--mantine-color-ldGray-1);
     --lu-border: var(--mantine-color-ldGray-2);
@@ -392,24 +394,16 @@
     background: var(--mi-band);
 }
 
-.band::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.16;
-    background-image: radial-gradient(var(--mi-fg) 1.2px, transparent 1.3px);
-    background-size: 12px 12px;
-    background-position: 6px 4px;
-}
-
 .blob {
     position: relative;
     width: 38px;
     height: 38px;
     display: grid;
     place-items: center;
-    background: rgba(255, 255, 255, 0.55);
+    background: light-dark(
+        rgba(255, 255, 255, 0.55),
+        rgba(255, 255, 255, 0.08)
+    );
     color: var(--mi-fg);
     border-radius: 44% 56% 47% 53% / 53% 44% 56% 47%;
 }

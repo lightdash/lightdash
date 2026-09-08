@@ -26,21 +26,33 @@ export const GROUP_ICONS: Record<LearnGroup, Icon> = {
     [ScopeGroup.ORGANIZATION_MANAGEMENT]: IconBuilding,
 };
 
-/** The library's band and glyph colours per group, as on learn.lightdash.com. */
-const GROUP_COLOURS: Record<LearnGroup, { band: string; fg: string }> = {
-    [FOUNDATIONS]: { band: '#f0dbd1', fg: '#b06a4c' },
-    [ScopeGroup.CONTENT]: { band: '#dfe8e2', fg: '#4f7d5d' },
-    [ScopeGroup.SHARING]: { band: '#dfe8e2', fg: '#4f7d5d' },
-    [ScopeGroup.EMBED]: { band: '#dfe1e6', fg: '#5b6478' },
-    [ScopeGroup.DATA]: { band: '#ece3d1', fg: '#93743a' },
-    [ScopeGroup.AI]: { band: '#e2ddf1', fg: '#6b5bb8' },
-    [ScopeGroup.PROJECT_MANAGEMENT]: { band: '#d9e6e4', fg: '#41756f' },
-    [ScopeGroup.SPOTLIGHT]: { band: '#ece3d1', fg: '#93743a' },
-    [ScopeGroup.ORGANIZATION_MANAGEMENT]: { band: '#dfe1e6', fg: '#5b6478' },
+/**
+ * Each group's hue, taken from the product's own colour ramps so the library
+ * sits on Lightdash's palette in both schemes: the band is the ramp's lightest
+ * tint on light and a deep mix of it on dark, the glyph a mid shade either way.
+ */
+const GROUP_HUES: Record<LearnGroup, string> = {
+    [FOUNDATIONS]: 'indigo',
+    [ScopeGroup.CONTENT]: 'teal',
+    [ScopeGroup.SHARING]: 'cyan',
+    [ScopeGroup.EMBED]: 'lime',
+    [ScopeGroup.DATA]: 'yellow',
+    [ScopeGroup.AI]: 'grape',
+    [ScopeGroup.PROJECT_MANAGEMENT]: 'blue',
+    [ScopeGroup.SPOTLIGHT]: 'orange',
+    [ScopeGroup.ORGANIZATION_MANAGEMENT]: 'gray',
 };
 
-export const groupVars = (group: LearnGroup) =>
-    ({
-        '--mi-band': GROUP_COLOURS[group].band,
-        '--mi-fg': GROUP_COLOURS[group].fg,
-    }) as CSSProperties;
+const hueVar = (hue: string, shade: number) =>
+    `var(--mantine-color-${hue}-${shade})`;
+
+export const groupVars = (group: LearnGroup) => {
+    const hue = GROUP_HUES[group];
+    return {
+        '--mi-band': `light-dark(${hueVar(hue, 0)}, color-mix(in srgb, ${hueVar(
+            hue,
+            9,
+        )} 28%, var(--mantine-color-background-0)))`,
+        '--mi-fg': `light-dark(${hueVar(hue, 7)}, ${hueVar(hue, 3)})`,
+    } as CSSProperties;
+};

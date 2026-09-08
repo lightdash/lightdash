@@ -523,10 +523,30 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // The position transition is on only for a moment after a move starts,
     // so scroll and resize still track instantly afterwards.
     const [gliding, setGliding] = useState(false);
-    const glideFor = (ms: number) => {
+    const glideFor = useCallback((ms: number) => {
         setGliding(true);
         window.setTimeout(() => setGliding(false), ms);
-    };
+    }, []);
+    // The ring effect below answers to the target rect alone: the beacon,
+    // card phase and step it reads are mirrored into refs so a change in
+    // any of them does not re-run it (a click's beacon must wait for the
+    // next control, not bounce open on the one just clicked).
+    const beaconRef = useRef(beacon);
+    useEffect(() => {
+        beaconRef.current = beacon;
+    }, [beacon]);
+    const cardPhaseRef = useRef(cardPhase);
+    useEffect(() => {
+        cardPhaseRef.current = cardPhase;
+    }, [cardPhase]);
+    const stepIndexRef = useRef(stepIndex);
+    useEffect(() => {
+        stepIndexRef.current = stepIndex;
+    }, [stepIndex]);
+    // The step the ring last glided for: Next moves the ring from the old
+    // control to the new one with the same glide a beacon uses, once, even
+    // when the new control takes a moment to appear.
+    const glidedForStepRef = useRef(initialStepIndex);
     // The control the ring has just arrived at may still settle (a navbar
     // button loading in, a dialog growing), so the pending card expansion
     // must survive rect changes and open at wherever the control ended up.
@@ -537,15 +557,17 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             // The control went away under a read step (a tile removed):
             // the card centres, with its buttons, rather than staying
             // anchored to nothing.
-            if (!beacon && cardPhase === 'shown') setCardRect(null);
+            if (!beaconRef.current && cardPhaseRef.current === 'shown')
+                setCardRect(null);
             return;
         }
         latestRectRef.current = rect;
         setShownRect(rect);
-        if (beacon) {
+        if (beaconRef.current) {
             // the beacon travels to the new control and opens; the card
             // expands out of it once the ring has arrived
             setBeacon(false);
+            glidedForStepRef.current = stepIndexRef.current;
             glideFor(GLIDE_MS);
             expandTimeoutRef.current = window.setTimeout(() => {
                 expandTimeoutRef.current = null;
@@ -555,8 +577,12 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             }, GLIDE_MS);
             return;
         }
-        if (cardPhase === 'shown') setCardRect(rect);
-    }, [rect]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (glidedForStepRef.current !== stepIndexRef.current) {
+            glidedForStepRef.current = stepIndexRef.current;
+            glideFor(GLIDE_MS);
+        }
+        if (cardPhaseRef.current === 'shown') setCardRect(rect);
+    }, [rect, glideFor]);
     useEffect(
         () => () => {
             if (expandTimeoutRef.current !== null)
@@ -592,7 +618,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         setShownStepIndex(stepIndex);
         glideFor(GLIDE_MS);
         return undefined;
-    }, [stepIndex]);
+    }, [stepIndex, glideFor]);
 
     // While the beacon waits for the next control it becomes the cursor:
     // the native pointer is hidden and the beacon follows the mouse, so the
@@ -624,7 +650,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     useEffect(() => {
         if (wasBusyRef.current && !busy) glideFor(GLIDE_MS);
         wasBusyRef.current = busy;
-    }, [busy]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [busy, glideFor]);
 
     const isLast = stepIndex === steps.length - 1;
 
