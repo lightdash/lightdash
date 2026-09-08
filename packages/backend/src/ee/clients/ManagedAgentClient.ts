@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import Anthropic, { NotFoundError } from '@anthropic-ai/sdk';
 import type {
     AgentCreateParams,
     AgentUpdateParams,
@@ -282,10 +282,17 @@ export class ManagedAgentClient {
 
             return true;
         } catch (error) {
+            if (error instanceof NotFoundError) {
+                Logger.warn(
+                    `[ManagedAgent] Persisted resources missing (env=${environmentId}, vault=${vaultId}), reprovisioning: ${error.message}`,
+                );
+                return false;
+            }
+            // Anything else is transient; the session call surfaces the real error.
             Logger.warn(
-                `[ManagedAgent] Persisted resources unusable (env=${environmentId}, vault=${vaultId}), reprovisioning: ${error instanceof Error ? error.message : 'Unknown'}`,
+                `[ManagedAgent] Could not verify persisted resources (env=${environmentId}, vault=${vaultId}), reusing them: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
-            return false;
+            return true;
         }
     }
 
