@@ -1,4 +1,4 @@
-import { type ChartTypeIcon } from '@lightdash/common';
+import { isChartTypeIcon, type ChartTypeIcon } from '@lightdash/common';
 import {
     IconActivity,
     IconArrowsSplit,
@@ -121,3 +121,14 @@ const CHART_TYPE_ICON_COMPONENTS: Record<ChartTypeIcon, TablerIcon> = {
  *  fallback. */
 export const getChartTypeIcon = (icon: ChartTypeIcon | null): TablerIcon =>
     (icon && CHART_TYPE_ICON_COMPONENTS[icon]) || IconPuzzle;
+
+/** Human label for an icon name: drops a leading "chart-", turns hyphens
+ *  into spaces, and capitalises the first letter. */
+export const getChartTypeIconLabel = (icon: ChartTypeIcon): string => {
+    // Drop the "chart-" prefix unless that would collide with another icon.
+    const stripped = icon.startsWith('chart-') ? icon.slice(6) : icon;
+    const base =
+        isChartTypeIcon(stripped) && stripped !== icon ? icon : stripped;
+    const label = base.replace(/-/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};

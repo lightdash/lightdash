@@ -1,14 +1,11 @@
-import { type ChartTypeIcon, CHART_TYPE_ICONS } from '@lightdash/common';
+import { type ChartTypeIcon } from '@lightdash/common';
 import {
-    Box,
     Button,
-    ScrollArea,
+    Group,
+    Input,
     Stack,
-    Text,
     Textarea,
     TextInput,
-    Tooltip,
-    UnstyledButton,
     type ModalProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -17,10 +14,8 @@ import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
-import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
-import MantineIcon from '../MantineIcon';
+import ChartTypeIconPicker from '../../../features/chartTypes/components/ChartTypeIconPicker';
 import MantineModal from '../MantineModal';
-import classes from './AppUpdateModal.module.css';
 
 interface AppUpdateModalProps {
     opened: ModalProps['opened'];
@@ -32,8 +27,8 @@ interface AppUpdateModalProps {
     /** What the app is called to the user; chart types are apps too. */
     resourceLabel?: string;
     icon?: IconType;
-    /** Shows the chart type icon picker section; null hides it (plain data
-     *  apps have no icon of their own). */
+    /** Shows the chart type icon picker beside the name; null hides it
+     *  (plain data apps have no icon of their own). */
     iconPicker: { initialIcon: ChartTypeIcon | null } | null;
     onConfirm?: () => void;
 }
@@ -46,50 +41,6 @@ const updateAppSchema = z.object({
 type FormState = z.infer<typeof updateAppSchema> & {
     icon: ChartTypeIcon | null;
 };
-
-const IconPickerField: FC<{
-    value: ChartTypeIcon | null;
-    onChange: (icon: ChartTypeIcon | null) => void;
-    disabled: boolean;
-}> = ({ value, onChange, disabled }) => (
-    <Box>
-        <Text size="sm" fw={500} mb={4}>
-            Icon
-        </Text>
-        <ScrollArea.Autosize mah={180} type="scroll">
-            <Box className={classes.iconGrid}>
-                <Tooltip label="No icon">
-                    <UnstyledButton
-                        type="button"
-                        className={classes.iconButton}
-                        data-selected={value === null}
-                        aria-pressed={value === null}
-                        aria-label="No icon"
-                        disabled={disabled}
-                        onClick={() => onChange(null)}
-                    >
-                        <MantineIcon icon={getChartTypeIcon(null)} />
-                    </UnstyledButton>
-                </Tooltip>
-                {CHART_TYPE_ICONS.map((iconName) => (
-                    <Tooltip key={iconName} label={iconName}>
-                        <UnstyledButton
-                            type="button"
-                            className={classes.iconButton}
-                            data-selected={value === iconName}
-                            aria-pressed={value === iconName}
-                            aria-label={iconName}
-                            disabled={disabled}
-                            onClick={() => onChange(iconName)}
-                        >
-                            <MantineIcon icon={getChartTypeIcon(iconName)} />
-                        </UnstyledButton>
-                    </Tooltip>
-                ))}
-            </Box>
-        </ScrollArea.Autosize>
-    </Box>
-);
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
@@ -160,13 +111,28 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
         >
             <form id="update-app" onSubmit={handleConfirm}>
                 <Stack>
-                    <TextInput
-                        label="Name"
-                        required
-                        placeholder="eg. Sales insights"
-                        disabled={isUpdating}
-                        {...form.getInputProps('name')}
-                    />
+                    <Group align="flex-end" gap="xs" wrap="nowrap">
+                        {iconPicker !== null && (
+                            <Input.Wrapper label="Icon">
+                                <ChartTypeIconPicker
+                                    value={form.values.icon}
+                                    onChange={(next) =>
+                                        form.setFieldValue('icon', next)
+                                    }
+                                    disabled={isUpdating}
+                                />
+                            </Input.Wrapper>
+                        )}
+
+                        <TextInput
+                            label="Name"
+                            required
+                            flex={1}
+                            placeholder="eg. Sales insights"
+                            disabled={isUpdating}
+                            {...form.getInputProps('name')}
+                        />
+                    </Group>
 
                     <Textarea
                         label="Description"
@@ -176,16 +142,6 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
                         maxRows={3}
                         {...form.getInputProps('description')}
                     />
-
-                    {iconPicker !== null && (
-                        <IconPickerField
-                            value={form.values.icon}
-                            onChange={(next) =>
-                                form.setFieldValue('icon', next)
-                            }
-                            disabled={isUpdating}
-                        />
-                    )}
                 </Stack>
             </form>
         </MantineModal>
