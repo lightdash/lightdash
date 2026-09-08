@@ -1,83 +1,189 @@
 .page {
-    min-height: calc(100vh - var(--ld-navbar-height, 50px));
-    background:
-        radial-gradient(
-            circle at 50% 0%,
-            var(--mantine-color-blue-0),
-            transparent 34rem
-        ),
-        var(--mantine-color-gray-0);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--navbar-height));
+    background: var(--ld-color-page);
 }
 
 .content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
     width: 100%;
-    max-width: 1440px;
+    min-height: 0;
+    max-width: var(--page-content-max-width-large, 1440px);
     margin: 0 auto;
 }
 
-.progressStepper {
-    padding: var(--mantine-spacing-md) 0;
-    overflow-x: auto;
+.statusDot {
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mantine-color-ldGray-4);
 }
 
-.progressSteps {
-    min-width: 720px;
+.statusDot[data-status='running'] {
+    background: var(--mantine-color-indigo-filled);
+    animation: pulse 1.6s ease-in-out infinite;
 }
 
-.progressStep {
-    min-width: 90px;
+.statusDot[data-status='completed'] {
+    background: var(--mantine-color-green-filled);
 }
 
-.progressStepBody {
-    text-align: center;
-}
-
-.progressActivityCard {
-    overflow: hidden;
-}
-
-.activityPanel {
-    position: relative;
-    border-top: 1px solid var(--mantine-color-gray-3);
-    background: #111827;
-}
-
-.activityToggle {
-    position: absolute;
-    z-index: 2;
-    top: 8px;
-    right: 12px;
-    color: var(--mantine-color-gray-3);
-    background: #1f2937;
-}
-
-.activityToggle:hover {
-    color: var(--mantine-color-white);
-    background: rgb(255 255 255 / 8%);
+.statusDot[data-status='failed'] {
+    background: var(--mantine-color-red-filled);
 }
 
 .workspace {
-    min-height: 520px;
-    height: calc(100vh - 330px);
+    display: grid;
+    flex: 1;
+    grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+    gap: var(--mantine-spacing-md);
+    min-height: 0;
+}
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     overflow: hidden;
 }
 
-.workspacePanel {
-    display: grid;
-    grid-template-rows: 49px minmax(0, 1fr);
+.panelHeader {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    height: 44px;
+    padding: 0 var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.panelBody {
+    flex: 1;
     min-height: 0;
-    height: 100%;
-    overflow: hidden;
+}
+
+.stages {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    padding: var(--mantine-spacing-sm) 0;
+}
+
+.stage {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    column-gap: var(--mantine-spacing-sm);
+    padding: 0 var(--mantine-spacing-md);
+}
+
+.stageRail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: stretch;
+    padding-top: 2px;
+}
+
+.stageGlyph {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 50%;
+    color: var(--mantine-color-ldGray-5);
+    background: var(--mantine-color-body);
+}
+
+.stageLine {
+    flex: 1;
+    width: 1px;
+    min-height: var(--mantine-spacing-sm);
+    margin: 4px 0;
+    background: var(--mantine-color-default-border);
+}
+
+.stage:last-child .stageLine {
+    visibility: hidden;
+}
+
+.stage[data-state='active'] .stageGlyph {
+    border-color: var(--mantine-color-indigo-filled);
+    color: var(--mantine-color-indigo-light-color);
+    background: var(--mantine-color-indigo-light);
+    animation: ring 1.6s ease-out infinite;
+}
+
+.stage[data-state='completed'] .stageGlyph {
+    border-color: var(--mantine-color-indigo-filled);
+    color: var(--mantine-color-white);
+    background: var(--mantine-color-indigo-filled);
+}
+
+.stage[data-state='completed'] .stageLine {
+    background: var(--mantine-color-indigo-filled);
+    opacity: 0.5;
+}
+
+.stageBody {
+    min-width: 0;
+    padding-bottom: var(--mantine-spacing-sm);
+}
+
+.stage[data-state='not_started'] .stageLabel {
+    color: var(--mantine-color-dimmed);
+}
+
+.stage[data-state='stopped'] .stageGlyph {
+    border-color: var(--mantine-color-ldGray-4);
+    color: var(--mantine-color-ldGray-6);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.stageDuration {
+    padding-top: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.activity {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.activity[data-collapsed='true'] {
+    flex: 0 0 auto;
+    margin-top: auto;
+}
+
+.activityHeader {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    height: 36px;
+    padding: 0 var(--mantine-spacing-xs) 0 var(--mantine-spacing-md);
 }
 
 .terminal {
+    flex: 1;
     min-height: 0;
-    height: 220px;
-    background: inherit;
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
 }
 
-.terminal[data-collapsed='true'] {
-    height: 42px;
+.activity[data-collapsed='true'] .terminal {
+    display: none;
 }
 
 .terminalEntry {
@@ -86,55 +192,40 @@
 
 .terminalTime {
     flex: 0 0 auto;
-    line-height: 1.5;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
 }
 
 .terminalMessage {
     min-width: 0;
-    color: var(--mantine-color-gray-3);
+    color: var(--mantine-color-text);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
-.terminalMessage[data-line-prefix='glob'] {
-    color: var(--mantine-color-green-3);
-}
-
-.terminalMessage[data-line-prefix='grep'] {
-    color: var(--mantine-color-teal-3);
-}
-
+.terminalMessage[data-line-prefix='glob'],
+.terminalMessage[data-line-prefix='grep'],
 .terminalMessage[data-line-prefix='read'] {
-    color: var(--mantine-color-cyan-3);
+    color: var(--mantine-color-teal-light-color);
 }
 
-.terminalMessage[data-line-prefix='write'] {
-    color: var(--mantine-color-blue-3);
-}
-
+.terminalMessage[data-line-prefix='write'],
 .terminalMessage[data-line-prefix='edit'] {
-    color: var(--mantine-color-violet-3);
+    color: var(--mantine-color-indigo-light-color);
 }
 
-.terminalMessage[data-line-prefix='skill'] {
-    color: var(--mantine-color-orange-3);
-}
-
+.terminalMessage[data-line-prefix='skill'],
 .terminalMessage[data-line-prefix='todowrite'] {
-    color: var(--mantine-color-yellow-3);
+    color: var(--mantine-color-orange-light-color);
 }
 
 .terminalMessage[data-line-prefix='lightdash'] {
-    color: var(--mantine-color-lime-3);
+    color: var(--mantine-color-green-light-color);
 }
 
-.terminalMessage[data-line-prefix='command'] {
-    color: var(--mantine-color-gray-3);
-}
-
-.terminal[data-collapsed='true'] .terminalEntry,
-.terminal[data-collapsed='true'] .terminalMessage {
+.emptyActivity {
+    max-width: 480px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -157,52 +248,45 @@
     overflow: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    background: var(--mantine-color-gray-0);
+    background: var(--ld-color-page);
 }
 
 .fileResizeHandle {
+    position: relative;
     display: flex;
-    flex: 0 0 7px;
-    align-items: center;
-    justify-content: center;
-    width: 7px;
-    color: var(--mantine-color-gray-5);
+    flex: 0 0 1px;
+    width: 1px;
+    color: transparent;
     cursor: col-resize;
-    background: var(--mantine-color-gray-2);
+    background: var(--mantine-color-ldGray-3);
     outline: none;
-    transition:
-        color 120ms ease,
-        background-color 120ms ease;
+    transition: background-color 120ms ease;
+}
+
+/* Wider invisible hit area so a 1px line stays easy to grab */
+.fileResizeHandle::before {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
 }
 
 .fileResizeHandle[data-resize-handle-state='hover'],
 .fileResizeHandle[data-resize-handle-state='drag'],
 .fileResizeHandle:focus-visible {
-    color: var(--mantine-color-blue-7);
-    background: var(--mantine-color-blue-1);
+    background: var(--mantine-color-ldGray-5);
 }
 
 .fileTreeItem {
     display: flex;
     align-items: center;
     width: 100%;
-    min-height: 36px;
-    padding-top: 8px;
-    padding-right: 10px;
-    padding-bottom: 8px;
-    color: var(--mantine-color-gray-7);
+    min-height: 32px;
+    padding-block: 6px;
+    padding-inline-end: 10px;
+    color: var(--mantine-color-ldGray-7);
 }
 
-.fileTreeToggle {
-    display: flex;
-    flex: 0 0 20px;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    line-height: 0;
-}
-
+.fileTreeToggle,
 .fileTreeIcon {
     display: flex;
     flex: 0 0 20px;
@@ -211,6 +295,7 @@
     width: 20px;
     height: 20px;
     line-height: 0;
+    color: var(--mantine-color-dimmed);
 }
 
 .fileTreeToggle svg,
@@ -220,27 +305,32 @@
 }
 
 .fileTreeItem:hover {
-    background: var(--mantine-color-gray-1);
+    background: var(--mantine-color-default-hover);
+}
+
+.fileTreeItem[data-recent='true'] {
+    animation: flash 1.8s ease-out;
 }
 
 .fileTreeItem[data-selected='true'] {
-    color: var(--mantine-color-blue-8);
-    background: var(--mantine-color-blue-0);
+    color: var(--mantine-color-text);
+    font-weight: 500;
+    background: var(--mantine-color-default-hover);
 }
 
 .filePreview {
     display: grid;
-    grid-template-rows: 38px minmax(0, 1fr);
+    grid-template-rows: 36px minmax(0, 1fr);
     min-width: 0;
     min-height: 0;
     height: 100%;
-    background: var(--mantine-color-white);
+    background: var(--mantine-color-body);
 }
 
 .filePreviewHeader {
-    height: 38px;
-    border-bottom: 1px solid var(--mantine-color-gray-3);
-    background: var(--mantine-color-gray-0);
+    height: 36px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
 }
 
 .filePreviewScroll {
@@ -261,7 +351,7 @@
     min-height: 100%;
     padding: var(--mantine-spacing-lg);
     color: var(--mantine-color-text);
-    background: var(--mantine-color-white);
+    background: var(--mantine-color-body);
 }
 
 .markdownPreview {
@@ -280,12 +370,55 @@
     font-size: var(--mantine-font-size-xs);
 }
 
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.35;
+    }
+}
+
+@keyframes flash {
+    from {
+        background: var(--mantine-color-indigo-light);
+    }
+
+    to {
+        background: transparent;
+    }
+}
+
+@keyframes ring {
+    0% {
+        box-shadow: 0 0 0 0 var(--mantine-color-indigo-outline);
+    }
+
+    100% {
+        box-shadow: 0 0 0 6px transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .statusDot[data-status='running'],
+    .stage[data-state='active'] .stageGlyph,
+    .fileTreeItem[data-recent='true'] {
+        animation: none;
+    }
+}
+
 @media (max-width: 900px) {
-    .workspace {
+    .page {
         height: auto;
     }
 
-    .workspacePanel {
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel {
         height: 520px;
     }
 }
