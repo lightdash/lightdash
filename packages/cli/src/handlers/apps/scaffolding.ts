@@ -177,9 +177,22 @@ export const buildStaticAuthoringFiles = (args: {
         files.push(file);
     }
 
-    // 2+3. App-only skills: a chart type must not query through the SDK, so
-    // the app-building skills would only mislead — the viz contract ships via
+    // 2+3. Flavor-specific skills. A chart type must not query through the
+    // SDK, so the app-building skills would only mislead — it gets the local
+    // chart-type workflow skill instead, with the viz contract shipping via
     // the template's .claude/skills/reusable-visualization (step 1).
+    if (isChartType) {
+        files.push({
+            path: '.claude/skills/developing-chart-types-locally/SKILL.md',
+            contentBase64: readFileSync(
+                path.join(
+                    authoringDir,
+                    'developing-chart-types-locally',
+                    'SKILL.md',
+                ),
+            ).toString('base64'),
+        });
+    }
     if (!isChartType) {
         // skill.md → .claude/skills/lightdash-data-app/SKILL.md
         files.push({
