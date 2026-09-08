@@ -96,11 +96,6 @@
 .projectIcon {
     flex-shrink: 0;
 }
-.markdown :global(.wmde-markdown) {
-    background: inherit;
-    color: inherit;
-    font-size: var(--mantine-font-size-sm);
-}
 .review {
     min-height: 100dvh;
     background: var(--ld-color-page);
