@@ -33,7 +33,7 @@ import {
     IconLayoutKanban,
     IconTable,
 } from '@tabler/icons-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { ContentTableSearchInput } from '../../../components/common/ContentTable';
 import EmptyStateLoader from '../../../components/common/EmptyStateLoader';
@@ -494,7 +494,8 @@ function BoardError({
 export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const { pathname } = useLocation();
     const [view, setView] = useState('board');
-    const [onlyInterested, setOnlyInterested] = useState(false);
+    const [onlyInterested, setOnlyInterested] = useState<boolean | null>(null);
+    const initializingInterest = onlyInterested === null;
     const [mainStatuses, setMainStatuses] = useState<string[]>([]);
     const [mainPriorities, setMainPriorities] = useState<string[]>([]);
     const [projectStatuses, setProjectStatuses] = useState<string[]>([]);
@@ -515,13 +516,22 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const projectsQuery = useRoadmapProjects(
         {
             pageSize: COLUMN_PREVIEW_LIMIT,
-            search: debouncedMainSearch,
-            onlyInterested,
-            statuses: statusQuery(mainStatuses),
-            priorities: mainPriorities.join(','),
+            search: initializingInterest ? '' : debouncedMainSearch,
+            onlyInterested: onlyInterested ?? true,
+            statuses: initializingInterest ? '' : statusQuery(mainStatuses),
+            priorities: initializingInterest ? '' : mainPriorities.join(','),
         },
         cacheKey,
     );
+    useEffect(() => {
+        const firstPage = projectsQuery.data?.pages[0];
+        if (initializingInterest && firstPage) {
+            setOnlyInterested(
+                firstPage.pagination.totalResults > 0 ||
+                    firstPage.otherRequestCount > 0,
+            );
+        }
+    }, [initializingInterest, projectsQuery.data]);
     const ticketsQuery = useRoadmapRequests(
         {
             projectId: selectedProjectId ?? 'null',
@@ -538,7 +548,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 : debouncedMainSearch,
         },
         cacheKey,
-        projectsQuery.isSuccess,
+        !initializingInterest && projectsQuery.isSuccess,
     );
     const projects =
         projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
@@ -566,7 +576,9 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         (projectBoard ? setProjectSearch : setMainSearch)('');
     };
     const loading =
-        projectsQuery.isInitialLoading || ticketsQuery.isInitialLoading;
+        initializingInterest ||
+        projectsQuery.isInitialLoading ||
+        ticketsQuery.isInitialLoading;
     const unavailable =
         projectsQuery.error?.error?.statusCode === 403 ||
         ticketsQuery.error?.error?.statusCode === 403;
@@ -730,7 +742,13 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                             showSelectionCount={false}
                             icon={IconEye}
                             mode="single"
-                            selected={onlyInterested ? ['following'] : ['all']}
+                            selected={
+                                onlyInterested === null
+                                    ? []
+                                    : onlyInterested
+                                      ? ['following']
+                                      : ['all']
+                            }
                             onChange={(selected) =>
                                 setOnlyInterested(
                                     selected.includes('following'),
