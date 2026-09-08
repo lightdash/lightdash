@@ -69,6 +69,7 @@ export const GROUP_ORDER: LearnGroup[] = [
     ScopeGroup.CONTENT,
     ScopeGroup.SHARING,
     ScopeGroup.DATA,
+    ScopeGroup.EMBED,
     ScopeGroup.AI,
     ScopeGroup.PROJECT_MANAGEMENT,
     ScopeGroup.SPOTLIGHT,
@@ -83,6 +84,7 @@ export const GROUP_DESCRIPTIONS: Record<LearnGroup, string> = {
     [ScopeGroup.DATA]:
         'Shape, inspect, and extend the data available in Lightdash',
     [ScopeGroup.AI]: 'Ask better questions and manage AI-powered workflows',
+    [ScopeGroup.EMBED]: 'Control embedded analytics and AI capabilities',
     [ScopeGroup.PROJECT_MANAGEMENT]: 'Keep project access and delivery healthy',
     [ScopeGroup.SPOTLIGHT]: 'Learn timely product areas and advanced workflows',
     [ScopeGroup.ORGANIZATION_MANAGEMENT]:
@@ -94,6 +96,7 @@ export const GROUP_LABELS: Record<LearnGroup, string> = {
     [ScopeGroup.CONTENT]: 'Content',
     [ScopeGroup.SHARING]: 'Sharing',
     [ScopeGroup.DATA]: 'Data',
+    [ScopeGroup.EMBED]: 'Embedding',
     [ScopeGroup.AI]: 'AI',
     [ScopeGroup.PROJECT_MANAGEMENT]: 'Project management',
     [ScopeGroup.SPOTLIGHT]: 'Spotlight',
