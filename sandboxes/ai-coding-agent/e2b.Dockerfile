@@ -6,7 +6,7 @@
 # the general agent's tool allowlist (GENERAL_ALLOWED_TOOLS) has zero Bash
 # entries, and with no toolchain on the image there is nothing to build with
 # even if that ever regressed.
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
