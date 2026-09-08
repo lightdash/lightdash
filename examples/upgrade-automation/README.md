@@ -35,6 +35,7 @@ The plan action creates the pin commit through the GitHub API, so GitHub verifie
 | --- | --- | --- |
 | `instance_url` | `LIGHTDASH_INSTANCE_URL` | Public base URL of the deployment to verify. |
 | `bump_target` | `LIGHTDASH_BUMP_TARGET` | Relative YAML or JSON file plus a dot-separated scalar path, written as `file#path.to.version`. YAML must use block mappings, keep the scalar on the same line as its key, and not duplicate the target path. Its scalar must be unquoted, single-quoted, or JSON-compatible double-quoted. |
+| `title_scope` | `LIGHTDASH_TITLE_SCOPE` | Optional conventional-commit scope for the pin commit and pull request title. `analytics` produces `chore(analytics): upgrade Lightdash to VERSION`. Use it when one repository pins several instances so the squashed history says which one moved. Empty keeps `chore: upgrade Lightdash to VERSION`. |
 | `tag_suffix` | `LIGHTDASH_TAG_SUFFIX` | Optional suffix appended to a public version when writing the image tag. The suffix is removed before comparisons and calls to `upgrade-check`. |
 | `registry_check` | `LIGHTDASH_REGISTRY_CHECK` | Optional OCI image repository, without a tag. The action runs `docker manifest inspect repository:version+suffix`; authenticate to a private registry earlier in the job. An unavailable tag exits without opening or updating a pull request and is retried by the next trigger. |
 | `verify_window` | `LIGHTDASH_VERIFY_WINDOW` | Post-deploy verification budget. Accepts seconds or an `s`, `m`, or `h` suffix and defaults to `20m`. |

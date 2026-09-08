@@ -32,6 +32,7 @@ concurrency:
 env:
   LIGHTDASH_INSTANCE_URL: https://lightdash.example.com
   LIGHTDASH_BUMP_TARGET: deploy/values.yml#lightdash.image.tag
+  LIGHTDASH_TITLE_SCOPE: ''
   LIGHTDASH_TAG_SUFFIX: ''
   LIGHTDASH_REGISTRY_CHECK: ''
   LIGHTDASH_VERIFY_WINDOW: 20m
@@ -79,6 +80,7 @@ jobs:
       - uses: lightdash/lightdash/examples/upgrade-automation/plan@REPLACE_WITH_LIGHTDASH_COMMIT_SHA
         with:
           bump_target: ${{ env.LIGHTDASH_BUMP_TARGET }}
+          title_scope: ${{ env.LIGHTDASH_TITLE_SCOPE }}
           tag_suffix: ${{ env.LIGHTDASH_TAG_SUFFIX }}
           registry_check: ${{ env.LIGHTDASH_REGISTRY_CHECK }}
           auto_merge: ${{ env.LIGHTDASH_AUTO_MERGE }}
@@ -111,6 +113,7 @@ jobs:
         with:
           instance_url: ${{ env.LIGHTDASH_INSTANCE_URL }}
           bump_target: ${{ env.LIGHTDASH_BUMP_TARGET }}
+          title_scope: ${{ env.LIGHTDASH_TITLE_SCOPE }}
           tag_suffix: ${{ env.LIGHTDASH_TAG_SUFFIX }}
           verify_window: ${{ env.LIGHTDASH_VERIFY_WINDOW }}
           escalation: ${{ secrets.LIGHTDASH_UPGRADE_SLACK_WEBHOOK }}

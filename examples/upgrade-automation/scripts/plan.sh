@@ -439,6 +439,15 @@ if [[ ! "$branch_prefix" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
     echo "branch_prefix must match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
     exit 1
 fi
+title_scope=${TITLE_SCOPE:-}
+if [[ -n "$title_scope" && ! "$title_scope" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+    echo "title_scope must be empty or match ^[A-Za-z0-9][A-Za-z0-9._-]*$" >&2
+    exit 1
+fi
+title_prefix=chore
+if [[ -n "$title_scope" ]]; then
+    title_prefix="chore($title_scope)"
+fi
 safety_gate=${SAFETY_GATE:-true}
 if [[ "$safety_gate" != "true" && "$safety_gate" != "false" ]]; then
     echo "safety_gate must be true or false" >&2
@@ -715,7 +724,7 @@ if [[ "${bump_filename#.}" == *.* && -n "$bump_extension" ]]; then
     mv "$head_file" "$head_file.$bump_extension"
     head_file="$head_file.$bump_extension"
 fi
-commit_message="chore: upgrade Lightdash to $mapped_version"
+commit_message="$title_prefix: upgrade Lightdash to $mapped_version"
 commit_response=
 committed=false
 skip_commit=false
@@ -827,7 +836,7 @@ elif [[ "$(jq -r '.safe' <<<"$selected_json")" != "true" ]]; then
     plain_reason='This target is the required stop identified by the gate. Landing on the stop satisfies the staged upgrade path before a later release can be selected.'
 fi
 
-pr_title="chore: upgrade Lightdash to $mapped_version"
+pr_title="$title_prefix: upgrade Lightdash to $mapped_version"
 hold_explanation=
 if [[ "$selected_green" != "true" ]]; then
     pr_title="HOLD: $pr_title"
