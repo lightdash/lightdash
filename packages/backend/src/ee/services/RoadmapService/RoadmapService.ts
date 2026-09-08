@@ -23,8 +23,6 @@ import type { LightdashConfig } from '../../../config/parseConfig';
 import { BaseService } from '../../../services/BaseService';
 import type { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 
-const ROADMAP_URL =
-    'https://roadmap.lightdash.com/api/v1/roadmap/organizations';
 const ROADMAP_REQUEST_TIMEOUT_MS = 10_000;
 
 type Dependencies = {
@@ -150,7 +148,10 @@ export class RoadmapService extends BaseService {
         query: Record<string, string | number | boolean | undefined>,
         schema: z.ZodType<T>,
     ): Promise<T> {
-        const url = new URL(ROADMAP_URL);
+        const url = new URL(
+            '/api/v1/roadmap/organizations',
+            this.lightdashConfig.roadmap.baseUrl,
+        );
         url.pathname = `${url.pathname}/${encodeURIComponent(organizationUuid)}${suffix}`;
         Object.entries(query).forEach(([key, value]) => {
             if (value !== undefined) url.searchParams.set(key, String(value));

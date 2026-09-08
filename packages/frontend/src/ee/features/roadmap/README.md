@@ -14,6 +14,8 @@ Search and the “Following” interest filter are applied before catalog pagina
 
 The Settings page uses the live v1 API in every environment. Keep `LIGHTDASH_ENABLE_FEATURE_FLAGS=organization-roadmap` enabled for local verification.
 
+To use a local Control Center, set `LIGHTDASH_ROADMAP_API_URL=http://127.0.0.1:8081` in the workspace root's `.env.development.local` and restart the API. The default is `https://roadmap.lightdash.com`.
+
 Emoji and supported named project icons render locally; unknown named icons use a folder fallback. The design-partner action and signup flow belong to a separate feature and are not included here.
 
 ## Deployment and rollback

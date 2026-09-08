@@ -82,10 +82,12 @@ const roadmapServiceResponse: RoadmapResponse = {
 const buildService = ({
     licenseKey = 'test-license-key',
     flagEnabled = true,
-}: { licenseKey?: string; flagEnabled?: boolean } = {}) =>
+    baseUrl = 'https://roadmap.lightdash.com',
+}: { licenseKey?: string; flagEnabled?: boolean; baseUrl?: string } = {}) =>
     new RoadmapService({
         lightdashConfig: {
             license: { licenseKey },
+            roadmap: { baseUrl },
         } as LightdashConfig,
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: flagEnabled }),
@@ -116,6 +118,7 @@ describe('RoadmapService', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         const requestedUrl = new URL(fetchMock.mock.calls[0][0]);
+        expect(requestedUrl.origin).toBe('https://roadmap.lightdash.com');
         expect(requestedUrl.pathname).toBe(
             `/api/v1/roadmap/organizations/${sessionOrgUuid}`,
         );
@@ -138,6 +141,16 @@ describe('RoadmapService', () => {
             } as never),
         ).rejects.toThrow(ParameterError);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('uses the configured Control Center origin', async () => {
+        const account = buildAccount(viewRoadmapAbility(sessionOrgUuid));
+        await buildService({ baseUrl: 'http://127.0.0.1:8081' }).getRoadmap(
+            account,
+        );
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            `http://127.0.0.1:8081/api/v1/roadmap/organizations/${sessionOrgUuid}?pageSize=100`,
+        );
     });
 
     it('denies access when the feature flag is disabled', async () => {

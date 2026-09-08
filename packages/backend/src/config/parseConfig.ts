@@ -1511,6 +1511,9 @@ export type LightdashConfig = {
         licenseKey: string | null;
         licenseCertificate: string | null;
     };
+    roadmap: {
+        baseUrl: string;
+    };
     sentry: SentryConfig;
     auth: AuthConfig;
     intercom: IntercomConfig;
@@ -2989,6 +2992,11 @@ export const parseConfig = (): LightdashConfig => {
         license: {
             licenseKey,
             licenseCertificate,
+        },
+        roadmap: {
+            baseUrl:
+                process.env.LIGHTDASH_ROADMAP_API_URL ||
+                'https://roadmap.lightdash.com',
         },
         security: {
             contentSecurityPolicy: {
