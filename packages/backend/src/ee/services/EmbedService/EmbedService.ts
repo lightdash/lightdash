@@ -621,8 +621,6 @@ export class EmbedService extends BaseService {
             throw new ParameterError('JWT content is not of type dashboard');
         }
         const { isPreview, stickyHeader } = decodedToken.content;
-        const useJwtPermissions =
-            decodedToken.writeActions?.permissionsMode !== 'roles';
         const ability = this.createAuditedAbility(account);
         const embedTarget = {
             organizationUuid: dashboard.organizationUuid,
@@ -632,41 +630,36 @@ export class EmbedService extends BaseService {
             ability.can(
                 'view',
                 subject('EmbedCsvExport', { ...embedTarget }),
-            ) ||
-            (useJwtPermissions && decodedToken.content.canExportCsv);
+            ) || decodedToken.content.canExportCsv;
         const canExportDashboardCsv =
             ability.can(
                 'view',
                 subject('EmbedDashboardCsvExport', { ...embedTarget }),
-            ) ||
-            (useJwtPermissions && decodedToken.content.canExportDashboardCsv);
+            ) || decodedToken.content.canExportDashboardCsv;
         const canExportImages =
             ability.can(
                 'view',
                 subject('EmbedImageExport', { ...embedTarget }),
-            ) ||
-            (useJwtPermissions && decodedToken.content.canExportImages);
+            ) || decodedToken.content.canExportImages;
         const canExportPagePdf =
             ability.can(
                 'view',
                 subject('EmbedPagePdfExport', { ...embedTarget }),
-            ) ||
-            (useJwtPermissions && decodedToken.content.canExportPagePdf);
+            ) || decodedToken.content.canExportPagePdf;
         const canDateZoom =
             ability.can('view', subject('EmbedDateZoom', { ...embedTarget })) ||
-            (useJwtPermissions && decodedToken.content.canDateZoom);
+            decodedToken.content.canDateZoom;
         const canExplore =
             ability.can('view', subject('EmbedExplore', { ...embedTarget })) ||
-            (useJwtPermissions && decodedToken.content.canExplore);
+            decodedToken.content.canExplore;
         const canViewUnderlyingData =
             ability.can(
                 'view',
                 subject('EmbedUnderlyingData', { ...embedTarget }),
-            ) ||
-            (useJwtPermissions && decodedToken.content.canViewUnderlyingData);
+            ) || decodedToken.content.canViewUnderlyingData;
         const canViewDataApps =
             ability.can('view', subject('EmbedDataApps', { ...embedTarget })) ||
-            (useJwtPermissions && decodedToken.content.canViewDataApps);
+            decodedToken.content.canViewDataApps;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
         let selectedPalette: {

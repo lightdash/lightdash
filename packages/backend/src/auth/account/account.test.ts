@@ -93,6 +93,7 @@ describe('account', () => {
                     writeActions: {
                         [actorField]: defaultSessionUser.userUuid,
                         spaceUuid: 'space',
+                        permissionsMode: 'roles',
                     },
                 };
                 const original = structuredClone(decodedToken);
@@ -158,7 +159,7 @@ describe('account', () => {
             },
         );
 
-        describe.each([undefined, 'jwt', 'roles'] as const)(
+        describe.each([undefined, 'default', 'roles'] as const)(
             'dashboard permission mode %s',
             (permissionsMode) => {
                 it.each(['userUuid', 'serviceAccountUserUuid'] as const)(
@@ -190,10 +191,10 @@ describe('account', () => {
                                             enabled,
                                             allowedFilters: ['department'],
                                             hidden: true,
-                                            canAddFilters: true,
+                                            canAddFilters: enabled === true,
                                         },
                                         parameterInteractivity: {
-                                            enabled: true,
+                                            enabled: enabled === true,
                                         },
                                     },
                                     writeActions: {
@@ -220,26 +221,26 @@ describe('account', () => {
                                         ability: actor.build(),
                                     },
                                 });
-                                const jwtEnabled =
-                                    permissionsMode === 'roles'
-                                        ? false
-                                        : enabled;
                                 expect(result.access.filtering).toEqual({
                                     enabled:
+                                        permissionsMode === 'roles' &&
                                         scope === 'EmbedDashboardFilters'
                                             ? FilterInteractivityValues.all
-                                            : jwtEnabled,
+                                            : enabled,
                                     allowedFilters: ['department'],
                                     hidden: true,
                                     canAddFilters:
-                                        scope ===
-                                            'EmbedDashboardFilterAddition' ||
-                                        permissionsMode !== 'roles',
+                                        enabled === true ||
+                                        (permissionsMode === 'roles' &&
+                                            scope ===
+                                                'EmbedDashboardFilterAddition'),
                                 });
                                 expect(result.access.parameters).toEqual({
                                     enabled:
-                                        scope === 'EmbedDashboardParameters' ||
-                                        permissionsMode !== 'roles',
+                                        enabled === true ||
+                                        (permissionsMode === 'roles' &&
+                                            scope ===
+                                                'EmbedDashboardParameters'),
                                 });
                                 expect(result.access.controls).toEqual(
                                     mockUserAttributes,

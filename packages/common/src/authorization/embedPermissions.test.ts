@@ -26,7 +26,11 @@ const embed = {
         name: 'Test',
     },
 };
-const writeActions = { userUuid: 'actor', spaceUuid: 'space' };
+const writeActions = {
+    userUuid: 'actor',
+    spaceUuid: 'space',
+    permissionsMode: 'roles' as const,
+};
 const dashboard = { type: 'dashboard', dashboardUuid: 'dashboard' } as const;
 const customAbility = (
     permissions: readonly CaslSubjectNames[],
@@ -178,7 +182,7 @@ describe('embed scope abilities', () => {
     });
 });
 
-describe.each([undefined, 'jwt', 'roles'] as const)(
+describe.each([undefined, 'default', 'roles'] as const)(
     'dashboard permission mode %s',
     (permissionsMode) => {
         it.each([
@@ -292,9 +296,10 @@ describe.each([undefined, 'jwt', 'roles'] as const)(
                                     }),
                                 ),
                             ).toBe(
-                                (permissionsMode !== 'roles' &&
-                                    legacy === true) ||
-                                    (hasActor && granted),
+                                legacy === true ||
+                                    (permissionsMode === 'roles' &&
+                                        hasActor &&
+                                        granted),
                             );
                             expect(token).toEqual(original);
                         }

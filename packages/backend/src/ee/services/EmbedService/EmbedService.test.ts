@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    applyEmbedScopeAbilities,
     buildAbilityFromScopes,
     ForbiddenError,
     type AnonymousAccount,
@@ -28,7 +29,7 @@ describe('EmbedService', () => {
         vi.clearAllMocks();
     });
 
-    test.each([undefined, 'jwt', 'roles'] as const)(
+    test.each([undefined, 'default', 'roles'] as const)(
         'dashboard response permissions in %s mode',
         async (permissionsMode) => {
             const fields = [
@@ -114,6 +115,22 @@ describe('EmbedService', () => {
                                 ability: builder.build(),
                             },
                         } as unknown as AnonymousAccount;
+                        const embedBuilder = new AbilityBuilder<MemberAbility>(
+                            Ability,
+                        );
+                        applyEmbedScopeAbilities({
+                            embedUser: account.authentication.data,
+                            embed: {
+                                projectUuid: mockProjectUuid,
+                                organization: {
+                                    organizationUuid: mockOrganizationUuid,
+                                    name: 'Test',
+                                },
+                            },
+                            embedWriteUserAbility: builder.build(),
+                            builder: embedBuilder,
+                        });
+                        account.user.ability = embedBuilder.build();
                         const result = await scopedService.getDashboard(
                             mockProjectUuid,
                             account,
@@ -124,10 +141,8 @@ describe('EmbedService', () => {
                                     ? (flag ?? true)
                                     : flag;
                             const expected =
-                                granted ||
-                                (permissionsMode === 'roles'
-                                    ? false
-                                    : jwtPermission);
+                                (permissionsMode === 'roles' && granted) ||
+                                jwtPermission;
                             expect(result[field]).toBe(expected);
                         }
                     }),
