@@ -185,16 +185,6 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
 }) => {
     const { ref: hoverRef, hovered } = useHover<HTMLDivElement>();
 
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLDivElement>) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                onClick?.();
-            }
-        },
-        [onClick],
-    );
-
     return (
         <Group
             ref={hoverRef}
@@ -202,17 +192,12 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             py={3}
             pos="relative"
             justify="space-between"
-            tabIndex={0}
-            role="button"
-            onKeyDown={handleKeyDown}
+            wrap="nowrap"
             className={styles.categoryFormItem}
         >
             <UnstyledButton
                 onClick={onClick}
-                h="100%"
-                w="90%"
-                pos="absolute"
-                tabIndex={-1}
+                flex={1}
                 // Walkthrough action for manage:Tags: every category in the
                 // open form carries it; the first one is the pick. See
                 // scripts/scope-tours.
@@ -224,8 +209,9 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 data-tour-interactive="true"
                 data-tour-via='[data-tour-nav="metrics"] >> [data-tour-anchor="metric-categories"][data-tour-value="Total revenue"]'
                 data-tour-docs="explore/metrics-catalog/curate-the-catalog.mdx#browsing-the-catalog:li3:3"
-            />
-            <CatalogCategory category={category} onClick={onClick} />
+            >
+                <CatalogCategory category={category} />
+            </UnstyledButton>
 
             {canEdit && (
                 <EditPopover
