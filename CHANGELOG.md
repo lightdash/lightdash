@@ -1,3 +1,10 @@
+## [2.165.1](https://github.com/lightdash/lightdash/compare/2.165.0...2.165.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **training:** export walkthrough follows the chooser Drive-enabled instances show ([#28877](https://github.com/lightdash/lightdash/issues/28877)) ([51ff2da](https://github.com/lightdash/lightdash/commit/51ff2da94fa1c6567b587d53691694f0c544926d))
+
 # [2.165.0](https://github.com/lightdash/lightdash/compare/2.164.1...2.165.0) (2026-09-08)
 
 
