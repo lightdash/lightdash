@@ -92,6 +92,30 @@ export const findBlockEnd = (source: string, from: number): number => {
 export const PATH_SELECTOR =
     /^\[(data-tour-(?:nav|anchor))="([^"]+)"\](?:\[data-tour-value="([^"]+)"\])?$/;
 
+export type PathHop = {
+    selector: string;
+    /**
+     * A `?` hop: a control the instance may or may not show on the way to
+     * the next one (a chooser some configurations add before a form). It
+     * gets no step of its own; the next control's step carries it as a
+     * detour, spotlit only while the next control is not on the page.
+     */
+    optional: boolean;
+};
+
+/** Split a click path (`<sel> >> <sel>? >> ...`) into its hops. */
+export const parsePath = (value?: string): PathHop[] =>
+    value
+        ? value
+              .split(' >> ')
+              .map((v) => v.trim())
+              .map((hop) =>
+                  hop.endsWith('?')
+                      ? { selector: hop.slice(0, -1), optional: true }
+                      : { selector: hop, optional: false },
+              )
+        : [];
+
 /** Whether an anchor selector points at a typed-input control (`data-tour-input`). */
 /**
  * The JSX block that declares an anchor (preceded by whitespace; the same
@@ -463,6 +487,12 @@ export type ScopeTourStepDefinition = {
     advanceOnTargetClick: boolean;
     advanceOnTargetInput: boolean;
     via: string[];
+    /**
+     * Optional hops on the way to `target`: controls that lead to it on the
+     * instances that show them. Spotlit, with their own title, while one is
+     * on the page and the target is not.
+     */
+    detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
@@ -582,8 +612,36 @@ export const buildTours = (
         // control on it, each titled by that control's hint; every step keeps
         // the controls before it as fallbacks, so if a menu closes the
         // spotlight drops back to the control that reopens it.
-        const pathSteps = (path: string[], route?: string) =>
-            path.flatMap((selector, index) => {
+        // Optional hops fold into the step of the next required control.
+        const detourFor = (hops: PathHop[]) =>
+            hops.length > 0
+                ? {
+                      detour: hops.map((hop) => ({
+                          target: hop.selector,
+                          title: hintFor(hop.selector, files),
+                      })),
+                  }
+                : {};
+        const required = (path: PathHop[]) =>
+            path.filter((hop) => !hop.optional).map((hop) => hop.selector);
+        // The optional hops left over after the last required control: they
+        // belong to whatever step follows the path (the marker's own).
+        const trailing = (path: PathHop[]) => {
+            const pending: PathHop[] = [];
+            for (const hop of path) {
+                if (hop.optional) pending.push(hop);
+                else pending.length = 0;
+            }
+            return pending;
+        };
+        const pathSteps = (path: PathHop[], route?: string) => {
+            const pending: PathHop[] = [];
+            return path.flatMap((hop) => {
+                if (hop.optional) {
+                    pending.push(hop);
+                    return [];
+                }
+                const { selector } = hop;
                 const typed = isInputAnchor(selector, files);
                 const suggestion = typed
                     ? suggestionFor(selector, files)
@@ -596,15 +654,26 @@ export const buildTours = (
                     interactive: true,
                     advanceOnTargetClick: !typed,
                     advanceOnTargetInput: typed,
-                    via: path.slice(0, index),
+                    via: required(path.slice(0, path.indexOf(hop))),
+                    ...detourFor(pending.splice(0)),
                     ...(suggestion ? { suggestion } : {}),
                 };
                 return [step, ...looksAfter(selector)];
             });
-        const splitPath = (value?: string) =>
-            value ? value.split(' >> ').map((v) => v.trim()) : [];
+        };
+        // A path that ends on an optional hop (`then`, `return`) has no step
+        // after it to carry the detour.
+        const closedPath = (marker: Marker, attribute: 'then' | 'return') => {
+            const path = parsePath(marker[attribute]);
+            if (trailing(path).length > 0) {
+                throw new Error(
+                    `${marker.file}: data-tour-${attribute} ends on an optional hop (?); an optional hop needs a control after it to detour to`,
+                );
+            }
+            return path;
+        };
         const steps = ordered.flatMap((marker) => {
-            const path = splitPath(marker.via);
+            const path = parsePath(marker.via);
             return [
                 ...pathSteps(path, marker.route),
                 {
@@ -623,11 +692,12 @@ export const buildTours = (
                     interactive: marker.interactive,
                     advanceOnTargetClick: marker.interactive,
                     advanceOnTargetInput: false,
-                    via: path,
+                    via: required(path),
+                    ...detourFor(trailing(path)),
                 },
                 // Clicks that complete the action after the marked control
                 // (a confirmation), each its own step.
-                ...pathSteps(splitPath(marker.then), marker.route),
+                ...pathSteps(closedPath(marker, 'then'), marker.route),
             ];
         });
         // Close where the walkthrough began so the learner sees the result of
@@ -638,8 +708,8 @@ export const buildTours = (
             first.return === 'none'
                 ? []
                 : first.return
-                  ? splitPath(first.return)
-                  : ['[data-tour-nav="home"]'];
+                  ? closedPath(first, 'return')
+                  : parsePath('[data-tour-nav="home"]');
         steps.push(...pathSteps(homePath, first.route), {
             target: selectorFor(first),
             route: first.route,
@@ -648,7 +718,7 @@ export const buildTours = (
             interactive: false,
             advanceOnTargetClick: false,
             advanceOnTargetInput: false,
-            via: homePath,
+            via: required(homePath),
             ...(first.busy ? { busy: first.busy } : {}),
         });
         resultLooks.forEach((marker) => {

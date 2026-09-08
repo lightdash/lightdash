@@ -63,6 +63,10 @@
  *   anchor (a tree node by label); the hint's {value} becomes y. An anchor
  *   used both plainly and by name carries data-tour-hint-named for the
  *   named case.
+ *   A hop suffixed `?` is optional: a control only some instances show on
+ *   the way to the next one (a chooser some configurations put before a
+ *   form). It gets no step; the next control's step spotlights it, with its
+ *   own hint, while it is on the page and the next control is not.
  *   data-tour-via='<sel> >> <sel> >> ...'  the click path to the marked control
  *                                          from anywhere in the project (nav
  *                                          buttons, menu items, triggers). Each
@@ -110,6 +114,12 @@ export type ScopeTourStepDefinition = {
     advanceOnTargetClick: boolean;
     advanceOnTargetInput: boolean;
     via: string[];
+    /**
+     * Optional hops on the way to \`target\`: controls that lead to it on the
+     * instances that show them. Spotlit, with their own title, while one is
+     * on the page and the target is not.
+     */
+    detour?: { target: string; title: string }[];
     /** The page's "still working" surface; the step waits for it to go. */
     busy?: string;
     /** For a typed step: what the card offers to fill in with one click. */
