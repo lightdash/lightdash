@@ -276,6 +276,15 @@ const requests = [
             description,
         ),
     })),
+    {
+        projectId: null,
+        request: request(
+            18,
+            'Send a separate email for each dashboard tab',
+            RoadmapItemStatus.CANCELED,
+            'This approach was canceled in favor of one scheduled delivery with selectable dashboard tabs, keeping related reports together.',
+        ),
+    },
 ];
 
 function paginate<T>(items: T[], query: RoadmapProjectQuery) {
@@ -324,7 +333,7 @@ export function createRoadmapMockApi(
         'DEMO-6',
         'DEMO-7',
         'DEMO-9',
-        ...Array.from({ length: 8 }, (_, index) => `DEMO-${10 + index}`),
+        ...Array.from({ length: 9 }, (_, index) => `DEMO-${10 + index}`),
     ]);
     const followedRequests = requests.filter((item) =>
         followedTicketIds.has(item.request.ticketId),
