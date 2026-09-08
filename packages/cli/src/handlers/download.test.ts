@@ -1486,7 +1486,6 @@ describe('downloadHandler analytics', () => {
                     skipVirtualViews: true,
                     skipExternalConnections: true,
                     path: tmpDir,
-                    project: 'project-uuid',
                 }),
             );
 
@@ -1572,7 +1571,6 @@ describe('downloadHandler failures', () => {
                     makeDownloadHandlerOptions({
                         includeAll: true,
                         path: tmpDir,
-                        project: 'project-uuid',
                     }),
                 ),
             ).resolves.toBeUndefined();
@@ -1619,7 +1617,6 @@ describe('downloadHandler failures', () => {
             downloadHandler(
                 makeDownloadHandlerOptions({
                     agents: ['sales-agent'],
-                    project: 'project-uuid',
                 }),
             ),
         ).rejects.toBe(unavailableError);
@@ -1642,11 +1639,7 @@ describe('uploadHandler failures', () => {
         );
 
         await expect(
-            uploadHandler(
-                makeDownloadHandlerOptions({
-                    project: 'project-uuid',
-                }),
-            ),
+            uploadHandler(makeDownloadHandlerOptions({})),
         ).rejects.toBe(fatalError);
     });
 });
@@ -2625,5 +2618,39 @@ version: 99
             'Total spaces dependency skipped: 1 ',
         ]);
         summarySpy.mockRestore();
+    });
+});
+
+describe('parseContentFilters', () => {
+    const { parseContentFilters } = testHelpers;
+
+    it('passes slugs and uuids through untouched', () => {
+        expect(
+            parseContentFilters([
+                'sales-overview',
+                '00000000-0000-0000-0000-000000000001',
+            ]),
+        ).toBe('?ids=sales-overview&ids=00000000-0000-0000-0000-000000000001');
+    });
+
+    it('extracts uuids from legacy app urls', () => {
+        expect(
+            parseContentFilters([
+                'https://app.lightdash.cloud/projects/00000000-0000-0000-0000-0000000000aa/dashboards/00000000-0000-0000-0000-000000000001/view',
+                'https://app.lightdash.cloud/projects/00000000-0000-0000-0000-0000000000aa/saved/00000000-0000-0000-0000-000000000002',
+            ]),
+        ).toBe(
+            '?ids=00000000-0000-0000-0000-000000000001&ids=00000000-0000-0000-0000-000000000002',
+        );
+    });
+
+    it('extracts slugs from app urls that use project and content slugs', () => {
+        expect(
+            parseContentFilters([
+                'https://app.lightdash.cloud/projects/jaffle-shop/dashboards/daily-sales/view',
+                'https://app.lightdash.cloud/projects/jaffle-shop/saved/monthly-revenue/view?tab=1',
+                'https://app.lightdash.cloud/projects/jaffle-shop/dashboards/sales-overview/view/tabs/some-tab',
+            ]),
+        ).toBe('?ids=daily-sales&ids=monthly-revenue&ids=sales-overview');
     });
 });

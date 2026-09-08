@@ -23,7 +23,7 @@ vi.mock('./timestampConversion');
 type ValidateOptions = Parameters<typeof validateHandler>[0];
 
 const baseOptions: ValidateOptions = {
-    project: 'test-project-uuid',
+    project: '11111111-1111-4111-8111-111111111111',
     preview: false,
     only: Object.values(ValidationTarget),
     validateWarehouseColumns: false,
@@ -61,7 +61,7 @@ const chartConfigurationWarning = {
     validationUuid: 'warning-uuid',
     validationId: null,
     createdAt: new Date('2026-08-26T12:00:00Z'),
-    projectUuid: 'test-project-uuid',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     name: 'Orders over time',
     error: 'dimension is not used in the chart configuration',
     errorType: ValidationErrorType.ChartConfiguration,
@@ -77,7 +77,7 @@ const brokenChartError = {
     validationUuid: 'error-uuid',
     validationId: null,
     createdAt: new Date('2026-08-26T12:00:00Z'),
-    projectUuid: 'test-project-uuid',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     name: 'Broken chart',
     error: 'Dimension does not exist',
     errorType: ValidationErrorType.Dimension,
@@ -276,7 +276,7 @@ describe('validateHandler warehouse column validation', () => {
                         validationUuid: 'validation-uuid',
                         validationId: null,
                         createdAt: new Date('2026-08-07T09:00:00Z'),
-                        projectUuid: 'test-project-uuid',
+                        projectUuid: '11111111-1111-4111-8111-111111111111',
                         name: 'Broken data app',
                         error: 'Dimension does not exist',
                         errorType: ValidationErrorType.Dimension,

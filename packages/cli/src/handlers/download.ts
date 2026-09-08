@@ -284,10 +284,10 @@ const parseContentFilters = (items: string[]): string => {
     if (items.length === 0) return '';
 
     const parsedItems = items.map((item) => {
-        const uuidMatch = item.match(
-            /https?:\/\/.+\/(?:saved|dashboards)\/([a-f0-9-]+)/i,
+        const urlMatch = item.match(
+            /https?:\/\/.+\/(?:saved|dashboards)\/([^/?#]+)/i,
         );
-        return uuidMatch ? uuidMatch[1] : item;
+        return urlMatch ? urlMatch[1] : item;
     });
 
     return `?${new URLSearchParams(
@@ -4759,6 +4759,7 @@ export const testHelpers = {
     getDashboardAppSlugs,
     getDashboardChartSlugs,
     hasContentFilters,
+    parseContentFilters,
     isAiAgentsUnavailableError,
     isExternalConnectionsUnavailableError,
     isVirtualViewsUnavailableError,

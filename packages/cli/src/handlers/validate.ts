@@ -25,6 +25,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
 import { getProjectDisableTimestampConversion } from './timestampConversion';
 import {
     filterValidationsBySpace,
@@ -174,12 +175,14 @@ export const validateHandler = async (
     const selectedProject = options.preview
         ? config.context?.previewProject
         : config.context?.project;
-    const projectUuid = options.project || selectedProject;
+    const projectUuid = options.project
+        ? await resolveProjectFlag(options.project)
+        : selectedProject;
 
     if (projectUuid === undefined) {
         throw new ParameterError(
             `No project specified, select a project to validate using ${styles.bold(
-                `--project <projectUuid>`,
+                `--project <project uuid or slug>`,
             )} or create a preview environment using ${styles.bold(
                 `lightdash start-preview`,
             )} or configure your default project using ${styles.bold(

@@ -10,6 +10,7 @@ import * as styles from '../styles';
 import { loadWarehouseCredentialsFromProfiles } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getFinalJobState, getProject } from './dbt/refresh';
+import { resolveProjectFlag } from './resolveProjectFlag';
 
 type SetWarehouseHandlerOptions = {
     projectDir: string;
@@ -25,12 +26,12 @@ type SetWarehouseHandlerOptions = {
 
 const resolveProjectUuid = async (projectOption?: string): Promise<string> => {
     if (projectOption) {
-        return projectOption;
+        return resolveProjectFlag(projectOption);
     }
     const config = await getConfig();
     if (!config.context?.project) {
         throw new AuthorizationError(
-            `No project selected. Run 'lightdash config set-project' first or pass '--project <uuid>'.`,
+            `No project selected. Run 'lightdash config set-project' first or pass '--project <uuid or slug>'.`,
         );
     }
     return config.context.project;

@@ -15,7 +15,7 @@ type RenameOptions = Parameters<typeof renameHandler>[0];
 const baseOptions: RenameOptions = {
     verbose: false,
     type: RenameType.FIELD,
-    project: 'test-project-uuid',
+    project: '11111111-1111-4111-8111-111111111111',
     from: 'old_name',
     to: 'new_name',
     dryRun: false,
@@ -71,7 +71,7 @@ describe('renameHandler follow-up validation', () => {
             context: {
                 apiKey: 'test-key',
                 serverUrl: 'http://localhost',
-                project: 'test-project-uuid',
+                project: '11111111-1111-4111-8111-111111111111',
             },
         } as Awaited<ReturnType<typeof getConfig>>);
         vi.mocked(getProject).mockResolvedValue({
