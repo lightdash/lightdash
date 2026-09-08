@@ -33,6 +33,7 @@ import {
     assertValidDimensionRequiredAttribute,
     findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
+    findUnnestCrossProductWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
     getJoinedTables,
@@ -1641,6 +1642,77 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findUnnestCrossProductWarnings', () => {
+    const tables = {
+        sessions: {},
+        sessions__hits: {
+            nestedFrom: { parentTable: 'sessions', columnPath: 'hits' },
+        },
+        sessions__hits__product: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.product',
+            },
+        },
+        sessions__hits__promotion: {
+            nestedFrom: {
+                parentTable: 'sessions__hits',
+                columnPath: 'hits.promotion',
+            },
+        },
+        sessions__customDimensions: {
+            nestedFrom: {
+                parentTable: 'sessions',
+                columnPath: 'customDimensions',
+            },
+        },
+        users: {},
+    };
+
+    it('does not warn for a single ancestry chain of unnests', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set([
+                    'sessions__hits',
+                    'sessions__hits__product',
+                ]),
+            }),
+        ).toEqual([]);
+    });
+
+    it('does not warn when only regular joins are present', () => {
+        expect(
+            findUnnestCrossProductWarnings({
+                tables,
+                joinedTables: new Set(['users', 'sessions__hits']),
+            }),
+        ).toEqual([]);
+    });
+
+    it('warns once naming the independent unnests, not their shared ancestors', () => {
+        const result = findUnnestCrossProductWarnings({
+            tables,
+            joinedTables: new Set([
+                'sessions__hits',
+                'sessions__hits__product',
+                'sessions__hits__promotion',
+                'sessions__customDimensions',
+            ]),
+        });
+        expect(result).toHaveLength(1);
+        expect(result[0].tables).toEqual([
+            'sessions__hits__product',
+            'sessions__hits__promotion',
+            'sessions__customDimensions',
+        ]);
+        expect(result[0].message).toContain(
+            'Repeated columns **"sessions__hits__product"**, **"sessions__hits__promotion"** and **"sessions__customDimensions"** are unnested together',
+        );
+        expect(result[0].message).not.toContain('"sessions__hits"');
     });
 });
 
