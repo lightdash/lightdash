@@ -1,3 +1,10 @@
+# [2.167.0](https://github.com/lightdash/lightdash/compare/2.166.1...2.167.0) (2026-09-08)
+
+
+### Features
+
+* **learn:** the library is what the learner can do ([#28847](https://github.com/lightdash/lightdash/issues/28847)) ([22547f2](https://github.com/lightdash/lightdash/commit/22547f22726317fe62604c6e6642f4efaf4ae349))
+
 ## [2.166.1](https://github.com/lightdash/lightdash/compare/2.166.0...2.166.1) (2026-09-08)
 
 
