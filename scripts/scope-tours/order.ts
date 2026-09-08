@@ -62,6 +62,11 @@ const body = (page: string): string => {
     try {
         return readFileSync(path.join(docsDir, `${page}.mdx`), 'utf8')
             .replace(/```[\s\S]*?```/g, '')
+            // Link targets and image paths repeat the words of the prose
+            // around them, so a single cross-reference would otherwise read
+            // as the page returning to that concept.
+            .replace(/\]\([^)]*\)/g, ']')
+            .replace(/<[^>]*>/g, ' ')
             .toLowerCase();
     } catch {
         return '';
@@ -136,9 +141,17 @@ export const conceptOf = (page: string): string | undefined => {
     return words.slice(-2).join(' ');
 };
 
-const mentions = (text: string, concept: string): number =>
-    text.match(new RegExp(`\\b${concept.replace(/ /g, '\\s+')}s?\\b`, 'g'))
-        ?.length ?? 0;
+/**
+ * How many of a page's sentences reach for a concept. Counting sentences
+ * rather than words is what separates a page explaining itself in another
+ * page's terms from one that names it once on the way past.
+ */
+const mentions = (text: string, concept: string): number => {
+    const pattern = new RegExp(`\\b${concept.replace(/ /g, '\\s+')}s?\\b`);
+    return text
+        .split(/(?<=[.!?])\s+|\n/)
+        .filter((sentence) => pattern.test(sentence)).length;
+};
 
 /**
  * Pages b that page a leans on: a reaches for b's concept at least twice and
