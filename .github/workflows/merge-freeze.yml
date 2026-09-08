@@ -430,7 +430,7 @@ jobs:
                 echo "> Main was **not frozen** - this run only cleared any stale \`$CONTEXT\` statuses."
                 echo
               fi
-              echo "Merges are unblocked. Anyone whose PR still shows a stale \`$CONTEXT\` failure can push or reopen it to clear."
+              echo "Merges are open. If a PR still shows a stale \`$CONTEXT\` failure, ask Cloudy to unfreeze merges to \`${REPO##*/}\` again, then check the linked run."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -475,7 +475,7 @@ jobs:
             text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Any Lightdash employee can ask Cloudy to unfreeze merges to \`${REPO##*/}\`. A repo admin can also remove the check from the main ruleset by hand."
           else
             text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by ${actor_mention}."
-            text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, push or reopen it to clear."
+            text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, ask Cloudy to unfreeze merges to \`${REPO##*/}\` again, then check the linked run."
           fi
           text="$text"$'\n'"<${RUN_URL}|View run>"
 
