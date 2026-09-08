@@ -1,3 +1,10 @@
+## [2.166.1](https://github.com/lightdash/lightdash/compare/2.166.0...2.166.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **learn:** close a menu a walkthrough opened once it points elsewhere ([#28868](https://github.com/lightdash/lightdash/issues/28868)) ([7e62220](https://github.com/lightdash/lightdash/commit/7e62220aeaa5146b4c35ff24a5ddece486095438))
+
 # [2.166.0](https://github.com/lightdash/lightdash/compare/2.165.2...2.166.0) (2026-09-08)
 
 
