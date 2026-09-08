@@ -1,6 +1,7 @@
 import {
     applyMetricFlowMetricsToModels,
     convertExplores,
+    DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS,
     DimensionType,
     ensureCatalogTimestampDomainsKey,
     getCompiledModels,
@@ -17,6 +18,7 @@ import type { CachedWarehouse, DbtClient } from '../types';
 import {
     DbtBaseProjectAdapter,
     findMissingWarehouseTables,
+    MAX_PERSISTED_MISSING_WAREHOUSE_TABLES,
 } from './dbtBaseProjectAdapter';
 
 vi.mock('@lightdash/common', async (importOriginal) => ({
@@ -97,11 +99,18 @@ const makeHarness = ({
     adapterType = 'postgres',
 }: {
     models: DbtModelNode[];
-    cachedWarehouse: Omit<CachedWarehouse, 'onWarehouseCatalogChange'>;
-    fetchedCatalog: WarehouseCatalog;
+    cachedWarehouse: Pick<CachedWarehouse, 'warehouseCatalog'> &
+        Partial<Omit<CachedWarehouse, 'warehouseCatalog'>>;
+    fetchedCatalog:
+        | WarehouseCatalog
+        | ((tables: WarehouseCatalogTable[]) => WarehouseCatalog);
     adapterType?: 'postgres' | 'snowflake';
 }) => {
-    const getCatalog = vi.fn(async () => fetchedCatalog);
+    const getCatalog = vi.fn(async (tables: WarehouseCatalogTable[]) =>
+        typeof fetchedCatalog === 'function'
+            ? fetchedCatalog(tables)
+            : fetchedCatalog,
+    );
     const warehouseClient = {
         credentials:
             adapterType === 'snowflake'
@@ -109,7 +118,14 @@ const makeHarness = ({
                 : { type: 'postgres' },
         getCatalog,
     } as unknown as WarehouseClient;
-    const cache = { ...cachedWarehouse } as CachedWarehouse;
+    const cache: CachedWarehouse = {
+        warehouseCatalogFetchedAt: null,
+        missingWarehouseTables: null,
+        manualWarehouseCatalogRefresh: null,
+        warehouseCatalogMaxAgeMs: null,
+        ...cachedWarehouse,
+        onWarehouseCatalogChange: async () => undefined,
+    };
     const onWarehouseCatalogChange = vi.fn(
         async (cacheUpdate: {
             warehouseCatalog: WarehouseCatalog;
@@ -122,6 +138,7 @@ const makeHarness = ({
             cache.manualWarehouseCatalogRefresh = false;
         },
     );
+    cache.onWarehouseCatalogChange = onWarehouseCatalogChange;
     const dbtClient = {
         getDbtManifest: vi.fn(async () => ({
             manifest: {
@@ -134,7 +151,6 @@ const makeHarness = ({
             },
         })),
     } as unknown as DbtClient;
-    cache.onWarehouseCatalogChange = onWarehouseCatalogChange;
     const adapter = new DbtBaseProjectAdapter(
         dbtClient,
         warehouseClient,
@@ -217,7 +233,7 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         expect(harness.getCatalog).not.toHaveBeenCalled();
     });
 
-    it('reuses every known missing table without refetching and keeps fresh-pass output', async () => {
+    it('probes known missing tables without rewriting an unchanged cache', async () => {
         const models = [makeModel('missing_a'), makeModel('missing_b')];
         const freshHarness = makeHarness({
             models,
@@ -242,18 +258,25 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         await expect(
             knownMissingHarness.adapter.compileAllExplores(trackingParams),
         ).resolves.toEqual(freshOutput);
-        expect(knownMissingHarness.getCatalog).not.toHaveBeenCalled();
+        expect(knownMissingHarness.getCatalog).toHaveBeenCalledExactlyOnceWith([
+            { database: 'analytics', schema: 'public', table: 'missing_a' },
+            { database: 'analytics', schema: 'public', table: 'missing_b' },
+        ]);
+        expect(
+            knownMissingHarness.onWarehouseCatalogChange,
+        ).not.toHaveBeenCalled();
         expect(freshHarness.cache.missingWarehouseTables).toEqual([
             { database: 'analytics', schema: 'public', table: 'missing_a' },
             { database: 'analytics', schema: 'public', table: 'missing_b' },
         ]);
         expect(logger).toHaveBeenCalledWith(
             expect.stringContaining(
-                'dbt.compile.warehouseCatalogFetch reason=known_missing_skipped knownMissing=2 durationMs=0',
+                'dbt.compile.warehouseCatalogFetch reason=known_missing_probe knownMissing=2 durationMs=',
             ),
             expect.objectContaining({
                 event: 'dbt.compile.warehouseCatalogFetch',
-                reason: 'known_missing_skipped',
+                reason: 'known_missing_probe',
+                requestedTables: 2,
                 knownMissing: 2,
             }),
         );
@@ -267,6 +290,84 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
                 knownMissing: 2,
             }),
         );
+    });
+
+    it('uses a distinct event when the cached compile needs no fetch', async () => {
+        const harness = makeHarness({
+            models: [makeModel('orders')],
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog('orders'),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables: [],
+            },
+            fetchedCatalog: makeCatalog('orders'),
+        });
+        const logger = vi.spyOn(Logger, 'info');
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.getCatalog).not.toHaveBeenCalled();
+        expect(logger).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'dbt.compile.warehouseCatalogSkipped reason=known_missing_skipped knownMissing=0',
+            ),
+            expect.objectContaining({
+                event: 'dbt.compile.warehouseCatalogSkipped',
+                reason: 'known_missing_skipped',
+            }),
+        );
+    });
+
+    it('types a reappearing known missing table after one narrow probe', async () => {
+        const harness = makeHarness({
+            models: [
+                makeModel('existing'),
+                makeModel('orders'),
+                makeModel('customers'),
+            ],
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog('existing'),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables: [
+                    {
+                        database: 'analytics',
+                        schema: 'public',
+                        table: 'orders',
+                    },
+                    {
+                        database: 'analytics',
+                        schema: 'public',
+                        table: 'customers',
+                    },
+                ],
+            },
+            fetchedCatalog: makeCatalog('orders'),
+        });
+
+        await expect(
+            harness.adapter.compileAllExplores(trackingParams),
+        ).resolves.toEqual([
+            { name: 'existing', typed: DimensionType.NUMBER },
+            { name: 'orders', typed: DimensionType.NUMBER },
+            { name: 'customers', typed: undefined },
+        ]);
+        expect(harness.getCatalog).toHaveBeenCalledExactlyOnceWith([
+            { database: 'analytics', schema: 'public', table: 'orders' },
+            { database: 'analytics', schema: 'public', table: 'customers' },
+        ]);
+        expect(
+            harness.onWarehouseCatalogChange,
+        ).toHaveBeenCalledExactlyOnceWith({
+            warehouseCatalog: makeCatalog('existing', 'orders'),
+            fetchedAt: expect.any(Date),
+            missingTables: [
+                {
+                    database: 'analytics',
+                    schema: 'public',
+                    table: 'customers',
+                },
+            ],
+        });
     });
 
     it('ignores negative entries when the fetch timestamp is null', async () => {
@@ -311,7 +412,26 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
 
         await harness.adapter.compileAllExplores(trackingParams);
 
-        expect(harness.getCatalog).toHaveBeenCalledOnce();
+        expect(harness.getCatalog).toHaveBeenCalledTimes(2);
+        expect(harness.getCatalog).toHaveBeenNthCalledWith(1, [
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'known_missing',
+            },
+        ]);
+        expect(harness.getCatalog).toHaveBeenNthCalledWith(2, [
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'known_missing',
+            },
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'new_missing',
+            },
+        ]);
         expect(harness.onWarehouseCatalogChange).toHaveBeenCalledWith(
             expect.objectContaining({
                 missingTables: [
@@ -328,6 +448,55 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
                 ],
             }),
         );
+    });
+
+    it('fully refetches a new miss when a known table reappears', async () => {
+        const models = [makeModel('known_missing'), makeModel('new_table')];
+        const harness = makeHarness({
+            models,
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog(),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables: [
+                    {
+                        database: 'analytics',
+                        schema: 'public',
+                        table: 'known_missing',
+                    },
+                ],
+            },
+            fetchedCatalog: (tables) =>
+                tables.length === 1
+                    ? makeCatalog('known_missing')
+                    : makeCatalog('known_missing', 'new_table'),
+        });
+
+        await expect(
+            harness.adapter.compileAllExplores(trackingParams),
+        ).resolves.toEqual([
+            { name: 'known_missing', typed: DimensionType.NUMBER },
+            { name: 'new_table', typed: DimensionType.NUMBER },
+        ]);
+        expect(harness.getCatalog).toHaveBeenCalledTimes(2);
+        expect(harness.getCatalog.mock.calls[0][0]).toEqual([
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'known_missing',
+            },
+        ]);
+        expect(harness.getCatalog.mock.calls[1][0]).toEqual([
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'known_missing',
+            },
+            {
+                database: 'analytics',
+                schema: 'public',
+                table: 'new_table',
+            },
+        ]);
     });
 
     it('refetches an expired cache', async () => {
@@ -347,13 +516,30 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         expect(harness.getCatalog).toHaveBeenCalledOnce();
     });
 
+    it('uses zero maximum cache age as a full-fetch kill switch', async () => {
+        const harness = makeHarness({
+            models: [makeModel('orders')],
+            cachedWarehouse: {
+                warehouseCatalog: makeCatalog('orders'),
+                warehouseCatalogFetchedAt: new Date(),
+                missingWarehouseTables: [],
+                warehouseCatalogMaxAgeMs: 0,
+            },
+            fetchedCatalog: makeCatalog('orders'),
+        });
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.getCatalog).toHaveBeenCalledOnce();
+    });
+
     it('uses one day as the default maximum cache age', async () => {
         const harness = makeHarness({
             models: [makeModel('orders')],
             cachedWarehouse: {
                 warehouseCatalog: makeCatalog('orders'),
                 warehouseCatalogFetchedAt: new Date(
-                    Date.now() - 24 * 60 * 60 * 1000 - 1,
+                    Date.now() - DEFAULT_WAREHOUSE_CATALOG_CACHE_MAX_AGE_MS - 1,
                 ),
                 missingWarehouseTables: [],
             },
@@ -363,6 +549,69 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
         await harness.adapter.compileAllExplores(trackingParams);
 
         expect(harness.getCatalog).toHaveBeenCalledOnce();
+    });
+
+    it('persists one missing warehouse reference for an aliased model', async () => {
+        const harness = makeHarness({
+            models: [makeModel('logical_orders', { alias: 'orders' })],
+            cachedWarehouse: { warehouseCatalog: undefined },
+            fetchedCatalog: makeCatalog(),
+        });
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.onWarehouseCatalogChange).toHaveBeenCalledWith(
+            expect.objectContaining({
+                missingTables: [
+                    {
+                        database: 'analytics',
+                        schema: 'public',
+                        table: 'orders',
+                    },
+                ],
+            }),
+        );
+    });
+
+    it('caps the persisted missing table list and warns when it is truncated', async () => {
+        const models = Array.from(
+            { length: MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1 },
+            (_, index) => makeModel(`missing_${index}`),
+        );
+        const harness = makeHarness({
+            models,
+            cachedWarehouse: { warehouseCatalog: undefined },
+            fetchedCatalog: makeCatalog(),
+        });
+        const logger = vi.spyOn(Logger, 'warn');
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(
+            harness.onWarehouseCatalogChange.mock.calls[0][0].missingTables,
+        ).toHaveLength(MAX_PERSISTED_MISSING_WAREHOUSE_TABLES);
+        expect(logger).toHaveBeenCalledWith(
+            expect.stringContaining(
+                `count=${MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1} cap=${MAX_PERSISTED_MISSING_WAREHOUSE_TABLES}`,
+            ),
+            expect.objectContaining({
+                missingTableCount: MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1,
+                persistedMissingTableCount:
+                    MAX_PERSISTED_MISSING_WAREHOUSE_TABLES,
+            }),
+        );
+
+        harness.getCatalog.mockClear();
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.getCatalog).toHaveBeenCalledTimes(2);
+        expect(harness.getCatalog.mock.calls[0][0]).toHaveLength(
+            MAX_PERSISTED_MISSING_WAREHOUSE_TABLES,
+        );
+        expect(harness.getCatalog.mock.calls[1][0]).toHaveLength(
+            MAX_PERSISTED_MISSING_WAREHOUSE_TABLES + 1,
+        );
     });
 
     it('refetches a manually invalidated cache', async () => {
@@ -387,6 +636,14 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
             ),
             expect.objectContaining({ reason: 'manual' }),
         );
+
+        harness.getCatalog.mockClear();
+        harness.onWarehouseCatalogChange.mockClear();
+
+        await harness.adapter.compileAllExplores(trackingParams);
+
+        expect(harness.getCatalog).not.toHaveBeenCalled();
+        expect(harness.onWarehouseCatalogChange).not.toHaveBeenCalled();
     });
 
     it('uses Snowflake case folding for known missing tables', async () => {
@@ -409,7 +666,9 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
 
         await harness.adapter.compileAllExplores(trackingParams);
 
-        expect(harness.getCatalog).not.toHaveBeenCalled();
+        expect(harness.getCatalog).toHaveBeenCalledExactlyOnceWith([
+            { database: 'analytics', schema: 'public', table: 'orders' },
+        ]);
     });
 
     it('refetches a cache without the timestamp-domain marker', async () => {

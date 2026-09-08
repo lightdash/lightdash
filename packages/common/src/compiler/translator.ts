@@ -2140,14 +2140,15 @@ export const attachTypesToModels = (
     };
 
     // Check that all models appear in the warehouse
-    models.forEach(({ database, schema, name }) => {
+    models.forEach(({ database, schema, name, alias }) => {
+        const tableName = alias || name;
         if (
-            lookup(database, schema, name) === undefined &&
-            !isKnownMissing(database, schema, name)
+            lookup(database, schema, tableName) === undefined &&
+            !isKnownMissing(database, schema, tableName)
         ) {
             if (throwOnMissingCatalogEntry) {
                 throw new MissingCatalogEntryError(
-                    `Model "${name}" was expected in your target warehouse at "${database}.${schema}.${name}". Does the table exist in your target data warehouse?`,
+                    `Model "${tableName}" was expected in your target warehouse at "${database}.${schema}.${tableName}". Does the table exist in your target data warehouse?`,
                     {},
                 );
             }

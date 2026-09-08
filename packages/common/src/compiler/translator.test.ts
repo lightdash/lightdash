@@ -223,32 +223,15 @@ describe('attachTypesToModels', () => {
             'Column "myColumnName" from model "myTable" does not exist.\n "myTable.myColumnName" was not found in your target warehouse at myDatabase.mySchema.myTable. Try rerunning dbt to update your warehouse.',
         );
     });
-    it('should preserve the legacy model-name preflight for aliases without negative metadata', () => {
+    it('should use the model alias for the presence preflight', () => {
         const aliasedModel = {
             ...model,
             name: 'logicalName',
             alias: 'myTable',
         };
-        expect(() =>
-            attachTypesToModels([aliasedModel], warehouseSchema, true),
-        ).toThrowError(
-            'Model "logicalName" was expected in your target warehouse at "myDatabase.mySchema.logicalName". Does the table exist in your target data warehouse?',
-        );
         expect(
-            attachTypesToModels(
-                [aliasedModel],
-                warehouseSchema,
-                true,
-                true,
-                undefined,
-                [
-                    {
-                        database: aliasedModel.database,
-                        schema: aliasedModel.schema,
-                        table: aliasedModel.name,
-                    },
-                ],
-            )[0].columns.myColumnName.data_type,
+            attachTypesToModels([aliasedModel], warehouseSchema, true)[0]
+                .columns.myColumnName.data_type,
         ).toEqual(DimensionType.STRING);
     });
     it('should throw an error when column has wrong case', async () => {
