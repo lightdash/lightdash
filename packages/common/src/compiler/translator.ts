@@ -684,34 +684,40 @@ export const convertTable = (
         Record<string, Metric>,
     ] = Object.values(model.columns).reduce(
         ([prevDimensions, prevMetrics], column, index) => {
-            // Containers can't be selected as scalars and leaves under an
-            // array belong to the unnested table, unless custom SQL made
-            // the column scalar on purpose.
-            if (
-                unnestRepeatedColumns &&
-                !getColumnMeta(column).dimension?.sql &&
-                (column.nested_shape !== undefined ||
-                    hasRepeatedAncestor(column))
-            ) {
-                return [prevDimensions, prevMetrics];
-            }
-            const dimension = convertDimension(
-                index,
-                adapterType,
-                model,
-                tableLabel,
-                column,
-                undefined,
-                undefined,
-                startOfWeek,
-                undefined,
-                disableTimestampConversion,
-                tableWarnings,
-                granularityLabels,
-            );
-
             // Config block takes priority, then meta block
             const columnMeta = merge({}, column.meta, column.config?.meta);
+            const routedByUnnest =
+                unnestRepeatedColumns && !columnMeta.dimension?.sql;
+            // Leaves under an array belong to the unnested table, unless
+            // custom SQL made the column scalar on purpose.
+            if (routedByUnnest && hasRepeatedAncestor(column)) {
+                return [prevDimensions, prevMetrics];
+            }
+            // A struct or array can't be selected as a scalar, but the
+            // additional dimensions and explicit-SQL metrics declared under
+            // it dereference its fields and stay on the model.
+            const isContainer =
+                routedByUnnest && column.nested_shape !== undefined;
+            const isScalarArray =
+                isContainer &&
+                column.nested_shape?.repeated === true &&
+                column.nested_shape.record === false;
+            const dimension = isContainer
+                ? undefined
+                : convertDimension(
+                      index,
+                      adapterType,
+                      model,
+                      tableLabel,
+                      column,
+                      undefined,
+                      undefined,
+                      startOfWeek,
+                      undefined,
+                      disableTimestampConversion,
+                      tableWarnings,
+                      granularityLabels,
+                  );
 
             const processIntervalDimension = (
                 dim: Dimension,
@@ -871,9 +877,9 @@ export const convertTable = (
                 return {};
             };
 
-            let extraDimensions = {
-                ...processIntervalDimension(dimension, undefined),
-            };
+            let extraDimensions = dimension
+                ? { ...processIntervalDimension(dimension, undefined) }
+                : {};
 
             extraDimensions = Object.entries(
                 columnMeta.additional_dimensions || {},
@@ -915,21 +921,32 @@ export const convertTable = (
                 };
             }, extraDimensions);
 
+            // Metrics under an array of scalars aggregate its elements and
+            // live on the unnested table; a struct's metrics need explicit
+            // SQL because the container itself can't be aggregated.
             const columnMetrics = Object.fromEntries(
-                Object.entries(columnMeta.metrics || {}).map(
-                    ([name, metric]) => [
+                Object.entries(columnMeta.metrics || {})
+                    .filter(
+                        ([, metric]) =>
+                            !isScalarArray && (dimension || metric.sql),
+                    )
+                    .map(([name, metric]) => [
                         name,
                         convertColumnMetric({
                             modelName: model.name,
-                            dimensionName: dimension.name,
-                            dimensionSql: dimension.sql,
-                            dimensionType: dimension.type,
-                            dimensionTimeInterval: dimension.timeInterval,
+                            dimensionName: dimension?.name,
+                            dimensionSql:
+                                dimension?.sql ?? defaultSql(column.name),
+                            dimensionType:
+                                dimension?.type ??
+                                column.data_type ??
+                                DimensionType.STRING,
+                            dimensionTimeInterval: dimension?.timeInterval,
                             name,
                             metric,
                             tableLabel,
-                            requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
-                            anyAttributes: dimension.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
+                            requiredAttributes: dimension?.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
+                            anyAttributes: dimension?.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -941,14 +958,13 @@ export const convertTable = (
                             defaultShowUnderlyingValues:
                                 meta.default_show_underlying_values,
                         }),
-                    ],
-                ),
+                    ]),
             );
 
             return [
                 {
                     ...prevDimensions,
-                    [column.name]: dimension,
+                    ...(dimension ? { [column.name]: dimension } : {}),
                     ...extraDimensions,
                 },
                 { ...prevMetrics, ...columnMetrics },
@@ -1205,7 +1221,11 @@ const getScalarElementColumn = (container: DbtModelColumn): DbtModelColumn => {
         config: _config,
         ...column
     } = container;
-    const { dimension, ...meta } = getColumnMeta(container);
+    const {
+        dimension,
+        additional_dimensions: _additionalDimensions,
+        ...meta
+    } = getColumnMeta(container);
     const { label: _label, ...dimensionConfig } = dimension ?? {};
     return {
         ...column,

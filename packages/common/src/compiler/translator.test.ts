@@ -3587,6 +3587,49 @@ describe('nested and repeated columns', () => {
         expect(explore.tables.ga_sessions__hits).toBeUndefined();
     });
 
+    it('keeps additional dimensions and explicit-SQL metrics declared under a struct container', async () => {
+        const jobs: DbtModelNode = {
+            ...gaSessions,
+            columns: {
+                visitId: nestedColumn('visitId'),
+                totals: nestedColumn('totals', {
+                    meta: {
+                        dimension: { type: DimensionType.STRING, hidden: true },
+                        additional_dimensions: {
+                            pageviews_bucket: {
+                                type: DimensionType.STRING,
+                                sql: "CASE WHEN ${TABLE}.totals.pageviews > 5 THEN 'many' ELSE 'few' END",
+                            },
+                        },
+                        metrics: {
+                            sessions_with_visits: {
+                                type: MetricType.COUNT,
+                                sql: '${TABLE}.totals.visits',
+                            },
+                            container_count: { type: MetricType.COUNT },
+                        },
+                    },
+                }),
+            },
+        };
+        const explore = await compile(
+            attachTypesToModels([jobs], catalog, true),
+            true,
+        );
+        const table = explore.tables.ga_sessions;
+        expect(Object.keys(table.dimensions).sort()).toEqual([
+            'pageviews_bucket',
+            'visitId',
+        ]);
+        expect(table.dimensions.pageviews_bucket.compiledSql).toEqual(
+            "CASE WHEN `ga_sessions`.totals.pageviews > 5 THEN 'many' ELSE 'few' END",
+        );
+        expect(Object.keys(table.metrics)).toEqual(['sessions_with_visits']);
+        expect(table.metrics.sessions_with_visits.compiledSql).toEqual(
+            '`ga_sessions`.totals.visits',
+        );
+    });
+
     it('unnests an array of scalars into a virtual table with a value dimension', async () => {
         const taggedSessions: DbtModelNode = {
             ...gaSessions,
@@ -3596,6 +3639,12 @@ describe('nested and repeated columns', () => {
                     description: 'Session tags',
                     meta: {
                         dimension: { label: 'Tag list' },
+                        additional_dimensions: {
+                            tag_count: {
+                                type: DimensionType.NUMBER,
+                                sql: 'ARRAY_LENGTH(${TABLE}.tags)',
+                            },
+                        },
                         metrics: {
                             last_tag: { type: MetricType.MAX },
                         },
@@ -3616,7 +3665,12 @@ describe('nested and repeated columns', () => {
         ]);
         expect(Object.keys(explore.tables.ga_sessions.dimensions)).toEqual([
             'visitId',
+            'tag_count',
         ]);
+        expect(
+            explore.tables.ga_sessions.dimensions.tag_count.compiledSql,
+        ).toEqual('ARRAY_LENGTH(`ga_sessions`.tags)');
+        expect(explore.tables.ga_sessions.metrics.last_tag).toBeUndefined();
 
         const tags = explore.tables.ga_sessions__tags;
         expect(tags.label).toEqual('Tag list');
@@ -3628,6 +3682,7 @@ describe('nested and repeated columns', () => {
             'offset',
             'value',
         ]);
+        expect(Object.keys(tags.metrics)).toEqual(['last_tag']);
         expect(tags.dimensions.value).toMatchObject({
             type: DimensionType.STRING,
             label: 'Value',
