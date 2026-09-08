@@ -4,6 +4,8 @@ import {
     LightdashSdkVersionHeader,
     LightdashVersionHeader,
     RequestMethod,
+    getErrorMessage,
+    isApiError,
     type AnyType,
     type ApiError,
     type ApiResponse,
@@ -103,10 +105,59 @@ function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
     return url;
 }
 
-const handleError = (err: any): ApiError => {
-    if (err.error?.statusCode && err.error?.name) {
+// A response arrived but its body is not the Lightdash API JSON envelope, e.g.
+// a proxy block page, a gateway error page, or a load balancer timeout.
+class UnexpectedResponseError extends Error {
+    readonly status: number;
+
+    constructor(status: number) {
+        super(`Unexpected response with HTTP status ${status}`);
+        this.name = 'UnexpectedResponseError';
+        this.status = status;
+    }
+}
+
+const parseJsonBody = (r: Response): Promise<AnyType> =>
+    r.json().catch(() => {
+        throw new UnexpectedResponseError(r.status);
+    });
+
+type RequestDescriptor = { method: string; url: string };
+
+const GENERIC_NETWORK_ERROR_MESSAGE =
+    'We are currently unable to reach the Lightdash server. Please try again in a few moments.';
+
+const networkErrorMessage = (
+    err: unknown,
+    { method, url }: RequestDescriptor,
+): string => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return 'You appear to be offline. Check your internet connection and try again.';
+    }
+    if (err instanceof UnexpectedResponseError) {
+        return `The Lightdash server returned an unexpected response (HTTP ${err.status}) to ${method} ${url}. A proxy, firewall or load balancer may have intercepted the request. Please try again in a few moments.`;
+    }
+    // DOMException does not extend Error in every realm, so match by name.
+    if (
+        typeof err === 'object' &&
+        err !== null &&
+        'name' in err &&
+        err.name === 'AbortError'
+    ) {
+        return `The request ${method} ${url} was cancelled before the Lightdash server responded.`;
+    }
+    // fetch() rejects with a TypeError when no response came back at all:
+    // DNS, CORS, connection reset, or a proxy dropping the request.
+    if (err instanceof TypeError) {
+        return `The request ${method} ${url} never reached the Lightdash server. Your browser, network, VPN or a corporate proxy may have blocked it. Check the Network tab in your browser developer tools, or try again from another network.`;
+    }
+    return GENERIC_NETWORK_ERROR_MESSAGE;
+};
+
+const handleError = (err: unknown, request: RequestDescriptor): ApiError => {
+    if (isApiError(err) && err.error?.statusCode && err.error?.name) {
         if (
-            err.error?.name === 'DeactivatedAccountError' &&
+            err.error.name === 'DeactivatedAccountError' &&
             window.location.pathname !== '/login'
         ) {
             // redirect to login page when account is deactivated
@@ -122,9 +173,8 @@ const handleError = (err: any): ApiError => {
         error: {
             name: 'NetworkError',
             statusCode: 500,
-            message:
-                'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
-            data: err,
+            message: networkErrorMessage(err, request),
+            data: { cause: getErrorMessage(err) },
         },
     };
 };
@@ -196,14 +246,14 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         .then((r) => {
             recordServerBuildHash(r);
             if (!r.ok) {
-                return r.json().then((d) => {
+                return parseJsonBody(r).then((d) => {
                     throw d;
                 });
             }
             return r;
         })
         .then(async (r) => {
-            const js = await r.json();
+            const js = await parseJsonBody(r);
             networkHistory.push(
                 sensitive
                     ? {
@@ -256,7 +306,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
             // only store last MAX_NETWORK_HISTORY requests
             if (networkHistory.length > MAX_NETWORK_HISTORY)
                 networkHistory.shift();
-            throw handleError(err);
+            throw handleError(err, { method, url });
         });
 };
 
@@ -300,16 +350,8 @@ export const lightdashApiStream = ({
         signal,
     }).then(async (r) => {
         if (!r.ok) {
-            let error: unknown;
-            try {
-                error = await r.json();
-            } catch {
-                throw new Error(
-                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
-                );
-            }
-
-            throw new Error(handleError(error).error.message);
+            const error: unknown = await parseJsonBody(r).catch((e) => e);
+            throw new Error(handleError(error, { method, url }).error.message);
         }
         return r;
     });

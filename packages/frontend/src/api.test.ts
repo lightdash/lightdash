@@ -224,6 +224,133 @@ describe('networkHistory redaction', () => {
     });
 });
 
+describe('network error messages', () => {
+    let previousFetch: typeof fetch;
+
+    beforeEach(() => {
+        previousFetch = globalThis.fetch;
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        globalThis.fetch = previousFetch;
+        vi.restoreAllMocks();
+    });
+
+    const request = () =>
+        lightdashApi({
+            method: 'PATCH',
+            url: '/projects/abc',
+            body: JSON.stringify({}),
+        });
+
+    it('says the request never reached the server when fetch rejects', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValue(new TypeError('Failed to fetch'));
+
+        await expect(request()).rejects.toMatchObject({
+            status: 'error',
+            error: {
+                name: 'NetworkError',
+                statusCode: 500,
+                message: expect.stringContaining(
+                    'The request PATCH /projects/abc never reached the Lightdash server',
+                ),
+                data: { cause: 'Failed to fetch' },
+            },
+        });
+    });
+
+    it('reports the HTTP status when the response is not the API envelope', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue(
+            new Response('<html>blocked</html>', {
+                status: 502,
+                headers: { 'Content-Type': 'text/html' },
+            }),
+        );
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message: expect.stringContaining(
+                    'unexpected response (HTTP 502) to PATCH /projects/abc',
+                ),
+            },
+        });
+    });
+
+    it('reports a cancelled request', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValue(new DOMException('Aborted', 'AbortError'));
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message: expect.stringContaining('was cancelled'),
+            },
+        });
+    });
+
+    it('reports being offline ahead of any other cause', async () => {
+        vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValue(new TypeError('Failed to fetch'));
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message:
+                    'You appear to be offline. Check your internet connection and try again.',
+            },
+        });
+    });
+
+    it('passes real API errors through untouched', async () => {
+        const scope = nock(BASE_API_URL)
+            .patch('/api/v1/projects/abc')
+            .reply(400, {
+                status: 'error',
+                error: {
+                    name: 'ParameterError',
+                    statusCode: 400,
+                    message:
+                        'SSH tunnel is enabled but no public key has been generated.',
+                    data: {},
+                },
+            });
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'ParameterError',
+                statusCode: 400,
+                message:
+                    'SSH tunnel is enabled but no public key has been generated.',
+            },
+        });
+        scope.done();
+    });
+
+    it('uses the same messages for stream requests', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue(
+            new Response('<html>blocked</html>', {
+                status: 403,
+                headers: { 'Content-Type': 'text/html' },
+            }),
+        );
+
+        await expect(
+            lightdashApiStream({
+                method: 'POST',
+                url: '/stream',
+                body: JSON.stringify({}),
+            }),
+        ).rejects.toThrow('unexpected response (HTTP 403) to POST /stream');
+    });
+});
+
 describe('fetch binding', () => {
     const okResponse = (results: unknown) =>
         new Response(JSON.stringify({ status: 'ok', results }), {
