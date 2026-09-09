@@ -973,17 +973,19 @@ export class SpacePermissionService extends BaseService {
     ): Promise<string> {
         const allRootSpaceUuids =
             await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
-        const accessible = await this.getAccessibleSpaceUuids(
-            'view',
-            user,
-            allRootSpaceUuids,
+        const accessible = new Set(
+            await this.getAccessibleSpaceUuids('view', user, allRootSpaceUuids),
         );
-        if (accessible.length === 0) {
+        // Oldest root space first, so the fallback is stable across calls
+        const firstViewable = allRootSpaceUuids.find((spaceUuid) =>
+            accessible.has(spaceUuid),
+        );
+        if (!firstViewable) {
             throw new NotFoundError(
                 `No viewable space found for project ${projectUuid}`,
             );
         }
-        return accessible[0];
+        return firstViewable;
     }
 
     /**

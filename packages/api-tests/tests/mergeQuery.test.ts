@@ -24,11 +24,8 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-import {
-    createAndRefreshProject,
-    deleteProjectsByName,
-    getAvailableWarehouseConfigs,
-} from '../helpers/projects';
+import { getAvailableWarehouseConfigs } from '../helpers/projects';
+import { useSharedWarehouseProject } from '../helpers/shared-projects';
 import { uniqueName } from '../helpers/test-isolation';
 
 // Two independent aggregations of the jaffle dataset, joined on the order
@@ -1150,28 +1147,17 @@ describe('Merge queries on the project warehouse', () => {
         }));
     });
 
-    // Every other credentialed warehouse: spin up a project against its
-    // jaffle dataset and run the same suite. Skipped when creds are absent.
-    for (const { name, config } of mergeWarehouseEntries) {
+    // Every other credentialed warehouse: run the same suite against the
+    // shared project global setup created for it. Skipped when creds are absent.
+    for (const { name } of mergeWarehouseEntries) {
         describe(name, () => {
-            const projectName = `merge ${name} parity test`;
             let admin: ApiClient;
             let projectUuid: string;
 
             beforeAll(async () => {
                 admin = await login();
-                projectUuid = await createAndRefreshProject(
-                    admin,
-                    projectName,
-                    config,
-                );
+                projectUuid = await useSharedWarehouseProject(admin, name);
             }, 420_000);
-
-            afterAll(async () => {
-                if (projectUuid) {
-                    await deleteProjectsByName(admin, [projectName]);
-                }
-            });
 
             registerMergeQueryTests(() => ({
                 client: admin,
