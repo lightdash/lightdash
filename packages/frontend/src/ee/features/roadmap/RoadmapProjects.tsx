@@ -325,7 +325,7 @@ function TicketCard({
             onClick={onClick}
             aria-label={`Open ticket ${ticket.title}`}
         >
-            <Group gap="xs" wrap="nowrap" align="flex-start">
+            <Group gap="xs" wrap="nowrap" align="center">
                 <MantineIcon
                     icon={IconTicket}
                     size="sm"
@@ -333,12 +333,11 @@ function TicketCard({
                 />
                 <Text className={classes.ticketTitle}>{ticket.title}</Text>
             </Group>
-            <Group justify="space-between" gap="xs">
-                <ItemBadges type="ticket" priority={ticket.priority} />
-                <Text className={classes.ticketId} fz="xs" c="dimmed">
-                    {ticket.ticketId}
-                </Text>
-            </Group>
+            <ItemBadges
+                type="ticket"
+                ticketId={ticket.ticketId}
+                priority={ticket.priority}
+            />
         </UnstyledButton>
     );
 }
@@ -346,15 +345,27 @@ function TicketCard({
 function ItemBadges({
     type,
     priority,
+    ticketId,
 }: {
     type: 'project' | 'ticket';
     priority: RoadmapItemPriority;
+    ticketId?: string;
 }) {
     return (
         <Group gap="xs" wrap="nowrap">
             <Badge size="xs" variant="light" color="gray">
                 {type === 'project' ? 'Project' : 'Ticket'}
             </Badge>
+            {ticketId && (
+                <Badge
+                    size="xs"
+                    variant="light"
+                    color="gray"
+                    className={classes.ticketId}
+                >
+                    {ticketId}
+                </Badge>
+            )}
             <PriorityBadge priority={priority} />
         </Group>
     );
