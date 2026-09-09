@@ -141,8 +141,9 @@ describe('EmbedService', () => {
                                     ? (flag ?? true)
                                     : flag;
                             const expected =
-                                (permissionsMode === 'roles' && granted) ||
-                                jwtPermission;
+                                permissionsMode === 'roles'
+                                    ? granted
+                                    : jwtPermission;
                             expect(result[field]).toBe(expected);
                         }
                     }),

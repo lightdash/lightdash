@@ -122,42 +122,33 @@ export const fromJwt = ({
     let parameters = isDashboardContent(decodedToken.content)
         ? decodedToken.content.parameterInteractivity
         : undefined;
-    if (isDashboardContent(decodedToken.content)) {
+    if (
+        isDashboardContent(decodedToken.content) &&
+        decodedToken.writeActions?.permissionsMode === 'roles'
+    ) {
         const target = {
             organizationUuid: embed.organization.organizationUuid,
             projectUuid: embed.projectUuid,
         };
-        if (
-            abilities.can(
+        filtering = {
+            ...filtering,
+            enabled: abilities.can(
                 'view',
                 subject('EmbedDashboardFilters', { ...target }),
             )
-        ) {
-            filtering = {
-                ...filtering,
-                enabled: FilterInteractivityValues.all,
-            };
-        }
-        if (
-            abilities.can(
+                ? FilterInteractivityValues.all
+                : false,
+            canAddFilters: abilities.can(
                 'view',
                 subject('EmbedDashboardFilterAddition', { ...target }),
-            )
-        ) {
-            filtering = {
-                ...filtering,
-                enabled: filtering?.enabled ?? false,
-                canAddFilters: true,
-            };
-        }
-        if (
-            abilities.can(
+            ),
+        };
+        parameters = {
+            enabled: abilities.can(
                 'view',
                 subject('EmbedDashboardParameters', { ...target }),
-            )
-        ) {
-            parameters = { enabled: true };
-        }
+            ),
+        };
     }
 
     return createAccount({
