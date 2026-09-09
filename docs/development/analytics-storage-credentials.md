@@ -9,12 +9,13 @@ check the shared flag before constructing the resolver.
 ## Reuse existing writer configuration
 
 `createS3AnalyticsSourceResolver` accepts server-owned storage configuration from
-the existing usage-events writer and a validated org/date range. It reuses the
+the existing usage-events writer and a validated org. It reuses the
 backend's S3 SDK authentication. There is no CLI authentication, OAuth exchange,
 new service account, or Terraform requirement for this temporary read path.
 
 The resolver lists only `events/compacted/org_id=<org>/` and selects the existing
-`query_events` and `ai_usage` Parquet files in the date range. It signs exact GET
+`query_events` and `ai_usage` Parquet files across all retained dates. Date filters
+belong to Explore queries; there is no fixed source date window. It signs exact GET
 URLs with 15-minute lifetimes. The file manifest and signatures are refreshed for
 each DuckDB session. Listing is bounded and fails closed on malformed pagination,
 cross-org objects, missing data, or credential failures.
@@ -54,8 +55,8 @@ The opt-in cloud test is read-only. Set `ANALYTICS_S3_LIVE_ENV_FILE` to a secure
 environment file containing the existing `USAGE_EVENTS_S3_BUCKET`,
 `USAGE_EVENTS_S3_ACCESS_KEY`, `USAGE_EVENTS_S3_SECRET_KEY`, and
 `USAGE_EVENTS_S3_REGION` settings. Only those settings are read; no database or
-other instance configuration is loaded. Set `ANALYTICS_S3_LIVE_ORG_UUID`,
-`ANALYTICS_S3_LIVE_START_DATE`, and `ANALYTICS_S3_LIVE_END_DATE`. The endpoint
+other instance configuration is loaded. Set `ANALYTICS_S3_LIVE_ORG_UUID`. The test
+queries all retained partitions for that org. The endpoint
 defaults to GCS; override `ANALYTICS_S3_LIVE_ENDPOINT` for another S3 service.
 
 ```sh

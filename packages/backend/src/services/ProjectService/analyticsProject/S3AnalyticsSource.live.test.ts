@@ -24,8 +24,6 @@ describe.skipIf(!process.env.ANALYTICS_S3_LIVE_ENV_FILE)(
                     region: settings.USAGE_EVENTS_S3_REGION,
                 },
                 organizationUuid: process.env.ANALYTICS_S3_LIVE_ORG_UUID ?? '',
-                startDate: process.env.ANALYTICS_S3_LIVE_START_DATE ?? '',
-                endDate: process.env.ANALYTICS_S3_LIVE_END_DATE ?? '',
             });
             const source = await resolveSource();
             expect(source).not.toHaveProperty('s3Config');

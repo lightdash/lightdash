@@ -20,8 +20,6 @@ describe('signed analytics file manifests', () => {
             secretKey: 'writer-secret',
         },
         organizationUuid: org,
-        startDate: '2026-09-07',
-        endDate: '2026-09-07',
     };
     const key = (stream = 'query_events', date = '2026-09-07') =>
         `${prefix}stream=${stream}/dt=${date}/part-1.parquet`;
@@ -64,10 +62,10 @@ describe('signed analytics file manifests', () => {
         expect(destroy).toHaveBeenCalledOnce();
     });
 
-    it('handles pagination and only signs known streams in the selected date range', async () => {
+    it('includes all retained dates across pages, including year-old data, for supported streams only', async () => {
         send.mockResolvedValueOnce({
             Contents: [
-                { Key: key('query_events', '2026-09-06') },
+                { Key: key('query_events', '2025-09-07') },
                 { Key: key('other') },
                 { Key: key() },
             ],
@@ -79,7 +77,14 @@ describe('signed analytics file manifests', () => {
             'query_events',
             'ai_usage',
         ]);
-        expect(getSignedUrl).toHaveBeenCalledTimes(2);
+        expect(getSignedUrl).toHaveBeenCalledTimes(3);
+        expect(
+            vi
+                .mocked(getSignedUrl)
+                .mock.calls.map(
+                    ([, command]) => (command as GetObjectCommand).input.Key,
+                ),
+        ).toEqual([key('query_events', '2025-09-07'), key(), key('ai_usage')]);
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
     });
 
@@ -92,10 +97,24 @@ describe('signed analytics file manifests', () => {
         expect(destroy).toHaveBeenCalledTimes(2);
     });
 
+    it('fails rather than exposing partial history when the file cap is exceeded', async () => {
+        send.mockResolvedValue({
+            Contents: Array.from({ length: 1000 }, (_, index) => ({
+                Key: `${prefix}stream=query_events/dt=2025-09-07/part-${index}.parquet`,
+            })),
+            IsTruncated: true,
+            NextContinuationToken: 'next',
+        });
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            'Analytics storage access failed',
+        );
+        expect(getSignedUrl).toHaveBeenCalledTimes(10_000);
+        expect(destroy).toHaveBeenCalledOnce();
+    });
+
     it.each([
         { ...config, organizationUuid: '../other' },
         { ...config, organizationUuid: '-'.repeat(36) },
-        { ...config, startDate: '2026-09-08' },
         { ...config, storage: { ...config.storage, bucket: 'bucket/other' } },
         {
             ...config,

@@ -44,19 +44,27 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 `events/compacted/org_id=${org}/stream=query_events/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${org}/stream=ai_usage/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${otherOrg}/stream=query_events/dt=2026-09-07/part.parquet`,
+                `events/compacted/org_id=${org}/stream=query_events/dt=2025-09-07/part.parquet`,
             ];
             const client = createS3ClientFromConfig(storage);
             const directory = await mkdtemp(
                 path.join(tmpdir(), 'ld-analytics-auth-'),
             );
             const fixture = path.join(directory, 'fixture.parquet');
+            const historicalFixture = path.join(
+                directory,
+                'historical.parquet',
+            );
             let created = false;
             try {
                 const instance = await DuckDBInstance.create(':memory:');
                 const db = await instance.connect();
                 try {
                     await db.run(
-                        `COPY (SELECT 42::INTEGER AS tokens) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
+                        `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
+                    );
+                    await db.run(
+                        `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2025-09-07' AS event_ts) TO '${historicalFixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
                     );
                 } finally {
                     db.closeSync();
@@ -67,13 +75,16 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 );
                 created = true;
                 const body = await readFile(fixture);
+                const historicalBody = await readFile(historicalFixture);
                 await Promise.all(
                     keys.map((Key) =>
                         client.send(
                             new PutObjectCommand({
                                 Bucket: storage.bucket,
                                 Key,
-                                Body: body,
+                                Body: Key.includes('/dt=2025-09-07/')
+                                    ? historicalBody
+                                    : body,
                             }),
                         ),
                     ),
@@ -81,8 +92,6 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 const resolveSource = createS3AnalyticsSourceResolver({
                     storage,
                     organizationUuid: org,
-                    startDate: '2026-09-07',
-                    endDate: '2026-09-07',
                 });
                 const reader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',
@@ -92,6 +101,13 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                     (
                         await reader.runQuery(
                             'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '84' }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            "SELECT sum(tokens) AS total FROM query_events WHERE event_ts >= TIMESTAMP '2025-09-07' AND event_ts < TIMESTAMP '2025-09-08'",
                         )
                     ).rows,
                 ).toEqual([{ total: '42' }]);
@@ -149,7 +165,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                             'SELECT sum(tokens) AS total FROM query_events',
                         )
                     ).rows,
-                ).toEqual([{ total: '42' }]);
+                ).toEqual([{ total: '84' }]);
             } finally {
                 if (created) {
                     await Promise.all(
@@ -168,6 +184,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 }
                 client.destroy();
                 await rm(fixture, { force: true });
+                await rm(historicalFixture, { force: true });
                 await rmdir(directory);
             }
         }, 120_000);

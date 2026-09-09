@@ -10,8 +10,6 @@ import {
 type S3AnalyticsSourceConfig = {
     storage: S3ConnectionConfig & { bucket: string };
     organizationUuid: string;
-    startDate: string;
-    endDate: string;
 };
 
 const SIGNED_URL_LIFETIME_SECONDS = 900;
@@ -21,20 +19,15 @@ const MAX_FILES = 10_000;
 export const createS3AnalyticsSourceResolver = ({
     storage,
     organizationUuid,
-    startDate,
-    endDate,
 }: S3AnalyticsSourceConfig): (() => Promise<DuckdbParquetSource>) => {
     const { bucket } = storage;
     if (
         !/^[a-z0-9][a-z0-9.-]{1,220}[a-z0-9]$/.test(bucket) ||
         !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
             organizationUuid,
-        ) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
-        !/^\d{4}-\d{2}-\d{2}$/.test(endDate) ||
-        startDate > endDate
+        )
     ) {
-        throw new ParameterError('Invalid analytics storage scope or dates');
+        throw new ParameterError('Invalid analytics storage scope');
     }
     const endpoint = new URL(storage.endpoint ?? 'https://s3.amazonaws.com');
     if (
@@ -88,7 +81,9 @@ export const createS3AnalyticsSourceResolver = ({
                         /^stream=(query_events|ai_usage)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
-                    if (match && match[2] >= startDate && match[2] <= endDate) {
+                    // Expose all retained partitions. Date filters belong to
+                    // the Explore query, not a fixed source-level window.
+                    if (match) {
                         fileCount += 1;
                         if (fileCount > MAX_FILES)
                             throw new Error(
