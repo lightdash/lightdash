@@ -37,6 +37,8 @@ export type Marker = {
     then?: string;
     return?: string;
     resultDocs?: string;
+    /** Clicks after explaining the result surface (e.g. downloading a file). */
+    resultThen?: string;
     busy?: string;
     file: string;
     /** 1-based line of the marker's block in `file`. */
@@ -253,6 +255,7 @@ export const findMarkers = (file: string): Marker[] => {
                 then: attrs.then,
                 return: attrs.return,
                 resultDocs: attrs.resultdocs,
+                resultThen: attrs.resultthen,
                 busy: attrs.busy,
                 file: path.relative(root, file),
                 line: source.slice(0, start).split('\n').length,
@@ -553,7 +556,8 @@ export const buildTours = (
             a.interactive === b.interactive &&
             a.via === b.via &&
             a.then === b.then &&
-            a.return === b.return;
+            a.return === b.return &&
+            a.resultThen === b.resultThen;
         [...scopeMarkers]
             .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
             .forEach((marker) => {
@@ -661,9 +665,12 @@ export const buildTours = (
                 return [step, ...looksAfter(selector)];
             });
         };
-        // A path that ends on an optional hop (`then`, `return`) has no step
+        // A path that ends on an optional hop (`then`, `resultThen`) has no step
         // after it to carry the detour.
-        const closedPath = (marker: Marker, attribute: 'then' | 'return') => {
+        const closedPath = (
+            marker: Marker,
+            attribute: 'then' | 'resultThen',
+        ) => {
             const path = parsePath(marker[attribute]);
             if (trailing(path).length > 0) {
                 throw new Error(
@@ -708,7 +715,7 @@ export const buildTours = (
             first.return === 'none'
                 ? []
                 : first.return
-                  ? closedPath(first, 'return')
+                  ? parsePath(first.return)
                   : parsePath('[data-tour-nav="home"]');
         steps.push(...pathSteps(homePath, first.route), {
             target: selectorFor(first),
@@ -719,6 +726,7 @@ export const buildTours = (
             advanceOnTargetClick: false,
             advanceOnTargetInput: false,
             via: required(homePath),
+            ...detourFor(trailing(homePath)),
             ...(first.busy ? { busy: first.busy } : {}),
         });
         resultLooks.forEach((marker) => {
@@ -738,6 +746,7 @@ export const buildTours = (
                 via: [],
             });
         });
+        steps.push(...pathSteps(closedPath(first, 'resultThen'), first.route));
         return {
             scope,
             title:

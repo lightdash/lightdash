@@ -14,7 +14,7 @@
  *   - a scope with no result marker, or a homepage result marker missing
  *     from one of the two homepage components
  *   - a route that is not a known project route
- *   - a last step that is interactive (nothing to click after Got it)
+ *   - an interactive last step without an explicit result-then path
  *   - a busy selector or result look that is not an anchor in the frontend
  *
  * Duplicate titles within a tour are reported as warnings: a walkthrough may
@@ -242,10 +242,14 @@ export const checkTours = (
                 ['via', marker.via],
                 ['then', marker.then],
                 ['return', marker.return],
+                ['resultthen', marker.resultThen],
             ] as const) {
                 if (!value || value === 'none') continue;
                 const hops = parsePath(value);
-                if (attribute !== 'via' && hops[hops.length - 1]?.optional) {
+                if (
+                    (attribute === 'then' || attribute === 'resultthen') &&
+                    hops[hops.length - 1]?.optional
+                ) {
                     error(
                         marker.file,
                         `${scope}: data-tour-${attribute} ends on an optional hop (?); an optional hop needs a control after it to detour to`,
@@ -445,7 +449,10 @@ export const checkTours = (
                 );
         }
         const last = tour.steps[tour.steps.length - 1];
-        if (last?.advanceOnTargetClick || last?.interactive) {
+        if (
+            (last?.advanceOnTargetClick || last?.interactive) &&
+            !first?.resultThen
+        ) {
             error(
                 file,
                 `${tour.scope}: the last step must be a look (Got it), not a click`,

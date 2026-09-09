@@ -936,8 +936,9 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // target (a `via` control) or when clicking the target is what advances
     // the step. A target that only gets looked at (the closing step, or an
     // explanation) stays inert; the learner moves on with the button.
+    const onDetour = detourTitle !== null;
     const clickThrough =
-        step.interactive &&
+        (step.interactive || onDetour) &&
         rect !== null &&
         (spotlightSelector !== step.target ||
             step.advanceOnTargetClick ||
@@ -1039,7 +1040,8 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 Back
                             </Button>
                         )}
-                        {shownStep.advanceOnTargetClick ||
+                        {onDetour ||
+                        shownStep.advanceOnTargetClick ||
                         shownStep.advanceOnTargetInput ? (
                             // The highlighted control is the way forward; a
                             // Next button here would compete with it.
@@ -1111,7 +1113,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 data-tour-root
                 className={clsx(
                     styles.root,
-                    step.interactive && styles.rootInteractive,
+                    (step.interactive || onDetour) && styles.rootInteractive,
                 )}
             >
                 {handsOn ? null : clickThrough && rect ? (

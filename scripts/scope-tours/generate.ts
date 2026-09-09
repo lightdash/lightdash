@@ -27,7 +27,11 @@
  *   data-tour-return='<sel> >> ...'         on the step-1 (result) marker: the
  *                                          click path back to it at the end;
  *                                          defaults to the home link; "none"
- *                                          when the action itself lands there
+ *                                          when the action itself lands there;
+ *                                          trailing optional hops detour to
+ *                                          the result explanation
+ *   data-tour-resultthen='<sel> >> ...'   on the step-1 marker: final clicks
+ *                                          after the result explanation
  *   data-tour-suggest="Orders overview"    on a typed anchor: what the card
  *                                          offers to fill in with one click;
  *                                          a typed step must have one

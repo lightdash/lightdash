@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
 import { GuidedTour, type GuidedTourStep } from './GuidedTour';
+import styles from './GuidedTour.module.css';
 
 const steps: GuidedTourStep[] = [
     { target: null, title: 'Step one', body: 'first body' },
@@ -210,6 +211,69 @@ describe('GuidedTour', () => {
                 expect(
                     host.querySelector('[data-x="download"]'),
                 ).toHaveAttribute('data-tour-active');
+            } finally {
+                host.remove();
+            }
+        });
+
+        it('opens a read-only explanation through a clickable detour before the final action', async () => {
+            const user = userEvent.setup();
+            const onFinish = vi.fn();
+            const host = mount(
+                '<button data-x="chooser">Download data</button>',
+            );
+            try {
+                renderWithProviders(
+                    <GuidedTour
+                        steps={[
+                            {
+                                ...detourSteps[0],
+                                target: '[data-x="options"]',
+                                title: 'Read the options',
+                                body: 'Choose the result scope.',
+                                interactive: false,
+                                advanceOnTargetClick: false,
+                            },
+                            { ...detourSteps[0], detour: [] },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                        onFinish={onFinish}
+                    />,
+                );
+                await waitFor(() =>
+                    expect(
+                        screen.getByText('Click Download data'),
+                    ).toBeVisible(),
+                );
+                expect(document.querySelector('[data-tour-root]')).toHaveClass(
+                    styles.rootInteractive,
+                );
+                expect(
+                    screen.queryByRole('button', { name: 'Next' }),
+                ).not.toBeInTheDocument();
+                host.querySelector('button')!.onclick = () => {
+                    host.innerHTML =
+                        '<section data-x="options"><button data-x="download">Download</button></section>';
+                };
+                await user.click(
+                    screen.getByRole('button', { name: 'Download data' }),
+                );
+                await waitFor(() =>
+                    expect(screen.getByText('Read the options')).toBeVisible(),
+                );
+                expect(onFinish).not.toHaveBeenCalled();
+                expect(
+                    document.querySelector('[data-tour-root]'),
+                ).not.toHaveClass(styles.rootInteractive);
+                await user.click(screen.getByRole('button', { name: 'Next' }));
+                await waitFor(() =>
+                    expect(screen.getByText('Click Download')).toBeVisible(),
+                );
+                await user.click(
+                    screen.getByRole('button', { name: 'Download' }),
+                );
+                expect(onFinish).toHaveBeenCalledTimes(1);
             } finally {
                 host.remove();
             }
