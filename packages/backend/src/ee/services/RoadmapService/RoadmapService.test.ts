@@ -209,6 +209,13 @@ describe('RoadmapService', () => {
                         stage: 'completed',
                         progress: 100,
                         priority: 'High',
+                        issueStatusCounts: {
+                            Backlog: 8,
+                            Building: 3,
+                            Shipped: 12,
+                            Canceled: 1,
+                        },
+                        lastIssueUpdatedAt: '2026-09-09T09:30:00Z',
                     },
                     ownRequestCount: 2,
                     hasDirectNeed: false,
@@ -257,6 +264,30 @@ describe('RoadmapService', () => {
         ).rejects.toThrow(ParameterError);
         expect(fetchMock).not.toHaveBeenCalled();
         const invalidPayloads = [
+            ...[
+                { issueStatusCounts: { Backlog: 1 } },
+                {
+                    issueStatusCounts: {
+                        ...results.projects[0].project.issueStatusCounts,
+                        Building: -1,
+                    },
+                },
+                { lastIssueUpdatedAt: 'not-a-date' },
+            ].map((projectFields) => ({
+                status: 'ok',
+                results: {
+                    ...results,
+                    projects: [
+                        {
+                            ...results.projects[0],
+                            project: {
+                                ...results.projects[0].project,
+                                ...projectFields,
+                            },
+                        },
+                    ],
+                },
+            })),
             {
                 status: 'ok',
                 results: {
@@ -278,6 +309,35 @@ describe('RoadmapService', () => {
                     UnexpectedServerError,
                 ),
             ),
+        );
+        const resultsWithoutActivity = {
+            ...results,
+            projects: [
+                {
+                    ...results.projects[0],
+                    project: {
+                        ...results.projects[0].project,
+                        issueStatusCounts: {
+                            Backlog: 0,
+                            Building: 0,
+                            Shipped: 0,
+                            Canceled: 0,
+                        },
+                        lastIssueUpdatedAt: null,
+                    },
+                },
+            ],
+        };
+        fetchMock.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    results: resultsWithoutActivity,
+                }),
+            ),
+        );
+        await expect(buildService().getProjects(account)).resolves.toEqual(
+            resultsWithoutActivity,
         );
     });
 

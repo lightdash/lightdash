@@ -135,16 +135,18 @@ export type RoadmapFacets = {
 
 const roadmapCountSchema = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 
+const RoadmapStatusCountsSchema = z
+    .object({
+        [RoadmapItemStatus.BACKLOG]: roadmapCountSchema,
+        [RoadmapItemStatus.BUILDING]: roadmapCountSchema,
+        [RoadmapItemStatus.SHIPPED]: roadmapCountSchema,
+        [RoadmapItemStatus.CANCELED]: roadmapCountSchema,
+    })
+    .strict();
+
 export const RoadmapFacetsSchema: z.ZodType<RoadmapFacets> = z
     .object({
-        statusCounts: z
-            .object({
-                [RoadmapItemStatus.BACKLOG]: roadmapCountSchema,
-                [RoadmapItemStatus.BUILDING]: roadmapCountSchema,
-                [RoadmapItemStatus.SHIPPED]: roadmapCountSchema,
-                [RoadmapItemStatus.CANCELED]: roadmapCountSchema,
-            })
-            .strict(),
+        statusCounts: RoadmapStatusCountsSchema,
         priorityCounts: z
             .object({
                 [RoadmapItemPriority.URGENT]: roadmapCountSchema,
@@ -206,6 +208,8 @@ export type RoadmapProject = {
     stage: 'backlog' | 'planned' | 'started' | 'paused' | 'completed';
     progress: number;
     priority: RoadmapItemPriority;
+    issueStatusCounts: RoadmapFacets['statusCounts'];
+    lastIssueUpdatedAt: string | null;
 };
 export type RoadmapProjectGroup = {
     project: RoadmapProject;
@@ -257,6 +261,11 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> = z
                             ]),
                             progress: z.number().min(0).max(100),
                             priority: z.enum(RoadmapItemPriority),
+                            issueStatusCounts: RoadmapStatusCountsSchema,
+                            lastIssueUpdatedAt: z
+                                .string()
+                                .datetime({ offset: true })
+                                .nullable(),
                         })
                         .strict(),
                     ownRequestCount: z.number().int().min(0),

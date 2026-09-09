@@ -1,9 +1,11 @@
 import {
     type RoadmapItem,
     type RoadmapProjectGroup,
+    type RoadmapProject,
     type RoadmapProjectQuery,
     type RoadmapQuery,
     RoadmapItemPriority,
+    RoadmapItemStatus,
 } from '@lightdash/common';
 import {
     Badge,
@@ -17,6 +19,7 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -64,15 +67,29 @@ const columns = [
         label: 'Backlog',
         icon: IconCircleDashed,
         color: 'dimmed',
+        ticketStatus: RoadmapItemStatus.BACKLOG,
     },
     {
         id: 'started',
         label: 'In progress',
         icon: IconCircleHalf2,
         color: 'yellow.6',
+        ticketStatus: RoadmapItemStatus.BUILDING,
     },
-    { id: 'completed', label: 'Done', icon: IconCircleCheck, color: 'green.6' },
-    { id: 'canceled', label: 'Canceled', icon: IconCircleX, color: 'dimmed' },
+    {
+        id: 'completed',
+        label: 'Done',
+        icon: IconCircleCheck,
+        color: 'green.6',
+        ticketStatus: RoadmapItemStatus.SHIPPED,
+    },
+    {
+        id: 'canceled',
+        label: 'Canceled',
+        icon: IconCircleX,
+        color: 'dimmed',
+        ticketStatus: RoadmapItemStatus.CANCELED,
+    },
 ] as const;
 
 const COLUMN_PREVIEW_LIMIT = 20;
@@ -98,11 +115,13 @@ function Board({
     projectBoard,
     statuses,
     columnQueries,
+    projectStatusCounts,
 }: {
     entries: { id: string; stage: RoadmapBoardStage; card: ReactNode }[];
     projectBoard: boolean;
     statuses: string[];
     columnQueries: ReturnType<typeof useRoadmapBoard>;
+    projectStatusCounts: RoadmapProject['issueStatusCounts'] | null;
 }) {
     const [expandedColumns, setExpandedColumns] = useState<string[]>([]);
     const visibleColumns = columns.filter((column) =>
@@ -152,9 +171,22 @@ function Board({
                             <Text fz="sm" fw={500}>
                                 {column.label}
                             </Text>
-                            <Badge size="sm" className={classes.columnCount}>
+                            <Badge
+                                size="sm"
+                                className={classes.columnCount}
+                                aria-label={
+                                    projectBoard
+                                        ? `${query.total} followed tickets matching filters`
+                                        : undefined
+                                }
+                            >
                                 {query.total}
                             </Badge>
+                            {projectBoard && (
+                                <Text fz="xs" c="dimmed">
+                                    followed
+                                </Text>
+                            )}
                             {(column.id === 'completed' ||
                                 column.id === 'canceled') && (
                                 <Text fz="xs" c="dimmed">
@@ -162,6 +194,30 @@ function Board({
                                 </Text>
                             )}
                         </Group>
+                        {projectStatusCounts && (
+                            <Tooltip
+                                label="All project tickets in this status, regardless of following, filters, or completion date. Canceled includes duplicates."
+                                multiline
+                                w={260}
+                                withArrow
+                                events={{
+                                    hover: true,
+                                    focus: true,
+                                    touch: false,
+                                }}
+                            >
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    px="xs"
+                                    pb="xs"
+                                    tabIndex={0}
+                                >
+                                    {projectStatusCounts[column.ticketStatus]}{' '}
+                                    total in project
+                                </Text>
+                            </Tooltip>
+                        )}
                         <Stack gap="xs" className={classes.columnCards}>
                             {visibleCards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
@@ -191,7 +247,9 @@ function Board({
                                     fz="xs"
                                     c="dimmed"
                                 >
-                                    {projectBoard ? 'No tickets' : 'No items'}
+                                    {projectBoard
+                                        ? 'No followed tickets'
+                                        : 'No items'}
                                 </Text>
                             )}
                         </Stack>
@@ -990,6 +1048,10 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                             projectBoard={projectBoard}
                             statuses={statuses}
                             columnQueries={boardQueries}
+                            projectStatusCounts={
+                                selectedProject?.project.issueStatusCounts ??
+                                null
+                            }
                         />
                     ) : (
                         <RoadmapTable entries={entries} />

@@ -1,6 +1,9 @@
 import { type RoadmapProjectGroup } from '@lightdash/common';
 import { Box, Button, Group, Text } from '@mantine/core';
-import { getPriorityColor } from '../../pages/roadmapUtils';
+import {
+    formatRoadmapDetailDate,
+    getPriorityColor,
+} from '../../pages/roadmapUtils';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
 import { getProjectPresentation } from './roadmapPresentation';
@@ -68,6 +71,21 @@ export function RoadmapProjectDetails({
                     <RoadmapRailRow label="Progress">
                         <Text className={styles.detailRailText}>
                             {project.progress}%
+                        </Text>
+                    </RoadmapRailRow>
+                    <RoadmapRailRow label="Last ticket update">
+                        <Text className={styles.detailRailText}>
+                            {item?.project.lastIssueUpdatedAt ? (
+                                <time
+                                    dateTime={item.project.lastIssueUpdatedAt}
+                                >
+                                    {formatRoadmapDetailDate(
+                                        item.project.lastIssueUpdatedAt,
+                                    )}
+                                </time>
+                            ) : (
+                                '—'
+                            )}
                         </Text>
                     </RoadmapRailRow>
                     {item && item.ownRequestCount > 0 && (
