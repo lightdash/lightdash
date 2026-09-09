@@ -150,17 +150,29 @@ is valid. Never place one in logs, API responses, tickets or persisted models.
 The internal Parquet path in
 [`DuckdbWarehouseClient`](../../packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts):
 
-- Creates isolated in-memory query instances (256 MB memory limit, two threads).
+- Creates isolated in-memory query instances (256 MB DuckDB memory limit, 32
+  threads to overlap remote footer and column reads). Explicit caller resource
+  limits override these internal-reader defaults; other DuckDB defaults are unchanged.
 - Requires HTTPS for remote storage; HTTP is restricted to loopback test endpoints.
 - Validates canonical paths against the trusted scope; disallows arbitrary
   globbing/path substitution and mixing signed URLs with broad storage secrets.
-- Sets exact `allowed_paths` and disables general external access, disk spilling
-  and the relevant file/metadata caches.
+- Sets exact `allowed_paths` and disables general external access and disk spilling.
+- Enables HTTP metadata, Parquet metadata and external-file caching only inside
+  the private query instance. The instance is closed on success or failure;
+  neither cached bytes nor signed URLs are reused by another request or org.
 - Builds temporary views over `read_parquet` for those exact objects only.
 - Restricts user SQL and blocks catalog access that could disclose view SQL;
   disables profiling and sanitizes native query errors.
 
-DuckDB cache restrictions do not mean Lightdash has no persisted query results.
+Schema binding retains `union_by_name=true` so older files can lack newer columns.
+Caching prevents repeated remote metadata reads during binding, validation and
+execution. This does not remove all-history discovery, skip old files or change
+the 10,000-file cap. Large histories still require further scaling work (PROD-11111);
+these settings do not guarantee a latency ceiling for arbitrary data volumes.
+Each concurrent query has its own thread budget; deployment-wide and per-org
+concurrency limits still need validation before customer rollout.
+
+The query-local cache lifetime does not mean Lightdash has no persisted query results.
 The normal result/history paths still exist and need authorization. Analytics
 checks cover project access and result/history retrieval; exports and scheduled
 downloads are blocked in this preview. Flag-off denial is not deletion or

@@ -184,6 +184,50 @@ describe('internal Parquet projects', () => {
             ),
         );
         expect(client.credentials).not.toHaveProperty('httpAuth');
+        expect(run).toHaveBeenCalledWith("SET memory_limit = '256MB';");
+        for (const cache of [
+            'enable_http_metadata_cache',
+            'enable_external_file_cache',
+            'parquet_metadata_cache',
+        ]) {
+            expect(run).toHaveBeenCalledWith(`SET ${cache} = true;`);
+        }
+        const statements = run.mock.calls.map(([sql]) => sql as string);
+        const bind = statements.findIndex((sql) =>
+            sql.startsWith('CREATE VIEW'),
+        );
+        expect(run).toHaveBeenCalledWith('SET threads = 32;');
+        expect(statements[bind]).toContain('union_by_name = true');
+        const instance = await createInstanceMock.mock.results[0].value;
+        expect(instance.closeSync).toHaveBeenCalledTimes(2);
+    });
+
+    it('honors explicit thread limits during metadata binding and execution', async () => {
+        const client = new DuckdbWarehouseClient(
+            { type: 'duckdb_parquet', resolveSource: async () => source() },
+            { sharedResourceLimits: { threads: 1, memoryLimit: '128MB' } },
+        );
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(run).toHaveBeenCalledWith("SET memory_limit = '128MB';");
+        expect(run).toHaveBeenCalledWith('SET threads = 1;');
+        expect(run).not.toHaveBeenCalledWith('SET threads = 32;');
+        expect(run).not.toHaveBeenCalledWith('SET threads = 2;');
+    });
+
+    it('closes the private cache when view binding fails', async () => {
+        run.mockImplementation(async (sql: string) => {
+            if (sql.startsWith('CREATE VIEW'))
+                throw new Error('binding failed');
+        });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery('SELECT count(*) FROM query_events'),
+        ).rejects.toThrow(/Internal analytics query failed/);
+        const instance = await createInstanceMock.mock.results[0].value;
+        expect(instance.closeSync).toHaveBeenCalledTimes(1);
     });
 
     it.each([
@@ -253,12 +297,13 @@ describe('internal Parquet projects', () => {
             expect.stringContaining('CREATE SECRET'),
         );
         expect(run).toHaveBeenCalledWith(
-            'SET enable_external_file_cache = false;',
+            'SET enable_external_file_cache = true;',
         );
     });
 
     it.each([
         'SELECT sql FROM duckdb_views()',
+        'SELECT * FROM duckdb_external_file_cache()',
         'SELECT * FROM "information_schema"."views"',
         'SELECT * FROM sqlite_master',
         "SELECT * FROM pragma_storage_info('query_events')",

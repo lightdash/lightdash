@@ -716,7 +716,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.sharedResourceLimits = isParquet
             ? {
                   memoryLimit: '256MB',
-                  threads: 2,
+                  // Remote Parquet scans are I/O-bound. Overlap footer and
+                  // column reads; this limit belongs only to the private reader.
+                  threads: 32,
                   ...options?.sharedResourceLimits,
               }
             : options?.sharedResourceLimits;
@@ -1133,9 +1135,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         // Restrict the engine, not just SQL validation. No globbing, arbitrary
         // network reads, local files, or shared spill/cache directories.
         await db.run("SET temp_directory = '';");
-        await db.run('SET enable_http_metadata_cache = false;');
-        await db.run('SET enable_external_file_cache = false;');
-        await db.run('SET parquet_metadata_cache = false;');
+        // These caches live only in this query's private, memory-limited
+        // instance, which is closed in withEphemeralQuerySession's finally.
+        // Reuse metadata between view binding, validation and execution without
+        // retaining files or signed URLs across requests or organizations.
+        await db.run('SET enable_http_metadata_cache = true;');
+        await db.run('SET enable_external_file_cache = true;');
+        await db.run('SET parquet_metadata_cache = true;');
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
