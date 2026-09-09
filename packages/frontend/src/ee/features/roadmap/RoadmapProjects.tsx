@@ -150,8 +150,13 @@ function Board({
                 const visibleCards = isCollapsed
                     ? cards.slice(0, COLUMN_PREVIEW_LIMIT)
                     : cards;
-                const projectTicketCount =
-                    projectStatusCounts?.[column.ticketStatus];
+                const remainingTicketCount = projectStatusCounts
+                    ? Math.max(
+                          0,
+                          projectStatusCounts[column.ticketStatus] -
+                              query.total,
+                      )
+                    : 0;
                 return (
                     <section
                         className={classes.column}
@@ -196,33 +201,32 @@ function Board({
                             )}
                         </Group>
                         <Stack gap="xs" className={classes.columnCards}>
-                            {projectTicketCount !== undefined &&
-                                projectTicketCount > 0 && (
-                                    <Box
-                                        className={classes.ticketStack}
-                                        data-stacked={
-                                            projectTicketCount > 1 || undefined
-                                        }
+                            {remainingTicketCount > 0 && (
+                                <Box
+                                    className={classes.ticketStack}
+                                    data-stacked={
+                                        remainingTicketCount > 1 || undefined
+                                    }
+                                >
+                                    <Group
+                                        className={classes.ticketStackCard}
+                                        justify="center"
+                                        gap="xs"
                                     >
-                                        <Group
-                                            className={classes.ticketStackCard}
-                                            justify="center"
-                                            gap="xs"
-                                        >
-                                            <MantineIcon
-                                                icon={IconTicket}
-                                                size="sm"
-                                                color="dimmed"
-                                            />
-                                            <Text fz="xs" c="dimmed">
-                                                {projectTicketCount}{' '}
-                                                {projectTicketCount === 1
-                                                    ? 'ticket'
-                                                    : 'tickets'}
-                                            </Text>
-                                        </Group>
-                                    </Box>
-                                )}
+                                        <MantineIcon
+                                            icon={IconTicket}
+                                            size="sm"
+                                            color="dimmed"
+                                        />
+                                        <Text fz="xs" c="dimmed">
+                                            {remainingTicketCount}{' '}
+                                            {remainingTicketCount === 1
+                                                ? 'ticket'
+                                                : 'tickets'}
+                                        </Text>
+                                    </Group>
+                                </Box>
+                            )}
                             {visibleCards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
                             ))}
@@ -245,7 +249,7 @@ function Board({
                                         Show all ({query.total})
                                     </Button>
                                 )}
-                            {!cards.length && !projectTicketCount && (
+                            {!cards.length && !remainingTicketCount && (
                                 <Text
                                     className={classes.emptyColumn}
                                     fz="xs"
