@@ -2703,6 +2703,10 @@ export class ProjectService extends BaseService {
         const projectSubject = subject('Project', {
             organizationUuid: project.organizationUuid,
             projectUuid,
+            exploreNames:
+                isJwtUser(account) && account.access.content.type === 'chart'
+                    ? account.access.content.explores
+                    : undefined,
         });
         if (auditedAbility.cannot('view', projectSubject)) {
             throw new ForbiddenError();

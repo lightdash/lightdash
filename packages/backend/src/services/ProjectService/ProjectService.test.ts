@@ -1,4 +1,4 @@
-import { Ability } from '@casl/ability';
+import { Ability, subject } from '@casl/ability';
 import {
     ConflictError,
     convertExplores,
@@ -43,6 +43,7 @@ import {
     type CreateWarehouseCredentials,
     type DbtManifest,
     type DownloadFile,
+    type EmbedContent,
     type Explore,
     type ExploreError,
     type Job,
@@ -61,6 +62,7 @@ import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromJwt } from '../../auth/account/account';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -694,6 +696,50 @@ describe('ProjectService', () => {
     });
 
     describe('getProject', () => {
+        const embedAccountFor = (content: EmbedContent) =>
+            fromJwt({
+                decodedToken: {
+                    content:
+                        content.type === 'chart'
+                            ? {
+                                  type: 'chart',
+                                  contentId: content.chartUuids[0],
+                              }
+                            : { type: 'dashboard', dashboardUuid: 'dashboard' },
+                },
+                content,
+                embed: {
+                    organization: {
+                        organizationUuid:
+                            projectWithSensitiveFields.organizationUuid,
+                        name: 'Test organization',
+                    },
+                    projectUuid,
+                    encodedSecret: 'test-secret',
+                    dashboardUuids: ['dashboard'],
+                    allowAllDashboards: false,
+                    chartUuids: ['chart'],
+                    allowAllCharts: false,
+                    appUuids: [],
+                    allowAllApps: false,
+                    createdAt: '2026-01-01',
+                    user: {
+                        userUuid: 'user',
+                        firstName: 'Test',
+                        lastName: 'User',
+                    },
+                },
+                source: 'test-token',
+                userAttributes: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            });
+        const chartAccount = embedAccountFor({
+            type: 'chart',
+            chartUuids: ['chart'],
+            explores: ['orders'],
+        });
         const projectWithEnvironment: Project = {
             ...projectWithSensitiveFields,
             dbtConnection: {
@@ -725,40 +771,104 @@ describe('ProjectService', () => {
             ]);
         });
 
-        test('returns only render settings to embed tokens', async () => {
-            projectModel.get.mockResolvedValueOnce({
-                ...projectWithEnvironment,
-                warehouseConnection: {
+        test.each([
+            ['chart', chartAccount],
+            [
+                'dashboard',
+                embedAccountFor({
+                    type: 'dashboard',
+                    dashboardUuid: 'dashboard',
+                    chartUuids: [],
+                    explores: [],
+                }),
+            ],
+        ])(
+            'returns only render settings to %s embed tokens',
+            async (_type, embedAccount) => {
+                projectModel.get.mockResolvedValueOnce({
+                    ...projectWithEnvironment,
+                    warehouseConnection: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        account: 'acme-prod.eu-west-1',
+                        role: 'ANALYTICS_READER',
+                        database: 'PROD',
+                        warehouse: 'WH_SMALL',
+                        schema: 'REPORTING',
+                        startOfWeek: WeekDay.SUNDAY,
+                    },
+                });
+                const result = await service.getProject(
+                    projectUuid,
+                    embedAccount,
+                );
+
+                expect(result.warehouseConnection).toEqual({
                     type: WarehouseTypes.SNOWFLAKE,
-                    account: 'acme-prod.eu-west-1',
-                    role: 'ANALYTICS_READER',
-                    database: 'PROD',
-                    warehouse: 'WH_SMALL',
-                    schema: 'REPORTING',
                     startOfWeek: WeekDay.SUNDAY,
-                },
-            });
-            const jwtAccount = buildAccount({ accountType: 'jwt' });
-            const embedAccount = {
-                ...jwtAccount,
-                user: {
-                    ...jwtAccount.user,
-                    ability: new Ability<PossibleAbilities>([
-                        { subject: 'Project', action: ['update', 'view'] },
-                    ]),
-                },
-            } as typeof jwtAccount;
+                });
+                expect(result.dbtConnection).toEqual({
+                    type: DbtProjectType.NONE,
+                });
+                expect(result.createdByUserUuid).toBeNull();
+            },
+        );
 
-            const result = await service.getProject(projectUuid, embedAccount);
+        test.each([
+            { projectUuid: 'another-project' },
+            { organizationUuid: 'another-organization' },
+        ])(
+            'rejects chart embeds outside their target: %j',
+            async (overrides) => {
+                const project = { ...projectWithEnvironment, ...overrides };
+                projectModel.get.mockResolvedValueOnce(project);
+                await expect(
+                    service.getProject(project.projectUuid, chartAccount),
+                ).rejects.toThrow(ForbiddenError);
+            },
+        );
 
-            expect(result.warehouseConnection).toEqual({
-                type: WarehouseTypes.SNOWFLAKE,
-                startOfWeek: WeekDay.SUNDAY,
-            });
-            expect(result.dbtConnection).toEqual({
-                type: DbtProjectType.NONE,
-            });
-            expect(result.createdByUserUuid).toBeNull();
+        test('keeps chart token query permissions restricted to its explore', () => {
+            const { ability } = chartAccount.user;
+            for (const type of ['Project', 'Explore'] as const) {
+                for (const [exploreName, allowed] of [
+                    ['orders', true],
+                    ['customers', false],
+                ] as const) {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject(type, {
+                                organizationUuid:
+                                    projectWithSensitiveFields.organizationUuid,
+                                projectUuid,
+                                exploreNames: [exploreName],
+                            }),
+                        ),
+                    ).toBe(allowed);
+                }
+            }
+        });
+
+        test('does not grant chart embeds project-wide explore or table listing', async () => {
+            await expect(
+                service.getAllExploresSummary(chartAccount, projectUuid, false),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.getTablesConfiguration(chartAccount, projectUuid),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('does not bypass a missing Project grant', async () => {
+            projectModel.get.mockResolvedValueOnce(projectWithEnvironment);
+            await expect(
+                service.getProject(projectUuid, {
+                    ...chartAccount,
+                    user: {
+                        ...chartAccount.user,
+                        ability: new Ability<PossibleAbilities>([]),
+                    },
+                }),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
