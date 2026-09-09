@@ -150,6 +150,8 @@ function Board({
                 const visibleCards = isCollapsed
                     ? cards.slice(0, COLUMN_PREVIEW_LIMIT)
                     : cards;
+                const columnTotal =
+                    projectStatusCounts?.[column.ticketStatus] ?? query.total;
                 const remainingTicketCount = projectStatusCounts
                     ? Math.max(
                           0,
@@ -182,17 +184,12 @@ function Board({
                                 className={classes.columnCount}
                                 aria-label={
                                     projectBoard
-                                        ? `${query.total} followed tickets matching filters`
+                                        ? `${columnTotal} total tickets`
                                         : undefined
                                 }
                             >
-                                {query.total}
+                                {columnTotal}
                             </Badge>
-                            {projectBoard && (
-                                <Text fz="xs" c="dimmed">
-                                    followed
-                                </Text>
-                            )}
                             {(column.id === 'completed' ||
                                 column.id === 'canceled') && (
                                 <Text fz="xs" c="dimmed">
