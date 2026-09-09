@@ -30,6 +30,7 @@ import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import MantineModal from '../common/MantineModal';
 import Page from '../common/Page/Page';
+import TruncatedText from '../common/TruncatedText';
 import Explorer from '../Explorer';
 import { useChartGalleryRightSidebar } from '../Explorer/ChartGallery/useChartGalleryRightSidebar';
 import RegistryImpactPreviewModal from '../Explorer/CustomMetricModal/RegistryImpactPreviewModal';
@@ -300,6 +301,8 @@ const DashboardChartEditorModal: FC<Props> = ({
                         c="dimmed"
                         fw={500}
                         underline="hover"
+                        truncate="end"
+                        maw={300}
                         onClick={handleClose}
                     >
                         {dashboardName}
@@ -307,9 +310,13 @@ const DashboardChartEditorModal: FC<Props> = ({
                     <Text c="dimmed" fw={500}>
                         /
                     </Text>
-                    <Text fw={600}>
-                        {editChart ? 'Edit chart' : 'New chart'}
-                    </Text>
+                    {editChart ? (
+                        <TruncatedText fw={600} fz="md" maxWidth="100%" miw={0}>
+                            {`Edit ${editChart.name}`}
+                        </TruncatedText>
+                    ) : (
+                        <Text fw={600}>New chart</Text>
+                    )}
                 </Group>
             }
             icon={IconChartBar}
