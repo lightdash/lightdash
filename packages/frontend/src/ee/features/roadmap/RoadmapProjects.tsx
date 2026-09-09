@@ -151,6 +151,8 @@ function Board({
                 const visibleCards = isCollapsed
                     ? cards.slice(0, COLUMN_PREVIEW_LIMIT)
                     : cards;
+                const projectTicketCount =
+                    projectStatusCounts?.[column.ticketStatus];
                 return (
                     <section
                         className={classes.column}
@@ -247,8 +249,8 @@ function Board({
                                     fz="xs"
                                     c="dimmed"
                                 >
-                                    {projectBoard
-                                        ? 'No followed tickets'
+                                    {projectTicketCount !== undefined
+                                        ? `${projectTicketCount} ${projectTicketCount === 1 ? 'ticket' : 'tickets'}`
                                         : 'No items'}
                                 </Text>
                             )}
