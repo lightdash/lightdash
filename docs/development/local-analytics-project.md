@@ -8,12 +8,12 @@ No MotherDuck account, dbt project, or configurable connector UI is required.
 ## Configure and provision
 
 Start an isolated development instance using the worktree runbook. Configure the
-usage-events writer's S3-compatible storage settings: `S3_ENDPOINT`,
+usage-events writer's S3-compatible storage settings: `USAGE_EVENTS_S3_ENDPOINT`,
 `USAGE_EVENTS_S3_BUCKET`, `USAGE_EVENTS_S3_ACCESS_KEY`,
 `USAGE_EVENTS_S3_SECRET_KEY`, and `USAGE_EVENTS_S3_REGION`. The reader reuses this
 server-owned configuration to issue signed GET URLs; it requires no CLI login,
-OAuth exchange, or new cloud infrastructure. Ensure the endpoint matches the
-bucket service, especially when the local instance otherwise uses MinIO.
+OAuth exchange, or new cloud infrastructure. The usage-events endpoint defaults
+to `S3_ENDPOINT`; override it when analytics uses GCS and local storage uses MinIO.
 
 Add these values to that worktree's `.env.development.local` (never commit them):
 

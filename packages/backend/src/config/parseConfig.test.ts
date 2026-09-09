@@ -23,6 +23,7 @@ import {
     getUserAttributesSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
+    parseUsageEventsS3Config,
 } from './parseConfig';
 
 vi.mock('fs/promises', () => ({
@@ -37,6 +38,20 @@ beforeEach(() => {
         S3_BUCKET: 'mock_bucket',
         S3_REGION: 'mock_region',
     };
+});
+
+describe('usage events storage endpoint', () => {
+    it('inherits the base endpoint when no override is configured', () => {
+        expect(parseUsageEventsS3Config()?.endpoint).toBe('mock_endpoint');
+    });
+
+    it('supports a separate endpoint without changing base storage', () => {
+        process.env.USAGE_EVENTS_S3_ENDPOINT = 'https://storage.googleapis.com';
+        expect(parseUsageEventsS3Config()?.endpoint).toBe(
+            'https://storage.googleapis.com',
+        );
+        expect(process.env.S3_ENDPOINT).toBe('mock_endpoint');
+    });
 });
 
 describe('mobile login config', () => {
