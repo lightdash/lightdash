@@ -944,11 +944,14 @@ describe('AppGenerateService.importAppCode', () => {
         code.manifest.template = 'data_app_viz';
         code.manifest.icon = 'not-a-real-icon' as never;
 
-        await expect(
-            service.importAppCode(makeUser(), PROJECT_UUID, {
-                code,
-            } as ImportAppCodeRequestBody),
-        ).rejects.toThrow(ParameterError);
+        const importPromise = service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        await expect(importPromise).rejects.toThrow(ParameterError);
+        await expect(importPromise).rejects.toThrow(
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
+        );
 
         // must not create or enqueue
         expect(appModel.createWithVersion).not.toHaveBeenCalled();

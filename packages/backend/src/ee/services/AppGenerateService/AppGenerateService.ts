@@ -11425,7 +11425,7 @@ export class AppGenerateService extends BaseService {
         if (manifestIcon === null) return null;
         if (isChartTypeIcon(manifestIcon)) return manifestIcon;
         throw new ParameterError(
-            `Invalid icon "${String(manifestIcon)}" in the app manifest. Use one of the curated chart type icons, or null to clear it.`,
+            'Invalid icon in the app manifest. Use one of the curated chart type icons, or null to clear it.',
         );
     }
 
