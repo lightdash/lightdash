@@ -15,6 +15,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
+import { seedPlaygroundMetricsTrees } from '../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
@@ -976,6 +977,17 @@ export class ServiceRepository
                             onboardingModel: this.models.getOnboardingModel(),
                             catalogService: this.getCatalogService(),
                             analytics: this.context.lightdashAnalytics,
+                            seedTrainingMetricsTrees: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundMetricsTrees({
+                                    projectUuid,
+                                    userUuid: seedUser.userUuid,
+                                    content,
+                                    catalogModel: this.models.getCatalogModel(),
+                                }),
                             seedTrainingContent: ({
                                 projectUuid,
                                 user: seedUser,

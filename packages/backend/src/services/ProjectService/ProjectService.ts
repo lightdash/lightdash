@@ -11401,6 +11401,11 @@ export class ProjectService extends BaseService {
             projectYamlTags,
             user.userUuid,
         );
+        await this.projectModel.copyMetricsTreesForTrainingCopy(
+            trainingProjectUuid,
+            projectUuid,
+            user.userUuid,
+        );
         // Popularity (chart usage) orders the catalog; the copied charts
         // count the same way the index job counts them.
         const chartUsages = await this.savedChartModel.getChartCountPerField(

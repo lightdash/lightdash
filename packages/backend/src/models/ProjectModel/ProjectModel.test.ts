@@ -544,6 +544,111 @@ describe('ProjectModel', () => {
         expect(clear.bindings).toEqual([5, 7]);
     });
 
+    test('training trees get new tree and metric IDs without copying locks', async () => {
+        tracker.on.select('metrics_trees').response([
+            {
+                metrics_tree_uuid: 'source-tree',
+                name: 'Completed orders',
+                slug: 'completed-orders',
+                description: null,
+                source: 'ui',
+            },
+        ]);
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('from "catalog_search"') &&
+                    bindings.includes('source-project'),
+            )
+            .response([
+                {
+                    catalog_search_uuid: 'source-metric',
+                    table_name: 'orders',
+                    name: 'amount',
+                    type: 'field',
+                },
+            ]);
+        tracker.on
+            .select(
+                ({ sql, bindings }: RawQuery) =>
+                    sql.includes('from "catalog_search"') &&
+                    bindings.includes('target-project'),
+            )
+            .response([
+                {
+                    catalog_search_uuid: 'target-metric',
+                    table_name: 'orders',
+                    name: 'amount',
+                    type: 'field',
+                },
+            ]);
+        tracker.on.select('metrics_tree_nodes').response([
+            {
+                catalog_search_uuid: 'source-metric',
+                x_position: 0,
+                y_position: 200,
+                source: 'ui',
+            },
+        ]);
+        tracker.on
+            .insert('metrics_trees')
+            .response([{ metrics_tree_uuid: 'target-tree' }]);
+        tracker.on.insert('metrics_tree_nodes').response([]);
+        tracker.on.select('metrics_tree_edges').response([]);
+        await model.copyMetricsTreesForTrainingCopy(
+            'source-project',
+            'target-project',
+            'learner',
+        );
+        const treeInsert = tracker.history.insert.find(({ sql }) =>
+            sql.includes('metrics_trees'),
+        )!;
+        expect(treeInsert.bindings).toContain('target-project');
+        expect(treeInsert.bindings).toContain('learner');
+        expect(treeInsert.bindings).not.toContain('source-project');
+        const nodeInsert = tracker.history.insert.find(({ sql }) =>
+            sql.includes('metrics_tree_nodes'),
+        )!;
+        expect(nodeInsert.bindings).toContain('target-metric');
+        expect(nodeInsert.bindings).toContain('target-tree');
+        expect(nodeInsert.bindings).not.toContain('source-metric');
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.delete).toHaveLength(0);
+        expect(
+            tracker.history.insert.some(({ sql }) => sql.includes('locks')),
+        ).toBe(false);
+    });
+
+    test('training tree copying fails before writing a tree with unresolved metrics', async () => {
+        tracker.on
+            .select('metrics_trees')
+            .response([{ metrics_tree_uuid: 'source-tree' }]);
+        tracker.on.select('catalog_search').response([]);
+        tracker.on
+            .select('metrics_tree_nodes')
+            .response([{ catalog_search_uuid: 'missing-metric' }]);
+        await expect(
+            model.copyMetricsTreesForTrainingCopy(
+                'source',
+                'target',
+                'learner',
+            ),
+        ).rejects.toThrow('missing a tree metric');
+        expect(tracker.history.insert).toHaveLength(0);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    test('training tree copying rejects the source project as its target', async () => {
+        await expect(
+            model.copyMetricsTreesForTrainingCopy(
+                'source',
+                'source',
+                'learner',
+            ),
+        ).rejects.toThrow('different project');
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
     test('copies chart aliases to the mapped preview chart UUIDs only', async () => {
         tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([
             { saved_query_uuid: 'source-chart-1', slug: 'old-chart-1' },

@@ -11,6 +11,28 @@ export const playgroundContent = {
         name: 'Jaffle Shop',
         path: 'jaffle-shop',
     },
+    metricsTrees: [
+        {
+            name: 'Completed orders',
+            slug: 'completed-orders',
+            description:
+                'How completed order amount relates to total order amount, using the model’s metric drivers.',
+            nodes: [
+                {
+                    tableName: 'orders',
+                    metricName: 'total_completed_order_amount',
+                    xPosition: 0,
+                    yPosition: 0,
+                },
+                {
+                    tableName: 'orders',
+                    metricName: 'total_order_amount',
+                    xPosition: 0,
+                    yPosition: 200,
+                },
+            ],
+        },
+    ],
     charts: [
         {
             key: 'orders-over-time',

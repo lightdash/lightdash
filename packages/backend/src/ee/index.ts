@@ -118,6 +118,7 @@ import { createPlaygroundAppFileStore } from './services/ProjectService/playgrou
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
+import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -1136,6 +1137,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),
                             analytics: context.lightdashAnalytics,
+                            seedTrainingMetricsTrees: ({
+                                projectUuid,
+                                user: seedUser,
+                                content,
+                            }) =>
+                                seedPlaygroundMetricsTrees({
+                                    projectUuid,
+                                    userUuid: seedUser.userUuid,
+                                    content,
+                                    catalogModel: models.getCatalogModel(),
+                                }),
                             seedTrainingContent: ({
                                 projectUuid,
                                 user: seedUser,

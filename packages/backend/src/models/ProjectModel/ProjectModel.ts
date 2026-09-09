@@ -76,6 +76,12 @@ import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../config/parseConfig';
+import {
+    CatalogTableName,
+    MetricsTreeEdgesTableName,
+    MetricsTreeNodesTableName,
+    MetricsTreesTableName,
+} from '../../database/entities/catalog';
 import { DashboardTileCommentsTableName } from '../../database/entities/comments';
 import {
     DashboardsTableName,
@@ -3797,6 +3803,120 @@ export class ProjectModel {
             previewAliases,
             INSERT_BATCH_SIZE,
         );
+    }
+
+    async copyMetricsTreesForTrainingCopy(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        if (sourceProjectUuid === targetProjectUuid) {
+            throw new ParameterError(
+                'A training copy must be a different project',
+            );
+        }
+        await this.database.transaction(async (trx) => {
+            const trees = await trx(MetricsTreesTableName).where(
+                'project_uuid',
+                sourceProjectUuid,
+            );
+            if (trees.length === 0) return;
+            const sourceMetrics = await trx(CatalogTableName).where({
+                project_uuid: sourceProjectUuid,
+                field_type: 'metric',
+            });
+            const targetMetrics = await trx(CatalogTableName).where({
+                project_uuid: targetProjectUuid,
+                field_type: 'metric',
+            });
+            const metricMapping = new Map(
+                sourceMetrics.map((source) => [
+                    source.catalog_search_uuid,
+                    targetMetrics.find(
+                        (target) =>
+                            target.table_name === source.table_name &&
+                            target.name === source.name &&
+                            target.type === source.type,
+                    )?.catalog_search_uuid,
+                ]),
+            );
+            const remap = (sourceUuid: string): string => {
+                const targetUuid = metricMapping.get(sourceUuid);
+                if (!targetUuid)
+                    throw new ParameterError(
+                        `Training copy is missing a tree metric: ${sourceUuid}`,
+                    );
+                return targetUuid;
+            };
+            const copiedMetricUuids = new Set<string>();
+            await trees.reduce<Promise<void>>(async (previous, tree) => {
+                await previous;
+                const nodes = await trx(MetricsTreeNodesTableName).where(
+                    'metrics_tree_uuid',
+                    tree.metrics_tree_uuid,
+                );
+                const mappedNodes = nodes.map((node) => ({
+                    catalog_search_uuid: remap(node.catalog_search_uuid),
+                    x_position: node.x_position,
+                    y_position: node.y_position,
+                    source: node.source,
+                }));
+                const [created] = await trx(MetricsTreesTableName)
+                    .insert({
+                        project_uuid: targetProjectUuid,
+                        name: tree.name,
+                        slug: tree.slug,
+                        description: tree.description,
+                        source: tree.source,
+                        created_by_user_uuid: userUuid,
+                    })
+                    .returning('*');
+                if (mappedNodes.length > 0) {
+                    await trx(MetricsTreeNodesTableName).insert(
+                        mappedNodes.map((node) => ({
+                            ...node,
+                            metrics_tree_uuid: created.metrics_tree_uuid,
+                        })),
+                    );
+                }
+                nodes.forEach((node) =>
+                    copiedMetricUuids.add(node.catalog_search_uuid),
+                );
+            }, Promise.resolve());
+            // YAML edges already belong to the new catalog; copy published UI edges only.
+            const edges = await trx(MetricsTreeEdgesTableName)
+                .where({
+                    project_uuid: sourceProjectUuid,
+                    source: 'ui',
+                })
+                .whereIn('source_metric_catalog_search_uuid', [
+                    ...copiedMetricUuids,
+                ])
+                .whereIn('target_metric_catalog_search_uuid', [
+                    ...copiedMetricUuids,
+                ]);
+            if (edges.length > 0) {
+                await trx(MetricsTreeEdgesTableName)
+                    .insert(
+                        edges.map((edge) => ({
+                            source_metric_catalog_search_uuid: remap(
+                                edge.source_metric_catalog_search_uuid,
+                            ),
+                            target_metric_catalog_search_uuid: remap(
+                                edge.target_metric_catalog_search_uuid,
+                            ),
+                            project_uuid: targetProjectUuid,
+                            created_by_user_uuid: userUuid,
+                            source: edge.source,
+                        })),
+                    )
+                    .onConflict([
+                        'source_metric_catalog_search_uuid',
+                        'target_metric_catalog_search_uuid',
+                    ])
+                    .ignore();
+            }
+        });
     }
 
     async duplicateContent(
