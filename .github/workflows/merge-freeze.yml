@@ -19,7 +19,8 @@ name: Merge freeze
 # The ruleset and variables APIs need Administration: write, which GITHUB_TOKEN
 # cannot be granted (`administration` is not a workflow permission scope), so
 # this runs on a PAT/App token - see the preflight step. workflow_dispatch
-# already requires write access, so whoever can run this can already merge.
+# already requires write access, so whoever can run this can already merge;
+# dispatches from other refs are refused.
 #
 # SPK-985.
 
@@ -53,6 +54,7 @@ env:
 jobs:
   toggle:
     name: ${{ inputs.action }}
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

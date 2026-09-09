@@ -627,6 +627,7 @@ class MergeFreezeTests(unittest.TestCase):
         inputs = workflow.split('    inputs:\n', 1)[1].split('\npermissions:', 1)[0]
         self.assertEqual(re.findall(r'^      (\w+):', inputs, re.M), ['action', 'slack_actor'])
         self.assertIn('group: merge-freeze-${{ github.repository }}\n  cancel-in-progress: false', workflow)
+        self.assertIn("if: github.ref == 'refs/heads/main'", workflow)
         self.assertIn("if: steps.toggle.outputs.changed == 'true'", workflow)
         self.assertIn('SLACK_ACTOR: ${{ inputs.slack_actor }}', workflow)
         self.assertNotIn('vars.MERGE_FREEZE_ACTOR', workflow)
