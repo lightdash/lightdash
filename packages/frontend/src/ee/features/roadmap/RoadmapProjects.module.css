@@ -69,6 +69,34 @@
     border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
 }
+.ticketStack {
+    position: relative;
+}
+.ticketStack[data-stacked] {
+    padding-bottom: var(--mantine-spacing-xs);
+}
+.ticketStack[data-stacked]::before,
+.ticketStack[data-stacked]::after {
+    content: '';
+    position: absolute;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+}
+.ticketStack[data-stacked]::before {
+    inset: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+}
+.ticketStack[data-stacked]::after {
+    inset: calc(var(--mantine-spacing-xs) / 2);
+}
+.ticketStackCard {
+    position: relative;
+    z-index: 1;
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+}
 .ticketTitle {
     font-size: var(--mantine-font-size-sm);
     font-weight: 500;

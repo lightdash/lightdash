@@ -243,7 +243,34 @@ function Board({
                                         Show all ({query.total})
                                     </Button>
                                 )}
-                            {!cards.length && (
+                            {!cards.length &&
+                            projectTicketCount !== undefined &&
+                            projectTicketCount > 0 ? (
+                                <Box
+                                    className={classes.ticketStack}
+                                    data-stacked={
+                                        projectTicketCount > 1 || undefined
+                                    }
+                                >
+                                    <Group
+                                        className={classes.ticketStackCard}
+                                        justify="center"
+                                        gap="xs"
+                                    >
+                                        <MantineIcon
+                                            icon={IconTicket}
+                                            size="sm"
+                                            color="dimmed"
+                                        />
+                                        <Text fz="xs" c="dimmed">
+                                            {projectTicketCount}{' '}
+                                            {projectTicketCount === 1
+                                                ? 'ticket'
+                                                : 'tickets'}
+                                        </Text>
+                                    </Group>
+                                </Box>
+                            ) : !cards.length ? (
                                 <Text
                                     className={classes.emptyColumn}
                                     fz="xs"
@@ -253,7 +280,7 @@ function Board({
                                         ? `${projectTicketCount} ${projectTicketCount === 1 ? 'ticket' : 'tickets'}`
                                         : 'No items'}
                                 </Text>
-                            )}
+                            ) : null}
                         </Stack>
                     </section>
                 );
