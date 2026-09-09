@@ -204,6 +204,8 @@ describe('RoadmapService', () => {
                     project: {
                         projectId: 'project-1',
                         title: 'Filters',
+                        description:
+                            'Filter dashboards using reusable controls.',
                         stage: 'completed',
                         progress: 100,
                         priority: 'High',

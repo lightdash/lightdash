@@ -257,6 +257,11 @@ function ProjectCard({
             <Title order={5} className={classes.projectTitle}>
                 {group.project.title}
             </Title>
+            {group.project.description.trim() && (
+                <Text fz="xs" c="dimmed">
+                    {group.project.description}
+                </Text>
+            )}
             <Group justify="space-between" gap="xs">
                 <ItemBadges type="project" priority={presentation.priority} />
                 {group.ownRequestCount === 0 && group.hasDirectNeed && (
@@ -345,6 +350,7 @@ function PriorityBadge({ priority }: { priority: RoadmapItemPriority }) {
 type RoadmapEntry = {
     id: string;
     title: string;
+    description: string | null;
     type: 'project' | 'ticket';
     stage: RoadmapBoardStage;
     priority: RoadmapItemPriority;
@@ -421,6 +427,11 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                             {entry.title}
                                         </Text>
                                     </UnstyledButton>
+                                    {entry.description?.trim() && (
+                                        <Text fz="xs" c="dimmed">
+                                            {entry.description}
+                                        </Text>
+                                    )}
                                 </Table.Td>
                                 <Table.Td>
                                     <Text fz="xs" c="dimmed">
@@ -655,6 +666,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                   return {
                       id: `project-${group.project.projectId}`,
                       title: group.project.title,
+                      description: group.project.description,
                       type: 'project',
                       stage: customerStage(metadata.stage),
                       priority: metadata.priority,
@@ -676,6 +688,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             (ticket): RoadmapEntry => ({
                 id: `ticket-${ticket.ticketId}`,
                 title: ticket.title,
+                description: null,
                 type: 'ticket',
                 stage: customerStage(ticketStage(ticket.status)),
                 priority: ticket.priority,
@@ -734,7 +747,8 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             }
             description={
                 projectBoard
-                    ? 'Tickets your organization follows in this project.'
+                    ? selectedProject?.project.description.trim() ||
+                      'Tickets your organization follows in this project.'
                     : 'Explore the Lightdash roadmap and track your organization’s feature requests.'
             }
             actions={

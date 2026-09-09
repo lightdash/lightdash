@@ -202,6 +202,7 @@ export type RoadmapProjectRequestsQuery = z.infer<
 export type RoadmapProject = {
     projectId: string;
     title: string;
+    description: string;
     stage: 'backlog' | 'planned' | 'started' | 'paused' | 'completed';
     progress: number;
     priority: RoadmapItemPriority;
@@ -246,6 +247,7 @@ export const RoadmapProjectResultsSchema: z.ZodType<RoadmapProjectResults> = z
                         .object({
                             projectId: z.string().min(1),
                             title: z.string().trim().min(1),
+                            description: z.string(),
                             stage: z.enum([
                                 'backlog',
                                 'planned',
