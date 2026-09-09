@@ -1,3 +1,15 @@
+# [2.174.0](https://github.com/lightdash/lightdash/compare/2.173.2...2.174.0) (2026-09-09)
+
+
+### Bug Fixes
+
+* let employees lift merge freezes and repair stale checks ([#28861](https://github.com/lightdash/lightdash/issues/28861)) ([a0b7379](https://github.com/lightdash/lightdash/commit/a0b737938c9e59972e92a1bc4edf0f61ee75d407))
+
+
+### Features
+
+* **scheduler:** adjust a chart's saved filters per scheduled delivery ([#28937](https://github.com/lightdash/lightdash/issues/28937)) ([5648ab3](https://github.com/lightdash/lightdash/commit/5648ab3413012670945aa37700641903a6f12b32)), closes [#6689](https://github.com/lightdash/lightdash/issues/6689)
+
 ## [2.173.2](https://github.com/lightdash/lightdash/compare/2.173.1...2.173.2) (2026-09-09)
 
 
