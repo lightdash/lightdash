@@ -1,3 +1,10 @@
+## [2.168.2](https://github.com/lightdash/lightdash/compare/2.168.1...2.168.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **search:** anchor dashboard tile search on current versions ([#28915](https://github.com/lightdash/lightdash/issues/28915)) ([c532020](https://github.com/lightdash/lightdash/commit/c5320204d336abb185a2642a4bdd9a9b0f8a8726))
+
 ## [2.168.1](https://github.com/lightdash/lightdash/compare/2.168.0...2.168.1) (2026-09-09)
 
 
