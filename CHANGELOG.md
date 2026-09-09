@@ -1,3 +1,11 @@
+## [2.184.3](https://github.com/lightdash/lightdash/compare/2.184.2...2.184.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **organizations:** make deletion accessible for sole members and unnamed orgs ([#28961](https://github.com/lightdash/lightdash/issues/28961)) ([7a8b244](https://github.com/lightdash/lightdash/commit/7a8b2446f59deb11008b94d8c613dc349f7f525f))
+* **sql-runner:** add series draw order controls ([#28962](https://github.com/lightdash/lightdash/issues/28962)) ([bb9e1c1](https://github.com/lightdash/lightdash/commit/bb9e1c1473eb4fbac6e7b15c8e185508875d41dd))
+
 ## [2.184.2](https://github.com/lightdash/lightdash/compare/2.184.1...2.184.2) (2026-09-09)
 
 

@@ -5651,6 +5651,10 @@ const models: TsoaRoute.Models = {
                         label: { dataType: 'string' },
                     },
                 },
+                seriesOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
             },
             validators: {},
         },
