@@ -14914,7 +14914,7 @@
                     "permissionsMode": {
                         "type": "string",
                         "enum": ["default", "roles"],
-                        "description": "Opt into role checks: dashboard flags OR scopes; AI additionally requires EmbedAiAgent."
+                        "description": "Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent."
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -60263,7 +60263,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.167.3",
+        "version": "2.167.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

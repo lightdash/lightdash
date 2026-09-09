@@ -1,3 +1,10 @@
+## [2.167.4](https://github.com/lightdash/lightdash/compare/2.167.3...2.167.4) (2026-09-09)
+
+
+### Bug Fixes
+
+* **embed:** enforce scopes-only dashboard roles mode ([#28906](https://github.com/lightdash/lightdash/issues/28906)) ([9a834b6](https://github.com/lightdash/lightdash/commit/9a834b6edc50a6639863ad9d9241445a4e3025a0))
+
 ## [2.167.3](https://github.com/lightdash/lightdash/compare/2.167.2...2.167.3) (2026-09-09)
 
 
