@@ -108,6 +108,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import * as localAnalytics from '../ProjectService/analyticsProject/localAnalyticsProject';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
@@ -3855,6 +3856,70 @@ describe('AsyncQueryService', () => {
             expect(pivotSpy).not.toHaveBeenCalled();
             expect(flatSpy).toHaveBeenCalledTimes(1);
         });
+    });
+
+    describe('analytics cached-result boundaries', () => {
+        afterEach(() => {
+            projectModel.getSummary.mockResolvedValue(projectSummary);
+            vi.mocked(
+                localAnalytics.assertLocalAnalyticsProjectEnabled,
+            ).mockRestore();
+        });
+        test.each(['disabled', 'non-admin'] as const)(
+            'blocks every result/history/export surface for %s access',
+            async (reason) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                service.exportsStorageClient = {
+                    isEnabled: () => true,
+                } as FileStorageClient;
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { action: 'view', subject: 'Project' },
+                ]);
+                vi.spyOn(projectModel, 'getSummary').mockResolvedValue({
+                    ...projectSummary,
+                    organizationUuid: account.organization.organizationUuid!,
+                    provisioningSource: 'analytics',
+                });
+                vi.spyOn(
+                    localAnalytics,
+                    'assertLocalAnalyticsProjectEnabled',
+                ).mockImplementation(() => {
+                    if (reason === 'disabled')
+                        throw new ForbiddenError('analytics disabled');
+                });
+                const args = {
+                    account,
+                    projectUuid,
+                    queryUuid: 'existing-query',
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR as const,
+                };
+                const expected =
+                    reason === 'disabled'
+                        ? 'analytics disabled'
+                        : 'administration';
+                await expect(
+                    service.getAsyncQueryHistory(args),
+                ).rejects.toThrow(expected);
+                await expect(service.getResultsStream(args)).rejects.toThrow(
+                    expected,
+                );
+                await expect(
+                    service.getQueryHistoryList({
+                        ...args,
+                        filters: {},
+                        paginateArgs: { page: 1, pageSize: 10 },
+                    }),
+                ).rejects.toThrow(expected);
+                await expect(
+                    service.scheduleDownloadAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                await expect(service.download(args)).rejects.toThrow(expected);
+                expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('getAsyncQueryHistory', () => {

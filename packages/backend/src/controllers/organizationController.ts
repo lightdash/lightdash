@@ -74,6 +74,27 @@ import { BaseController } from './baseController';
 @Tags('Organizations')
 export class OrganizationController extends BaseController {
     /**
+     * Create or refresh the current organization's internal analytics preview.
+     * @summary Ensure internal analytics project
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Post('/analytics-project')
+    @OperationId('EnsureAnalyticsProject')
+    async ensureAnalyticsProject(
+        @Request() req: express.Request,
+    ): Promise<
+        ApiSuccess<{ projectUuid: string; url: string; created: boolean }>
+    > {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .ensureAnalyticsProject(toSessionUser(req.account)),
+        };
+    }
+
+    /**
      * Get the current user's organization
      * @summary Get current organization
      * @param req express request

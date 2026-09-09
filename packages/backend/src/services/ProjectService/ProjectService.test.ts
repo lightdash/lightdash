@@ -111,6 +111,7 @@ import { AdminNotificationService } from '../AdminNotificationService/AdminNotif
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import * as localAnalytics from './analyticsProject/localAnalyticsProject';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -208,6 +209,9 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    runInAnalyticsProvisioningLock: vi.fn(
+        async (_org: string, callback: () => Promise<unknown>) => callback(),
+    ),
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
@@ -670,6 +674,153 @@ describe('ProjectService', () => {
                 }),
             ).rejects.toThrow('Only an organization admin can enable Learn');
             expect(provisionTrainingProject).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('ensureAnalyticsProject', () => {
+        const testAnalyticsStorage = vi.fn();
+        const admin = {
+            ...user,
+            organizationUuid: 'analytics-org',
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: new Ability<PossibleAbilities>([
+                {
+                    subject: 'Organization',
+                    action: 'manage',
+                    conditions: { organizationUuid: 'analytics-org' },
+                },
+            ]),
+        };
+        beforeEach(() => {
+            testAnalyticsStorage.mockResolvedValue(undefined);
+            vi.spyOn(
+                localAnalytics,
+                'createLocalAnalyticsClient',
+            ).mockReturnValue({
+                test: testAnalyticsStorage,
+            } as unknown as ReturnType<
+                typeof localAnalytics.createLocalAnalyticsClient
+            >);
+            vi.spyOn(
+                localAnalytics,
+                'assertLocalAnalyticsProjectEnabled',
+            ).mockImplementation(() => undefined);
+        });
+        afterEach(() => vi.restoreAllMocks());
+
+        test('does not create a project when storage authentication fails', async () => {
+            testAnalyticsStorage.mockRejectedValueOnce(
+                new Error('Storage unavailable'),
+            );
+            await expect(service.ensureAnalyticsProject(admin)).rejects.toThrow(
+                'Storage unavailable',
+            );
+            expect(
+                projectModel.runInAnalyticsProvisioningLock,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('reuses the backend marker, refreshes both models, and returns the slug', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                {
+                    ...defaultProject,
+                    projectUuid: 'existing',
+                    provisioningSource: 'analytics',
+                },
+            ]);
+            projectModel.getSummary.mockResolvedValueOnce({
+                ...projectSummary,
+                slug: 'lightdash-analytics-2',
+            });
+            const result = await service.ensureAnalyticsProject(admin);
+            expect(result).toEqual({
+                projectUuid: 'existing',
+                url: '/projects/lightdash-analytics-2/tables',
+                created: false,
+            });
+            expect(
+                projectModel.runInAnalyticsProvisioningLock,
+            ).toHaveBeenCalledWith('analytics-org', expect.any(Function));
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                'existing',
+                expect.arrayContaining([
+                    expect.objectContaining({ name: 'query_events' }),
+                    expect.objectContaining({ name: 'ai_usage' }),
+                ]),
+                true,
+            );
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('creates an internal preview, not a user-configured connection', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            const create = vi
+                .spyOn(service, 'createWithoutCompile')
+                .mockResolvedValueOnce({
+                    project: { projectUuid: 'new' },
+                } as Awaited<
+                    ReturnType<ProjectService['createWithoutCompile']>
+                >);
+            const result = await service.ensureAnalyticsProject(admin);
+            expect(result.created).toBe(true);
+            expect(create).toHaveBeenCalledWith(
+                admin,
+                expect.objectContaining({
+                    name: 'Lightdash analytics',
+                    type: ProjectType.PREVIEW,
+                    warehouseConnection: expect.objectContaining({
+                        connectionType: DuckdbConnectionType.ANALYTICS,
+                    }),
+                }),
+                RequestMethod.BACKEND,
+                { source: 'analytics' },
+            );
+        });
+
+        test('rejects non-admins before provisioning', async () => {
+            await expect(
+                service.ensureAnalyticsProject({
+                    ...admin,
+                    ability: new Ability<PossibleAbilities>([]),
+                }),
+            ).rejects.toThrow(/administration/);
+            expect(
+                projectModel.runInAnalyticsProvisioningLock,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects another organization even with an unrestricted ability', async () => {
+            await expect(
+                service.assertAnalyticsProjectAccess(
+                    {
+                        ...admin,
+                        ability: new Ability<PossibleAbilities>([
+                            { subject: 'all', action: 'manage' },
+                        ]),
+                    },
+                    {
+                        provisioningSource: 'analytics',
+                        organizationUuid: 'other-org',
+                    },
+                ),
+            ).rejects.toThrow(/another organization/);
+        });
+
+        test('stops before provisioning when the feature gate rejects access', async () => {
+            vi.mocked(
+                localAnalytics.assertLocalAnalyticsProjectEnabled,
+            ).mockImplementation(() => {
+                throw new ForbiddenError('disabled');
+            });
+            await expect(service.ensureAnalyticsProject(admin)).rejects.toThrow(
+                'disabled',
+            );
+            expect(
+                projectModel.runInAnalyticsProvisioningLock,
+            ).not.toHaveBeenCalled();
         });
     });
 

@@ -372,6 +372,11 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
+import { createAnalyticsExplores } from './analyticsProject/createAnalyticsExplores';
+import {
+    assertLocalAnalyticsProjectEnabled,
+    createLocalAnalyticsClient,
+} from './analyticsProject/localAnalyticsProject';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { projectMergedManifest } from './projectMergedManifest';
@@ -421,7 +426,10 @@ type RefreshTokenRotationSource =
  * playground and the training project. Only these may use embedded DuckDB
  * credentials or the `TRAINING` project type.
  */
-export type InternalProvisioningSource = 'playground' | 'training';
+export type InternalProvisioningSource =
+    | 'playground'
+    | 'training'
+    | 'analytics';
 export type InternalProvisioning = { source: InternalProvisioningSource };
 
 export type ProjectServiceArguments = {
@@ -804,6 +812,71 @@ export class ProjectService extends BaseService {
         return result;
     }
 
+    async ensureAnalyticsProject(user: SessionUser): Promise<{
+        projectUuid: string;
+        url: string;
+        created: boolean;
+    }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const { organizationUuid } = user;
+        await this.assertAnalyticsProjectAccess(user, {
+            organizationUuid,
+            provisioningSource: 'analytics',
+        });
+        // Fail before creating a project if the signed file reads cannot authenticate.
+        await createLocalAnalyticsClient(organizationUuid).test();
+        // Both models are backend-owned. Compilation itself needs no warehouse IO.
+        const explores = createAnalyticsExplores();
+        return this.projectModel.runInAnalyticsProvisioningLock(
+            organizationUuid,
+            async () => {
+                const existing = (
+                    await this.projectModel.getAllByOrganizationUuid(
+                        organizationUuid,
+                    )
+                ).find((project) => project.provisioningSource === 'analytics');
+                const projectUuid =
+                    existing?.projectUuid ??
+                    (
+                        await this.createWithoutCompile(
+                            user,
+                            {
+                                name: 'Lightdash analytics',
+                                type: ProjectType.PREVIEW,
+                                dbtConnection: { type: DbtProjectType.NONE },
+                                dbtVersion: DefaultSupportedDbtVersion,
+                                warehouseConnection: {
+                                    type: WarehouseTypes.DUCKDB,
+                                    connectionType:
+                                        DuckdbConnectionType.ANALYTICS,
+                                    database: 'memory',
+                                    schema: 'main',
+                                },
+                            },
+                            RequestMethod.BACKEND,
+                            { source: 'analytics' },
+                        )
+                    ).project.projectUuid;
+                // Also repairs a previous attempt that created the project but
+                // failed while saving models; never delete existing content.
+                await this.projectModel.saveExploresToCache(
+                    projectUuid,
+                    explores,
+                    true,
+                );
+                this.userModel.invalidateSessionUserCache(user.userUuid);
+                const project = await this.projectModel.getSummary(projectUuid);
+                return {
+                    projectUuid,
+                    url: `/projects/${project.slug ?? projectUuid}/tables`,
+                    created: !existing,
+                };
+            },
+        );
+    }
+
     async ensurePlaygroundProject(
         user: SessionUser,
         trigger: PlaygroundProjectTrigger = 'invite_expert',
@@ -867,7 +940,10 @@ export class ProjectService extends BaseService {
         // The training project's agent comes with its seeded content (the
         // walkthroughs name it); a second, default agent would make Ask AI
         // land on either.
-        if (provisioningSource === 'training') {
+        if (
+            provisioningSource === 'training' ||
+            provisioningSource === 'analytics'
+        ) {
             return;
         }
 
@@ -923,6 +999,7 @@ export class ProjectService extends BaseService {
         projectType: ProjectType,
         provisioningSource?: InternalProvisioningSource,
     ): Promise<void> {
+        if (provisioningSource === 'analytics') return;
         await this.provisionDefaultAiAgent(
             user,
             projectUuid,
@@ -2043,6 +2120,23 @@ export class ProjectService extends BaseService {
         let userWarehouseCredentialsUuid: string | undefined;
 
         if (
+            credentials.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            if (!isRegisteredUser || isServiceAccount)
+                throw new ForbiddenError(
+                    'Local analytics requires a signed-in organization administrator',
+                );
+            const project = await this.projectModel.getSummary(projectUuid);
+            const user = await this.userModel.findSessionUserAndOrgByUuid(
+                userId,
+                project.organizationUuid,
+            );
+            await this.assertAnalyticsProjectAccess(user, project);
+            return { ...credentials, userWarehouseCredentialsUuid };
+        }
+
+        if (
             organizationWarehouseCredentialsUuid &&
             !credentials.requireUserCredentials
         ) {
@@ -2211,6 +2305,22 @@ export class ProjectService extends BaseService {
         Sentry.setTag('warehouse.type', credentials.type);
         // Setup SSH tunnel for client (user needs to close this)
         const sshTunnel = new SshTunnel(credentials);
+        if (
+            credentials.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            const project = await this.projectModel.get(projectUuid);
+            if (project.provisioningSource !== 'analytics') {
+                throw new ForbiddenError('Invalid internal analytics project');
+            }
+            return {
+                warehouseClient: createLocalAnalyticsClient(
+                    project.organizationUuid,
+                ),
+                sshTunnel,
+                tunnelConnectMs: null,
+            };
+        }
         const usedSshTunnel =
             'useSshTunnel' in credentials && !!credentials.useSshTunnel;
         const tunnelStart = performance.now();
@@ -2707,6 +2817,7 @@ export class ProjectService extends BaseService {
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {
         const project = await this.projectModel.get(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
         const auditedAbility = this.createAuditedAbility(account);
         const projectSubject = subject('Project', {
             organizationUuid: project.organizationUuid,
@@ -2732,6 +2843,35 @@ export class ProjectService extends BaseService {
         }
 
         return project;
+    }
+
+    async assertAnalyticsProjectAccess(
+        account: Account | SessionUser,
+        project: Pick<Project, 'provisioningSource' | 'organizationUuid'>,
+    ): Promise<void> {
+        if (project.provisioningSource !== 'analytics') return;
+        const organizationUuid =
+            'organization' in account
+                ? account.organization.organizationUuid
+                : account.organizationUuid;
+        if (organizationUuid !== project.organizationUuid) {
+            throw new ForbiddenError(
+                'Analytics project belongs to another organization',
+            );
+        }
+        assertLocalAnalyticsProjectEnabled(project.organizationUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', {
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Internal analytics requires organization administration access',
+            );
+        }
     }
 
     async getMergedManifest(
@@ -2933,11 +3073,13 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
-                await this.getPreviewExpiresAt(
-                    createProject.type,
-                    createProject.upstreamProjectUuid,
-                    createProject.expiresInHours,
-                ),
+                internalProvisioning?.source === 'analytics'
+                    ? null
+                    : await this.getPreviewExpiresAt(
+                          createProject.type,
+                          createProject.upstreamProjectUuid,
+                          createProject.expiresInHours,
+                      ),
                 internalProvisioning?.source,
             );
 
@@ -3534,6 +3676,10 @@ export class ProjectService extends BaseService {
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (project.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics models are managed by the backend',
+            );
 
         const auditedAbility = this.createAuditedAbility(user);
 
@@ -3646,7 +3792,8 @@ export class ProjectService extends BaseService {
     ): void {
         if (
             credentials?.type === WarehouseTypes.DUCKDB &&
-            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS &&
+            internalProvisioning?.source !== 'analytics'
         ) {
             throw new ParameterError(
                 'Analytics connections can only be provisioned internally',
@@ -3775,6 +3922,10 @@ export class ProjectService extends BaseService {
         );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (savedProject.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -3899,6 +4050,10 @@ export class ProjectService extends BaseService {
         }
 
         const project = await this.projectModel.getSummary(projectUuid);
+        if (project.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
         const auditedAbility = this.createAuditedAbility(account);
         if (auditedAbility.cannot('update', subject('Project', project))) {
             throw new ForbiddenError();
@@ -3925,6 +4080,10 @@ export class ProjectService extends BaseService {
         );
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (savedProject.provisioningSource === 'analytics')
+            throw new ForbiddenError(
+                'Internal analytics configuration is managed by the backend',
+            );
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -8380,8 +8539,9 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         fileId: string,
     ): Promise<Readable> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(user, project);
+        const { organizationUuid } = project;
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -9451,6 +9611,10 @@ export class ProjectService extends BaseService {
         includeErrors: boolean = true,
         includePreAggregates: boolean = false,
     ): Promise<SummaryExplore[]> {
+        await this.assertAnalyticsProjectAccess(
+            account,
+            await this.projectModel.getSummary(projectUuid),
+        );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -9534,6 +9698,10 @@ export class ProjectService extends BaseService {
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
     ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
+        await this.assertAnalyticsProjectAccess(
+            account,
+            await this.projectModel.getSummary(projectUuid),
+        );
         return traceSpan(
             {
                 op: 'ProjectService.getExplore',
@@ -9772,6 +9940,12 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
+                if (
+                    credentials.connectionType ===
+                    DuckdbConnectionType.ANALYTICS
+                ) {
+                    return 'memory';
+                }
                 if (
                     credentials.connectionType === DuckdbConnectionType.DUCKLAKE
                 ) {

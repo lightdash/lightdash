@@ -1228,8 +1228,9 @@ export class AsyncQueryService extends ProjectService {
         filters: QueryHistoryListFilters;
         paginateArgs: KnexPaginateArgs;
     }): Promise<ApiQueryHistoryListResponse['results']> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        const { organizationUuid } = project;
 
         // History is scoped to the requesting user's own runs, so an
         // anonymous (embed) account has nothing to list.
@@ -1400,6 +1401,10 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string,
         queryHistory: QueryHistory,
     ): Promise<void> {
+        await this.assertAnalyticsProjectAccess(
+            account,
+            await this.projectModel.getSummary(projectUuid),
+        );
         const { queryUuid } = queryHistory;
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -1671,8 +1676,9 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<QueryHistory> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        const { organizationUuid } = project;
 
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -1730,8 +1736,9 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<Readable> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        const { organizationUuid } = project;
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -1853,6 +1860,13 @@ export class AsyncQueryService extends ProjectService {
     ) {
         const { account, ...payload } = args;
         assertIsAccountWithOrg(account);
+        const project = await this.projectModel.getSummary(payload.projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        if (project.provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'Scheduled downloads are unavailable for internal analytics',
+            );
+        }
 
         const { organizationUuid } = account.organization;
 
@@ -2052,8 +2066,15 @@ export class AsyncQueryService extends ProjectService {
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        // Do not issue a signed export URL that outlives the feature/admin check.
+        if (project.provisioningSource === 'analytics') {
+            throw new ForbiddenError(
+                'Downloads are unavailable for internal analytics',
+            );
+        }
+        const { organizationUuid } = project;
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
