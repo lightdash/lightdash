@@ -24,6 +24,12 @@ describe('RecentContentController', () => {
             await expect(
                 controller.recordView({ account } as express.Request, view),
             ).rejects.toThrow('not session auth');
+            await expect(
+                controller.getRecentlyViewed(
+                    { account } as express.Request,
+                    'project',
+                ),
+            ).rejects.toThrow('not session auth');
             expect(recordView).not.toHaveBeenCalled();
         },
     );

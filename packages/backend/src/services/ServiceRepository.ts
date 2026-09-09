@@ -1568,6 +1568,7 @@ export class ServiceRepository
             () =>
                 new RecentContentService({
                     recentContentModel: this.models.getRecentContentModel(),
+                    projectModel: this.models.getProjectModel(),
                     contentService: this.getContentService(),
                 }),
         );

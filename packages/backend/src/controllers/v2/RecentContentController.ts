@@ -1,13 +1,17 @@
 import {
     assertSessionAuth,
     type ApiErrorPayload,
+    type ApiRecentContentResponse,
     type ApiSuccessEmpty,
     type RecordRecentContentView,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Middlewares,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -22,6 +26,21 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Content')
 export class RecentContentController extends BaseController {
+    @Get('/')
+    @Middlewares([isAuthenticated])
+    async getRecentlyViewed(
+        @Request() req: express.Request,
+        @Query() projectUuid: UUID,
+    ): Promise<ApiRecentContentResponse> {
+        assertSessionAuth(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRecentContentService()
+                .getRecentlyViewed(toSessionUser(req.account), projectUuid),
+        };
+    }
+
     @Post('/')
     @Middlewares([isAuthenticated])
     async recordView(
