@@ -2,6 +2,7 @@
 import { subject } from '@casl/ability';
 import {
     AdditionalMetric,
+    AlreadyExistsError,
     ApiCustomDimensionWriteBackPreview,
     ApiGithubDbtWritePreview,
     CustomDimension,
@@ -88,11 +89,11 @@ type GitProps = {
     semanticLayer?: 'dbt' | 'lightdash';
 };
 
-type ExploreGitProps =
+type DbtWritebackGitProps =
     | GitProps
     | (Omit<GitProps, 'type'> & { type: DbtProjectType.BITBUCKET });
 
-type WriteBackFileArgs = ExploreGitProps &
+type WriteBackFileArgs = DbtWritebackGitProps &
     (
         | {
               fieldType: 'customDimensions';
@@ -225,7 +226,7 @@ export class GitIntegrationService extends BaseService {
         };
     }
 
-    static async createBranch(gitProps: ExploreGitProps) {
+    static async createBranch(gitProps: DbtWritebackGitProps) {
         const {
             owner,
             repo,
@@ -377,7 +378,7 @@ Affected charts:
         installationId?: string;
         token: string;
         branch: string;
-        type: ExploreGitProps['type'];
+        type: DbtWritebackGitProps['type'];
         hostDomain?: string;
     }) {
         const project = await this.projectModel.get(projectUuid);
@@ -763,11 +764,11 @@ Affected charts:
         return gitProps;
     }
 
-    private async getExploreGitProps(
+    private async getDbtWritebackGitProps(
         user: SessionUser,
         projectUuid: string,
         quoteChar: `"` | `'`,
-    ): Promise<ExploreGitProps> {
+    ): Promise<DbtWritebackGitProps> {
         const project = await this.projectModel.get(projectUuid);
         const connection = project.dbtConnection;
         if (
@@ -878,7 +879,7 @@ Affected charts:
         await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
 
         const user = toSessionUser(account);
-        const gitProps = await this.getExploreGitProps(
+        const gitProps = await this.getDbtWritebackGitProps(
             user,
             projectUuid,
             yamlQuoteChar,
@@ -969,7 +970,7 @@ Affected charts:
             GitIntegrationService.assertCustomDimensionsSupported(args.fields);
         }
         await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
-        const gitProps = await this.getExploreGitProps(
+        const gitProps = await this.getDbtWritebackGitProps(
             user,
             projectUuid,
             quoteChar,
@@ -1115,6 +1116,48 @@ ${replacementGuidance}`,
         return GitIntegrationService.removeExtraSlashes(filePath);
     }
 
+    private static buildSqlModelContent(sql: string): string {
+        return `
+{{
+  config(
+    tags=['created-by-lightdash']
+  )
+}}
+
+${sql}
+`;
+    }
+
+    private static buildYamlModelContent({
+        name,
+        columns,
+        quoteChar,
+    }: {
+        name: string;
+        columns: VizColumn[];
+        quoteChar: GitProps['quoteChar'];
+    }): string {
+        return new DbtSchemaEditor(`version: 2`)
+            .addModel({
+                name: snakeCaseName(name),
+                description: `SQL model for ${friendlyName(name)}`,
+                meta: {
+                    label: friendlyName(name),
+                },
+                columns: columns.map((c) => ({
+                    name: c.reference,
+                    meta: {
+                        dimension: {
+                            type: c.type,
+                        },
+                    },
+                })),
+            })
+            .toString({
+                quoteChar,
+            });
+    }
+
     private static async createSqlFile({
         gitProps,
         name,
@@ -1140,15 +1183,7 @@ ${replacementGuidance}`,
             path: fileName,
         });
 
-        const content = `
-{{
-  config(
-    tags=['created-by-lightdash']
-  )
-}}
-  
-${sql}
-`;
+        const content = GitIntegrationService.buildSqlModelContent(sql);
 
         const message = `Created file ${fileName} `;
 
@@ -1189,25 +1224,11 @@ ${sql}
             path: fileName,
         });
 
-        const content = new DbtSchemaEditor(`version: 2`)
-            .addModel({
-                name: snakeCaseName(name),
-                description: `SQL model for ${friendlyName(name)}`,
-                meta: {
-                    label: friendlyName(name),
-                },
-                columns: columns.map((c) => ({
-                    name: c.reference,
-                    meta: {
-                        dimension: {
-                            type: c.type,
-                        },
-                    },
-                })),
-            })
-            .toString({
-                quoteChar: gitProps.quoteChar,
-            });
+        const content = GitIntegrationService.buildYamlModelContent({
+            name,
+            columns,
+            quoteChar: gitProps.quoteChar,
+        });
 
         const message = `Created file ${fileName} `;
 
@@ -1237,6 +1258,71 @@ ${sql}
         }
     }
 
+    private static async createBitbucketSqlModel({
+        gitProps,
+        name,
+        sql,
+        columns,
+    }: {
+        gitProps: Extract<
+            DbtWritebackGitProps,
+            { type: DbtProjectType.BITBUCKET }
+        >;
+        name: string;
+        sql: string;
+        columns: VizColumn[];
+    }): Promise<void> {
+        const changes: BitbucketClient.BitbucketFileChange[] = [
+            {
+                action: 'upsert',
+                path: GitIntegrationService.getFilePath(
+                    gitProps.path,
+                    name,
+                    'sql',
+                ),
+                content: GitIntegrationService.buildSqlModelContent(sql),
+            },
+            {
+                action: 'upsert',
+                path: GitIntegrationService.getFilePath(
+                    gitProps.path,
+                    name,
+                    'yml',
+                ),
+                content: GitIntegrationService.buildYamlModelContent({
+                    name,
+                    columns,
+                    quoteChar: gitProps.quoteChar,
+                }),
+            },
+        ];
+        const parent = await BitbucketClient.getBranch(gitProps);
+        await Promise.all(
+            changes.map(async (change) => {
+                try {
+                    await BitbucketClient.getFileContent({
+                        ...gitProps,
+                        fileName: change.path,
+                    });
+                } catch (error) {
+                    if (error instanceof NotFoundError) {
+                        return;
+                    }
+                    throw error;
+                }
+                throw new AlreadyExistsError(
+                    `File ${change.path} already exists`,
+                );
+            }),
+        );
+        await BitbucketClient.commitFiles({
+            ...gitProps,
+            expectedParent: parent.target.hash,
+            message: `Created SQL and YML model for ${name}`,
+            changes,
+        });
+    }
+
     async createPullRequestFromSql(
         user: SessionUser,
         projectUuid: string,
@@ -1245,25 +1331,38 @@ ${sql}
         columns: VizColumn[],
         quoteChar: `"` | `'` = '"',
     ): Promise<PullRequestCreated> {
-        const gitProps = await this.getGitProps(user, projectUuid, quoteChar);
+        const gitProps = await this.getDbtWritebackGitProps(
+            user,
+            projectUuid,
+            quoteChar,
+        );
         await this.assertSqlModelWritebackSupported(projectUuid);
         await GitIntegrationService.createBranch(gitProps);
 
-        await GitIntegrationService.createSqlFile({
-            gitProps,
-            name,
-            sql,
-        });
-        await GitIntegrationService.createYmlFile({
-            gitProps,
-            name,
-            columns,
-        });
+        if (gitProps.type === DbtProjectType.BITBUCKET) {
+            await GitIntegrationService.createBitbucketSqlModel({
+                gitProps,
+                name,
+                sql,
+                columns,
+            });
+        } else {
+            await GitIntegrationService.createSqlFile({
+                gitProps,
+                name,
+                sql,
+            });
+            await GitIntegrationService.createYmlFile({
+                gitProps,
+                name,
+                columns,
+            });
+        }
         Logger.debug(
             `Creating ${
-                gitProps.type === DbtProjectType.GITHUB
-                    ? 'pull request'
-                    : 'merge request'
+                gitProps.type === DbtProjectType.GITLAB
+                    ? 'merge request'
+                    : 'pull request'
             } from branch ${gitProps.branch} to ${gitProps.mainBranch} in ${
                 gitProps.owner
             }/${gitProps.repo}`,
@@ -1275,10 +1374,11 @@ ${sql}
             context: QueryExecutionContext.SQL_RUNNER,
         };
         try {
-            const createPullRequest =
-                gitProps.type === DbtProjectType.GITHUB
-                    ? GithubClient.createPullRequest
-                    : GitlabClient.createPullRequest;
+            const createPullRequest = {
+                [DbtProjectType.GITHUB]: GithubClient.createPullRequest,
+                [DbtProjectType.GITLAB]: GitlabClient.createPullRequest,
+                [DbtProjectType.BITBUCKET]: BitbucketClient.createPullRequest,
+            }[gitProps.type];
 
             const pullRequest: {
                 html_url: string;
@@ -1297,9 +1397,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
             Logger.debug(
                 `Successfully created ${
-                    gitProps.type === DbtProjectType.GITHUB
-                        ? 'pull request'
-                        : 'merge request'
+                    gitProps.type === DbtProjectType.GITLAB
+                        ? 'merge request'
+                        : 'pull request'
                 } #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
             );
 
@@ -1341,6 +1441,26 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         name: string,
     ): Promise<ApiGithubDbtWritePreview['results']> {
         await this.assertSqlModelWritebackSupported(projectUuid);
+        const project = await this.projectModel.get(projectUuid);
+        if (project.dbtConnection.type === DbtProjectType.BITBUCKET) {
+            const { owner, repo, path } = await this.getDbtWritebackGitProps(
+                user,
+                projectUuid,
+                '"',
+            );
+            return {
+                url: `https://bitbucket.org/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
+                owner,
+                repo,
+                path: GitIntegrationService.removeExtraSlashes(
+                    `${path}/models/lightdash`,
+                ),
+                files: [
+                    GitIntegrationService.getFilePath(path, name, 'sql'),
+                    GitIntegrationService.getFilePath(path, name, 'yml'),
+                ],
+            };
+        }
         const { owner, repo, path, type, hostDomain } =
             await this.getProjectRepo(projectUuid);
 
