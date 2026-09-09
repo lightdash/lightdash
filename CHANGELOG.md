@@ -1,3 +1,10 @@
+# [2.180.0](https://github.com/lightdash/lightdash/compare/2.179.0...2.180.0) (2026-09-09)
+
+
+### Features
+
+* resolve org-scoped analytics files using signed storage URLs ([#28916](https://github.com/lightdash/lightdash/issues/28916)) ([feae802](https://github.com/lightdash/lightdash/commit/feae802445e720281fd75a32eab21d79da875656))
+
 # [2.179.0](https://github.com/lightdash/lightdash/compare/2.178.0...2.179.0) (2026-09-09)
 
 
