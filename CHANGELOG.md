@@ -1,3 +1,10 @@
+# [2.173.0](https://github.com/lightdash/lightdash/compare/2.172.0...2.173.0) (2026-09-09)
+
+
+### Features
+
+* **explorer:** support Bitbucket custom field writeback ([#28933](https://github.com/lightdash/lightdash/issues/28933)) ([3015042](https://github.com/lightdash/lightdash/commit/30150422f226e90a708329cc63730af6ab8b6346)), closes [#28932](https://github.com/lightdash/lightdash/issues/28932)
+
 # [2.172.0](https://github.com/lightdash/lightdash/compare/2.171.0...2.172.0) (2026-09-09)
 
 

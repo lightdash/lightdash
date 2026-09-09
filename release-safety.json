@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.172.0",
-  "previousVersion": "2.171.0",
-  "releaseDate": "2026-09-09T11:40:57.082Z",
+  "version": "2.173.0",
+  "previousVersion": "2.172.0",
+  "releaseDate": "2026-09-09T11:48:15.288Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,18 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/aiAgents/admin/review-items — added the new `bitbucket_token_missing` enum value to the `results/items/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "POST /api/v1/aiAgents/admin/review-items — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `201`",
-        "GET /api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid} — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "GET /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint} — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/assignee — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "PATCH /api/v1/aiAgents/admin/review-items/{fingerprint}/priority — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "POST /api/v1/aiAgents/admin/review-items/{fingerprint}/writeback — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/writebackEligibility/anyOf[subschema #2]/reason` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `bitbucket_token_missing` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/metadata/anyOf[subschema #12]/errorCode` response property for the response status `200`"
-      ],
-      "advisoryCount": 9
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
