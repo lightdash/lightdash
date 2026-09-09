@@ -1,3 +1,10 @@
+## [2.167.3](https://github.com/lightdash/lightdash/compare/2.167.2...2.167.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **embed:** restore standalone chart project access ([#28904](https://github.com/lightdash/lightdash/issues/28904)) ([4891acb](https://github.com/lightdash/lightdash/commit/4891acbfb5b63939f2ebf6e2c9a029cb423b1701)), closes [#28860](https://github.com/lightdash/lightdash/issues/28860)
+
 ## [2.167.2](https://github.com/lightdash/lightdash/compare/2.167.1...2.167.2) (2026-09-09)
 
 
