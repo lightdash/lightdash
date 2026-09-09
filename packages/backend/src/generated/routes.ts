@@ -47177,13 +47177,339 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateRedshiftCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateRedshiftCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateRedshiftCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateRedshiftCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateBigqueryCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateBigqueryCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateBigqueryCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateBigqueryCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreatePostgresCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreatePostgresCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreatePostgresCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreatePostgresCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateSnowflakeCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateSnowflakeCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateSnowflakeCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateSnowflakeCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateDatabricksCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateDatabricksCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateDatabricksCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateDatabricksCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateTrinoCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateTrinoCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateTrinoCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateTrinoCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateClickhouseCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateClickhouseCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateClickhouseCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateAthenaCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateAthenaCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateAthenaCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateDuckdbMotherduckCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateDuckdbMotherduckCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateDuckdbMotherduckCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateDuckdbMotherduckCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CreateDuckdbDucklakeCredentials.Exclude_keyofCreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateDuckdbDucklakeCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateDuckdbDucklakeCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateDuckdbDucklakeCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateDuckdbDucklakeCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CreateDuckdbEmbeddedCredentials.Exclude_keyofCreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_CreateDuckdbEmbeddedCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_CreateDuckdbEmbeddedCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_CreateDuckdbEmbeddedCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateWarehouseCredentialsWithOptionalSecrets: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'WithOptionalSecrets_CreateRedshiftCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateBigqueryCredentials_' },
+                { ref: 'WithOptionalSecrets_CreatePostgresCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateSnowflakeCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateDatabricksCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateTrinoCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateClickhouseCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateAthenaCredentials_' },
+                {
+                    ref: 'WithOptionalSecrets_CreateDuckdbMotherduckCredentials_',
+                },
+                { ref: 'WithOptionalSecrets_CreateDuckdbDucklakeCredentials_' },
+                { ref: 'WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiWarehouseConnectionTestBody: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 warehouseConnection: {
-                    ref: 'CreateWarehouseCredentials',
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'CreateRedshiftCredentials' },
+                        { ref: 'CreateBigqueryCredentials' },
+                        { ref: 'CreatePostgresCredentials' },
+                        { ref: 'CreateSnowflakeCredentials' },
+                        { ref: 'CreateDatabricksCredentials' },
+                        { ref: 'CreateTrinoCredentials' },
+                        { ref: 'CreateClickhouseCredentials' },
+                        { ref: 'CreateAthenaCredentials' },
+                        { ref: 'CreateDuckdbCredentials' },
+                        {
+                            ref: 'CreateWarehouseCredentialsWithOptionalSecrets',
+                        },
+                    ],
                     required: true,
                 },
             },
@@ -51222,6 +51548,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { dataType: 'enum', enums: ['invite_expert'] },
                 { dataType: 'enum', enums: ['agent_onboarding_wait'] },
+                { dataType: 'enum', enums: ['get_started'] },
             ],
             validators: {},
         },

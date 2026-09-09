@@ -1,3 +1,12 @@
+## [2.168.1](https://github.com/lightdash/lightdash/compare/2.168.0...2.168.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **dashboards:** preserve explore-specific filter field labels ([#28881](https://github.com/lightdash/lightdash/issues/28881)) ([e8d3c80](https://github.com/lightdash/lightdash/commit/e8d3c808909c45fc92f466e2e974d8dd38c62436))
+* **frontend:** keep request paths and codes out of the network failure toast ([#28914](https://github.com/lightdash/lightdash/issues/28914)) ([b2a434b](https://github.com/lightdash/lightdash/commit/b2a434b3f46aeb363341155420c95d7dc3a282fe))
+* **projects:** let test connection reuse saved secrets the form did not send ([#28912](https://github.com/lightdash/lightdash/issues/28912)) ([6cb4e50](https://github.com/lightdash/lightdash/commit/6cb4e50986f73d46879301af582fe0b8dfbf19df))
+
 # [2.168.0](https://github.com/lightdash/lightdash/compare/2.167.4...2.168.0) (2026-09-09)
 
 
