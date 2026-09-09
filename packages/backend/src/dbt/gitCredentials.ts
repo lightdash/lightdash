@@ -10,25 +10,27 @@ export type GitCredentialFiles = {
     configPath: string;
 };
 
-export const createGithubGitCredentialFiles = ({
+export const createGitCredentialFiles = ({
     host,
     token,
+    username,
 }: {
     host: string;
     token: string;
+    username: string;
 }): GitCredentialFiles => {
     const origin = new URL(`https://${host}`);
     if (origin.pathname !== '/' || origin.search || origin.hash) {
-        throw new Error('GitHub host domain must not include a path');
+        throw new Error('Git host domain must not include a path');
     }
 
     const directory = fs.mkdtempSync(
-        path.join(os.tmpdir(), 'github_credentials_'),
+        path.join(os.tmpdir(), 'git_credentials_'),
     );
     const credentialsPath = path.join(directory, 'credentials');
     const configPath = path.join(directory, 'gitconfig');
     const credentialUrl = new URL(origin);
-    credentialUrl.username = 'lightdash';
+    credentialUrl.username = username;
     credentialUrl.password = token;
 
     fs.writeFileSync(credentialsPath, `${credentialUrl.href}\n`, {
@@ -43,7 +45,7 @@ export const createGithubGitCredentialFiles = ({
             `    helper = ${quoteGitConfigValue(
                 `store --file=${credentialsPath}`,
             )}`,
-            '    username = lightdash',
+            `    username = ${quoteGitConfigValue(username)}`,
             `[url ${quoteGitConfigValue(`${origin.origin}/`)}]`,
             `    insteadOf = ${quoteGitConfigValue(`git@${origin.host}:`)}`,
             `    insteadOf = ${quoteGitConfigValue(
@@ -56,3 +58,9 @@ export const createGithubGitCredentialFiles = ({
 
     return { directory, configPath };
 };
+
+export const createGithubGitCredentialFiles = (args: {
+    host: string;
+    token: string;
+}): GitCredentialFiles =>
+    createGitCredentialFiles({ ...args, username: 'lightdash' });

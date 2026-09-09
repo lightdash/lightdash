@@ -3,6 +3,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     type DbtGithubProjectConfig,
+    type DbtProjectConfig,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import path from 'path';
@@ -10,8 +11,9 @@ import simpleGit from 'simple-git';
 import { getInstallationToken } from '../clients/github/Github';
 import { DbtCliClient } from '../dbt/dbtCliClient';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
-import { NativeGithubProjectAdapter } from './nativeGithubProjectAdapter';
+import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 import { projectAdapterFromConfig } from './projectAdapter';
 
 vi.mock('simple-git');
@@ -44,7 +46,7 @@ describe('native GitHub server compilation', () => {
         branch: 'preview/change',
         project_sub_path: 'analytics',
     };
-    const createAdapter = (config = connection) =>
+    const createAdapter = (config: DbtProjectConfig = connection) =>
         projectAdapterFromConfig(
             config,
             {
@@ -87,7 +89,7 @@ describe('native GitHub server compilation', () => {
         const catalog = vi.spyOn(warehouseClientMock, 'getCatalog');
         const adapter = await createAdapter();
         adapters.push(adapter);
-        expect(adapter).toBeInstanceOf(NativeGithubProjectAdapter);
+        expect(adapter).toBeInstanceOf(NativeGitProjectAdapter);
         const explores = await adapter.compileAllExplores(undefined, true);
         expect(getInstallationToken).toHaveBeenCalledWith('123');
         expect(clone).toHaveBeenCalledWith(
@@ -111,7 +113,7 @@ describe('native GitHub server compilation', () => {
         ]);
         expect(env).toHaveBeenCalledWith(
             'GIT_CONFIG_GLOBAL',
-            expect.stringContaining('github_credentials_'),
+            expect.stringContaining('git_credentials_'),
         );
         catalog.mockRestore();
     });
@@ -150,5 +152,70 @@ describe('native GitHub server compilation', () => {
             createAdapter({ ...connection, project_sub_path: '../outside' }),
         ).rejects.toThrow('within the Git repository');
         expect(clone).not.toHaveBeenCalled();
+    });
+    const bitbucketConnection = {
+        type: DbtProjectType.BITBUCKET as const,
+        semanticLayer: 'lightdash' as const,
+        username: 'demo-user',
+        personal_access_token: 'test-bitbucket-token',
+        repository: 'org/native',
+        branch: 'main',
+        project_sub_path: 'analytics',
+    };
+
+    it('compiles and refreshes native Bitbucket files without dbt, preserving nested filenames', async () => {
+        const adapter = await createAdapter(bitbucketConnection);
+        adapters.push(adapter);
+        const explores = await adapter.compileAllExplores(undefined);
+        expect(adapter).toBeInstanceOf(NativeGitProjectAdapter);
+        expect(clone).toHaveBeenCalledWith(
+            'https://bitbucket.org/org/native.git',
+            expect.any(String),
+            expect.objectContaining({ '--branch': 'main' }),
+        );
+        expect(explores[0]?.tables?.orders.ymlPath).toBe(
+            'models/nested/sales.yaml',
+        );
+        expect(DbtCliClient).not.toHaveBeenCalled();
+        pull.mockResolvedValue({});
+        await fs.writeFile(
+            path.join(adapter.dbtProjectDir!, 'models/nested/sales.yaml'),
+            modelYaml.replace('sql: id', 'sql: order_id'),
+        );
+        const refreshed = await adapter.compileAllExplores(undefined);
+        expect(refreshed[0]?.tables?.orders.dimensions.id.sql).toBe('order_id');
+    });
+
+    it('rejects native Bitbucket Server before cloning', async () => {
+        await expect(
+            createAdapter({
+                ...bitbucketConnection,
+                host_domain: 'bitbucket.example.com',
+            }),
+        ).rejects.toThrow('Bitbucket Cloud');
+        expect(clone).not.toHaveBeenCalled();
+    });
+
+    it('keeps existing Bitbucket connections on dbt', async () => {
+        const adapter = await createAdapter({
+            ...bitbucketConnection,
+            semanticLayer: undefined,
+        });
+        adapters.push(adapter);
+        expect(adapter).toBeInstanceOf(DbtBitBucketProjectAdapter);
+    });
+
+    it('rejects invalid native Bitbucket refreshes before exposing a stream', async () => {
+        const adapter = await createAdapter(bitbucketConnection);
+        adapters.push(adapter);
+        await adapter.compileAllExplores(undefined);
+        pull.mockResolvedValue({});
+        await fs.writeFile(
+            path.join(adapter.dbtProjectDir!, 'models/broken.yml'),
+            'type: model\nname: broken\n',
+        );
+        await expect(
+            adapter.prepareExploreStream(undefined, false, true),
+        ).rejects.toThrow('broken');
     });
 });

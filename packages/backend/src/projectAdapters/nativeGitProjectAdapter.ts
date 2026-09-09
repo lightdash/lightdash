@@ -1,5 +1,6 @@
 import {
     compileLightdashModels,
+    DbtProjectType,
     DEFAULT_SPOTLIGHT_CONFIG,
     isExploreError,
     loadLightdashProjectConfig,
@@ -19,15 +20,19 @@ import os from 'os';
 import path from 'path';
 import simpleGit from 'simple-git';
 import {
-    createGithubGitCredentialFiles,
+    createGitCredentialFiles,
     type GitCredentialFiles,
 } from '../dbt/gitCredentials';
 import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import { type ProjectAdapter, type TrackingParams } from '../types';
-import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
+import {
+    DEFAULT_BITBUCKET_HOST_DOMAIN,
+    DEFAULT_GITHUB_HOST_DOMAIN,
+    normalizeCredentialHost,
+} from '../utils/credentialDestination';
 import { GitRepository } from './gitRepository';
 
-export class NativeGithubProjectAdapter implements ProjectAdapter {
+export class NativeGitProjectAdapter implements ProjectAdapter {
     readonly dbtProjectDir: string;
 
     private readonly localRepositoryDir: string;
@@ -45,6 +50,8 @@ export class NativeGithubProjectAdapter implements ProjectAdapter {
         branch,
         projectSubPath,
         hostDomain,
+        provider,
+        username,
     }: {
         warehouseClient: WarehouseClient;
         token: string;
@@ -52,17 +59,41 @@ export class NativeGithubProjectAdapter implements ProjectAdapter {
         branch: string;
         projectSubPath: string;
         hostDomain?: string;
+        provider: DbtProjectType.GITHUB | DbtProjectType.BITBUCKET;
+        username?: string;
     }) {
-        const [valid, error] = validateGithubToken(token);
-        if (!valid) throw new ParameterError(error);
+        if (provider === DbtProjectType.GITHUB) {
+            const [valid, error] = validateGithubToken(token);
+            if (!valid) {
+                throw new ParameterError(error);
+            }
+        } else if (
+            normalizeCredentialHost(
+                hostDomain || DEFAULT_BITBUCKET_HOST_DOMAIN,
+            ) !== DEFAULT_BITBUCKET_HOST_DOMAIN
+        ) {
+            throw new ParameterError(
+                'Native Bitbucket projects require Bitbucket Cloud',
+            );
+        }
         const subPath = projectSubPath.replace(/^\/+/, '');
         if (subPath.split('/').includes('..') || subPath.includes('\\')) {
             throw new ParameterError(
                 'Project subdirectory must stay within the Git repository',
             );
         }
-        const host = hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
-        this.credentials = createGithubGitCredentialFiles({ host, token });
+        const host =
+            provider === DbtProjectType.BITBUCKET
+                ? DEFAULT_BITBUCKET_HOST_DOMAIN
+                : hostDomain || DEFAULT_GITHUB_HOST_DOMAIN;
+        this.credentials = createGitCredentialFiles({
+            host,
+            token,
+            username:
+                provider === DbtProjectType.BITBUCKET
+                    ? username || 'x-bitbucket-api-token-auth'
+                    : 'lightdash',
+        });
         this.localRepositoryDir = fs.mkdtempSync(
             path.join(os.tmpdir(), 'native_git_'),
         );
