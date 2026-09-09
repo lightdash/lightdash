@@ -3,7 +3,7 @@ import {
     type DashboardCustomMetricAffectedChart,
     type SavedChart,
 } from '@lightdash/common';
-import { Button, Group, Text } from '@mantine/core';
+import { Anchor, Button, Group, Text } from '@mantine/core';
 import { IconAlertTriangle, IconChartBar } from '@tabler/icons-react';
 import {
     useCallback,
@@ -294,7 +294,24 @@ const DashboardChartEditorModal: FC<Props> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={editChart ? 'Edit chart' : 'New chart'}
+            title={
+                <Group gap={6} wrap="nowrap">
+                    <Anchor
+                        c="dimmed"
+                        fw={500}
+                        underline="hover"
+                        onClick={handleClose}
+                    >
+                        {dashboardName}
+                    </Anchor>
+                    <Text c="dimmed" fw={500}>
+                        /
+                    </Text>
+                    <Text fw={600}>
+                        {editChart ? 'Edit chart' : 'New chart'}
+                    </Text>
+                </Group>
+            }
             icon={IconChartBar}
             fullScreen
             cancelLabel={false}
