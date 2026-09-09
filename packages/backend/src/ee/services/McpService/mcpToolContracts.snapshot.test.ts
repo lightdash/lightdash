@@ -423,10 +423,12 @@ describe('MCP tool contracts', () => {
                 ].some((toolName) => toolName === name),
             );
             expect(queryTools).toHaveLength(3);
-            for (const { config } of queryTools) {
-                expect(config.description).toContain(
-                    'follow the polling instructions in the response',
-                );
+            for (const { name, config } of queryTools) {
+                expect(
+                    config.description.includes(
+                        'follow the polling instructions in the response',
+                    ),
+                ).toBe(name !== McpToolName.GET_QUERY_RESULT);
                 expect(config.description).not.toContain(
                     'retry get_query_result',
                 );

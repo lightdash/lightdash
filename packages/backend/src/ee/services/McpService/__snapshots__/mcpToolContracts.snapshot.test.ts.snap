@@ -10493,7 +10493,6 @@ Notes:
       "description": "Poll for the result of a long-running MCP query started by a query tool such as run_metric_query.
 
 Use this tool when a query tool returns a running result. Clients with structured output see this as structuredContent.result.status = "running"; text-only clients should extract the queryUuid from the content text.
-For running queries, follow the polling instructions in the response.
 For completed run_metric_query results, If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after get_query_result returns done. render_chart currently supports completed run_metric_query results.
 
 Parameters:
