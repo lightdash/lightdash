@@ -18,7 +18,7 @@ import {
     Text,
     useMantineColorScheme,
 } from '@mantine/core';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
     useAppSelector,
     useAppDispatch as useVizDispatch,
@@ -132,24 +132,30 @@ export const CartesianChartSeries = ({
         currentConfig?.display?.seriesOrder,
         groupedSeries,
     ]);
-    const setGroupOrder = (order: string[]) =>
-        dispatch(
-            actions.setSeriesOrder(
-                order.flatMap((reference) =>
-                    groupedSeries[reference].map((s) => s.reference),
+    const setGroupOrder = useCallback(
+        (order: string[]) =>
+            dispatch(
+                actions.setSeriesOrder(
+                    order.flatMap((reference) =>
+                        groupedSeries[reference].map((s) => s.reference),
+                    ),
                 ),
             ),
-        );
-    const setGroupSeriesOrder = (reference: string, order: string[]) =>
-        dispatch(
-            actions.setSeriesOrder(
-                seriesGroups.flatMap((group) =>
-                    group.reference === reference
-                        ? order
-                        : group.series.map((s) => s.reference),
+        [dispatch, actions, groupedSeries],
+    );
+    const setGroupSeriesOrder = useCallback(
+        (reference: string, order: string[]) =>
+            dispatch(
+                actions.setSeriesOrder(
+                    seriesGroups.flatMap((group) =>
+                        group.reference === reference
+                            ? order
+                            : group.series.map((s) => s.reference),
+                    ),
                 ),
             ),
-        );
+        [dispatch, actions, seriesGroups],
+    );
 
     // If any of the series in the groupedSeries have more than one value, then we can stack
     const canStack = useMemo(() => {
@@ -165,78 +171,101 @@ export const CartesianChartSeries = ({
         );
     }, [currentConfig?.fieldConfig?.groupBy]);
 
-    const onColorChange = (reference: string, color: string) => {
-        dispatch(
-            actions.setSeriesColor({
-                reference: reference,
-                color,
-            }),
-        );
-    };
+    const onColorChange = useCallback(
+        (reference: string, color: string) => {
+            dispatch(
+                actions.setSeriesColor({
+                    reference: reference,
+                    color,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
 
-    const handleLabelChange = (reference: string, label: string) => {
-        dispatch(
-            actions.setSeriesLabel({
-                label,
-                reference,
-            }),
-        );
-    };
+    const handleLabelChange = useCallback(
+        (reference: string, label: string) => {
+            dispatch(
+                actions.setSeriesLabel({
+                    label,
+                    reference,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
 
-    const handleTypeChange = (
-        reference: string,
-        type: NonNullable<CartesianChartDisplay['series']>[number]['type'],
-    ) => {
-        dispatch(
-            actions.setSeriesChartType({
-                type,
-                reference,
-            }),
-        );
-    };
+    const handleTypeChange = useCallback(
+        (
+            reference: string,
+            type: NonNullable<CartesianChartDisplay['series']>[number]['type'],
+        ) => {
+            dispatch(
+                actions.setSeriesChartType({
+                    type,
+                    reference,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
 
-    const handleAxisChange = (reference: string, value: AxisSide) => {
-        dispatch(
-            actions.setSeriesYAxis({
-                whichYAxis: value,
-                reference,
-            }),
-        );
-    };
+    const handleAxisChange = useCallback(
+        (reference: string, value: AxisSide) => {
+            dispatch(
+                actions.setSeriesYAxis({
+                    whichYAxis: value,
+                    reference,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
 
-    const handleValueLabelPositionChange = (
-        reference: string,
-        position: ValueLabelPositionOptions,
-    ) => {
-        dispatch(
-            actions.setSeriesValueLabelPosition({
-                valueLabelPosition: position,
-                reference,
-            }),
-        );
-    };
+    const handleValueLabelPositionChange = useCallback(
+        (reference: string, position: ValueLabelPositionOptions) => {
+            dispatch(
+                actions.setSeriesValueLabelPosition({
+                    valueLabelPosition: position,
+                    reference,
+                }),
+            );
+        },
+        [dispatch, actions],
+    );
 
-    const renderSeries = (
-        series: ConfigurableSeries,
-        dragHandleProps?: DraggableProvidedDragHandleProps | null,
-        drawOrder?: SeriesDrawOrderControl,
-    ) => (
-        <SingleSeriesConfiguration
-            key={series.reference}
-            {...series}
-            color={series.color}
-            type={series.type}
-            valueLabelPosition={series.valueLabelPosition}
-            colors={colors}
-            selectedChartType={selectedChartType}
-            onColorChange={onColorChange}
-            onLabelChange={handleLabelChange}
-            onTypeChange={handleTypeChange}
-            onAxisChange={handleAxisChange}
-            onValueLabelPositionChange={handleValueLabelPositionChange}
-            dragHandleProps={dragHandleProps}
-            drawOrder={drawOrder}
-        />
+    const renderSeries = useCallback(
+        (
+            series: ConfigurableSeries,
+            dragHandleProps?: DraggableProvidedDragHandleProps | null,
+            drawOrder?: SeriesDrawOrderControl,
+        ) => (
+            <SingleSeriesConfiguration
+                key={series.reference}
+                {...series}
+                color={series.color}
+                type={series.type}
+                valueLabelPosition={series.valueLabelPosition}
+                colors={colors}
+                selectedChartType={selectedChartType}
+                onColorChange={onColorChange}
+                onLabelChange={handleLabelChange}
+                onTypeChange={handleTypeChange}
+                onAxisChange={handleAxisChange}
+                onValueLabelPositionChange={handleValueLabelPositionChange}
+                dragHandleProps={dragHandleProps}
+                drawOrder={drawOrder}
+            />
+        ),
+        [
+            colors,
+            selectedChartType,
+            onColorChange,
+            handleLabelChange,
+            handleTypeChange,
+            handleAxisChange,
+            handleValueLabelPositionChange,
+        ],
     );
 
     return (
