@@ -1,4 +1,9 @@
 import { parseAllReferences } from '../../compiler/exploreCompiler';
+import {
+    findTablesWithMetricInflation,
+    getJoinedTables,
+    isInflationProofMetric,
+} from '../../compiler/joinInflation';
 import { getReferencedDimension } from '../../compiler/referenceLookup';
 import type { Explore } from '../../types/explore';
 import {
@@ -875,6 +880,7 @@ const missCloseness: Record<PreAggregateMissReason, number> = {
     [PreAggregateMissReason.METRIC_NOT_IN_PRE_AGGREGATE]: 0,
     [PreAggregateMissReason.NON_ADDITIVE_METRIC]: 1,
     [PreAggregateMissReason.NON_ADDITIVE_METRIC_REQUIRES_EXACT_MATCH]: 1,
+    [PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH]: 1,
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]: 2,
     [PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE]: 2,
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]: 3,
@@ -886,6 +892,76 @@ const missCloseness: Record<PreAggregateMissReason, number> = {
 
 const isRawTimeInterval = (timeInterval: TimeFrames | undefined): boolean =>
     !timeInterval || timeInterval === TimeFrames.RAW;
+
+/**
+ * Tables whose metrics the materialisation computes through the primary-key
+ * deduplication CTE. The materialisation joins every table its fields
+ * reference; a metric on the "one" side of a one-to-many join among them is
+ * right at the definition's own grain but can't be summed across the "many"
+ * side's dimensions, so it must be served on an exact match only.
+ */
+const getDeduplicatedMetricTables = ({
+    explore,
+    defDimensions,
+    defMetrics,
+    dimensionsByFieldId,
+    metricsByFieldId,
+}: {
+    explore: Explore;
+    defDimensions: ReadonlySet<string>;
+    defMetrics: ReadonlySet<string>;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+    metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
+}): ReadonlySet<string> => {
+    const referencedTables = new Set<string>([explore.baseTable]);
+    const addFieldTables = (field: {
+        table: string;
+        tablesReferences?: string[];
+    }) =>
+        (field.tablesReferences?.length
+            ? field.tablesReferences
+            : [field.table]
+        ).forEach((table) => referencedTables.add(table));
+    dimensionsByFieldId.forEach((dimension) => {
+        if (
+            getDimensionReferences({
+                dimension,
+                baseTable: explore.baseTable,
+            }).some((reference) => defDimensions.has(reference))
+        ) {
+            addFieldTables(dimension);
+        }
+    });
+    Object.values(metricsByFieldId).forEach((metric) => {
+        if (
+            getMetricReferences({
+                metric,
+                baseTable: explore.baseTable,
+            }).some((reference) => defMetrics.has(reference))
+        ) {
+            addFieldTables(metric);
+        }
+    });
+    const joinedTables = new Set([
+        ...referencedTables,
+        ...getJoinedTables(explore, Array.from(referencedTables)),
+    ]);
+    try {
+        return findTablesWithMetricInflation({
+            baseTable: explore.baseTable,
+            joinedTables,
+            possibleJoins: explore.joinedTables,
+            tables: explore.tables,
+        }).tablesWithMetricInflation;
+    } catch {
+        // A join the explore can't describe: fall back to treating every
+        // metric as re-aggregable, the behaviour before this check existed.
+        return new Set();
+    }
+};
 
 // Exact match (see docs/pre-aggregates/CONTEXT.md): selected dimensions
 // set-equal to the definition's, time dimension at exactly its granularity.
@@ -1147,6 +1223,25 @@ const getMissForDef = ({
     };
 
     const defMetrics = new Set(preAggregateDef.metrics);
+    let deduplicatedMetricTables: ReadonlySet<string> | null = null;
+    const isDeduplicatedMetric = (metric: {
+        table: string;
+        type: MetricType;
+    }): boolean => {
+        if (isInflationProofMetric(metric.type)) {
+            return false;
+        }
+        if (deduplicatedMetricTables === null) {
+            deduplicatedMetricTables = getDeduplicatedMetricTables({
+                explore,
+                defDimensions,
+                defMetrics,
+                dimensionsByFieldId,
+                metricsByFieldId,
+            });
+        }
+        return deduplicatedMetricTables.has(metric.table);
+    };
     for (const metricFieldId of metricQuery.metrics) {
         const metric = metricsByFieldId[metricFieldId];
         if (!metric) {
@@ -1175,6 +1270,12 @@ const getMissForDef = ({
         switch (representation.kind) {
             case PreAggregateMetricRepresentationKind.DIRECT:
             case PreAggregateMetricRepresentationKind.DECOMPOSED:
+                if (isDeduplicatedMetric(metric) && !isExactMatch()) {
+                    return {
+                        reason: PreAggregateMissReason.DEDUPLICATED_METRIC_REQUIRES_EXACT_MATCH,
+                        fieldId: metricFieldId,
+                    };
+                }
                 break;
             case PreAggregateMetricRepresentationKind.EXACT_ONLY:
                 if (!isExactMatch()) {
