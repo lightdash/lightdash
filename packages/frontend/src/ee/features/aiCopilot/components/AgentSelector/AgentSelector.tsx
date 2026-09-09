@@ -39,6 +39,21 @@ type Props = {
     compact?: boolean;
 };
 
+// Only the named playground agent is the action target for this walkthrough.
+// Selecting it opens its landing page without submitting a question.
+const viewAgentTourProps = {
+    'data-tour-scope': 'view:AiAgent',
+    'data-tour-step': '2',
+    'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
+    'data-tour-label': 'Choose Jaffle analyst',
+    'data-tour-title': 'Explore an AI agent',
+    'data-tour-docs':
+        'agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1',
+    'data-tour-interactive': 'true',
+    'data-tour-via':
+        '[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"]',
+};
+
 const AUTO_VALUE = '__auto__';
 const DROPDOWN_MIN_WIDTH = 260;
 
@@ -170,6 +185,9 @@ export const AgentSelector = ({
                 <Combobox.Options>
                     {agentOptions.map((item) => (
                         <Combobox.Option
+                            {...(item.label === 'Jaffle analyst'
+                                ? viewAgentTourProps
+                                : {})}
                             value={item.value}
                             key={item.value}
                             p={2}

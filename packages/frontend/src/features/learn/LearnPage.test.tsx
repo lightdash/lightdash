@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
-import { buildLearnCatalogue } from './catalogue';
+import { buildLearnCatalogue, moduleProgressKey } from './catalogue';
 import LearnPage from './LearnPage';
 
 const { track, projectState, learnFlagState, availabilityState, accessState } =
@@ -20,6 +20,7 @@ const { track, projectState, learnFlagState, availabilityState, accessState } =
 
 vi.mock('react-router', () => ({
     Navigate: () => null,
+    useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 vi.mock('../../providers/Tracking/useTracking', () => ({
@@ -120,11 +121,14 @@ describe('LearnPage analytics', () => {
     it('records one view per mount, with the progress the learner is looking at', () => {
         localStorage.setItem(
             'lightdash.learn.started',
-            JSON.stringify([scopes[0], scopes[1]]),
+            JSON.stringify([
+                moduleProgressKey(catalogue[0]),
+                moduleProgressKey(catalogue[1]),
+            ]),
         );
         localStorage.setItem(
             'lightdash.learn.completed',
-            JSON.stringify([scopes[0]]),
+            JSON.stringify([moduleProgressKey(catalogue[0])]),
         );
 
         const { rerender } = renderPage();
@@ -152,7 +156,10 @@ describe('LearnPage analytics', () => {
     it('counts only the scopes this instance has modules for', () => {
         localStorage.setItem(
             'lightdash.learn.completed',
-            JSON.stringify([scopes[0], 'manage:SomethingRetired']),
+            JSON.stringify([
+                moduleProgressKey(catalogue[0]),
+                'manage:SomethingRetired',
+            ]),
         );
 
         renderPage();

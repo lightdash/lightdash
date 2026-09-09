@@ -24,7 +24,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate } from 'react-router';
+import { Navigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
@@ -42,34 +42,40 @@ import {
     GROUP_LABELS,
     GROUP_ORDER,
     holds,
+    moduleProgressKey,
     sortForLearner,
     type LearnGroup,
     type LearnModule,
 } from './catalogue';
+import { conceptProgressKey } from './conceptLesson';
+import { ConceptLessonModal } from './ConceptLessonModal';
+import { CONCEPT_LESSONS } from './conceptLessons.generated';
 import { EnableLearnPanel } from './EnableLearnPanel';
 import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
-import { useLearnProgress } from './progress';
+import {
+    markScopeCompleted,
+    markScopeStarted,
+    useLearnProgress,
+} from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
-type CardState = 'soon' | 'ready' | 'started' | 'done';
+type CardState = 'ready' | 'started' | 'done';
 
 const stateOf = (
     module: LearnModule,
     started: string[],
     completed: string[],
 ): CardState =>
-    !module.available
-        ? 'soon'
-        : completed.includes(module.scope)
-          ? 'done'
-          : started.includes(module.scope)
-            ? 'started'
-            : 'ready';
+    completed.includes(moduleProgressKey(module))
+        ? 'done'
+        : started.includes(moduleProgressKey(module))
+          ? 'started'
+          : 'ready';
 
 const ModuleCard: FC<{
     module: LearnModule;
@@ -84,7 +90,7 @@ const ModuleCard: FC<{
     return (
         <Box
             component="article"
-            className={`${styles.card} ${state === 'soon' ? styles.cardSoon : ''}`}
+            className={styles.card}
             data-learn-module={module.scope}
             data-learn-state={state === 'started' ? 'ready' : state}
         >
@@ -108,32 +114,38 @@ const ModuleCard: FC<{
             )}
             <Box className={styles.foot}>
                 <Box className={styles.footStatus}>
-                    {state === 'soon' ? (
-                        <span>Coming soon</span>
-                    ) : state === 'done' ? (
+                    {state === 'done' ? (
                         <span className={styles.done}>
                             <MantineIcon icon={IconCircleCheck} size={14} />
-                            Complete
+                            {module.format === 'concept'
+                                ? 'Concept lesson · Read'
+                                : 'Complete'}
                         </span>
                     ) : (
-                        <span>{module.stepCount} steps</span>
+                        <span>
+                            {module.format === 'concept'
+                                ? 'Concept lesson'
+                                : `${module.stepCount} steps`}
+                        </span>
                     )}
                     {note && <span>{note}</span>}
                 </Box>
-                {state !== 'soon' && (
-                    <Button
-                        size="compact-sm"
-                        variant="default"
-                        loading={opening}
-                        onClick={() => onStart(module.scope)}
-                    >
-                        {state === 'done'
-                            ? 'Start again'
-                            : state === 'started'
-                              ? 'Resume'
-                              : 'Start'}
-                    </Button>
-                )}
+                <Button
+                    size="compact-sm"
+                    variant="default"
+                    loading={opening}
+                    onClick={() => onStart(module.scope)}
+                >
+                    {state === 'done'
+                        ? module.format === 'concept'
+                            ? 'Read again'
+                            : 'Start again'
+                        : state === 'started'
+                          ? 'Resume'
+                          : module.format === 'concept'
+                            ? 'Read lesson'
+                            : 'Start'}
+                </Button>
             </Box>
         </Box>
     );
@@ -147,6 +159,7 @@ const ModuleCard: FC<{
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { data: learnFlag, isLoading: isLearnFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
@@ -208,6 +221,24 @@ const LearnPage: FC = () => {
         [isOpen],
     );
     const { completed, started, lastStarted } = useLearnProgress();
+    const lessonScope = searchParams.get('lesson');
+    const concept =
+        lessonScope &&
+        catalogue.some(
+            (module) =>
+                module.scope === lessonScope && module.format === 'concept',
+        )
+            ? CONCEPT_LESSONS[lessonScope]
+            : null;
+    const closeLesson = () => {
+        const next = new URLSearchParams(searchParams);
+        next.delete('lesson');
+        setSearchParams(next);
+    };
+    useEffect(() => {
+        if (learnFlag?.enabled && trainingProject && concept && lessonScope)
+            markScopeStarted(conceptProgressKey(lessonScope));
+    }, [concept, lessonScope, learnFlag?.enabled, trainingProject]);
     // What the learner can do, anywhere: their organization role, any
     // organization-level custom roles, and every project role they hold. The
     // library is that; everything else waits behind the Extra modules
@@ -215,7 +246,6 @@ const LearnPage: FC = () => {
     const { held } = useLearnAccess();
     const [query, setQuery] = useState('');
     const [showExtra, setShowExtra] = useState(false);
-    const [showSoon, setShowSoon] = useState(true);
     // One group tab, or All.
     const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
@@ -224,12 +254,11 @@ const LearnPage: FC = () => {
         return sortForLearner(held, catalogue).filter(
             (module) =>
                 (showExtra || holds(held, module)) &&
-                (showSoon || module.available) &&
                 (needle === '' ||
                     module.title.toLowerCase().includes(needle) ||
                     module.scope.toLowerCase().includes(needle)),
         );
-    }, [catalogue, held, showExtra, showSoon, query]);
+    }, [catalogue, held, showExtra, query]);
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
@@ -241,7 +270,7 @@ const LearnPage: FC = () => {
             : groups.filter((group) => group === groupFilter);
     const available = catalogue.filter((m) => m.available);
     const doneCount = available.filter((m) =>
-        completed.includes(m.scope),
+        completed.includes(moduleProgressKey(m)),
     ).length;
     // Training exists to teach what a learner cannot yet do, so the
     // recommendation is the first unfinished walkthrough, held-by-role ones
@@ -291,10 +320,10 @@ const LearnPage: FC = () => {
                 // browser has ever recorded progress for.
                 moduleCount: catalogue.length,
                 startedCount: catalogue.filter((module) =>
-                    started.includes(module.scope),
+                    started.includes(moduleProgressKey(module)),
                 ).length,
                 completedCount: catalogue.filter((module) =>
-                    completed.includes(module.scope),
+                    completed.includes(moduleProgressKey(module)),
                 ).length,
             },
         });
@@ -341,6 +370,19 @@ const LearnPage: FC = () => {
 
     return (
         <Box className={styles.shell}>
+            {concept && lessonScope && (
+                <ConceptLessonModal
+                    lesson={concept}
+                    completed={completed.includes(
+                        conceptProgressKey(lessonScope),
+                    )}
+                    onClose={closeLesson}
+                    onComplete={() => {
+                        markScopeCompleted(conceptProgressKey(lessonScope));
+                        closeLesson();
+                    }}
+                />
+            )}
             <Box className={styles.main}>
                 <Box component="header" className={styles.homeHead}>
                     <h1 className={styles.greeting}>
@@ -388,7 +430,11 @@ const LearnPage: FC = () => {
                                 <h3>{upNext.title}</h3>
                                 <p>{upNext.blurb}</p>
                                 <Box className={styles.heroFoot}>
-                                    <span>{upNext.stepCount} steps</span>
+                                    <span>
+                                        {upNext.format === 'concept'
+                                            ? 'Concept lesson'
+                                            : `${upNext.stepCount} steps`}
+                                    </span>
                                     <Button
                                         variant="filled"
                                         color="indigo"
@@ -403,7 +449,9 @@ const LearnPage: FC = () => {
                                             )
                                         }
                                     >
-                                        Start
+                                        {upNext.format === 'concept'
+                                            ? 'Read lesson'
+                                            : 'Start'}
                                     </Button>
                                 </Box>
                             </Box>
@@ -467,9 +515,7 @@ const LearnPage: FC = () => {
                                 <UnstyledButton
                                     type="button"
                                     className={`${styles.iconButton} ${
-                                        !showExtra || !showSoon
-                                            ? styles.iconButtonOn
-                                            : ''
+                                        !showExtra ? styles.iconButtonOn : ''
                                     }`}
                                     aria-label="Filter"
                                     aria-haspopup="menu"
@@ -495,21 +541,6 @@ const LearnPage: FC = () => {
                                 aria-label="Show extra modules"
                             >
                                 Extra modules
-                            </Menu.Item>
-                            <Menu.Item
-                                onClick={() => setShowSoon(!showSoon)}
-                                rightSection={
-                                    showSoon ? (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={13}
-                                        />
-                                    ) : null
-                                }
-                                aria-checked={showSoon}
-                                aria-label="Coming soon"
-                            >
-                                Coming soon
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>

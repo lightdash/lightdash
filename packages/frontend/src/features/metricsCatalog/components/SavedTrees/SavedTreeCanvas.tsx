@@ -404,6 +404,11 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                             required
                             variant="subtle"
                             placeholder="Tree name"
+                            data-tour-anchor="tree-name"
+                            data-tour-hint="Name your tree"
+                            data-tour-input="true"
+                            data-tour-suggest="Completed orders drivers"
+                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li1"
                             value={treeName}
                             onChange={(e) => setTreeName(e.currentTarget.value)}
                             size="sm"
@@ -422,6 +427,14 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         </Button>
                         <Button
                             size="compact-sm"
+                            data-tour-scope="manage:MetricsTree"
+                            data-tour-step="2"
+                            data-tour-title="Build a saved metrics tree"
+                            data-tour-label="Save the tree"
+                            data-tour-route="/projects/:projectUuid/metrics/canvas"
+                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li6"
+                            data-tour-interactive="true"
+                            data-tour-via='[data-tour-nav="metrics"] >> [data-tour-anchor="metrics-canvas"] >> [data-tour-anchor="tree-new"] >> [data-tour-anchor="tree-name"] >> [data-tour-anchor="metrics-search"] >> [data-tour-anchor="tree-add-metric"][data-tour-value="Total completed order amount"] >> [data-tour-anchor="tree-add-drivers"]'
                             onClick={handleSave}
                             disabled={!treeName.trim() || !hasNodes}
                             loading={isCreating || isUpdating}
@@ -588,12 +601,32 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         )}
                     </Group>
                 </Group>
-                <Box className={classes.canvasContainer}>
-                    <SavedTreeCanvasFlow
-                        metrics={treeDetails.nodes}
-                        edges={treeDetails.edges}
-                        viewOnly
-                    />
+                <Box
+                    className={classes.canvasContainer}
+                    data-tour-scope="manage:MetricsTree"
+                    data-tour-step="1"
+                    data-tour-label="Build a saved metrics tree"
+                    data-tour-route="/projects/:projectUuid/metrics/canvas/:treeSlug"
+                    data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:1-2"
+                    data-tour-resultdocs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:1"
+                    data-tour-return="none"
+                >
+                    <Box
+                        h="100%"
+                        data-tour-scope="view:MetricsTree"
+                        data-tour-step="1"
+                        data-tour-label="View a saved metrics tree"
+                        data-tour-route="/projects/:projectUuid/metrics/canvas/:treeSlug"
+                        data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:1-2"
+                        data-tour-resultdocs="explore/metrics-catalog/drivers.mdx#how-drivers-appear-on-the-canvas:1"
+                        data-tour-return="none"
+                    >
+                        <SavedTreeCanvasFlow
+                            metrics={treeDetails.nodes}
+                            edges={treeDetails.edges}
+                            viewOnly
+                        />
+                    </Box>
                 </Box>
                 <MantineModal
                     opened={isDeleteModalOpen}

@@ -3,7 +3,11 @@ import { type FC, useMemo } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { SCOPE_TOURS } from '../scopeTours/generated';
 import { useLearnAvailability } from './availability';
-import { buildLearnCatalogue, focusModules } from './catalogue';
+import {
+    buildLearnCatalogue,
+    focusModules,
+    moduleProgressKey,
+} from './catalogue';
 import styles from './Learn.module.css';
 import { useLearnProgress } from './progress';
 import { useLearnAccess } from './useLearnAccess';
@@ -49,7 +53,7 @@ export const LearnDoneModal: FC<Props> = ({
         ? completed
         : [...completed, scope];
     const doneCount = available.filter((m) =>
-        completedHere.includes(m.scope),
+        completedHere.includes(moduleProgressKey(m)),
     ).length;
     const { resume, recommended } = focusModules(
         held,

@@ -4,13 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { useStartWalkthrough } from './useStartWalkthrough';
 
-const { track, openInCopy } = vi.hoisted(() => ({
+const { track, openInCopy, navigate } = vi.hoisted(() => ({
     track: vi.fn(),
+    navigate: vi.fn(),
     openInCopy: vi.fn(),
 }));
 
 vi.mock('react-router', () => ({
-    useNavigate: () => vi.fn(),
+    useNavigate: () => navigate,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -34,8 +35,25 @@ vi.mock('../scopeTours/trainingCopy', () => ({
 describe('useStartWalkthrough', () => {
     beforeEach(() => {
         localStorage.clear();
+        sessionStorage.clear();
+        navigate.mockClear();
         track.mockClear();
         openInCopy.mockClear();
+    });
+
+    it('opens a concept reader without a training copy or walkthrough completion', () => {
+        sessionStorage.setItem('lightdash.learn.origin', 'origin-1');
+        const { result } = renderHook(() => useStartWalkthrough('training-1'));
+        act(() => result.current.start('view:Analytics', 'card'));
+        expect(navigate).toHaveBeenCalledWith(
+            '/projects/origin-1/learn?lesson=view%3AAnalytics',
+        );
+        expect(openInCopy).not.toHaveBeenCalled();
+        expect(track).not.toHaveBeenCalled();
+        expect(localStorage.getItem('lightdash.learn.completed')).toBeNull();
+        expect(localStorage.getItem('lightdash.learn.started')).toBe(
+            JSON.stringify(['concept:view:Analytics']),
+        );
     });
 
     it('records the start, where it came from, and opens the copy', () => {

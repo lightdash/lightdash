@@ -1,0 +1,25 @@
+/* Keep the scroll area's intrinsic sizing from widening the whole lesson. */
+.modal :global(.mantine-ScrollArea-content) {
+    min-width: 0;
+    width: 100%;
+}
+
+.content,
+.markdown {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.markdown table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.markdown pre {
+    max-width: 100%;
+    overflow-x: auto;
+}

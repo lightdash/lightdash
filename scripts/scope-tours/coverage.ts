@@ -1,6 +1,7 @@
 import { getTrainingProjectScopes } from '@lightdash/common';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CONCEPT_LESSONS } from '../../packages/frontend/src/features/learn/conceptLessons.generated';
 import { SCOPE_TOURS } from '../../packages/frontend/src/features/scopeTours/generated';
 
 export type ScopeDisposition = {
@@ -10,58 +11,21 @@ export type ScopeDisposition = {
     tour: string | null;
 };
 
-const pending = (reason: string, ticket = 'CS-212'): ScopeDisposition => ({
-    status: 'pending',
-    reason,
-    ticket,
-    tour: null,
-});
 const excluded = (reason: string, ticket = 'CS-212'): ScopeDisposition => ({
     status: 'excluded',
     reason,
     ticket,
     tour: null,
 });
-const related = (tour: string, reason: string): ScopeDisposition => ({
-    status: 'related',
-    reason,
-    ticket: 'CS-212',
-    tour,
-});
+// Content obligations outside the training role remain read-only lessons.
+// Listing them explicitly prevents a deleted lesson from shrinking the audit.
+export const ADDITIONAL_CONTENT_SCOPES = [
+    'view:Analytics',
+    'view:AiAgentDocument',
+    'manage:AiAgentDocument',
+];
 
 export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
-    'view:AiAgent': related(
-        'create:AiAgentThread',
-        'Grouped with the agent lesson; scope-specific viewing coverage awaits verification.',
-    ),
-    'view:DataApp': related(
-        'create:DataApp',
-        'Grouped with app lessons; scope-specific viewing coverage awaits verification.',
-    ),
-    'view:ContentVerification': related(
-        'manage:ContentVerification',
-        'Grouped with verification; viewing coverage awaits verification.',
-    ),
-    'manage:VerifiedContent': related(
-        'manage:ContentVerification',
-        'Grouped with verification; editing verified content is not yet proved by the lesson.',
-    ),
-    'manage:CustomSql': related(
-        'manage:SqlRunner',
-        'Grouped with SQL Runner; the distinct custom SQL permission needs teaching evidence.',
-    ),
-    'manage:VirtualView': related(
-        'create:VirtualView',
-        'Creating a virtual view does not prove the lesson teaches managing an existing view.',
-    ),
-    'delete:VirtualView': related(
-        'create:VirtualView',
-        'Creating a virtual view does not teach deleting one.',
-    ),
-    'manage:ChangeCsvResults': related(
-        'manage:ExportCsv',
-        'Grouped with CSV export; changing result options needs teaching evidence.',
-    ),
     'view:Project': excluded(
         'Baseline project access has no standalone lesson-sized surface.',
     ),
@@ -80,77 +44,6 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
     'manage:DeletedContent': excluded(
         'No product surface recorded; the associated content ticket is canceled.',
         'CS-222',
-    ),
-    'view:SpotlightTableConfig': pending(
-        'The UI control is not named in docs; documented teaching content is required.',
-        'CS-233',
-    ),
-    'manage:SpotlightTableConfig': pending(
-        'The UI control is not named in docs; documented teaching content is required.',
-        'CS-233',
-    ),
-    'view:ContentAsCode': pending(
-        'CLI/API workflow needs an agreed content format beyond click walkthroughs.',
-    ),
-    'create:ContentAsCode': pending(
-        'CLI/API workflow needs an agreed content format beyond click walkthroughs.',
-    ),
-    'manage:ContentAsCode': pending(
-        'CLI/API workflow needs an agreed content format beyond click walkthroughs.',
-    ),
-    'promote:Dashboard': pending(
-        'Cross-project promotion semantics in a training copy remain unresolved.',
-    ),
-    'promote:SavedChart': pending(
-        'Cross-project promotion semantics in a training copy remain unresolved.',
-    ),
-    'view:MetricsTree': pending(
-        'Metrics tree lesson and supported interaction format remain deferred.',
-        'CS-234',
-    ),
-    'manage:MetricsTree': pending(
-        'Adding metrics requires drag-and-drop or a supported alternative lesson format.',
-        'CS-234',
-    ),
-    'manage:Validation': pending(
-        'Settings access requires excluded update:Project and a tour host outside the current layout.',
-        'CS-231',
-    ),
-    'view:EmbedDashboardFilters': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedDashboardFilterAddition': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedDashboardParameters': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedCsvExport': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedDashboardCsvExport': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedImageExport': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedPagePdfExport': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedDateZoom': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedExplore': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedUnderlyingData': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedDataApps': pending(
-        'Embedded application lesson format requires a curriculum decision.',
-    ),
-    'view:EmbedAiAgent': pending(
-        'Embedded application lesson format requires a curriculum decision.',
     ),
 };
 
@@ -231,8 +124,8 @@ if (
     path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
     const report = auditCoverage(
-        getTrainingProjectScopes(),
-        Object.keys(SCOPE_TOURS),
+        [...getTrainingProjectScopes(), ...ADDITIONAL_CONTENT_SCOPES],
+        [...Object.keys(SCOPE_TOURS), ...Object.keys(CONCEPT_LESSONS)],
         SCOPE_DISPOSITIONS,
         process.argv.includes('--release'),
     );

@@ -1,8 +1,10 @@
 import { getTrainingProjectScopes } from '@lightdash/common';
 import * as assert from 'assert';
+import { CONCEPT_LESSONS } from '../../packages/frontend/src/features/learn/conceptLessons.generated';
 import { SCOPE_TOURS } from '../../packages/frontend/src/features/scopeTours/generated';
 import {
     auditCoverage,
+    ADDITIONAL_CONTENT_SCOPES,
     SCOPE_DISPOSITIONS,
     type ScopeDisposition,
 } from './coverage';
@@ -102,9 +104,10 @@ assert.strictEqual(
 );
 
 const actual = auditCoverage(
-    getTrainingProjectScopes(),
-    Object.keys(SCOPE_TOURS),
+    [...getTrainingProjectScopes(), ...ADDITIONAL_CONTENT_SCOPES],
+    [...Object.keys(SCOPE_TOURS), ...Object.keys(CONCEPT_LESSONS)],
     SCOPE_DISPOSITIONS,
+    true,
 );
 assert.strictEqual(actual.ok, true, JSON.stringify(actual, null, 2));
 assert.strictEqual(actual.unclassified.length, 0);

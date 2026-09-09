@@ -236,6 +236,9 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                     size="xs"
                                     onClick={handleAddDrivers}
                                     aria-label="Add YAML drivers to canvas"
+                                    data-tour-anchor="tree-add-drivers"
+                                    data-tour-hint="Add drivers from YAML"
+                                    data-tour-docs="explore/metrics-catalog/drivers.mdx#how-drivers-appear-on-the-canvas:p2:1"
                                 >
                                     <MantineIcon
                                         icon={IconHierarchy3}

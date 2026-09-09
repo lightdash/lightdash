@@ -365,6 +365,11 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
 
         return (
             <iframe
+                data-tour-scope="view:DataApp"
+                data-tour-look="1"
+                data-tour-after='[data-tour-anchor="app-row"][data-tour-value="Jaffle pulse"]'
+                data-tour-label="Read Jaffle pulse"
+                data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
                 style={{ width: '100%', height: '100%', border: 'none' }}

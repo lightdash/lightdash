@@ -335,6 +335,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                 <Group gap="xs">
                     {/* Search input */}
                     <TextInput
+                        data-tour-anchor="metrics-search"
+                        data-tour-hint="Find Total completed order amount"
+                        data-tour-input="true"
+                        data-tour-suggest="Total completed order amount"
+                        data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#creating-a-saved-tree:li2"
                         size="xs"
                         classNames={{ input: classes.searchInput }}
                         styles={(theme) => ({
@@ -612,7 +617,19 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                         label="Canvas"
                                         position="bottom-end"
                                     >
-                                        <Center>
+                                        <Center
+                                            data-tour-scope="view:MetricsTree"
+                                            data-tour-step="2"
+                                            data-tour-title="View a saved metrics tree"
+                                            data-tour-label="Open Canvas"
+                                            data-tour-route="/projects/:projectUuid/metrics"
+                                            data-tour-interactive="true"
+                                            data-tour-via='[data-tour-nav="metrics"]'
+                                            data-tour-then='[data-tour-anchor="saved-tree"][data-tour-value="Completed orders"]'
+                                            data-tour-anchor="metrics-canvas"
+                                            data-tour-hint="Open Canvas"
+                                            data-tour-docs="explore/metrics-catalog/build-saved-trees.mdx#intro:p3:1"
+                                        >
                                             <MantineIcon
                                                 icon={IconSitemap}
                                                 size="md"

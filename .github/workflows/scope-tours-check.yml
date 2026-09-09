@@ -42,8 +42,14 @@ jobs:
               run: npx tsx scripts/scope-tours/scope-tours.test.ts
             - name: Content coverage tests
               run: pnpm scope-tours:coverage:test
-            - name: Every training permission has a content disposition
-              run: pnpm scope-tours:coverage
+            - name: Every curriculum permission has release content
+              run: pnpm scope-tours:release-check
+            - name: Concept generator tests
+              run: pnpm scope-tours:concepts:test
+            - name: Concept lessons match canonical documentation
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: pnpm scope-tours:concepts:check
             - name: Generated tours are up to date
               env:
                   LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs

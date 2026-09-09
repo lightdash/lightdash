@@ -9,10 +9,14 @@ import useApp from '../../providers/App/useApp';
 import { type LearnStartSource } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { SCOPE_TOURS } from '../scopeTours/generated';
 import {
     createTrainingPreview,
     tourUrlInCopy,
 } from '../scopeTours/trainingCopy';
+import { conceptProgressKey } from './conceptLesson';
+import { CONCEPT_LESSONS } from './conceptLessons.generated';
+import { readLearnOrigin } from './origin';
 import { markScopeStarted, useLearnProgress } from './progress';
 
 /**
@@ -53,6 +57,13 @@ export const useStartWalkthrough = (
     const start = useCallback(
         (scope: string, source: LearnStartSource) => {
             if (!trainingProjectUuid || opening) return;
+            if (CONCEPT_LESSONS[scope] && !SCOPE_TOURS[scope]) {
+                markScopeStarted(conceptProgressKey(scope));
+                void navigate(
+                    `/projects/${readLearnOrigin() ?? trainingProjectUuid}/learn?lesson=${encodeURIComponent(scope)}`,
+                );
+                return;
+            }
             // Recorded together: the local progress the learner sees, and
             // the event that says who started what, and from where.
             markScopeStarted(scope);
@@ -70,6 +81,7 @@ export const useStartWalkthrough = (
         },
         [
             trainingProjectUuid,
+            navigate,
             opening,
             openInCopy,
             track,
