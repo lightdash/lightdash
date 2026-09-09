@@ -199,7 +199,7 @@ describe('AnalyticsModel (PostgreSQL)', () => {
 
     beforeEach(async () => {
         await database.raw(
-            'TRUNCATE analytics_chart_views, analytics_dashboard_views, saved_queries_versions, saved_queries',
+            'TRUNCATE analytics_chart_views, analytics_dashboard_views, saved_queries_versions, saved_queries, project_memberships, group_memberships, project_group_access',
         );
         await table('spaces').update({ deleted_at: null });
         await table('dashboards').update({ deleted_at: null });
@@ -318,6 +318,163 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             numberWeeklyQueryingUsers: 0,
             tableMostQueries: [],
         });
+    });
+
+    it.each(['direct', 'group'] as const)(
+        'does not use %s membership roles from another project',
+        async (membership) => {
+            if (membership === 'direct') {
+                await database.raw(
+                    `INSERT INTO project_memberships
+                     SELECT 2, user_id, 'viewer' FROM users WHERE user_uuid = :spaceViewer`,
+                    { spaceViewer },
+                );
+            } else {
+                const groupUuid = randomUUID();
+                await database.raw(
+                    `INSERT INTO group_memberships
+                     SELECT :groupUuid, user_id FROM users WHERE user_uuid = :spaceViewer`,
+                    { groupUuid, spaceViewer },
+                );
+                await database.raw(
+                    "INSERT INTO project_group_access VALUES (:groupUuid, :otherProjectUuid, 'viewer')",
+                    { groupUuid, otherProjectUuid },
+                );
+            }
+            expect(
+                await model.getUserActivity(projectUuid, organizationUuid),
+            ).toMatchObject({
+                numberUsers: 3,
+                numberAdmins: 3,
+                numberViewers: 0,
+            });
+        },
+    );
+
+    it.each(['dashboard', 'space'] as const)(
+        'excludes activity with a deleted owning %s throughout User Activity',
+        async (owner) => {
+            await table('analytics_dashboard_views').insert({
+                dashboard_uuid: dashboardUuid,
+                user_uuid: dashboardViewer,
+                timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+            });
+            if (owner === 'dashboard') {
+                await table('dashboards')
+                    .where('dashboard_uuid', dashboardUuid)
+                    .update({ deleted_at: new Date() });
+            } else {
+                await table('spaces')
+                    .where('space_id', 1)
+                    .update({ deleted_at: new Date() });
+            }
+            const activity = await model.getUserActivity(
+                projectUuid,
+                organizationUuid,
+            );
+            const expectedUsers = owner === 'dashboard' ? [spaceViewer] : [];
+            expect(activity.numberWeeklyQueryingUsers).toBe(
+                owner === 'dashboard' ? 33 : 0,
+            );
+            expect(
+                activity.tableMostQueries.map(({ userUuid }) => userUuid),
+            ).toEqual(expectedUsers);
+            expect(
+                activity.tableMostCreatedCharts.map(({ userUuid }) => userUuid),
+            ).toEqual(expectedUsers);
+            expect(activity.chartViews.map(({ uuid }) => uuid)).toEqual(
+                owner === 'dashboard' ? [spaceChart.saved_query_uuid] : [],
+            );
+            expect(
+                activity.chartWeeklyQueryingUsers[0].num_7d_active_users,
+            ).toBe(owner === 'dashboard' ? '1' : '0');
+            expect(activity.dashboardViews).toEqual([]);
+            expect(activity.userMostViewedDashboards).toEqual([]);
+        },
+    );
+
+    it.each(['space', 'dashboard'] as const)(
+        'rejects chart activity with an owning %s in another project',
+        async (owner) => {
+            await database<ChartRow>('saved_queries')
+                .where('saved_query_uuid', dashboardChart.saved_query_uuid)
+                .update(
+                    owner === 'space'
+                        ? { space_id: 2, dashboard_uuid: null }
+                        : { dashboard_uuid: otherDashboardUuid },
+                );
+            const activity = await model.getUserActivity(
+                projectUuid,
+                organizationUuid,
+            );
+            expect(activity.numberWeeklyQueryingUsers).toBe(33);
+            expect(activity.chartViews.map(({ uuid }) => uuid)).toEqual([
+                spaceChart.saved_query_uuid,
+            ]);
+        },
+    );
+
+    it('keeps favourite dashboards separate for users with the same first name', async () => {
+        await table('analytics_dashboard_views').insert(
+            [spaceViewer, dashboardViewer].map((userUuid) => ({
+                dashboard_uuid: dashboardUuid,
+                user_uuid: userUuid,
+                timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+            })),
+        );
+        const activity = await model.getUserActivity(
+            projectUuid,
+            organizationUuid,
+        );
+        expect(
+            activity.userMostViewedDashboards
+                .map(({ userUuid }) => userUuid)
+                .sort(),
+        ).toEqual([spaceViewer, dashboardViewer].sort());
+    });
+
+    it('uses the latest project chart view for inactivity and ignores other projects', async () => {
+        await table('analytics_chart_views')
+            .where('user_uuid', spaceViewer)
+            .update({
+                timestamp: database.raw("CURRENT_DATE - interval '120 days'"),
+            });
+        await table('analytics_chart_views').insert({
+            chart_uuid: dashboardChart.saved_query_uuid,
+            user_uuid: dashboardViewer,
+            timestamp: database.raw("CURRENT_DATE - interval '180 days'"),
+        });
+        const otherChart = {
+            ...spaceChart,
+            saved_query_id: 3,
+            saved_query_uuid: randomUUID(),
+            project_uuid: otherProjectUuid,
+            space_id: 2,
+        };
+        await database<ChartRow>('saved_queries').insert(otherChart);
+        await table('analytics_chart_views').insert({
+            chart_uuid: otherChart.saved_query_uuid,
+            user_uuid: inactiveViewer,
+            timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+        });
+        const inactive = await rows<{ user_uuid: string; count: string }>(
+            tableNoQueriesSql(),
+        );
+        expect(
+            inactive.map(({ user_uuid, count }) => ({ user_uuid, count })),
+        ).toEqual(
+            expect.arrayContaining([
+                { user_uuid: spaceViewer, count: '120' },
+                { user_uuid: inactiveViewer, count: '100' },
+            ]),
+        );
+        expect(inactive).toHaveLength(2);
+        await table('users')
+            .where('user_uuid', inactiveViewer)
+            .update({
+                created_at: database.raw("CURRENT_DATE - interval '10 days'"),
+            });
+        expect(await rows(tableNoQueriesSql())).toHaveLength(1);
     });
 
     it('includes dashboard-only viewers in weekly querying users', async () => {

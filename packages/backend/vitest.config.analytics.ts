@@ -5,6 +5,7 @@ export default defineConfig({
     ...unitConfig,
     test: {
         ...unitConfig.test,
+        name: 'analytics-postgres-tests',
         include: ['src/models/AnalyticsModel.integration.test.ts'],
         exclude: ['node_modules', 'dist'],
         testTimeout: 15_000,

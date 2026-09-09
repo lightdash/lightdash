@@ -2,6 +2,24 @@ import { DashboardsTableName } from '../database/entities/dashboards';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 
+const activeChartOwnerSql = `(
+  sq.space_id IN (
+    SELECT s.space_id
+    FROM ${SpaceTableName} s
+    JOIN projects p ON p.project_id = s.project_id
+    WHERE p.project_uuid = :projectUuid AND s.deleted_at IS NULL
+  )
+  OR (
+    sq.space_id IS NULL AND sq.dashboard_uuid IN (
+      SELECT d.dashboard_uuid
+      FROM ${DashboardsTableName} d
+      JOIN ${SpaceTableName} s ON s.space_id = d.space_id AND s.deleted_at IS NULL
+      JOIN projects p ON p.project_id = s.project_id
+      WHERE p.project_uuid = :projectUuid AND d.deleted_at IS NULL
+    )
+  )
+)`;
+
 export const usersInProjectSql = () => `
 SELECT
   DISTINCT ON (users.user_uuid) user_uuid,
@@ -9,11 +27,18 @@ SELECT
 from users
   left join emails on emails.user_id = users.user_id
   LEFT JOIN organization_memberships ON users.user_id  =  organization_memberships.user_id
+    AND organization_memberships.organization_id IN (
+      SELECT organization_id FROM organizations WHERE organization_uuid = :organizationUuid
+    )
   LEFT JOIN organizations ON organization_memberships.organization_id = organizations.organization_id
   LEFT JOIN project_memberships ON project_memberships.user_id = users.user_id
+    AND project_memberships.project_id IN (
+      SELECT project_id FROM projects WHERE project_uuid = :projectUuid
+    )
   LEFT JOIN projects on project_memberships.project_id = projects.project_id
   LEFT JOIN group_memberships ON group_memberships.user_id = users.user_id
   LEFT JOIN project_group_access ON project_group_access.group_uuid = group_memberships.group_uuid
+    AND project_group_access.project_uuid = :projectUuid
 WHERE
   emails.is_primary = true
   AND users.is_internal = false
@@ -35,7 +60,7 @@ from analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
 WHERE user_uuid = ANY(CAST(:userUuids AS uuid[]))
   AND sq.project_uuid = :projectUuid
-  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
+  AND ${activeChartOwnerSql}
   AND timestamp between NOW() - interval '7 days' and NOW()
 `;
 
@@ -50,7 +75,7 @@ from analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
 WHERE users.user_uuid = ANY(CAST(:userUuids AS uuid[]))
   AND sq.project_uuid = :projectUuid
-  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
+  AND ${activeChartOwnerSql}
   AND timestamp between NOW() - interval '7 days' and NOW()
 GROUP BY users.user_uuid,
   users.first_name,
@@ -70,7 +95,7 @@ from saved_queries_versions
   left join ${SavedChartsTableName} sq on sq.saved_query_id = saved_queries_versions.saved_query_id AND sq.deleted_at IS NULL
 WHERE users.user_uuid = ANY(CAST(:userUuids AS uuid[]))
   AND sq.project_uuid = :projectUuid
-  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
+  AND ${activeChartOwnerSql}
   AND saved_queries_versions.created_at between NOW() - interval '7 days' and NOW()
 GROUP BY
   users.user_uuid,
@@ -81,31 +106,25 @@ limit 10
 `;
 
 export const tableNoQueriesSql = () => `
-select
-  users.user_uuid,
-  MIN(users.first_name) as first_name,
-  MIN(users.last_name) as last_name,
-  EXTRACT(DAY FROM  NOW() - COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) ))   as count
-from users
-  LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
-  left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-WHERE users.user_uuid = ANY(CAST(:userUuids AS uuid[])) AND users.first_name <> ''
-  AND
-  (
-    (
-      sq.project_uuid = :projectUuid
-      AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
-      AND analytics_chart_views.timestamp <> null
-      AND analytics_chart_views.timestamp < NOW() - interval '90 days'
-    )
-    OR
-    (
-      analytics_chart_views.timestamp is null
-      AND users.created_at < NOW() - interval '90 days'
-    )
-  )
-GROUP BY users.user_uuid
-
+WITH last_chart_views AS (
+  SELECT acv.user_uuid, MAX(acv.timestamp) AS last_viewed_at
+  FROM analytics_chart_views acv
+  JOIN ${SavedChartsTableName} sq ON sq.saved_query_uuid = acv.chart_uuid AND sq.deleted_at IS NULL
+  WHERE acv.user_uuid = ANY(CAST(:userUuids AS uuid[]))
+    AND sq.project_uuid = :projectUuid
+    AND ${activeChartOwnerSql}
+  GROUP BY acv.user_uuid
+)
+SELECT
+  u.user_uuid,
+  u.first_name,
+  u.last_name,
+  EXTRACT(DAY FROM NOW() - COALESCE(v.last_viewed_at, u.created_at)) AS count
+FROM users u
+LEFT JOIN last_chart_views v ON v.user_uuid = u.user_uuid
+WHERE u.user_uuid = ANY(CAST(:userUuids AS uuid[]))
+  AND u.first_name <> ''
+  AND COALESCE(v.last_viewed_at, u.created_at) < NOW() - interval '90 days'
 `;
 
 const dateUserViewsGrid = () => `
@@ -131,7 +150,7 @@ query_executed AS (
   FROM analytics_chart_views acv  -- this is a table with one row per query executed
     left join ${SavedChartsTableName} sq on sq.saved_query_uuid = acv.chart_uuid AND sq.deleted_at IS NULL
   WHERE  sq.project_uuid = :projectUuid
-    AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
+    AND ${activeChartOwnerSql}
     AND acv.timestamp >= CURRENT_DATE - interval '42 days'
     AND acv.user_uuid = ANY(CAST(:userUuids AS uuid[]))
   GROUP BY 1, 2
@@ -187,7 +206,7 @@ SELECT
 FROM analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
 where sq.project_uuid = :projectUuid
-  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
+  AND ${activeChartOwnerSql}
 group by chart_uuid, sq.slug, sq.name
 order by count(chart_uuid) desc
 limit 20
@@ -201,7 +220,7 @@ SELECT
   d.name
 FROM analytics_dashboard_views dv
   left join ${DashboardsTableName} d  on d.dashboard_uuid  = dv.dashboard_uuid AND d.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = d.space_id
+  left join ${SpaceTableName} s on s.space_id = d.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = :projectUuid
 group by dv.dashboard_uuid, d.slug, d.name
@@ -219,11 +238,11 @@ WITH RankedResults AS (
       d.slug AS dashboard_slug,
       d."name" AS dashboard_name,
       COUNT(dv.dashboard_uuid) AS dashboard_count,
-      ROW_NUMBER() OVER (PARTITION BY u.first_name ORDER BY COUNT(dv.dashboard_uuid) DESC) AS rank
+      ROW_NUMBER() OVER (PARTITION BY u.user_uuid ORDER BY COUNT(dv.dashboard_uuid) DESC, d.dashboard_uuid) AS rank
   FROM analytics_dashboard_views dv
   LEFT JOIN users u ON u.user_uuid = dv.user_uuid
   LEFT JOIN ${DashboardsTableName} d ON dv.dashboard_uuid = d.dashboard_uuid AND d.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = d.space_id
+  left join ${SpaceTableName} s on s.space_id = d.space_id AND s.deleted_at IS NULL
   left join projects on projects.project_id = s.project_id
   WHERE projects.project_uuid = :projectUuid
     AND u.user_uuid IS NOT NULL
