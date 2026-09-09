@@ -1,5 +1,9 @@
 import { CatalogType, FieldType } from '@lightdash/common';
-import { seedPlaygroundMetricsTrees } from './seedPlaygroundMetricsTrees';
+import path from 'path';
+import {
+    seedMissingTrainingCopyMetricsTrees,
+    seedPlaygroundMetricsTrees,
+} from './seedPlaygroundMetricsTrees';
 
 const content = {
     metricsTrees: [
@@ -82,6 +86,75 @@ describe('seedPlaygroundMetricsTrees', () => {
             projectUuid: 'target-project',
             userUuid: 'user',
             content,
+            catalogModel,
+        });
+        expect(catalogModel.createMetricsTree).not.toHaveBeenCalled();
+        expect(catalogModel.getCatalogItemByName).not.toHaveBeenCalled();
+    });
+});
+
+describe('seedMissingTrainingCopyMetricsTrees', () => {
+    beforeEach(() => {
+        vi.stubEnv(
+            'PLAYGROUND_DATA_DIR',
+            path.resolve(__dirname, '../../../../assets/playground'),
+        );
+    });
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('adds the shipped sample to a legacy copy using only its indexed metric IDs', async () => {
+        const catalogModel = setup();
+        catalogModel.getCatalogItemByName.mockImplementation(
+            async (_projectUuid: string, metricName: string) => ({
+                catalog_search_uuid: `copy-${metricName}`,
+                field_type: FieldType.METRIC,
+            }),
+        );
+        await seedMissingTrainingCopyMetricsTrees({
+            projectUuid: 'legacy-copy',
+            userUuid: 'learner',
+            catalogModel,
+        });
+        expect(catalogModel.getMetricsTrees).toHaveBeenCalledExactlyOnceWith(
+            'legacy-copy',
+        );
+        expect(catalogModel.createMetricsTree).toHaveBeenCalledWith(
+            expect.objectContaining({
+                project_uuid: 'legacy-copy',
+                slug: 'completed-orders',
+                created_by_user_uuid: 'learner',
+            }),
+            [
+                {
+                    catalogSearchUuid: 'copy-total_completed_order_amount',
+                    xPosition: 0,
+                    yPosition: 0,
+                },
+                {
+                    catalogSearchUuid: 'copy-total_order_amount',
+                    xPosition: 0,
+                    yPosition: 200,
+                },
+            ],
+            [],
+        );
+        expect(
+            catalogModel.getCatalogItemByName.mock.calls.every(
+                ([projectUuid]) => projectUuid === 'legacy-copy',
+            ),
+        ).toBe(true);
+    });
+
+    it('preserves a copied source tree with the same slug', async () => {
+        const catalogModel = setup();
+        catalogModel.getMetricsTrees.mockResolvedValue({
+            data: [
+                { slug: 'completed-orders', name: 'Existing customized tree' },
+            ],
+        });
+        await seedMissingTrainingCopyMetricsTrees({
+            projectUuid: 'copy',
+            userUuid: 'learner',
             catalogModel,
         });
         expect(catalogModel.createMetricsTree).not.toHaveBeenCalled();

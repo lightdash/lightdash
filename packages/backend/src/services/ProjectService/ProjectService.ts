@@ -305,6 +305,7 @@ import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceE
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { seedMissingTrainingCopyMetricsTrees } from '../../ee/services/ProjectService/seedPlaygroundMetricsTrees';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -11406,6 +11407,11 @@ export class ProjectService extends BaseService {
             projectUuid,
             user.userUuid,
         );
+        await seedMissingTrainingCopyMetricsTrees({
+            projectUuid,
+            userUuid: user.userUuid,
+            catalogModel: this.catalogModel,
+        });
         // Popularity (chart usage) orders the catalog; the copied charts
         // count the same way the index job counts them.
         const chartUsages = await this.savedChartModel.getChartCountPerField(

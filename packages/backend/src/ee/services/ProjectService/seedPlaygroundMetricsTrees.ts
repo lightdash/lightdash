@@ -1,5 +1,7 @@
 import { CatalogType, FieldType } from '@lightdash/common';
+import path from 'path';
 import { type CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { loadPlaygroundContent } from './loadPlaygroundContent';
 import { type PlaygroundContent } from './playgroundContentTypes';
 
 /** Saved views of existing YAML relationships, seeded after catalog indexing. */
@@ -59,4 +61,17 @@ export const seedPlaygroundMetricsTrees = async ({
         },
         Promise.resolve(),
     );
+};
+
+/** Older shared training projects can be missing newer lessons' sample trees. */
+export const seedMissingTrainingCopyMetricsTrees = async (
+    args: Omit<Parameters<typeof seedPlaygroundMetricsTrees>[0], 'content'>,
+): Promise<void> => {
+    const content = await loadPlaygroundContent(
+        path.resolve(
+            process.env.PLAYGROUND_DATA_DIR ??
+                path.join(__dirname, '../../../../assets/playground'),
+        ),
+    );
+    await seedPlaygroundMetricsTrees({ ...args, content });
 };
