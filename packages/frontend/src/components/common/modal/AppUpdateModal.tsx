@@ -1,4 +1,4 @@
-import { type ChartTypeIcon } from '@lightdash/common';
+import { chartTypeIconSchema, type ChartTypeIcon } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -36,11 +36,10 @@ interface AppUpdateModalProps {
 const updateAppSchema = z.object({
     name: z.string().trim().min(1, { message: 'Name is required' }),
     description: z.string(),
+    icon: chartTypeIconSchema.nullable(),
 });
 
-type FormState = z.infer<typeof updateAppSchema> & {
-    icon: ChartTypeIcon | null;
-};
+type FormState = z.infer<typeof updateAppSchema>;
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
