@@ -1,3 +1,12 @@
+# [2.171.0](https://github.com/lightdash/lightdash/compare/2.170.1...2.171.0) (2026-09-09)
+
+
+### Features
+
+* **apps:** store a curated icon on custom chart types ([#28866](https://github.com/lightdash/lightdash/issues/28866)) ([3fb322e](https://github.com/lightdash/lightdash/commit/3fb322eec2e73548641cb098fa47431ce32b2690))
+* **chart-types:** carry the custom chart type icon through registry, code and CLI ([#28870](https://github.com/lightdash/lightdash/issues/28870)) ([629d6ad](https://github.com/lightdash/lightdash/commit/629d6ad0f19dc130b57da0e6467d6a6b9da833a4))
+* **chart-types:** draw custom chart types with their own icon ([#28869](https://github.com/lightdash/lightdash/issues/28869)) ([667b3bf](https://github.com/lightdash/lightdash/commit/667b3bf24e44298f1bcc9c4527155fbf26754e3c))
+
 ## [2.170.1](https://github.com/lightdash/lightdash/compare/2.170.0...2.170.1) (2026-09-09)
 
 

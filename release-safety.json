@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.170.1",
-  "previousVersion": "2.170.0",
-  "releaseDate": "2026-09-09T10:48:53.514Z",
+  "version": "2.171.0",
+  "previousVersion": "2.170.1",
+  "releaseDate": "2026-09-09T11:01:34.104Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20260908120000_add_icon_to_apps.ts",
+        "edition": "core",
+        "tables": [
+          "apps"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

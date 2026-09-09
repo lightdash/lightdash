@@ -17825,6 +17825,70 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_EmbedProjectApp-Array_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartTypeIcon: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['number'] },
+                { dataType: 'enum', enums: ['table'] },
+                { dataType: 'enum', enums: ['target'] },
+                { dataType: 'enum', enums: ['stack'] },
+                { dataType: 'enum', enums: ['list'] },
+                { dataType: 'enum', enums: ['chart-bar'] },
+                { dataType: 'enum', enums: ['chart-histogram'] },
+                { dataType: 'enum', enums: ['chart-line'] },
+                { dataType: 'enum', enums: ['chart-area'] },
+                { dataType: 'enum', enums: ['chart-area-line'] },
+                { dataType: 'enum', enums: ['chart-arrows'] },
+                { dataType: 'enum', enums: ['chart-arrows-vertical'] },
+                { dataType: 'enum', enums: ['chart-candle'] },
+                { dataType: 'enum', enums: ['chart-infographic'] },
+                { dataType: 'enum', enums: ['chart-dots'] },
+                { dataType: 'enum', enums: ['chart-dots-2'] },
+                { dataType: 'enum', enums: ['chart-bubble'] },
+                { dataType: 'enum', enums: ['chart-scatter-3d'] },
+                { dataType: 'enum', enums: ['chart-grid-dots'] },
+                { dataType: 'enum', enums: ['chart-pie'] },
+                { dataType: 'enum', enums: ['chart-pie-2'] },
+                { dataType: 'enum', enums: ['chart-donut'] },
+                { dataType: 'enum', enums: ['chart-donut-2'] },
+                { dataType: 'enum', enums: ['chart-arcs'] },
+                { dataType: 'enum', enums: ['chart-circles'] },
+                { dataType: 'enum', enums: ['chart-radar'] },
+                { dataType: 'enum', enums: ['chart-treemap'] },
+                { dataType: 'enum', enums: ['chart-sankey'] },
+                { dataType: 'enum', enums: ['hierarchy'] },
+                { dataType: 'enum', enums: ['hierarchy-2'] },
+                { dataType: 'enum', enums: ['binary-tree'] },
+                { dataType: 'enum', enums: ['sitemap'] },
+                { dataType: 'enum', enums: ['topology-star'] },
+                { dataType: 'enum', enums: ['network'] },
+                { dataType: 'enum', enums: ['git-branch'] },
+                { dataType: 'enum', enums: ['git-merge'] },
+                { dataType: 'enum', enums: ['arrows-split'] },
+                { dataType: 'enum', enums: ['map'] },
+                { dataType: 'enum', enums: ['world'] },
+                { dataType: 'enum', enums: ['timeline'] },
+                { dataType: 'enum', enums: ['calendar'] },
+                { dataType: 'enum', enums: ['clock'] },
+                { dataType: 'enum', enums: ['layout-grid'] },
+                { dataType: 'enum', enums: ['layout-kanban'] },
+                { dataType: 'enum', enums: ['grid-dots'] },
+                { dataType: 'enum', enums: ['square-number-1'] },
+                { dataType: 'enum', enums: ['percentage'] },
+                { dataType: 'enum', enums: ['trending-up'] },
+                { dataType: 'enum', enums: ['trending-down'] },
+                { dataType: 'enum', enums: ['gauge'] },
+                { dataType: 'enum', enums: ['activity'] },
+                { dataType: 'enum', enums: ['wave-sine'] },
+                { dataType: 'enum', enums: ['filter'] },
+                { dataType: 'enum', enums: ['puzzle'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartRegistryArtifact: {
         dataType: 'refAlias',
         type: {
@@ -17851,6 +17915,14 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                     },
+                    required: true,
+                },
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ChartTypeIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 screenshots: {
@@ -18047,6 +18119,14 @@ const models: TsoaRoute.Models = {
                 },
                 createdByUserUuid: { dataType: 'string', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ChartTypeIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 schema: {
                     dataType: 'union',
                     subSchemas: [
@@ -18604,7 +18684,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__':
+    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__':
         {
             dataType: 'refAlias',
             type: {
@@ -18613,6 +18693,14 @@ const models: TsoaRoute.Models = {
                     results: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            icon: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { ref: 'ChartTypeIcon' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
                             registrySlug: {
                                 dataType: 'union',
                                 subSchemas: [
@@ -18699,7 +18787,7 @@ const models: TsoaRoute.Models = {
     ApiGetAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__',
             validators: {},
         },
     },
@@ -18897,30 +18985,39 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string__': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                results: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        description: { dataType: 'string', required: true },
-                        name: { dataType: 'string', required: true },
-                        appUuid: { dataType: 'string', required: true },
+    'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    results: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            icon: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { ref: 'ChartTypeIcon' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
+                            description: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
+                            appUuid: { dataType: 'string', required: true },
+                        },
+                        required: true,
                     },
-                    required: true,
+                    status: { dataType: 'enum', enums: ['ok'], required: true },
                 },
-                status: { dataType: 'enum', enums: ['ok'], required: true },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiUpdateAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__',
             validators: {},
         },
     },
@@ -18930,6 +19027,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ChartTypeIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 description: { dataType: 'string' },
                 name: { dataType: 'string' },
             },
@@ -19009,6 +19113,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
+                },
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ChartTypeIcon' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                 },
                 description: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },

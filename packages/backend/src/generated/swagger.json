@@ -19211,6 +19211,65 @@
             "ApiEmbedProjectAppsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_EmbedProjectApp-Array_"
             },
+            "ChartTypeIcon": {
+                "type": "string",
+                "enum": [
+                    "number",
+                    "table",
+                    "target",
+                    "stack",
+                    "list",
+                    "chart-bar",
+                    "chart-histogram",
+                    "chart-line",
+                    "chart-area",
+                    "chart-area-line",
+                    "chart-arrows",
+                    "chart-arrows-vertical",
+                    "chart-candle",
+                    "chart-infographic",
+                    "chart-dots",
+                    "chart-dots-2",
+                    "chart-bubble",
+                    "chart-scatter-3d",
+                    "chart-grid-dots",
+                    "chart-pie",
+                    "chart-pie-2",
+                    "chart-donut",
+                    "chart-donut-2",
+                    "chart-arcs",
+                    "chart-circles",
+                    "chart-radar",
+                    "chart-treemap",
+                    "chart-sankey",
+                    "hierarchy",
+                    "hierarchy-2",
+                    "binary-tree",
+                    "sitemap",
+                    "topology-star",
+                    "network",
+                    "git-branch",
+                    "git-merge",
+                    "arrows-split",
+                    "map",
+                    "world",
+                    "timeline",
+                    "calendar",
+                    "clock",
+                    "layout-grid",
+                    "layout-kanban",
+                    "grid-dots",
+                    "square-number-1",
+                    "percentage",
+                    "trending-up",
+                    "trending-down",
+                    "gauge",
+                    "activity",
+                    "wave-sine",
+                    "filter",
+                    "puzzle"
+                ]
+            },
             "ChartRegistryArtifact": {
                 "properties": {
                     "sha256": {
@@ -19236,6 +19295,14 @@
                         },
                         "required": ["dist", "source"],
                         "type": "object"
+                    },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "screenshots": {
                         "items": {
@@ -19286,6 +19353,7 @@
                 },
                 "required": [
                     "artifacts",
+                    "icon",
                     "screenshots",
                     "thumbnail",
                     "vizSchema",
@@ -19418,6 +19486,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "schema": {
                         "allOf": [
                             {
@@ -19450,6 +19526,7 @@
                     "registrySlug",
                     "createdByUserUuid",
                     "createdAt",
+                    "icon",
                     "schema",
                     "spaceUuid",
                     "projectUuid",
@@ -19994,10 +20071,18 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "icon": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartTypeIcon"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "registrySlug": {
                                 "type": "string",
                                 "nullable": true
@@ -20062,6 +20147,7 @@
                             }
                         },
                         "required": [
+                            "icon",
                             "registrySlug",
                             "latestReadyVersion",
                             "hasMore",
@@ -20090,7 +20176,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -20282,10 +20368,18 @@
             "ApiPromoteAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--projectUuid-string--version-number--action-PromoteAppAction__"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "icon": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartTypeIcon"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "description": {
                                 "type": "string"
                             },
@@ -20296,7 +20390,7 @@
                                 "type": "string"
                             }
                         },
-                        "required": ["description", "name", "appUuid"],
+                        "required": ["icon", "description", "name", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -20309,10 +20403,18 @@
                 "type": "object"
             },
             "ApiUpdateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--icon-ChartTypeIcon-or-null__"
             },
             "ApiUpdateAppRequest": {
                 "properties": {
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "description": {
                         "type": "string"
                     },
@@ -20404,6 +20506,14 @@
                         "allOf": [
                             {
                                 "$ref": "#/components/schemas/Exclude_DataAppTemplate.custom_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "icon": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartTypeIcon"
                             }
                         ],
                         "nullable": true
@@ -60518,7 +60628,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.170.1",
+        "version": "2.171.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
