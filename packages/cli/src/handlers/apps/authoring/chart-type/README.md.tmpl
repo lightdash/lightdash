@@ -10,7 +10,7 @@ Run these commands from this folder under `chart-types/<slug>/`. The upload path
 3. `lightdash upload --chart-types <slug> --path ../..` (the `slug` from `lightdash-app.yml`) — Lightdash rebuilds and serves it.
 4. Open any explore in Lightdash, run a query, and pick this chart type in the chart type picker to see it against real data.
 
-There is no standalone preview: the component waits for the Lightdash host's data, so `npm run dev` shows a blank page. Upload and verify in the explorer.
+Preview locally with the included `viz-fixture.json`: run `lightdash apps preview` (or `npm run dev`) and open the dev URL with `?vizFixture=/viz-fixture.json`. The SDK's dev-only fallback seeds `useVizContext()` from that file so the chart renders without the Lightdash host. Edit the fixture to match your `vizSchema`. It's fake data for layout iteration and never runs in production — the explorer with real data is the source of truth, so upload and verify there too.
 
 ## What's read-only
 Root config (`vite.config.js`, `tsconfig.json`, etc.) is read-only reference — the server rebuilds against a trusted template. Build within the template's fixed dependency set (see `package.json`); chart types published to the official registry must stay template-deps-only.

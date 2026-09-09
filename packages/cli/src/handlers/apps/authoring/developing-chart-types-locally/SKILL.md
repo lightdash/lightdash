@@ -1,6 +1,6 @@
 ---
 name: developing-chart-types-locally
-description: Use when editing a locally created or downloaded Lightdash custom chart type (data_app_viz) — the vizSchema/component lockstep contract, the upload-and-verify loop, why there is no standalone preview, and how a chart type reaches the official registry.
+description: Use when editing a locally created or downloaded Lightdash custom chart type (data_app_viz) — the vizSchema/component lockstep contract, the upload-and-verify loop, the local fixture preview, and how a chart type reaches the official registry.
 ---
 
 # Developing Lightdash Custom Chart Types Locally
@@ -26,9 +26,19 @@ Run these commands from this folder under `chart-types/<slug>/`. The upload path
 3. `lightdash upload --chart-types <slug> --path ../..` (the `slug` from `lightdash-app.yml`) — the server rebuilds and serves it.
 4. Verify in Lightdash: open any explore, run a query with at least the required fields' shapes (e.g. a dimension and a metric), pick this chart type in the chart type picker, and map its fields. Check every config option you declared actually changes the chart.
 
-**There is no standalone preview.** `useVizContext()` waits for the Lightdash host to push context, so outside Lightdash the component renders nothing: `npm run dev` and `lightdash apps preview` show a blank page. Do not build a mock harness or feed the hook fake data to work around this — upload and verify in the explorer instead.
-
 Saved charts already using this chart type may pin a version; unpinned charts move to the newly uploaded version right away. While iterating in a shared project, prefer verifying on a throwaway chart.
+
+## Preview locally with a fixture (fast layout iteration)
+
+`useVizContext()` normally waits for the Lightdash host to push a context, so with no host the component renders nothing. For local iteration the SDK has a **dev-only fixture fallback**: when the app runs top-level (not embedded) and the page URL carries `?vizFixture=<path>`, it fetches that same-origin JSON file and feeds it to `useVizContext()` as the context.
+
+The scaffold ships a `viz-fixture.json` at the folder root. To use it:
+
+1. `lightdash apps preview` (or `npm run dev`) to start the dev server.
+2. Open the dev URL with the param, e.g. `http://localhost:5173/?vizFixture=/viz-fixture.json`. The chart renders from the fixture.
+3. Edit `viz-fixture.json` to match your declared `vizSchema` — `fieldMapping` (declared field name → any string id), `rows` (each cell is `{ "value": { "raw": ..., "formatted": "..." } }`, keyed by those ids), `options` (declared option name → value), `colorPalette`, and `pivotDetails` (`null` unless you map a `series` field). Reload to see changes.
+
+This is for **layout and option iteration only**, and never fires in production (an embedded viz has a real host whose context always wins, and the param must be explicitly present). The fixture is fake data you hand-maintain: colors fall back to the palette (no model or shared-dashboard colors), `pivotDetails` must be shaped by hand, and formatting is whatever you type. **The explorer with real data remains the source of truth for correctness** — still run the upload → verify loop above before finishing, and verify every declared option actually changes the chart there.
 
 ## Dependencies: template-deps-only, strictly
 

@@ -124,6 +124,37 @@ describe('buildStaticAuthoringFiles', () => {
     });
 });
 
+describe('buildStaticAuthoringFiles — chart-type flavor', () => {
+    const files = buildStaticAuthoringFiles({
+        appName: 'Radial gauge',
+        sdkVersion: '0.3275.0',
+        flavor: 'chart-type',
+    });
+    const byPath = (p: string) => files.find((f) => f.path === p);
+    const text = (p: string) =>
+        Buffer.from(byPath(p)!.contentBase64, 'base64').toString('utf-8');
+
+    it('ships the chart-type workflow skill, not the app skills', () => {
+        expect(
+            byPath('.claude/skills/developing-chart-types-locally/SKILL.md'),
+        ).toBeDefined();
+        expect(
+            byPath('.claude/skills/lightdash-data-app/SKILL.md'),
+        ).toBeUndefined();
+    });
+
+    it('ships a starter viz fixture for local preview', () => {
+        const fixture = JSON.parse(text('viz-fixture.json'));
+        expect(fixture.fieldMapping.category).toBeDefined();
+        expect(fixture.fieldMapping.value).toBeDefined();
+        expect(Array.isArray(fixture.rows)).toBe(true);
+    });
+
+    it('documents the fixture preview flow in AGENTS.md', () => {
+        expect(text('AGENTS.md')).toContain('vizFixture');
+    });
+});
+
 describe('loadVendoredBuildScaffold', () => {
     const files = loadVendoredBuildScaffold('0.3275.0');
     const byPath = (p: string) => files.find((file) => file.path === p);

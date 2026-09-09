@@ -123,6 +123,44 @@ export type VizContextRequestMessage = {
 const DATA_APP_VIZ_CONTEXT_MESSAGE = 'lightdash:sdk:data-app-viz-context';
 const VIZ_CONTEXT_REQUEST_MESSAGE = 'lightdash:sdk:viz-context-request';
 
+/**
+ * Dev-only fixture seed param. A chart type runs no query and renders the
+ * context the host pushes over postMessage — so top-level (local dev), with no
+ * host to answer the handshake, it renders nothing. Pointing `?vizFixture` at a
+ * same-origin JSON file lets `useVizContextSubscription` seed the context from
+ * that file, so `npm run dev` / `lightdash apps preview` show the chart. This
+ * mirrors the `?theme=` / `?state=` dev seeds in colorScheme.ts / urlState.ts.
+ */
+export const VIZ_FIXTURE_PARAM = 'vizFixture';
+const DEFAULT_VIZ_FIXTURE_URL = '/viz-fixture.json';
+
+/**
+ * Resolve the dev fixture URL from the page location, or null when the param is
+ * absent or resolves cross-origin. The iframe hash wins, the search param is
+ * the top-level (local dev) fallback — same precedence as `parseColorSchemeSeed`
+ * / `parseUrlStateSeed`. A bare `?vizFixture` (no value) means the default path.
+ * The target is restricted to the page's own origin because it comes from a
+ * user-editable URL and is fetched.
+ */
+export function resolveVizFixtureUrl(location: {
+    hash: string;
+    search: string;
+    origin: string;
+}): string | null {
+    const raw =
+        new URLSearchParams(location.hash.replace(/^#/, '')).get(
+            VIZ_FIXTURE_PARAM,
+        ) ?? new URLSearchParams(location.search).get(VIZ_FIXTURE_PARAM);
+    if (raw === null) return null;
+    const target = raw.length > 0 ? raw : DEFAULT_VIZ_FIXTURE_URL;
+    try {
+        const url = new URL(target, location.origin);
+        return url.origin === location.origin ? url.toString() : null;
+    } catch {
+        return null;
+    }
+}
+
 /** Display string for a field's cell in a row, e.g. `"$1,234"`. Empty when unset. */
 export const getFormatted = (
     row: VizContextRow | undefined,
@@ -432,7 +470,43 @@ function useVizContextSubscription(enabled: boolean): VizContextState {
         };
         window.parent?.postMessage(request, '*');
 
-        return () => window.removeEventListener('message', handleMessage);
+        // Dev-only fallback: a chart type running top-level (no parent frame to
+        // answer the handshake above) seeds its context from a same-origin
+        // `?vizFixture` file so it renders under `npm run dev` /
+        // `lightdash apps preview`. An embedded viz always has a real parent
+        // whose reply arrives first, so this never fires in production.
+        let cancelled = false;
+        const fixtureUrl =
+            window.parent === window
+                ? resolveVizFixtureUrl(window.location)
+                : null;
+        if (fixtureUrl) {
+            fetch(fixtureUrl)
+                .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+                .then((data: unknown) => {
+                    if (cancelled || !isPlainRecord(data)) return;
+                    // Never clobber a context a host already delivered.
+                    setContext(
+                        (prev) =>
+                            prev ??
+                            toVizContextState({
+                                ...(data as Partial<DataAppVizContextMessage>),
+                                type: DATA_APP_VIZ_CONTEXT_MESSAGE,
+                            } as DataAppVizContextMessage),
+                    );
+                })
+                .catch(() => {
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        `[lightdash] viz fixture "${fixtureUrl}" could not be loaded`,
+                    );
+                });
+        }
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('message', handleMessage);
+        };
     }, [enabled]);
 
     return context;

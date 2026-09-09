@@ -192,6 +192,15 @@ export const buildStaticAuthoringFiles = (args: {
                 ),
             ).toString('base64'),
         });
+        // Starter fixture for the SDK's dev-only preview fallback: open the dev
+        // server with `?vizFixture=/viz-fixture.json` to render the chart
+        // without the Lightdash host (see developing-chart-types-locally).
+        files.push({
+            path: 'viz-fixture.json',
+            contentBase64: readFileSync(
+                path.join(authoringDir, 'chart-type', 'viz-fixture.json'),
+            ).toString('base64'),
+        });
     }
     if (!isChartType) {
         // skill.md → .claude/skills/lightdash-data-app/SKILL.md
