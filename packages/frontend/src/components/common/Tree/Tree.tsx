@@ -155,6 +155,11 @@ const Tree: React.FC<Props> = (props) => {
     useEffect(() => {
         if (isExpanded) {
             tree.expandAllNodes();
+        } else {
+            // Mantine keeps expanded keys across data changes, so collapse
+            // explicitly and reopen only the selected items' ancestors.
+            tree.collapseAllNodes();
+            items.forEach(expandAllParentPaths);
         }
         // WARNING: does not need to be re-run every time tree ref changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
