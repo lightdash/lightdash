@@ -1106,6 +1106,7 @@ export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
 
 export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.BITBUCKET;
+    semanticLayer?: 'dbt' | 'lightdash';
     username: string;
     personal_access_token: string;
     repository: string;

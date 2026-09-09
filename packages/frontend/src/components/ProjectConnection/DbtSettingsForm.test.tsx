@@ -1,13 +1,12 @@
-import {
-    DbtProjectType,
-    DefaultSupportedDbtVersion,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { DefaultSupportedDbtVersion, WarehouseTypes } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { renderWithProviders } from '../../testing/testUtils';
-import { githubDefaultValues } from './DbtForms/defaultValues';
+import {
+    githubDefaultValues,
+    bitbucketDefaultValues,
+} from './DbtForms/defaultValues';
 import DbtSettingsForm from './DbtSettingsForm';
 import { FormProvider, useForm } from './formContext';
 import { ProjectFormProvider } from './ProjectFormProvider';
@@ -31,16 +30,23 @@ const warehouse = {
 const FormHarness = ({
     disabled = false,
     isDbtSource = false,
+    bitbucket = false,
 }: {
     disabled?: boolean;
     isDbtSource?: boolean;
+    bitbucket?: boolean;
 }) => {
     const form = useForm({
         initialValues: {
             name: 'Existing native project',
             dbt: {
-                ...githubDefaultValues,
-                type: DbtProjectType.GITHUB,
+                ...(bitbucket
+                    ? {
+                          ...bitbucketDefaultValues,
+                          username: 'demo',
+                          personal_access_token: 'test',
+                      }
+                    : githubDefaultValues),
                 repository: 'org/native',
                 branch: 'staging',
                 project_sub_path: '/analytics',
@@ -68,45 +74,52 @@ const FormHarness = ({
 describe('native GitHub connection form', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('switches the build format while preserving Git and warehouse values and hiding dbt options', async () => {
-        const user = userEvent.setup();
-        renderWithProviders(<FormHarness />);
-        expect(screen.getByLabelText('Target name')).toBeInTheDocument();
-        await user.click(
-            screen.getByLabelText('Semantic layer format', {
-                selector: 'input',
-            }),
-        );
-        await user.click(
-            screen.getByRole('option', { name: 'Native Lightdash YAML' }),
-        );
-        expect(screen.queryByLabelText('Target name')).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('dbt version', { exact: false }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Advanced configuration options'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByText(/containing lightdash.config.yml/),
-        ).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Submit' }));
-        expect(submit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                warehouse,
-                dbt: expect.objectContaining({
-                    semanticLayer: 'lightdash',
-                    repository: 'org/native',
-                    branch: 'staging',
-                    project_sub_path: '/analytics',
-                    installation_id: '123',
-                    target: undefined,
-                    selector: undefined,
+    it.each([false, true])(
+        'switches the build format while preserving Git and warehouse values (Bitbucket: %s)',
+        async (bitbucket) => {
+            const user = userEvent.setup();
+            renderWithProviders(<FormHarness bitbucket={bitbucket} />);
+            expect(screen.getByLabelText('Target name')).toBeInTheDocument();
+            await user.click(
+                screen.getByLabelText('Semantic layer format', {
+                    selector: 'input',
                 }),
-            }),
-            expect.anything(),
-        );
-    });
+            );
+            await user.click(
+                screen.getByRole('option', { name: 'Native Lightdash YAML' }),
+            );
+            expect(
+                screen.queryByLabelText('Target name'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('dbt version', { exact: false }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Advanced configuration options'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByText(/containing lightdash.config.yml/),
+            ).toBeInTheDocument();
+            await user.click(screen.getByRole('button', { name: 'Submit' }));
+            expect(submit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    warehouse,
+                    dbt: expect.objectContaining({
+                        semanticLayer: 'lightdash',
+                        repository: 'org/native',
+                        branch: 'staging',
+                        project_sub_path: '/analytics',
+                        ...(!bitbucket
+                            ? { installation_id: '123' }
+                            : { username: 'demo' }),
+                        target: undefined,
+                        selector: undefined,
+                    }),
+                }),
+                expect.anything(),
+            );
+        },
+    );
 
     it('keeps the format disabled when connection editing is forbidden', () => {
         renderWithProviders(<FormHarness disabled />);

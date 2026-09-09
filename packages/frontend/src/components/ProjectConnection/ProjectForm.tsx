@@ -34,7 +34,8 @@ export const ProjectForm: FC<Props> = ({
     const { savedProject } = useProjectFormContext();
     const warehouse = form.values.warehouse.type;
     const isNative =
-        form.values.dbt.type === DbtProjectType.GITHUB &&
+        (form.values.dbt.type === DbtProjectType.GITHUB ||
+            form.values.dbt.type === DbtProjectType.BITBUCKET) &&
         form.values.dbt.semanticLayer === 'lightdash';
 
     return (

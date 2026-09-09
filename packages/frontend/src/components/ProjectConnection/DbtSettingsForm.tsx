@@ -41,7 +41,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         form.values.dbt.type ?? (defaultType || DbtProjectType.GITHUB);
 
     const isNative =
-        form.values.dbt.type === DbtProjectType.GITHUB &&
+        (form.values.dbt.type === DbtProjectType.GITHUB ||
+            form.values.dbt.type === DbtProjectType.BITBUCKET) &&
         form.values.dbt.semanticLayer === 'lightdash';
 
     const warehouseType: WarehouseTypes =
