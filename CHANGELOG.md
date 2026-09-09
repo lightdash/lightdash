@@ -1,3 +1,10 @@
+## [2.173.1](https://github.com/lightdash/lightdash/compare/2.173.0...2.173.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **previews:** stop full-scanning chart versions when remapping data app viz charts ([#28930](https://github.com/lightdash/lightdash/issues/28930)) ([7f05ef0](https://github.com/lightdash/lightdash/commit/7f05ef0faf6979e31f62d9e03667e4313d4958cc))
+
 # [2.173.0](https://github.com/lightdash/lightdash/compare/2.172.0...2.173.0) (2026-09-09)
 
 
