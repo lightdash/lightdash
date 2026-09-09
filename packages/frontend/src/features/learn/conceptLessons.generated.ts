@@ -139,7 +139,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/explore/share-charts#choosing-how-many-rows-an-export-contains',
                 sourceLabel: 'Choosing how many rows an export contains',
                 sourceHash:
-                    '379388ec7f00e181297cf163b4e0420595ea8c9eb0ce125e4b65cb8c61fb340a',
+                    '1f19a231299536280321ce9eebd0f68f310419c7859d6ff968601905f32dacad',
             },
         ],
     },
@@ -193,7 +193,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#choosing-a-workflow',
                 sourceLabel: 'Choosing a workflow',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
             {
                 heading: 'lightdash download',
@@ -202,7 +202,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#lightdash-download',
                 sourceLabel: 'lightdash download',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
         ],
     },
@@ -217,7 +217,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#choosing-a-workflow',
                 sourceLabel: 'Choosing a workflow',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
             {
                 heading: 'lightdash upload',
@@ -226,7 +226,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#lightdash-upload',
                 sourceLabel: 'lightdash upload',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
         ],
     },
@@ -241,7 +241,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#choosing-a-workflow',
                 sourceLabel: 'Choosing a workflow',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
             {
                 heading: 'lightdash upload',
@@ -250,7 +250,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/workflow/content-as-code#lightdash-upload',
                 sourceLabel: 'lightdash upload',
                 sourceHash:
-                    'a799e9f48d1eae353d75bd8dfc74a926e807cf128f4feb0df87e3dee9d4dd380',
+                    'cd879c762f07236891fe205c7c2523128b65630fc2c4a26ee91d06fbb6cc4fa7',
             },
         ],
     },
@@ -376,7 +376,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#dashboard-filters-interactivity',
                 sourceLabel: 'Dashboard filters interactivity',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -394,7 +394,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#dashboard-filters-interactivity',
                 sourceLabel: 'Dashboard filters interactivity',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -409,7 +409,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#parameter-interactivity',
                 sourceLabel: 'Parameter interactivity',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -428,7 +428,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#export-options',
                 sourceLabel: 'Export options',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -447,7 +447,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#export-options',
                 sourceLabel: 'Export options',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -466,7 +466,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#export-options',
                 sourceLabel: 'Export options',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -481,7 +481,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#export-all-dashboard-tiles',
                 sourceLabel: 'Export all dashboard tiles',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -496,7 +496,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#date-zoom',
                 sourceLabel: 'Date zoom',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -511,7 +511,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#explore-from-here',
                 sourceLabel: 'Explore from here',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -526,7 +526,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#view-underlying-data',
                 sourceLabel: 'View underlying data',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -541,7 +541,7 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
                     'https://docs.lightdash.com/embed/reference#view-data-apps',
                 sourceLabel: 'View data apps',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
@@ -551,12 +551,12 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
         sections: [
             {
                 heading: 'AI agent token',
-                body: "For embedding a Lightdash [AI agent](https://docs.lightdash.com/agents) so users can chat with their data from inside your app. See [Embedding AI agents](https://docs.lightdash.com/embed/embed-ai-agents) for the full walkthrough.\n\n```typescript\n{\n  content: {\n    type: 'aiAgent',\n\n    // Agent the embed is allowed to use (required)\n    agentUuid: string,\n\n    // Project identifier (optional)\n    projectUuid?: string,\n  },\n\n  // Required: AI agent embeds must include writeActions\n  writeActions: {\n    spaceUuid: string,                  // Space the agent reads/writes content from\n    serviceAccountUserUuid?: string,    // Use a service account as the actor\n    userUuid?: string,                  // Or use an existing Lightdash user as the actor\n  },\n\n  // Optional: row-level filtering for the embedded viewer\n  userAttributes?: {\n    [attributeName: string]: string,\n  },\n\n  // Optional: user information surfaced in audit/analytics\n  user?: {\n    externalId?: string,\n    email?: string,\n  },\n}\n```\n\nAI agent tokens are scoped to a single agent. A token issued for one `agentUuid` cannot be used to access another agent, and dashboard or chart tokens are rejected on AI agent routes. The agent can only read dashboards and saved charts from `writeActions.spaceUuid`, and saves new charts back into that same space.\n\n**Example:**\n\n```javascript\nimport jwt from 'jsonwebtoken';\n\nconst token = jwt.sign({\n  content: {\n    type: 'aiAgent',\n    projectUuid: 'your-project-uuid',\n    agentUuid: 'your-agent-uuid',\n  },\n  writeActions: {\n    serviceAccountUserUuid: 'service-account-user-uuid',\n    spaceUuid: 'destination-space-uuid',\n  },\n  userAttributes: {\n    tenant_id: 'tenant-abc',\n  },\n  user: {\n    email: 'customer@example.com',\n  },\n}, SECRET, { expiresIn: '1h' });\n```",
+                body: "For embedding a Lightdash [AI agent](https://docs.lightdash.com/agents) so users can chat with their data from inside your app. See [Embedding AI agents](https://docs.lightdash.com/embed/embed-ai-agents) for the full walkthrough.\n\n```typescript\n{\n  content: {\n    type: 'aiAgent',\n\n    // Agent the embed is allowed to use (required)\n    agentUuid: string,\n\n    // Project identifier (optional)\n    projectUuid?: string,\n  },\n\n  // Required: AI agent embeds must include writeActions\n  writeActions: {\n    spaceUuid: string,                  // Space the agent reads/writes content from\n    serviceAccountUserUuid?: string,    // Use a service account as the actor\n    userUuid?: string,                  // Or use an existing Lightdash user as the actor\n    permissionsMode?: 'default' | 'roles',\n  },\n\n  // Optional: row-level filtering for the embedded viewer\n  userAttributes?: {\n    [attributeName: string]: string,\n  },\n\n  // Optional: user information surfaced in audit/analytics\n  user?: {\n    externalId?: string,\n    email?: string,\n  },\n}\n```\n\nAI agent tokens are scoped to a single agent. A token issued for one `agentUuid` cannot be used to access another agent, and dashboard or chart tokens are rejected on AI agent routes. The agent can only read dashboards and saved charts from `writeActions.spaceUuid`, and saves new charts back into that same space.\n\n**Example:**\n\n```javascript\nimport jwt from 'jsonwebtoken';\n\nconst token = jwt.sign({\n  content: {\n    type: 'aiAgent',\n    projectUuid: 'your-project-uuid',\n    agentUuid: 'your-agent-uuid',\n  },\n  writeActions: {\n    serviceAccountUserUuid: 'service-account-user-uuid',\n    spaceUuid: 'destination-space-uuid',\n  },\n  userAttributes: {\n    tenant_id: 'tenant-abc',\n  },\n  user: {\n    email: 'customer@example.com',\n  },\n}, SECRET, { expiresIn: '1h' });\n```",
                 sourceUrl:
                     'https://docs.lightdash.com/embed/reference#ai-agent-token',
                 sourceLabel: 'AI agent token',
                 sourceHash:
-                    '281461b0868e252e6d9170fae3c4eebede3686df13777c165502320070d8412b',
+                    'd6ef61df2fdf0a99d6784bbf9a1419087861e110baad897b2669f464513e70fe',
             },
         ],
     },
