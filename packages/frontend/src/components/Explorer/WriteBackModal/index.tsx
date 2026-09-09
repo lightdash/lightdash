@@ -35,7 +35,7 @@ import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
 import {
     useCustomDimensionsWriteBackPreview,
-    useIsGitProject,
+    useSupportsCustomFieldWriteBack,
     useWriteBackCustomDimensions,
     useWriteBackCustomMetrics,
 } from './hooks';
@@ -43,7 +43,7 @@ import { convertToDbt, getItemId, getItemLabel, match } from './utils';
 import { BIN_ORDERING_WRITE_BACK_WARNING } from './writeBackSupport';
 
 const prDisabledMessage =
-    'Pull requests can only be opened for Git connected projects (GitHub/GitLab)';
+    'Pull requests can only be opened for GitHub, GitLab or Bitbucket Cloud connected projects';
 const texts = {
     customDimension: {
         name: 'custom dimension',
@@ -108,7 +108,8 @@ export const SingleItemModalContent = ({
     );
 
     const [showDiff, setShowDiff] = useState(true);
-    const isGitProject = useIsGitProject(projectUuid);
+    const supportsCustomFieldWriteBack =
+        useSupportsCustomFieldWriteBack(projectUuid);
     const writeBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -148,12 +149,12 @@ export const SingleItemModalContent = ({
         );
     }
 
-    const disableErrorTooltip = isGitProject && !previewError;
+    const disableErrorTooltip = supportsCustomFieldWriteBack && !previewError;
 
     const errorTooltipLabel = previewError || prDisabledMessage;
 
     const buttonDisabled =
-        isLoading || previewQuery.isLoading || !disableErrorTooltip;
+        isLoading || previewQuery.isInitialLoading || !disableErrorTooltip;
 
     const itemLabel = getItemLabel(item);
 
@@ -219,7 +220,7 @@ export const SingleItemModalContent = ({
                         <CodeBlock
                             code={
                                 previewError ||
-                                (previewQuery.isLoading
+                                (previewQuery.isInitialLoading
                                     ? 'Generating warehouse-aware preview...'
                                     : previewCode)
                             }
@@ -271,7 +272,8 @@ const MultipleItemsModalContent = ({
         () => writeBackCustomMetricsIsLoading,
     );
 
-    const isGitProject = useIsGitProject(projectUuid);
+    const supportsCustomFieldWriteBack =
+        useSupportsCustomFieldWriteBack(projectUuid);
 
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
@@ -321,17 +323,19 @@ const MultipleItemsModalContent = ({
     }
 
     const disableErrorTooltip =
-        isGitProject && selectedItemIds.length > 0 && !previewError;
+        supportsCustomFieldWriteBack &&
+        selectedItemIds.length > 0 &&
+        !previewError;
 
     const errorTooltipLabel = previewError
         ? previewError
-        : !isGitProject
+        : !supportsCustomFieldWriteBack
           ? prDisabledMessage
           : `Select ${texts[type].baseName}s to open a pull request`;
 
     const buttonDisabled =
         isLoading ||
-        previewQuery.isLoading ||
+        previewQuery.isInitialLoading ||
         !disableErrorTooltip ||
         selectedItemIds.length === 0;
     return (
@@ -452,7 +456,7 @@ const MultipleItemsModalContent = ({
                         <CodeBlock
                             code={
                                 previewError ||
-                                (previewQuery.isLoading
+                                (previewQuery.isInitialLoading
                                     ? 'Generating warehouse-aware preview...'
                                     : previewCode)
                             }
