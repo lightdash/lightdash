@@ -6,6 +6,10 @@
     height: calc(85vh - 160px);
 }
 
+.detailLayout[data-compact] {
+    height: auto;
+}
+
 .detailHeaderTitle {
     color: var(--mantine-color-text);
     font-size: 16px;

@@ -26,7 +26,9 @@ export function RoadmapDetails({
     propertiesLabel,
     children,
     actions,
+    compact = false,
 }: {
+    compact?: boolean;
     actions: ReactNode;
     opened: boolean;
     onClose: () => void;
@@ -55,7 +57,10 @@ export function RoadmapDetails({
             bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         >
             {opened && (
-                <Box className={styles.detailLayout}>
+                <Box
+                    className={styles.detailLayout}
+                    data-compact={compact || undefined}
+                >
                     <Stack className={styles.detailMain} gap={0}>
                         <Stack gap="md">
                             <Text className={styles.detailSectionLabel}>

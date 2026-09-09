@@ -19,6 +19,7 @@ export function RoadmapProjectDetails({
     const project = item ? getProjectPresentation(item.project) : null;
     return (
         <RoadmapDetails
+            compact
             opened={item !== null}
             onClose={onClose}
             title={item?.project.title ?? 'Roadmap project'}
