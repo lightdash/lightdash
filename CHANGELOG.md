@@ -1,3 +1,10 @@
+## [2.168.3](https://github.com/lightdash/lightdash/compare/2.168.2...2.168.3) (2026-09-09)
+
+
+### Bug Fixes
+
+* **api:** honour API keys on the feature flag endpoint so the CLI sees organisation overrides ([#28917](https://github.com/lightdash/lightdash/issues/28917)) ([abb12f0](https://github.com/lightdash/lightdash/commit/abb12f00e1408864d954318360fd43de96fd01f0))
+
 ## [2.168.2](https://github.com/lightdash/lightdash/compare/2.168.1...2.168.2) (2026-09-09)
 
 
