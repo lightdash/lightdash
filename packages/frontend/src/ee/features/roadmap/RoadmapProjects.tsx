@@ -19,6 +19,7 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -216,19 +217,27 @@ function Board({
                                                 size="sm"
                                                 className={classes.ticketIcon}
                                             />
-                                            <Text
-                                                className={classes.ticketTitle}
+                                            <Tooltip
+                                                label="Only followed tickets are shown individually."
+                                                events={{
+                                                    hover: true,
+                                                    focus: true,
+                                                    touch: false,
+                                                }}
                                             >
-                                                {remainingTicketCount}{' '}
-                                                {remainingTicketCount === 1
-                                                    ? 'other ticket'
-                                                    : 'other tickets'}
-                                            </Text>
+                                                <Text
+                                                    className={
+                                                        classes.ticketTitle
+                                                    }
+                                                    tabIndex={0}
+                                                >
+                                                    {remainingTicketCount}{' '}
+                                                    {remainingTicketCount === 1
+                                                        ? 'other ticket'
+                                                        : 'other tickets'}
+                                                </Text>
+                                            </Tooltip>
                                         </Group>
-                                        <Text fz="xs" c="dimmed">
-                                            Only followed tickets are shown
-                                            individually.
-                                        </Text>
                                     </Box>
                                 </Box>
                             )}
