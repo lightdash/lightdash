@@ -1,3 +1,10 @@
+## [2.173.2](https://github.com/lightdash/lightdash/compare/2.173.1...2.173.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **spaces:** keep space picker search responsive with many spaces ([#28935](https://github.com/lightdash/lightdash/issues/28935)) ([d1d0f01](https://github.com/lightdash/lightdash/commit/d1d0f014d2fd72bc3fb9c2e101b2dc3157acd925))
+
 ## [2.173.1](https://github.com/lightdash/lightdash/compare/2.173.0...2.173.1) (2026-09-09)
 
 
