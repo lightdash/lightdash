@@ -2570,7 +2570,7 @@ This tool returns metric query data only. If the user asked for a visual, or if 
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
+- If the query finishes within the server-side wait, structuredContent: {
     result: {
       status: "done",
       queryUuid: string,
@@ -10327,7 +10327,7 @@ Parameters:
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return CSV with a header row plus data rows. Empty results return prose text like "Query returned 0 rows."; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
+- If the query finishes within the server-side wait, structuredContent: {
     result: {
       status: "done",
       rows:     Array<Record<string, unknown>>,  // each row keyed by column name
@@ -11365,7 +11365,7 @@ This tool returns metric query data only. If the user asked for a visual, or if 
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: string }] — human-readable fallback. Completed queries return bare CSV text. CSV headers are display labels, not stable field IDs; running queries return polling status text; errors return an error message.
-- If the query finishes before the MCP wait window, structuredContent: {
+- If the query finishes within the server-side wait, structuredContent: {
     result: {
       status: "done",
       queryUuid: string,
