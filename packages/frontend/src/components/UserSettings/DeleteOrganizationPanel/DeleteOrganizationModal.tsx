@@ -1,4 +1,4 @@
-import { Text, TextInput, type ModalProps } from '@mantine/core';
+import { TextInput, type ModalProps } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOrganizationDeleteMultation';
@@ -11,9 +11,12 @@ export const OrganizationDeleteModal: FC<
     const { mutateAsync, isLoading: isDeleting } =
         useDeleteOrganizationMutation();
 
-    const [confirmOrgName, setConfirmOrgName] = useState<string>();
+    const [confirmOrgName, setConfirmOrgName] = useState('');
 
     if (isInitialLoading || !organization) return null;
+
+    const organizationName = organization.name.trim();
+    const confirmationText = organizationName || 'DELETE';
 
     const handleConfirm = async () => {
         await mutateAsync(organization.organizationUuid);
@@ -21,7 +24,7 @@ export const OrganizationDeleteModal: FC<
     };
 
     const handleOnClose = () => {
-        setConfirmOrgName(undefined);
+        setConfirmOrgName('');
         onClose();
     };
 
@@ -29,26 +32,26 @@ export const OrganizationDeleteModal: FC<
         <MantineModal
             opened={opened}
             onClose={handleOnClose}
-            title="Delete Organization"
+            title={`Delete “${organizationName || 'Unnamed organization'}”?`}
             variant="delete"
-            resourceType="organization"
-            resourceLabel={organization.name}
+            confirmLabel="Permanently delete organization"
+            description="This permanently removes all projects, saved content, users, and service accounts in this organization. You will be signed out. This cannot be undone."
             size="md"
             onConfirm={handleConfirm}
             confirmDisabled={
-                confirmOrgName?.toLowerCase() !==
-                organization.name.toLowerCase()
+                confirmOrgName.toLowerCase() !== confirmationText.toLowerCase()
             }
             confirmLoading={isDeleting}
         >
-            <Text fz="sm" c="dimmed">
-                Type the name of this organization to confirm. This action will
-                delete all users and is not reversible.
-            </Text>
-
             <TextInput
                 name="confirmOrgName"
-                placeholder={organization.name}
+                label={`Type ${confirmationText} to confirm`}
+                description={
+                    organizationName
+                        ? undefined
+                        : 'This organization has no name, so use DELETE instead.'
+                }
+                placeholder={confirmationText}
                 value={confirmOrgName}
                 onChange={(e) => setConfirmOrgName(e.target.value)}
             />

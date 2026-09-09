@@ -22,7 +22,7 @@ export const DeleteOrganizationPanel: FC = () => {
                 leftSection={<MantineIcon icon={IconTrash} />}
                 onClick={() => setShowDeleteOrganizationModal(true)}
             >
-                Delete '{organization.name}'
+                Delete '{organization.name.trim() || 'Unnamed organization'}'
             </Button>
 
             <OrganizationDeleteModal

@@ -337,7 +337,9 @@ const Settings: FC = () => {
                                 </Text>
                             </Box>
                             <Stack gap="sm" align="flex-end">
-                                <LeaveOrganizationPanel />
+                                <LeaveOrganizationPanel
+                                    showDeleteAction={false}
+                                />
                                 {user.ability?.can(
                                     'delete',
                                     'Organization',
