@@ -19,7 +19,6 @@ import {
     Stack,
     Text,
     Title,
-    Tooltip,
     UnstyledButton,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -196,30 +195,6 @@ function Board({
                                 </Text>
                             )}
                         </Group>
-                        {projectStatusCounts && (
-                            <Tooltip
-                                label="All project tickets in this status, regardless of following, filters, or completion date. Canceled includes duplicates."
-                                multiline
-                                w={260}
-                                withArrow
-                                events={{
-                                    hover: true,
-                                    focus: true,
-                                    touch: false,
-                                }}
-                            >
-                                <Text
-                                    fz="xs"
-                                    c="dimmed"
-                                    px="xs"
-                                    pb="xs"
-                                    tabIndex={0}
-                                >
-                                    {projectStatusCounts[column.ticketStatus]}{' '}
-                                    total in project
-                                </Text>
-                            </Tooltip>
-                        )}
                         <Stack gap="xs" className={classes.columnCards}>
                             {visibleCards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
