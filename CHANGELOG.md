@@ -1,3 +1,10 @@
+# [2.176.0](https://github.com/lightdash/lightdash/compare/2.175.0...2.176.0) (2026-09-09)
+
+
+### Features
+
+* **learn:** improve offline module search ([#28939](https://github.com/lightdash/lightdash/issues/28939)) ([ae50138](https://github.com/lightdash/lightdash/commit/ae50138c13f2e4e37e7448bed189955ccac393cb))
+
 # [2.175.0](https://github.com/lightdash/lightdash/compare/2.174.0...2.175.0) (2026-09-09)
 
 
