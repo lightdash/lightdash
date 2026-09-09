@@ -1,3 +1,11 @@
+# [2.184.0](https://github.com/lightdash/lightdash/compare/2.183.0...2.184.0) (2026-09-09)
+
+
+### Features
+
+* **ai:** write native YAML to Bitbucket pull requests ([#28954](https://github.com/lightdash/lightdash/issues/28954)) ([8ef2aad](https://github.com/lightdash/lightdash/commit/8ef2aad3540c950c19764d2ac482a95b2bff46d3)), closes [#28953](https://github.com/lightdash/lightdash/issues/28953)
+* **dashboard:** breadcrumb title in the in-dashboard chart editor ([#28957](https://github.com/lightdash/lightdash/issues/28957)) ([ecef26f](https://github.com/lightdash/lightdash/commit/ecef26f1e90e0465063a11c4f3fe6014d1766e5d))
+
 # [2.183.0](https://github.com/lightdash/lightdash/compare/2.182.1...2.183.0) (2026-09-09)
 
 
