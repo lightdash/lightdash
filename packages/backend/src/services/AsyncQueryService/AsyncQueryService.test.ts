@@ -2745,6 +2745,7 @@ describe('AsyncQueryService', () => {
                 status: QueryHistoryStatus.PENDING,
                 queryUuid: 'test-query-uuid',
             });
+            expect(projectModel.getSummary).toHaveBeenCalledTimes(1);
         });
 
         test('rejects embedded AI agent JWTs polling AI queries from another user', async () => {
@@ -3918,6 +3919,12 @@ describe('AsyncQueryService', () => {
                 ).rejects.toThrow(expected);
                 await expect(service.download(args)).rejects.toThrow(expected);
                 expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
+                await expect(
+                    service.getAsyncQueryResults(args),
+                ).rejects.toThrow(expected);
+                expect(projectModel.getSummary).toHaveBeenLastCalledWith(
+                    projectUuid,
+                );
             },
         );
     });

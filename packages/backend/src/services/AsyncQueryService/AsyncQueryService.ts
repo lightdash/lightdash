@@ -1398,13 +1398,11 @@ export class AsyncQueryService extends ProjectService {
     private async throwIfCannotReadQueryHistory(
         account: Account,
         projectUuid: string,
-        organizationUuid: string,
+        project: Pick<Project, 'organizationUuid' | 'provisioningSource'>,
         queryHistory: QueryHistory,
     ): Promise<void> {
-        await this.assertAnalyticsProjectAccess(
-            account,
-            await this.projectModel.getSummary(projectUuid),
-        );
+        await this.assertAnalyticsProjectAccess(account, project);
+        const { organizationUuid } = project;
         const { queryUuid } = queryHistory;
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -1458,15 +1456,16 @@ export class AsyncQueryService extends ProjectService {
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const [{ organizationUuid }, queryHistory] = await Promise.all([
+        const [project, queryHistory] = await Promise.all([
             this.projectModel.getSummary(projectUuid),
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
         ]);
+        const { organizationUuid } = project;
 
         await this.throwIfCannotReadQueryHistory(
             account,
             projectUuid,
-            organizationUuid,
+            project,
             queryHistory,
         );
 
@@ -7412,12 +7411,10 @@ export class AsyncQueryService extends ProjectService {
     private async authorizeQueryReferences({
         account,
         projectUuid,
-        organizationUuid,
         references,
     }: {
         account: Account;
         projectUuid: string;
-        organizationUuid: string;
         references: Record<string, string>;
     }): Promise<void> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
@@ -7454,7 +7451,7 @@ export class AsyncQueryService extends ProjectService {
                 await this.throwIfCannotReadQueryHistory(
                     account,
                     projectUuid,
-                    organizationUuid,
+                    await this.projectModel.getSummary(projectUuid),
                     queryHistory,
                 );
             }),
@@ -7704,7 +7701,6 @@ export class AsyncQueryService extends ProjectService {
             await this.authorizeQueryReferences({
                 account,
                 projectUuid,
-                organizationUuid,
                 references: normalizedReferences,
             });
         }

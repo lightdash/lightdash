@@ -707,7 +707,10 @@ describe('ProjectService', () => {
                 'assertLocalAnalyticsProjectEnabled',
             ).mockImplementation(() => undefined);
         });
-        afterEach(() => vi.restoreAllMocks());
+        afterEach(() => {
+            vi.restoreAllMocks();
+            vi.unstubAllEnvs();
+        });
 
         test('does not create a project when storage authentication fails', async () => {
             testAnalyticsStorage.mockRejectedValueOnce(
@@ -820,6 +823,68 @@ describe('ProjectService', () => {
             );
             expect(
                 projectModel.runInAnalyticsProvisioningLock,
+            ).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            { enabled: false, disabled: false },
+            { enabled: true, disabled: true },
+        ])(
+            'blocks creation and refresh before any side effects when enabled=$enabled, disabled=$disabled',
+            async ({ enabled, disabled }) => {
+                vi.mocked(
+                    localAnalytics.assertLocalAnalyticsProjectEnabled,
+                ).mockRestore();
+                vi.stubEnv('NODE_ENV', 'development');
+                vi.stubEnv(
+                    'LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID',
+                    'analytics-org',
+                );
+                vi.spyOn(
+                    lightdashConfigMock.enabledFeatureFlags,
+                    'has',
+                ).mockReturnValue(enabled);
+                vi.spyOn(
+                    lightdashConfigMock.disabledFeatureFlags,
+                    'has',
+                ).mockReturnValue(disabled);
+
+                await expect(
+                    service.ensureAnalyticsProject(admin),
+                ).rejects.toThrow(/not enabled/);
+                await expect(
+                    service.assertAnalyticsProjectAccess(admin, {
+                        organizationUuid: 'analytics-org',
+                        provisioningSource: 'analytics',
+                    }),
+                ).rejects.toThrow(/not enabled/);
+
+                expect(
+                    localAnalytics.createLocalAnalyticsClient,
+                ).not.toHaveBeenCalled();
+                expect(testAnalyticsStorage).not.toHaveBeenCalled();
+                expect(
+                    projectModel.runInAnalyticsProvisioningLock,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectModel.getAllByOrganizationUuid,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+            },
+        );
+
+        test('does not apply the analytics gate to ordinary projects', async () => {
+            await expect(
+                service.assertAnalyticsProjectAccess(admin, {
+                    organizationUuid: 'analytics-org',
+                    provisioningSource: null,
+                }),
+            ).resolves.toBeUndefined();
+            expect(
+                localAnalytics.assertLocalAnalyticsProjectEnabled,
             ).not.toHaveBeenCalled();
         });
     });
@@ -3629,12 +3694,14 @@ describe('ProjectService', () => {
 
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {
+            projectModel.getSummary.mockClear();
             const result = await service.getAllExploresSummary(
                 account,
                 projectUuid,
                 false,
             );
             expect(result).toEqual(expectedAllExploreSummary);
+            expect(projectModel.getSummary).toHaveBeenCalledTimes(1);
         });
         test('should get all explores summary with filtering', async () => {
             const result = await service.getAllExploresSummary(

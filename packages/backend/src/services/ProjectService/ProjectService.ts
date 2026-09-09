@@ -9611,12 +9611,9 @@ export class ProjectService extends BaseService {
         includeErrors: boolean = true,
         includePreAggregates: boolean = false,
     ): Promise<SummaryExplore[]> {
-        await this.assertAnalyticsProjectAccess(
-            account,
-            await this.projectModel.getSummary(projectUuid),
-        );
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        const { organizationUuid } = project;
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
