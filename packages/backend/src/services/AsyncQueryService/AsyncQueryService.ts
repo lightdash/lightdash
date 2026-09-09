@@ -8,6 +8,7 @@ import {
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     ApiPreAggregateStatsResults,
+    applyChartFilterOverridesToMetricQuery,
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
@@ -5839,19 +5840,31 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotResults,
         filterOverrides,
+        schedulerFilters,
         dashboardFilters,
         userAttributeOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
+        const storedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
             {
                 projectUuid,
             },
         );
+        // Applied to the stored chart so merge queries built from it see the
+        // delivery's filters too.
+        const savedChart = schedulerFilters
+            ? {
+                  ...storedChart,
+                  metricQuery: applyChartFilterOverridesToMetricQuery(
+                      storedChart.metricQuery,
+                      schedulerFilters,
+                  ),
+              }
+            : storedChart;
         const {
             uuid: savedChartUuid,
             organizationUuid: savedChartOrganizationUuid,

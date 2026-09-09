@@ -1,11 +1,15 @@
 import {
     isAppScheduler,
+    isChartScheduler,
     isDashboardScheduler,
     SchedulerFormat,
     type Dashboard,
     type DashboardFilterRule,
+    type FilterRule,
+    type ItemsMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SavedChart,
     type SchedulerAndTargets,
     type SchedulerAppState,
     type UnmetFilterRequirement,
@@ -31,6 +35,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { Limit, Values } from '../../types';
+import { SchedulerFormChartFilterOverridesTab } from '../SchedulerFormChartFilterOverridesTab';
 import {
     hasFileAttachmentTargets,
     useSchedulerFormContext,
@@ -55,6 +60,11 @@ const getAppQueryCountCaption = (
 
 type Props = {
     dashboard: Dashboard | undefined;
+    /** Chart deliveries only: the chart whose saved filters can be adjusted. */
+    savedChart?: SavedChart;
+    /** Chart deliveries opened from the chart page: the explorer's fields. */
+    itemsMap?: ItemsMap;
+    chartFiltersWithUnmetRequirements?: FilterRule[];
     savedSchedulerData?: SchedulerAndTargets;
     isApp: boolean;
     appUuid?: string;
@@ -73,6 +83,9 @@ type Props = {
 
 export const SchedulerDataFormatSection: FC<Props> = ({
     dashboard,
+    savedChart,
+    itemsMap,
+    chartFiltersWithUnmetRequirements = [],
     savedSchedulerData,
     isApp,
     appUuid,
@@ -408,6 +421,36 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                 </Box>
                             </Stack>
                         )}
+                    </Stack>
+                </>
+            )}
+
+            {savedChart && (
+                <>
+                    <Divider />
+                    <Stack gap="xs">
+                        <span className={classes.subBlockLabel}>Filters</span>
+                        <SchedulerFormChartFilterOverridesTab
+                            savedChart={savedChart}
+                            itemsMap={itemsMap}
+                            draftFilters={form.values.chartFilters}
+                            isEditMode={savedSchedulerData !== undefined}
+                            savedFilters={
+                                savedSchedulerData &&
+                                isChartScheduler(savedSchedulerData)
+                                    ? savedSchedulerData.filters
+                                    : undefined
+                            }
+                            onChange={(chartFilters) => {
+                                form.setFieldValue(
+                                    'chartFilters',
+                                    chartFilters,
+                                );
+                            }}
+                            filtersWithUnmetRequirements={
+                                chartFiltersWithUnmetRequirements
+                            }
+                        />
                     </Stack>
                 </>
             )}

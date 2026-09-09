@@ -93,6 +93,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     googleChatTargets: [],
     // undefined = not yet seeded from live dashboard filters; [] = user removed them all
     dashboardFilters: undefined,
+    // undefined = not yet seeded from the chart's saved filters; {} = user removed them all
     chartFilters: undefined,
     parameters: undefined,
     customViewportWidth: undefined,

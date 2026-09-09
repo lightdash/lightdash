@@ -1282,6 +1282,141 @@ export const addFiltersToMetricQuery = (
 });
 
 /**
+ * Pairs each saved rule with at most one override: by id first, then the first
+ * unmatched override on the same field (an override authored against a rule
+ * the chart has since recreated). Mirrors getDashboardDimensionOverrideMatches.
+ */
+const getChartFilterRuleOverrideMatches = (
+    savedRules: FilterRule[],
+    overrides: FilterRule[],
+): {
+    overrideBySavedRuleId: Map<string, FilterRule>;
+    appliedIds: Set<string>;
+} => {
+    const savedIds = new Set(savedRules.map((rule) => rule.id));
+    const appliedIds = new Set<string>();
+    const overrideBySavedRuleId = new Map<string, FilterRule>();
+    savedRules.forEach((savedRule) => {
+        const override =
+            overrides.find((candidate) => candidate.id === savedRule.id) ??
+            overrides.find(
+                (candidate) =>
+                    !savedIds.has(candidate.id) &&
+                    !appliedIds.has(candidate.id) &&
+                    candidate.target.fieldId === savedRule.target.fieldId,
+            );
+        if (override) {
+            appliedIds.add(override.id);
+            overrideBySavedRuleId.set(savedRule.id, override);
+        }
+    });
+    return { overrideBySavedRuleId, appliedIds };
+};
+
+const replaceOverriddenRules = (
+    group: FilterGroup,
+    overrideBySavedRuleId: Map<string, FilterRule>,
+): FilterGroup => {
+    const items = getItemsFromFilterGroup(group).map(
+        (item): FilterGroupItem => {
+            if (isFilterGroup(item)) {
+                return replaceOverriddenRules(item, overrideBySavedRuleId);
+            }
+            const override = overrideBySavedRuleId.get(item.id);
+            if (!override) return item;
+            // The saved rule owns identity, target and requirement flag; the
+            // override only carries operator, values, settings and disabled.
+            return {
+                ...override,
+                id: item.id,
+                target: item.target,
+                required: item.required,
+            };
+        },
+    );
+    return isAndFilterGroup(group)
+        ? { id: group.id, and: items }
+        : { id: group.id, or: items };
+};
+
+/** Drops the rules that `keep` rejects, and any group left empty by that. */
+const pruneFilterGroup = (
+    group: FilterGroup,
+    keep: (rule: FilterRule) => boolean,
+): FilterGroup | undefined => {
+    const items = getItemsFromFilterGroup(group).reduce<FilterGroupItem[]>(
+        (acc, item) => {
+            if (isFilterGroup(item)) {
+                const pruned = pruneFilterGroup(item, keep);
+                return pruned ? [...acc, pruned] : acc;
+            }
+            return keep(item)
+                ? [...acc, { ...item, required: undefined }]
+                : acc;
+        },
+        [],
+    );
+    if (items.length === 0) return undefined;
+    return isAndFilterGroup(group)
+        ? { id: group.id, and: items }
+        : { id: group.id, or: items };
+};
+
+/**
+ * Scheduled-delivery overrides for one of a chart's saved filter groups. An
+ * override replaces the saved rule it matches (see
+ * getChartFilterRuleOverrideMatches) in place, so nested AND/OR structure is
+ * kept; overrides matching nothing are ANDed on with `required` stripped, so a
+ * delivery can narrow a chart but never widen a required filter away.
+ */
+export const applyChartFilterOverridesToFilterGroup = (
+    savedGroup: FilterGroup | undefined,
+    overrideGroup: FilterGroup | undefined,
+): FilterGroup | undefined => {
+    if (!overrideGroup) return savedGroup;
+    const { overrideBySavedRuleId, appliedIds } =
+        getChartFilterRuleOverrideMatches(
+            getFilterRulesFromGroup(savedGroup),
+            getFilterRulesFromGroup(overrideGroup),
+        );
+    const replaced = savedGroup
+        ? replaceOverriddenRules(savedGroup, overrideBySavedRuleId)
+        : undefined;
+    const appended = pruneFilterGroup(
+        overrideGroup,
+        (rule) => !appliedIds.has(rule.id),
+    );
+    if (!appended) return replaced;
+    return combineFilterGroups(replaced, appended);
+};
+
+export const applyChartFilterOverrides = (
+    savedFilters: Filters,
+    overrides: Filters,
+): Filters => ({
+    dimensions: applyChartFilterOverridesToFilterGroup(
+        savedFilters.dimensions,
+        overrides.dimensions,
+    ),
+    metrics: applyChartFilterOverridesToFilterGroup(
+        savedFilters.metrics,
+        overrides.metrics,
+    ),
+    tableCalculations: applyChartFilterOverridesToFilterGroup(
+        savedFilters.tableCalculations,
+        overrides.tableCalculations,
+    ),
+});
+
+export const applyChartFilterOverridesToMetricQuery = (
+    metricQuery: MetricQuery,
+    overrides: Filters,
+): MetricQuery => ({
+    ...metricQuery,
+    filters: applyChartFilterOverrides(metricQuery.filters, overrides),
+});
+
+/**
  * This function is used to override the chart filter with the dashboard filter
  * if the dashboard filter is a time or date dimension and the chart filter is a different granularity of the same dimension
  * or if the dashboard filter is the same dimension as the chart filter

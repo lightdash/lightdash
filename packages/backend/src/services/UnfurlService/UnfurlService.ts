@@ -39,6 +39,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DeliveryCaptureManifest,
+    type Filters,
     type ParametersValuesMap,
     type UUID,
 } from '@lightdash/common';
@@ -679,6 +680,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
+        sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
     }: {
         url: string;
@@ -694,6 +696,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
     }): Promise<{
         imageUrl?: string;
@@ -722,6 +725,7 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerDashboardFilters,
             sendNowSchedulerFilters,
+            sendNowSchedulerChartFilters,
             sendNowSchedulerParameters,
         };
 
@@ -1457,6 +1461,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
+        sendNowSchedulerChartFilters,
         sendNowSchedulerParameters,
         outputFormat = 'image',
         withPdf = false,
@@ -1482,6 +1487,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
+        sendNowSchedulerChartFilters?: Filters | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
@@ -1685,6 +1691,8 @@ export class UnfurlService extends BaseService {
                         {
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS]:
                                 sendNowSchedulerFilters,
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_CHART_FILTERS]:
+                                sendNowSchedulerChartFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_DASHBOARD_FILTERS]:
                                 sendNowSchedulerDashboardFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
@@ -2562,6 +2570,7 @@ export class UnfurlService extends BaseService {
                             selectedTabs,
                             sendNowSchedulerDashboardFilters,
                             sendNowSchedulerFilters,
+                            sendNowSchedulerChartFilters,
                             sendNowSchedulerParameters,
                             outputFormat,
                             withPdf,

@@ -28,7 +28,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
@@ -108,11 +107,13 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         confirmText,
         form,
         dashboard,
+        savedChart,
         isThresholdAlertWithNoFields,
         numericMetrics,
         isDashboardTabsAvailable,
         unmetRequirements,
         requiredFiltersWithoutValues,
+        chartRequiredFiltersWithoutValues,
         hasOnlyUnmetGroupRequirements,
     } = useSchedulerFormModal({
         schedulerUuid: schedulerUuidToEdit,
@@ -128,13 +129,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         filterableFieldsByTileUuid,
     });
 
-    // The AI agent selector filters by the delivered content's space. For
-    // dashboards the space comes with the form-modal's dashboard query; for
-    // charts we fetch the chart here (alerts have no AI section, so skip).
-    const { data: savedChart } = useSavedQuery({
-        uuidOrSlug: isChart && !isThresholdAlert ? resourceUuid : undefined,
-        projectUuid,
-    });
+    // The AI agent selector filters by the delivered content's space.
     const resourceSpaceUuid = isChart
         ? savedChart?.spaceUuid
         : dashboard?.spaceUuid;
@@ -161,8 +156,10 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         (form.values.googleChatTargets?.length || 0),
     );
 
-    const canSendNow =
-        hasRecipient && requiredFiltersWithoutValues.length === 0;
+    const hasUnmetFilterRequirements =
+        requiredFiltersWithoutValues.length > 0 ||
+        chartRequiredFiltersWithoutValues.length > 0;
+    const canSendNow = hasRecipient && !hasUnmetFilterRequirements;
 
     // Name why the submit is blocked instead of failing silently on submit —
     // the offending field may live in a section the user isn't looking at.
@@ -170,7 +167,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         ? `Give your ${isThresholdAlert ? 'alert' : 'delivery'} a name`
         : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
           ? 'Pick an alert field'
-          : requiredFiltersWithoutValues.length > 0
+          : hasUnmetFilterRequirements
             ? hasOnlyUnmetGroupRequirements
                 ? 'Set a value for at least one filter in each requirement group'
                 : 'Some required filters are missing values'
@@ -201,6 +198,11 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                 return (
                     <SchedulerDataFormatSection
                         dashboard={dashboard}
+                        savedChart={savedChart}
+                        itemsMap={itemsMap}
+                        chartFiltersWithUnmetRequirements={
+                            chartRequiredFiltersWithoutValues
+                        }
                         savedSchedulerData={savedSchedulerData}
                         isApp={!!isApp}
                         appUuid={isApp ? resourceUuid : undefined}

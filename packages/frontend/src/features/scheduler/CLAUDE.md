@@ -9,7 +9,9 @@ Key components:
 
 - `SchedulerModalContent` - Main modal wrapper for creating/editing schedulers
 - `SchedulerForm` - Core form with delivery configuration (format, targets, frequency)
-- `SchedulerFilters` - Configure dashboard filter overrides for deliveries
+- `SchedulerFormFiltersTab` - Adjust the dashboard's saved filters for a delivery
+- `SchedulerFormChartFilterOverridesTab` - Adjust the chart's saved filters for a delivery
+- `SchedulerFormChartFiltersTab` - Threshold alerts only: full filter builder that adds filters to the chart query
 - `SchedulerParameters` - Configure parameter overrides for deliveries
 - `SchedulerPreview` - Preview dashboard appearance for image deliveries
 
@@ -54,7 +56,7 @@ Delivery targets include email, Slack channels, Microsoft Teams webhooks, and Go
 
 <importantToKnow>
 - **Parameter Inheritance**: Scheduler parameters inherit current dashboard parameter values and only show as "changed" when explicitly modified by the user
-- **Filter Overrides**: Scheduler filters can override existing dashboard filters but cannot create entirely new filters
+- **Filter Overrides**: Deliveries adjust the values of the resource's existing filters, they do not add new ones. Dashboards store `DashboardFilterRule[]` (applied with `applyDimensionOverrides`); charts store `Filters` (applied with `applyChartFilterOverrides`, which replaces saved rules by id and falls back to the same field). A removed override means the delivery uses the saved default. Overrides that match nothing are ANDed on, which is how threshold alerts add filters
 - **Format-Specific Options**: Each delivery format has specific configuration options (CSV formatting, image viewport width, etc.)
 - **Target Validation**: Email addresses and webhook URLs are validated before scheduler creation
 - **Timezone Support**: Schedulers use project timezone by default but can be overridden

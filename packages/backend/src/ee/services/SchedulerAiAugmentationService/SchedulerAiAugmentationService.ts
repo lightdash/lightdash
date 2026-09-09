@@ -398,7 +398,7 @@ export class SchedulerAiAugmentationService {
                     account,
                     projectUuid,
                     chartUuid: scheduler.savedChartUuid,
-                    filterOverrides: isChartScheduler(scheduler)
+                    schedulerFilters: isChartScheduler(scheduler)
                         ? scheduler.filters
                         : undefined,
                     parameters: isChartScheduler(scheduler)

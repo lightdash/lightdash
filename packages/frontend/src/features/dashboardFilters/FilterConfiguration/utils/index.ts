@@ -8,6 +8,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type FilterRule,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
@@ -239,8 +240,12 @@ export const isFilterEnabled = (
     return hasFilterValueSet(filterRule);
 };
 
+// Dashboard rules and chart rules share the fields a saved-value comparison
+// reads, so scheduler overrides on either resource reuse these helpers.
+type RevertableFilterRule = FilterRule & { label?: string };
+
 export const getFilterRuleRevertableObject = (
-    filterRule: DashboardFilterRule,
+    filterRule: RevertableFilterRule,
 ) => {
     return {
         disabled: filterRule.disabled,
@@ -252,8 +257,8 @@ export const getFilterRuleRevertableObject = (
 };
 
 export const hasSavedFilterValueChanged = (
-    originalFilterRule: DashboardFilterRule,
-    filterRule: DashboardFilterRule,
+    originalFilterRule: RevertableFilterRule,
+    filterRule: RevertableFilterRule,
 ) => {
     if (originalFilterRule.disabled && filterRule.values === undefined) {
         return false;
