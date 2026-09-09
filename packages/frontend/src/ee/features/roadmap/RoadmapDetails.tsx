@@ -1,4 +1,5 @@
 import { Box, Group, Stack, Text } from '@mantine/core';
+import { clsx } from 'clsx';
 import { type ReactNode } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import styles from './RoadmapDetails.module.css';
@@ -41,10 +42,13 @@ export function RoadmapDetails({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            size="72rem"
-            modalContentProps={
-                compact ? { className: styles.compactModalContent } : undefined
-            }
+            size={compact ? 'lg' : '72rem'}
+            modalContentProps={{
+                className: clsx(
+                    styles.modalContent,
+                    compact && styles.compactModalContent,
+                ),
+            }}
             title={
                 <Text
                     component="span"
@@ -56,7 +60,7 @@ export function RoadmapDetails({
             }
             cancelLabel={false}
             actions={actions}
-            modalBodyProps={{ py: 'lg' }}
+            modalBodyProps={{ px: 0, py: 0 }}
             bodyScrollAreaMaxHeight="calc(85vh - 120px)"
         >
             {opened && (
@@ -72,7 +76,6 @@ export function RoadmapDetails({
                             {description}
                         </Stack>
                     </Stack>
-                    <Box className={styles.detailDivider} />
                     <Stack
                         gap="sm"
                         className={styles.detailRailColumn}
