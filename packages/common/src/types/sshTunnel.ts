@@ -1,4 +1,15 @@
-import { type CreateWarehouseCredentials } from './projects';
+import {
+    type CreateAthenaCredentials,
+    type CreateBigqueryCredentials,
+    type CreateClickhouseCredentials,
+    type CreateDatabricksCredentials,
+    type CreateDuckdbCredentials,
+    type CreatePostgresCredentials,
+    type CreateRedshiftCredentials,
+    type CreateSnowflakeCredentials,
+    type CreateTrinoCredentials,
+    type CreateWarehouseCredentialsWithOptionalSecrets,
+} from './projects';
 
 export const SSH_TUNNEL_STAGES = [
     'resolve',
@@ -59,6 +70,18 @@ export const WAREHOUSE_CONNECTION_HOP_LABELS: Record<
     database: 'Database login and test query',
 };
 
+// The full credential types are spelled out so their schemas stay in the
+// request body's union; the optional-secrets type widens it.
 export type ApiWarehouseConnectionTestBody = {
-    warehouseConnection: CreateWarehouseCredentials;
+    warehouseConnection:
+        | CreateRedshiftCredentials
+        | CreateBigqueryCredentials
+        | CreatePostgresCredentials
+        | CreateSnowflakeCredentials
+        | CreateDatabricksCredentials
+        | CreateTrinoCredentials
+        | CreateClickhouseCredentials
+        | CreateAthenaCredentials
+        | CreateDuckdbCredentials
+        | CreateWarehouseCredentialsWithOptionalSecrets;
 };

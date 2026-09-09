@@ -11,6 +11,7 @@ import {
     createVirtualView,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
     DuckdbConnectionType,
@@ -335,7 +336,8 @@ export class ProjectModel {
     }
 
     static mergeMissingWarehouseSecrets<
-        T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
+        T extends CreateWarehouseCredentialsWithOptionalSecrets =
+            CreateWarehouseCredentials,
     >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
         if (
             !hasSameWarehouseCredentialDestination(

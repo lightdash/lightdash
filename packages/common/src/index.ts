@@ -223,6 +223,9 @@ export {
     RedshiftAuthenticationType,
     resolveDbtVersion,
     playgroundProjectTriggers,
+    fillOmittedSecrets,
+    isMissingBigqueryKeyfile,
+    omitEmptySecrets,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,
@@ -324,6 +327,7 @@ export type {
     UpdateAgentSqlScope,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     WarehouseCredentials,
     WarehouseLocation,
 } from './types/projects';

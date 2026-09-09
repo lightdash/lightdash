@@ -7,6 +7,7 @@ import {
     type ApiWarehouseConnectionTestBody,
     type WarehouseConnectionTestResults,
     type CreateProject,
+    omitEmptySecrets,
     type CreateWarehouseCredentials,
     type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
@@ -242,7 +243,9 @@ export const useTestWarehouseConnectionMutation = (uuid: string) => {
         CreateWarehouseCredentials
     >(
         (warehouseConnection) =>
-            testWarehouseConnection(uuid, { warehouseConnection }),
+            testWarehouseConnection(uuid, {
+                warehouseConnection: omitEmptySecrets(warehouseConnection),
+            }),
         {
             mutationKey: ['project_warehouse_connection_test', uuid],
             onError: ({ error }) => {

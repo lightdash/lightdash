@@ -6,6 +6,7 @@ import {
     DucklakeDataPathType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type CreateWarehouseCredentialsWithOptionalSecrets,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
@@ -169,7 +170,7 @@ const getDucklakeDataPathDestination = (
 };
 
 const getWarehouseCredentialDestination = (
-    config: CreateWarehouseCredentials,
+    config: CreateWarehouseCredentialsWithOptionalSecrets,
 ): unknown[] => {
     switch (config.type) {
         case WarehouseTypes.BIGQUERY:
@@ -217,7 +218,7 @@ const getWarehouseCredentialDestination = (
 };
 
 export const hasSameWarehouseCredentialDestination = (
-    incompleteConfig: CreateWarehouseCredentials,
+    incompleteConfig: CreateWarehouseCredentialsWithOptionalSecrets,
     completeConfig: CreateWarehouseCredentials,
 ): boolean =>
     incompleteConfig.type === completeConfig.type &&
