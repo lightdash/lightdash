@@ -895,15 +895,17 @@ export class SpacePermissionService extends BaseService {
                 { trx },
             );
 
-        // For each requested space, aggregate access from its chain
+        // Omit spaces deleted between the chain and metadata reads.
+        const existingChains = chains.filter(
+            ({ spaceUuid }) => spaceInfo[spaceUuid] !== undefined,
+        );
         const result: Record<string, SpaceAccessContextForCasl> = {};
-        for (const { spaceUuid, chain, inheritsFromOrgOrProject } of chains) {
+        for (const {
+            spaceUuid,
+            chain,
+            inheritsFromOrgOrProject,
+        } of existingChains) {
             const space = spaceInfo[spaceUuid];
-            if (!space) {
-                throw new NotFoundError(
-                    `Space with uuid ${spaceUuid} not found`,
-                );
-            }
 
             // Build chain-ordered direct access (preserves leaf-to-root ordering)
             const chainDirectAccess = chain.map((item) => ({
