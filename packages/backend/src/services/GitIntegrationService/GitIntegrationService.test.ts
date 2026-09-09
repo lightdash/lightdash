@@ -20,6 +20,7 @@ import {
     getLastCommit,
     updateFile,
 } from '../../clients/github/Github';
+import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
@@ -60,6 +61,19 @@ vi.mock('../../clients/github/Github.ts', () => ({
     })),
 }));
 
+vi.mock('../../clients/gitlab/Gitlab.ts', () => ({
+    createPullRequest: vi.fn(),
+    getFileContent: vi.fn(),
+    updateFile: vi.fn(),
+}));
+
+const updateFileResponse: Awaited<ReturnType<typeof updateFile>> = {
+    status: 200,
+    url: 'https://api.github.com/repos/owner/repo/contents/schema.yml',
+    headers: {},
+    data: { content: null, commit: {} },
+};
+
 describe('GitIntegrationService', () => {
     const service = new GitIntegrationService({
         lightdashConfig: lightdashConfigMock,
@@ -80,6 +94,8 @@ describe('GitIntegrationService', () => {
     });
 
     beforeEach(() => {
+        vi.mocked(updateFile).mockReset().mockResolvedValue(updateFileResponse);
+        vi.mocked(GitlabClient.updateFile).mockReset();
         vi.mocked(getFileContent).mockResolvedValue({
             content: SCHEMA_YML,
             sha: 'sha',
@@ -125,6 +141,88 @@ describe('GitIntegrationService', () => {
     );
 
     describe('updateFile', () => {
+        it.each([
+            { provider: DbtProjectType.GITHUB, fieldType: 'customMetrics' },
+            { provider: DbtProjectType.GITHUB, fieldType: 'customDimensions' },
+            { provider: DbtProjectType.GITLAB, fieldType: 'customMetrics' },
+            { provider: DbtProjectType.GITLAB, fieldType: 'customDimensions' },
+        ] as const)(
+            'preserves both models in a shared dbt schema for $provider $fieldType',
+            async ({ provider, fieldType }) => {
+                let content = SCHEMA_YML;
+                let sha = 'sha-0';
+                let writes = 0;
+                const read =
+                    provider === DbtProjectType.GITHUB
+                        ? getFileContent
+                        : GitlabClient.getFileContent;
+                const write =
+                    provider === DbtProjectType.GITHUB
+                        ? updateFile
+                        : GitlabClient.updateFile;
+                vi.mocked(read).mockImplementation(async () => ({
+                    content,
+                    sha,
+                }));
+                vi.mocked(write).mockImplementation(async (update) => {
+                    if (update.fileSha !== sha)
+                        throw new Error('File changed since it was read');
+                    content = update.content;
+                    writes += 1;
+                    sha = `sha-${writes}`;
+                    return updateFileResponse;
+                });
+
+                await service.updateFile({
+                    owner: 'owner',
+                    repo: 'repo',
+                    path: 'path',
+                    projectUuid: 'projectUuid',
+                    branch: 'branch',
+                    token: 'token',
+                    quoteChar: "'",
+                    mainBranch: 'main',
+                    type: provider,
+                    ...(fieldType === 'customMetrics'
+                        ? {
+                              fieldType,
+                              fields: [
+                                  CUSTOM_METRIC,
+                                  {
+                                      ...CUSTOM_METRIC,
+                                      name: 'new_metric_b',
+                                      table: 'table_b',
+                                  },
+                              ],
+                          }
+                        : {
+                              fieldType,
+                              fields: [
+                                  CUSTOM_DIMENSION,
+                                  {
+                                      ...CUSTOM_DIMENSION,
+                                      id: 'amount_size_b',
+                                      table: 'table_b',
+                                      sql: '${table_b.dim_a}',
+                                  },
+                              ],
+                          }),
+                });
+
+                expect(writes).toBe(2);
+                expect(content).toContain(
+                    fieldType === 'customMetrics'
+                        ? 'new_metric:'
+                        : 'amount_size:',
+                );
+                expect(content).toContain(
+                    fieldType === 'customMetrics'
+                        ? 'new_metric_b:'
+                        : 'amount_size_b:',
+                );
+            },
+        );
+
         it('should update the file for custom metrics', async () => {
             await service.updateFile({
                 owner: 'owner',
@@ -166,6 +264,110 @@ describe('GitIntegrationService', () => {
                 EXPECTED_SCHEMA_YML_WITH_CUSTOM_DIMENSION,
             );
         });
+    });
+
+    describe('native metric pull requests', () => {
+        const source = `# original native file
+type: model
+name: table_a
+sql_from: public.table_a
+dimensions:
+  - name: dim_a
+    type: number
+    sql: dim_a
+`;
+        it.each([false, true])(
+            'prepares native YAML against the configured branch, invalid metric: %s',
+            async (invalid) => {
+                const project = await PROJECT_MODEL.get();
+                const explores = await PROJECT_MODEL.getAllExploresFromCache();
+                const nativeProject = {
+                    ...project,
+                    dbtConnection: {
+                        ...project.dbtConnection,
+                        branch: 'release',
+                        semanticLayer: 'lightdash',
+                    },
+                };
+                PROJECT_MODEL.get.mockResolvedValue(nativeProject);
+                const nativeExplores = {
+                    another_explore: {
+                        tables: {
+                            table_a: {
+                                ymlPath: 'models/nested/original.yaml',
+                            },
+                            table_b: { ymlPath: 'models/table_b.yml' },
+                        },
+                    },
+                };
+                PROJECT_MODEL.getAllExploresFromCache.mockResolvedValue(
+                    nativeExplores,
+                );
+                vi.mocked(getFileContent).mockImplementation(async (file) => ({
+                    content: file.fileName.endsWith('table_b.yml')
+                        ? source.replace('name: table_a', 'name: table_b')
+                        : source,
+                    sha: 'original-sha',
+                }));
+                try {
+                    const request = service.createPullRequest(
+                        { ...user, organizationUuid: 'organizationUuid' },
+                        'projectUuid',
+                        "'",
+                        {
+                            type: 'customMetrics',
+                            fields: [
+                                CUSTOM_METRIC,
+                                ...(invalid
+                                    ? [
+                                          {
+                                              ...CUSTOM_METRIC,
+                                              name: 'unsupported',
+                                              table: 'table_b',
+                                              baseDimensionName: undefined,
+                                          },
+                                      ]
+                                    : []),
+                            ],
+                        },
+                    );
+                    if (invalid) {
+                        await expect(request).rejects.toThrow(
+                            'Only metrics based on a native dimension',
+                        );
+                        expect(createBranch).not.toHaveBeenCalled();
+                        expect(updateFile).not.toHaveBeenCalled();
+                        expect(createPullRequest).not.toHaveBeenCalled();
+                    } else {
+                        await expect(request).resolves.toMatchObject({
+                            prUrl: 'https://example.com/pull/1',
+                        });
+                        expect(getFileContent).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                branch: 'release',
+                                fileName: 'path/models/nested/original.yaml',
+                            }),
+                        );
+                        expect(updateFile).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                fileName: 'path/models/nested/original.yaml',
+                                fileSha: 'original-sha',
+                                content: expect.stringContaining('new_metric:'),
+                                branch: expect.stringMatching(/^lightdash-/),
+                            }),
+                        );
+                        expect(createPullRequest).toHaveBeenCalledWith(
+                            expect.objectContaining({ base: 'release' }),
+                        );
+                    }
+                } finally {
+                    PROJECT_MODEL.get.mockResolvedValue(project);
+                    PROJECT_MODEL.getAllExploresFromCache.mockResolvedValue(
+                        explores,
+                    );
+                }
+            },
+        );
     });
 
     describe('findOpenPullRequestForBranch', () => {

@@ -23,6 +23,7 @@ import { SingleItemModalContent, WriteBackModal } from './index';
 const project = vi.hoisted(() => ({
     type: 'github',
     host_domain: undefined as string | undefined,
+    semanticLayer: undefined as 'dbt' | 'lightdash' | undefined,
 }));
 vi.mock('../../../hooks/useProject', () => ({
     useProject: () => ({ data: { dbtConnection: project } }),
@@ -67,6 +68,7 @@ beforeEach(() => {
     vi.clearAllMocks();
     project.type = DbtProjectType.GITHUB;
     project.host_domain = undefined;
+    project.semanticLayer = undefined;
 });
 
 describe('custom field writeback modal', () => {
@@ -82,26 +84,31 @@ describe('custom field writeback modal', () => {
     });
 
     it.each([
-        [DbtProjectType.GITHUB, undefined, true],
-        [DbtProjectType.GITLAB, undefined, true],
-        [DbtProjectType.BITBUCKET, undefined, true],
-        [DbtProjectType.BITBUCKET, ' BITBUCKET.ORG. ', true],
-        [DbtProjectType.BITBUCKET, 'bitbucket.internal', false],
-        [DbtProjectType.BITBUCKET, 'bitbucket.org.evil.test', false],
-        [DbtProjectType.DBT, undefined, false],
-    ] as const)('allows %s on host %s: %s', (type, host, supported) => {
-        project.type = type;
-        project.host_domain = host;
-        renderModal();
-        const button = screen.getByRole('button', {
-            name: 'Open Pull Request',
-        });
-        if (supported) {
-            expect(button).toBeEnabled();
-        } else {
-            expect(button).toBeDisabled();
-        }
-    });
+        [DbtProjectType.GITHUB, undefined, true, undefined],
+        [DbtProjectType.GITHUB, undefined, true, 'lightdash'],
+        [DbtProjectType.GITLAB, undefined, true, undefined],
+        [DbtProjectType.BITBUCKET, undefined, true, undefined],
+        [DbtProjectType.BITBUCKET, ' BITBUCKET.ORG. ', true, undefined],
+        [DbtProjectType.BITBUCKET, 'bitbucket.internal', false, undefined],
+        [DbtProjectType.BITBUCKET, 'bitbucket.org.evil.test', false, undefined],
+        [DbtProjectType.DBT, undefined, false, undefined],
+    ] as const)(
+        'allows %s on host %s: %s',
+        (type, host, supported, semanticLayer) => {
+            project.type = type;
+            project.host_domain = host;
+            project.semanticLayer = semanticLayer;
+            renderModal();
+            const button = screen.getByRole('button', {
+                name: 'Open Pull Request',
+            });
+            if (supported) {
+                expect(button).toBeEnabled();
+            } else {
+                expect(button).toBeDisabled();
+            }
+        },
+    );
 
     it('does not enable Source Editor or ContentAsCode through the generic Git hook', () => {
         project.type = DbtProjectType.BITBUCKET;

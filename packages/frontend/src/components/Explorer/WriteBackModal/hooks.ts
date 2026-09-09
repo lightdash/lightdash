@@ -157,3 +157,11 @@ export const useSupportsCustomFieldWriteBack = (projectUuid: string) => {
         connection.type === DbtProjectType.GITLAB
     );
 };
+
+export const useIsNativeGitProject = (projectUuid: string) => {
+    const { data: project } = useProject(projectUuid);
+    return (
+        project?.dbtConnection.type === DbtProjectType.GITHUB &&
+        project.dbtConnection.semanticLayer === 'lightdash'
+    );
+};
