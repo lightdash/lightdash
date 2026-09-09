@@ -94,7 +94,7 @@ import {
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
-    getDashboardFilterableFieldId,
+    getDashboardFilterableFieldKey,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
@@ -246,7 +246,6 @@ import {
     type ApiCreateProjectResults,
     type ChartUsageIn,
     type CreateDatabricksCredentials,
-    type DashboardFieldMetadata,
     type DataTimezonePreviewRequest,
     type MergeCompiledLeg,
     type MergeItemEntry,
@@ -10270,8 +10269,8 @@ export class ProjectService extends BaseService {
     ): Promise<DashboardAvailableFilters> {
         type ChartFilters = {
             uuid: string;
-            filters: (CompiledDimension & DashboardFieldMetadata)[];
-            metricFilters: (Metric & DashboardFieldMetadata)[];
+            filters: CompiledDimension[];
+            metricFilters: Metric[];
         };
 
         let allFilters: ChartFilters[] = [];
@@ -10379,26 +10378,20 @@ export class ProjectService extends BaseService {
 
                     return {
                         uuid: savedChart.uuid,
-                        filters: filters.map((field) => ({
-                            ...field,
-                            exploreName: savedChart.tableName,
-                        })),
-                        metricFilters: metricFilters.map((field) => ({
-                            ...field,
-                            exploreName: savedChart.tableName,
-                        })),
+                        filters,
+                        metricFilters,
                     };
                 });
             },
         );
 
-        const allFilterableFields: DashboardAvailableFilters['allFilterableFields'] =
-            [];
+        // Explores that relabel a shared join alias keep their own entries
+        const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
 
         allFilters.forEach((filterSet) => {
             filterSet.filters.forEach((filter) => {
-                const fieldId = getDashboardFilterableFieldId(filter);
+                const fieldId = getDashboardFilterableFieldKey(filter);
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
@@ -10406,13 +10399,12 @@ export class ProjectService extends BaseService {
             });
         });
 
-        const allFilterableMetrics: DashboardAvailableFilters['allFilterableMetrics'] =
-            [];
+        const allFilterableMetrics: Metric[] = [];
         const metricIndexMap: Record<string, number> = {};
 
         allFilters.forEach((filterSet) => {
             filterSet.metricFilters.forEach((metric) => {
-                const fieldId = getDashboardFilterableFieldId(metric);
+                const fieldId = getDashboardFilterableFieldKey(metric);
                 if (!(fieldId in metricIndexMap)) {
                     metricIndexMap[fieldId] = allFilterableMetrics.length;
                     allFilterableMetrics.push(metric);
@@ -10431,7 +10423,7 @@ export class ProjectService extends BaseService {
 
             const filterIndexes = filterResult.filters.map(
                 (filter) =>
-                    filterIndexMap[getDashboardFilterableFieldId(filter)],
+                    filterIndexMap[getDashboardFilterableFieldKey(filter)],
             );
             return {
                 ...acc,
@@ -10450,7 +10442,7 @@ export class ProjectService extends BaseService {
 
             const metricIndexes = filterResult.metricFilters.map(
                 (metric) =>
-                    metricIndexMap[getDashboardFilterableFieldId(metric)],
+                    metricIndexMap[getDashboardFilterableFieldKey(metric)],
             );
             return {
                 ...acc,

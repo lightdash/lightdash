@@ -14,7 +14,6 @@ import FiltersProvider from './FiltersProvider';
 import useFiltersContext from './useFiltersContext';
 
 const fieldA: DashboardFilterableField = {
-    exploreName: 'event_a',
     name: 'name',
     table: 'team',
     tableLabel: 'Team at Event A',
@@ -26,7 +25,6 @@ const fieldA: DashboardFilterableField = {
 };
 const fieldB = {
     ...fieldA,
-    exploreName: 'event_b',
     tableLabel: 'Team at Event B',
     label: 'Name at Event B',
 };
@@ -41,82 +39,45 @@ const FieldLabel = ({ rule }: { rule: DashboardFilterRule }) => {
     );
 };
 
-describe('dashboard filter metadata resolution', () => {
-    it.each([true, false])(
-        'uses the matching explore label (stored explore: %s)',
-        (hasExploreName) => {
-            const rule: DashboardFilterRule = {
-                id: 'filter',
-                label: undefined,
-                operator: FilterOperator.EQUALS,
-                values: [],
-                target: {
-                    fieldId: 'team_name',
-                    tableName: 'team',
-                    ...(hasExploreName ? { exploreName: 'event_b' } : {}),
-                },
-                tileTargets: {
-                    'tile-a': hasExploreName
-                        ? { fieldId: 'team_name', tableName: 'team' }
-                        : false,
-                    'tile-b': hasExploreName
-                        ? false
-                        : { fieldId: 'team_name', tableName: 'team' },
-                },
-            };
-            renderWithProviders(
-                <FiltersProvider
-                    itemsMap={{
-                        'event_a:team_name': fieldA,
-                        'event_b:team_name': fieldB,
-                    }}
-                    filterableFieldsByTileUuid={{
-                        'tile-a': [fieldA],
-                        'tile-b': [fieldB],
-                    }}
-                >
-                    <FieldLabel rule={rule} />
-                </FiltersProvider>,
-            );
-            expect(
-                screen.getByText('Team at Event B Name at Event B'),
-            ).toBeVisible();
+describe('dashboard filter field resolution', () => {
+    const rule: DashboardFilterRule = {
+        id: 'filter',
+        label: undefined,
+        operator: FilterOperator.EQUALS,
+        values: [],
+        target: { fieldId: 'team_name', tableName: 'team' },
+        tileTargets: {
+            'tile-a': false,
+            'tile-b': { fieldId: 'team_name', tableName: 'team' },
         },
-    );
-    it('supports unqualified metadata and does not substitute another explore for a missing scoped field', () => {
-        const rule: DashboardFilterRule = {
-            id: 'filter',
-            label: undefined,
-            operator: FilterOperator.EQUALS,
-            target: { fieldId: 'team_name', tableName: 'team' },
-            values: [],
-        };
-        const { rerender } = renderWithProviders(
-            <FiltersProvider itemsMap={{ team_name: fieldA }}>
+    };
+    const fieldsByTile = { 'tile-a': [fieldA], 'tile-b': [fieldB] };
+
+    it('labels a filter from the tile it explicitly targets', () => {
+        renderWithProviders(
+            <FiltersProvider
+                itemsMap={{ team_name: fieldA }}
+                filterableFieldsByTileUuid={fieldsByTile}
+            >
                 <FieldLabel rule={rule} />
+            </FiltersProvider>,
+        );
+        expect(
+            screen.getByText('Team at Event B Name at Event B'),
+        ).toBeVisible();
+    });
+
+    it('falls back to the shared map without tile targets', () => {
+        renderWithProviders(
+            <FiltersProvider
+                itemsMap={{ team_name: fieldA }}
+                filterableFieldsByTileUuid={fieldsByTile}
+            >
+                <FieldLabel rule={{ ...rule, tileTargets: undefined }} />
             </FiltersProvider>,
         );
         expect(
             screen.getByText('Team at Event A Name at Event A'),
         ).toBeVisible();
-        rerender(
-            <FiltersProvider itemsMap={{ 'event_a:team_name': fieldA }}>
-                <FieldLabel rule={rule} />
-            </FiltersProvider>,
-        );
-        expect(
-            screen.getByText('Team at Event A Name at Event A'),
-        ).toBeVisible();
-        rerender(
-            <FiltersProvider itemsMap={{ 'event_a:team_name': fieldA }}>
-                <FieldLabel
-                    rule={{
-                        ...rule,
-                        target: { ...rule.target, exploreName: 'event_b' },
-                    }}
-                />
-            </FiltersProvider>,
-        );
-        expect(screen.getByText('Missing field')).toBeVisible();
     });
 });

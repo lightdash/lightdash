@@ -1,12 +1,10 @@
 import {
-    getDashboardFilterField,
     isValuelessDashboardFilterRule,
     type DashboardFilterRule,
-    type DashboardFilterableField,
-    type FilterableItem,
 } from '@lightdash/common';
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
 import { type SelectableFilter } from './FilterSelect';
+import { type DashboardFilterFieldResolver } from './useDashboardFilterField';
 
 // Rule derivation is shared with the dashboard lock (`getUnmetFilterRequirements`)
 export {
@@ -34,12 +32,11 @@ export const getRequirementIneligibilityReason = (
 
 export const getDashboardFilterRuleLabel = (
     filterRule: DashboardFilterRule,
-    fieldsMap: Record<string, FilterableItem>,
-    fieldsByTile?: Record<string, DashboardFilterableField[]>,
+    getField: DashboardFilterFieldResolver,
 ): string => {
     if (filterRule.label) return filterRule.label;
 
-    const field = getDashboardFilterField(fieldsMap, filterRule, fieldsByTile);
+    const field = getField(filterRule);
     return field
         ? getConditionalRuleLabelFromItem(filterRule, field).field
         : filterRule.target.fieldId;
@@ -49,8 +46,7 @@ export const getDashboardFilterRuleLabel = (
 export const getSelectableFilters = (
     allFilterRules: DashboardFilterRule[],
     excludedIds: string[],
-    fieldsMap: Record<string, FilterableItem>,
-    fieldsByTile?: Record<string, DashboardFilterableField[]>,
+    getField: DashboardFilterFieldResolver,
 ): SelectableFilter[] =>
     allFilterRules
         .filter((rule) => !excludedIds.includes(rule.id))
@@ -58,11 +54,7 @@ export const getSelectableFilters = (
             const reason = getRequirementIneligibilityReason(rule);
             return {
                 value: rule.id,
-                label: getDashboardFilterRuleLabel(
-                    rule,
-                    fieldsMap,
-                    fieldsByTile,
-                ),
+                label: getDashboardFilterRuleLabel(rule, getField),
                 disabled: reason !== null,
                 reason,
             };

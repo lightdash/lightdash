@@ -517,10 +517,6 @@
         },
         "DashboardFieldTarget": {
             "properties": {
-                "exploreName": {
-                    "description": "Source explore for display metadata, independent of tile targeting.",
-                    "type": "string"
-                },
                 "fallbackType": {
                     "$ref": "#/$defs/DimensionType"
                 },

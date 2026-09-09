@@ -7653,7 +7653,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
 });
 
 describe('dashboard available filters', () => {
-    test('preserves joined field metadata per explore and reuses indexes within an explore', async () => {
+    test('keeps a field per distinct label set and shares indexes across explores that agree', async () => {
         const filterAccount = {
             ...account,
             user: {
@@ -7664,7 +7664,12 @@ describe('dashboard available filters', () => {
                 ]),
             },
         } as typeof account;
-        const explores = ['event_a', 'event_b'].map((name, index) => ({
+        // event_c reuses the team alias with event_a's labels
+        const explores = [
+            ['event_a', 'A'],
+            ['event_b', 'B'],
+            ['event_c', 'A'],
+        ].map(([name, event]) => ({
             ...validExplore,
             name,
             tables: {
@@ -7676,8 +7681,8 @@ describe('dashboard available filters', () => {
                             ...validExplore.tables.a.dimensions.dim1,
                             table: 'team',
                             name: 'name',
-                            tableLabel: `Team at Event ${index === 0 ? 'A' : 'B'}`,
-                            label: `Name at Event ${index === 0 ? 'A' : 'B'}`,
+                            tableLabel: `Team at Event ${event}`,
+                            label: `Name at Event ${event}`,
                         },
                     },
                     metrics: {
@@ -7685,13 +7690,13 @@ describe('dashboard available filters', () => {
                             ...validExplore.tables.a.metrics.met1,
                             table: 'team',
                             name: 'total',
-                            label: `Total at Event ${index === 0 ? 'A' : 'B'}`,
+                            label: `Total at Event ${event}`,
                         },
                     },
                 },
             },
         }));
-        const charts = ['event_a', 'event_b', 'event_a'].map(
+        const charts = ['event_a', 'event_b', 'event_c'].map(
             (tableName, index) => ({
                 uuid: `chart-${index}`,
                 name: `Chart ${index}`,

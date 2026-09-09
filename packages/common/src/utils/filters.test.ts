@@ -23,6 +23,8 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     excludeTilesFromTabScopedFilters,
+    getDashboardFilterableFieldKey,
+    getDashboardFilterField,
     getDashboardFilterRulesForTileAndReferences,
     getFilterExpression,
     getFilterRuleFromFieldWithDefaultValue,
@@ -2584,27 +2586,85 @@ describe('excludeTilesFromTabScopedFilters', () => {
     });
 });
 
-describe('dashboard field identity', () => {
-    test('remembers the selected explore without changing query or tile target field IDs', () => {
-        const field = { ...dimension('name', 'team'), exploreName: 'event_b' };
-        const availableTileFilters = {
-            'tile-a': [{ ...field, exploreName: 'event_a' }],
-            'tile-b': [field],
-        };
+describe('createDashboardFilterRuleFromField', () => {
+    const fieldA = {
+        ...dimension('name', 'team'),
+        tableLabel: 'Team at Event A',
+        label: 'Name',
+    };
+    const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
+
+    test('targets only tiles whose field carries the same labels by default', () => {
         const rule = createDashboardFilterRuleFromField({
-            field,
-            availableTileFilters,
+            field: fieldB,
+            availableTileFilters: {
+                'tile-a': [fieldA],
+                'tile-b': [fieldB],
+                'tile-c': [{ ...fieldB }],
+            },
             isTemporary: false,
         });
         expect(rule.target).toEqual({
             fieldId: 'team_name',
             tableName: 'team',
             fieldName: 'name',
-            exploreName: 'event_b',
         });
         expect(rule.tileTargets).toEqual({
-            'tile-a': { fieldId: 'team_name', tableName: 'team' },
             'tile-b': { fieldId: 'team_name', tableName: 'team' },
+            'tile-c': { fieldId: 'team_name', tableName: 'team' },
         });
+    });
+});
+
+describe('getDashboardFilterField', () => {
+    const fieldA = {
+        ...dimension('name', 'team'),
+        tableLabel: 'Team at Event A',
+    };
+    const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
+    const fieldsByTile = { 'tile-a': [fieldA], 'tile-b': [fieldB] };
+    const target = { fieldId: 'team_name', tableName: 'team' };
+
+    test('returns the field of an explicitly targeted tile', () => {
+        expect(
+            getDashboardFilterField(
+                { team_name: fieldA },
+                { target, tileTargets: { 'tile-a': false, 'tile-b': target } },
+                fieldsByTile,
+            ),
+        ).toBe(fieldB);
+    });
+
+    test('ignores tiles mapped to a different field', () => {
+        expect(
+            getDashboardFilterField(
+                { team_name: fieldA },
+                {
+                    target,
+                    tileTargets: {
+                        'tile-b': { fieldId: 'other', tableName: 'team' },
+                    },
+                },
+                fieldsByTile,
+            ),
+        ).toBe(fieldA);
+    });
+
+    test('falls back to the shared map without tile targets', () => {
+        expect(getDashboardFilterField({ team_name: fieldA }, { target })).toBe(
+            fieldA,
+        );
+    });
+});
+
+describe('getDashboardFilterableFieldKey', () => {
+    test('separates same-id fields whose labels differ', () => {
+        const field = dimension('name', 'team');
+        expect(getDashboardFilterableFieldKey(field)).toBe(
+            'team_name::mockTableLabel::mockLabel',
+        );
+        expect(
+            getDashboardFilterableFieldKey({ ...field, tableLabel: 'Other' }),
+        ).not.toBe(getDashboardFilterableFieldKey(field));
     });
 });

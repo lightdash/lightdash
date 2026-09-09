@@ -169,7 +169,6 @@ describe('getConditionalRuleLabelFromItem', () => {
 describe('getFilterRuleTables', () => {
     it("uses each targeted tile's own join label when aliases collide", () => {
         const fieldA: DashboardFilterableField = {
-            exploreName: 'event_a',
             table: 'team',
             name: 'name',
             tableLabel: 'Team at Event A',
@@ -181,7 +180,6 @@ describe('getFilterRuleTables', () => {
         };
         const fieldB = {
             ...fieldA,
-            exploreName: 'event_b',
             tableLabel: 'Team at Event B',
         };
         const target = { fieldId: 'team_name', tableName: 'team' };

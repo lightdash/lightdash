@@ -14,15 +14,12 @@ import {
     type CompiledDimension,
     type CustomDimension,
     type CustomSqlDimension,
-    type DashboardFieldMetadata,
-    type DashboardFilterableField,
     type Dimension,
     type Field,
     type Item,
     type ItemsMap,
     type TableCalculation,
 } from '../types/field';
-import { type DashboardFilterRule, type FieldTarget } from '../types/filter';
 import {
     isAdditionalMetric,
     type AdditionalMetric,
@@ -67,51 +64,6 @@ export const getItemId = (
     }
     // dimension or metric or additional metric or field
     return `${item.table}_${item.name.replaceAll('.', '__')}`;
-};
-
-/** Identity for dashboard metadata only. Query field IDs remain unqualified. */
-export const getDashboardFilterableFieldId = (
-    field: Pick<Field, 'name' | 'table'> & DashboardFieldMetadata,
-): string =>
-    field.exploreName
-        ? `${field.exploreName}:${getItemId(field)}`
-        : getItemId(field);
-
-/** Resolve display metadata without changing the field used to apply the filter. */
-export const getDashboardFilterField = <T extends ItemsMap[string]>(
-    itemsMap: Record<string, T>,
-    rule: {
-        target: FieldTarget & DashboardFieldMetadata;
-        tileTargets?: DashboardFilterRule['tileTargets'];
-    },
-    fieldsByTile?: Record<string, DashboardFilterableField[]>,
-): T | undefined => {
-    if (rule.target.exploreName) {
-        return (
-            itemsMap[`${rule.target.exploreName}:${rule.target.fieldId}`] ??
-            itemsMap[rule.target.fieldId]
-        );
-    }
-
-    // Older saved filters have no source explore; use an explicitly targeted tile when possible.
-    for (const [tileUuid, target] of Object.entries(rule.tileTargets ?? {})) {
-        if (target && target.fieldId === rule.target.fieldId) {
-            const field = fieldsByTile?.[tileUuid]?.find(
-                (candidate) => getItemId(candidate) === target.fieldId,
-            );
-            if (field) {
-                const item = itemsMap[getDashboardFilterableFieldId(field)];
-                if (item) return item;
-            }
-        }
-    }
-
-    return (
-        itemsMap[rule.target.fieldId] ??
-        Object.values(itemsMap).find(
-            (item) => getItemId(item) === rule.target.fieldId,
-        )
-    );
 };
 
 export const getItemLabelWithoutTableName = (item: Item) => {

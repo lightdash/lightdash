@@ -1112,13 +1112,7 @@ export const isFilterableDimension = (
         DimensionType.BOOLEAN,
     ].includes(dimension.type);
 
-export type DashboardFieldMetadata = {
-    /** Source explore for display metadata; not part of the query field ID. */
-    exploreName?: string;
-};
-
-export type DashboardFilterableField = (FilterableDimension | Metric) &
-    DashboardFieldMetadata;
+export type DashboardFilterableField = FilterableDimension | Metric;
 
 // TODO: FilterableField === FilterableItem, we should remove one of them, as well as one of the type guards
 export type FilterableField =

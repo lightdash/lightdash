@@ -112,7 +112,6 @@ describe('GuidedFilterSetupOverlay', () => {
         'uses the targeted explore label for a legacy %s requirement',
         (kind) => {
             const fieldA: DashboardFilterableField = {
-                exploreName: 'event_a',
                 table: 'team',
                 name: 'name',
                 tableLabel: 'Team at Event A',
@@ -124,7 +123,6 @@ describe('GuidedFilterSetupOverlay', () => {
             };
             const fieldB = {
                 ...fieldA,
-                exploreName: 'event_b',
                 tableLabel: 'Team at Event B',
                 label: 'Name at Event B',
             };
@@ -156,10 +154,7 @@ describe('GuidedFilterSetupOverlay', () => {
             Object.assign(mockDashboardContext.current, {
                 dashboardFilters: filters,
                 allFilters: filters,
-                allFilterableFieldsMap: {
-                    'event_a:team_name': fieldA,
-                    'event_b:team_name': fieldB,
-                },
+                allFilterableFieldsMap: { team_name: fieldA },
                 filterableFieldsByTileUuid: {
                     'tile-a': [fieldA],
                     'tile-b': [fieldB],

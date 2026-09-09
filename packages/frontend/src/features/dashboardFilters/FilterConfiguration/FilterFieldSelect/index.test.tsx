@@ -11,19 +11,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import FilterFieldSelect from './index';
 
-const fields: DashboardFilterableField[] = ['event_a', 'event_b'].map(
-    (exploreName, index) => ({
-        exploreName,
-        name: 'name',
-        table: 'team',
-        tableLabel: `Team at Event ${index === 0 ? 'A' : 'B'}`,
-        label: `Name at Event ${index === 0 ? 'A' : 'B'}`,
-        fieldType: FieldType.DIMENSION,
-        type: DimensionType.STRING,
-        sql: '${TABLE}.name',
-        hidden: false,
-    }),
-);
+// Two explores relabel the same team join alias
+const fields: DashboardFilterableField[] = ['A', 'B'].map((event) => ({
+    name: 'name',
+    table: 'team',
+    tableLabel: `Team at Event ${event}`,
+    label: `Name at Event ${event}`,
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    sql: '${TABLE}.name',
+    hidden: false,
+}));
 
 describe('dashboard filter field picker', () => {
     afterEach(() => vi.restoreAllMocks());
@@ -83,6 +81,16 @@ describe('dashboard filter field picker', () => {
                 activeTabUuid
                     ? ['Name at Event B', 'Name at Event A']
                     : ['Name at Event A', 'Name at Event B'],
+            );
+            expect(
+                screen
+                    .getAllByRole('option')
+                    .map((option) => option.getAttribute('value')),
+            ).toEqual(
+                expect.arrayContaining([
+                    'team_name::Team at Event A::Name at Event A',
+                    'team_name::Team at Event B::Name at Event B',
+                ]),
             );
             await user.click(
                 screen.getByRole('option', { name: 'Name at Event B' }),
