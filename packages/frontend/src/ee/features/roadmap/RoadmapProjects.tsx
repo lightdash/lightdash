@@ -22,6 +22,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
+    IconArrowUpRight,
     IconCircleCheck,
     IconCircleDashed,
     IconCircleHalf2,
@@ -51,6 +52,7 @@ import {
     type RoadmapBoardStage,
     type RoadmapProjectPresentation,
 } from './roadmapPresentation';
+import { RoadmapProjectDetails } from './RoadmapProjectDetails';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
 import { useRoadmapBoard } from './useRoadmapBoard';
@@ -242,47 +244,71 @@ function ProjectCard({
     group,
     presentation,
     onClick,
+    onOpenBoard,
 }: {
     group: RoadmapProjectGroup;
     presentation: RoadmapProjectPresentation;
-    onClick: (() => void) | null;
+    onClick: () => void;
+    onOpenBoard: (() => void) | null;
 }) {
     return (
-        <UnstyledButton
-            component={onClick ? 'button' : 'div'}
-            className={classes.projectCard}
-            data-interactive={onClick ? true : undefined}
-            onClick={onClick ?? undefined}
-            aria-label={onClick ? `Open ${group.project.title}` : undefined}
-        >
-            <Title order={5} className={classes.projectTitle}>
-                {group.project.title}
-            </Title>
-            {group.project.description.trim() && (
-                <Text fz="xs" c="dimmed">
-                    {group.project.description}
-                </Text>
-            )}
-            <Group justify="space-between" gap="xs">
-                <ItemBadges type="project" priority={presentation.priority} />
-                {group.ownRequestCount === 0 && group.hasDirectNeed && (
+        <Box className={classes.projectCard}>
+            <UnstyledButton
+                className={classes.projectCardBody}
+                onClick={onClick}
+                aria-label={`Open ${group.project.title}`}
+            >
+                <Title order={5} className={classes.projectTitle}>
+                    {group.project.title}
+                </Title>
+                {group.project.description.trim() && (
                     <Text fz="xs" c="dimmed">
-                        Interested
+                        {group.project.description}
                     </Text>
                 )}
-                {group.ownRequestCount > 0 && (
-                    <Group gap={4} wrap="nowrap">
-                        <MantineIcon icon={IconEye} size="sm" color="dimmed" />
+                <Group justify="space-between" gap="xs">
+                    <ItemBadges
+                        type="project"
+                        priority={presentation.priority}
+                    />
+                    {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
-                            {group.ownRequestCount}{' '}
-                            {group.ownRequestCount === 1 ? 'ticket' : 'tickets'}{' '}
-                            followed
+                            Interested
                         </Text>
+                    )}
+                    {group.ownRequestCount > 0 && (
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconEye}
+                                size="sm"
+                                color="dimmed"
+                            />
+                            <Text fz="xs" c="dimmed">
+                                {group.ownRequestCount}{' '}
+                                {group.ownRequestCount === 1
+                                    ? 'ticket'
+                                    : 'tickets'}{' '}
+                                followed
+                            </Text>
+                        </Group>
+                    )}
+                </Group>
+                <ProjectProgress value={presentation.progress} expanded />
+            </UnstyledButton>
+            {onOpenBoard && (
+                <UnstyledButton
+                    className={classes.projectCardFooter}
+                    onClick={onOpenBoard}
+                    aria-label={`Open project board for ${group.project.title}`}
+                >
+                    <Group gap={6}>
+                        <MantineIcon icon={IconLayoutKanban} size={14} />
+                        <Text fz="xs">Open project board</Text>
                     </Group>
-                )}
-            </Group>
-            <ProjectProgress value={presentation.progress} expanded />
-        </UnstyledButton>
+                    <MantineIcon icon={IconArrowUpRight} size={14} />
+                </UnstyledButton>
+            )}
+        </Box>
     );
 }
 
@@ -359,7 +385,8 @@ type RoadmapEntry = {
     following: number | null;
     hasDirectNeed?: boolean;
     ticketId?: string;
-    onOpen: (() => void) | null;
+    onOpen: () => void;
+    onOpenBoard: (() => void) | null;
     card: ReactNode;
 };
 
@@ -397,19 +424,9 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                             <Table.Tr key={entry.id}>
                                 <Table.Td className={classes.nameCell}>
                                     <UnstyledButton
-                                        component={
-                                            entry.onOpen ? 'button' : 'div'
-                                        }
                                         className={classes.tableTitle}
-                                        data-interactive={
-                                            entry.onOpen ? true : undefined
-                                        }
-                                        onClick={entry.onOpen ?? undefined}
-                                        aria-label={
-                                            entry.onOpen
-                                                ? `Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`
-                                                : undefined
-                                        }
+                                        onClick={entry.onOpen}
+                                        aria-label={`Open ${entry.type === 'ticket' ? 'ticket ' : ''}${entry.title}`}
                                     >
                                         {entry.type === 'ticket' && (
                                             <MantineIcon
@@ -476,6 +493,16 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                                 ? 'Interested'
                                                 : ''}
                                     </Text>
+                                    {entry.onOpenBoard && (
+                                        <Button
+                                            variant="subtle"
+                                            size="compact-xs"
+                                            onClick={entry.onOpenBoard}
+                                            aria-label={`Open project board for ${entry.title}`}
+                                        >
+                                            Open project board
+                                        </Button>
+                                    )}
                                 </Table.Td>
                             </Table.Tr>
                         );
@@ -529,6 +556,8 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         300,
     );
     const [selectedProject, setSelectedProject] =
+        useState<RoadmapProjectGroup | null>(null);
+    const [projectDetails, setProjectDetails] =
         useState<RoadmapProjectGroup | null>(null);
     const selectedProjectId = selectedProject?.project.projectId ?? null;
     const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
@@ -653,18 +682,21 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         setProjectSearch('');
         setSelectedTicket(null);
     };
+    const openProjectBoard = (group: RoadmapProjectGroup) => {
+        setProjectDetails(null);
+        setSelectedProject(group);
+        setProjectSearch('');
+        setProjectStatuses([]);
+        setProjectPriorities([]);
+    };
     const entries: RoadmapEntry[] = [
         ...(showProjects
             ? projects.map((group): RoadmapEntry => {
                   const metadata = getProjectPresentation(group.project);
-                  const onOpen =
+                  const onOpen = () => setProjectDetails(group);
+                  const onOpenBoard =
                       group.ownRequestCount > 0
-                          ? () => {
-                                setSelectedProject(group);
-                                setProjectSearch('');
-                                setProjectStatuses([]);
-                                setProjectPriorities([]);
-                            }
+                          ? () => openProjectBoard(group)
                           : null;
                   return {
                       id: `project-${group.project.projectId}`,
@@ -677,11 +709,13 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                       following: group.ownRequestCount,
                       hasDirectNeed: group.hasDirectNeed,
                       onOpen,
+                      onOpenBoard,
                       card: (
                           <ProjectCard
                               group={group}
                               presentation={metadata}
                               onClick={onOpen}
+                              onOpenBoard={onOpenBoard}
                           />
                       ),
                   };
@@ -699,6 +733,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                 following: null,
                 ticketId: ticket.ticketId,
                 onOpen: () => setSelectedTicket(ticket),
+                onOpenBoard: null,
                 card: (
                     <TicketCard
                         ticket={ticket}
@@ -984,6 +1019,24 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                     {view === 'table' && pagination}
                 </>
             )}
+            <RoadmapProjectDetails
+                item={failed ? null : projectDetails}
+                status={
+                    columns.find(
+                        (column) =>
+                            column.id ===
+                            customerStage(
+                                projectDetails?.project.stage ?? 'planned',
+                            ),
+                    )!
+                }
+                onClose={() => setProjectDetails(null)}
+                onOpenBoard={
+                    projectDetails && projectDetails.ownRequestCount > 0
+                        ? () => openProjectBoard(projectDetails)
+                        : null
+                }
+            />
             <RoadmapRequestDetails
                 item={failed ? null : selectedTicket}
                 onClose={() => setSelectedTicket(null)}

@@ -46,12 +46,14 @@
         border-color 120ms ease,
         box-shadow 120ms ease;
 }
-.projectCard[data-interactive]:hover,
+.projectCard:has(.projectCardBody:hover),
+.projectCard:has(.projectCardFooter:hover),
 .ticketCard:hover {
     border-color: var(--mantine-color-indigo-4);
     box-shadow: 0 4px 14px rgba(80, 60, 180, 0.1);
 }
-.projectCard[data-interactive]:focus-visible,
+.projectCardBody:focus-visible,
+.projectCardFooter:focus-visible,
 .ticketCard:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
@@ -136,10 +138,6 @@
     outline: 2px solid var(--mantine-color-indigo-outline);
     outline-offset: 2px;
 }
-.projectCard:not([data-interactive]),
-.tableTitle:not([data-interactive]) {
-    cursor: default;
-}
 @media (max-width: 600px) {
     .viewControls {
         width: 100%;
@@ -149,4 +147,36 @@
 .toolbar,
 .pagination {
     flex-shrink: 0;
+}
+
+.projectCard {
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+}
+.projectCardBody {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--mantine-spacing-xs) / 2);
+    padding: var(--mantine-spacing-sm);
+    width: 100%;
+}
+.projectCardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+    color: var(--mantine-color-dimmed);
+    transition: background 100ms ease;
+}
+.projectCardFooter:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.projectCardBody:focus-visible,
+.projectCardFooter:focus-visible {
+    outline-offset: -2px;
 }
