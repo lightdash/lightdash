@@ -1,8 +1,10 @@
 import { ChartType, type SavedChart } from '@lightdash/common';
+import { buildInitialExplorerState } from './buildInitialState';
 import { explorerActions, explorerReducer } from './explorerSlice';
 import {
     selectChartSidebarStep,
     selectHasPaletteChanges,
+    selectHasUnsavedChanges,
     selectIsChartTypeAuthoring,
     selectIsDataAppVizVersionReadyForSave,
 } from './selectors';
@@ -99,5 +101,67 @@ describe('selectIsDataAppVizVersionReadyForSave', () => {
         );
 
         expect(selectIsDataAppVizVersionReadyForSave({ explorer })).toBe(false);
+    });
+});
+
+describe('selectHasUnsavedChanges — table viz normalization', () => {
+    // Saved before the subtotal/row-grouping flags existed
+    const legacyTableChart = {
+        uuid: 'chart-uuid',
+        name: 'Legacy table',
+        tableName: 'customers',
+        colorPaletteUuid: null,
+        metricQuery: {
+            exploreName: 'customers',
+            dimensions: ['customers_first_name'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+        },
+        chartConfig: {
+            type: ChartType.TABLE,
+            config: { showTableNames: false },
+        },
+        tableConfig: { columnOrder: ['customers_first_name'] },
+        pivotConfig: undefined,
+    } as unknown as SavedChart;
+
+    // What useTableConfig materializes into validConfig on mount
+    const normalizedTableConfig = {
+        showColumnCalculation: false,
+        showRowCalculation: false,
+        showTableNames: false,
+        showResultsTotal: false,
+        showSubtotals: false,
+        showSubtotalsExpanded: false,
+        showRowGrouping: false,
+        hideRowNumbers: false,
+        metricsAsRows: false,
+        conditionalFormattings: [],
+        columns: {},
+    };
+
+    const buildExplorer = (config: Record<string, unknown>) =>
+        explorerReducer(
+            buildInitialExplorerState({ savedChart: legacyTableChart }),
+            explorerActions.setChartConfig({
+                chartConfig: { type: ChartType.TABLE, config },
+            }),
+        );
+
+    it('stays clean when the table viz backfills default-false flags', () => {
+        const explorer = buildExplorer(normalizedTableConfig);
+        expect(selectHasUnsavedChanges({ explorer })).toBe(false);
+    });
+
+    it('reads dirty when a flag is actually enabled', () => {
+        const explorer = buildExplorer({
+            ...normalizedTableConfig,
+            showSubtotals: true,
+        });
+        expect(selectHasUnsavedChanges({ explorer })).toBe(true);
     });
 });
