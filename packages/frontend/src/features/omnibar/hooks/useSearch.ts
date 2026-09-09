@@ -2,6 +2,7 @@ import {
     type ApiError,
     type SearchFilters,
     type SearchResults,
+    type SearchScope,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { getSearchResults } from '../api/search';
@@ -35,6 +36,7 @@ type Params = UseQueryOptions<SearchResults, ApiError, SearchResultMap> & {
     query?: string;
     filters?: SearchFilters;
     source: 'omnibar' | 'ai_search_box';
+    scope?: SearchScope;
 };
 
 const useSearch = ({
@@ -43,12 +45,20 @@ const useSearch = ({
     query = '',
     filters,
     source,
+    scope = 'all',
     ...params
 }: Params) =>
     useQuery<SearchResults, ApiError, SearchResultMap>({
-        queryKey: [projectUuid, 'search', filters ?? 'all', query],
-        queryFn: () =>
-            getSearchResults({ projectUuid, query, filters, source }),
+        queryKey: [projectUuid, 'search', filters ?? 'all', query, scope],
+        queryFn: ({ signal }) =>
+            getSearchResults({
+                projectUuid,
+                query,
+                filters,
+                source,
+                scope,
+                signal,
+            }),
         retry: false,
         enabled: hasMinQueryLength(query),
         select: (data) =>

@@ -3,6 +3,7 @@ import {
     getRequestMethod,
     LightdashRequestMethodHeader,
     NotFoundError,
+    ParameterError,
     ProjectCatalog,
     TablesConfiguration,
 } from '@lightdash/common';
@@ -72,6 +73,14 @@ projectRouter.get(
         try {
             const { type, fromDate, toDate, createdByUuid, verifiedOnly } =
                 req.query;
+            const scope = req.query.scope ?? 'all';
+            if (
+                scope !== 'all' &&
+                scope !== 'content' &&
+                scope !== 'explores'
+            ) {
+                throw new ParameterError('Invalid search scope');
+            }
             const results = await req.services
                 .getSearchService()
                 .getSearchResults(
@@ -86,6 +95,7 @@ projectRouter.get(
                         createdByUuid: createdByUuid?.toString(),
                         verifiedOnly: verifiedOnly === 'true',
                     },
+                    scope,
                 );
             res.json({ status: 'ok', results });
         } catch (e) {

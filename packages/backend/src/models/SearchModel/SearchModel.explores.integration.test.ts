@@ -677,18 +677,142 @@ describe('Omnibar explore search', () => {
             expect(result.tables).toEqual([]);
         });
 
-        it('denies users from another organization before searching', async () => {
-            const user = makeUser(OrganizationMemberRole.ADMIN, randomUUID());
+        it.each(['all', 'explores'] as const)(
+            'skips explore and validation reads for viewers with %s scope',
+            async (scope) => {
+                const user = makeUser(OrganizationMemberRole.VIEWER);
+                const service = makeService({
+                    [user.userUuid]: allowedAttributes,
+                });
+                const statements: string[] = [];
+                const capture = ({ sql }: { sql: string }) => {
+                    statements.push(sql);
+                };
+                database.on('query', capture);
+                try {
+                    const result = await service.getSearchResults(
+                        user,
+                        projectUuid,
+                        'Sensitive',
+                        'omnibar',
+                        { type: SearchItemType.FIELD },
+                        scope,
+                    );
+                    expect(result.fields).toEqual([]);
+                    expect(result.tables).toEqual([]);
+                    expect(
+                        statements.some(
+                            (sql) =>
+                                sql.includes('cached_explore') ||
+                                sql.includes('validations'),
+                        ),
+                    ).toBe(false);
+                } finally {
+                    database.off('query', capture);
+                }
+            },
+        );
+
+        it('returns content without reading explores or validations', async () => {
+            const user = makeUser(OrganizationMemberRole.ADMIN);
             const service = makeService({ [user.userUuid]: allowedAttributes });
-            await expect(
-                service.getSearchResults(
+            const statements: string[] = [];
+            const capture = ({ sql }: { sql: string }) => {
+                statements.push(sql);
+            };
+            database.on('query', capture);
+            try {
+                const result = await service.getSearchResults(
+                    user,
+                    projectUuid,
+                    'activity',
+                    'omnibar',
+                    { type: SearchItemType.PAGE },
+                    'content',
+                );
+                expect(result.pages.map((page) => page.name)).toEqual([
+                    'User activity',
+                ]);
+                expect(result.fields).toEqual([]);
+                expect(result.tables).toEqual([]);
+                expect(statements).toEqual([]);
+            } finally {
+                database.off('query', capture);
+            }
+        });
+
+        it.each([
+            { allowed: true, expectedFields: 2 },
+            { allowed: false, expectedFields: 0 },
+        ])(
+            'enforces attributes on the independent explore request: allowed=$allowed',
+            async ({ allowed, expectedFields }) => {
+                const user = makeUser();
+                const service = makeService({
+                    [user.userUuid]: allowed ? allowedAttributes : {},
+                });
+                // Content tables are absent from this database fixture.
+                const result = await service.getSearchResults(
                     user,
                     projectUuid,
                     'Sensitive',
                     'omnibar',
-                    { type: SearchItemType.FIELD },
-                ),
-            ).rejects.toThrow(ForbiddenError);
+                    undefined,
+                    'explores',
+                );
+                expect(result.fields).toHaveLength(expectedFields);
+                expect(result.dashboards).toEqual([]);
+                expect(result.pages).toEqual([]);
+            },
+        );
+
+        it('preserves verified-only behavior for the explore scope', async () => {
+            const user = makeUser();
+            const service = makeService({ [user.userUuid]: allowedAttributes });
+            const result = await service.getSearchResults(
+                user,
+                projectUuid,
+                'Sensitive',
+                'omnibar',
+                { verifiedOnly: true },
+                'explores',
+            );
+            expect(
+                Object.values(result).every((items) => items.length === 0),
+            ).toBe(true);
         });
+
+        it.each(['all', 'content', 'explores'] as const)(
+            'denies users from another organization before searching with %s scope',
+            async (scope) => {
+                const user = makeUser(
+                    OrganizationMemberRole.ADMIN,
+                    randomUUID(),
+                );
+                const service = makeService({
+                    [user.userUuid]: allowedAttributes,
+                });
+                const statements: string[] = [];
+                const capture = ({ sql }: { sql: string }) => {
+                    statements.push(sql);
+                };
+                database.on('query', capture);
+                try {
+                    await expect(
+                        service.getSearchResults(
+                            user,
+                            projectUuid,
+                            'Sensitive',
+                            'omnibar',
+                            { type: SearchItemType.FIELD },
+                            scope,
+                        ),
+                    ).rejects.toThrow(ForbiddenError);
+                    expect(statements).toEqual([]);
+                } finally {
+                    database.off('query', capture);
+                }
+            },
+        );
     });
 });

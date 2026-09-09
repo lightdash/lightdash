@@ -50,13 +50,18 @@ import useApp from '../../../providers/App/useApp';
 import MantineBaseProvider from '../../../providers/MantineBaseProvider';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useOmnibarSearch } from '../hooks/useOmnibarSearch';
 import { useOmnibarSettingsItems } from '../hooks/useOmnibarSettingsItems';
-import useSearch, { hasMinQueryLength } from '../hooks/useSearch';
+import { hasMinQueryLength } from '../hooks/useSearch';
 import {
     type FocusedItemIndex,
     type OmnibarGroup,
     type SearchItem,
 } from '../types/searchItem';
+import {
+    getFocusedItemIndex,
+    getOmnibarItemKey,
+} from '../utils/getFocusedItemIndex';
 import { getRecentContentSearchItems } from '../utils/getRecentContentSearchItems';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './Omnibar.module.css';
@@ -99,17 +104,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     // undefined = default (top hit highlighted); 'input' = the user arrowed
     // back up to the search input, so no row is highlighted.
-    const [focusedItemIndex, setFocusedItemIndex] = useState<
-        FocusedItemIndex | 'input'
-    >();
-
-    const { data: searchResults, isFetching } = useSearch({
-        projectUuid,
-        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
-        query: debouncedValue,
-        filters: searchFilters,
-        source: 'omnibar',
-    });
+    const [focusedItemKey, setFocusedItemKey] = useState<string>();
 
     const settingsItems = useOmnibarSettingsItems(debouncedValue ?? '');
 
@@ -160,6 +155,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             }),
         ) ?? false;
 
+    const {
+        data: searchResults,
+        isFetching,
+        error: searchError,
+        retryFailed,
+    } = useOmnibarSearch({
+        projectUuid,
+        projectUrlIdentifier: projectRoute?.projectUrlIdentifier,
+        query: debouncedValue,
+        filters: searchFilters,
+        canManageExplore,
+        enabled: isOmnibarOpen,
+    });
+
     const handleOmnibarOpenInputClick: MouseEventHandler<HTMLInputElement> = (
         e,
     ) => {
@@ -206,7 +215,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
-        setFocusedItemIndex(undefined);
+        setFocusedItemKey(undefined);
         closeOmnibar();
 
         setQuery(undefined);
@@ -331,29 +340,48 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     ]);
 
     useEffect(() => {
-        setFocusedItemIndex(undefined);
+        setFocusedItemKey(undefined);
     }, [query, searchFilters]);
 
-    // Default to the first row so Enter works immediately and the preview
-    // panel always has content; clamp stale indices after the groups change.
-    // 'input' means the user arrowed back to the search field — no highlight.
     const firstNavigableGroupIndex = displayGroups.findIndex(
         (group) => group.items.length > 0,
     );
 
     const highlightedIndex = useMemo<FocusedItemIndex | undefined>(() => {
-        if (firstNavigableGroupIndex === -1) return undefined;
-        if (focusedItemIndex === 'input') return undefined;
-        if (
-            focusedItemIndex &&
-            displayGroups[focusedItemIndex.groupIndex]?.items[
-                focusedItemIndex.itemIndex
-            ]
-        ) {
-            return focusedItemIndex;
+        if (firstNavigableGroupIndex === -1 || focusedItemKey === 'input') {
+            return undefined;
         }
-        return { groupIndex: firstNavigableGroupIndex, itemIndex: 0 };
-    }, [focusedItemIndex, displayGroups, firstNavigableGroupIndex]);
+        return (
+            (focusedItemKey &&
+                getFocusedItemIndex(displayGroups, focusedItemKey)) || {
+                groupIndex: firstNavigableGroupIndex,
+                itemIndex: 0,
+            }
+        );
+    }, [focusedItemKey, displayGroups, firstNavigableGroupIndex]);
+
+    // Keep the selected result stable when another search group arrives.
+    useEffect(() => {
+        if (focusedItemKey === 'input' || firstNavigableGroupIndex === -1)
+            return;
+        if (
+            !focusedItemKey ||
+            !getFocusedItemIndex(displayGroups, focusedItemKey)
+        ) {
+            setFocusedItemKey(
+                getOmnibarItemKey(
+                    displayGroups[firstNavigableGroupIndex].items[0],
+                ),
+            );
+        }
+    }, [focusedItemKey, displayGroups, firstNavigableGroupIndex]);
+
+    const handleFocusedItemChange = (index: FocusedItemIndex | undefined) => {
+        const item = index
+            ? displayGroups[index.groupIndex]?.items[index.itemIndex]
+            : undefined;
+        setFocusedItemKey(item ? getOmnibarItemKey(item) : 'input');
+    };
 
     // The preview keeps showing the top hit even when nothing is highlighted,
     // and Enter opens it — the pane never goes dead.
@@ -369,9 +397,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         <OmnibarKeyboardNav
             groupedItems={displayGroups}
             onEnterPressed={handleItemClick}
-            onFocusedItemChange={(index) =>
-                setFocusedItemIndex(index ?? 'input')
-            }
+            onFocusedItemChange={handleFocusedItemChange}
             currentFocusedItemIndex={highlightedIndex}
             fallbackEnterItem={focusedItem}
         >
@@ -456,6 +482,26 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             }}
                         />
 
+                        {searchError && hasEnteredMinQueryLength && (
+                            <Group
+                                px="md"
+                                py="xs"
+                                justify="space-between"
+                                role="alert"
+                            >
+                                <Text size="sm" c="dimmed">
+                                    Some search results couldn't load.
+                                </Text>
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    onClick={() => void retryFailed()}
+                                >
+                                    Retry
+                                </Button>
+                            </Group>
+                        )}
+
                         <Box className={classes.resultsArea}>
                             {displayGroups.length === 0 ? (
                                 !hasEnteredQuery &&
@@ -482,7 +528,12 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                         title="Keep typing..."
                                         hint="Search kicks in at 3 characters."
                                     />
-                                ) : !searchResults ? (
+                                ) : searchError && !isFetching ? (
+                                    <OmnibarEmptyState
+                                        title="Search couldn't finish"
+                                        hint="Retry to load results."
+                                    />
+                                ) : !searchResults || isFetching ? (
                                     <OmnibarEmptyState
                                         variant="loading"
                                         title="Searching..."
@@ -510,7 +561,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                                             onClick={handleItemClick}
                                             focusedItemIndex={highlightedIndex}
                                             onFocusedItemChange={
-                                                setFocusedItemIndex
+                                                handleFocusedItemChange
                                             }
                                             onToggleGroup={handleToggleGroup}
                                             groups={displayGroups}

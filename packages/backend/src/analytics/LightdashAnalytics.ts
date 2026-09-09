@@ -1360,6 +1360,7 @@ type ProjectSearch = BaseTrack & {
         source: 'omnibar' | 'ai_search_box';
         verifiedOnly: boolean;
         typeFilter: string | null;
+        scope: 'all' | 'content' | 'explores';
     };
 };
 type DashboardUpdateMultiple = BaseTrack & {

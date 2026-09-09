@@ -11,6 +11,7 @@ import {
     SavedChartSearchResult,
     SearchFilters,
     SearchResults,
+    SearchScope,
     SessionUser,
     SpaceSearchResult,
     TableErrorSearchResult,
@@ -243,6 +244,7 @@ export class SearchService extends BaseService {
         query: string,
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
+        scope: SearchScope = 'all',
     ): Promise<SearchResults> {
         const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
@@ -261,10 +263,23 @@ export class SearchService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const hasExploreAccess = auditedAbility.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid,
+                projectUuid,
+                metadata: { projectUuid, projectName },
+            }),
+        );
+
         const results = await this.searchModel.search(
             projectUuid,
             query,
             filters,
+            {
+                includeContent: scope !== 'explores',
+                includeExplores: scope !== 'content' && hasExploreAccess,
+            },
         );
 
         const spaceUuids = [
@@ -406,16 +421,7 @@ export class SearchService extends BaseService {
             }
         });
 
-        const hasExploreAccess = auditedAbility.can(
-            'manage',
-            subject('Explore', {
-                organizationUuid,
-                projectUuid,
-                metadata: { projectUuid, projectName },
-            }),
-        );
-
-        const dimensionsHaveUserAttributes = results.fields.some(
+        const fieldsHaveUserAttributes = results.fields.some(
             (field) =>
                 field.requiredAttributes !== undefined ||
                 field.anyAttributes !== undefined ||
@@ -437,7 +443,7 @@ export class SearchService extends BaseService {
         let filteredFields: FieldSearchResult[] = [];
         let filteredTables: (TableSearchResult | TableErrorSearchResult)[] = [];
         if (hasExploreAccess) {
-            if (dimensionsHaveUserAttributes || tablesHaveUserAttributes) {
+            if (fieldsHaveUserAttributes || tablesHaveUserAttributes) {
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
@@ -551,6 +557,7 @@ export class SearchService extends BaseService {
                 source,
                 verifiedOnly: filters?.verifiedOnly === true,
                 typeFilter: filters?.type ?? null,
+                scope,
             },
         });
 

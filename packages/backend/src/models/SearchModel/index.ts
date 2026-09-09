@@ -1848,95 +1848,85 @@ export class SearchModel {
         projectUuid: string,
         query: string,
         filters?: SearchFilters,
+        options: { includeContent: boolean; includeExplores: boolean } = {
+            includeContent: true,
+            includeExplores: true,
+        },
     ): Promise<SearchResults> {
         const verifiedOnly = filters?.verifiedOnly === true;
-        const contentOptions: SearchContentOptions = { verifiedOnly };
+        const results: SearchResults = {
+            spaces: [],
+            dashboards: [],
+            savedCharts: [],
+            sqlCharts: [],
+            tables: [],
+            fields: [],
+            pages: [],
+            dashboardTabs: [],
+            dataApps: [],
+        };
 
-        // Verified is only meaningful for charts and dashboards — skip every
-        // other type so the Item type filter behaves as a verified-content view.
-        if (verifiedOnly) {
+        if (options.includeContent) {
+            if (!verifiedOnly) {
+                results.spaces = await this.searchSpaces(
+                    projectUuid,
+                    query,
+                    filters,
+                );
+            }
             const [dashboards, savedCharts, sqlCharts] = await Promise.all([
-                this.searchDashboards(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
+                searchReservingVerified(verifiedOnly, (opts) =>
+                    this.searchDashboards(projectUuid, query, filters, opts),
                 ),
-                this.searchSavedCharts(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
+                searchReservingVerified(verifiedOnly, (opts) =>
+                    this.searchSavedCharts(projectUuid, query, filters, opts),
                 ),
-                this.searchSqlCharts(
-                    projectUuid,
-                    query,
-                    filters,
-                    contentOptions,
+                searchReservingVerified(verifiedOnly, (opts) =>
+                    this.searchSqlCharts(projectUuid, query, filters, opts),
                 ),
             ]);
-
-            return {
-                spaces: [],
-                dashboards,
-                savedCharts,
-                sqlCharts,
-                tables: [],
-                fields: [],
-                pages: [],
-                dashboardTabs: [],
-                dataApps: [],
-            };
+            results.dashboards = dashboards;
+            results.savedCharts = savedCharts;
+            results.sqlCharts = sqlCharts;
+            if (!verifiedOnly) {
+                results.dashboardTabs = await this.searchDashboardTabs(
+                    projectUuid,
+                    query,
+                    filters,
+                );
+                results.dataApps = await this.searchDataApps(
+                    projectUuid,
+                    query,
+                    filters,
+                );
+                results.pages = SearchModel.searchPages(
+                    projectUuid,
+                    query,
+                    filters,
+                );
+            }
         }
 
-        const spaces = await this.searchSpaces(projectUuid, query, filters);
-        const [dashboards, savedCharts, sqlCharts] = await Promise.all([
-            searchReservingVerified(false, (opts) =>
-                this.searchDashboards(projectUuid, query, filters, opts),
-            ),
-            searchReservingVerified(false, (opts) =>
-                this.searchSavedCharts(projectUuid, query, filters, opts),
-            ),
-            searchReservingVerified(false, (opts) =>
-                this.searchSqlCharts(projectUuid, query, filters, opts),
-            ),
-        ]);
-        const dashboardTabs = await this.searchDashboardTabs(
-            projectUuid,
-            query,
-            filters,
-        );
-        const dataApps = await this.searchDataApps(projectUuid, query, filters);
+        if (options.includeExplores && !verifiedOnly) {
+            const explores = await this.getProjectExplores(
+                projectUuid,
+                query,
+                filters,
+            );
+            const tableErrors = await this.searchTableErrors(
+                projectUuid,
+                query,
+                explores,
+            );
+            const [tables, fields] = SearchModel.searchTablesAndFields(
+                query,
+                explores,
+                filters,
+            );
+            results.tables = [...tables, ...tableErrors];
+            results.fields = fields;
+        }
 
-        const explores = await this.getProjectExplores(
-            projectUuid,
-            query,
-            filters,
-        );
-        const tableErrors = await this.searchTableErrors(
-            projectUuid,
-            query,
-            explores,
-        );
-        const [tables, fields] = SearchModel.searchTablesAndFields(
-            query,
-            explores,
-            filters,
-        );
-
-        const tablesAndErrors = [...tables, ...tableErrors];
-        const pages = SearchModel.searchPages(projectUuid, query, filters);
-
-        return {
-            spaces,
-            dashboards,
-            savedCharts,
-            sqlCharts,
-            tables: tablesAndErrors,
-            fields,
-            pages,
-            dashboardTabs,
-            dataApps,
-        };
+        return results;
     }
 }

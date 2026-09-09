@@ -254,6 +254,8 @@ export type SearchResults = {
     dataApps: DataAppSearchResult[];
 };
 
+export type SearchScope = 'all' | 'content' | 'explores';
+
 export const getSearchResultId = (meta: SearchResult | undefined) => {
     if (!meta || isTableErrorSearchResult(meta)) {
         return '';
