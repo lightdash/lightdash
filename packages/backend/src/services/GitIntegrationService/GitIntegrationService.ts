@@ -45,6 +45,7 @@ import {
     WriteBackEvent,
 } from '../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../auth/account';
+import * as BitbucketClient from '../../clients/bitbucket/Bitbucket';
 import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1377,6 +1378,37 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
+        };
+    }
+
+    async getBitbucketCredentials(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<
+        BitbucketClient.BitbucketCredentials & {
+            type: DbtProjectType.BITBUCKET;
+        }
+    > {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        return {
+            ...BitbucketClient.resolveBitbucketCredentials(
+                project.dbtConnection,
+            ),
+            type: DbtProjectType.BITBUCKET,
         };
     }
 

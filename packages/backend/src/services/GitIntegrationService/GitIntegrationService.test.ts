@@ -1,9 +1,13 @@
+import { Ability } from '@casl/ability';
 import {
     BinType,
     CustomDimensionType,
     DbtProjectType,
+    ForbiddenError,
     GroupValueMatchType,
     NotFoundError,
+    ParameterError,
+    PossibleAbilities,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -440,5 +444,87 @@ models:
             expect(updateFile).not.toHaveBeenCalled();
             expect(createPullRequest).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('Bitbucket project credentials', () => {
+    const authorizedUser = {
+        ...user,
+        organizationUuid: 'organization',
+        ability: new Ability<PossibleAbilities>([
+            {
+                action: 'view',
+                subject: 'SourceCode',
+                conditions: {
+                    organizationUuid: 'organization',
+                    projectUuid: 'project',
+                },
+            },
+        ]),
+    };
+    const createService = () => {
+        const project = {
+            name: 'Jaffle',
+            dbtConnection: {
+                type: DbtProjectType.BITBUCKET,
+                repository: 'workspace/jaffle',
+                username: 'bitbucket-user',
+                personal_access_token: 'project-token',
+                branch: 'main',
+                project_sub_path: '/',
+            },
+        };
+        const projectModel = {
+            getSummary: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: 'organization' }),
+            get: vi.fn().mockResolvedValue(project),
+            getWithSensitiveFields: vi.fn().mockResolvedValue(project),
+        };
+        const service = new GitIntegrationService({
+            lightdashConfig: lightdashConfigMock,
+            analytics: analyticsMock,
+            savedChartModel: SAVED_CHART_MODEL as unknown as SavedChartModel,
+            projectModel: projectModel as unknown as ProjectModel,
+            projectDbtSourcesModel:
+                PROJECT_DBT_SOURCES_MODEL as unknown as ProjectDbtSourcesModel,
+            spaceModel: SPACE_MODEL as unknown as SpaceModel,
+            githubAppInstallationsModel:
+                GITHUB_APP_MODEL as unknown as GithubAppInstallationsModel,
+            githubAppService: {} as GithubAppService,
+            pullRequestsModel: {} as PullRequestsModel,
+        });
+        return { service, projectModel };
+    };
+
+    it('resolves the current repository and project token for an authorized user', async () => {
+        const { service } = createService();
+        await expect(
+            service.getBitbucketCredentials(authorizedUser, 'project'),
+        ).resolves.toEqual({
+            owner: 'workspace',
+            repo: 'jaffle',
+            token: 'project-token',
+            type: DbtProjectType.BITBUCKET,
+        });
+    });
+
+    it('rejects access to another organization before loading the token', async () => {
+        const { service, projectModel } = createService();
+        projectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'another-organization',
+        });
+        await expect(
+            service.getBitbucketCredentials(authorizedUser, 'project'),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(projectModel.getWithSensitiveFields).not.toHaveBeenCalled();
+    });
+
+    it('does not enable the generic Git writeback paths for Bitbucket', async () => {
+        const { service, projectModel } = createService();
+        await expect(
+            service.getGitCredentials(authorizedUser, 'project'),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(projectModel.getWithSensitiveFields).not.toHaveBeenCalled();
     });
 });

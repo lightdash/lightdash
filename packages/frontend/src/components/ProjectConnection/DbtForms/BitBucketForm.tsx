@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { TextInput, Alert, Anchor, PasswordInput } from '@mantine/core';
+import { TextInput, Text, Anchor, PasswordInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -13,22 +13,6 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
     return (
         <>
-            <Alert
-                color="yellow"
-                title="Bitbucket app passwords deprecation"
-                mb="md"
-            >
-                <Anchor
-                    inherit
-                    href="https://www.atlassian.com/blog/bitbucket/bitbucket-cloud-transitions-to-api-tokens-enhancing-security-with-app-password-deprecation"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    Bitbucket Cloud transitions to API tokens
-                </Anchor>
-                . Existing app passwords will continue working until June 9,
-                2026.
-            </Alert>
             <TextInput
                 name="dbt.username"
                 {...form.getInputProps('dbt.username')}
@@ -44,36 +28,32 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 label="API Token"
                 description={
                     <>
-                        <p>
-                            Bitbucket Cloud users should
+                        <Text component="span" display="block" size="xs">
+                            Bitbucket Cloud requires an{' '}
                             <Anchor
                                 inherit
                                 href="https://support.atlassian.com/bitbucket-cloud/docs/create-an-api-token/"
                                 target="_blank"
                                 rel="noreferrer"
                             >
-                                {' '}
-                                follow instructions for creating an API Token
-                            </Anchor>
-                        </p>
-                        <p>
-                            Bitbucket Server users should
+                                API token
+                            </Anchor>{' '}
+                            with Repositories: Read permission. Writeback also
+                            requires Repositories: Write and Pull requests: Read
+                            and Write permissions.
+                        </Text>
+                        <Text component="span" display="block" size="xs">
+                            For Bitbucket Server, use an{' '}
                             <Anchor
                                 inherit
                                 href="https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html"
                                 target="_blank"
                                 rel="noreferrer"
                             >
-                                {' '}
-                                follow instructions for creating a HTTP Access
-                                Token
-                            </Anchor>
-                        </p>
-                        <p>
-                            Select <b>Project read</b> and{' '}
-                            <b>Repository read</b> scope when you're creating
-                            the token.
-                        </p>
+                                HTTP access token
+                            </Anchor>{' '}
+                            with Project read and Repository read permissions.
+                        </Text>
                     </>
                 }
                 required={requireSecrets}
@@ -127,8 +107,8 @@ const BitBucketForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <>
                         <p>
                             This is the folder where your <b>dbt_project.yml</b>{' '}
-                            file is found in the GitLab repository you entered
-                            above.
+                            file is found in the Bitbucket repository you
+                            entered above.
                         </p>
                         <p>
                             If your <b>dbt_project.yml</b> file is in the main
