@@ -60,15 +60,24 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Create Cloud operations token
+        id: app-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.CLOUD_OPS_APP_ID }}
+          private-key: ${{ secrets.CLOUD_OPS_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: lightdash
+
       - name: Preflight - token can administer rulesets
         env:
-          GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
           if [ -z "${GH_TOKEN:-}" ]; then
-            echo "::error::No token available. Add a MERGE_FREEZE_TOKEN secret - a fine-grained PAT or App installation token on $REPO with Administration: write (rulesets), Variables: write and Commit statuses: write."
+            echo "::error::No App token available. Check CLOUD_OPS_APP_ID, CLOUD_OPS_APP_PRIVATE_KEY and the App installation on $REPO."
             exit 1
           fi
 
@@ -76,14 +85,14 @@ jobs:
           # doubles as the permission check. Failing here costs seconds; failing
           # after a half-applied freeze costs a confusing repo.
           if ! gh api "repos/$REPO/rulesets" >/dev/null 2>&1; then
-            echo "::error::The configured token cannot read repository rulesets on $REPO. It needs Administration: write (fine-grained) or repo admin (classic). GITHUB_TOKEN can never do this - 'administration' is not a grantable workflow permission scope."
+            echo "::error::The configured token cannot read repository rulesets on $REPO. The App needs Administration: write. GITHUB_TOKEN can never do this - 'administration' is not a grantable workflow permission scope."
             exit 1
           fi
 
       - name: ${{ inputs.action }} merges to main
         id: toggle
         env:
-          GH_TOKEN: ${{ secrets.MERGE_FREEZE_TOKEN || secrets.CI_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
           ACTION: ${{ inputs.action }}
           ACTOR_LOGIN: ${{ github.actor }}
