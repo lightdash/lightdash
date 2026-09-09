@@ -617,7 +617,7 @@ describe('compile warehouse column validation', () => {
     describe('lightdash yml projects', () => {
         beforeEach(async () => {
             vi.mocked(loadLightdashModels).mockResolvedValue([
-                lightdashYmlModel,
+                { ...lightdashYmlModel, sourcePath: 'models/test_model.yml' },
             ]);
             await fs.writeFile(
                 path.join(tempDir, 'lightdash.config.yml'),

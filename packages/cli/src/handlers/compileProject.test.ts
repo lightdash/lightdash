@@ -13,7 +13,11 @@ import path from 'path';
 import { getDbtContext } from '../dbt/context';
 import { loadCombineManifest, loadManifest } from '../dbt/manifest';
 import { validateDbtModel } from '../dbt/validation';
-import { loadLightdashModels } from '../lightdash/loader';
+import {
+    findLightdashModelFiles,
+    loadLightdashModels,
+} from '../lightdash/loader';
+import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import { compileProject, type CompileHandlerOptions } from './compile';
 import { lightdashRawApi } from './dbt/apiClient';
 import { maybeCompileModelsAndJoins } from './dbt/compile';
@@ -166,6 +170,67 @@ describe('compileProject completeness', () => {
         vi.restoreAllMocks();
         await fs.rm(tempDir, { recursive: true, force: true });
     });
+
+    test.each([false, true])(
+        'compiles dbt when ignored YAML is malformed, symlinked models: %s',
+        async (symlinkedModels) => {
+            const projectDir = path.join(tempDir, 'dbt-project');
+            const modelsDir = symlinkedModels
+                ? path.join(tempDir, 'shared-models')
+                : path.join(projectDir, 'models');
+            await fs.mkdir(projectDir);
+            await fs.mkdir(modelsDir);
+            if (symlinkedModels)
+                await fs.symlink(modelsDir, path.join(projectDir, 'models'));
+            await fs.writeFile(
+                path.join(projectDir, 'dbt_project.yml'),
+                'name: test_project\nversion: "1.0"\nconfig-version: 2\n',
+            );
+            await fs.writeFile(
+                path.join(projectDir, '.dbtignore'),
+                'models/archived.yml\n',
+            );
+            await fs.writeFile(
+                path.join(modelsDir, 'schema.yml'),
+                'version: 2\nmodels:\n  - name: orders\n',
+            );
+            await fs.writeFile(
+                path.join(modelsDir, 'archived.yml'),
+                'archived: [unfinished\n',
+            );
+            const loader = await vi.importActual<
+                typeof import('../lightdash/loader')
+            >('../lightdash/loader');
+            vi.mocked(findLightdashModelFiles).mockImplementationOnce(
+                loader.findLightdashModelFiles,
+            );
+            vi.mocked(loadLightdashModels).mockImplementationOnce(
+                loader.loadLightdashModels,
+            );
+            vi.mocked(loadManifest).mockResolvedValue(
+                manifest({
+                    'model.test.orders': dbtNode(
+                        'model.test.orders',
+                        'model',
+                        true,
+                    ),
+                }),
+            );
+            vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+                compiledModelIds: ['model.test.orders'],
+                originallySelectedModelIds: undefined,
+            });
+
+            await expect(
+                detectProjectType({ projectDir }),
+            ).resolves.toMatchObject({ type: CliProjectType.Dbt });
+            const result = await compileProject(compileOptions(projectDir));
+            expect(result.explores.map((explore) => explore.name)).toEqual([
+                'orders',
+            ]);
+            expect(maybeCompileModelsAndJoins).toHaveBeenCalled();
+        },
+    );
 
     test('reports an unselected model and seed manifest as complete', async () => {
         const projectManifest = manifest({

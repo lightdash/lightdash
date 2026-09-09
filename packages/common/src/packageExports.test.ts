@@ -23,6 +23,7 @@ describe('@lightdash/common exports map', () => {
         expect(Object.keys(packageJson.exports)).toEqual([
             '.',
             './dbt/validation',
+            './lightdash/loader',
             './src',
             './src/*',
             './dist/*',
