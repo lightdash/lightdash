@@ -51,6 +51,7 @@ import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
 import { useLearnProgress } from './progress';
+import { createLearnSearch } from './search';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
@@ -219,17 +220,18 @@ const LearnPage: FC = () => {
     // One group tab, or All.
     const [groupFilter, setGroupFilter] = useState<LearnGroup | null>(null);
 
-    const visible = useMemo(() => {
-        const needle = query.trim().toLowerCase();
-        return sortForLearner(held, catalogue).filter(
-            (module) =>
-                (showExtra || holds(held, module)) &&
-                (showSoon || module.available) &&
-                (needle === '' ||
-                    module.title.toLowerCase().includes(needle) ||
-                    module.scope.toLowerCase().includes(needle)),
-        );
-    }, [catalogue, held, showExtra, showSoon, query]);
+    const search = useMemo(
+        () =>
+            createLearnSearch(
+                sortForLearner(held, catalogue).filter(
+                    (module) =>
+                        (showExtra || holds(held, module)) &&
+                        (showSoon || module.available),
+                ),
+            ),
+        [catalogue, held, showExtra, showSoon],
+    );
+    const visible = useMemo(() => search(query), [search, query]);
     const groups = GROUP_ORDER.filter((group) =>
         visible.some((module) => module.group === group),
     );
