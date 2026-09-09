@@ -32,6 +32,7 @@
         "typescript": "7.0.2"
     },
     "scripts": {
+        "test:playground-content": "tsx scripts/playground-bundle/content.test.ts",
         "build:playground-bundle": "pnpm formula:build && pnpm common-build && pnpm warehouses-build && LIGHTDASH_MODE=development LIGHTDASH_SECRET=playground-bundle-build-only S3_ENDPOINT=http://localhost S3_BUCKET=playground-build S3_REGION=local tsx scripts/playground-bundle/build.ts",
         "formula:build": "pnpm -F formula build",
         "formula:test": "pnpm -F formula test",
