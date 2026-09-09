@@ -117,6 +117,23 @@ describe('LearnPage analytics', () => {
         ];
     });
 
+    it('finds date zoom from a natural-language query and restores the library on clear', async () => {
+        const { container } = renderPage();
+        const cards = () =>
+            Array.from(container.querySelectorAll('[data-learn-module]')).map(
+                (card) => card.getAttribute('data-learn-module'),
+            );
+        const initial = cards();
+        const input = screen.getByRole('textbox', {
+            name: 'Search the library',
+        });
+        await userEvent.type(input, 'change from day to month');
+        expect(cards()).toContain('view:Dashboard');
+        expect(cards()).not.toContain('manage:Space');
+        await userEvent.clear(input);
+        expect(cards()).toEqual(initial);
+    });
+
     it('records one view per mount, with the progress the learner is looking at', () => {
         localStorage.setItem(
             'lightdash.learn.started',
@@ -227,9 +244,9 @@ describe('LearnPage access', () => {
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();
 
-        expect(shown(container).sort()).toEqual(
-            ['manage:Validation', 'view:Dashboard'].sort(),
-        );
+        expect(
+            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+        ).toEqual(['manage:Validation', 'view:Dashboard'].sort());
     });
 
     it('reads their access however they came by it', () => {
@@ -264,5 +281,18 @@ describe('LearnPage access', () => {
 
         await toggleExtra();
         expect(screen.getByText('Every module')).toBeTruthy();
+    });
+
+    it('keeps the access filter when searching and clearing', async () => {
+        const { container } = renderPage();
+        const input = screen.getByRole('textbox', {
+            name: 'Search the library',
+        });
+        await userEvent.type(input, 'dashboard');
+        expect(shown(container)).toEqual(['view:Dashboard']);
+        await userEvent.clear(input);
+        expect(
+            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+        ).toEqual(['manage:Validation', 'view:Dashboard']);
     });
 });

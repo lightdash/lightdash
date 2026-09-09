@@ -1,5 +1,6 @@
 import { type ApiError, type LearnAccess } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import { heldScopes } from './access';
 
@@ -23,9 +24,13 @@ export const useLearnAccess = () => {
                 body: undefined,
             }),
     });
+    const held = useMemo(
+        () => heldScopes(query.data?.scopes ?? [], true),
+        [query.data?.scopes],
+    );
     return {
         ...query,
-        held: heldScopes(query.data?.scopes ?? [], true),
+        held,
         // Until the instance answers, the library cannot say what the
         // learner holds; it waits rather than showing them an empty shelf.
         isSettled: !query.isLoading,
