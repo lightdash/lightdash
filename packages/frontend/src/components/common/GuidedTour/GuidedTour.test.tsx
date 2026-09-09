@@ -1,7 +1,8 @@
-import { Popover } from '@mantine/core';
+import { Button, Popover, TextInput } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../testing/testUtils';
 import MantineModal from '../MantineModal';
@@ -38,6 +39,100 @@ describe('GuidedTour', () => {
 
         await user.click(screen.getByRole('button', { name: 'Back' }));
         expect(screen.getByText('Step one')).toBeInTheDocument();
+    });
+
+    it('updates controlled form state when accepting a suggested name', async () => {
+        const Form = () => {
+            const form = useForm({ initialValues: { name: '' } });
+            return (
+                <>
+                    <TextInput
+                        aria-label="Dashboard name"
+                        data-name-field
+                        {...form.getInputProps('name')}
+                    />
+                    <Button disabled={!form.values.name}>
+                        Create dashboard
+                    </Button>
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '[data-name-field]',
+                                title: 'Name your dashboard',
+                                body: '',
+                                interactive: true,
+                                advanceOnTargetInput: true,
+                                suggestion: 'Orders overview',
+                            },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                    />
+                </>
+            );
+        };
+        const user = userEvent.setup();
+        renderWithProviders(<Form />);
+        expect(
+            screen.getByRole('button', { name: 'Create dashboard' }),
+        ).toBeDisabled();
+        await user.click(screen.getByRole('button', { name: 'Use it' }));
+        expect(
+            screen.getByRole('textbox', { name: 'Dashboard name' }),
+        ).toHaveValue('Orders overview');
+        expect(
+            screen.getByRole('button', { name: 'Create dashboard' }),
+        ).toBeEnabled();
+    });
+
+    it('does not advance a typed step when its field resets before settling', async () => {
+        const onStepChange = vi.fn();
+        const onClose = vi.fn();
+        const Form = () => {
+            const [name, setName] = useState('');
+            return (
+                <>
+                    <input
+                        aria-label="Transient name"
+                        data-transient-name
+                        value={name}
+                        onChange={(event) => {
+                            setName(event.currentTarget.value);
+                            window.setTimeout(() => setName(''), 20);
+                        }}
+                    />
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '[data-transient-name]',
+                                title: 'Name',
+                                body: '',
+                                interactive: true,
+                                advanceOnTargetInput: true,
+                                suggestion: 'Orders overview',
+                            },
+                            { target: null, title: 'Next step', body: '' },
+                        ]}
+                        opened
+                        onClose={onClose}
+                        onStepChange={onStepChange}
+                    />
+                </>
+            );
+        };
+        const user = userEvent.setup();
+        renderWithProviders(<Form />);
+        await user.click(screen.getByRole('button', { name: 'Use it' }));
+        await waitFor(() =>
+            expect(
+                screen.getByRole('textbox', { name: 'Transient name' }),
+            ).toHaveValue(''),
+        );
+        await act(
+            async () =>
+                new Promise((resolve) => window.setTimeout(resolve, 1100)),
+        );
+        expect(onStepChange).not.toHaveBeenCalled();
     });
 
     it('closes when skipped', async () => {
@@ -215,6 +310,65 @@ describe('GuidedTour', () => {
             }
         });
 
+        it('offers a fallback click before a missing typed field can accept its suggestion', async () => {
+            const user = userEvent.setup();
+            const host = mount('<button data-x="open-form">Open form</button>');
+            host.querySelector('button')!.onclick = () => {
+                host.innerHTML = '<input data-x="name" aria-label="Name" />';
+            };
+            try {
+                renderWithProviders(
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '[data-x="name"]',
+                                title: 'Name your dashboard',
+                                body: '',
+                                interactive: true,
+                                advanceOnTargetInput: true,
+                                suggestion: 'Orders overview',
+                                detour: [
+                                    {
+                                        target: '[data-x="open-form"]',
+                                        title: 'Open form',
+                                    },
+                                ],
+                            },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                    />,
+                );
+                await waitFor(() =>
+                    expect(host.querySelector('button')).toHaveAttribute(
+                        'data-tour-active',
+                    ),
+                );
+                expect(
+                    screen.queryByRole('button', { name: 'Use it' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByText(
+                        'Click the highlighted control to continue',
+                    ),
+                ).toBeVisible();
+                await user.click(host.querySelector('button')!);
+                await waitFor(() =>
+                    expect(
+                        screen.getByRole('button', { name: 'Use it' }),
+                    ).toBeVisible(),
+                );
+                await user.click(
+                    screen.getByRole('button', { name: 'Use it' }),
+                );
+                expect(
+                    screen.getByRole('textbox', { name: 'Name' }),
+                ).toHaveValue('Orders overview');
+            } finally {
+                host.remove();
+            }
+        });
+
         it('ignores the detour when the target is already there', async () => {
             const host = mount(
                 '<button data-x="chooser">Download data</button><button data-x="download">Download</button>',
@@ -331,22 +485,42 @@ describe('GuidedTour and the menus a step opens', () => {
 
     // Only menus: a dialog a step opened is part of what the walkthrough is
     // teaching, and the host shows the completion dialog over it.
-    it('leaves an open dialog alone', async () => {
-        const user = userEvent.setup();
-        renderWithProviders(
-            <>
-                <MantineModal opened onClose={vi.fn()} title="Save chart">
-                    <div>Chart name</div>
-                </MantineModal>
-                <GuidedTour
-                    steps={[{ target: null, title: 'Step one', body: '' }]}
-                    opened
-                    onClose={vi.fn()}
-                />
-            </>,
+    it('closes a dropdown without closing the dialog beside it', async () => {
+        const closeDialog = vi.fn();
+        const Page = () => {
+            const [opened, setOpened] = useState(true);
+            return (
+                <>
+                    <OpenMenu />
+                    <MantineModal
+                        opened={opened}
+                        onClose={() => {
+                            closeDialog();
+                            setOpened(false);
+                        }}
+                        title="Save chart"
+                    >
+                        <div id="chart-name">Chart name</div>
+                    </MantineModal>
+                    <GuidedTour
+                        steps={[
+                            {
+                                target: '#chart-name',
+                                title: 'Name chart',
+                                body: '',
+                            },
+                        ]}
+                        opened
+                        onClose={vi.fn()}
+                    />
+                </>
+            );
+        };
+        renderWithProviders(<Page />);
+        await waitFor(() =>
+            expect(screen.queryByText('Sales')).not.toBeInTheDocument(),
         );
-
-        await user.click(screen.getByRole('button', { name: 'Got it' }));
+        expect(closeDialog).not.toHaveBeenCalled();
         expect(screen.getByText('Chart name')).toBeInTheDocument();
     });
 });

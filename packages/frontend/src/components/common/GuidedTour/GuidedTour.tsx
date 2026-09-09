@@ -509,17 +509,24 @@ const DROPDOWN_SELECTOR = '.mantine-Popover-dropdown';
  * ends. The one the tour is pointing inside is left alone (a comment thread
  * stays open while its step types into it).
  *
- * Escape is dispatched on the dropdown and does not bubble: React still runs
- * the dropdown's own capture handler, while the window-level listeners that
- * close a modal or a drawer never hear it, so a dialog a step opened on
- * purpose survives.
+ * Mantine modals listen for Escape during window capture, even when it does
+ * not bubble. Mark this synthetic event's target with Mantine's opt-out so
+ * closing a dropdown cannot also close the dialog a step just opened.
  */
 const closeOpenDropdowns = (keep: Element | null) => {
     document.querySelectorAll(DROPDOWN_SELECTOR).forEach((dropdown) => {
         if (keep && dropdown.contains(keep)) return;
-        dropdown.dispatchEvent(
-            new KeyboardEvent('keydown', { key: 'Escape', bubbles: false }),
-        );
+        const attribute = 'data-mantine-stop-propagation';
+        const previous = dropdown.getAttribute(attribute);
+        dropdown.setAttribute(attribute, 'true');
+        try {
+            dropdown.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: false }),
+            );
+        } finally {
+            if (previous === null) dropdown.removeAttribute(attribute);
+            else dropdown.setAttribute(attribute, previous);
+        }
     });
 };
 
@@ -866,7 +873,19 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         const onInput = () => {
             window.clearTimeout(debounce);
             if (typed().trim().length < MIN_INPUT_CHARS) return;
-            debounce = window.setTimeout(() => handleNext(), INPUT_SETTLE_MS);
+            const inputAtEvent = el;
+            debounce = window.setTimeout(() => {
+                // A form can reset or remount while the input settles. Only
+                // advance if the same visible field still holds the value.
+                if (
+                    !inputAtEvent?.isConnected ||
+                    document.querySelector(inputSelector) !== inputAtEvent ||
+                    el !== inputAtEvent ||
+                    typed().trim().length < MIN_INPUT_CHARS
+                )
+                    return;
+                handleNext();
+            }, INPUT_SETTLE_MS);
         };
         const tick = () => {
             if (el && !el.isConnected) {
@@ -1044,6 +1063,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                             // The highlighted control is the way forward; a
                             // Next button here would compete with it.
                             shownStep.advanceOnTargetInput &&
+                            spotlightSelector === shownStep.target &&
                             shownStep.suggestion ? (
                                 <Group gap="xs" wrap="nowrap">
                                     <Text fz="xs" c="dimmed">
@@ -1077,7 +1097,8 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                                 </Group>
                             ) : (
                                 <Text fz="xs" c="dimmed">
-                                    {shownStep.advanceOnTargetInput
+                                    {shownStep.advanceOnTargetInput &&
+                                    spotlightSelector === shownStep.target
                                         ? 'Type in the highlighted field to continue'
                                         : 'Click the highlighted control to continue'}
                                 </Text>

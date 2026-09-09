@@ -298,7 +298,17 @@ const runTour = async (
                 shot,
             );
         }
-        if (step?.advanceOnTargetInput) {
+        const typingTargetActive =
+            step?.advanceOnTargetInput &&
+            step.target &&
+            (await page.evaluate(
+                (selector) =>
+                    document
+                        .querySelector(selector)
+                        ?.hasAttribute('data-tour-active') === true,
+                step.target,
+            ));
+        if (typingTargetActive) {
             // A typed step: the card offers a value; take it, as a learner
             // in a hurry would. Typing anything else would do as well.
             const useIt = page
