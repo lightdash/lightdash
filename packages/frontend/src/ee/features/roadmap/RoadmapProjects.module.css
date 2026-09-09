@@ -82,7 +82,7 @@
     position: absolute;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-body);
+    background: var(--ld-color-page);
 }
 .ticketStack[data-stacked]::before {
     inset: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
@@ -93,6 +93,13 @@
 .ticketStackCard {
     position: relative;
     z-index: 1;
+    background: var(--ld-color-page);
+    box-shadow: none;
+}
+.ticketStackCard .ticketTitle,
+.ticketStackCard .ticketIcon {
+    color: var(--mantine-color-dimmed);
+    font-weight: 400;
 }
 .ticketTitle {
     font-size: var(--mantine-font-size-sm);

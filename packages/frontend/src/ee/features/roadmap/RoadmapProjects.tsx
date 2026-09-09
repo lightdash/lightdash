@@ -225,11 +225,7 @@ function Board({
                                                     : 'other tickets'}
                                             </Text>
                                         </Group>
-                                        <Text
-                                            fz="xs"
-                                            c="dimmed"
-                                            className={classes.cardMetadata}
-                                        >
+                                        <Text fz="xs" c="dimmed">
                                             Only followed tickets are shown
                                             individually.
                                         </Text>
