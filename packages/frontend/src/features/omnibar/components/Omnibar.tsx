@@ -43,6 +43,7 @@ import { AiAgentIcon } from '../../../ee/features/aiCopilot/components/AiAgentIc
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProject } from '../../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
+import { useRecentContent } from '../../../hooks/useRecentContent';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
@@ -56,6 +57,7 @@ import {
     type OmnibarGroup,
     type SearchItem,
 } from '../types/searchItem';
+import { getRecentContentSearchItems } from '../utils/getRecentContentSearchItems';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import classes from './Omnibar.module.css';
 import OmnibarEmptyState from './OmnibarEmptyState';
@@ -81,6 +83,17 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const canUserManageValidation = useValidationUserAbility(projectUuid);
     const [searchFilters, setSearchFilters] = useState<SearchFilters>();
     const [query, setQuery] = useState<string>();
+    const hasEnteredQuery = query !== undefined && query !== '';
+    const hasEnteredMinQueryLength =
+        hasEnteredQuery && hasMinQueryLength(query);
+    const hasActiveFilters = Boolean(
+        searchFilters?.type ||
+        searchFilters?.verifiedOnly ||
+        searchFilters?.fromDate ||
+        searchFilters?.toDate ||
+        searchFilters?.createdByUuid,
+    );
+
     const [debouncedValue] = useDebouncedValue(query, 300);
     const { targetRef: scrollRef } = useScrollIntoView<HTMLDivElement>(); // couldn't get scroll to work with mantine's function
 
@@ -102,6 +115,20 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
         useDisclosure(false);
+
+    const { data: recentContent, isInitialLoading: isLoadingRecentContent } =
+        useRecentContent(
+            projectUuid,
+            isOmnibarOpen && !hasEnteredQuery && !hasActiveFilters,
+        );
+    const recentItems = useMemo(
+        () =>
+            getRecentContentSearchItems(
+                recentContent ?? [],
+                projectUrlIdentifier,
+            ),
+        [recentContent, projectUrlIdentifier],
+    );
 
     const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true, {
         enabled: isOmnibarOpen,
@@ -190,7 +217,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
             name: EventName.SEARCH_RESULT_CLICKED,
             properties: {
                 type: item.type,
-                id: getSearchResultId(item.item),
+                id: item.recentContent?.uuid ?? getSearchResultId(item.item),
                 verifiedOnly: searchFilters?.verifiedOnly === true,
             },
         });
@@ -225,17 +252,6 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         }
         setQuery(undefined);
     };
-
-    const hasEnteredQuery = query !== undefined && query !== '';
-    const hasEnteredMinQueryLength =
-        hasEnteredQuery && hasMinQueryLength(query);
-    const hasActiveFilters = Boolean(
-        searchFilters?.type ||
-        searchFilters?.verifiedOnly ||
-        searchFilters?.fromDate ||
-        searchFilters?.toDate ||
-        searchFilters?.createdByUuid,
-    );
 
     const searchGroups = useMemo<OmnibarGroup[]>(() => {
         const contentGroups = searchResults
@@ -283,10 +299,21 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     };
 
     const displayGroups = useMemo<OmnibarGroup[]>(() => {
-        const groups =
-            !hasEnteredQuery || !hasEnteredMinQueryLength || !searchResults
-                ? []
-                : searchGroups;
+        const groups: OmnibarGroup[] = !hasEnteredQuery
+            ? !hasActiveFilters && recentItems.length > 0
+                ? [
+                      {
+                          key: 'recently-viewed',
+                          label: 'Recently viewed',
+                          items: recentItems,
+                          totalCount: recentItems.length,
+                          collapsed: false,
+                      },
+                  ]
+                : []
+            : !hasEnteredMinQueryLength || !searchResults
+              ? []
+              : searchGroups;
 
         return groups.map((group) =>
             collapsedGroupKeys.includes(group.key)
@@ -296,6 +323,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     }, [
         hasEnteredQuery,
         hasEnteredMinQueryLength,
+        hasActiveFilters,
+        recentItems,
         searchResults,
         searchGroups,
         collapsedGroupKeys,
@@ -385,7 +414,7 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                             wrap="nowrap"
                             className={classes.inputRow}
                         >
-                            {isFetching ? (
+                            {isFetching || isLoadingRecentContent ? (
                                 <Loader size="xs" color="ldGray.5" />
                             ) : (
                                 <MantineIcon
@@ -429,7 +458,14 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
 
                         <Box className={classes.resultsArea}>
                             {displayGroups.length === 0 ? (
-                                !hasEnteredQuery && hasActiveFilters ? (
+                                !hasEnteredQuery &&
+                                !hasActiveFilters &&
+                                isLoadingRecentContent ? (
+                                    <OmnibarEmptyState
+                                        variant="loading"
+                                        title="Loading recently viewed..."
+                                    />
+                                ) : !hasEnteredQuery && hasActiveFilters ? (
                                     <OmnibarEmptyState
                                         title="Search with these filters"
                                         hint="Start typing to apply them."
