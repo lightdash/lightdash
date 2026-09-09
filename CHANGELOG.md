@@ -1,3 +1,10 @@
+## [2.184.5](https://github.com/lightdash/lightdash/compare/2.184.4...2.184.5) (2026-09-09)
+
+
+### Bug Fixes
+
+* **analytics:** correct dashboard chart activity and user summaries ([#28963](https://github.com/lightdash/lightdash/issues/28963)) ([e36d325](https://github.com/lightdash/lightdash/commit/e36d325c92207bc32e20b867dfb6a5497d0f0be8))
+
 ## [2.184.4](https://github.com/lightdash/lightdash/compare/2.184.3...2.184.4) (2026-09-09)
 
 
