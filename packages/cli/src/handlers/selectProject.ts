@@ -49,18 +49,19 @@ const validatePreviewProject = async (
  *
  * Priority:
  * 1. If `explicitProject` is provided (via --project flag), use it
- * 2. If there's an active preview and we're in interactive mode, ask the user
- * 3. In non-interactive mode with active preview, use preview project
- * 4. Fall back to the main project
+ * 2. If LIGHTDASH_PROJECT is set, use it
+ * 3. If there's an active preview and we're in interactive mode, ask the user
+ * 4. In non-interactive mode with active preview, use preview project
+ * 5. Fall back to the main project
  */
 export const selectProject = async (
     config: Config,
     explicitProject?: string,
 ): Promise<ProjectSelection | undefined> => {
-    // If explicit project provided via --project flag, use it
-    if (explicitProject) {
+    const projectOverride = explicitProject || process.env.LIGHTDASH_PROJECT;
+    if (projectOverride) {
         return {
-            projectUuid: await resolveProjectFlag(explicitProject),
+            projectUuid: await resolveProjectFlag(projectOverride),
             isPreview: false,
         };
     }

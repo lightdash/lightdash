@@ -158,6 +158,18 @@ The `--non-interactive` flag is designed for environments where interactive prom
 |----------|-------------|
 | `CI=true` | Equivalent to `--non-interactive` |
 | `LIGHTDASH_API_KEY` | API token for authentication (can be used instead of `--token`) |
+| `LIGHTDASH_PROJECT` | Target project UUID; overrides the saved default and active preview unless `--project` is passed |
+
+For project selection in commands such as `deploy`, `download`, and `upload`,
+`--project` takes precedence over `LIGHTDASH_PROJECT`. Either override bypasses
+active-preview selection in both interactive and non-interactive runs, without
+clearing the saved preview. If neither override is set (or `LIGHTDASH_PROJECT`
+is empty), an active preview remains the default in non-interactive runs;
+interactive runs prompt when both a default project and a preview are available.
+
+```bash
+LIGHTDASH_PROJECT=<target-project-uuid> lightdash deploy --non-interactive
+```
 
 Credentials resolve in the usual order: command flags, then environment variables, then the config file written by `lightdash login`. So a `LIGHTDASH_API_KEY` left in your shell profile is used ahead of your saved login — `lightdash login` warns when this is the case, and `unset LIGHTDASH_API_KEY` restores the saved token.
 

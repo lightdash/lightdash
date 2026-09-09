@@ -1,6 +1,7 @@
 import { RenameType, SchedulerJobStatus } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
+import GlobalState from '../globalState';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProject } from './dbt/refresh';
 import { renameHandler } from './renameHandler';
@@ -66,6 +67,7 @@ describe('renameHandler follow-up validation', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.stubEnv('LIGHTDASH_PROJECT', undefined);
         vi.mocked(checkLightdashVersion).mockResolvedValue(undefined);
         vi.mocked(getConfig).mockResolvedValue({
             context: {
@@ -87,6 +89,7 @@ describe('renameHandler follow-up validation', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllEnvs();
     });
 
     const trackedEvents = () =>
@@ -94,6 +97,37 @@ describe('renameHandler follow-up validation', () => {
             event: payload.event,
             properties: payload.properties,
         }));
+
+    test.each([undefined, baseOptions.project])(
+        'targets the environment project unless --project overrides it (%s)',
+        async (explicitProject) => {
+            const envProject = '22222222-2222-4222-8222-222222222222';
+            vi.stubEnv('LIGHTDASH_PROJECT', envProject);
+            vi.spyOn(GlobalState, 'isNonInteractive').mockReturnValue(true);
+            vi.mocked(getConfig).mockResolvedValue({
+                context: {
+                    apiKey: 'test-key',
+                    serverUrl: 'http://localhost',
+                    project: envProject,
+                    previewProject: '33333333-3333-4333-8333-333333333333',
+                    previewName: 'Stale preview',
+                },
+            });
+            mockApi(null);
+
+            await renameHandler({ ...baseOptions, project: explicitProject });
+
+            const expectedProject = explicitProject || envProject;
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    url: `/api/v1/projects/${expectedProject}/rename`,
+                }),
+            );
+            expect(errorOutput.join('\n')).toContain(expectedProject);
+            expect(errorOutput.join('\n')).not.toContain('Stale preview');
+        },
+    );
 
     test('reports a failed validation job as a validation failure, not a rename failure', async () => {
         mockApi(VALIDATION_JOB_ID);

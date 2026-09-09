@@ -90,8 +90,9 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
-    const projectUuid = options.project
-        ? await resolveProjectFlag(options.project)
+    const projectOverride = options.project || process.env.LIGHTDASH_PROJECT;
+    const projectUuid = projectOverride
+        ? await resolveProjectFlag(projectOverride)
         : config.context.previewProject || config.context.project;
     if (!projectUuid) {
         throw new LightdashError({
@@ -103,7 +104,7 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
     }
 
     // Log current project info
-    if (options.project) {
+    if (projectOverride) {
         console.error(
             `\n${styles.success('Renaming in project:')} ${projectUuid}\n`,
         );
