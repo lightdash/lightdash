@@ -626,7 +626,8 @@ export type CreateWarehouseCredentialsWithOptionalSecrets =
     | WithOptionalSecrets<CreateAthenaCredentials>
     | WithOptionalSecrets<CreateDuckdbMotherduckCredentials>
     | WithOptionalSecrets<CreateDuckdbDucklakeCredentials>
-    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>;
+    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>
+    | WithOptionalSecrets<DuckdbAnalyticsCredentials>;
 
 const isSensitiveCredentialsFieldName = (
     key: string,
@@ -687,6 +688,7 @@ export const fillOmittedSecrets = (
                     return { ...credentials, token: credentials.token ?? '' };
                 case DuckdbConnectionType.DUCKLAKE:
                 case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
                     return credentials;
                 default:
                     return assertUnreachable(

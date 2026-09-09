@@ -2,6 +2,7 @@ import {
     BigqueryAuthenticationType,
     buildSafeDbtEnvironmentVariables,
     DbtVersionOptionLatest,
+    DuckdbConnectionType,
     fillOmittedSecrets,
     getDbtEnvironmentVariableKeyError,
     getDbtVersionSupportedWarehouses,
@@ -27,6 +28,7 @@ import {
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type DuckdbAnalyticsCredentials,
 } from './projects';
 
 describe('project dbt source name validation', () => {
@@ -418,6 +420,20 @@ describe('omitted secrets on connection test', () => {
             ...postgres,
             sshTunnelPrivateKey: undefined,
         });
+    });
+
+    it('preserves internal analytics identifiers without adding secrets', () => {
+        const analytics: DuckdbAnalyticsCredentials = {
+            type: WarehouseTypes.DUCKDB,
+            connectionType: DuckdbConnectionType.ANALYTICS,
+            database: 'memory',
+            schema: 'main',
+        };
+
+        expect(fillOmittedSecrets(omitEmptySecrets(analytics))).toEqual(
+            analytics,
+        );
+        expect(fillOmittedSecrets(analytics)).toEqual(analytics);
     });
 
     it('flags a private key BigQuery connection without a key file', () => {
