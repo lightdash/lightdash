@@ -74,6 +74,8 @@ const getDbtCredentialDestination = (config: DbtProjectConfig): unknown[] => {
                 normalizeCredentialHost(
                     config.host_domain || DEFAULT_BITBUCKET_HOST_DOMAIN,
                 ),
+                config.repository,
+                config.username,
             ];
         case DbtProjectType.AZURE_DEVOPS:
         case DbtProjectType.DBT:
