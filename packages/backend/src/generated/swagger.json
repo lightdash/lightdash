@@ -56443,6 +56443,398 @@
                 "type": "string",
                 "enum": ["chart", "dashboard"]
             },
+            "RecentContentItem": {
+                "properties": {
+                    "viewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/RecentContentType"
+                    }
+                },
+                "required": ["viewedAt", "uuid", "contentType"],
+                "type": "object"
+            },
+            "ChartContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.CHART"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/ChartSourceType"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    },
+                    "dashboard": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "directAccessRoles",
+                    "source",
+                    "chartKind",
+                    "dashboard"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "directAccessRoles": {
+                        "items": {
+                            "$ref": "#/components/schemas/SpaceMemberRole"
+                        },
+                        "type": "array"
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwner"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "directAccessRoles",
+                    "owner"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "RecentContentEntry": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/RecentContentItem"
+                    },
+                    {
+                        "properties": {
+                            "content": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ChartContent"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DashboardContent"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["content"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiSuccess_RecentContentEntry-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/RecentContentEntry"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiRecentContentResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_RecentContentEntry-Array_"
+            },
             "RecordRecentContentView": {
                 "properties": {
                     "contentUuid": {
@@ -59196,339 +59588,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ChartContent": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.CHART"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "directAccessRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceMemberRole"
-                        },
-                        "type": "array"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/ChartSourceType"
-                    },
-                    "chartKind": {
-                        "$ref": "#/components/schemas/ChartKind"
-                    },
-                    "dashboard": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "verification",
-                    "directAccessRoles",
-                    "source",
-                    "chartKind",
-                    "dashboard"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "DashboardContent": {
-                "properties": {
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DASHBOARD"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    },
-                    "slug": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "lastUpdatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "lastUpdatedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "project": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "organization": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "space": {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["name", "uuid"],
-                        "type": "object"
-                    },
-                    "pinnedList": {
-                        "properties": {
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["uuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "views": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "firstViewedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "directAccessRoles": {
-                        "items": {
-                            "$ref": "#/components/schemas/SpaceMemberRole"
-                        },
-                        "type": "array"
-                    },
-                    "owner": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/DashboardOwner"
-                            }
-                        ],
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "contentType",
-                    "uuid",
-                    "slug",
-                    "name",
-                    "description",
-                    "createdAt",
-                    "createdBy",
-                    "lastUpdatedAt",
-                    "lastUpdatedBy",
-                    "project",
-                    "organization",
-                    "space",
-                    "pinnedList",
-                    "views",
-                    "firstViewedAt",
-                    "verification",
-                    "directAccessRoles",
-                    "owner"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
             "ContentType.SPACE": {
                 "enum": ["space"],
                 "type": "string"
@@ -60869,7 +60928,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.181.0",
+        "version": "2.182.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -96862,6 +96921,43 @@
             }
         },
         "/api/v2/content/recently-viewed": {
+            "get": {
+                "operationId": "GetRecentlyViewed",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRecentContentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Content"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
             "post": {
                 "operationId": "RecordView",
                 "responses": {

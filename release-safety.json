@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.181.0",
-  "previousVersion": "2.180.0",
-  "releaseDate": "2026-09-09T15:09:26.663Z",
+  "version": "2.182.0",
+  "previousVersion": "2.181.0",
+  "releaseDate": "2026-09-09T15:19:32.044Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20260909120000_create_user_recent_content.ts",
-        "edition": "core",
-        "tables": [
-          "projects",
-          "user_recent_content",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

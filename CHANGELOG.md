@@ -1,3 +1,15 @@
+# [2.182.0](https://github.com/lightdash/lightdash/compare/2.181.0...2.182.0) (2026-09-09)
+
+
+### Features
+
+* **omnibar:** surface recently viewed charts and dashboards ([#28947](https://github.com/lightdash/lightdash/issues/28947)) ([a28e288](https://github.com/lightdash/lightdash/commit/a28e28887ac6bc3fe518eb3be38c3430ee03b1b5)), closes [#28946](https://github.com/lightdash/lightdash/issues/28946) [#28944](https://github.com/lightdash/lightdash/issues/28944) [#28946](https://github.com/lightdash/lightdash/issues/28946)
+
+
+### Performance Improvements
+
+* **content:** serve recently viewed from bounded OSS history ([#28946](https://github.com/lightdash/lightdash/issues/28946)) ([9c58bf9](https://github.com/lightdash/lightdash/commit/9c58bf953ede5c72706a984bd9a09659530e6b1f)), closes [#28944](https://github.com/lightdash/lightdash/issues/28944) [#28944](https://github.com/lightdash/lightdash/issues/28944) [#28944](https://github.com/lightdash/lightdash/issues/28944) [#28947](https://github.com/lightdash/lightdash/issues/28947)
+
 # [2.181.0](https://github.com/lightdash/lightdash/compare/2.180.0...2.181.0) (2026-09-09)
 
 
