@@ -30,7 +30,8 @@
     padding: 2px;
 }
 .projectCard,
-.ticketCard {
+.ticketCard,
+.ticketStackCard {
     display: flex;
     flex-direction: column;
     gap: calc(var(--mantine-spacing-xs) / 2);
@@ -92,10 +93,6 @@
 .ticketStackCard {
     position: relative;
     z-index: 1;
-    padding: var(--mantine-spacing-lg) var(--mantine-spacing-sm);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-body);
 }
 .ticketTitle {
     font-size: var(--mantine-font-size-sm);

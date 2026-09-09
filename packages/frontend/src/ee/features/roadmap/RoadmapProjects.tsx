@@ -205,23 +205,35 @@ function Board({
                                         remainingTicketCount > 1 || undefined
                                     }
                                 >
-                                    <Group
-                                        className={classes.ticketStackCard}
-                                        justify="center"
-                                        gap="xs"
-                                    >
-                                        <MantineIcon
-                                            icon={IconTicket}
-                                            size="sm"
-                                            color="dimmed"
-                                        />
-                                        <Text fz="xs" c="dimmed">
-                                            {remainingTicketCount}{' '}
-                                            {remainingTicketCount === 1
-                                                ? 'ticket'
-                                                : 'tickets'}
+                                    <Box className={classes.ticketStackCard}>
+                                        <Group
+                                            gap="xs"
+                                            wrap="nowrap"
+                                            align="center"
+                                        >
+                                            <MantineIcon
+                                                icon={IconTicket}
+                                                size="sm"
+                                                className={classes.ticketIcon}
+                                            />
+                                            <Text
+                                                className={classes.ticketTitle}
+                                            >
+                                                {remainingTicketCount}{' '}
+                                                {remainingTicketCount === 1
+                                                    ? 'other ticket'
+                                                    : 'other tickets'}
+                                            </Text>
+                                        </Group>
+                                        <Text
+                                            fz="xs"
+                                            c="dimmed"
+                                            className={classes.cardMetadata}
+                                        >
+                                            Only followed tickets are shown
+                                            individually.
                                         </Text>
-                                    </Group>
+                                    </Box>
                                 </Box>
                             )}
                             {visibleCards.map((entry) => (
