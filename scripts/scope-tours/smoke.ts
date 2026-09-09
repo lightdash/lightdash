@@ -202,7 +202,20 @@ const runTour = async (
                 ),
         );
     while (true) {
-        const state = await tourState(page);
+        // Saving a virtual view reloads the page. Retry a read interrupted
+        // by that navigation without treating the walkthrough as failed.
+        const state = await tourState(page).catch((error: unknown) => {
+            if (
+                error instanceof Error &&
+                error.message.includes('Execution context was destroyed')
+            )
+                return null;
+            throw error;
+        });
+        if (!state) {
+            await page.waitForTimeout(400);
+            continue;
+        }
         if (!state.open) {
             closedSince ??= Date.now();
             if (Date.now() - closedSince > 5_000) {

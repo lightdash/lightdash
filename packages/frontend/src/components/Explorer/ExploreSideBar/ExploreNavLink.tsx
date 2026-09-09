@@ -108,6 +108,8 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             // Anchor for scope walkthroughs (data-tour-via): a table to open
             data-tour-anchor="explore-table"
             data-tour-hint="Open a table"
+            data-tour-hint-named="Open {value}"
+            data-tour-value={displayLabel}
             {...(explore.type === ExploreType.VIRTUAL
                 ? virtualViewTourProps
                 : {})}

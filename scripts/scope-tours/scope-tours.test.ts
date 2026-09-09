@@ -107,6 +107,111 @@ const run = async () => {
         );
     }
 
+    // A second taught scope reuses the real controls, not nonexistent alias markers.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker(
+                    'explore/homepage.mdx#pin-content:2',
+                    '\n        data-tour-covers="view:PinnedItems"',
+                ),
+            ),
+        ];
+        const { tours } = buildTours(files);
+        const primary = tours.find(
+            (tour) => tour.scope === 'manage:PinnedItems',
+        )!;
+        const covered = tours.find((tour) => tour.scope === 'view:PinnedItems');
+        assert.ok(covered, 'the taught viewer scope must have a runnable tour');
+        assert.deepStrictEqual(covered.steps, primary.steps);
+        assert.ok(covered.steps.some((step) => step.advanceOnTargetClick));
+        assert.deepStrictEqual(
+            checkTours(files).filter((f) => f.level === 'error'),
+            [],
+        );
+    }
+
+    // Invalid coverage must not create a tour for an unrecognized permission.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker(
+                    'explore/homepage.mdx#pin-content:2',
+                    '\n        data-tour-covers="manage:InventedPermission"',
+                ),
+            ),
+        ];
+        assert.throws(() => buildTours(files), /unknown scope/);
+    }
+
+    // Coverage must not replace a primary tour or attach to a passive marker.
+    {
+        const navFile = write('Nav.tsx', nav('Click Browse'));
+        const source = marker(
+            'explore/homepage.mdx#pin-content:2',
+            '\n        data-tour-covers="view:PinnedItems"',
+        );
+        assert.throws(
+            () =>
+                buildTours([
+                    navFile,
+                    write(
+                        'Pin.tsx',
+                        source.replace('data-tour-interactive="true"', ''),
+                    ),
+                ]),
+            /interactive action marker/,
+        );
+        assert.throws(
+            () =>
+                buildTours([
+                    navFile,
+                    write('Pin.tsx', source),
+                    write(
+                        'View.tsx',
+                        marker('explore/homepage.mdx#pin-content:2').replaceAll(
+                            'manage:PinnedItems',
+                            'view:PinnedItems',
+                        ),
+                    ),
+                ]),
+            /duplicate walkthrough coverage/,
+        );
+        const repeated = buildTours([
+            navFile,
+            write('Pin.tsx', source + source),
+        ]).tours;
+        assert.strictEqual(
+            repeated.filter((tour) => tour.scope === 'view:PinnedItems').length,
+            1,
+        );
+    }
+
+    // A malformed working-state selector reports a diagnostic, rather than crashing.
+    {
+        const files = [
+            write('Nav.tsx', nav('Click Browse')),
+            write(
+                'Pin.tsx',
+                marker(
+                    'explore/homepage.mdx#pin-content:2',
+                    '\n        data-tour-busy=".saving"',
+                ),
+            ),
+        ];
+        assert.ok(
+            checkTours(files).some(
+                (finding) =>
+                    finding.level === 'error' &&
+                    finding.message.includes('data-tour-busy must be'),
+            ),
+        );
+    }
+
     // Removing the hint from the Browse anchor fails with the file and line.
     {
         const navFile = write('Nav.tsx', nav(null));

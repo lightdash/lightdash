@@ -3,6 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { buildLearnCatalogue, gateFor, holds, focusModules } from './catalogue';
 import { CONCEPT_LESSONS } from './conceptLessons.generated';
 describe('concept catalogue', () => {
+    it.each([
+        'manage:DeletedContent',
+        'manage:CustomSql',
+        'view:ContentVerification',
+        'manage:VerifiedContent',
+        'manage:ChangeCsvResults',
+        'view:SpotlightTableConfig',
+        'manage:SpotlightTableConfig',
+        'manage:VirtualView',
+        'delete:VirtualView',
+    ])('starts %s as a hands-on walkthrough, not reading', (scope) => {
+        expect(
+            buildLearnCatalogue().find((module) => module.scope === scope),
+        ).toMatchObject({
+            available: true,
+            format: 'walkthrough',
+        });
+        expect(CONCEPT_LESSONS[scope]).toBeUndefined();
+    });
+
     it('includes docs-based reading without granting excluded trainee permissions', () => {
         for (const scope of [
             'view:Analytics',
@@ -25,7 +45,7 @@ describe('concept catalogue', () => {
         expect(holds(new Set(['view:ContentVerification']), module)).toBe(
             false,
         );
-        expect(module.format).toBe('concept');
+        expect(module.format).toBe('walkthrough');
     });
     it('does not count concept acknowledgment as a completed walkthrough', () => {
         const concept = buildLearnCatalogue().find(
@@ -41,12 +61,12 @@ describe('concept catalogue', () => {
         ).toEqual(tour);
     });
 
-    it('allows reading about recently deleted content before enabling the product feature', () => {
+    it('requires soft delete for the restoration walkthrough', () => {
         expect(
             buildLearnCatalogue().find(
                 (module) => module.scope === 'manage:DeletedContent',
             ),
-        ).toMatchObject({ format: 'concept', gate: null });
+        ).toMatchObject({ format: 'walkthrough', gate: 'softDelete' });
     });
 
     it('gates agent document reading with agents and cites every concept', () => {

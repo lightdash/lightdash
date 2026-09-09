@@ -328,7 +328,7 @@ describe('LearnPage concept acknowledgments', () => {
     });
 
     it('acknowledges every scope in a shared lesson without completing a walkthrough', async () => {
-        const scope = 'manage:VirtualView';
+        const scope = 'create:ContentAsCode';
         const lesson = CONCEPT_LESSONS[scope];
         expect(lesson.coveredScopes.length).toBeGreaterThan(1);
         const { container } = renderPage(

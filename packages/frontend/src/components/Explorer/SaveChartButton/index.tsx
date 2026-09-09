@@ -304,6 +304,8 @@ const SaveChartButton: FC<{
                         // Scope-tour marker: the control manage:SavedChart
                         // unlocks. Path and follow-up declared here; see
                         // scripts/scope-tours/generate.ts.
+                        data-tour-anchor="save-chart-changes"
+                        data-tour-hint="Save changes"
                         data-tour-scope="manage:SavedChart"
                         data-tour-step="2"
                         data-tour-route="/projects/:projectUuid/tables/:tableName"
@@ -424,6 +426,14 @@ const SaveChartButton: FC<{
                             </Button>
                             <Button
                                 color="green.7"
+                                data-tour-scope="manage:VerifiedContent"
+                                data-tour-step="2"
+                                data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                data-tour-title="Edit a verified chart"
+                                data-tour-label="Save and verify the changed chart"
+                                data-tour-docs="explore/verified-content.mdx#what-you-see-when-saving-verified-content:1"
+                                data-tour-interactive="true"
+                                data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
                                 leftSection={
                                     <IconCircleCheckFilled size={16} />
                                 }

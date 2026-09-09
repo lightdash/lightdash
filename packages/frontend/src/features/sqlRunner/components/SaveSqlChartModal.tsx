@@ -67,6 +67,7 @@ type SaveSqlChartModalContentProps = Props & {
  */
 const saveTourAction = {
     'data-tour-scope': 'manage:SqlRunner',
+    'data-tour-covers': 'manage:CustomSql',
     'data-tour-step': '2',
     'data-tour-route': '/projects/:projectUuid/sql-runner',
     'data-tour-label': 'Save the chart',
