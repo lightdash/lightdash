@@ -384,7 +384,9 @@ export class ValidationService extends BaseService {
                     .filter(
                         (warning) =>
                             warning.type ===
-                            InlineErrorType.WAREHOUSE_COLUMN_ERROR,
+                                InlineErrorType.WAREHOUSE_COLUMN_ERROR ||
+                            warning.type ===
+                                InlineErrorType.REPEATED_COLUMN_NOT_UNNESTED,
                     )
                     .map((warning) => ({
                         name: explore.name,

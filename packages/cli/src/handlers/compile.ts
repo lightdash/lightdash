@@ -60,8 +60,10 @@ const getUnnestRepeatedColumns = async (): Promise<boolean> => {
         });
         return flag.enabled;
     } catch (e) {
-        GlobalState.debug(
-            `> Could not read the ${FeatureFlags.UnnestRepeatedColumns} flag, compiling without it: ${getErrorMessage(e)}`,
+        console.error(
+            styles.warning(
+                `> Could not read the ${FeatureFlags.UnnestRepeatedColumns} setting from the server, compiling without unnesting repeated columns: ${getErrorMessage(e)}`,
+            ),
         );
         return false;
     }

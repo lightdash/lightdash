@@ -73,6 +73,7 @@ export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
+export * from './compiler/unnestSupport';
 export * from './parameters/reservedParameters';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';

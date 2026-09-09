@@ -82,6 +82,10 @@ import {
     resolveAdditionalTimeIntervals,
     resolveGranularityLabels,
 } from './lightdashProjectConfig';
+import {
+    repeatedColumnsNotUnnestedWarning,
+    UNNEST_FLAG_OFF_REASON,
+} from './unnestSupport';
 
 const convertTimezone = (
     timestampSql: string,
@@ -680,6 +684,30 @@ export const convertTable = (
     const meta = merge({}, model.meta, model.config?.meta);
     const tableLabel = meta.label || friendlyName(model.name);
     const tableWarnings: InlineError[] = [];
+
+    if (!unnestRepeatedColumns) {
+        const leavesByContainer = Object.values(model.columns).reduce<
+            Record<string, string[]>
+        >((acc, column) => {
+            const container = column.repeated_ancestors?.[0];
+            if (!container || getColumnMeta(column).dimension?.sql) {
+                return acc;
+            }
+            return {
+                ...acc,
+                [container]: [...(acc[container] ?? []), column.name],
+            };
+        }, {});
+        if (Object.keys(leavesByContainer).length > 0) {
+            tableWarnings.push(
+                repeatedColumnsNotUnnestedWarning({
+                    modelName: model.name,
+                    leavesByContainer,
+                    reason: UNNEST_FLAG_OFF_REASON,
+                }),
+            );
+        }
+    }
 
     const [dimensions, metrics]: [
         Record<string, Dimension>,

@@ -3464,6 +3464,14 @@ describe('nested and repeated columns', () => {
     it("keeps today's dotted dimensions when unnesting is off", async () => {
         const explore = await compile(typedModels, false);
         expect(Object.keys(explore.tables)).toEqual(['ga_sessions']);
+        expect(explore.warnings).toEqual([
+            expect.objectContaining({
+                type: InlineErrorType.REPEATED_COLUMN_NOT_UNNESTED,
+                message: expect.stringContaining(
+                    '"customDimensions" (customDimensions.index, customDimensions.value); "hits" (hits.page.pagePath, hits.product.productSKU, hits.product.productRevenue)',
+                ),
+            }),
+        ]);
         expect(
             explore.tables.ga_sessions.dimensions['hits.product.productSKU']
                 .compiledSql,
@@ -3472,6 +3480,7 @@ describe('nested and repeated columns', () => {
 
     it('unnests each repeated node into a virtual table joined on TRUE', async () => {
         const explore = await compile(typedModels, true);
+        expect(explore.warnings).toBeUndefined();
         expect(Object.keys(explore.tables).sort()).toEqual([
             'ga_sessions',
             'ga_sessions__customDimensions',

@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    addOldCliUnnestWarnings,
     AlreadyExistsError,
     AndFilterGroup,
     AnonymousAccount,
@@ -137,6 +138,7 @@ import {
     isUserManagedExplore,
     isUserWithOrg,
     isValidTimezone,
+    isVersionBefore,
     ItemsMap,
     Job,
     JobStatusType,
@@ -222,6 +224,7 @@ import {
     TableSelectionType,
     TooManyRequestsError,
     UnexpectedServerError,
+    UNNEST_REPEATED_COLUMNS_MIN_CLI_VERSION,
     UpdateAgentSqlScope,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
@@ -3560,8 +3563,23 @@ export class ProjectService extends BaseService {
             );
         }
 
+        // A CLI from before unnest support compiles repeated leaves as plain
+        // dimensions and reports nothing; warn on the deployed explores so the
+        // gap shows in the Explorer and on the validation page.
+        const isOldCliOnUnnestOrg =
+            !!cliVersion &&
+            project.warehouseConnection?.type === WarehouseTypes.BIGQUERY &&
+            isVersionBefore(
+                cliVersion,
+                UNNEST_REPEATED_COLUMNS_MIN_CLI_VERSION,
+            ) &&
+            (await this.getExploreCompileOptions(user)).unnestRepeatedColumns;
+        const exploresWithCliWarnings = isOldCliOnUnnestOrg
+            ? addOldCliUnnestWarnings(explores, cliVersion)
+            : explores;
+
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
-            explores,
+            explores: exploresWithCliWarnings,
             enabled: this.lightdashConfig.preAggregates.enabled,
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
         });
