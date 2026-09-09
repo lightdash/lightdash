@@ -221,26 +221,29 @@ describe('account', () => {
                                         ability: actor.build(),
                                     },
                                 });
+                                const roleFilterInteractivity =
+                                    scope === 'EmbedDashboardFilters'
+                                        ? FilterInteractivityValues.all
+                                        : false;
                                 expect(result.access.filtering).toEqual({
                                     enabled:
-                                        permissionsMode === 'roles' &&
-                                        scope === 'EmbedDashboardFilters'
-                                            ? FilterInteractivityValues.all
+                                        permissionsMode === 'roles'
+                                            ? roleFilterInteractivity
                                             : enabled,
                                     allowedFilters: ['department'],
                                     hidden: true,
                                     canAddFilters:
-                                        enabled === true ||
-                                        (permissionsMode === 'roles' &&
-                                            scope ===
-                                                'EmbedDashboardFilterAddition'),
+                                        permissionsMode === 'roles'
+                                            ? scope ===
+                                              'EmbedDashboardFilterAddition'
+                                            : enabled === true,
                                 });
                                 expect(result.access.parameters).toEqual({
                                     enabled:
-                                        enabled === true ||
-                                        (permissionsMode === 'roles' &&
-                                            scope ===
-                                                'EmbedDashboardParameters'),
+                                        permissionsMode === 'roles'
+                                            ? scope ===
+                                              'EmbedDashboardParameters'
+                                            : enabled === true,
                                 });
                                 expect(result.access.controls).toEqual(
                                     mockUserAttributes,
