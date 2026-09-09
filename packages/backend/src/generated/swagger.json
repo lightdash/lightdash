@@ -24862,7 +24862,7 @@
                 "type": "object"
             },
             "PullRequestProvider": {
-                "enum": ["github", "gitlab"],
+                "enum": ["github", "gitlab", "bitbucket"],
                 "type": "string"
             },
             "AiAgentReviewItemPrState": {
@@ -45651,7 +45651,7 @@
                     "pullRequestUuid"
                 ],
                 "type": "object",
-                "description": "A pull request created by a write-back. Only immutable identifiers are\npersisted; the live title/state are resolved at runtime from the\nGitHub/GitLab API using provider + owner + repo + prNumber."
+                "description": "A pull request created by a write-back. Only immutable identifiers are\npersisted; the live title/state are resolved at runtime from the\nGit provider API using provider + owner + repo + prNumber."
             },
             "PullRequestState": {
                 "enum": ["open", "closed", "merged"],
@@ -60518,7 +60518,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.169.1",
+        "version": "2.170.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

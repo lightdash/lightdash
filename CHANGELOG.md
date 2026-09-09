@@ -1,3 +1,10 @@
+# [2.170.0](https://github.com/lightdash/lightdash/compare/2.169.1...2.170.0) (2026-09-09)
+
+
+### Features
+
+* add Bitbucket Cloud writeback API foundation ([#28925](https://github.com/lightdash/lightdash/issues/28925)) ([d003751](https://github.com/lightdash/lightdash/commit/d0037515a62c96ab132c032980b2a721f0b86d8a)), closes [#28926](https://github.com/lightdash/lightdash/issues/28926)
+
 ## [2.169.1](https://github.com/lightdash/lightdash/compare/2.169.0...2.169.1) (2026-09-09)
 
 
