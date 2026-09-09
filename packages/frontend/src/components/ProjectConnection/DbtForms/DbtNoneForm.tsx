@@ -14,41 +14,18 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
             >
                 <Text c="orange" fz="sm">
-                    This project was created from the CLI. If you want to keep
-                    Lightdash in sync with your dbt project, you need to either{' '}
+                    This project is deployed using the CLI. To refresh native
+                    YAML and edit source files in Lightdash, select GitHub above
+                    and choose Native Lightdash YAML. You can also deploy with{' '}
                     <Anchor
-                        href={
-                            'https://docs.lightdash.com/get-started/setup-lightdash/connect-project#2-import-a-dbt-project'
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="sm"
-                    >
-                        change your connection type
-                    </Anchor>
-                    , setup a{' '}
-                    <Anchor
-                        href={
-                            'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#automatically-deploy-your-changes-to-lightdash-using-a-github-action'
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="sm"
-                    >
-                        GitHub action
-                    </Anchor>{' '}
-                    or, run{' '}
-                    <Anchor
-                        href={
-                            'https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy#lightdash-deploy-syncs-the-changes-in-your-dbt-project-to-lightdash'
-                        }
+                        href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-deploy"
                         target="_blank"
                         rel="noreferrer"
                         fz="sm"
                     >
                         lightdash deploy
                     </Anchor>{' '}
-                    from your command line.
+                    or automate deployments with a GitHub action.
                 </Text>
             </Alert>
 
@@ -58,11 +35,11 @@ const DbtNoneForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
                 {...form.getInputProps('dbt.hideRefreshButton')}
                 name="dbt.hideRefreshButton"
-                label="Hide refresh dbt button in the app"
+                label="Hide refresh button in the app"
                 description={
                     <Text fz="sm">
-                        This will hide the refresh dbt button from the explore
-                        page. Read more about your{' '}
+                        This will hide the refresh button from the explore page.
+                        Read more about your{' '}
                         <Anchor
                             href={
                                 'https://docs.lightdash.com/references/dbt-projects'

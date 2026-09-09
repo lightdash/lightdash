@@ -40,6 +40,10 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
     const type: DbtProjectType =
         form.values.dbt.type ?? (defaultType || DbtProjectType.GITHUB);
 
+    const isNative =
+        form.values.dbt.type === DbtProjectType.GITHUB &&
+        form.values.dbt.semanticLayer === 'lightdash';
+
     const warehouseType: WarehouseTypes =
         form.values.warehouse?.type ??
         selectedWarehouse ??
@@ -163,7 +167,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
 
                 <DbtForm disabled={disabled} />
 
-                {type !== DbtProjectType.NONE && (
+                {type !== DbtProjectType.NONE && !isNative && (
                     <>
                         <FormSection name="target">
                             <Stack mt="xs">

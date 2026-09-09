@@ -5,6 +5,7 @@ import {
     ApiGitFileContent,
     assertRegisteredAccount,
     CustomDimension,
+    FeatureFlags,
     ForbiddenError,
     PullRequestCreated,
     UUID,
@@ -27,7 +28,6 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
-import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -211,7 +211,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiGitFileContent }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);
@@ -245,7 +249,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: { filePath: string } }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);
@@ -293,7 +301,11 @@ export class GitIntegrationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: PullRequestCreated }> {
         assertRegisteredAccount(req.account);
-        if (!lightdashConfig.editYamlInUi.enabled) {
+        const flag = await this.services.getFeatureFlagService().get({
+            user: toSessionUser(req.account),
+            featureFlagId: FeatureFlags.EditYamlInUi,
+        });
+        if (!flag.enabled) {
             throw new ForbiddenError('Edit YAML in UI feature is not enabled');
         }
         this.setStatus(200);
