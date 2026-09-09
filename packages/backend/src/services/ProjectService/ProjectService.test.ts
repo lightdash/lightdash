@@ -1874,6 +1874,138 @@ describe('ProjectService', () => {
         );
     });
 
+    describe('public analytics connection configuration', () => {
+        const warehouseConnection = {
+            type: WarehouseTypes.DUCKDB as const,
+            connectionType: DuckdbConnectionType.ANALYTICS as const,
+            database: 'memory' as const,
+            schema: 'main' as const,
+        };
+        const creationUser: SessionUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: ['view', 'create'] },
+            ]),
+            organizationUuid: projectWithSensitiveFields.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+        };
+        const createProjectData = {
+            name: 'Internal analytics',
+            type: ProjectType.DEFAULT,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+            dbtVersion: projectWithSensitiveFields.dbtVersion,
+            warehouseConnection,
+        };
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+        });
+
+        test.each([ProjectType.DEFAULT, ProjectType.PREVIEW])(
+            'rejects public analytics provisioning on %s projects',
+            async (type) => {
+                await expect(
+                    service.createWithoutCompile(
+                        creationUser,
+                        { ...createProjectData, type },
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(
+                    'Analytics connections can only be provisioned internally',
+                );
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        test('rejects scheduled creation before creating a job', async () => {
+            await expect(
+                service.scheduleCreate(
+                    creationUser,
+                    createProjectData,
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(
+                'Analytics connections can only be provisioned internally',
+            );
+            expect(jobModel.create).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.createProjectWithCompile,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects analytics credentials inherited from an upstream preview', async () => {
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                warehouseConnection,
+            );
+            await expect(
+                service.createWithoutCompile(
+                    creationUser,
+                    {
+                        ...createProjectData,
+                        type: ProjectType.PREVIEW,
+                        warehouseConnection: undefined,
+                        upstreamProjectUuid: projectUuid,
+                        copyWarehouseConnectionFromUpstreamProject: true,
+                    },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(
+                'Analytics connections can only be provisioned internally',
+            );
+            expect(
+                projectModel.createWithOptionalCredentials,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('rejects warehouse credential updates before persistence', async () => {
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    developerAccount,
+                    {
+                        warehouseConnection,
+                    },
+                ),
+            ).rejects.toThrow(
+                'Analytics connections can only be provisioned internally',
+            );
+            expect(projectModel.update).not.toHaveBeenCalled();
+        });
+
+        test('rejects update-and-compile before persistence or scheduling', async () => {
+            await expect(
+                service.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    { ...createProjectData, warehouseConnection },
+                    RequestMethod.WEB_APP,
+                ),
+            ).rejects.toThrow(
+                'Analytics connections can only be provisioned internally',
+            );
+            expect(projectModel.update).not.toHaveBeenCalled();
+            expect(jobModel.create).not.toHaveBeenCalled();
+        });
+
+        test('rejects warehouse connection tests before accessing the warehouse', async () => {
+            await expect(
+                service.testWarehouseConnection(
+                    developerAccount as RegisteredAccount,
+                    projectUuid,
+                    warehouseConnection,
+                ),
+            ).rejects.toThrow(
+                'Analytics connections can only be provisioned internally',
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+        });
+    });
+
     describe('default AI agent provisioning', () => {
         test('provisions a default AI agent for a playground when the organization already has another project', async () => {
             const createdProjectUuid = 'created-playground-project-uuid';

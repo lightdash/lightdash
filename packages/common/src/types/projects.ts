@@ -13,6 +13,7 @@ export enum ProjectType {
      * taught controls they do not hold on real projects.
      */
     TRAINING = 'TRAINING',
+    /** Backend-provisioned usage metadata project, never user-configurable. */
 }
 
 export enum DbtProjectType {
@@ -56,6 +57,7 @@ export enum DuckdbConnectionType {
     MOTHERDUCK = 'motherduck',
     DUCKLAKE = 'ducklake',
     EMBEDDED = 'embedded',
+    ANALYTICS = 'analytics',
 }
 
 export type SshTunnelConfiguration = {
@@ -276,6 +278,17 @@ export type CreateDuckdbEmbeddedCredentials = {
 };
 export type DuckdbEmbeddedCredentials = CreateDuckdbEmbeddedCredentials;
 
+/** An identifier only: storage locations and credentials belong to the backend. */
+export type DuckdbAnalyticsCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    connectionType: DuckdbConnectionType.ANALYTICS;
+    database: 'memory';
+    schema: 'main';
+    requireUserCredentials?: false;
+    dataTimezone?: string;
+    startOfWeek?: number;
+};
+
 export enum DucklakeCatalogType {
     POSTGRES = 'postgres',
     SQLITE = 'sqlite',
@@ -404,12 +417,14 @@ export type DuckdbDucklakeCredentials = Omit<
 export type CreateDuckdbCredentials =
     | CreateDuckdbMotherduckCredentials
     | CreateDuckdbDucklakeCredentials
-    | CreateDuckdbEmbeddedCredentials;
+    | CreateDuckdbEmbeddedCredentials
+    | DuckdbAnalyticsCredentials;
 
 export type DuckdbCredentials =
     | DuckdbMotherduckCredentials
     | DuckdbDucklakeCredentials
-    | DuckdbEmbeddedCredentials;
+    | DuckdbEmbeddedCredentials
+    | DuckdbAnalyticsCredentials;
 
 /**
  * Normalize legacy credential values at decrypt time so callers receive a
@@ -611,7 +626,8 @@ export type CreateWarehouseCredentialsWithOptionalSecrets =
     | WithOptionalSecrets<CreateAthenaCredentials>
     | WithOptionalSecrets<CreateDuckdbMotherduckCredentials>
     | WithOptionalSecrets<CreateDuckdbDucklakeCredentials>
-    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>;
+    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>
+    | WithOptionalSecrets<DuckdbAnalyticsCredentials>;
 
 const isSensitiveCredentialsFieldName = (
     key: string,
@@ -672,6 +688,7 @@ export const fillOmittedSecrets = (
                     return { ...credentials, token: credentials.token ?? '' };
                 case DuckdbConnectionType.DUCKLAKE:
                 case DuckdbConnectionType.EMBEDDED:
+                case DuckdbConnectionType.ANALYTICS:
                     return credentials;
                 default:
                     return assertUnreachable(

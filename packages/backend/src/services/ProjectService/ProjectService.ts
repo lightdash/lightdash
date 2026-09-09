@@ -1943,6 +1943,12 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.DUCKDB: {
                 if (
                     credentials.connectionType ===
+                    DuckdbConnectionType.ANALYTICS
+                ) {
+                    return credentials;
+                }
+                if (
+                    credentials.connectionType ===
                     DuckdbConnectionType.MOTHERDUCK
                 ) {
                     return {
@@ -3638,6 +3644,14 @@ export class ProjectService extends BaseService {
         credentials: CreateWarehouseCredentialsWithOptionalSecrets | undefined,
         internalProvisioning?: InternalProvisioning,
     ): void {
+        if (
+            credentials?.type === WarehouseTypes.DUCKDB &&
+            credentials.connectionType === DuckdbConnectionType.ANALYTICS
+        ) {
+            throw new ParameterError(
+                'Analytics connections can only be provisioned internally',
+            );
+        }
         if (
             credentials?.type === WarehouseTypes.DUCKDB &&
             credentials.connectionType === DuckdbConnectionType.EMBEDDED &&
