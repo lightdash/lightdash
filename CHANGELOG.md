@@ -1,3 +1,10 @@
+## [2.184.1](https://github.com/lightdash/lightdash/compare/2.184.0...2.184.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **ui:** keep fullscreen modal headers below the navbar ([#28959](https://github.com/lightdash/lightdash/issues/28959)) ([210a91f](https://github.com/lightdash/lightdash/commit/210a91f8cc3f88566bdb9acf2969147a2e46cdda))
+
 # [2.184.0](https://github.com/lightdash/lightdash/compare/2.183.0...2.184.0) (2026-09-09)
 
 
