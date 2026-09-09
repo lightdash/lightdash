@@ -1,5 +1,7 @@
 # Local usage analytics triage (PROD-11059)
 
+For the architecture and trust boundaries, see [architecture](architecture.md).
+
 Development-only prototype, not the production metadata-project rollout. It
 creates a `PREVIEW` project with a backend-owned `analytics` provisioning marker
 and an invisible DuckDB `analytics` connection.
@@ -105,7 +107,9 @@ The implementation rejects production execution even with its flag enabled.
 2. Signed-URL bucket access using the existing writer's backend credentials.
 3. Admin create-or-get endpoint, preview provisioning, signed-URL provider, and both
    system models (Query Events and AI Usage). Replaces the provisioning script.
-4. Dedicated read-only credential source, deferred to PROD-11103.
+4. Internal architecture and operational documentation (no runtime changes).
 
-See [storage credential verification](analytics-storage-credentials.md) for the
+Dedicated read-only credentials remain a separate deferred follow-up (PROD-11103).
+
+See [storage credential verification](credentials.md) for the
 opt-in read-only cloud and isolated local security tests.

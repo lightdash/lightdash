@@ -1,10 +1,14 @@
 # Analytics storage credentials
 
-The stack is connector + `analytics-project` flag → bucket access (this change)
-→ project provisioning with both system explores. Dedicated read-only credentials
-are deferred to PROD-11103. This change does not enable a public connector or add
-any HTTP endpoint. Provisioning must authorize the persisted project's org and
-check the shared flag before constructing the resolver.
+See [architecture](architecture.md) for the full pipeline and
+[local testing](local-testing.md) for project provisioning.
+
+The stack is connector + `analytics-project` flag → bucket access → project
+provisioning with both system explores → internal documentation. Dedicated
+read-only credentials are deferred to PROD-11103. The credential provider itself
+does not expose an HTTP endpoint or public connector. Its caller must authorize
+the project's org and check the shared flag before constructing the resolver;
+the current development-only source-org mapping is described in the architecture.
 
 ## Reuse existing writer configuration
 
