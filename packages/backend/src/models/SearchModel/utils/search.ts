@@ -1,4 +1,4 @@
-import { CompiledField, CompiledTable } from '@lightdash/common';
+import { CompiledTable } from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
 
@@ -198,7 +198,7 @@ export function getColumnMatchRegexQuery(
 
 export function getTableOrFieldMatchCount(
     regex: RegExp,
-    tableOrField: CompiledTable | CompiledField,
+    tableOrField: Pick<CompiledTable, 'name' | 'label' | 'description'>,
 ) {
     const labelMatches = tableOrField.label.match(regex) ?? [];
     const nameMatches = tableOrField.name.match(regex) ?? [];

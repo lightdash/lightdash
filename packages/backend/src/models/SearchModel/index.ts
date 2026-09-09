@@ -6,13 +6,9 @@ import {
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
-    Explore,
-    ExploreError,
     ExploreType,
     FieldSearchResult,
     hasIntersection,
-    isDimension,
-    isExploreError,
     isUserManagedExplore,
     NotFoundError,
     SavedChartSearchResult,
@@ -37,6 +33,7 @@ import {
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import {
+    CachedExploreSearchMetadata,
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
@@ -1595,7 +1592,9 @@ export class SearchModel {
         }));
     }
 
-    private async getProjectExplores(projectUuid: string): Promise<Explore[]> {
+    private async getProjectExplores(
+        projectUuid: string,
+    ): Promise<CachedExploreSearchMetadata[]> {
         const projects = await this.database(ProjectTableName)
             .select(['table_selection_type', 'table_selection_value'])
             .where('project_uuid', projectUuid)
@@ -1610,22 +1609,24 @@ export class SearchModel {
             value: projects[0].table_selection_value,
         };
 
-        // One row per explore, not the whole-set blob. That blob was a single jsonb value
-        // holding every explore, so a global search parsed the entire catalog on every
-        // request. The pre-aggregate exclusion is pushed into SQL so those rows never leave
-        // Postgres. Explores with no type predate the column and must be kept, hence
-        // IS DISTINCT FROM rather than <>.
+        // Reading compiled explores here transfers and parses SQL, lineage and other
+        // compilation data for every search. The trigger maintains a compact projection.
+        // Fall back for an unpopulated row without returning its full compiled JSON.
+        const metadataSql =
+            'COALESCE(search_metadata, cached_explore_search_metadata(explore))';
         const rows = await this.database(CachedExploreTableName)
-            .select<{ explore: Explore | ExploreError }[]>('explore')
+            .select<{ explore: CachedExploreSearchMetadata }[]>(
+                this.database.raw(`${metadataSql} AS explore`),
+            )
             .where('project_uuid', projectUuid)
-            .whereRaw("explore->>'type' IS DISTINCT FROM ?", [
+            .whereRaw(`${metadataSql}->>'type' IS DISTINCT FROM ?`, [
                 ExploreType.PRE_AGGREGATE,
             ])
             .orderBy('name');
 
         return rows
             .map(({ explore }) => explore)
-            .filter((explore: Explore | ExploreError) => {
+            .filter((explore) => {
                 if (tableSelection.type === TableSelectionType.WITH_TAGS) {
                     return (
                         hasIntersection(
@@ -1641,12 +1642,12 @@ export class SearchModel {
                     );
                 }
                 return true;
-            }) as Explore[];
+            });
     }
 
     static searchTablesAndFields(
         query: string,
-        explores: Explore[],
+        explores: CachedExploreSearchMetadata[],
         filters?: SearchFilters,
     ): [TableSearchResult[], FieldSearchResult[]] {
         const shouldSearchForTables = shouldSearchForType(
@@ -1664,7 +1665,7 @@ export class SearchModel {
         const queryRegex = getRegexFromUserQuery(query);
 
         const [unsortedTables, unsortedFields] = explores
-            .filter((explore) => !isExploreError(explore))
+            .filter((explore) => !('errors' in explore))
             .reduce<[TableSearchResult[], FieldSearchResult[]]>(
                 (acc, explore) =>
                     Object.values(explore.tables).reduce<
@@ -1710,12 +1711,9 @@ export class SearchModel {
                                         tableLabel: field.tableLabel,
                                         explore: explore.name,
                                         exploreLabel: explore.label,
-                                        requiredAttributes: isDimension(field)
-                                            ? field.requiredAttributes
-                                            : undefined,
-                                        anyAttributes: isDimension(field)
-                                            ? field.anyAttributes
-                                            : undefined,
+                                        requiredAttributes:
+                                            field.requiredAttributes,
+                                        anyAttributes: field.anyAttributes,
                                         tablesRequiredAttributes:
                                             field.tablesRequiredAttributes,
                                         tablesAnyAttributes:
@@ -1761,7 +1759,7 @@ export class SearchModel {
     private async searchTableErrors(
         projectUuid: string,
         query: string,
-        explores: Explore[],
+        explores: CachedExploreSearchMetadata[],
     ): Promise<TableErrorSearchResult[]> {
         const lowerCaseQuery = query.toLowerCase();
 
@@ -1795,7 +1793,7 @@ export class SearchModel {
 
         return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {
             if (
-                isExploreError(explore) &&
+                'errors' in explore &&
                 explore.name.toLowerCase().includes(lowerCaseQuery) &&
                 explore.name in validationErrors
             ) {
