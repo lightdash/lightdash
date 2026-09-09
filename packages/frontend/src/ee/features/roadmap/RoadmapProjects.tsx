@@ -1,6 +1,8 @@
 import {
     type RoadmapItem,
     type RoadmapProjectGroup,
+    type RoadmapProjectQuery,
+    type RoadmapQuery,
     RoadmapItemPriority,
 } from '@lightdash/common';
 import {
@@ -50,6 +52,7 @@ import {
 } from './roadmapPresentation';
 import classes from './RoadmapProjects.module.css';
 import { RoadmapRequestDetails } from './RoadmapRequestDetails';
+import { useRoadmapBoard } from './useRoadmapBoard';
 import { useRoadmapProjects, useRoadmapRequests } from './useRoadmapProjects';
 
 const columns = [
@@ -91,12 +94,12 @@ function Board({
     entries,
     projectBoard,
     statuses,
-    pagination,
+    columnQueries,
 }: {
     entries: { id: string; stage: RoadmapBoardStage; card: ReactNode }[];
     projectBoard: boolean;
     statuses: string[];
-    pagination: ReactNode;
+    columnQueries: ReturnType<typeof useRoadmapBoard>;
 }) {
     const [expandedColumns, setExpandedColumns] = useState<string[]>([]);
     const visibleColumns = columns.filter((column) =>
@@ -107,19 +110,21 @@ function Board({
                     column.id,
                 )
               : ['planned', 'started'].includes(column.id) ||
-                entries.some((entry) => entry.stage === column.id),
+                columnQueries.some(
+                    (query) => query.id === column.id && query.total > 0,
+                ),
     );
-    const paginationColumn = visibleColumns.find((column) =>
-        entries.some((entry) => entry.stage === column.id),
-    )?.id;
     return (
         <Box className={classes.board}>
             {visibleColumns.map((column) => {
                 const cards = entries.filter(
                     (entry) => entry.stage === column.id,
                 );
+                const query = columnQueries.find(
+                    (query) => query.id === column.id,
+                )!;
                 const isCollapsed =
-                    cards.length > COLUMN_PREVIEW_LIMIT &&
+                    query.total > COLUMN_PREVIEW_LIMIT &&
                     !expandedColumns.includes(column.id);
                 const visibleCards = isCollapsed
                     ? cards.slice(0, COLUMN_PREVIEW_LIMIT)
@@ -145,7 +150,7 @@ function Board({
                                 {column.label}
                             </Text>
                             <Badge size="sm" className={classes.columnCount}>
-                                {cards.length}
+                                {query.total}
                             </Badge>
                             {(column.id === 'completed' ||
                                 column.id === 'canceled') && (
@@ -158,22 +163,25 @@ function Board({
                             {visibleCards.map((entry) => (
                                 <div key={entry.id}>{entry.card}</div>
                             ))}
-                            {isCollapsed && (
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    color="gray"
-                                    fullWidth
-                                    onClick={() =>
-                                        setExpandedColumns((expanded) => [
-                                            ...expanded,
-                                            column.id,
-                                        ])
-                                    }
-                                >
-                                    Show all ({cards.length})
-                                </Button>
-                            )}
+                            {query.total > COLUMN_PREVIEW_LIMIT &&
+                                (isCollapsed || query.hasNextPage) && (
+                                    <Button
+                                        variant="subtle"
+                                        size="xs"
+                                        color="gray"
+                                        fullWidth
+                                        loading={query.fetchingMore}
+                                        onClick={() => {
+                                            setExpandedColumns((expanded) => [
+                                                ...expanded,
+                                                column.id,
+                                            ]);
+                                            void query.fetchAll();
+                                        }}
+                                    >
+                                        Show all ({query.total})
+                                    </Button>
+                                )}
                             {!cards.length && (
                                 <Text
                                     className={classes.emptyColumn}
@@ -183,7 +191,6 @@ function Board({
                                     {projectBoard ? 'No tickets' : 'No items'}
                                 </Text>
                             )}
-                            {column.id === paginationColumn && pagination}
                         </Stack>
                     </section>
                 );
@@ -509,24 +516,26 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         projectSearch.trim(),
         300,
     );
-    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-        null,
-    );
+    const [selectedProject, setSelectedProject] =
+        useState<RoadmapProjectGroup | null>(null);
+    const selectedProjectId = selectedProject?.project.projectId ?? null;
     const [selectedTicket, setSelectedTicket] = useState<RoadmapItem | null>(
         null,
     );
     const projectBoard = selectedProjectId !== null;
     const showProjects = !projectBoard && itemType !== 'tickets';
     const showTickets = projectBoard || itemType !== 'projects';
+    const projectQuery: RoadmapProjectQuery = {
+        pageSize: COLUMN_PREVIEW_LIMIT,
+        search: initializingInterest ? '' : debouncedMainSearch,
+        onlyInterested: onlyInterested ?? true,
+        statuses: initializingInterest ? '' : statusQuery(mainStatuses),
+        priorities: initializingInterest ? '' : mainPriorities.join(','),
+    };
     const projectsQuery = useRoadmapProjects(
-        {
-            pageSize: COLUMN_PREVIEW_LIMIT,
-            search: initializingInterest ? '' : debouncedMainSearch,
-            onlyInterested: onlyInterested ?? true,
-            statuses: initializingInterest ? '' : statusQuery(mainStatuses),
-            priorities: initializingInterest ? '' : mainPriorities.join(','),
-        },
+        projectQuery,
         cacheKey,
+        initializingInterest || view === 'table',
     );
     useEffect(() => {
         const firstPage = projectsQuery.data?.pages[0];
@@ -537,34 +546,52 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             );
         }
     }, [initializingInterest, projectsQuery.data]);
+    const requestQuery: RoadmapQuery = {
+        projectId:
+            selectedProjectId ?? (itemType === 'tickets' ? undefined : 'null'),
+        statuses: statusQuery(
+            selectedProjectId ? projectStatuses : mainStatuses,
+        ),
+        priorities: (selectedProjectId
+            ? projectPriorities
+            : mainPriorities
+        ).join(','),
+        pageSize: COLUMN_PREVIEW_LIMIT,
+        search: selectedProjectId
+            ? debouncedProjectSearch
+            : debouncedMainSearch,
+    };
     const ticketsQuery = useRoadmapRequests(
-        {
-            projectId:
-                selectedProjectId ??
-                (itemType === 'tickets' ? undefined : 'null'),
-            statuses: statusQuery(
-                selectedProjectId ? projectStatuses : mainStatuses,
-            ),
-            priorities: (selectedProjectId
-                ? projectPriorities
-                : mainPriorities
-            ).join(','),
-            pageSize: COLUMN_PREVIEW_LIMIT,
-            search: selectedProjectId
-                ? debouncedProjectSearch
-                : debouncedMainSearch,
-        },
+        requestQuery,
         cacheKey,
-        !initializingInterest && projectsQuery.isSuccess && showTickets,
+        view === 'table' &&
+            !initializingInterest &&
+            projectsQuery.isSuccess &&
+            showTickets,
     );
-    const projects =
-        projectsQuery.data?.pages.flatMap((page) => page.projects) ?? [];
-    const tickets = ticketsQuery.data?.pages.flatMap((page) => page.data) ?? [];
+    const boardQueries = useRoadmapBoard({
+        projectQuery,
+        requestQuery,
+        cacheKey,
+        showProjects,
+        showTickets,
+        enabled: view === 'board' && !initializingInterest,
+        statuses: projectBoard ? projectStatuses : mainStatuses,
+    });
+    const projects = (
+        view === 'board'
+            ? boardQueries.flatMap(
+                  (column) => column.projects.data?.pages ?? [],
+              )
+            : (projectsQuery.data?.pages ?? [])
+    ).flatMap((page) => page.projects);
+    const tickets = (
+        view === 'board'
+            ? boardQueries.flatMap((column) => column.tickets.data?.pages ?? [])
+            : (ticketsQuery.data?.pages ?? [])
+    ).flatMap((page) => page.data);
     const { refetch: refetchProjects } = projectsQuery;
     const { refetch: refetchTickets } = ticketsQuery;
-    const selectedProject = projects.find(
-        (group) => group.project.projectId === selectedProjectId,
-    );
     const presentation = selectedProject?.project ?? defaultProjectPresentation;
     const statuses = projectBoard ? projectStatuses : mainStatuses;
     const priorities = projectBoard ? projectPriorities : mainPriorities;
@@ -585,19 +612,30 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     };
     const loading =
         initializingInterest ||
-        projectsQuery.isInitialLoading ||
-        (showTickets && ticketsQuery.isInitialLoading);
-    const unavailable =
-        projectsQuery.error?.error?.statusCode === 403 ||
-        (showTickets && ticketsQuery.error?.error?.statusCode === 403);
-    const failed =
-        projectsQuery.isError || (showTickets && ticketsQuery.isError);
+        (view === 'board'
+            ? boardQueries.some((column) => column.loading)
+            : projectsQuery.isInitialLoading ||
+              (showTickets && ticketsQuery.isInitialLoading));
+    const errors =
+        initializingInterest || view === 'table'
+            ? [projectsQuery.error, showTickets ? ticketsQuery.error : null]
+            : boardQueries.map((column) => column.error);
+    const unavailable = errors.some(
+        (error) => error?.error?.statusCode === 403,
+    );
+    const failed = errors.some(Boolean);
     const retry = () => {
-        void refetchProjects();
-        if (projectsQuery.isSuccess && showTickets) void refetchTickets();
+        if (!initializingInterest && view === 'board') {
+            boardQueries.forEach((column) => {
+                void column.refetch();
+            });
+        } else {
+            void refetchProjects();
+            if (projectsQuery.isSuccess && showTickets) void refetchTickets();
+        }
     };
     const back = () => {
-        setSelectedProjectId(null);
+        setSelectedProject(null);
         setProjectSearch('');
         setSelectedTicket(null);
     };
@@ -608,7 +646,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                   const onOpen =
                       group.ownRequestCount > 0
                           ? () => {
-                                setSelectedProjectId(group.project.projectId);
+                                setSelectedProject(group);
                                 setProjectSearch('');
                                 setProjectStatuses([]);
                                 setProjectPriorities([]);
@@ -659,10 +697,8 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         <Group justify="center" gap="sm" className={classes.pagination}>
             {showProjects && projectsQuery.hasNextPage && (
                 <Button
-                    variant={view === 'board' ? 'subtle' : 'default'}
+                    variant="default"
                     size="xs"
-                    color={view === 'board' ? 'gray' : undefined}
-                    fullWidth={view === 'board'}
                     loading={projectsQuery.isFetchingNextPage}
                     onClick={() => void projectsQuery.fetchNextPage()}
                 >
@@ -671,10 +707,8 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             )}
             {showTickets && ticketsQuery.hasNextPage && (
                 <Button
-                    variant={view === 'board' ? 'subtle' : 'default'}
+                    variant="default"
                     size="xs"
-                    color={view === 'board' ? 'gray' : undefined}
-                    fullWidth={view === 'board'}
                     loading={ticketsQuery.isFetchingNextPage}
                     onClick={() => void ticketsQuery.fetchNextPage()}
                 >
@@ -873,7 +907,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         description="Reach out to your Lightdash contact to get it switched on."
                     />
                 </Box>
-            ) : projectsQuery.isError ? (
+            ) : failed ? (
                 <BoardError retry={retry} />
             ) : loading ? (
                 <Box p="xl">
@@ -883,16 +917,6 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                                 ? 'Loading project tickets'
                                 : 'Loading roadmap'
                         }
-                    />
-                </Box>
-            ) : failed ? (
-                <BoardError retry={retry} />
-            ) : projectBoard && !selectedProject ? (
-                <Box p="xl">
-                    <SuboptimalState
-                        icon={IconRoad}
-                        title="This project is no longer on the roadmap"
-                        description="You can still find eligible tickets you follow on the main board."
                     />
                 </Box>
             ) : !entries.length ? (
@@ -935,7 +959,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                             entries={entries}
                             projectBoard={projectBoard}
                             statuses={statuses}
-                            pagination={pagination}
+                            columnQueries={boardQueries}
                         />
                     ) : (
                         <RoadmapTable entries={entries} />

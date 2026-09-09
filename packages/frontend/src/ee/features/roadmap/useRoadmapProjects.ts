@@ -9,6 +9,7 @@ import { roadmapApi } from './roadmapApi';
 export function useRoadmapProjects(
     query: RoadmapProjectQuery,
     cacheKey: string,
+    enabled = true,
 ) {
     return useInfiniteQuery<
         Awaited<ReturnType<typeof roadmapApi.getProjects>>,
@@ -22,6 +23,7 @@ export function useRoadmapProjects(
                 ? last.pagination.page + 1
                 : undefined,
         retry: false,
+        enabled,
         refetchOnWindowFocus: true,
     });
 }
