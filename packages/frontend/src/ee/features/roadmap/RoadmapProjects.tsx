@@ -276,9 +276,7 @@ function Board({
                                     fz="xs"
                                     c="dimmed"
                                 >
-                                    {projectTicketCount !== undefined
-                                        ? `${projectTicketCount} ${projectTicketCount === 1 ? 'ticket' : 'tickets'}`
-                                        : 'No items'}
+                                    No items
                                 </Text>
                             ) : null}
                         </Stack>
