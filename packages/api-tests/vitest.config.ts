@@ -42,7 +42,10 @@ export default defineConfig({
                     include: ['tests/**/*.test.ts'],
                     exclude: [...configDefaults.exclude, ...serialFiles],
                     fileParallelism: true,
-                    maxWorkers: 6,
+                    // The preview pod is shared with the Cypress jobs; the
+                    // merge suite bounds this group, so more workers only add
+                    // contention.
+                    maxWorkers: 4,
                     sequence: { groupOrder: 0 },
                 },
             },
