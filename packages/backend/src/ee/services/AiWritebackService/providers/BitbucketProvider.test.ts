@@ -142,6 +142,26 @@ const writeArgs = (sandbox: ReturnType<typeof sandboxFixture>) => ({
 afterEach(() => vi.restoreAllMocks());
 
 describe('Bitbucket project authentication', () => {
+    it('preserves native format and nested project paths without carrying credentials', () => {
+        const { provider } = setup();
+        const resolved = provider.resolveConnection(
+            {
+                ...config,
+                semanticLayer: 'lightdash',
+                project_sub_path: '/analytics/native/',
+            },
+            { projectUuid: 'project', projectDbtSourceUuid: null },
+        );
+        expect(resolved).toEqual({
+            ...connection,
+            semanticLayer: 'lightdash',
+            projectSubPath: 'analytics/native',
+        });
+        expect(JSON.stringify(resolved)).not.toContain(
+            config.personal_access_token,
+        );
+    });
+
     it('resolves sanitized connection identity without carrying a token', () => {
         const { provider } = setup();
         expect(
@@ -319,6 +339,29 @@ describe('Bitbucket project authentication', () => {
 });
 
 describe('Bitbucket PR lifecycle', () => {
+    it('stages only the native project directory without reading a dbt manifest', async () => {
+        vi.spyOn(BitbucketClient, 'createPullRequest').mockResolvedValue(
+            pullRequest,
+        );
+        const read = vi
+            .fn()
+            .mockRejectedValue(new Error('No dbt manifest in native projects'));
+        const sandbox = { ...sandboxFixture(), files: { read } };
+        await setup().provider.openPullRequest({
+            ...writeArgs(sandbox),
+            connection: {
+                ...connection,
+                semanticLayer: 'lightdash',
+                projectSubPath: 'analytics/native',
+            },
+        });
+        expect(sandbox.git.add).toHaveBeenCalledWith(CWD, {
+            files: ['analytics/native'],
+        });
+        expect(read).not.toHaveBeenCalled();
+        expect(sandbox.git.push).toHaveBeenCalled();
+    });
+
     it.each([
         'https://evil.test/workspace/analytics/pull-requests/42',
         'http://bitbucket.org/workspace/analytics/pull-requests/42',

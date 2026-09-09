@@ -1488,21 +1488,21 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         });
     });
 
-    const bitbucketProjectModel = () => ({
+    const bitbucketProjectModel = (connection = bitbucketConnection) => ({
         get: vi.fn().mockResolvedValue({
             organizationUuid: ORG,
             name: 'Bitbucket analytics',
             dbtConnection: {
-                ...bitbucketConnection,
+                ...connection,
                 personal_access_token: undefined,
             },
-            warehouseConnection: null,
+            warehouseConnection: { type: WarehouseTypes.POSTGRES },
             dbtVersion: SupportedDbtVersions.V1_9,
         }),
         getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
         getWithSensitiveFields: vi
             .fn()
-            .mockResolvedValue({ dbtConnection: bitbucketConnection }),
+            .mockResolvedValue({ dbtConnection: connection }),
     });
 
     it('clones the configured Bitbucket branch with the project token and creates no PR without changes', async () => {
@@ -1757,6 +1757,96 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(sandbox.git.clone.mock.calls[0][1]).toMatchObject({
                 branch: 'release',
             });
+        },
+    );
+
+    it.each([
+        { valid: true, existing: false },
+        { valid: true, existing: true },
+        { valid: false, existing: false },
+        { valid: false, existing: true },
+    ])(
+        'validates native Bitbucket YAML before opening or updating a PR (valid=$valid, existing=$existing)',
+        async ({ valid, existing }) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const runCommand = sandbox.commands.run.getMockImplementation();
+            sandbox.commands.run.mockImplementation(
+                (command: string, options: unknown) => {
+                    if (command.includes('.ld-native-snapshot.cjs')) {
+                        return Promise.resolve({
+                            exitCode: 0,
+                            stdout: JSON.stringify({
+                                'models/nested/orders.yaml': `type: model\nname: orders\nsql_from: public.orders\ndimensions:\n  - name: amount\n    type: number\n    sql: ${valid ? '${TABLE}.amount' : '${orders.missing}'}\n`,
+                            }),
+                        });
+                    }
+                    return runCommand(command, options);
+                },
+            );
+            const prUrl =
+                'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+            const adopt = vi
+                .spyOn(BitbucketProvider.prototype, 'adoptPullRequest')
+                .mockResolvedValue({
+                    prUrl,
+                    owner: 'acme',
+                    repo: 'bitbucket-analytics',
+                    pullNumber: 9,
+                    headRef: 'feature/native-edit',
+                });
+            const open = vi
+                .spyOn(BitbucketProvider.prototype, 'openPullRequest')
+                .mockResolvedValue({ prUrl, ...LANDED });
+            const update = vi
+                .spyOn(BitbucketProvider.prototype, 'updatePullRequest')
+                .mockResolvedValue(LANDED);
+            try {
+                const result = runService(sandbox, existing ? { prUrl } : {}, {
+                    projectModel: bitbucketProjectModel({
+                        ...bitbucketConnection,
+                        semanticLayer: 'lightdash',
+                        project_sub_path: '/native',
+                    }),
+                });
+                if (valid) {
+                    await expect(result).resolves.toMatchObject({
+                        prUrl,
+                        prAction: existing ? 'updated' : 'opened',
+                        repository: 'acme/bitbucket-analytics',
+                    });
+                    expect(open).toHaveBeenCalledTimes(existing ? 0 : 1);
+                    expect(update).toHaveBeenCalledTimes(existing ? 1 : 0);
+                } else {
+                    await expect(result).rejects.toThrow(/missing/);
+                    expect(open).not.toHaveBeenCalled();
+                    expect(update).not.toHaveBeenCalled();
+                    expect(sandbox.git.createBranch).not.toHaveBeenCalled();
+                    expect(sandbox.git.commit).not.toHaveBeenCalled();
+                }
+                const commands = sandbox.commands.run.mock.calls
+                    .map(([command]: [string]) => command)
+                    .join('\n');
+                expect(commands).not.toMatch(/dbt deps|profiles\.yml/);
+                expect(sandbox.files.write).not.toHaveBeenCalledWith(
+                    COMPILE_WRAPPER_PATH,
+                    expect.anything(),
+                );
+                expect(sandbox.git.clone).toHaveBeenCalledWith(
+                    'https://bitbucket.org/acme/bitbucket-analytics.git',
+                    expect.objectContaining({
+                        branch: existing
+                            ? 'feature/native-edit'
+                            : 'release/dbt',
+                    }),
+                );
+                expect(createPullRequest).not.toHaveBeenCalled();
+                expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+            } finally {
+                adopt.mockRestore();
+                open.mockRestore();
+                update.mockRestore();
+            }
         },
     );
 
@@ -3076,33 +3166,48 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
 });
 
 describe('AiWritebackService.dbtWritebackConfig', () => {
-    it('uses native instructions and omits shell and profile access for native projects', async () => {
-        const service = buildService();
-        vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
-            null,
-        );
-        const prepareProfiles = vi.spyOn(service as AnyType, 'prepareProfiles');
-        const turn = turnContext();
-        const setup = await (service as AnyType)
-            .dbtWritebackConfig()
-            .buildAgentSetup({
-                sandbox: {},
-                turn: {
-                    ...turn,
-                    gitConnection: {
-                        ...turn.gitConnection,
-                        provider: PullRequestProvider.GITHUB,
-                        semanticLayer: 'lightdash',
+    it.each([PullRequestProvider.GITHUB, PullRequestProvider.BITBUCKET])(
+        'uses native instructions without shell or profiles for %s projects',
+        async (provider) => {
+            const service = buildService();
+            vi.spyOn(service as AnyType, 'gatherRepoContext').mockResolvedValue(
+                null,
+            );
+            const prepareProfiles = vi.spyOn(
+                service as AnyType,
+                'prepareProfiles',
+            );
+            const turn = turnContext();
+            const setup = await (service as AnyType)
+                .dbtWritebackConfig()
+                .buildAgentSetup({
+                    sandbox: {},
+                    turn: {
+                        ...turn,
+                        gitConnection: {
+                            ...turn.gitConnection,
+                            provider,
+                            semanticLayer: 'lightdash',
+                        },
                     },
-                },
-                repository: 'acme/analytics',
-            });
-        expect(prepareProfiles).not.toHaveBeenCalled();
-        expect(setup.systemPrompt).toContain('native Lightdash YAML');
-        expect(setup.systemPrompt).toContain('lightdash.project_context.yml');
-        expect(setup.allowedTools).not.toMatch(/Bash\(|ld-profiles/);
-        expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
-    });
+                    repository: 'acme/analytics',
+                });
+            expect(prepareProfiles).not.toHaveBeenCalled();
+            expect(setup.systemPrompt).toContain('native Lightdash YAML');
+            expect(setup.systemPrompt).toContain(
+                'lightdash.project_context.yml',
+            );
+            expect(setup.allowedTools).not.toMatch(/Bash\(|ld-profiles/);
+            expect(setup.disallowedTools).toContain(GENERAL_DISALLOWED_TOOLS);
+            if (provider === PullRequestProvider.BITBUCKET) {
+                for (const tool of ['Read', 'Grep', 'Edit', 'Write']) {
+                    expect(setup.disallowedTools).toContain(
+                        `${tool}(//home/user/repo/.git/**)`,
+                    );
+                }
+            }
+        },
+    );
 
     it('returns gathered repository context through the agent setup', async () => {
         const service = buildService();
