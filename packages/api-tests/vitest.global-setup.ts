@@ -1,5 +1,5 @@
 import type { TestProject } from 'vitest/node';
-import { SITE_URL } from './helpers/api-client';
+import { fetchWithConnectionRetry, SITE_URL } from './helpers/api-client';
 import { login } from './helpers/auth';
 import {
     createProject,
@@ -20,7 +20,9 @@ const warehouseEntries = getAvailableWarehouseConfigs({
 });
 
 export default async function setup(project: TestProject) {
-    const health = await fetch(`${SITE_URL}/api/v1/health`).catch(() => null);
+    const health = await fetchWithConnectionRetry(
+        `${SITE_URL}/api/v1/health`,
+    ).catch(() => null);
     if (!health?.ok) {
         throw new Error(
             `Server health check failed. Is the dev server running at ${SITE_URL}?`,
@@ -47,6 +49,12 @@ export default async function setup(project: TestProject) {
     project.provide('sharedWarehouseProjects', sharedProjects);
 
     return async () => {
-        await deleteProjectsByName(admin, names);
+        // A leaked project is removed by the next run's setup, so an
+        // unreachable server at teardown must not fail the run.
+        await deleteProjectsByName(admin, names).catch((error: unknown) => {
+            process.stderr.write(
+                `Could not delete shared warehouse projects: ${String(error)}\n`,
+            );
+        });
     };
 }
