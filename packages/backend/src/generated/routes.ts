@@ -46142,6 +46142,13 @@ const models: TsoaRoute.Models = {
                 },
             },
             selector: { dataType: 'string' },
+            semanticLayer: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'enum', enums: ['dbt'] },
+                    { dataType: 'enum', enums: ['lightdash'] },
+                ],
+            },
             username: { dataType: 'string', required: true },
             personal_access_token: { dataType: 'string', required: true },
             repository: { dataType: 'string', required: true },

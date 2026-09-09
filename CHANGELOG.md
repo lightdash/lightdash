@@ -1,3 +1,10 @@
+# [2.183.0](https://github.com/lightdash/lightdash/compare/2.182.1...2.183.0) (2026-09-09)
+
+
+### Features
+
+* **bitbucket:** compile native Lightdash YAML projects ([#28953](https://github.com/lightdash/lightdash/issues/28953)) ([d40ac1c](https://github.com/lightdash/lightdash/commit/d40ac1c6a6a7db7623f50a41c84536547d6ae58a))
+
 ## [2.182.1](https://github.com/lightdash/lightdash/compare/2.182.0...2.182.1) (2026-09-09)
 
 
