@@ -1,3 +1,10 @@
+## [2.170.1](https://github.com/lightdash/lightdash/compare/2.170.0...2.170.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* bind Bitbucket tokens to repository and username ([#28926](https://github.com/lightdash/lightdash/issues/28926)) ([2b2687e](https://github.com/lightdash/lightdash/commit/2b2687ed0e1f015237a99b81b3a34133c5e74547)), closes [#28925](https://github.com/lightdash/lightdash/issues/28925)
+
 # [2.170.0](https://github.com/lightdash/lightdash/compare/2.169.1...2.170.0) (2026-09-09)
 
 
