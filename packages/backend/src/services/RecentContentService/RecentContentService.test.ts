@@ -11,6 +11,7 @@ describe('RecentContentService.recordView', () => {
     const find = vi.fn();
     const recordView = vi.fn();
     const service = new RecentContentService({
+        projectModel: { getSummary: vi.fn() },
         contentService: { find },
         recentContentModel: { recordView } as unknown as RecentContentModel,
     });
@@ -74,5 +75,106 @@ describe('RecentContentService.recordView', () => {
             service.recordView(defaultSessionUser, view),
         ).rejects.toThrow('Content not found');
         expect(recordView).not.toHaveBeenCalled();
+    });
+});
+
+describe('RecentContentService.getRecentlyViewed', () => {
+    const findContent = vi.fn();
+    const findRecent = vi.fn();
+    const getSummary = vi.fn();
+    const service = new RecentContentService({
+        projectModel: { getSummary },
+        contentService: { find: findContent },
+        recentContentModel: {
+            find: findRecent,
+        } as unknown as RecentContentModel,
+    });
+    const candidates = Array.from({ length: 50 }, (_, index) => ({
+        contentType: 'chart' as const,
+        uuid: `chart-${index}`,
+        viewedAt: new Date(2026, 8, 9, 0, 0, 50 - index),
+    }));
+    const contentFor = (uuid: string): SummaryContent =>
+        ({
+            uuid,
+            contentType: ContentType.CHART,
+            source: ChartSourceType.DBT_EXPLORE,
+            project: { uuid: 'project' },
+        }) as SummaryContent;
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        getSummary.mockResolvedValue({
+            organizationUuid: defaultSessionUser.organizationUuid,
+        });
+        findRecent.mockResolvedValue(candidates);
+    });
+
+    it('filters before limiting and preserves recency despite hydration order', async () => {
+        findContent.mockResolvedValue({
+            data: candidates
+                .slice(20)
+                .map((item) => contentFor(item.uuid))
+                .reverse(),
+        });
+        const entries = await service.getRecentlyViewed(
+            defaultSessionUser,
+            'project',
+        );
+        expect(entries.map((item) => item.uuid)).toEqual(
+            candidates.slice(20, 30).map((item) => item.uuid),
+        );
+        expect(entries[0].content).toEqual(contentFor('chart-20'));
+        expect(findRecent).toHaveBeenCalledWith(
+            defaultSessionUser.userUuid,
+            'project',
+        );
+        expect(findContent).toHaveBeenCalledWith(
+            defaultSessionUser,
+            expect.objectContaining({
+                projectUuids: ['project'],
+                uuids: candidates.map((item) => item.uuid),
+                chart: { sources: [ChartSourceType.DBT_EXPLORE] },
+            }),
+            {},
+            { page: 1, pageSize: 100 },
+        );
+    });
+
+    it('returns no references for deleted or inaccessible content', async () => {
+        findContent.mockResolvedValue({ data: [] });
+        expect(
+            await service.getRecentlyViewed(defaultSessionUser, 'project'),
+        ).toEqual([]);
+    });
+
+    it('does not resolve content or fall back to history for an empty table', async () => {
+        findRecent.mockResolvedValue([]);
+        expect(
+            await service.getRecentlyViewed(defaultSessionUser, 'project'),
+        ).toEqual([]);
+        expect(findContent).not.toHaveBeenCalled();
+    });
+
+    it('rejects another organization before reading recency', async () => {
+        getSummary.mockResolvedValue({ organizationUuid: 'another-org' });
+        await expect(
+            service.getRecentlyViewed(defaultSessionUser, 'project'),
+        ).rejects.toThrow('Cannot view this project');
+        expect(findRecent).not.toHaveBeenCalled();
+    });
+
+    it('does not expose content that moved to another project', async () => {
+        findContent.mockResolvedValue({
+            data: [
+                {
+                    ...contentFor('chart-0'),
+                    project: { uuid: 'other-project' },
+                },
+            ],
+        });
+        expect(
+            await service.getRecentlyViewed(defaultSessionUser, 'project'),
+        ).toEqual([]);
     });
 });

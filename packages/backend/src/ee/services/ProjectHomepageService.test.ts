@@ -154,6 +154,9 @@ const makeService = ({
     >;
 } = {}) =>
     new ProjectHomepageService({
+        recentContentService: {
+            getRecentlyViewed: vi.fn().mockResolvedValue([]),
+        },
         analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({
@@ -165,7 +168,6 @@ const makeService = ({
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
-            getRecentlyViewed: vi.fn().mockResolvedValue([]),
             getAssignments: vi.fn().mockResolvedValue([]),
             updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
             resolvePublished: vi.fn().mockResolvedValue(undefined),

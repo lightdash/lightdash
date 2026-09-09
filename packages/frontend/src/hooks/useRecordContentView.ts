@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
 
-const recentContentQueryKey = (
+export const recentContentQueryKey = (
     userUuid: string | undefined,
     projectUuid: string | undefined,
 ) => ['recent_content', userUuid, projectUuid];

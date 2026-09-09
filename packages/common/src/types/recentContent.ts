@@ -1,5 +1,6 @@
 import type { ApiSuccess } from './api/success';
 import type { UUID } from './api/uuid';
+import type { ChartContent, DashboardContent } from './content';
 
 export type RecentContentType = 'chart' | 'dashboard';
 
@@ -15,4 +16,8 @@ export type RecentContentItem = {
     viewedAt: Date;
 };
 
-export type ApiRecentContentResponse = ApiSuccess<RecentContentItem[]>;
+export type RecentContentEntry = RecentContentItem & {
+    content: ChartContent | DashboardContent;
+};
+
+export type ApiRecentContentResponse = ApiSuccess<RecentContentEntry[]>;
