@@ -40,7 +40,7 @@ without a reason and ticket. `--release` additionally fails for pending and rela
 work. A release failure must be resolved with content or an evidenced curriculum
 decision; dropping a card is not completion.
 
-The release catalogue contains 33 walkthroughs and 29 concept entries. Six
+The release catalogue contains 33 walkthroughs and 30 concept entries. Five
 baseline/background permissions or absent product surfaces have explicit
 exclusions. These are not placeholder modules. CI runs the strict release audit,
 so removing a lesson without an evidenced disposition fails even if the library
@@ -58,3 +58,8 @@ Canonical documentation supplies the generated prose. Run
 Documentation changes must merge before dependent generated content. The two
 metrics-tree walkthroughs additionally require the seeded saved tree and its
 project-local metric identifiers in each training copy.
+
+The prior CS-222 exclusion is superseded: `manage:DeletedContent` now has a
+Recently deleted product page and documentation, so the curriculum teaches its
+restoration and permanent-deletion workflow as a reading lesson. Exclusions are
+rechecked against current source rather than inferred from canceled tickets.

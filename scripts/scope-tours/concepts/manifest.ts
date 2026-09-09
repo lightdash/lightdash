@@ -1,7 +1,20 @@
 import type { ConceptManifest } from './lib';
 const doc = (file: string, ...headings: string[]) =>
     headings.map((heading) => ({ file: `${file}.mdx`, heading }));
+const overview = (file: string, heading: string) => ({
+    file: `${file}.mdx`,
+    heading,
+    includeSubsections: false,
+});
 export const CONCEPT_MANIFEST: ConceptManifest = [
+    {
+        scopes: ['manage:DeletedContent'],
+        title: 'Understand restoring and permanently deleting content',
+        sources: doc(
+            'explore/version-history',
+            'Recently deleted charts and dashboards',
+        ),
+    },
     {
         scopes: ['view:ContentVerification'],
         title: 'Recognize verified content',
@@ -15,15 +28,17 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
         title: 'Understand edits to verified content',
         sources: doc(
             'explore/verified-content',
+            'Who can edit or delete verified content',
             'What happens to verification when content is edited',
         ),
     },
     {
         scopes: ['manage:CustomSql'],
-        title: 'Understand custom SQL queries',
+        title: 'Understand saving SQL charts',
         sources: doc(
             'explore/sql-runner',
             'Getting started with the SQL Runner',
+            'Saved charts in the SQL Runner',
             'Limitations',
         ),
     },
@@ -45,18 +60,29 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
         ),
     },
     {
-        scopes: ['view:SpotlightTableConfig', 'manage:SpotlightTableConfig'],
-        title: 'Understand metrics catalog configuration',
-        sources: doc('explore/metrics-catalog', 'The `spotlight` config'),
+        scopes: ['view:SpotlightTableConfig'],
+        title: 'Read catalog column configuration',
+        sources: doc(
+            'explore/metrics-catalog',
+            'View catalog column configuration',
+        ),
+    },
+    {
+        scopes: ['manage:SpotlightTableConfig'],
+        title: 'Understand shared catalog columns',
+        sources: doc(
+            'explore/metrics-catalog',
+            'View catalog column configuration',
+            'Save catalog column configuration',
+        ),
     },
     {
         scopes: ['view:ContentAsCode'],
         title: 'Read content as code',
-        sources: doc(
-            'workflow/content-as-code',
-            'Choosing a workflow',
-            '`lightdash download`',
-        ),
+        sources: [
+            overview('workflow/content-as-code', 'Choosing a workflow'),
+            ...doc('workflow/content-as-code', '`lightdash download`'),
+        ],
     },
     {
         scopes: ['create:ContentAsCode', 'manage:ContentAsCode'],
@@ -104,7 +130,9 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
             'view:EmbedDashboardFilterAddition',
         ],
         title: 'Understand embedded dashboard filters',
-        sources: doc('embed/reference', 'Dashboard filters interactivity'),
+        sources: [
+            overview('embed/reference', 'Dashboard filters interactivity'),
+        ],
     },
     {
         scopes: ['view:EmbedDashboardParameters'],
@@ -143,7 +171,7 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
     {
         scopes: ['view:EmbedDataApps'],
         title: 'Understand embedded data apps',
-        sources: doc('embed/reference', 'Data app token'),
+        sources: doc('embed/reference', 'View data apps'),
     },
     {
         scopes: ['view:EmbedAiAgent'],
@@ -164,7 +192,7 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
         sources: doc(
             'agents/effective-analytics-with-agents',
             'How they work',
-            'What to upload',
+            'Open a document',
         ),
     },
     {

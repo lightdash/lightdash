@@ -41,10 +41,6 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
     'manage:SemanticViewer': excluded(
         'Catalogue records no product surface for this permission.',
     ),
-    'manage:DeletedContent': excluded(
-        'No product surface recorded; the associated content ticket is canceled.',
-        'CS-222',
-    ),
 };
 
 export type CoverageAudit = {

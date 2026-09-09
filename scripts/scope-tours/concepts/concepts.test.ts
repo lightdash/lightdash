@@ -53,4 +53,20 @@ assert.throws(
         ]),
     /ENOENT/,
 );
+assert.equal(
+    extractSection(
+        '## Parent\nSummary\n### Child\nChild detail',
+        'Parent',
+        false,
+    ),
+    'Summary',
+);
+
+assert.equal(
+    extractSection(
+        '## Scope\n<Badge color="blue">Self-hosted</Badge> Enable soft delete.',
+        'Scope',
+    ),
+    'Self-hosted Enable soft delete.',
+);
 console.log('Concept generator fixture tests passed');
