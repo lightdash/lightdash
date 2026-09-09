@@ -1,3 +1,4 @@
+import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     AxisSide,
     getEChartsChartTypeFromChartKind,
@@ -16,14 +17,23 @@ import {
 } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
+import {
+    SeriesDepthControl,
+    type SeriesDrawOrderControl,
+} from '../../VisualizationConfigs/ChartConfigPanel/Series/SeriesDrawOrder';
+import drawOrderStyles from '../../VisualizationConfigs/ChartConfigPanel/Series/seriesDrawOrder.module.css';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
 import { Config } from '../../VisualizationConfigs/common/Config';
+import { GrabIcon } from '../../VisualizationConfigs/common/GrabIcon';
+import classes from './CartesianChartSeries.module.css';
 import { CartesianChartTypeConfig } from './CartesianChartTypeConfig';
 import { CartesianChartValueLabelConfig } from './CartesianChartValueLabelConfig';
 
 const LABEL_WIDTH = 120;
 
 type SingleSeriesConfigurationProps = {
+    dragHandleProps?: DraggableProvidedDragHandleProps | null;
+    drawOrder?: SeriesDrawOrderControl;
     reference: string;
     color: string | undefined;
     colors: string[];
@@ -47,6 +57,8 @@ type SingleSeriesConfigurationProps = {
 
 export const SingleSeriesConfiguration = ({
     reference,
+    dragHandleProps,
+    drawOrder,
     color,
     colors,
     label,
@@ -62,16 +74,18 @@ export const SingleSeriesConfiguration = ({
 }: SingleSeriesConfigurationProps) => {
     return (
         <Stack key={reference} gap="xs">
-            <Stack
-                pl="sm"
-                gap="xs"
-                style={{
-                    backgroundColor: 'var(--mantine-color-ldGray-0)',
-                    borderRadius: 'var(--mantine-radius-md)',
-                    padding: 'var(--mantine-spacing-xs)',
-                }}
-            >
-                <Config.Subheading>{reference}</Config.Subheading>
+            <Stack gap="xs" className={classes.seriesCard}>
+                <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    className={drawOrderStyles.seriesHeader}
+                >
+                    {dragHandleProps && (
+                        <GrabIcon dragHandleProps={dragHandleProps} />
+                    )}
+                    <Config.Subheading>{reference}</Config.Subheading>
+                    {drawOrder && <SeriesDepthControl control={drawOrder} />}
+                </Group>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Label</Config.Label>
                     <Group
@@ -81,14 +95,7 @@ export const SingleSeriesConfiguration = ({
                         grow
                         flex={3}
                     >
-                        <Box
-                            style={{
-                                flex: 1,
-                                display: 'flex',
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                            }}
-                        >
+                        <Group gap={0} flex={1} wrap="nowrap">
                             <Box w="20px">
                                 <ColorSelector
                                     color={color}
@@ -108,13 +115,8 @@ export const SingleSeriesConfiguration = ({
                                 }
                                 flex={1}
                                 ml="xs"
-                                styles={(theme) => ({
-                                    input: {
-                                        border: `1px solid ${theme.colors.ldGray[2]}`,
-                                    },
-                                })}
                             />
-                        </Box>
+                        </Group>
                     </Group>
                 </Flex>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
