@@ -1,5 +1,5 @@
 import { type RoadmapProjectGroup } from '@lightdash/common';
-import { Box, Button, Group, Progress, Stack, Text } from '@mantine/core';
+import { Box, Button, Group, Text } from '@mantine/core';
 import { getPriorityColor } from '../../pages/roadmapUtils';
 import { RoadmapDetails, RoadmapRailRow } from './RoadmapDetails';
 import styles from './RoadmapDetails.module.css';
@@ -66,17 +66,9 @@ export function RoadmapProjectDetails({
                         </Group>
                     </RoadmapRailRow>
                     <RoadmapRailRow label="Progress">
-                        <Stack gap={4} w="100%">
-                            <Text className={styles.detailRailText}>
-                                {project.progress}%
-                            </Text>
-                            <Progress
-                                value={project.progress}
-                                color="indigo"
-                                size="xs"
-                                aria-label="Overall project completion"
-                            />
-                        </Stack>
+                        <Text className={styles.detailRailText}>
+                            {project.progress}%
+                        </Text>
                     </RoadmapRailRow>
                     {item && item.ownRequestCount > 0 && (
                         <RoadmapRailRow label="Following">
