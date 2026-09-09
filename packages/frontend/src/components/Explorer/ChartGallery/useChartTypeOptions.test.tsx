@@ -1,4 +1,5 @@
 import { ChartKind, ChartType, type DataAppViz } from '@lightdash/common';
+import { IconChartScatter3d, IconPuzzle } from '@tabler/icons-react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useChartTypeOptions } from './useChartTypeOptions';
@@ -28,7 +29,7 @@ const projectChartType = {
     createdAt: new Date('2026-08-20T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
     schema: { fields: [], configOptions: [], colorPalette: null },
-    icon: null,
+    icon: 'chart-scatter-3d',
     registrySlug: null,
 } satisfies DataAppViz;
 
@@ -41,20 +42,34 @@ const getSelectedItem = (
 };
 
 describe('getSelectedChartTypeItem', () => {
-    it('names the loaded custom chart type', () => {
+    it('names the loaded custom chart type and shows its icon', () => {
         expect(
             getSelectedItem(ChartType.DATA_APP_VIZ, projectChartType),
         ).toMatchObject({
             id: ChartKind.DATA_APP_VIZ,
             label: 'Event pulse',
+            icon: IconChartScatter3d,
             rotatedIcon: false,
         });
     });
 
-    it('keeps a generic label while the custom chart type loads', () => {
+    it('keeps a generic label and the puzzle piece while the custom chart type loads', () => {
         expect(getSelectedItem(ChartType.DATA_APP_VIZ, null)).toMatchObject({
             id: ChartKind.DATA_APP_VIZ,
             label: 'Custom chart type',
+            icon: IconPuzzle,
+        });
+    });
+
+    it('falls back to the puzzle piece for a custom chart type with no icon chosen', () => {
+        expect(
+            getSelectedItem(ChartType.DATA_APP_VIZ, {
+                ...projectChartType,
+                icon: null,
+            }),
+        ).toMatchObject({
+            id: ChartKind.DATA_APP_VIZ,
+            icon: IconPuzzle,
         });
     });
 

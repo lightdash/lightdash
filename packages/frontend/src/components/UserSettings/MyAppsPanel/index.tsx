@@ -470,6 +470,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                     uuid={appToRename.appUuid}
                     initialName={appToRename.name}
                     initialDescription={appToRename.description}
+                    iconPicker={null}
                     onClose={() => setAppToRename(null)}
                     onConfirm={() => setAppToRename(null)}
                 />

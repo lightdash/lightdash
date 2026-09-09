@@ -19,6 +19,7 @@ import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useInstallRegistryChartType } from '../hooks/useInstallRegistryChartType';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
+import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import classes from './ChartTypeDetailModal.module.css';
 import ChartTypeForkModal from './ChartTypeForkModal';
 import ChartTypeSamplePreview from './ChartTypeSamplePreview';
@@ -89,6 +90,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                 onClose={onClose}
                 title={
                     <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={getChartTypeIcon(dataAppViz.icon)} />
                         <Text fw={700} fz="md" c="ldDark.9">
                             {getAppDisplayName(
                                 dataAppViz.name,
@@ -159,6 +161,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                         <ChartTypeSamplePreview
                             projectUuid={projectUuid}
                             dataAppVizUuid={dataAppViz.dataAppVizUuid}
+                            icon={dataAppViz.icon}
                         />
                     </Box>
                     <Text fz="sm" c="ldGray.7" lh={1.55}>

@@ -21,6 +21,7 @@ import AppUpdateModal from '../../../components/common/modal/AppUpdateModal';
 import AppUpgradeModal from '../../../features/apps/components/AppUpgradeModal';
 import { type SdkUpgradeOffer } from '../../../features/apps/hooks/useSdkUpgradeStatus';
 import { type ChartTypeAppMeta } from '../../../features/chartTypes/builder/appMeta';
+import { getChartTypeIcon } from '../../../features/chartTypes/utils/chartTypeIcons';
 import MantineIcon from '../../common/MantineIcon';
 import { authoringStatusLabel, type AuthoringStatus } from './authoringStatus';
 import classes from './ExplorerChartTypeAuthoringHeader.module.css';
@@ -84,6 +85,12 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
             </Button>
             <Box className={classes.divider} />
             <Box className={classes.nameCluster}>
+                {app && (
+                    <MantineIcon
+                        icon={getChartTypeIcon(app.icon)}
+                        color="dimmed"
+                    />
+                )}
                 <Title
                     ref={titleRef}
                     id={titleId}
@@ -167,6 +174,7 @@ const ExplorerChartTypeAuthoringHeader: FC<Props> = ({
                     initialDescription={app.description}
                     resourceLabel="Chart Type"
                     icon={IconPencil}
+                    iconPicker={{ initialIcon: app.icon }}
                 />
             )}
             {app && upgrade && isUpgradeModalOpen && (
