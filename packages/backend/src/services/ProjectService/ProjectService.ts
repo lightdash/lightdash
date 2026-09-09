@@ -1944,6 +1944,12 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.DUCKDB: {
                 if (
                     credentials.connectionType ===
+                    DuckdbConnectionType.ANALYTICS
+                ) {
+                    return credentials;
+                }
+                if (
+                    credentials.connectionType ===
                     DuckdbConnectionType.MOTHERDUCK
                 ) {
                     return {
