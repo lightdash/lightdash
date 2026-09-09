@@ -1,3 +1,13 @@
+## [2.167.2](https://github.com/lightdash/lightdash/compare/2.167.1...2.167.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* **mcp:** exhaust context length configurations ([#28888](https://github.com/lightdash/lightdash/issues/28888)) ([ae439e7](https://github.com/lightdash/lightdash/commit/ae439e71fd608d2a86764754b001c993a4a5953f))
+* **mcp:** guard client text length budgets ([#28887](https://github.com/lightdash/lightdash/issues/28887)) ([74320ab](https://github.com/lightdash/lightdash/commit/74320ab53aba14cbf6adc7b06b930ec1d5699c3d))
+* **mcp:** remove stale writeback option ([#28889](https://github.com/lightdash/lightdash/issues/28889)) ([bde83c1](https://github.com/lightdash/lightdash/commit/bde83c19827149d052707eaf946d7c30fc378e7f)), closes [#25308](https://github.com/lightdash/lightdash/issues/25308)
+* **mcp:** separate server context and features ([#28890](https://github.com/lightdash/lightdash/issues/28890)) ([89586a7](https://github.com/lightdash/lightdash/commit/89586a7fd1a7c091a4e79091bb84672ca0062203))
+
 ## [2.167.1](https://github.com/lightdash/lightdash/compare/2.167.0...2.167.1) (2026-09-08)
 
 
