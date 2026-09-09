@@ -622,6 +622,30 @@ const getDefaultTileTargets = (
         };
     }, {});
 
+/** Tiles that carry the same query field under different labels are excluded, not left to auto-apply */
+const getRelabelledTileExclusions = (
+    field: FilterableDimension | Metric | Field,
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >,
+) =>
+    Object.entries(availableTileFilters).reduce<Record<string, false>>(
+        (acc, [tileUuid, availableFilters]) => {
+            if (!availableFilters) return acc;
+            const sameQueryField = availableFilters.some(
+                matchFieldExact(field),
+            );
+            const sameLabels = availableFilters.some(
+                matchDashboardFilterableField(field),
+            );
+            return sameQueryField && !sameLabels
+                ? { ...acc, [tileUuid]: false }
+                : acc;
+        },
+        {},
+    );
+
 export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
         FilterOperator,
@@ -671,7 +695,10 @@ export const createDashboardFilterRuleFromField = ({
                 tableName: field.table,
                 fieldName: field.name,
             },
-            tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            tileTargets: {
+                ...getRelabelledTileExclusions(field, availableTileFilters),
+                ...getDefaultTileTargets(field, availableTileFilters),
+            },
             disabled: !isTemporary,
             label: undefined,
         },

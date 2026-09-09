@@ -2594,7 +2594,7 @@ describe('createDashboardFilterRuleFromField', () => {
     };
     const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
 
-    test('targets only tiles whose field carries the same labels by default', () => {
+    test('excludes tiles that relabel the same field and targets the rest by default', () => {
         const rule = createDashboardFilterRuleFromField({
             field: fieldB,
             availableTileFilters: {
@@ -2610,6 +2610,7 @@ describe('createDashboardFilterRuleFromField', () => {
             fieldName: 'name',
         });
         expect(rule.tileTargets).toEqual({
+            'tile-a': false,
             'tile-b': { fieldId: 'team_name', tableName: 'team' },
             'tile-c': { fieldId: 'team_name', tableName: 'team' },
         });
