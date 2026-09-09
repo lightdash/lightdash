@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiRoadmapProjectResponse,
     type ApiRoadmapResponse,
 } from '@lightdash/common';
 import {
@@ -36,17 +37,58 @@ export class OrgRoadmapController extends BaseController {
         @Request() req: express.Request,
         @Query() page?: number,
         @Query() pageSize?: number,
+        @Query() projectId?: string,
+        @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
     ): Promise<ApiRoadmapResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
+        this.setHeader('Cache-Control', 'no-store');
 
         return {
             status: 'ok',
             results: await this.services
                 .getRoadmapService<RoadmapService>()
                 .getRoadmap(req.account, {
+                    ...req.query,
                     page,
                     pageSize,
+                    projectId,
+                    search,
+                    statuses,
+                    priorities,
+                }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/projects')
+    @OperationId('getOrgRoadmapProjects')
+    async getProjects(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+        @Query() search?: string,
+        @Query() statuses?: string,
+        @Query() priorities?: string,
+        @Query() onlyInterested?: boolean,
+    ): Promise<ApiRoadmapProjectResponse> {
+        assertRegisteredAccount(req.account);
+        this.setHeader('Cache-Control', 'no-store');
+        return {
+            status: 'ok',
+            results: await this.services
+                .getRoadmapService<RoadmapService>()
+                .getProjects(req.account, {
+                    ...req.query,
+                    page,
+                    pageSize,
+                    search,
+                    statuses,
+                    priorities,
+                    onlyInterested,
                 }),
         };
     }

@@ -69,6 +69,7 @@ export type FilterFacetProps = {
     optionAnchor?: string;
     /** Shows a clear button next to the trigger while there is a selection */
     clearable?: boolean;
+    showSelectionCount?: boolean;
 };
 
 const isOptionVisible = (
@@ -101,6 +102,7 @@ const FilterFacet = ({
     enableSelectAll = false,
     headerSection,
     clearable = false,
+    showSelectionCount = true,
     triggerProps,
     optionAnchor,
 }: FilterFacetProps) => {
@@ -273,7 +275,7 @@ const FilterFacet = ({
                 <Text fz="xs" fw={500} c="ldGray.7">
                     {label}
                 </Text>
-                {hasSelection && (
+                {hasSelection && showSelectionCount && (
                     <Badge size="xs" radius="xl" variant="filled">
                         {selected.length}
                     </Badge>

@@ -32626,9 +32626,27 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 facets: { ref: 'RoadmapFacets', required: true },
                 pagination: { ref: 'RoadmapPagination', required: true },
+                expiresAt: { dataType: 'string' },
                 data: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'RoadmapItem' },
+                    array: {
+                        dataType: 'intersection',
+                        subSchemas: [
+                            { ref: 'RoadmapItem' },
+                            {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    projectId: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            { dataType: 'string' },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                    },
+                                },
+                            },
+                        ],
+                    },
                     required: true,
                 },
             },
@@ -32642,6 +32660,96 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'RoadmapResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapProject: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                priority: { ref: 'RoadmapItemPriority', required: true },
+                progress: { dataType: 'double', required: true },
+                stage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['backlog'] },
+                        { dataType: 'enum', enums: ['planned'] },
+                        { dataType: 'enum', enums: ['started'] },
+                        { dataType: 'enum', enums: ['paused'] },
+                        { dataType: 'enum', enums: ['completed'] },
+                    ],
+                    required: true,
+                },
+                icon: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                title: { dataType: 'string', required: true },
+                projectId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapProjectGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hasDirectNeed: { dataType: 'boolean', required: true },
+                ownRequestCount: { dataType: 'double', required: true },
+                project: { ref: 'RoadmapProject', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapProjectPagination: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                totalPages: { dataType: 'double', required: true },
+                totalResults: { dataType: 'double', required: true },
+                pageSize: { dataType: 'double', required: true },
+                page: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RoadmapProjectResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                expiresAt: { dataType: 'string', required: true },
+                pagination: { ref: 'RoadmapProjectPagination', required: true },
+                otherRequestCount: { dataType: 'double', required: true },
+                projects: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'RoadmapProjectGroup' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiRoadmapProjectResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'RoadmapProjectResults', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -83547,6 +83655,10 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         page: { in: 'query', name: 'page', dataType: 'double' },
         pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        projectId: { in: 'query', name: 'projectId', dataType: 'string' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        statuses: { in: 'query', name: 'statuses', dataType: 'string' },
+        priorities: { in: 'query', name: 'priorities', dataType: 'string' },
     };
     app.get(
         '/api/v1/org/roadmap',
@@ -83585,6 +83697,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getOrgRoadmap',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrgRoadmapController_getProjects: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        search: { in: 'query', name: 'search', dataType: 'string' },
+        statuses: { in: 'query', name: 'statuses', dataType: 'string' },
+        priorities: { in: 'query', name: 'priorities', dataType: 'string' },
+        onlyInterested: {
+            in: 'query',
+            name: 'onlyInterested',
+            dataType: 'boolean',
+        },
+    };
+    app.get(
+        '/api/v1/org/roadmap/projects',
+        ...fetchMiddlewares<RequestHandler>(OrgRoadmapController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrgRoadmapController.prototype.getProjects,
+        ),
+
+        async function OrgRoadmapController_getProjects(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrgRoadmapController_getProjects,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrgRoadmapController>(
+                        OrgRoadmapController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getProjects',
                     controller,
                     response,
                     next,

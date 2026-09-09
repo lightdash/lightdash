@@ -340,7 +340,10 @@ import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
-import { type ApiRoadmapResponse } from './roadmap';
+import {
+    type ApiRoadmapProjectResponse,
+    type ApiRoadmapResponse,
+} from './roadmap';
 import {
     type ApiCustomRoleAsCodeListResponse,
     type ApiCustomRoleAsCodeUpsertResponse,
@@ -1342,6 +1345,7 @@ type ApiResults =
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
     | ApiRoadmapResponse['results']
+    | ApiRoadmapProjectResponse['results']
     | ChartHistory
     | ChartVersion
     | DashboardHistory

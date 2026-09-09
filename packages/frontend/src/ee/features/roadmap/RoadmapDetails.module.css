@@ -1,0 +1,141 @@
+.modalContent {
+    --roadmap-details-rail-width: calc(232px + 2 * var(--mantine-spacing-xl));
+}
+
+.modalContent :global(.mantine-Modal-body) {
+    position: relative;
+}
+
+.modalContent :global(.mantine-Modal-body)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: var(--roadmap-details-rail-width);
+    width: 1px;
+    background: var(--mantine-color-default-border);
+    pointer-events: none;
+}
+
+.detailLayout {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--roadmap-details-rail-width);
+    height: calc(85vh - 120px);
+}
+
+.detailLayout[data-compact] {
+    height: auto;
+}
+
+.compactModalContent:global(.mantine-Modal-content) {
+    min-height: 400px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+
+.detailHeaderTitle {
+    color: var(--mantine-color-text);
+    font-size: 16px;
+    font-weight: 550;
+    letter-spacing: -0.014em;
+    line-height: 1.4;
+}
+
+.detailMain {
+    min-width: 0;
+    overflow-y: auto;
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+}
+
+.detailTicketId {
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 11.5px;
+}
+
+.detailSectionLabel {
+    color: var(--mantine-color-dimmed);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.detailPropertyDot {
+    border-radius: 50%;
+    flex: none;
+    height: 6px;
+    width: 6px;
+}
+
+.detailRailColumn {
+    padding: var(--mantine-spacing-lg) var(--mantine-spacing-xl);
+    align-self: start;
+    position: sticky;
+    top: 0;
+}
+
+.detailRailRow {
+    min-height: 28px;
+    padding: 3px 0;
+}
+
+.detailRailLabel {
+    color: var(--mantine-color-dimmed);
+    flex: none;
+    font-size: 11.5px;
+    font-weight: 400;
+    width: 72px;
+}
+
+.detailRailValue {
+    display: flex;
+    flex: 1;
+    justify-content: flex-start;
+    min-width: 0;
+    text-align: left;
+}
+
+.detailRailText {
+    color: var(--mantine-color-text);
+    font-size: 12px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.detailRailLink {
+    align-items: center;
+    color: var(--mantine-color-text);
+    display: inline-flex;
+    font-size: 12px;
+    font-weight: 500;
+    gap: 5px;
+    text-decoration: none;
+}
+
+.detailRailLink:hover {
+    color: light-dark(
+        var(--mantine-color-indigo-7),
+        var(--mantine-color-indigo-4)
+    );
+}
+
+.markdown {
+    & :global(.wmde-markdown) {
+        background-color: inherit;
+        color: inherit;
+        font-size: var(--mantine-font-size-sm);
+    }
+}
+
+@media (max-width: 820px) {
+    .detailLayout {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+    }
+
+    .modalContent :global(.mantine-Modal-body)::after {
+        display: none;
+    }
+}

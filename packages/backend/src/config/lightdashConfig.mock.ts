@@ -268,6 +268,9 @@ export const lightdashConfigMock: LightdashConfig = {
         licenseKey: null,
         licenseCertificate: null,
     },
+    roadmap: {
+        baseUrl: 'https://roadmap.lightdash.com',
+    },
     groups: {
         enabled: false,
     },
