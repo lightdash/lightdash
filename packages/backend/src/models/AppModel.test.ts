@@ -6,6 +6,10 @@ import {
     type DbApp,
 } from '../database/entities/apps';
 import { DashboardTileDataAppsTableName } from '../database/entities/dashboards';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import { AppModel } from './AppModel';
 
 const appId = '11111111-1111-4111-8111-111111111111';
@@ -274,5 +278,103 @@ describe('AppModel.findDashboardsContainingApp', () => {
         expect(tracker.history.select[0].bindings).toEqual(
             expect.arrayContaining([projectUuid, dashboardUuid, appId]),
         );
+    });
+});
+
+describe('AppModel.remapPreviewChartVizBindings', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new AppModel({ database });
+    let tracker: Tracker;
+
+    const previewProjectUuid = '55555555-5555-4555-8555-555555555555';
+    const sourceAppUuid = '66666666-6666-4666-8666-666666666666';
+    const previewAppUuid = '77777777-7777-4777-8777-777777777777';
+    const otherSourceAppUuid = '88888888-8888-4888-8888-888888888888';
+    const mappings = [
+        { sourceAppUuid, previewAppUuid, previewAppVersion: 3 },
+        {
+            sourceAppUuid: otherSourceAppUuid,
+            previewAppUuid: '99999999-9999-4999-8999-999999999999',
+            previewAppVersion: 1,
+        },
+    ];
+    const spaceChartsQuery =
+        /"spaces"\."space_id" = "saved_queries"\."space_id"/;
+    const dashboardChartsQuery =
+        /"dashboards"\."dashboard_uuid" = "saved_queries"\."dashboard_uuid"/;
+    const versionCandidatesQuery = /from "saved_queries_versions" where/;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('does nothing without mappings', async () => {
+        await model.remapPreviewChartVizBindings(previewProjectUuid, []);
+
+        expect(tracker.history.all).toHaveLength(0);
+    });
+
+    it('stops after the chart lookup when the preview has no charts', async () => {
+        tracker.on.select(spaceChartsQuery).responseOnce([]);
+        tracker.on.select(dashboardChartsQuery).responseOnce([]);
+
+        await model.remapPreviewChartVizBindings(previewProjectUuid, mappings);
+
+        expect(tracker.history.select).toHaveLength(2);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    it('looks up candidate versions by chart id and skips updates when none match', async () => {
+        tracker.on
+            .select(spaceChartsQuery)
+            .responseOnce([{ saved_query_id: 1 }, { saved_query_id: 2 }]);
+        tracker.on
+            .select(dashboardChartsQuery)
+            .responseOnce([{ saved_query_id: 2 }, { saved_query_id: 3 }]);
+        tracker.on.select(versionCandidatesQuery).responseOnce([]);
+
+        await model.remapPreviewChartVizBindings(previewProjectUuid, mappings);
+
+        expect(tracker.history.select).toHaveLength(3);
+        const candidates = tracker.history.select[2];
+        expect(candidates.sql).toContain(`"saved_query_id" = ANY($1::int[])`);
+        expect(candidates.sql).toContain(`"chart_type" = $2`);
+        expect(candidates.sql).not.toContain(`"${SavedChartsTableName}"`);
+        expect(candidates.bindings).toEqual([[1, 2, 3], 'data_app_viz']);
+        expect(tracker.history.update).toHaveLength(0);
+    });
+
+    it('updates only the versions bound to a mapped source app, by version id', async () => {
+        tracker.on
+            .select(spaceChartsQuery)
+            .responseOnce([{ saved_query_id: 1 }]);
+        tracker.on
+            .select(dashboardChartsQuery)
+            .responseOnce([{ saved_query_id: 2 }]);
+        tracker.on.select(versionCandidatesQuery).responseOnce([
+            { saved_queries_version_id: 10, source_app_uuid: sourceAppUuid },
+            { saved_queries_version_id: 11, source_app_uuid: sourceAppUuid },
+            {
+                saved_queries_version_id: 12,
+                source_app_uuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            },
+            { saved_queries_version_id: 13, source_app_uuid: null },
+        ]);
+        tracker.on.update(SavedChartVersionsTableName).responseOnce(2);
+
+        await model.remapPreviewChartVizBindings(previewProjectUuid, mappings);
+
+        expect(tracker.history.update).toHaveLength(1);
+        const update = tracker.history.update[0];
+        expect(update.sql).toContain('jsonb_set');
+        expect(update.sql).toMatch(
+            /where "saved_queries_version_id" = ANY\(\$\d+::int\[\]\)/,
+        );
+        expect(update.sql).not.toContain('chart_config->>');
+        expect(update.bindings).toEqual([previewAppUuid, 3, [10, 11]]);
     });
 });

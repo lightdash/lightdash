@@ -1302,6 +1302,49 @@ export class AppModel {
             .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .select(`${SavedChartsTableName}.saved_query_id`);
+        const [spaceCharts, dashboardCharts] = await Promise.all([
+            spaceChartIds,
+            dashboardChartIds,
+        ]);
+        const previewChartIds = [
+            ...new Set(
+                [...spaceCharts, ...dashboardCharts].map(
+                    (row) => row.saved_query_id,
+                ),
+            ),
+        ];
+        if (previewChartIds.length === 0) {
+            return;
+        }
+
+        // Narrow by the indexed chart id first: chart_type and chart_config
+        // are unindexed, so filtering the whole table on them is a full scan.
+        const candidates = await this.database(SavedChartVersionsTableName)
+            .select<
+                {
+                    saved_queries_version_id: number;
+                    source_app_uuid: string | null;
+                }[]
+            >(
+                'saved_queries_version_id',
+                this.database.raw(
+                    `chart_config->>'dataAppVizUuid' as source_app_uuid`,
+                ),
+            )
+            .whereRaw('?? = ANY(?::int[])', ['saved_query_id', previewChartIds])
+            .where('chart_type', ChartType.DATA_APP_VIZ);
+        const versionIdsBySourceApp = candidates.reduce<Map<string, number[]>>(
+            (acc, { saved_queries_version_id, source_app_uuid }) => {
+                if (source_app_uuid === null) {
+                    return acc;
+                }
+                const ids = acc.get(source_app_uuid) ?? [];
+                ids.push(saved_queries_version_id);
+                acc.set(source_app_uuid, ids);
+                return acc;
+            },
+            new Map(),
+        );
 
         /* eslint-disable no-await-in-loop */
         for (const {
@@ -1309,27 +1352,25 @@ export class AppModel {
             previewAppUuid,
             previewAppVersion,
         } of mappings) {
-            await this.database(SavedChartVersionsTableName)
-                .where('chart_type', ChartType.DATA_APP_VIZ)
-                .whereRaw(`chart_config->>'dataAppVizUuid' = ?`, [
-                    sourceAppUuid,
-                ])
-                .where((chartScope) => {
-                    void chartScope
-                        .whereIn('saved_query_id', spaceChartIds.clone())
-                        .orWhereIn('saved_query_id', dashboardChartIds.clone());
-                })
-                .update({
-                    chart_config: this.database.raw(
-                        `jsonb_set(
-                            jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text)),
-                            '{dataAppVizVersion}',
-                            to_jsonb(?::integer),
-                            true
-                        )`,
-                        [previewAppUuid, previewAppVersion],
-                    ) as unknown as ChartConfig['config'],
-                });
+            const versionIds = versionIdsBySourceApp.get(sourceAppUuid);
+            if (versionIds) {
+                await this.database(SavedChartVersionsTableName)
+                    .whereRaw('?? = ANY(?::int[])', [
+                        'saved_queries_version_id',
+                        versionIds,
+                    ])
+                    .update({
+                        chart_config: this.database.raw(
+                            `jsonb_set(
+                                jsonb_set(chart_config, '{dataAppVizUuid}', to_jsonb(?::text)),
+                                '{dataAppVizVersion}',
+                                to_jsonb(?::integer),
+                                true
+                            )`,
+                            [previewAppUuid, previewAppVersion],
+                        ) as unknown as ChartConfig['config'],
+                    });
+            }
         }
         /* eslint-enable no-await-in-loop */
     }
