@@ -1,3 +1,10 @@
+## [2.184.6](https://github.com/lightdash/lightdash/compare/2.184.5...2.184.6) (2026-09-09)
+
+
+### Bug Fixes
+
+* **analytics:** include dashboard charts in usage CSV exports ([#28965](https://github.com/lightdash/lightdash/issues/28965)) ([3000eae](https://github.com/lightdash/lightdash/commit/3000eaeaa693a67b895d641dfe8596ab25af4691))
+
 ## [2.184.5](https://github.com/lightdash/lightdash/compare/2.184.4...2.184.5) (2026-09-09)
 
 
