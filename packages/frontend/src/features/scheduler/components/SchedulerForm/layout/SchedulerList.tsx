@@ -256,8 +256,6 @@ const SchedulerDetail: FC<{
                 ? getNextRuns(
                       scheduler.cron,
                       scheduler.timezone || project?.schedulerTimezone,
-                      3,
-                      'local',
                   )
                 : [],
         [
@@ -362,12 +360,6 @@ const SchedulerDetail: FC<{
                                         </Group>
                                     ))}
                                 </Stack>
-                                {nextRuns[0]?.timeZoneName && (
-                                    <Text size="xs" c="dimmed">
-                                        Times shown in{' '}
-                                        {nextRuns[0].timeZoneName}
-                                    </Text>
-                                )}
                             </Stack>
                         </Group>
                     )}

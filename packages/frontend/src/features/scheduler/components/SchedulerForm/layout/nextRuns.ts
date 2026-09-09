@@ -25,30 +25,22 @@ const getShortTimeZoneName = (date: Date, timeZone: string): string => {
     }
 };
 
-/**
- * Upcoming run instants are computed in `timezone` (the schedule / project
- * zone). Pass `displayTimezone` (IANA or `'local'`) to format those instants
- * in the viewer's zone instead of the schedule zone.
- */
 export const getNextRuns = (
     cron: string,
     timezone: string | undefined,
     count = 3,
-    displayTimezone?: string,
 ): NextRun[] => {
     if (!cron) return [];
     try {
         const schedule = getSchedule(stringToArray(cron), new Date(), timezone);
         return Array.from({ length: count }, () => {
             const next = schedule.next();
-            const displayed = displayTimezone
-                ? next.setZone(displayTimezone)
-                : next;
             const jsDate = next.toJSDate();
+            const timeZoneName = getShortTimeZoneName(jsDate, next.zoneName);
             return {
-                label: displayed.toFormat('ccc, LLL d · h:mm a'),
+                label: `${next.toFormat('ccc, LLL d · h:mm a')} ${timeZoneName}`,
                 relative: dayjs(jsDate).fromNow(),
-                timeZoneName: getShortTimeZoneName(jsDate, displayed.zoneName),
+                timeZoneName,
             };
         });
     } catch {
