@@ -54,8 +54,10 @@ events/compacted/org_id=<org-uuid>/stream=<stream>/dt=<YYYY-MM-DD>/part-<hash>.p
 Partitions are object-key prefixes grouping related data, not separate databases
 or access-control policies. Org partitioning keeps each output part within one
 org; stream/date partitions keep schemas and time ranges organized. The read
-layer lists one org prefix, then selects supported streams and the configured
-inclusive date range. It does not list the whole bucket and filter rows later.
+layer lists one org prefix, then selects supported streams across all retained
+dates. Date filters belong to Explore queries, not a fixed source window. It does
+not list the whole bucket and filter orgs later. Only compacted Parquet is read;
+today's uncompacted raw events are not yet available through this reader.
 
 The [compactor](../../packages/backend/src/analytics/eventStream/UsageEventsCompactor.ts)
 processes closed date partitions (before today UTC), converts the exact listed
@@ -126,7 +128,7 @@ usage-events writer/compactor configuration too, not only the reader.
 
 [`S3AnalyticsSource`](../../packages/backend/src/services/ProjectService/analyticsProject/S3AnalyticsSource.ts)
 lists `events/compacted/org_id=<validated-org>/`, validates returned keys and
-selects only supported Parquet paths in the date range. It bounds pagination
+selects only supported Parquet paths across all retained dates. It bounds pagination
 (1,000 objects/page, at most 100 pages) and selected files (10,000), and rejects
 incomplete/malformed listings or an empty manifest. It signs exact
 `GetObject` requests for 900 seconds and destroys the per-resolution SDK client.
@@ -189,19 +191,21 @@ no Terraform/IAM change or read-only cutover is included in this stack.
 ## Operations, verification and rollout
 
 - Follow [local testing](local-testing.md) for feature flags, explicit source-org
-  binding, date bounds and the browser-console provisioning request. Keep capture
+  binding and the browser-console provisioning request. Keep capture
   disabled for a read-only local test; never copy another worktree's DB settings.
 - Follow [credential verification](credentials.md) for real-bucket read-only
   smoke tests and disposable MinIO tests of signatures, expiry and denied writes.
-- Missing data: check capture, compaction success, source org, inclusive date
-  bounds and stream schemas. No supported files fails closed; partially missing
+- Missing data: check capture, compaction success, source org, Explore date
+  filters, retention and stream schemas. No supported files fails closed; partially missing
   streams and schema evolution still need rollout design.
 - Access errors: check endpoint, bucket and configured key permissions without
   printing keys, SDK request details or signed URLs. A new query can recover from
   URL expiry; it cannot fix revoked or incorrectly scoped source credentials.
 - Provisioning latency includes storage access. Large org histories can hit the
   listing/file caps; freshness, caching, pagination scale and long-running query
-  behavior require further work before production.
+  behavior require further work before production (PROD-11111). Caps fail rather
+  than silently exposing only part of the history. Historical availability is
+  limited by retained files, not their age; one-year workloads remain unbenchmarked.
 - Before rollout: remove local org overrides, finish production authorization and
   role restrictions, switch to read-only source credentials, review all query and
   cached-result surfaces, and add the admin entry point. Hidden UI and folder
