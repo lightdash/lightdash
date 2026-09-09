@@ -122,13 +122,6 @@ const CARD_EXPAND_MS = 280;
 const FALLBACK_GRACE_MS = 1500;
 /** How long a step waits for a control that has not appeared yet. */
 const TARGET_PATIENCE_MS = 15000;
-/**
- * How long the beacon waits alone before the card comes back. Shorter than
- * the patience above on purpose: a card returning early costs nothing (it
- * re-anchors the moment the control appears), while a beacon alone for
- * long reads as a page that has died.
- */
-const CARD_RETURN_MS = 4000;
 /** A typed-input step counts as done after this many characters and a pause. */
 const MIN_INPUT_CHARS = 3;
 const INPUT_SETTLE_MS = 900;
@@ -196,10 +189,17 @@ const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
 const useTargetRect = (
     selector: string | null,
     active: boolean,
+    stepIndex: number,
 ): DOMRect | null => {
-    const [rect, setRect] = useState<DOMRect | null>(null);
+    const [measurement, setMeasurement] = useState<{
+        selector: string | null;
+        stepIndex: number;
+        rect: DOMRect | null;
+    }>({ selector, stepIndex, rect: null });
 
     useEffect(() => {
+        const setRect = (rect: DOMRect | null) =>
+            setMeasurement({ selector, stepIndex, rect });
         // A new step (or a page change) starts with no highlight; the previous
         // element's box must never linger while the next target is looked up.
         setRect(null);
@@ -229,11 +229,22 @@ const useTargetRect = (
             }
             if (el) {
                 const current = el.getBoundingClientRect();
-                if (sameRect(current, last) && !sameRect(current, published)) {
+                const visible =
+                    current.width > 0 &&
+                    current.height > 0 &&
+                    getComputedStyle(el).visibility === 'visible';
+                if (!visible) {
+                    if (published) setRect(null);
+                    last = null;
+                    published = null;
+                } else if (
+                    sameRect(current, last) &&
+                    !sameRect(current, published)
+                ) {
                     published = current;
                     setRect(current);
                 }
-                last = current;
+                if (visible) last = current;
             }
             frame = window.requestAnimationFrame(tick);
         };
@@ -242,9 +253,13 @@ const useTargetRect = (
             window.cancelAnimationFrame(frame);
             el?.removeAttribute(TARGET_ATTRIBUTE);
         };
-    }, [selector, active]);
+    }, [selector, active, stepIndex]);
 
-    return rect;
+    return active &&
+        measurement.selector === selector &&
+        measurement.stepIndex === stepIndex
+        ? measurement.rect
+        : null;
 };
 
 type Resolved = {
@@ -547,9 +562,8 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     const [cardHeight, cardRef] = useCardHeight();
 
     const step = steps[stepIndex];
-    // Each step resolves its own target when reached (rows may load late), so a
-    // step with a not-yet-rendered target just shows a centered card until it
-    // appears, rather than being dropped.
+    // Resolve the destination immediately, but keep its card hidden until
+    // the control has a stable, visible box.
     const { selector: resolvedSelector, detourTitle } = useResolvedSelector(
         step,
         opened,
@@ -558,7 +572,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
     // work rather than on the finished surface.
     const { busy, status } = useBusy(step?.busy, opened);
     const spotlightSelector = busy && step?.busy ? step.busy : resolvedSelector;
-    const rect = useTargetRect(spotlightSelector, opened);
+    const rect = useTargetRect(spotlightSelector, opened, stepIndex);
     // How the last step change happened: Next glides the ring from the old
     // control to the new one; a click on the control shrinks the ring into a
     // beacon at the click (the control usually vanishes: a menu item, a link)
@@ -672,7 +686,25 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             setShownStepIndex(0);
         }
     }, [opened]);
+    const hasTarget = step?.target != null;
+    // Recovery controls can be spotlighted without revealing instructions
+    // for a destination that is still loading.
+    const targetReady =
+        !hasTarget ||
+        (rect !== null &&
+            (spotlightSelector === step?.target ||
+                detourTitle !== null ||
+                busy));
     useEffect(() => {
+        if (!hasTarget) {
+            advanceByClickRef.current = false;
+            setBeacon(false);
+            setCardPhase('shown');
+            setCardRect(null);
+            setShownRect(null);
+            setShownStepIndex(stepIndex);
+            return undefined;
+        }
         if (advanceByClickRef.current) {
             advanceByClickRef.current = false;
             setBeacon(true);
@@ -691,7 +723,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         setShownStepIndex(stepIndex);
         glideFor(GLIDE_MS);
         return undefined;
-    }, [stepIndex, glideFor]);
+    }, [stepIndex, hasTarget, glideFor]);
 
     // While the beacon waits for the next control it becomes the cursor:
     // the native pointer is hidden and the beacon follows the mouse, so the
@@ -716,26 +748,6 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             window.removeEventListener('mousemove', follow, true);
             if (frame !== null) window.cancelAnimationFrame(frame);
         };
-    }, [waiting]);
-
-    // A control that never arrives (a screen this instance does not have)
-    // would otherwise hide the card for good, leaving the page blocked with
-    // no way out but a new tab. After a short wait the card comes back,
-    // centred, saying it is still waiting, so Skip is always within reach;
-    // the beacon keeps waiting and the card still opens at the control if
-    // it turns up.
-    const [cardReturned, setCardReturned] = useState(false);
-    useEffect(() => {
-        if (!waiting) {
-            setCardReturned(false);
-            return undefined;
-        }
-        const timeout = window.setTimeout(() => {
-            setCardRect(null);
-            setCardPhase('shown');
-            setCardReturned(true);
-        }, CARD_RETURN_MS);
-        return () => window.clearTimeout(timeout);
     }, [waiting]);
 
     // When the work finishes the ring travels to the finished surface.
@@ -906,7 +918,7 @@ export const GuidedTour: FC<GuidedTourProps> = ({
         if (!handsOn) return undefined;
         const guard = (event: MouseEvent) => {
             const target = event.target as Element | null;
-            if (!target || target.closest('[data-tour-card]')) return;
+            if (!target || target.closest('[data-tour-root]')) return;
             if (
                 target.closest(
                     'button, a, [role="button"], [role="menuitem"], input, select, textarea',
@@ -998,12 +1010,6 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                         <Box fz="sm" c="dimmed">
                             {shownStep.body}
                         </Box>
-                    )}
-                    {cardReturned && waiting && (
-                        <Text fz="xs" c="dimmed" data-tour-card-waiting>
-                            Still waiting for the page to show the next control.
-                            You can skip if it does not appear.
-                        </Text>
                     )}
                 </Stack>
                 <Group justify="space-between" align="center">
@@ -1185,7 +1191,13 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 ) : (
                     <Box className={styles.dim} />
                 )}
-                {cardPhase === 'hidden' ? null : busy ? (
+                {cardPhase === 'hidden' || !targetReady ? (
+                    <Box className={styles.waitingControls}>
+                        <Button variant="default" onClick={handleClose}>
+                            Skip
+                        </Button>
+                    </Box>
+                ) : busy ? (
                     // The ring is following work that moves and reshapes;
                     // the card parks out of its way so it can be read.
                     <Box className={styles.cardDocked}>{cardBody}</Box>
