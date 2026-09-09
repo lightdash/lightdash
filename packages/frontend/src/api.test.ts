@@ -259,13 +259,64 @@ describe('network error messages', () => {
                 name: 'NetworkError',
                 statusCode: 500,
                 message: expect.stringContaining(
-                    'Lightdash is reachable, but PATCH http://test.lightdash/api/v1/projects/abc was blocked before it arrived',
+                    'Lightdash is reachable, but this request was blocked before it arrived',
                 ),
                 data: {
                     kind: 'blocked',
+                    path: 'http://test.lightdash/api/v1/projects/abc',
                     cause: 'Failed to fetch',
                     probe: { ok: true, status: 200 },
                 },
+            },
+        });
+    });
+
+    it('keeps the request out of the toast text', async () => {
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(healthOk());
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                message: expect.not.stringContaining('/projects/abc'),
+            },
+        });
+    });
+
+    it('falls back to the generic message with no diagnostics inside an embed', async () => {
+        setToInMemoryStorage(EMBED_KEY, { token: 'jwt' });
+        globalThis.fetch = vi
+            .fn()
+            .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+            .mockResolvedValueOnce(healthOk());
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message:
+                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+                data: {},
+            },
+        });
+        clearInMemoryStorage();
+    });
+
+    it('treats an error body that is not the API envelope as intercepted', async () => {
+        globalThis.fetch = vi.fn().mockResolvedValue(
+            new Response(JSON.stringify({ message: 'Forbidden' }), {
+                status: 403,
+                headers: { 'Content-Type': 'application/json' },
+            }),
+        );
+
+        await expect(request()).rejects.toMatchObject({
+            error: {
+                name: 'NetworkError',
+                message: expect.stringContaining(
+                    'with HTTP 403 instead of Lightdash',
+                ),
+                data: { kind: 'intercepted', responseStatus: 403 },
             },
         });
     });

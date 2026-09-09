@@ -4,6 +4,7 @@ import {
     formatNetworkDiagnostics,
     isNetworkDiagnostics,
     networkFailureMessage,
+    redactRequestPath,
     UnexpectedResponseError,
 } from './networkDiagnostics';
 
@@ -99,16 +100,40 @@ describe('diagnoseTransportFailure', () => {
     });
 });
 
+describe('redactRequestPath', () => {
+    it('drops the query string and keeps a relative prefix relative', () => {
+        expect(redactRequestPath('/api/v1', '/search?q=secret+term')).toBe(
+            '/api/v1/search',
+        );
+        expect(
+            redactRequestPath('http://test.lightdash/api/v1', '/projects/abc'),
+        ).toBe('http://test.lightdash/api/v1/projects/abc');
+    });
+
+    it('masks one-time codes in the path', () => {
+        expect(redactRequestPath('/api/v1', '/password-reset/abc123')).toBe(
+            '/api/v1/password-reset/***',
+        );
+        expect(
+            redactRequestPath('/api/v1', '/invite-links/code42/activate'),
+        ).toBe('/api/v1/invite-links/***/activate');
+        expect(redactRequestPath('/api/v1', '/share/n4n0id')).toBe(
+            '/api/v1/share/***',
+        );
+    });
+});
+
 describe('networkFailureMessage', () => {
-    it('names the request and the likely culprit per kind', async () => {
+    it('names the likely culprit per kind without the request', async () => {
         globalThis.fetch = vi.fn().mockResolvedValue(healthOk());
         const blocked = await diagnoseTransportFailure({
             ...request,
             error: new TypeError('Failed to fetch'),
         });
         expect(networkFailureMessage(blocked)).toContain(
-            'Lightdash is reachable, but PATCH http://test.lightdash/api/v1/projects/abc was blocked',
+            'Lightdash is reachable, but this request was blocked',
         );
+        expect(networkFailureMessage(blocked)).not.toContain('/projects/abc');
 
         const intercepted = await diagnoseTransportFailure({
             ...request,

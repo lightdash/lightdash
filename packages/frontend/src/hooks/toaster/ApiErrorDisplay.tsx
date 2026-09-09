@@ -158,9 +158,14 @@ const NetworkFailureMessage = ({
     apiError: ApiErrorDetail;
     showSupportButton: boolean;
 }) => {
-    const diagnostics = isNetworkDiagnostics(apiError.data)
-        ? formatNetworkDiagnostics(apiError.data)
-        : apiError.message;
+    if (!isNetworkDiagnostics(apiError.data)) {
+        return (
+            <Text mb={0} fz="xs">
+                {apiError.message}
+            </Text>
+        );
+    }
+    const diagnostics = formatNetworkDiagnostics(apiError.data);
     return (
         <Stack gap="xxs" align="start">
             <Text mb={0} fz="xs">
