@@ -260,6 +260,50 @@ FROM RankedResults
 WHERE rank = 1;
 `;
 
+export const viewsRawDataSql = () => `
+WITH view_events AS (
+  SELECT
+    'chart'::text AS type,
+    date_trunc('second', cv.timestamp) AS viewed_at,
+    sq.saved_query_uuid AS uuid,
+    cv.user_uuid
+  FROM analytics_chart_views cv
+    JOIN ${SavedChartsTableName} sq ON sq.saved_query_uuid = cv.chart_uuid AND sq.deleted_at IS NULL
+  WHERE sq.project_uuid = :projectUuid AND ${activeChartOwnerSql}
+  UNION
+  SELECT
+    'dashboard'::text,
+    date_trunc('second', dv.timestamp),
+    d.dashboard_uuid,
+    dv.user_uuid
+  FROM analytics_dashboard_views dv
+    JOIN ${DashboardsTableName} d ON d.dashboard_uuid = dv.dashboard_uuid AND d.deleted_at IS NULL
+    JOIN ${SpaceTableName} s ON s.space_id = d.space_id
+    JOIN projects p ON p.project_id = s.project_id
+  WHERE p.project_uuid = :projectUuid AND s.deleted_at IS NULL
+), limited_events AS MATERIALIZED (
+  SELECT * FROM view_events ORDER BY viewed_at DESC LIMIT 100000
+)
+SELECT
+  e.type,
+  to_char(e.viewed_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS timestamp,
+  e.uuid,
+  CASE WHEN e.type = 'chart' THEN sq.name ELSE d.name END AS name,
+  u.user_uuid,
+  u.first_name AS user_first_name,
+  u.last_name AS user_last_name,
+  CASE WHEN e.type = 'chart' THEN chart_space.name ELSE dashboard_space.name END AS space_name
+FROM limited_events e
+  LEFT JOIN users u ON u.user_uuid = e.user_uuid
+  LEFT JOIN ${SavedChartsTableName} sq ON e.type = 'chart' AND sq.saved_query_uuid = e.uuid AND sq.deleted_at IS NULL
+  LEFT JOIN ${DashboardsTableName} owner ON owner.dashboard_uuid = sq.dashboard_uuid
+    AND owner.deleted_at IS NULL
+  LEFT JOIN ${SpaceTableName} chart_space ON chart_space.space_id = COALESCE(sq.space_id, owner.space_id) AND chart_space.deleted_at IS NULL
+  LEFT JOIN ${DashboardsTableName} d ON e.type = 'dashboard' AND d.dashboard_uuid = e.uuid AND d.deleted_at IS NULL
+  LEFT JOIN ${SpaceTableName} dashboard_space ON dashboard_space.space_id = d.space_id AND dashboard_space.deleted_at IS NULL
+ORDER BY timestamp DESC
+`;
+
 /**
  * Parameters: project_uuid, staleness_days, staleness_days, protect_recent_days, limit
  */

@@ -40,7 +40,7 @@ type FixtureTables = {
     };
     dashboards: {
         dashboard_uuid: string;
-        project_uuid: string;
+        project_uuid: string | null;
         space_id: number;
         name: string;
         slug: string;
@@ -203,6 +203,12 @@ describe('AnalyticsModel (PostgreSQL)', () => {
         );
         await table('spaces').update({ deleted_at: null });
         await table('dashboards').update({ deleted_at: null });
+        await table('dashboards')
+            .where('dashboard_uuid', dashboardUuid)
+            .update({ project_uuid: projectUuid });
+        await table('dashboards')
+            .where('dashboard_uuid', otherDashboardUuid)
+            .update({ project_uuid: otherProjectUuid });
         await table('emails').update({ is_primary: true });
         await table('users').update({
             first_name: 'Viewer',
@@ -245,6 +251,13 @@ describe('AnalyticsModel (PostgreSQL)', () => {
                 created_at: database.raw("CURRENT_DATE - interval '1 day'"),
             },
         ]);
+        await table('analytics_dashboard_views').insert({
+            dashboard_uuid: dashboardUuid,
+            user_uuid: dashboardViewer,
+            timestamp: database.raw(
+                "CURRENT_DATE - interval '1 day' + interval '2 seconds'",
+            ),
+        });
     });
 
     afterAll(async () => {
@@ -686,5 +699,268 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             .update({ space_id: 1, dashboard_uuid: null });
         expect(await rows(chartViewsSql())).toEqual(before);
         expect(before).toHaveLength(2);
+    });
+
+    describe('raw CSV rows', () => {
+        it('rejects SQL syntax in the project binding', async () => {
+            await expect(
+                model.getViewsRawData(`${projectUuid}' OR true --`),
+            ).rejects.toMatchObject({ code: '22P02' });
+        });
+
+        it('preserves anonymous dashboard views and deduplicates repeated views within one second', async () => {
+            await table('analytics_dashboard_views').insert([
+                {
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: null,
+                    timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+                },
+                ...['2.3', '2.8'].map((seconds) => ({
+                    dashboard_uuid: dashboardUuid,
+                    user_uuid: dashboardViewer,
+                    timestamp: database.raw(
+                        "CURRENT_DATE - interval '1 day' + ? * interval '1 second'",
+                        [seconds],
+                    ),
+                })),
+            ]);
+            const result = await model.getViewsRawData(projectUuid);
+            expect(result).toHaveLength(5);
+            expect(result).toContainEqual(
+                expect.objectContaining({
+                    type: 'dashboard',
+                    uuid: dashboardUuid,
+                    user_uuid: null,
+                    user_first_name: null,
+                    user_last_name: null,
+                }),
+            );
+        });
+
+        it('resolves legacy dashboards through their space when their project UUID is null', async () => {
+            await table('dashboards')
+                .where('dashboard_uuid', dashboardUuid)
+                .update({ project_uuid: null });
+            expect(await model.getViewsRawData(projectUuid)).toHaveLength(4);
+        });
+
+        it('rejects a dashboard owner whose space belongs to another project', async () => {
+            await table('dashboards')
+                .where('dashboard_uuid', otherDashboardUuid)
+                .update({ project_uuid: null });
+            await database<ChartRow>('saved_queries')
+                .where('saved_query_uuid', dashboardChart.saved_query_uuid)
+                .update({ dashboard_uuid: otherDashboardUuid });
+            const result = await model.getViewsRawData(projectUuid);
+            expect(result).toHaveLength(2);
+            expect(
+                result.some(
+                    ({ uuid }) => uuid === dashboardChart.saved_query_uuid,
+                ),
+            ).toBe(false);
+        });
+
+        it('includes space charts, dashboard-only charts, and the dashboard view with existing columns', async () => {
+            const result = await model.getViewsRawData(projectUuid);
+            expect(result).toHaveLength(4);
+            expect(
+                result.filter(
+                    ({ uuid }) => uuid === dashboardChart.saved_query_uuid,
+                ),
+            ).toHaveLength(2);
+            expect(result[0]).toMatchObject({
+                type: 'dashboard',
+                uuid: dashboardUuid,
+            });
+            expect(
+                result.every(({ space_name }) => space_name === 'Main space'),
+            ).toBe(true);
+            expect(Object.keys(result[0])).toEqual([
+                'type',
+                'timestamp',
+                'uuid',
+                'name',
+                'user_uuid',
+                'user_first_name',
+                'user_last_name',
+                'space_name',
+            ]);
+        });
+
+        it('preserves anonymous views and second-level deduplication', async () => {
+            await table('analytics_chart_views').insert([
+                {
+                    chart_uuid: dashboardChart.saved_query_uuid,
+                    user_uuid: null,
+                    timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+                },
+                {
+                    chart_uuid: dashboardChart.saved_query_uuid,
+                    user_uuid: dashboardViewer,
+                    timestamp: database.raw(
+                        "CURRENT_DATE - interval '1 day' + interval '20.1 seconds'",
+                    ),
+                },
+                {
+                    chart_uuid: dashboardChart.saved_query_uuid,
+                    user_uuid: dashboardViewer,
+                    timestamp: database.raw(
+                        "CURRENT_DATE - interval '1 day' + interval '20.9 seconds'",
+                    ),
+                },
+            ]);
+            const result = await model.getViewsRawData(projectUuid);
+            expect(result).toHaveLength(6);
+            expect(result).toContainEqual(
+                expect.objectContaining({
+                    uuid: dashboardChart.saved_query_uuid,
+                    user_uuid: null,
+                    user_first_name: null,
+                    user_last_name: null,
+                }),
+            );
+            expect(
+                result.filter(({ timestamp }) =>
+                    timestamp.endsWith('T00:00:20Z'),
+                ),
+            ).toHaveLength(1);
+        });
+
+        it('excludes other projects and ownerless charts', async () => {
+            const excluded: ChartRow[] = [
+                {
+                    ...spaceChart,
+                    saved_query_id: 3,
+                    saved_query_uuid: randomUUID(),
+                    project_uuid: otherProjectUuid,
+                    space_id: 2,
+                },
+                {
+                    ...dashboardChart,
+                    saved_query_id: 4,
+                    saved_query_uuid: randomUUID(),
+                    project_uuid: otherProjectUuid,
+                    dashboard_uuid: otherDashboardUuid,
+                },
+                {
+                    ...spaceChart,
+                    saved_query_id: 5,
+                    saved_query_uuid: randomUUID(),
+                    space_id: null,
+                },
+            ];
+            await database<ChartRow>('saved_queries').insert(excluded);
+            await table('analytics_chart_views').insert(
+                excluded.map((chart) => ({
+                    chart_uuid: chart.saved_query_uuid,
+                    user_uuid: spaceViewer,
+                    timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+                })),
+            );
+            await table('analytics_dashboard_views').insert({
+                dashboard_uuid: otherDashboardUuid,
+                user_uuid: dashboardViewer,
+                timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+            });
+            const result = await model.getViewsRawData(projectUuid);
+            expect(result).toHaveLength(4);
+            expect(
+                result.every(({ space_name }) => space_name === 'Main space'),
+            ).toBe(true);
+        });
+
+        it.each(['chart', 'dashboard', 'space'] as const)(
+            'excludes chart rows when the owning %s is deleted',
+            async (owner) => {
+                if (owner === 'chart') {
+                    await database<ChartRow>('saved_queries')
+                        .where(
+                            'saved_query_uuid',
+                            dashboardChart.saved_query_uuid,
+                        )
+                        .update({ deleted_at: new Date() });
+                } else if (owner === 'dashboard') {
+                    await table('dashboards')
+                        .where('dashboard_uuid', dashboardUuid)
+                        .update({ deleted_at: new Date() });
+                } else {
+                    await table('spaces')
+                        .where('space_id', 1)
+                        .update({ deleted_at: new Date() });
+                }
+                const result = await model.getViewsRawData(projectUuid);
+                const charts = result.filter(({ type }) => type === 'chart');
+                expect(charts.map(({ uuid }) => uuid)).toEqual(
+                    owner === 'space' ? [] : [spaceChart.saved_query_uuid],
+                );
+                const expectedRowCounts = { space: 0, dashboard: 1, chart: 2 };
+                expect(result).toHaveLength(expectedRowCounts[owner]);
+            },
+        );
+
+        it('returns the newest 100,000 distinct events across charts and dashboards', async () => {
+            await database.raw(
+                'TRUNCATE analytics_chart_views, analytics_dashboard_views',
+            );
+            await database.raw(
+                `
+                INSERT INTO analytics_chart_views (chart_uuid, user_uuid, timestamp)
+                SELECT ?::uuid, ?::uuid, CURRENT_DATE - i * interval '1 second'
+                FROM generate_series(1, 100005) i
+            `,
+                [dashboardChart.saved_query_uuid, dashboardViewer],
+            );
+            await database.raw(
+                `
+                INSERT INTO analytics_chart_views (chart_uuid, user_uuid, timestamp)
+                SELECT ?::uuid, ?::uuid, CURRENT_DATE - interval '0.9 seconds'
+                FROM generate_series(1, 100)
+            `,
+                [dashboardChart.saved_query_uuid, dashboardViewer],
+            );
+            await table('analytics_dashboard_views').insert({
+                dashboard_uuid: dashboardUuid,
+                user_uuid: dashboardViewer,
+                timestamp: database.raw("CURRENT_DATE + interval '1 second'"),
+            });
+            const result = await model.getViewsRawData(projectUuid);
+            const [{ cutoff }] = await rows<{ cutoff: string }>(`
+                SELECT to_char(CURRENT_DATE - 99999 * interval '1 second', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS cutoff
+            `);
+            expect(result).toHaveLength(100000);
+            expect(result[0]).toMatchObject({
+                type: 'dashboard',
+                uuid: dashboardUuid,
+            });
+            expect(result[result.length - 1].timestamp).toBe(cutoff);
+            expect(
+                new Set(
+                    result.map(
+                        ({ type, timestamp, uuid, user_uuid }) =>
+                            `${type}/${timestamp}/${uuid}/${user_uuid}`,
+                    ),
+                ).size,
+            ).toBe(100000);
+            const deletedDashboardUuid = randomUUID();
+            await table('dashboards').insert({
+                dashboard_uuid: deletedDashboardUuid,
+                project_uuid: projectUuid,
+                space_id: 1,
+                name: 'Deleted dashboard',
+                slug: 'deleted-dashboard',
+                deleted_at: new Date(),
+            });
+            await table('analytics_dashboard_views').insert({
+                dashboard_uuid: deletedDashboardUuid,
+                user_uuid: dashboardViewer,
+                timestamp: database.raw("CURRENT_DATE + interval '2 seconds'"),
+            });
+            const afterDeletion = await model.getViewsRawData(projectUuid);
+            expect(afterDeletion).toHaveLength(100000);
+            expect(afterDeletion[0].uuid).toBe(dashboardUuid);
+            expect(afterDeletion[afterDeletion.length - 1].timestamp).toBe(
+                cutoff,
+            );
+        });
     });
 });
