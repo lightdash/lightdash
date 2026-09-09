@@ -1,3 +1,10 @@
+# [2.178.0](https://github.com/lightdash/lightdash/compare/2.177.0...2.178.0) (2026-09-09)
+
+
+### Features
+
+* **roadmap:** build project-first board and table views ([#28813](https://github.com/lightdash/lightdash/issues/28813)) ([9f2a12b](https://github.com/lightdash/lightdash/commit/9f2a12b2a32cb0b0ece114dc9224c5ac0a429c48))
+
 # [2.177.0](https://github.com/lightdash/lightdash/compare/2.176.1...2.177.0) (2026-09-09)
 
 

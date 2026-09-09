@@ -32671,6 +32671,18 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                lastIssueUpdatedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                issueStatusCounts: {
+                    ref: 'Record_RoadmapItemStatus.number_',
+                    required: true,
+                },
                 priority: { ref: 'RoadmapItemPriority', required: true },
                 progress: { dataType: 'double', required: true },
                 stage: {
@@ -32684,14 +32696,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                icon: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
+                description: { dataType: 'string', required: true },
                 title: { dataType: 'string', required: true },
                 projectId: { dataType: 'string', required: true },
             },
