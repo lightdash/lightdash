@@ -176,6 +176,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 dbtConnection.project_sub_path,
             ),
             branch: dbtConnection.branch,
+            semanticLayer: dbtConnection.semanticLayer,
         };
     }
 
@@ -430,11 +431,14 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 'Could not disable Bitbucket sandbox Git hooks',
             );
         }
-        const paths = await resolveDbtProjectPaths(
-            args.sandbox,
-            connection.projectSubPath,
-            this.logger,
-        );
+        const paths =
+            connection.semanticLayer === 'lightdash'
+                ? [connection.projectSubPath]
+                : await resolveDbtProjectPaths(
+                      args.sandbox,
+                      connection.projectSubPath,
+                      this.logger,
+                  );
         await stageChanges(args.sandbox, paths, this.logger);
         await assertStagedPathsAllowed(args.sandbox);
         const diffStat = await collectDiffStat(args.sandbox);

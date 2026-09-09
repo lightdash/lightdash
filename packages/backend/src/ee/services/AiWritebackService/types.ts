@@ -56,6 +56,7 @@ export type GitlabConnection = {
  * service can read the shared fields while each provider narrows for its own.
  */
 export type BitbucketConnection = {
+    semanticLayer?: 'dbt' | 'lightdash';
     provider: PullRequestProvider.BITBUCKET;
     owner: string;
     repo: string;

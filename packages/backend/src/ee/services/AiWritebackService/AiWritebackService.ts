@@ -2449,7 +2449,9 @@ export class AiWritebackService extends BaseService {
 
             if (
                 hasChanges &&
-                turn.gitConnection.provider === PullRequestProvider.GITHUB &&
+                (turn.gitConnection.provider === PullRequestProvider.GITHUB ||
+                    turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET) &&
                 turn.gitConnection.semanticLayer === 'lightdash'
             ) {
                 recordStep({
@@ -4300,8 +4302,10 @@ export class AiWritebackService extends BaseService {
                     turn.gitConnection.projectSubPath,
                 );
                 if (
-                    turn.gitConnection.provider ===
-                        PullRequestProvider.GITHUB &&
+                    (turn.gitConnection.provider ===
+                        PullRequestProvider.GITHUB ||
+                        turn.gitConnection.provider ===
+                            PullRequestProvider.BITBUCKET) &&
                     turn.gitConnection.semanticLayer === 'lightdash'
                 ) {
                     return {
@@ -4320,7 +4324,16 @@ export class AiWritebackService extends BaseService {
                         ),
                         repoContext,
                         allowedTools: NATIVE_ALLOWED_TOOLS,
-                        disallowedTools: GENERAL_DISALLOWED_TOOLS,
+                        disallowedTools:
+                            turn.gitConnection.provider ===
+                            PullRequestProvider.BITBUCKET
+                                ? [
+                                      GENERAL_DISALLOWED_TOOLS,
+                                      ...['Edit', 'Write'].map(
+                                          (tool) => `${tool}(/${CWD}/.git/**)`,
+                                      ),
+                                  ].join(',')
+                                : GENERAL_DISALLOWED_TOOLS,
                         addDirs: ['/tmp', SKILLS_DIR, CLAUDE_SKILLS_DIR],
                         model: CLAUDE_MODEL,
                     };
@@ -4361,7 +4374,9 @@ export class AiWritebackService extends BaseService {
                 };
             },
             beforeAgentRun: (sandbox, turn) =>
-                turn.gitConnection.provider === PullRequestProvider.GITHUB &&
+                (turn.gitConnection.provider === PullRequestProvider.GITHUB ||
+                    turn.gitConnection.provider ===
+                        PullRequestProvider.BITBUCKET) &&
                 turn.gitConnection.semanticLayer === 'lightdash'
                     ? this.prepareWarehouseSkills(sandbox, turn)
                     : this.prepareDbtAgentRun(sandbox, turn),
