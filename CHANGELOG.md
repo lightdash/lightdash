@@ -1,3 +1,10 @@
+## [2.176.1](https://github.com/lightdash/lightdash/compare/2.176.0...2.176.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **dashboard:** in-dashboard chart editor no longer opens dirty ([#28943](https://github.com/lightdash/lightdash/issues/28943)) ([e9fc223](https://github.com/lightdash/lightdash/commit/e9fc2230064172958a18a9527b09df8cc6fd3780))
+
 # [2.176.0](https://github.com/lightdash/lightdash/compare/2.175.0...2.176.0) (2026-09-09)
 
 
