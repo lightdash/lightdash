@@ -69,6 +69,7 @@ export * from './authorization/types';
 export * from './compiler/compilationReport';
 export * from './compiler/exploreCompiler';
 export * from './compiler/filtersCompiler';
+export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/referenceLookup';
