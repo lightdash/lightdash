@@ -21,7 +21,11 @@ type ChartRow = {
 };
 
 type FixtureTables = {
-    projects: { project_id: number; project_uuid: string };
+    projects: {
+        project_id: number;
+        project_uuid: string;
+        organization_id: number;
+    };
     spaces: {
         space_id: number;
         project_id: number;
@@ -117,7 +121,7 @@ describe('AnalyticsModel (PostgreSQL)', () => {
         });
         await database.schema.createSchema(schema);
         await database.raw(`
-            CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL);
+            CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL, organization_id integer NOT NULL);
             CREATE TABLE spaces (space_id integer PRIMARY KEY, project_id integer REFERENCES projects, name text, deleted_at timestamp);
             CREATE TABLE dashboards (dashboard_uuid uuid PRIMARY KEY, project_uuid uuid, space_id integer REFERENCES spaces, name text, slug text, deleted_at timestamp);
             CREATE TABLE users (user_uuid uuid PRIMARY KEY, first_name text, last_name text, created_at timestamp);
@@ -130,8 +134,12 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             CREATE TABLE analytics_chart_views (chart_uuid uuid REFERENCES saved_queries(saved_query_uuid), user_uuid uuid REFERENCES users, timestamp timestamp NOT NULL, context jsonb);
         `);
         await table('projects').insert([
-            { project_id: 1, project_uuid: projectUuid },
-            { project_id: 2, project_uuid: otherProjectUuid },
+            { project_id: 1, project_uuid: projectUuid, organization_id: 1 },
+            {
+                project_id: 2,
+                project_uuid: otherProjectUuid,
+                organization_id: 1,
+            },
         ]);
         await table('spaces').insert([
             { space_id: 1, project_id: 1, name: 'Main space' },
@@ -319,6 +327,83 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             ].sort(),
         );
     });
+
+    it.each([
+        ['the same organization', 1],
+        ['another organization', 2],
+    ] as const)(
+        'isolates shared-user activity in another project in %s',
+        async (_description, organizationId) => {
+            await table('projects')
+                .where('project_uuid', otherProjectUuid)
+                .update({ organization_id: organizationId });
+            const queries = [
+                numberWeeklyQueryingUsersSql(userUuids, projectUuid),
+                tableMostQueriesSql(userUuids, projectUuid),
+                tableMostCreatedChartsSql(userUuids, projectUuid),
+                chartWeeklyQueryingUsersSql(userUuids, projectUuid),
+                chartWeeklyAverageQueriesSql(userUuids, projectUuid),
+                chartViewsSql(projectUuid),
+            ];
+            const readActivity = () =>
+                Promise.all(
+                    queries.map(async (sql) =>
+                        (await rows(sql))
+                            .map((row) => JSON.stringify(row))
+                            .sort(),
+                    ),
+                );
+            const before = await readActivity();
+            const otherCharts: ChartRow[] = [
+                {
+                    ...spaceChart,
+                    saved_query_id: 3,
+                    saved_query_uuid: randomUUID(),
+                    project_uuid: otherProjectUuid,
+                    space_id: 2,
+                },
+                {
+                    ...dashboardChart,
+                    saved_query_id: 4,
+                    saved_query_uuid: randomUUID(),
+                    project_uuid: otherProjectUuid,
+                    dashboard_uuid: otherDashboardUuid,
+                },
+            ];
+            await database<ChartRow>('saved_queries').insert(otherCharts);
+            await table('analytics_chart_views').insert(
+                otherCharts.map((chart) => ({
+                    chart_uuid: chart.saved_query_uuid,
+                    user_uuid: spaceViewer,
+                    timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
+                })),
+            );
+            await table('saved_queries_versions').insert(
+                otherCharts.map((chart) => ({
+                    saved_query_id: chart.saved_query_id,
+                    updated_by_user_uuid: spaceViewer,
+                    created_at: database.raw("CURRENT_DATE - interval '1 day'"),
+                })),
+            );
+
+            expect(await readActivity()).toEqual(before);
+            const otherActivity = await rows<{
+                user_uuid: string;
+                count: string;
+            }>(tableMostQueriesSql(userUuids, otherProjectUuid));
+            expect(otherActivity).toEqual([
+                expect.objectContaining({ user_uuid: spaceViewer, count: '2' }),
+            ]);
+            const otherViews = await rows<{ uuid: string }>(
+                chartViewsSql(otherProjectUuid),
+            );
+            expect(otherViews.map(({ uuid }) => uuid).sort()).toEqual(
+                otherCharts
+                    .map(({ saved_query_uuid }) => saved_query_uuid)
+                    .sort(),
+            );
+        },
+    );
 
     it('includes anonymous dashboard views only in chart-level totals', async () => {
         await table('analytics_chart_views').insert({
