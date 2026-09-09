@@ -72,6 +72,7 @@ import { getSchedulerDeliveryType } from '../../types';
 import { isDeliveryListScheduler } from './deliveryListFilter';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
+import { SchedulerDetailConditions } from './SchedulerDetailConditions';
 
 dayjs.extend(relativeTime);
 
@@ -255,6 +256,8 @@ const SchedulerDetail: FC<{
                 ? getNextRuns(
                       scheduler.cron,
                       scheduler.timezone || project?.schedulerTimezone,
+                      3,
+                      'local',
                   )
                 : [],
         [
@@ -316,6 +319,8 @@ const SchedulerDetail: FC<{
                 </Stack>
 
                 <Stack gap="lg" mt="sm">
+                    <SchedulerDetailConditions scheduler={scheduler} />
+
                     <Group gap="sm" wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconClock}
@@ -357,6 +362,12 @@ const SchedulerDetail: FC<{
                                         </Group>
                                     ))}
                                 </Stack>
+                                {nextRuns[0]?.timeZoneName && (
+                                    <Text size="xs" c="dimmed">
+                                        Times shown in{' '}
+                                        {nextRuns[0].timeZoneName}
+                                    </Text>
+                                )}
                             </Stack>
                         </Group>
                     )}
