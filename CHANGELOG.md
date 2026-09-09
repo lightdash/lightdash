@@ -1,3 +1,10 @@
+## [2.184.4](https://github.com/lightdash/lightdash/compare/2.184.3...2.184.4) (2026-09-09)
+
+
+### Bug Fixes
+
+* **charts:** apply the disabled animation setting to the treemap series ([#28964](https://github.com/lightdash/lightdash/issues/28964)) ([615925a](https://github.com/lightdash/lightdash/commit/615925a329486f6da43f0cf79137e9b5c5cf9d46))
+
 ## [2.184.3](https://github.com/lightdash/lightdash/compare/2.184.2...2.184.3) (2026-09-09)
 
 
