@@ -325,18 +325,20 @@ function TicketCard({
             onClick={onClick}
             aria-label={`Open ticket ${ticket.title}`}
         >
-            <Group justify="space-between" gap="xs">
+            <Group gap="xs" wrap="nowrap" align="flex-start">
                 <MantineIcon
                     icon={IconTicket}
                     size="sm"
                     className={classes.ticketIcon}
                 />
+                <Text className={classes.ticketTitle}>{ticket.title}</Text>
+            </Group>
+            <Group justify="space-between" gap="xs">
+                <ItemBadges type="ticket" priority={ticket.priority} />
                 <Text className={classes.ticketId} fz="xs" c="dimmed">
                     {ticket.ticketId}
                 </Text>
             </Group>
-            <Text className={classes.ticketTitle}>{ticket.title}</Text>
-            <ItemBadges type="ticket" priority={ticket.priority} />
         </UnstyledButton>
     );
 }
