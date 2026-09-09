@@ -121,41 +121,54 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
         expect(projectService.createPreview).not.toHaveBeenCalled();
     });
 
-    it('creates a preview and posts the preview URL for authorized users', async () => {
-        const githubClient = makeGithubClient();
-        const projectService = {
-            createPreview: vi.fn().mockResolvedValue({
-                projectUuid: 'preview-project-1',
+    it.each(['dbt', 'lightdash'])(
+        'creates a %s preview and posts its URL for authorized users',
+        async (semanticLayer) => {
+            const githubClient = makeGithubClient();
+            const projectService = {
+                createPreview: vi.fn().mockResolvedValue({
+                    projectUuid: 'preview-project-1',
+                    compileJobUuid: 'compile-job-1',
+                }),
+            };
+            const service = buildService({
+                githubClient,
+                projectService: projectService as AnyType,
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        ...githubProject(),
+                        dbtConnection: {
+                            ...githubProject().dbtConnection,
+                            semanticLayer,
+                        },
+                    }),
+                } as AnyType,
+            });
+
+            const result = await service.createPreviewForPullRequest({
+                user: userWithSourceCodeAccess(true),
+                projectUuid: PROJECT,
+                prUrl: PR_URL,
+            });
+
+            expect(result).toEqual({
+                previewProjectUuid: 'preview-project-1',
+                previewUrl:
+                    'https://lightdash.example.com/projects/preview-project-1/home',
                 compileJobUuid: 'compile-job-1',
-            }),
-        };
-        const service = buildService({
-            githubClient,
-            projectService: projectService as AnyType,
-        });
-
-        const result = await service.createPreviewForPullRequest({
-            user: userWithSourceCodeAccess(true),
-            projectUuid: PROJECT,
-            prUrl: PR_URL,
-        });
-
-        expect(result).toEqual({
-            previewProjectUuid: 'preview-project-1',
-            previewUrl:
-                'https://lightdash.example.com/projects/preview-project-1/home',
-            compileJobUuid: 'compile-job-1',
-        });
-        expect(projectService.createPreview).toHaveBeenCalledWith(
-            expect.anything(),
-            PROJECT,
-            expect.objectContaining({
-                copyContent: true,
-                validateAfterCompile: true,
-            }),
-            expect.anything(),
-        );
-    });
+            });
+            expect(projectService.createPreview).toHaveBeenCalledWith(
+                expect.anything(),
+                PROJECT,
+                expect.objectContaining({
+                    copyContent: true,
+                    validateAfterCompile: true,
+                    dbtConnectionOverrides: { branch: 'feature/writeback' },
+                }),
+                expect.anything(),
+            );
+        },
+    );
 
     it('returns null when the PR URL repo does not match the project repo', async () => {
         const githubClient = makeGithubClient();

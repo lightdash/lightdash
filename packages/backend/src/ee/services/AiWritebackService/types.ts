@@ -39,6 +39,7 @@ export type GithubConnection = {
     projectSubPath: string;
     /** The project's configured branch, or '' to fall back to the repo default. */
     branch: string;
+    semanticLayer?: 'dbt' | 'lightdash';
 };
 
 export type GitlabConnection = {

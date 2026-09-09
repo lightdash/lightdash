@@ -1105,7 +1105,7 @@ export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     typeof toolEditDbtProjectOutputSchema
 > = defineTool({
     name: 'editDbtProject',
-    title: 'Edit dbt project',
+    title: 'Edit semantic layer',
     description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditDbtProjectArgsSchema,
