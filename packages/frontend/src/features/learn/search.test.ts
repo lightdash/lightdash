@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildLearnCatalogue } from './catalogue';
+import {
+    buildLearnCatalogue,
+    FOUNDATIONS,
+    type LearnModule,
+} from './catalogue';
 import { createLearnSearch } from './search';
 
 const catalogue = buildLearnCatalogue();
@@ -44,7 +48,22 @@ describe('Learn search', () => {
     });
 
     it('still searches modules without a walkthrough', () => {
-        const comingSoon = catalogue.find((module) => !module.available)!;
-        expect(search(comingSoon.title)).toContainEqual(comingSoon);
+        const comingSoon: LearnModule = {
+            scope: 'view:FutureModule',
+            title: 'Explore a future feature',
+            group: FOUNDATIONS,
+            gate: null,
+            minRole: null,
+            available: false,
+            blurb: '',
+            stepCount: 0,
+        };
+        const searchWithComingSoon = createLearnSearch([
+            ...catalogue,
+            comingSoon,
+        ]);
+        expect(searchWithComingSoon(comingSoon.title)).toContainEqual(
+            comingSoon,
+        );
     });
 });

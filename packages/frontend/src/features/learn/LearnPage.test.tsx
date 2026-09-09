@@ -128,7 +128,7 @@ describe('LearnPage analytics', () => {
             name: 'Search the library',
         });
         await userEvent.type(input, 'change from day to month');
-        expect(cards()).toContain('view:Dashboard');
+        expect(cards()[0]).toBe('view:Dashboard');
         expect(cards()).not.toContain('manage:Space');
         await userEvent.clear(input);
         expect(cards()).toEqual(initial);

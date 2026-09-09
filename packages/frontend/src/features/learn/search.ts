@@ -46,6 +46,7 @@ export const createLearnSearch = (
         }),
         {
             keys: SEARCH_KEYS,
+            includeScore: true,
             ignoreLocation: true,
             threshold: 0.2,
         },
@@ -63,7 +64,12 @@ export const createLearnSearch = (
                     $or: SEARCH_KEYS.map(({ name }) => ({ [name]: word })),
                 })),
             })
-            .map(({ item }) => item.module)
-            .sort((a, b) => Number(b.available) - Number(a.available));
+            .sort(
+                (a, b) =>
+                    Number(b.item.module.available) -
+                        Number(a.item.module.available) ||
+                    (a.score ?? 1) - (b.score ?? 1),
+            )
+            .map(({ item }) => item.module);
     };
 };

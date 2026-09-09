@@ -116,10 +116,10 @@ engineering sense: no branch, nothing to promote.
   walkthrough step's title and body with the existing Fuse.js dependency. It ignores conversational filler,
   requires each remaining query word to match, and tolerates small typos. Available walkthroughs rank first;
   title matches rank above step text within each group. The index is rebuilt when the visible catalogue changes,
-  not on each keystroke; clearing
-  search restores the teaching order and keeps the learner's filters. Search runs entirely in the browser,
-  using bundled content, with no API key, model download, outbound request, or query telemetry. It is lexical
-  search: paraphrases with no matching words still need better walkthrough wording or a future synonym layer.
+  not on each keystroke; clearing search restores the teaching order and keeps the learner's filters.
+  Search runs entirely in the browser, using bundled content, with no API key, model download, outbound request,
+  or query telemetry. It is lexical search: paraphrases with no matching words still need better walkthrough
+  wording or a future synonym layer.
 
 ## Boundaries and invariants
 
