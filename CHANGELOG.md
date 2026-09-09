@@ -1,3 +1,10 @@
+## [2.184.2](https://github.com/lightdash/lightdash/compare/2.184.1...2.184.2) (2026-09-09)
+
+
+### Bug Fixes
+
+* wait for treemap rendering before screenshot readiness ([#28960](https://github.com/lightdash/lightdash/issues/28960)) ([91945a0](https://github.com/lightdash/lightdash/commit/91945a0ef5ccd5176768da787e3e2385cc3a1bac))
+
 ## [2.184.1](https://github.com/lightdash/lightdash/compare/2.184.0...2.184.1) (2026-09-09)
 
 
