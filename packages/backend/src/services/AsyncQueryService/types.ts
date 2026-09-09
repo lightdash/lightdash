@@ -118,7 +118,11 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    // ANDed onto the chart's filters: callers (including embeds) can only narrow.
     filterOverrides?: Filters;
+    // Scheduled-delivery overrides: replace the chart's saved rules by id,
+    // AND the rest. Server-side only, never accepted from the API.
+    schedulerFilters?: Filters;
     // Silent-drop semantics for fields outside the chart's explore — unlike
     // filterOverrides, which fails the run on unknown fields.
     dashboardFilters?: DashboardFilters;

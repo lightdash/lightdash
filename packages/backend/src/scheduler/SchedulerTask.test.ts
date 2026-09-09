@@ -26,6 +26,7 @@ import {
     type CreateSchedulerAndTargets,
     type DeliveryCaptureManifest,
     type EmailNotificationPayload,
+    type Filters,
     type MetricQuery,
     type NotificationPayloadBase,
     type ReadyQueryResultsPage,
@@ -1161,14 +1162,22 @@ describe('uploadGsheets — pivot routing', () => {
         source,
         hasPivotConfig,
         pivotDetails,
+        schedulerFilters,
     }: {
         source: 'saved-chart' | 'dashboard';
         hasPivotConfig: boolean;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        schedulerFilters?: Filters;
     }) => {
         const appendToSheet = vi.fn().mockResolvedValue(undefined);
         const appendCsvToSheet = vi.fn().mockResolvedValue(undefined);
         const logSchedulerJob = vi.fn().mockResolvedValue(undefined);
+        const executeSavedChartQueryAndGetResults = vi.fn().mockResolvedValue({
+            rows: pivotDetails ? pivotedRows : flatRows,
+            fields: itemMap,
+            pivotDetails,
+            displayTimezone: null,
+        });
         const chart = makeChart(hasPivotConfig);
         const dashboardUuid = source === 'dashboard' ? 'dashboard-1' : null;
         const scheduler = {
@@ -1183,7 +1192,7 @@ describe('uploadGsheets — pivot routing', () => {
             timezone: 'UTC',
             options: { gdriveId: 'sheet-1' },
             thresholds: undefined,
-            filters: undefined,
+            filters: schedulerFilters,
         };
         const task = makeTaskWithDeps({
             googleDriveClient: asDep<'googleDriveClient'>({
@@ -1214,12 +1223,7 @@ describe('uploadGsheets — pivot routing', () => {
                 getRefreshToken: vi.fn().mockResolvedValue('refresh-token'),
             }),
             asyncQueryService: asDep<'asyncQueryService'>({
-                executeSavedChartQueryAndGetResults: vi.fn().mockResolvedValue({
-                    rows: pivotDetails ? pivotedRows : flatRows,
-                    fields: itemMap,
-                    pivotDetails,
-                    displayTimezone: null,
-                }),
+                executeSavedChartQueryAndGetResults,
                 executeDashboardChartQueryAndGetResults: vi
                     .fn()
                     .mockResolvedValue({
@@ -1281,7 +1285,13 @@ describe('uploadGsheets — pivot routing', () => {
                 projectUuid: 'project-1',
             });
 
-        return { appendToSheet, appendCsvToSheet, logSchedulerJob, run };
+        return {
+            appendToSheet,
+            appendCsvToSheet,
+            logSchedulerJob,
+            executeSavedChartQueryAndGetResults,
+            run,
+        };
     };
 
     it.each(['saved-chart', 'dashboard'] as const)(
@@ -1329,6 +1339,35 @@ describe('uploadGsheets — pivot routing', () => {
         expect(result.appendCsvToSheet).not.toHaveBeenCalled();
         expect(result.logSchedulerJob).toHaveBeenLastCalledWith(
             expect.objectContaining({ status: 'completed' }),
+        );
+    });
+
+    it('runs a saved-chart sync with the delivery filter overrides', async () => {
+        const schedulerFilters: Filters = {
+            dimensions: {
+                id: 'delivery',
+                and: [
+                    {
+                        id: 'status-rule',
+                        target: { fieldId: 'orders_status' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['shipped'],
+                    },
+                ],
+            },
+        };
+        const result = setup({
+            source: 'saved-chart',
+            hasPivotConfig: false,
+            pivotDetails: null,
+            schedulerFilters,
+        });
+
+        await result.run();
+
+        expect(result.executeSavedChartQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({ chartUuid: 'chart-1', schedulerFilters }),
+            expect.anything(),
         );
     });
 });

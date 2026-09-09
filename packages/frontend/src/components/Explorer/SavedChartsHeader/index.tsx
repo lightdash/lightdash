@@ -1314,6 +1314,7 @@ const SavedChartsHeader: FC = () => {
                 <ChartSchedulersModal
                     chartUuid={savedChart.uuid}
                     name={savedChart.name}
+                    itemsMap={itemsMap}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={scheduledDeliveriesModalHandlers.close}
                     initialSchedulerUuid={initialSchedulerUuid}
