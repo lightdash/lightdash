@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.168.3",
-  "previousVersion": "2.168.2",
-  "releaseDate": "2026-09-09T09:55:24.049Z",
+  "version": "2.169.0",
+  "previousVersion": "2.168.3",
+  "releaseDate": "2026-09-09T10:19:52.142Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -34,8 +34,14 @@
   },
   "config": {
     "checked": true,
-    "breaking": false,
-    "changes": []
+    "breaking": true,
+    "changes": [
+      {
+        "type": "removed",
+        "name": "LIGHTDASH_LEARN_ENABLED",
+        "previousDefault": null
+      }
+    ]
   },
   "upgrade": {
     "minPreviousVersion": "1.111.0",

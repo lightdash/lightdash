@@ -1,3 +1,10 @@
+# [2.169.0](https://github.com/lightdash/lightdash/compare/2.168.3...2.169.0) (2026-09-09)
+
+
+### Features
+
+* **learn:** gate Learn with an organization feature flag ([#28899](https://github.com/lightdash/lightdash/issues/28899)) ([fd0b82d](https://github.com/lightdash/lightdash/commit/fd0b82d95c5790dfa7e44e410eb475e84356e525))
+
 ## [2.168.3](https://github.com/lightdash/lightdash/compare/2.168.2...2.168.3) (2026-09-09)
 
 
