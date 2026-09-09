@@ -25,9 +25,7 @@ describe('Settings - Profile', () => {
     });
 
     it('should update user names', () => {
-        cy.visit('/');
-        cy.findByTestId('user-avatar').click();
-        cy.findByRole('menuitem', { name: 'User settings' }).click();
+        cy.visit('/generalSettings/profile');
 
         cy.findByPlaceholderText('Email')
             .should('not.be.disabled')
