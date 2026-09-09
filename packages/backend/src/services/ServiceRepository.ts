@@ -77,6 +77,7 @@ import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
 import type { ReadinessService } from './ReadinessService/ReadinessService';
+import { RecentContentService } from './RecentContentService/RecentContentService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -159,6 +160,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    recentContentService: RecentContentService;
     contentVerificationService: ContentVerificationService;
     coderService: CoderService;
     contentAsCodeWritebackService: ContentAsCodeWritebackService;
@@ -1556,6 +1558,17 @@ export class ServiceRepository
                     schedulerModel: this.models.getSchedulerModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                }),
+        );
+    }
+
+    public getRecentContentService(): RecentContentService {
+        return this.getService(
+            'recentContentService',
+            () =>
+                new RecentContentService({
+                    recentContentModel: this.models.getRecentContentModel(),
+                    contentService: this.getContentService(),
                 }),
         );
     }

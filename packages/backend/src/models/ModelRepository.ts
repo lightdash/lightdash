@@ -59,6 +59,7 @@ import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
+import { RecentContentModel } from './RecentContentModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
@@ -94,6 +95,7 @@ import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
+    recentContentModel: RecentContentModel;
     appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
@@ -300,6 +302,13 @@ export class ModelRepository
      * Holds memoized instances of models after their initial instantiation:
      */
     protected modelInstances: Partial<ModelManifest> = {};
+
+    public getRecentContentModel(): RecentContentModel {
+        return this.getModel(
+            'recentContentModel',
+            () => new RecentContentModel(this.database),
+        );
+    }
 
     public getAnalyticsModel(): AnalyticsModel {
         return this.getModel(

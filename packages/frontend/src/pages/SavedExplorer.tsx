@@ -20,6 +20,7 @@ import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
@@ -76,6 +77,11 @@ const SavedExplorer = () => {
         projectUuid,
         includeUnpublishedDraft: true,
     });
+    useRecordContentView(
+        projectUuid,
+        'chart',
+        !isInitialLoading && !error ? data?.uuid : undefined,
+    );
     const [isChangeExploreModalOpen, changeExploreModalHandlers] =
         useDisclosure(false);
 
