@@ -697,7 +697,7 @@ export class ManagedAgentModel {
     > {
         const membership = await this.database.raw<{
             rows: Array<{ user_uuid: string; role: string }>;
-        }>(usersInProjectSql(projectUuid, organizationUuid));
+        }>(usersInProjectSql(), { projectUuid, organizationUuid });
         const memberUuids = membership.rows.map((row) => row.user_uuid);
         if (memberUuids.length === 0) return [];
 

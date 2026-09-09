@@ -1,12 +1,17 @@
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { AnalyticsModel } from './AnalyticsModel';
 import {
     chartViewsSql,
     chartWeeklyAverageQueriesSql,
     chartWeeklyQueryingUsersSql,
+    dashboardViewsSql,
     numberWeeklyQueryingUsersSql,
     tableMostCreatedChartsSql,
     tableMostQueriesSql,
+    tableNoQueriesSql,
+    userMostViewedDashboardSql,
+    usersInProjectSql,
 } from './AnalyticsModelSql';
 
 type ChartRow = {
@@ -21,6 +26,7 @@ type ChartRow = {
 };
 
 type FixtureTables = {
+    emails: { user_id: number; is_primary: boolean };
     projects: {
         project_id: number;
         project_uuid: string;
@@ -52,6 +58,11 @@ type FixtureTables = {
         timestamp: Date;
         context: { source: 'dashboard'; dashboardUuid: string } | null;
     };
+    analytics_dashboard_views: {
+        dashboard_uuid: string;
+        user_uuid: string | null;
+        timestamp: Date;
+    };
     saved_queries_versions: {
         saved_query_id: number;
         updated_by_user_uuid: string;
@@ -61,8 +72,10 @@ type FixtureTables = {
 
 describe('AnalyticsModel (PostgreSQL)', () => {
     let database: Knex;
+    let model: AnalyticsModel;
     const schema = `analytics_test_${randomUUID().replaceAll('-', '')}`;
     const projectUuid = randomUUID();
+    const organizationUuid = randomUUID();
     const otherProjectUuid = randomUUID();
     const dashboardUuid = randomUUID();
     const otherDashboardUuid = randomUUID();
@@ -90,14 +103,11 @@ describe('AnalyticsModel (PostgreSQL)', () => {
         slug: 'dashboard-chart',
     };
 
-    const rows = async <T>(sql: string): Promise<T[]> => {
-        // Scope the explicitly qualified chart-views query to the fixture schema.
-        const result = await database.raw<{ rows: T[] }>(
-            sql.replaceAll(
-                'public.analytics_chart_views',
-                `${schema}.analytics_chart_views`,
-            ),
-        );
+    const rows = async <T>(
+        sql: string,
+        bindings: Knex.ValueDict = { projectUuid, userUuids, organizationUuid },
+    ): Promise<T[]> => {
+        const result = await database.raw<{ rows: T[] }>(sql, bindings);
         return result.rows;
     };
 
@@ -119,12 +129,19 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             searchPath: [schema],
             pool: { min: 0, max: 2 },
         });
+        model = new AnalyticsModel({ database });
         await database.schema.createSchema(schema);
         await database.raw(`
             CREATE TABLE projects (project_id integer PRIMARY KEY, project_uuid uuid UNIQUE NOT NULL, organization_id integer NOT NULL);
             CREATE TABLE spaces (space_id integer PRIMARY KEY, project_id integer REFERENCES projects, name text, deleted_at timestamp);
             CREATE TABLE dashboards (dashboard_uuid uuid PRIMARY KEY, project_uuid uuid, space_id integer REFERENCES spaces, name text, slug text, deleted_at timestamp);
-            CREATE TABLE users (user_uuid uuid PRIMARY KEY, first_name text, last_name text, created_at timestamp);
+            CREATE TABLE users (user_uuid uuid PRIMARY KEY, user_id serial UNIQUE, first_name text, last_name text, created_at timestamp, is_internal boolean DEFAULT false);
+            CREATE TABLE emails (user_id integer REFERENCES users(user_id), is_primary boolean);
+            CREATE TABLE organizations (organization_id integer PRIMARY KEY, organization_uuid uuid UNIQUE);
+            CREATE TABLE organization_memberships (organization_id integer REFERENCES organizations, user_id integer REFERENCES users(user_id), role text, role_uuid uuid);
+            CREATE TABLE project_memberships (project_id integer REFERENCES projects, user_id integer REFERENCES users(user_id), role text);
+            CREATE TABLE group_memberships (group_uuid uuid, user_id integer REFERENCES users(user_id));
+            CREATE TABLE project_group_access (group_uuid uuid, project_uuid uuid REFERENCES projects(project_uuid), role text);
             CREATE TABLE saved_queries (
                 saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE NOT NULL,
                 project_uuid uuid NOT NULL REFERENCES projects(project_uuid), space_id integer REFERENCES spaces,
@@ -132,6 +149,7 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             );
             CREATE TABLE saved_queries_versions (saved_query_id integer REFERENCES saved_queries, updated_by_user_uuid uuid REFERENCES users, created_at timestamp);
             CREATE TABLE analytics_chart_views (chart_uuid uuid REFERENCES saved_queries(saved_query_uuid), user_uuid uuid REFERENCES users, timestamp timestamp NOT NULL, context jsonb);
+            CREATE TABLE analytics_dashboard_views (dashboard_uuid uuid REFERENCES dashboards, user_uuid uuid REFERENCES users, timestamp timestamp NOT NULL);
         `);
         await table('projects').insert([
             { project_id: 1, project_uuid: projectUuid, organization_id: 1 },
@@ -169,12 +187,27 @@ describe('AnalyticsModel (PostgreSQL)', () => {
                 created_at: database.raw("CURRENT_DATE - interval '100 days'"),
             })),
         );
+        await database.raw(
+            'INSERT INTO organizations VALUES (1, :organizationUuid)',
+            { organizationUuid },
+        );
+        await database.raw(`
+            INSERT INTO emails SELECT user_id, true FROM users;
+            INSERT INTO organization_memberships SELECT 1, user_id, 'admin', NULL FROM users;
+        `);
     });
 
     beforeEach(async () => {
         await database.raw(
-            'TRUNCATE analytics_chart_views, saved_queries_versions, saved_queries',
+            'TRUNCATE analytics_chart_views, analytics_dashboard_views, saved_queries_versions, saved_queries',
         );
+        await table('spaces').update({ deleted_at: null });
+        await table('dashboards').update({ deleted_at: null });
+        await table('emails').update({ is_primary: true });
+        await table('users').update({
+            first_name: 'Viewer',
+            created_at: database.raw("CURRENT_DATE - interval '100 days'"),
+        });
         await database<ChartRow>('saved_queries').insert([
             spaceChart,
             dashboardChart,
@@ -221,15 +254,81 @@ describe('AnalyticsModel (PostgreSQL)', () => {
         }
     });
 
-    it('includes dashboard-only viewers in weekly querying users', async () => {
+    const userQueries = [
+        numberWeeklyQueryingUsersSql,
+        tableMostQueriesSql,
+        tableMostCreatedChartsSql,
+        tableNoQueriesSql,
+        chartWeeklyQueryingUsersSql,
+        chartWeeklyAverageQueriesSql,
+    ];
+
+    it.each([
+        ...userQueries,
+        chartViewsSql,
+        dashboardViewsSql,
+        userMostViewedDashboardSql,
+        usersInProjectSql,
+    ])('rejects SQL syntax in the project binding for %s', async (query) => {
+        await expect(
+            rows(query(), {
+                projectUuid: `${projectUuid}' OR '1' = '1`,
+                userUuids,
+                organizationUuid,
+            }),
+        ).rejects.toMatchObject({ code: '22P02' });
+    });
+
+    it.each(userQueries)(
+        'rejects SQL syntax in user bindings for %s',
+        async (query) => {
+            await expect(
+                rows(query(), {
+                    projectUuid,
+                    userUuids: [`${spaceViewer}') OR true --`],
+                }),
+            ).rejects.toMatchObject({ code: '22P02' });
+        },
+    );
+
+    it('rejects SQL syntax in the organization binding', async () => {
+        await expect(
+            model.getUserActivity(
+                projectUuid,
+                `${organizationUuid}' OR true --`,
+            ),
+        ).rejects.toMatchObject({ code: '22P02' });
+    });
+
+    it('executes User Activity with bound parameters and an empty or populated user list', async () => {
+        const activity = await model.getUserActivity(
+            projectUuid,
+            organizationUuid,
+        );
+        expect(activity).toMatchObject({
+            numberUsers: 3,
+            numberWeeklyQueryingUsers: 66,
+        });
+        expect(activity.chartViews).toHaveLength(2);
+        await table('emails').update({ is_primary: false });
         expect(
-            await rows(numberWeeklyQueryingUsersSql(userUuids, projectUuid)),
-        ).toEqual([{ count: '66' }]);
+            await model.getUserActivity(projectUuid, organizationUuid),
+        ).toMatchObject({
+            numberUsers: 0,
+            numberWeeklyQueryingUsers: 0,
+            tableMostQueries: [],
+        });
+    });
+
+    it('includes dashboard-only viewers in weekly querying users', async () => {
+        expect(await rows(numberWeeklyQueryingUsersSql())).toEqual([
+            { count: '66' },
+        ]);
     });
 
     it('counts repeated chart views for the most-active users', async () => {
         const result = await rows<{ user_uuid: string; count: string }>(
-            tableMostQueriesSql(userUuids, projectUuid),
+            tableMostQueriesSql(),
         );
         expect(
             result.map(({ user_uuid, count }) => ({ user_uuid, count })),
@@ -241,7 +340,7 @@ describe('AnalyticsModel (PostgreSQL)', () => {
 
     it('includes dashboard chart versions in chart-update counts', async () => {
         const result = await rows<{ user_uuid: string; count: string }>(
-            tableMostCreatedChartsSql(userUuids, projectUuid),
+            tableMostCreatedChartsSql(),
         );
         expect(result).toHaveLength(2);
         expect(result).toContainEqual(
@@ -253,10 +352,10 @@ describe('AnalyticsModel (PostgreSQL)', () => {
         const querying = await rows<{
             num_7d_active_users: string;
             percent_7d_active_users: string;
-        }>(chartWeeklyQueryingUsersSql(userUuids, projectUuid));
+        }>(chartWeeklyQueryingUsersSql());
         const averages = await rows<{
             average_number_of_weekly_queries_per_user: string;
-        }>(chartWeeklyAverageQueriesSql(userUuids, projectUuid));
+        }>(chartWeeklyAverageQueriesSql());
         expect(querying[0]).toMatchObject({
             num_7d_active_users: '2',
             percent_7d_active_users: '66',
@@ -309,17 +408,15 @@ describe('AnalyticsModel (PostgreSQL)', () => {
                 timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
             })),
         );
-        expect(
-            await rows(numberWeeklyQueryingUsersSql(userUuids, projectUuid)),
-        ).toEqual([{ count: '66' }]);
-        expect(
-            await rows(tableMostQueriesSql(userUuids, projectUuid)),
-        ).toHaveLength(2);
+        expect(await rows(numberWeeklyQueryingUsersSql())).toEqual([
+            { count: '66' },
+        ]);
+        expect(await rows(tableMostQueriesSql())).toHaveLength(2);
         const querying = await rows<{ num_7d_active_users: string }>(
-            chartWeeklyQueryingUsersSql(userUuids, projectUuid),
+            chartWeeklyQueryingUsersSql(),
         );
         expect(querying[0].num_7d_active_users).toBe('2');
-        const charts = await rows<{ uuid: string }>(chartViewsSql(projectUuid));
+        const charts = await rows<{ uuid: string }>(chartViewsSql());
         expect(charts.map(({ uuid }) => uuid).sort()).toEqual(
             [
                 spaceChart.saved_query_uuid,
@@ -338,12 +435,12 @@ describe('AnalyticsModel (PostgreSQL)', () => {
                 .where('project_uuid', otherProjectUuid)
                 .update({ organization_id: organizationId });
             const queries = [
-                numberWeeklyQueryingUsersSql(userUuids, projectUuid),
-                tableMostQueriesSql(userUuids, projectUuid),
-                tableMostCreatedChartsSql(userUuids, projectUuid),
-                chartWeeklyQueryingUsersSql(userUuids, projectUuid),
-                chartWeeklyAverageQueriesSql(userUuids, projectUuid),
-                chartViewsSql(projectUuid),
+                numberWeeklyQueryingUsersSql(),
+                tableMostQueriesSql(),
+                tableMostCreatedChartsSql(),
+                chartWeeklyQueryingUsersSql(),
+                chartWeeklyAverageQueriesSql(),
+                chartViewsSql(),
             ];
             const readActivity = () =>
                 Promise.all(
@@ -390,13 +487,16 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             const otherActivity = await rows<{
                 user_uuid: string;
                 count: string;
-            }>(tableMostQueriesSql(userUuids, otherProjectUuid));
+            }>(tableMostQueriesSql(), {
+                projectUuid: otherProjectUuid,
+                userUuids,
+            });
             expect(otherActivity).toEqual([
                 expect.objectContaining({ user_uuid: spaceViewer, count: '2' }),
             ]);
-            const otherViews = await rows<{ uuid: string }>(
-                chartViewsSql(otherProjectUuid),
-            );
+            const otherViews = await rows<{ uuid: string }>(chartViewsSql(), {
+                projectUuid: otherProjectUuid,
+            });
             expect(otherViews.map(({ uuid }) => uuid).sort()).toEqual(
                 otherCharts
                     .map(({ saved_query_uuid }) => saved_query_uuid)
@@ -411,23 +511,23 @@ describe('AnalyticsModel (PostgreSQL)', () => {
             user_uuid: null,
             timestamp: database.raw("CURRENT_DATE - interval '1 day'"),
         });
-        expect(await rows(chartViewsSql(projectUuid))).toContainEqual({
+        expect(await rows(chartViewsSql())).toContainEqual({
             uuid: dashboardChart.saved_query_uuid,
             name: dashboardChart.name,
             slug: dashboardChart.slug,
             count: '3',
         });
-        expect(
-            await rows(numberWeeklyQueryingUsersSql(userUuids, projectUuid)),
-        ).toEqual([{ count: '66' }]);
+        expect(await rows(numberWeeklyQueryingUsersSql())).toEqual([
+            { count: '66' },
+        ]);
     });
 
     it('keeps historical views when a dashboard chart moves to a space', async () => {
-        const before = await rows(chartViewsSql(projectUuid));
+        const before = await rows(chartViewsSql());
         await database<ChartRow>('saved_queries')
             .where('saved_query_uuid', dashboardChart.saved_query_uuid)
             .update({ space_id: 1, dashboard_uuid: null });
-        expect(await rows(chartViewsSql(projectUuid))).toEqual(before);
+        expect(await rows(chartViewsSql())).toEqual(before);
         expect(before).toHaveLength(2);
     });
 });
