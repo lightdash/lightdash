@@ -1,3 +1,10 @@
+# [2.181.0](https://github.com/lightdash/lightdash/compare/2.180.0...2.181.0) (2026-09-09)
+
+
+### Features
+
+* **content:** record bounded recently viewed history ([#28944](https://github.com/lightdash/lightdash/issues/28944)) ([99e35eb](https://github.com/lightdash/lightdash/commit/99e35ebb238c8fa30af8f8c46e328d4888103bbe)), closes [#28946](https://github.com/lightdash/lightdash/issues/28946) [#28947](https://github.com/lightdash/lightdash/issues/28947) [#28946](https://github.com/lightdash/lightdash/issues/28946) [#28947](https://github.com/lightdash/lightdash/issues/28947)
+
 # [2.180.0](https://github.com/lightdash/lightdash/compare/2.179.0...2.180.0) (2026-09-09)
 
 

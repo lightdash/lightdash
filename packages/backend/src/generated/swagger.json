@@ -56439,6 +56439,25 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "RecentContentType": {
+                "type": "string",
+                "enum": ["chart", "dashboard"]
+            },
+            "RecordRecentContentView": {
+                "properties": {
+                    "contentUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/RecentContentType"
+                    },
+                    "projectUuid": {
+                        "$ref": "#/components/schemas/UUID"
+                    }
+                },
+                "required": ["contentUuid", "contentType", "projectUuid"],
+                "type": "object"
+            },
             "QuerySourceType": {
                 "description": "Discriminator for every query source a project can execute queries against.\nA query source is anything that can scan a schema and run a query returning\nthe standard table format (ResultColumns + rows behind a queryUuid): the\nproject warehouse, the semantic layer, the DuckDB compose engine, and —\nlater — CSV uploads, HTTP APIs, Google Sheets, etc.\n\nDeliberately NOT WarehouseTypes: sources are not warehouses, they plug in\nabove the warehouse client layer.",
                 "enum": ["semanticLayer", "sql", "duckdb", "external"],
@@ -60850,7 +60869,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.180.0",
+        "version": "2.181.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -96840,6 +96859,46 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/content/recently-viewed": {
+            "post": {
+                "operationId": "RecordView",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Content"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordRecentContentView"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/query-sources": {
