@@ -1,3 +1,15 @@
+# [2.175.0](https://github.com/lightdash/lightdash/compare/2.174.0...2.175.0) (2026-09-09)
+
+
+### Features
+
+* compile native GitHub projects without dbt on the server ([#28820](https://github.com/lightdash/lightdash/issues/28820)) ([f8e6924](https://github.com/lightdash/lightdash/commit/f8e6924c6a2c400891ed11d05586442e445719b4))
+* connect native Lightdash projects to GitHub in the UI ([#28822](https://github.com/lightdash/lightdash/issues/28822)) ([a8d16bb](https://github.com/lightdash/lightdash/commit/a8d16bbe07c5891285c1950f91c416817e016349))
+* share native YAML compilation and preserve source paths ([#28818](https://github.com/lightdash/lightdash/issues/28818)) ([151170b](https://github.com/lightdash/lightdash/commit/151170bea0fb3ba8480f09d895281d4e2f8d7818))
+* support native Git projects in AI write-back and Reviews ([#28831](https://github.com/lightdash/lightdash/issues/28831)) ([eb1eaa8](https://github.com/lightdash/lightdash/commit/eb1eaa88c6b2591cc442a9118e3d32f53b81fe3f))
+* write custom dimensions back to native models ([#28828](https://github.com/lightdash/lightdash/issues/28828)) ([21c0d31](https://github.com/lightdash/lightdash/commit/21c0d31cf3962ca179f5d5c1e5c814b9b3f0fc84))
+* write custom metrics back to native Lightdash YAML ([#28825](https://github.com/lightdash/lightdash/issues/28825)) ([d8204ed](https://github.com/lightdash/lightdash/commit/d8204ed37db4e53808efd1e7a33cbd96bd7cc633))
+
 # [2.174.0](https://github.com/lightdash/lightdash/compare/2.173.2...2.174.0) (2026-09-09)
 
 
