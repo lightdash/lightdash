@@ -46,6 +46,7 @@ import SuboptimalState from '../../../components/common/SuboptimalState/Suboptim
 import { getPriorityColor } from '../../pages/roadmapUtils';
 import {
     defaultProjectPresentation,
+    getProjectPresentation,
     ticketStage,
     type RoadmapBoardStage,
     type RoadmapProjectPresentation,
@@ -603,7 +604,9 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     ).flatMap((page) => page.data);
     const { refetch: refetchProjects } = projectsQuery;
     const { refetch: refetchTickets } = ticketsQuery;
-    const presentation = selectedProject?.project ?? defaultProjectPresentation;
+    const presentation = getProjectPresentation(
+        selectedProject?.project ?? defaultProjectPresentation,
+    );
     const statuses = projectBoard ? projectStatuses : mainStatuses;
     const priorities = projectBoard ? projectPriorities : mainPriorities;
     const setStatuses = projectBoard ? setProjectStatuses : setMainStatuses;
@@ -653,7 +656,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const entries: RoadmapEntry[] = [
         ...(showProjects
             ? projects.map((group): RoadmapEntry => {
-                  const metadata = group.project ?? defaultProjectPresentation;
+                  const metadata = getProjectPresentation(group.project);
                   const onOpen =
                       group.ownRequestCount > 0
                           ? () => {
