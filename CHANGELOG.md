@@ -1,3 +1,11 @@
+## [2.182.1](https://github.com/lightdash/lightdash/compare/2.182.0...2.182.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **explorer:** table charts no longer read as dirty on load ([#28955](https://github.com/lightdash/lightdash/issues/28955)) ([2faf871](https://github.com/lightdash/lightdash/commit/2faf8718a650e5e75841dbbee56cc845fb9ce4c7))
+* **pre-aggregates:** serve a deduplicated parent metric only on an exact dimension match ([#28923](https://github.com/lightdash/lightdash/issues/28923)) ([e025f29](https://github.com/lightdash/lightdash/commit/e025f29c5bb9f2178358e9fea0b2dd790682b260))
+
 # [2.182.0](https://github.com/lightdash/lightdash/compare/2.181.0...2.182.0) (2026-09-09)
 
 
