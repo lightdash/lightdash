@@ -142,6 +142,8 @@ export type DuckdbS3Credentials = {
 export type DuckdbParquetSource = {
     scope: string;
     tables: { name: string; urls: string[] }[];
+    /** Exact server-signed GET URLs; never combine with bucket credentials. */
+    signedUrls?: boolean;
     httpAuth?: { bearerToken: string };
     s3Config?: DuckdbS3SessionConfig;
 };
@@ -1048,8 +1050,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const escape = DuckdbWarehouseClient.escapeDuckdbString;
         const literal = (value: string) => `'${escape(value)}'`;
         const scope = new URL(source.scope);
+        const localSignedSource =
+            source.signedUrls &&
+            scope.protocol === 'http:' &&
+            ['localhost', '127.0.0.1', '[::1]'].includes(scope.hostname);
         if (
-            !['https:', 's3:'].includes(scope.protocol) ||
+            (!['https:', 's3:'].includes(scope.protocol) &&
+                !localSignedSource) ||
             scope.username ||
             scope.password ||
             scope.search ||
@@ -1059,6 +1066,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ) {
             throw new ParameterError(
                 'Parquet source requires a scoped remote prefix',
+            );
+        }
+        if (
+            source.signedUrls &&
+            (source.httpAuth || source.s3Config || scope.protocol === 's3:')
+        ) {
+            throw new ParameterError(
+                'Signed Parquet sources cannot carry bucket credentials',
             );
         }
         const names = new Set<string>();
@@ -1078,10 +1093,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 if (
                     parsed.href !== url ||
                     !url.startsWith(source.scope) ||
-                    !url.endsWith('.parquet') ||
-                    parsed.search ||
+                    !parsed.pathname.endsWith('.parquet') ||
+                    (!source.signedUrls && parsed.search) ||
+                    (source.signedUrls &&
+                        (!parsed.searchParams.has('X-Amz-Signature') ||
+                            !/^[a-zA-Z0-9_./=%-]+$/.test(parsed.pathname) ||
+                            /%(?!3D)/i.test(parsed.pathname))) ||
                     parsed.hash ||
-                    /[%*?[\]{}]/.test(parsed.pathname)
+                    /[*?[\]{}]/.test(parsed.pathname) ||
+                    (!source.signedUrls && parsed.pathname.includes('%'))
                 ) {
                     throw new ParameterError(
                         'Parquet file is outside the trusted source prefix',
@@ -1113,6 +1133,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         // Restrict the engine, not just SQL validation. No globbing, arbitrary
         // network reads, local files, or shared spill/cache directories.
         await db.run("SET temp_directory = '';");
+        await db.run('SET enable_http_metadata_cache = false;');
+        await db.run('SET enable_external_file_cache = false;');
+        await db.run('SET parquet_metadata_cache = false;');
         const files = source.tables.flatMap(({ urls }) => urls);
         await db.run(`SET allowed_paths = [${files.map(literal).join(',')}];`);
         await db.run('SET enable_external_access = false;');
@@ -1833,7 +1856,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         }
         try {
             if (this.parquetConfig) {
-                return await this.withEphemeralQuerySession(callback);
+                try {
+                    return await this.withEphemeralQuerySession(callback);
+                } catch (error) {
+                    if (error instanceof ParameterError) throw error;
+                    throw new WarehouseQueryError(
+                        'Internal analytics query failed. Check storage access and query permissions.',
+                    );
+                }
             }
             if (this.embeddedConfig) {
                 return await this.withDirectSession(
@@ -2360,6 +2390,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        if (
+            this.parquetConfig &&
+            /\b(duckdb_\w+|pragma_\w+|sqlite_\w+|pg_\w+|information_schema)\b/i.test(
+                DuckdbWarehouseClient.stripSqlComments(sql),
+            )
+        ) {
+            throw new ParameterError(
+                'Internal analytics catalog access is not allowed',
+            );
+        }
         DuckdbWarehouseClient.validateSqlFunctions(sql);
         DuckdbWarehouseClient.validateUserSqlFileAccess(sql);
         await this.validateSelectSql(db, sql);

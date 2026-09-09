@@ -231,7 +231,61 @@ describe('internal Parquet projects', () => {
         });
         await expect(
             client.runQuery(`SELECT * FROM read_parquet('${url}')`),
-        ).rejects.toThrow(/not allowed/);
+        ).rejects.toThrow(/query permissions/);
+    });
+
+    it('allows exact signed GET URLs without configuring bucket credentials', async () => {
+        const signedScope = scope.replace('org_id=', 'org_id%3D');
+        const signedUrl = `${url.replace(/=/g, '%3D')}?X-Amz-Signature=test&X-Amz-Expires=900`;
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => ({
+                scope: signedScope,
+                signedUrls: true,
+                tables: [{ name: 'query_events', urls: [signedUrl] }],
+            }),
+        });
+        await client.runQuery('SELECT count(*) FROM query_events');
+        expect(run).toHaveBeenCalledWith(
+            `SET allowed_paths = ['${signedUrl}'];`,
+        );
+        expect(run).not.toHaveBeenCalledWith(
+            expect.stringContaining('CREATE SECRET'),
+        );
+        expect(run).toHaveBeenCalledWith(
+            'SET enable_external_file_cache = false;',
+        );
+    });
+
+    it.each([
+        'SELECT sql FROM duckdb_views()',
+        'SELECT * FROM "information_schema"."views"',
+        'SELECT * FROM sqlite_master',
+        "SELECT * FROM pragma_storage_info('query_events')",
+    ])(
+        'blocks metadata queries that could disclose signed URLs: %s',
+        async (sql) => {
+            const client = new DuckdbWarehouseClient({
+                type: 'duckdb_parquet',
+                resolveSource: async () => source(),
+            });
+            await expect(client.runQuery(sql)).rejects.toThrow(
+                /catalog access/,
+            );
+        },
+    );
+
+    it('redacts signed URLs from native query failures', async () => {
+        run.mockRejectedValue(new Error(`${url}?X-Amz-Signature=private`));
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        await expect(
+            client.runQuery('SELECT count(*) FROM query_events'),
+        ).rejects.toThrow(
+            /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+        );
     });
 
     it('cannot create privileged readers from public project credentials or shared instances', () => {
