@@ -41,12 +41,12 @@ describe('concept catalogue', () => {
         ).toEqual(tour);
     });
 
-    it('teaches recently deleted content only behind the product soft-delete gate', () => {
+    it('allows reading about recently deleted content before enabling the product feature', () => {
         expect(
             buildLearnCatalogue().find(
                 (module) => module.scope === 'manage:DeletedContent',
             ),
-        ).toMatchObject({ format: 'concept', gate: 'softDelete' });
+        ).toMatchObject({ format: 'concept', gate: null });
     });
 
     it('gates agent document reading with agents and cites every concept', () => {

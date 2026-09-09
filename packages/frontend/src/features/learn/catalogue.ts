@@ -11,9 +11,8 @@ import { conceptProgressKey } from './conceptLesson';
 import { CONCEPT_LESSONS } from './conceptLessons.generated';
 
 /**
- * Foundations, as on learn.lightdash.com: what a viewer can already do,
- * taught in the same format, and the first section of the library. Every
- * other group is the scope registry's own.
+ * Foundations contains viewer lessons and is the first library section.
+ * Other groups follow the scope registry.
  */
 export const FOUNDATIONS = 'foundations' as const;
 export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
@@ -23,10 +22,9 @@ export type LearnGroup = ScopeGroup | typeof FOUNDATIONS;
  * an Enterprise licence, or one of the product's own feature switches on top
  * of it. The library leaves a closed module out (see availability.ts).
  */
-export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents' | 'softDelete';
+export type LearnGate = 'enterprise' | 'dataApps' | 'aiAgents';
 
 const SUBJECT_GATES: Record<string, LearnGate> = {
-    DeletedContent: 'softDelete',
     DataApp: 'dataApps',
     AiAgent: 'aiAgents',
     AiAgentThread: 'aiAgents',

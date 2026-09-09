@@ -37,7 +37,6 @@ export const CONCEPT_MANIFEST: ConceptManifest = [
         title: 'Understand saving SQL charts',
         sources: doc(
             'explore/sql-runner',
-            'Getting started with the SQL Runner',
             'Saved charts in the SQL Runner',
             'Limitations',
         ),

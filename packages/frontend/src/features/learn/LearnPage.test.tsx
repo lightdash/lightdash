@@ -1,11 +1,14 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { buildLearnCatalogue, moduleProgressKey } from './catalogue';
+import { conceptProgressKey } from './conceptLesson';
+import { CONCEPT_LESSONS } from './conceptLessons.generated';
 import LearnPage from './LearnPage';
 
 const { track, projectState, learnFlagState, availabilityState, accessState } =
@@ -17,11 +20,6 @@ const { track, projectState, learnFlagState, availabilityState, accessState } =
         // Everything the learner can do, anywhere.
         accessState: { current: [] as string[] },
     }));
-
-vi.mock('react-router', () => ({
-    Navigate: () => null,
-    useSearchParams: () => [new URLSearchParams(), vi.fn()],
-}));
 
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
@@ -93,11 +91,18 @@ vi.mock('./thumbnails', () => ({
 const catalogue = buildLearnCatalogue();
 const scopes = catalogue.map((module) => module.scope);
 
-const renderPage = () =>
+const CurrentLocation = () => (
+    <output data-testid="location">{useLocation().search}</output>
+);
+
+const renderPage = (query = '') =>
     render(
-        <MantineProvider env="test">
-            <LearnPage />
-        </MantineProvider>,
+        <MemoryRouter initialEntries={[`/learn${query}`]}>
+            <MantineProvider env="test">
+                <LearnPage />
+                <CurrentLocation />
+            </MantineProvider>
+        </MemoryRouter>,
     );
 
 const viewEvents = () =>
@@ -133,9 +138,12 @@ describe('LearnPage analytics', () => {
 
         const { rerender } = renderPage();
         rerender(
-            <MantineProvider env="test">
-                <LearnPage />
-            </MantineProvider>,
+            <MemoryRouter>
+                <MantineProvider env="test">
+                    <LearnPage />
+                    <CurrentLocation />
+                </MantineProvider>
+            </MemoryRouter>,
         );
 
         expect(viewEvents()).toEqual([
@@ -189,9 +197,12 @@ describe('LearnPage analytics', () => {
 
         availabilityState.current = { isSettled: true };
         rerender(
-            <MantineProvider env="test">
-                <LearnPage />
-            </MantineProvider>,
+            <MemoryRouter>
+                <MantineProvider env="test">
+                    <LearnPage />
+                    <CurrentLocation />
+                </MantineProvider>
+            </MemoryRouter>,
         );
 
         expect(viewEvents()).toHaveLength(1);
@@ -234,8 +245,12 @@ describe('LearnPage access', () => {
     it('shows what the learner can do, and nothing else', () => {
         const { container } = renderPage();
 
-        expect(shown(container).sort()).toEqual(
-            ['manage:Validation', 'view:Dashboard'].sort(),
+        expect(
+            shown(container).sort((a, b) => (a ?? '').localeCompare(b ?? '')),
+        ).toEqual(
+            ['manage:Validation', 'view:Dashboard'].sort((a, b) =>
+                a.localeCompare(b),
+            ),
         );
     });
 
@@ -271,5 +286,69 @@ describe('LearnPage access', () => {
 
         await toggleExtra();
         expect(screen.getByText('Every module')).toBeTruthy();
+    });
+});
+
+describe('LearnPage concept acknowledgments', () => {
+    beforeEach(() => {
+        localStorage.clear();
+        track.mockClear();
+        learnFlagState.current = { enabled: true };
+        learnFlagState.isLoading = false;
+        availabilityState.current = { isSettled: true };
+        accessState.current = scopes;
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+        ];
+    });
+
+    it('opening a pasted lesson and cancelling leaves progress and the active walkthrough unchanged', async () => {
+        localStorage.setItem(
+            'lightdash.learn.started',
+            JSON.stringify(['view:Dashboard']),
+        );
+        localStorage.setItem('lightdash.learn.lastStarted', 'view:Dashboard');
+        localStorage.setItem(
+            'lightdash.learn.completed',
+            JSON.stringify(['view:Space']),
+        );
+        const storedProgress = () =>
+            ['started', 'lastStarted', 'completed'].map((key) =>
+                localStorage.getItem(`lightdash.learn.${key}`),
+            );
+        const before = storedProgress();
+
+        renderPage('?lesson=view%3AAnalytics');
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        expect(storedProgress()).toEqual(before);
+        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(screen.getByTestId('location').textContent).toBe('');
+        expect(storedProgress()).toEqual(before);
+    });
+
+    it('acknowledges every scope in a shared lesson without completing a walkthrough', async () => {
+        const scope = 'manage:VirtualView';
+        const lesson = CONCEPT_LESSONS[scope];
+        expect(lesson.coveredScopes.length).toBeGreaterThan(1);
+        const { container } = renderPage(
+            `?lesson=${encodeURIComponent(scope)}`,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'I have read this lesson' }),
+        );
+        const completed: unknown = JSON.parse(
+            localStorage.getItem('lightdash.learn.completed') ?? '[]',
+        );
+        expect(completed).toEqual(lesson.coveredScopes.map(conceptProgressKey));
+        for (const covered of lesson.coveredScopes) {
+            expect(completed).not.toContain(covered);
+            expect(
+                container.querySelector(`[data-learn-module="${covered}"]`)
+                    ?.textContent,
+            ).toContain('Concept lesson · Read');
+        }
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     });
 });

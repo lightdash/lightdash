@@ -39,19 +39,20 @@ type Props = {
     compact?: boolean;
 };
 
-// Only the named playground agent is the action target for this walkthrough.
-// Selecting it opens its landing page without submitting a question.
+// The action belongs to the stable selector. Named agents are reusable options
+// in the path, so renaming one never removes a control's walkthrough marker.
 const viewAgentTourProps = {
     'data-tour-scope': 'view:AiAgent',
     'data-tour-step': '2',
     'data-tour-route': '/projects/:projectUuid/ai-agents/:agentUuid',
-    'data-tour-label': 'Choose Jaffle analyst',
+    'data-tour-label': 'Open the agent dropdown',
     'data-tour-title': 'Explore an AI agent',
     'data-tour-docs':
         'agents/effective-analytics-with-agents.mdx#think-specialized-not-general:1',
     'data-tour-interactive': 'true',
-    'data-tour-via':
-        '[data-tour-nav="ask-ai"] >> [data-tour-anchor="agent-selector"]',
+    'data-tour-via': '[data-tour-nav="ask-ai"]',
+    'data-tour-then':
+        '[data-tour-anchor="agent-option"][data-tour-value="Jaffle analyst"]',
 };
 
 const AUTO_VALUE = '__auto__';
@@ -122,6 +123,7 @@ export const AgentSelector = ({
         >
             <Combobox.Target>
                 <UnstyledButton
+                    {...viewAgentTourProps}
                     type="button"
                     onClick={() => combobox.toggleDropdown()}
                     // Anchor for scope walkthroughs (data-tour-via)
@@ -185,9 +187,9 @@ export const AgentSelector = ({
                 <Combobox.Options>
                     {agentOptions.map((item) => (
                         <Combobox.Option
-                            {...(item.label === 'Jaffle analyst'
-                                ? viewAgentTourProps
-                                : {})}
+                            data-tour-anchor="agent-option"
+                            data-tour-hint="Choose {value}"
+                            data-tour-value={item.label}
                             value={item.value}
                             key={item.value}
                             p={2}

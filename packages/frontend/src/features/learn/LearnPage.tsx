@@ -54,11 +54,7 @@ import { EnableLearnPanel } from './EnableLearnPanel';
 import { GROUP_ICONS, groupVars } from './groupVisuals';
 import styles from './Learn.module.css';
 import { readLearnOrigin, rememberLearnOrigin } from './origin';
-import {
-    markScopeCompleted,
-    markScopeStarted,
-    useLearnProgress,
-} from './progress';
+import { markScopeCompleted, useLearnProgress } from './progress';
 import { thumbnailFor } from './thumbnails';
 import { useEnableLearn } from './useEnableLearn';
 import { useLearnAccess } from './useLearnAccess';
@@ -152,10 +148,9 @@ const ModuleCard: FC<{
 };
 
 /**
- * The learner's library: every feature they can practise in the training
- * project, one card each, grouped as the scope registry groups them. Start
- * opens the walkthrough in a fresh copy of the training project and brings
- * the learner back here when it ends.
+ * The learner's library: one card per covered scope, grouped by the scope
+ * registry. Walkthroughs open a training copy; concept lessons open a reader
+ * and record an explicit reading acknowledgment.
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
@@ -235,10 +230,6 @@ const LearnPage: FC = () => {
         next.delete('lesson');
         setSearchParams(next);
     };
-    useEffect(() => {
-        if (learnFlag?.enabled && trainingProject && concept && lessonScope)
-            markScopeStarted(conceptProgressKey(lessonScope));
-    }, [concept, lessonScope, learnFlag?.enabled, trainingProject]);
     // What the learner can do, anywhere: their organization role, any
     // organization-level custom roles, and every project role they hold. The
     // library is that; everything else waits behind the Extra modules
@@ -378,7 +369,9 @@ const LearnPage: FC = () => {
                     )}
                     onClose={closeLesson}
                     onComplete={() => {
-                        markScopeCompleted(conceptProgressKey(lessonScope));
+                        concept.coveredScopes.forEach((scope) =>
+                            markScopeCompleted(conceptProgressKey(scope)),
+                        );
                         closeLesson();
                     }}
                 />

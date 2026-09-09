@@ -434,10 +434,6 @@
         light-dark(rgba(16, 16, 20, 0.08), rgba(0, 0, 0, 0.4));
 }
 
-.cardSoon {
-    opacity: 0.7;
-}
-
 .band {
     position: relative;
     display: flex;

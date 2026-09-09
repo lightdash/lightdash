@@ -61,15 +61,6 @@ export const CONCEPT_LESSONS: Record<string, ConceptLesson> = {
         coveredScopes: ['manage:CustomSql'],
         sections: [
             {
-                heading: 'Getting started with the SQL Runner',
-                body: "The SQL Runner can be accessed from the `New` --\\> `Query using SQL Runner` option in your navigation bar.\n\nOnce you're in the SQL Runner, you'll see four key components:\n\n1. A list of tables in your data warehouse that Lightdash has access to (based on your data warehouse connection in Lightdash).\n2. The schema of a selected table.\n3. The SQL query builder.\n4. The results from your latest SQL query.\n\nTo build a query in the SQL Runner, just write your query in the SQL query builder, then hit `Run query` to see the results.\n\nYou can access your **Query history** from your session by clicking on the `SQL Query history` button beside `Run query`.\n\nOnce you've run your query, you can either:\n\n1. [**Build and save a Chart**](https://docs.lightdash.com/explore/sql-runner#saved-charts-in-the-sql-runner)\n2. [**Create a Virtual View so your query becomes a reusable table in Lightdash**](https://docs.lightdash.com/semantic-layer/virtual-views)\n3. [**Write-back to dbt so your query is saved as a governed model.**](https://docs.lightdash.com/integrations/dbt/write-back)\n4. Click the link icon in the top-right to share your query draft with a coworker (or save it yourself to return to later).",
-                sourceUrl:
-                    'https://docs.lightdash.com/explore/sql-runner#getting-started-with-the-sql-runner',
-                sourceLabel: 'Getting started with the SQL Runner',
-                sourceHash:
-                    'fe270060044c390341bdf6528f923ef059aea0b7dcca78e1d07e78456442bd9b',
-            },
-            {
                 heading: 'Saved charts in the SQL Runner',
                 body: "Once you've run your query, you can build a chart by clicking on the `chart` tab in the SQL Runner.\n\nThe charts in the SQL Runner are built from the data that you generated in your query. The chart builder automatically aggregates the data from your query results using the aggregation type that you choose. Depending on the column type, the aggregation options are:\n\n- count (which is a distinct count and will ignore duplicates)\n- any (which will count and include duplicates)\n- sum\n- average\n- max\n- min\n\nOnce you've configured your chart, you can save it, add it to a space, and add it to a dashboard by hitting `save chart`.\n\nSQL runner charts on a dashboard can be filtered in the UI. See the [dashboard filter documentation](https://docs.lightdash.com/explore/dashboards/filter#filtering-charts-created-in-the-sql-runner) for more information.\n\n### Chart types\n\nThe SQL runner supports the following chart types:\n\n* Table\n* Bar chart\n* Line chart\n* Pie chart\n* Big number",
                 sourceUrl:
