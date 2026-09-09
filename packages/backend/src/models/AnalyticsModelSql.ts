@@ -39,10 +39,9 @@ select
   100 * COUNT(DISTINCT(user_uuid)) / ${userUuids.length} AS count
 from analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
-  left join projects on projects.project_id = s.project_id
 WHERE user_uuid in ('${userUuids.join(`','`)}')
-  AND projects.project_uuid = '${projectUuid}'
+  AND sq.project_uuid = '${projectUuid}'
+  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
   AND timestamp between NOW() - interval '7 days' and NOW()
 `;
 
@@ -58,10 +57,9 @@ select
 from analytics_chart_views
   LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
-  left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}')
-  AND projects.project_uuid = '${projectUuid}'
+  AND sq.project_uuid = '${projectUuid}'
+  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
   AND timestamp between NOW() - interval '7 days' and NOW()
 GROUP BY users.user_uuid,
   users.first_name,
@@ -82,10 +80,9 @@ select
 from saved_queries_versions
   LEFT JOIN users ON users.user_uuid = saved_queries_versions.updated_by_user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_id = saved_queries_versions.saved_query_id AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
-  left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}')
-  AND projects.project_uuid = '${projectUuid}'
+  AND sq.project_uuid = '${projectUuid}'
+  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
   AND saved_queries_versions.created_at between NOW() - interval '7 days' and NOW()
 GROUP BY
   users.user_uuid,
@@ -104,13 +101,12 @@ select
 from users
   LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
-  left join projects on projects.project_id = s.project_id
 WHERE users.user_uuid in ('${userUuids.join(`','`)}') AND users.first_name <> ''
   AND
   (
     (
-      projects.project_uuid = '${projectUuid}'
+      sq.project_uuid = '${projectUuid}'
+      AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
       AND analytics_chart_views.timestamp <> null
       AND analytics_chart_views.timestamp < NOW() - interval '90 days'
     )
@@ -148,9 +144,8 @@ query_executed AS (
     COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
   FROM analytics_chart_views acv  -- this is a table with one row per query executed
     left join ${SavedChartsTableName} sq on sq.saved_query_uuid = acv.chart_uuid AND sq.deleted_at IS NULL
-    left join ${SpaceTableName} s on s.space_id  = sq.space_id
-    left join projects on projects.project_id = s.project_id
-  WHERE  projects.project_uuid = '${projectUuid}'
+  WHERE  sq.project_uuid = '${projectUuid}'
+    AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
     AND acv.timestamp >= CURRENT_DATE - interval '42 days'
     AND acv.user_uuid in ('${userUuids.join(`','`)}')
   GROUP BY 1, 2
@@ -211,9 +206,8 @@ SELECT
   sq.name
 FROM public.analytics_chart_views
   left join ${SavedChartsTableName} sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
-  left join ${SpaceTableName} s on s.space_id  = sq.space_id
-  left join projects on projects.project_id = s.project_id
-where projects.project_uuid = '${projectUuid}'
+where sq.project_uuid = '${projectUuid}'
+  AND (sq.space_id IS NOT NULL OR sq.dashboard_uuid IS NOT NULL)
 group by chart_uuid, sq.slug, sq.name
 order by count(chart_uuid) desc
 limit 20
