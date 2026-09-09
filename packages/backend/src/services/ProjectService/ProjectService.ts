@@ -48,6 +48,7 @@ import {
     CreateTrainingPreviewResults,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    CreateWarehouseCredentialsWithOptionalSecrets,
     currentUtcWallClock,
     CustomDimension,
     CustomFormatType,
@@ -83,6 +84,7 @@ import {
     FeatureFlags,
     Field,
     FieldType,
+    fillOmittedSecrets,
     FilterableDimension,
     FilterAutocompleteValue,
     findReplaceableCustomMetrics,
@@ -126,6 +128,7 @@ import {
     isMergeMetricSource,
     isMergeResultSource,
     isMetric,
+    isMissingBigqueryKeyfile,
     isNotNull,
     isReservedParameterName,
     isSqlTableCalculation,
@@ -3629,7 +3632,7 @@ export class ProjectService extends BaseService {
     }
 
     private static assertEmbeddedCredentialsAreInternal(
-        credentials: CreateWarehouseCredentials | undefined,
+        credentials: CreateWarehouseCredentialsWithOptionalSecrets | undefined,
         internalProvisioning?: InternalProvisioning,
     ): void {
         if (
@@ -4411,7 +4414,7 @@ export class ProjectService extends BaseService {
     async testWarehouseConnection(
         account: RegisteredAccount,
         projectUuid: string,
-        warehouseConnection: CreateWarehouseCredentials,
+        warehouseConnection: CreateWarehouseCredentialsWithOptionalSecrets,
     ): Promise<WarehouseConnectionTestResults> {
         assertIsAccountWithOrg(account);
         const savedProject =
@@ -4439,8 +4442,18 @@ export class ProjectService extends BaseService {
                   savedProject.warehouseConnection,
               )
             : warehouseConnection;
+        if (isMissingBigqueryKeyfile(merged)) {
+            return buildConnectionTestResults([
+                {
+                    stage: 'database',
+                    status: 'failed',
+                    message:
+                        'No service account key file. Paste the key file, or save the connection with one first.',
+                },
+            ]);
+        }
         const resolved = await this._resolveWarehouseClientCredentials(
-            { warehouseConnection: merged },
+            { warehouseConnection: fillOmittedSecrets(merged) },
             account.user.userUuid,
             savedProject.organizationUuid,
         );

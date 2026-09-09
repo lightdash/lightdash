@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type WeekDay } from '../utils/timeFrames';
 import { type ProjectDefaults } from './lightdashProjectConfig';
 import { type ProjectGroupAccess } from './projectGroupAccess';
@@ -595,6 +596,94 @@ export type CreateWarehouseCredentials =
     | CreateClickhouseCredentials
     | CreateAthenaCredentials
     | CreateDuckdbCredentials;
+// Secrets the settings form never loads back may be omitted; the saved
+// values are merged in, as on save.
+type WithOptionalSecrets<T> = Omit<T, SensitiveCredentialsFieldNames> &
+    Partial<T>;
+export type CreateWarehouseCredentialsWithOptionalSecrets =
+    | WithOptionalSecrets<CreateRedshiftCredentials>
+    | WithOptionalSecrets<CreateBigqueryCredentials>
+    | WithOptionalSecrets<CreatePostgresCredentials>
+    | WithOptionalSecrets<CreateSnowflakeCredentials>
+    | WithOptionalSecrets<CreateDatabricksCredentials>
+    | WithOptionalSecrets<CreateTrinoCredentials>
+    | WithOptionalSecrets<CreateClickhouseCredentials>
+    | WithOptionalSecrets<CreateAthenaCredentials>
+    | WithOptionalSecrets<CreateDuckdbMotherduckCredentials>
+    | WithOptionalSecrets<CreateDuckdbDucklakeCredentials>
+    | WithOptionalSecrets<CreateDuckdbEmbeddedCredentials>;
+
+const isSensitiveCredentialsFieldName = (
+    key: string,
+): key is SensitiveCredentialsFieldNames =>
+    (sensitiveCredentialsFieldNames as readonly string[]).includes(key);
+
+// The settings form sends an empty string for every secret the user left
+// untouched. Dropping those yields a body that only carries typed secrets.
+export const omitEmptySecrets = (
+    credentials: CreateWarehouseCredentials,
+): CreateWarehouseCredentialsWithOptionalSecrets =>
+    Object.fromEntries(
+        Object.entries(credentials).filter(
+            ([key, value]) =>
+                !(isSensitiveCredentialsFieldName(key) && value === ''),
+        ),
+    ) as CreateWarehouseCredentialsWithOptionalSecrets;
+
+export const isMissingBigqueryKeyfile = (
+    credentials: CreateWarehouseCredentialsWithOptionalSecrets,
+): boolean =>
+    credentials.type === WarehouseTypes.BIGQUERY &&
+    (credentials.authenticationType === undefined ||
+        credentials.authenticationType ===
+            BigqueryAuthenticationType.PRIVATE_KEY) &&
+    !credentials.keyfileContents;
+
+// Reverses omitEmptySecrets once saved secrets are merged in: string secrets
+// still absent go back to the empty string the form would have sent, so the
+// warehouse client fails the way a save would. A BigQuery key has no such
+// empty form; callers check isMissingBigqueryKeyfile first.
+export const fillOmittedSecrets = (
+    credentials: CreateWarehouseCredentialsWithOptionalSecrets,
+): CreateWarehouseCredentials => {
+    switch (credentials.type) {
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.SNOWFLAKE:
+            return { ...credentials, user: credentials.user ?? '' };
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+            return {
+                ...credentials,
+                user: credentials.user ?? '',
+                password: credentials.password ?? '',
+            };
+        case WarehouseTypes.BIGQUERY:
+            return {
+                ...credentials,
+                keyfileContents: credentials.keyfileContents ?? {},
+            };
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.ATHENA:
+            return credentials;
+        case WarehouseTypes.DUCKDB:
+            switch (credentials.connectionType) {
+                case DuckdbConnectionType.MOTHERDUCK:
+                    return { ...credentials, token: credentials.token ?? '' };
+                case DuckdbConnectionType.DUCKLAKE:
+                case DuckdbConnectionType.EMBEDDED:
+                    return credentials;
+                default:
+                    return assertUnreachable(
+                        credentials,
+                        'Unknown DuckDB connection type',
+                    );
+            }
+        default:
+            return assertUnreachable(credentials, 'Unknown warehouse type');
+    }
+};
+
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -1272,6 +1361,7 @@ export type ApiEnableLearnResponse = {
 export const playgroundProjectTriggers = [
     'invite_expert',
     'agent_onboarding_wait',
+    'get_started',
 ] as const;
 
 export type PlaygroundProjectTrigger =
