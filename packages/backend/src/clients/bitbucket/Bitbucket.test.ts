@@ -337,6 +337,27 @@ describe('Bitbucket branches and files', () => {
 });
 
 describe('Bitbucket pull requests', () => {
+    it('preserves source and destination repository identities for fork validation', async () => {
+        fetchMock.mockResponse(
+            JSON.stringify({
+                ...pullRequest,
+                source: {
+                    ...pullRequest.source,
+                    repository: { full_name: 'fork/analytics' },
+                },
+                destination: {
+                    ...pullRequest.destination,
+                    repository: { full_name: 'workspace/analytics' },
+                },
+            }),
+        );
+        await expect(
+            getPullRequest({ ...credentials, pullNumber: 12 }),
+        ).resolves.toMatchObject({
+            sourceRepository: 'fork/analytics',
+            destinationRepository: 'workspace/analytics',
+        });
+    });
     it.each([
         ['OPEN', PullRequestState.OPEN],
         ['MERGED', PullRequestState.MERGED],
@@ -360,6 +381,8 @@ describe('Bitbucket pull requests', () => {
                 'https://bitbucket.org/workspace/analytics/pull-requests/12',
             head: branch.name,
             base: 'main',
+            sourceRepository: null,
+            destinationRepository: null,
         });
     });
 

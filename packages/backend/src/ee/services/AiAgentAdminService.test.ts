@@ -1791,6 +1791,52 @@ describe('AiAgentAdminService review notification settings', () => {
 });
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {
+    it.each([true, false])(
+        'uses the Bitbucket project token without an app installation (token: %s)',
+        (hasProjectToken) => {
+            expect(
+                getAiAgentReviewItemWritebackEligibility({
+                    item: makeReviewItem(),
+                    reviewsEnabled: true,
+                    projectContextEnabled: false,
+                    projectAccess: {
+                        provider: PullRequestProvider.BITBUCKET,
+                        hasProjectToken,
+                    },
+                    hasSemanticWritebackConfig: true,
+                    sourceThreadHasWritebackPr: false,
+                }),
+            ).toEqual({
+                eligible: hasProjectToken,
+                provider: PullRequestProvider.BITBUCKET,
+                strategy: 'semantic_layer',
+                reason: hasProjectToken ? null : 'bitbucket_token_missing',
+            });
+        },
+    );
+
+    it('does not enable Bitbucket project-context writeback', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem({
+                    source: 'manual',
+                    primaryRootCause: 'project_context',
+                }),
+                reviewsEnabled: true,
+                projectContextEnabled: true,
+                projectAccess: {
+                    provider: PullRequestProvider.BITBUCKET,
+                    hasProjectToken: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
+            }),
+        ).toMatchObject({
+            eligible: false,
+            reason: 'unsupported_source_control',
+        });
+    });
+
     it('allows semantic layer writeback on GitHub when configured', () => {
         expect(
             getAiAgentReviewItemWritebackEligibility({

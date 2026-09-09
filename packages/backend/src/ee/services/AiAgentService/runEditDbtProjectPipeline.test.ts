@@ -184,6 +184,7 @@ const buildService = (overrides: {
         hasToolResult,
         createRemediationEvent,
         createPreviewForPullRequest,
+        previewDeploySetupService,
     };
 };
 
@@ -347,6 +348,37 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect.objectContaining({
                 remediationUuid: 'rem-1',
                 event: expect.objectContaining({ eventType: 'pr_updated' }),
+            }),
+        );
+    });
+
+    it('does not offer or create preview deployment for a Bitbucket pull request', async () => {
+        const {
+            service,
+            updateToolResult,
+            createPreviewForPullRequest,
+            previewDeploySetupService,
+        } = buildService({
+            previewDeploySetupEnabled: true,
+            ciStatus: { hasPreviewDeployWorkflow: false },
+            run: vi.fn().mockResolvedValue({
+                ...WRITEBACK_RESULT,
+                prUrl: 'https://bitbucket.org/workspace/dbt/pull-requests/7',
+            }),
+        });
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+        expect(createPreviewForPullRequest).not.toHaveBeenCalled();
+        expect(
+            previewDeploySetupService.getOrScanProjectCiStatus,
+        ).not.toHaveBeenCalled();
+        expect(updateToolResult).toHaveBeenCalledWith(
+            'prompt-1',
+            'tool-call-1',
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    status: 'success',
+                    previewUrl: null,
+                }),
             }),
         );
     });

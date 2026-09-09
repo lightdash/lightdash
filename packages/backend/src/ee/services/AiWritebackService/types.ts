@@ -54,7 +54,21 @@ export type GitlabConnection = {
  * The dbt repo a writeback run targets. Discriminated by `provider` so the
  * service can read the shared fields while each provider narrows for its own.
  */
-export type GitConnection = GithubConnection | GitlabConnection;
+export type BitbucketConnection = {
+    provider: PullRequestProvider.BITBUCKET;
+    owner: string;
+    repo: string;
+    projectSubPath: string;
+    branch: string;
+    projectUuid: string;
+    projectDbtSourceUuid: string | null;
+    username: string;
+};
+
+export type GitConnection =
+    | GithubConnection
+    | GitlabConnection
+    | BitbucketConnection;
 
 export type AdoptedPullRequest = {
     prUrl: string;
@@ -97,7 +111,18 @@ export type GitlabInstallation = {
 };
 
 /** Resolved auth for the run's git host. Discriminated by `provider`. */
-export type GitInstallation = GithubInstallation | GitlabInstallation;
+export type BitbucketInstallation = {
+    provider: PullRequestProvider.BITBUCKET;
+    token: string;
+    owner: string;
+    repo: string;
+    commitAuthor: GitCommitAuthor;
+};
+
+export type GitInstallation =
+    | GithubInstallation
+    | GitlabInstallation
+    | BitbucketInstallation;
 
 /** HTTPS clone target; credentials are supplied out-of-band, never in the URL. */
 export type CloneTarget = {

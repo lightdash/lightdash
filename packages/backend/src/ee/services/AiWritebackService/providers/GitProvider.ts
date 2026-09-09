@@ -70,7 +70,10 @@ export interface GitProvider {
     /** Tag recorded on the `pull_requests` row. */
     readonly provider: PullRequestProvider;
 
-    resolveConnection(dbtConnection: DbtProjectConfig): GitConnection;
+    resolveConnection(
+        dbtConnection: DbtProjectConfig,
+        context?: { projectUuid: string; projectDbtSourceUuid: string | null },
+    ): GitConnection;
     /**
      * Resolve auth for the run's git host. When `options.user` and
      * `options.connection` are supplied and the user has linked their personal
