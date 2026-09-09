@@ -397,12 +397,14 @@ mcpRouter.all(
                     mcpService.isFilterExpressionsEnabled(req.user!),
                 ]);
                 const toolOptions: McpServerToolOptions = {
-                    projectPinned: pinnedProjectUuid !== undefined,
-                    mcpContentWritesEnabled,
-                    scheduledDeliveryEnabled,
-                    runSqlEnabled,
-                    runMetricQueryEnabled,
-                    filterExpressionsEnabled,
+                    req: { pinnedProjectUuid },
+                    featureAvailability: {
+                        mcpContentWritesEnabled,
+                        scheduledDeliveryEnabled,
+                        runSqlEnabled,
+                        runMetricQueryEnabled,
+                        filterExpressionsEnabled,
+                    },
                 };
                 const mcpServer = await mcpService.createServer(toolOptions);
                 const transport = new StreamableHTTPServerTransport({
