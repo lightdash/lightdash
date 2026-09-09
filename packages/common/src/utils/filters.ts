@@ -1390,6 +1390,23 @@ export const applyChartFilterOverridesToFilterGroup = (
     return combineFilterGroups(replaced, appended);
 };
 
+/**
+ * Whether any override would take the place of a saved rule (by id or field),
+ * i.e. change what the chart author saved rather than only narrow it. Callers
+ * gate this on the same permission that allows running ad-hoc explore queries.
+ */
+export const doChartFilterOverridesReplaceSavedRules = (
+    savedFilters: Filters,
+    overrides: Filters,
+): boolean =>
+    (['dimensions', 'metrics', 'tableCalculations'] as const).some(
+        (section) =>
+            getChartFilterRuleOverrideMatches(
+                getFilterRulesFromGroup(savedFilters[section]),
+                getFilterRulesFromGroup(overrides[section]),
+            ).appliedIds.size > 0,
+    );
+
 export const applyChartFilterOverrides = (
     savedFilters: Filters,
     overrides: Filters,

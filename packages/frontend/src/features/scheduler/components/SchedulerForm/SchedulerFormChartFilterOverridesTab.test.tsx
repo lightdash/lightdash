@@ -245,3 +245,30 @@ describe('SchedulerFormChartFilterOverridesTab', () => {
         expect(screen.getByText('refunded')).toBeInTheDocument();
     });
 });
+
+describe('SchedulerFormChartFilterOverridesTab read-only', () => {
+    it('shows the chart filters without controls and seeds nothing', async () => {
+        const onDraftChange = vi.fn();
+        renderWithProviders(
+            <SchedulerFormChartFilterOverridesTab
+                savedChart={savedChart}
+                itemsMap={itemsMap}
+                draftFilters={undefined}
+                savedFilters={undefined}
+                isEditMode={false}
+                onChange={onDraftChange}
+                filtersWithUnmetRequirements={[]}
+                readOnly
+            />,
+        );
+
+        expect(screen.getByText('Status')).toBeInTheDocument();
+        expect(screen.getByText('Payment method')).toBeInTheDocument();
+        expect(
+            screen.getByText(/needs explore access to the project/),
+        ).toBeInTheDocument();
+        expect(screen.queryAllByRole('button')).toHaveLength(0);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(onDraftChange).not.toHaveBeenCalled();
+    });
+});

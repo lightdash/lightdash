@@ -2,6 +2,7 @@ import { FilterOperator, type FilterRule, type Filters } from '../types/filter';
 import {
     applyChartFilterOverrides,
     applyChartFilterOverridesToFilterGroup,
+    doChartFilterOverridesReplaceSavedRules,
     getFilterRulesFromGroup,
 } from './filters';
 
@@ -214,5 +215,54 @@ describe('applyChartFilterOverrides', () => {
         expect(rules[1]).toEqual(
             getFilterRulesFromGroup(twoOnSameField.dimensions)[1],
         );
+    });
+});
+
+describe('doChartFilterOverridesReplaceSavedRules', () => {
+    it('is false for no overrides or overrides that only add filters', () => {
+        expect(doChartFilterOverridesReplaceSavedRules(savedFilters, {})).toBe(
+            false,
+        );
+        expect(
+            doChartFilterOverridesReplaceSavedRules(savedFilters, {
+                dimensions: {
+                    id: 'alert',
+                    and: [rule('new', 'customers_first_name', ['Ann'])],
+                },
+            }),
+        ).toBe(false);
+    });
+
+    it('is true when an override matches a saved rule by id', () => {
+        expect(
+            doChartFilterOverridesReplaceSavedRules(savedFilters, {
+                dimensions: {
+                    id: 'override-group',
+                    and: [rule('status', 'orders_status', ['shipped'])],
+                },
+            }),
+        ).toBe(true);
+    });
+
+    it('is true when an override matches a saved rule by field', () => {
+        expect(
+            doChartFilterOverridesReplaceSavedRules(savedFilters, {
+                metrics: {
+                    id: 'override-group',
+                    and: [rule('other', 'orders_total_order_amount', [1])],
+                },
+            }),
+        ).toBe(true);
+    });
+
+    it('does not match across sections', () => {
+        expect(
+            doChartFilterOverridesReplaceSavedRules(savedFilters, {
+                metrics: {
+                    id: 'override-group',
+                    and: [rule('status', 'orders_status', ['shipped'])],
+                },
+            }),
+        ).toBe(false);
     });
 });

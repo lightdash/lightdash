@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     type ApiError,
     type CreateSchedulerAndTargetsWithoutIds,
@@ -28,6 +29,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import useApp from '../../../providers/App/useApp';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
@@ -94,6 +96,18 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
 }) => {
     const isAiVisible = useAiAgentButtonVisibility();
     const projectUuid = useProjectUuid();
+    const { user } = useApp();
+    // Replacing a chart's saved filter shows rows the author filtered out, so
+    // only someone who could query the explore anyway may adjust them.
+    const canAdjustChartFilters =
+        !!user.data &&
+        user.data.ability.can(
+            'manage',
+            subject('Explore', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const {
         isEditMode,
@@ -200,6 +214,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                         dashboard={dashboard}
                         savedChart={savedChart}
                         itemsMap={itemsMap}
+                        canAdjustChartFilters={canAdjustChartFilters}
                         chartFiltersWithUnmetRequirements={
                             chartRequiredFiltersWithoutValues
                         }

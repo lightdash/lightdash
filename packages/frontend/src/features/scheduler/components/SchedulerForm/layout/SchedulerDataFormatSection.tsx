@@ -64,6 +64,8 @@ type Props = {
     savedChart?: SavedChart;
     /** Chart deliveries opened from the chart page: the explorer's fields. */
     itemsMap?: ItemsMap;
+    /** Chart deliveries only: whether this user may replace the chart's saved filters. */
+    canAdjustChartFilters?: boolean;
     chartFiltersWithUnmetRequirements?: FilterRule[];
     savedSchedulerData?: SchedulerAndTargets;
     isApp: boolean;
@@ -85,6 +87,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
     dashboard,
     savedChart,
     itemsMap,
+    canAdjustChartFilters = true,
     chartFiltersWithUnmetRequirements = [],
     savedSchedulerData,
     isApp,
@@ -433,6 +436,7 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         <SchedulerFormChartFilterOverridesTab
                             savedChart={savedChart}
                             itemsMap={itemsMap}
+                            readOnly={!canAdjustChartFilters}
                             draftFilters={form.values.chartFilters}
                             isEditMode={savedSchedulerData !== undefined}
                             savedFilters={

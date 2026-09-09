@@ -5728,6 +5728,63 @@ describe('AsyncQueryService', () => {
             expect(merged.filters.dimensions.and).toContainEqual(overrideGroup);
         });
 
+        const explorerAccount = {
+            ...authorizedAccount,
+            user: {
+                ...authorizedAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                    { subject: 'Explore', action: ['manage'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const replacingSchedulerFilters = {
+            dimensions: {
+                id: 'delivery-root',
+                and: [
+                    {
+                        // Same id as the chart's rule: the delivery
+                        // adjusts it rather than ANDing a second one.
+                        id: 'chart-filter-0',
+                        target: { fieldId: 'a_dim1' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['delivery-value'],
+                    },
+                ],
+            },
+        };
+
+        test('refuses schedulerFilters that replace a saved rule without explore access', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            const prepareSpy = vi.fn();
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+
+            await expect(
+                service.executeAsyncSavedChartQuery({
+                    account: authorizedAccount,
+                    projectUuid,
+                    chartUuid: chart.uuid,
+                    versionUuid: undefined,
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    invalidateCache: true,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                    schedulerFilters: replacingSchedulerFilters,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(prepareSpy).not.toHaveBeenCalled();
+        });
+
         test('schedulerFilters replace the chart rule they target instead of narrowing it', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 savedChartModel: {
@@ -5770,7 +5827,7 @@ describe('AsyncQueryService', () => {
             });
 
             await service.executeAsyncSavedChartQuery({
-                account: authorizedAccount,
+                account: explorerAccount,
                 projectUuid,
                 chartUuid: chart.uuid,
                 versionUuid: undefined,
@@ -5779,21 +5836,7 @@ describe('AsyncQueryService', () => {
                 limit: undefined,
                 parameters: undefined,
                 pivotResults: false,
-                schedulerFilters: {
-                    dimensions: {
-                        id: 'delivery-root',
-                        and: [
-                            {
-                                // Same id as the chart's rule: the delivery
-                                // adjusts it rather than ANDing a second one.
-                                id: 'chart-filter-0',
-                                target: { fieldId: 'a_dim1' },
-                                operator: FilterOperator.EQUALS,
-                                values: ['delivery-value'],
-                            },
-                        ],
-                    },
-                },
+                schedulerFilters: replacingSchedulerFilters,
             });
 
             const merged = prepareSpy.mock.calls[0][0].metricQuery;

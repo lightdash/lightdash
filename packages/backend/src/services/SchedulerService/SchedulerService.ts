@@ -85,6 +85,7 @@ import { BaseService } from '../BaseService';
 import type { SoftDeleteOptions } from '../SoftDeletableService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import { assertCanReplaceChartFilters } from './chartFilterOverridesAccess';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -1018,6 +1019,19 @@ export class SchedulerService extends BaseService {
             existingScheduler,
             updatedScheduler.filters,
         );
+        if (
+            isChartScheduler(existingScheduler) &&
+            updatedScheduler.filters &&
+            !Array.isArray(updatedScheduler.filters)
+        ) {
+            assertCanReplaceChartFilters({
+                ability: this.createAuditedAbility(user),
+                chart: await this.savedChartModel.get(
+                    existingScheduler.savedChartUuid,
+                ),
+                schedulerFilters: updatedScheduler.filters,
+            });
+        }
 
         if (isAppScheduler(existingScheduler)) {
             SchedulerService.validateAppSchedulerDelivery(updatedScheduler);
@@ -1798,6 +1812,14 @@ export class SchedulerService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (isChartScheduler(scheduler) && scheduler.filters) {
+            assertCanReplaceChartFilters({
+                ability: auditedAbility,
+                chart: await this.savedChartModel.get(scheduler.savedChartUuid),
+                schedulerFilters: scheduler.filters,
+            });
         }
 
         if (

@@ -73,6 +73,8 @@ type SchedulerFilterItemProps<R extends SchedulerOverridableRule> = {
     onRemove?: () => void;
     removeTooltip?: string;
     tilesWithFilter?: string[];
+    /** Show the rule without any controls. */
+    readOnly?: boolean;
 };
 
 export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
@@ -85,6 +87,7 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
     onRemove,
     removeTooltip = 'Remove filter',
     tilesWithFilter,
+    readOnly = false,
 }: SchedulerFilterItemProps<R>) => {
     const { getField } = useFiltersContext();
     const item = getField(savedFilter);
@@ -178,46 +181,50 @@ export const SchedulerFilterItem = <R extends SchedulerOverridableRule>({
                         </Tooltip>
                     )}
                 </Group>
-                <Group gap={4} wrap="nowrap">
-                    {hasChanged && (
-                        <Tooltip label="Reset filter" fz="xs">
-                            <ActionIcon
-                                size="xs"
-                                aria-label="Reset filter"
-                                onClick={() => {
-                                    if (isEditing) {
-                                        setIsEditing(false);
-                                    }
-                                    onRevert();
-                                }}
-                            >
-                                <MantineIcon icon={IconRotate2} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                    <ActionIcon
-                        size="xs"
-                        aria-label={isEditing ? 'Done editing' : 'Edit filter'}
-                        onClick={() => {
-                            setIsEditing(!isEditing);
-                        }}
-                    >
-                        <MantineIcon
-                            icon={isEditing ? IconCheck : IconPencil}
-                        />
-                    </ActionIcon>
-                    {onRemove && (
-                        <Tooltip label={removeTooltip} fz="xs">
-                            <ActionIcon
-                                size="xs"
-                                aria-label="Remove filter"
-                                onClick={onRemove}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
+                {!readOnly && (
+                    <Group gap={4} wrap="nowrap">
+                        {hasChanged && (
+                            <Tooltip label="Reset filter" fz="xs">
+                                <ActionIcon
+                                    size="xs"
+                                    aria-label="Reset filter"
+                                    onClick={() => {
+                                        if (isEditing) {
+                                            setIsEditing(false);
+                                        }
+                                        onRevert();
+                                    }}
+                                >
+                                    <MantineIcon icon={IconRotate2} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <ActionIcon
+                            size="xs"
+                            aria-label={
+                                isEditing ? 'Done editing' : 'Edit filter'
+                            }
+                            onClick={() => {
+                                setIsEditing(!isEditing);
+                            }}
+                        >
+                            <MantineIcon
+                                icon={isEditing ? IconCheck : IconPencil}
+                            />
+                        </ActionIcon>
+                        {onRemove && (
+                            <Tooltip label={removeTooltip} fz="xs">
+                                <ActionIcon
+                                    size="xs"
+                                    aria-label="Remove filter"
+                                    onClick={onRemove}
+                                >
+                                    <MantineIcon icon={IconTrash} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </Group>
+                )}
             </Group>
             {!isEditing && hasChanged && (
                 <Text fz="xs" c="dimmed">

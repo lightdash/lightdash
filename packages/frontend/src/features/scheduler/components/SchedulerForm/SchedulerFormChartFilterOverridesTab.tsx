@@ -39,6 +39,8 @@ type Props = {
     isEditMode: boolean;
     onChange: (schedulerFilters: Filters) => void;
     filtersWithUnmetRequirements: FilterRule[];
+    /** The user cannot replace the chart's filters: show them, seed nothing. */
+    readOnly?: boolean;
 };
 
 export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
@@ -49,6 +51,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
     isEditMode,
     onChange,
     filtersWithUnmetRequirements,
+    readOnly = false,
 }) => {
     const { data: project, isInitialLoading: isLoadingProject } = useProject(
         savedChart.projectUuid,
@@ -71,10 +74,10 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
     // Seed the form with the chart's saved rules exactly once (undefined =
     // never seeded). An empty object means the user removed every override.
     useEffect(() => {
-        if (!isEditMode && draftFilters === undefined) {
+        if (!readOnly && !isEditMode && draftFilters === undefined) {
             onChange(getChartFilterOverridesSeed(chartFilters));
         }
-    }, [chartFilters, draftFilters, isEditMode, onChange]);
+    }, [chartFilters, draftFilters, isEditMode, onChange, readOnly]);
 
     const handleUpdateFilter = useCallback(
         (
@@ -172,7 +175,28 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             itemsMap={fieldsMap}
             startOfWeek={project.warehouseConnection?.startOfWeek ?? undefined}
         >
-            {hasRules ? (
+            {readOnly && hasRules ? (
+                <Stack mb="sm">
+                    <Text fz="xs" c="dimmed">
+                        Adjusting these filters for a delivery needs explore
+                        access to the project. The delivery uses the chart's
+                        saved filters.
+                    </Text>
+                    {sections.map(({ chartRules }) =>
+                        chartRules.map((chartRule) => (
+                            <SchedulerFilterItem
+                                key={chartRule.id}
+                                savedFilter={chartRule}
+                                isMissingRequiredValue={false}
+                                onChange={() => {}}
+                                onRevert={() => {}}
+                                hasChanged={false}
+                                readOnly
+                            />
+                        )),
+                    )}
+                </Stack>
+            ) : hasRules ? (
                 <Stack mb="sm">
                     {filtersWithUnmetRequirements.length > 0 && (
                         <Text fz="xs" c="dimmed">

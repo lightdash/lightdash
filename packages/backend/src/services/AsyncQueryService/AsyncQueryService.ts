@@ -250,6 +250,7 @@ import {
 } from '../ProjectService/resultsPagination';
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
+import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
@@ -5855,7 +5856,13 @@ export class AsyncQueryService extends ProjectService {
             },
         );
         // Applied to the stored chart so merge queries built from it see the
-        // delivery's filters too.
+        // delivery's filters too. The delivery runs as its creator, so this is
+        // where a creator who lost explore access stops widening the chart.
+        assertCanReplaceChartFilters({
+            ability: this.createAuditedAbility(account),
+            chart: storedChart,
+            schedulerFilters,
+        });
         const savedChart = schedulerFilters
             ? {
                   ...storedChart,
