@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    FeatureFlags,
     OrganizationMemberRole,
     ProjectMemberRole,
     ProjectType,
@@ -84,10 +85,14 @@ const buildArguments = (
     const seedTrainingContent = vi.fn(async () => undefined);
     const validateTrainingDatabase = vi.fn(async () => undefined);
     const track = vi.fn();
+    const getFeatureFlag = vi.fn(async () => ({
+        id: FeatureFlags.EnableLearn,
+        enabled: true,
+    }));
     return {
         args: {
             user,
-            learnEnabled: true,
+            featureFlagModel: { get: getFeatureFlag },
             projectModel: {
                 getAllByOrganizationUuid,
                 delete: deleteProject,
@@ -115,16 +120,26 @@ const buildArguments = (
         indexCatalog,
         seedTrainingContent,
         track,
+        getFeatureFlag,
     };
 };
 
 describe('provisionTrainingProject', () => {
-    it('refuses when Learn is switched off for the instance', async () => {
-        const mocks = buildArguments({ learnEnabled: false });
+    it('refuses when Learn is switched off for the organization', async () => {
+        const mocks = buildArguments();
+        mocks.getFeatureFlag.mockResolvedValueOnce({
+            id: FeatureFlags.EnableLearn,
+            enabled: false,
+        });
         await expect(provisionTrainingProject(mocks.args)).rejects.toThrow(
-            'Learn is not enabled on this instance',
+            'Learn is not enabled for this organization',
         );
         expect(mocks.createWithoutCompile).not.toHaveBeenCalled();
+        expect(mocks.runInTrainingProvisioningLock).not.toHaveBeenCalled();
+        expect(mocks.getFeatureFlag).toHaveBeenCalledExactlyOnceWith({
+            user,
+            featureFlagId: FeatureFlags.EnableLearn,
+        });
         expect(mocks.track).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 event: 'training_project.skipped',

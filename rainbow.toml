@@ -77,10 +77,6 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # PR mode implies this (docs/preview-feature-flags.md); kept explicit so a
 # later mode change cannot silently drop the flag-management API.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
-# Learn is off by default everywhere (docs/learn/architecture.md); previews
-# exist to try unreleased work, so switch it on here and let an admin press
-# Enable Learn in the environment.
-LIGHTDASH_LEARN_ENABLED = "true"
 # No product analytics from previews. The backend's config bakes in a default
 # RudderStack write key and data plane, so without this every environment
 # tracks into production analytics — and the migrate rung's node process

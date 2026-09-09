@@ -414,6 +414,7 @@ const getMockedProjectService = (
             ConstructorParameters<typeof ProjectService>[0],
             | 'spacePermissionService'
             | 'provisionPlaygroundProject'
+            | 'provisionTrainingProject'
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'organizationWarehouseCredentialsModel'
@@ -462,7 +463,9 @@ const getMockedProjectService = (
         encryptionUtil: {
             encrypt: vi.fn(() => Buffer.from('encrypted-project-data')),
         } as unknown as EncryptionUtil,
-        userModel: {} as UserModel,
+        userModel: {
+            invalidateSessionUserCache: vi.fn(),
+        } as unknown as UserModel,
         userOAuthGrantsModel: {} as UserOAuthGrantsModel,
         featureFlagModel:
             overrides.featureFlagModel ??
@@ -511,6 +514,7 @@ const getMockedProjectService = (
             }),
         } as never,
         provisionPlaygroundProject: overrides.provisionPlaygroundProject,
+        provisionTrainingProject: overrides.provisionTrainingProject,
         getAiAgentService: overrides.getAiAgentService,
         getDataAppCustomSqlProvenance:
             overrides.getDataAppCustomSqlProvenance ??
@@ -569,6 +573,105 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigMock);
+
+    describe('Learn flag guards', () => {
+        const learnUser: SessionUser = {
+            ...user,
+            organizationUuid: 'organization-uuid',
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date('2026-09-01'),
+        };
+
+        test('provisions training for an org admin when Learn is enabled', async () => {
+            const provisionTrainingProject = vi.fn(async () => ({
+                projectUuid: 'training-project',
+                created: true,
+            }));
+            const learnService = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.EnableLearn,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                provisionTrainingProject,
+            });
+            const adminUser = {
+                ...learnUser,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            };
+            await expect(learnService.enableLearn(adminUser)).resolves.toEqual({
+                projectUuid: 'training-project',
+                created: true,
+            });
+            expect(provisionTrainingProject).toHaveBeenCalledExactlyOnceWith({
+                user: adminUser,
+                projectService: learnService,
+            });
+        });
+        test.each(['enable', 'copy', 'delete'] as const)(
+            'blocks %s when the requesting org has Learn disabled',
+            async (operation) => {
+                const get = vi.fn(async () => ({
+                    id: FeatureFlags.EnableLearn,
+                    enabled: false,
+                }));
+                const provisionTrainingProject = vi.fn();
+                const learnService = getMockedProjectService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: {
+                            get,
+                        } as unknown as FeatureFlagModel,
+                        provisionTrainingProject,
+                    },
+                );
+                const operations = {
+                    enable: () => learnService.enableLearn(learnUser),
+                    copy: () =>
+                        learnService.createTrainingPreview(
+                            learnUser,
+                            'training-project',
+                        ),
+                    delete: () =>
+                        learnService.deleteTrainingPreviews(
+                            learnUser,
+                            'training-project',
+                        ),
+                };
+                await expect(operations[operation]()).rejects.toThrow(
+                    'Learn is not enabled for this organization',
+                );
+                expect(get).toHaveBeenCalledExactlyOnceWith({
+                    user: learnUser,
+                    featureFlagId: FeatureFlags.EnableLearn,
+                });
+                expect(provisionTrainingProject).not.toHaveBeenCalled();
+            },
+        );
+
+        test('still requires org admin permissions when Learn is enabled', async () => {
+            const provisionTrainingProject = vi.fn();
+            const learnService = getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.EnableLearn,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+                provisionTrainingProject,
+            });
+            await expect(
+                learnService.enableLearn({
+                    ...learnUser,
+                    ability: new Ability<PossibleAbilities>([]),
+                }),
+            ).rejects.toThrow('Only an organization admin can enable Learn');
+            expect(provisionTrainingProject).not.toHaveBeenCalled();
+        });
+    });
 
     describe('MotherDuck instance cache enablement', () => {
         test.each([
