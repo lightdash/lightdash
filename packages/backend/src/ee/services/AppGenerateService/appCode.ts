@@ -17,6 +17,7 @@ export const buildManifest = (args: {
     name: string;
     description: string;
     template: DataAppManifest['template'];
+    icon?: DataAppManifest['icon'];
     vizSchema?: DataAppManifest['vizSchema'];
     externalConnections?: DataAppManifest['externalConnections'];
     spaceSlug?: DataAppManifest['spaceSlug'];
