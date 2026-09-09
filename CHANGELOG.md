@@ -1,3 +1,10 @@
+# [2.172.0](https://github.com/lightdash/lightdash/compare/2.171.0...2.172.0) (2026-09-09)
+
+
+### Features
+
+* **ai:** support Bitbucket Cloud writeback pull requests ([#28932](https://github.com/lightdash/lightdash/issues/28932)) ([66f6bb3](https://github.com/lightdash/lightdash/commit/66f6bb3693451c7a05297030959d5cda951a63d2)), closes [#28926](https://github.com/lightdash/lightdash/issues/28926)
+
 # [2.171.0](https://github.com/lightdash/lightdash/compare/2.170.1...2.171.0) (2026-09-09)
 
 

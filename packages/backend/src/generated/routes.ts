@@ -26046,6 +26046,12 @@ const models: TsoaRoute.Models = {
                                                         {
                                                             dataType: 'enum',
                                                             enums: [
+                                                                'bitbucket_token_missing',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
                                                                 'git_write_permission',
                                                             ],
                                                         },
@@ -37192,6 +37198,7 @@ const models: TsoaRoute.Models = {
                 },
                 { dataType: 'enum', enums: ['unsupported_source_control'] },
                 { dataType: 'enum', enums: ['git_app_not_installed'] },
+                { dataType: 'enum', enums: ['bitbucket_token_missing'] },
                 { dataType: 'enum', enums: ['missing_writeback_config'] },
                 { dataType: 'enum', enums: ['pull_request_open'] },
                 { dataType: 'enum', enums: ['source_thread_writeback_exists'] },

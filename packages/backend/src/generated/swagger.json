@@ -26877,6 +26877,7 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
+                                                            "bitbucket_token_missing",
                                                             "git_write_permission",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
@@ -37514,6 +37515,7 @@
                     "insufficient_source_code_access",
                     "unsupported_source_control",
                     "git_app_not_installed",
+                    "bitbucket_token_missing",
                     "missing_writeback_config",
                     "pull_request_open",
                     "source_thread_writeback_exists",
@@ -60628,7 +60630,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.171.0",
+        "version": "2.172.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
