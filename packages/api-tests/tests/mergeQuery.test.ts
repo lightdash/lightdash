@@ -1150,7 +1150,9 @@ describe('Merge queries on the project warehouse', () => {
     // Every other credentialed warehouse: run the same suite against the
     // shared project global setup created for it. Skipped when creds are absent.
     for (const { name } of mergeWarehouseEntries) {
-        describe(name, () => {
+        // Remote warehouses drop a connection now and then ("socket hang up");
+        // one retry keeps that transient from failing the run.
+        describe(name, { retry: 1 }, () => {
             let admin: ApiClient;
             let projectUuid: string;
 
