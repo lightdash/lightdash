@@ -7,7 +7,8 @@ import {
 } from '@lightdash/common';
 import { GitError } from 'simple-git';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
-import { DbtGitProjectAdapter, gitErrorHandler } from './dbtGitProjectAdapter';
+import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
+import { gitErrorHandler } from './gitRepository';
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';

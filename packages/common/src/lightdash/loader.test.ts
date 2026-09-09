@@ -81,4 +81,16 @@ describe('native model loading and compilation', () => {
             'Duplicate Lightdash model "orders" in models/a.yml and models/nested/b.yml',
         );
     });
+    it('rejects a models directory symlink that leaves the project', async () => {
+        const nestedProject = path.join(projectDir, 'nested-project');
+        await writeModel('outside/orders.yml');
+        await fs.mkdir(nestedProject);
+        await fs.symlink(
+            path.join(projectDir, 'outside'),
+            path.join(nestedProject, 'models'),
+        );
+        await expect(loadLightdashModels(nestedProject)).rejects.toThrow(
+            'within the project directory',
+        );
+    });
 });

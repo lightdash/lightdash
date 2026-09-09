@@ -1067,6 +1067,8 @@ export interface DbtCloudIDEProjectConfig extends DbtProjectConfigBase {
 
 export interface DbtGithubProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.GITHUB;
+    /** Omitted on existing connections, which continue to build with dbt. */
+    semanticLayer?: 'dbt' | 'lightdash';
     authorization_method: 'personal_access_token' | 'installation_id';
     personal_access_token?: string;
     installation_id?: string;

@@ -23,6 +23,7 @@ import {
     ManifestInput,
 } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
+import { NativeGithubProjectAdapter } from './nativeGithubProjectAdapter';
 
 export const projectAdapterFromConfig = async (
     config:
@@ -109,6 +110,16 @@ export const projectAdapterFromConfig = async (
                 throw new ParameterError(
                     `Missing repository for GitHub project`,
                 );
+            }
+            if (config.semanticLayer === 'lightdash') {
+                return new NativeGithubProjectAdapter({
+                    warehouseClient,
+                    token: githubToken,
+                    repository: config.repository,
+                    branch: config.branch,
+                    projectSubPath: config.project_sub_path,
+                    hostDomain: config.host_domain,
+                });
             }
             return new DbtGithubProjectAdapter({
                 analytics,
