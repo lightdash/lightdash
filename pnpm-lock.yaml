@@ -460,8 +460,8 @@ importers:
         specifier: 0.15.0
         version: 0.15.0
       nodemailer:
-        specifier: 9.0.1
-        version: 9.0.1
+        specifier: 9.1.0
+        version: 9.1.0
       octokit:
         specifier: 3.1.2
         version: 3.1.2
@@ -12761,8 +12761,8 @@ packages:
     resolution: {integrity: sha512-qlwPGxR3Jh/N1IMXWgQP1JAHDSXTFg7b3iE7Jiw3sX6wnOnPcDCcPXmcT3KB2uH5vGBrK3W+xQQPqL9YePrvMQ==}
     engines: {node: '>= 18'}
 
-  nodemailer@9.0.1:
-    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
+  nodemailer@9.1.0:
+    resolution: {integrity: sha512-xj1Ri5Sau3qpPffHJwi2bY0oWVVWYq62Ph17l+2v1xXpxjqTls3YPc3L8dub9mcJpxj+1ucNnuYVqLlgh4pmDA==}
     engines: {node: '>=6.0.0'}
 
   nodemon@3.1.9:
@@ -29940,7 +29940,7 @@ snapshots:
       nodejs-polars-linux-x64-musl: 0.15.0
       nodejs-polars-win32-x64-msvc: 0.15.0
 
-  nodemailer@9.0.1: {}
+  nodemailer@9.1.0: {}
 
   nodemon@3.1.9:
     dependencies:
