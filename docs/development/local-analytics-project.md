@@ -21,8 +21,6 @@ Add these values to that worktree's `.env.development.local` (never commit them)
 LIGHTDASH_ENABLE_FEATURE_FLAGS=analytics-project
 LIGHTDASH_LOCAL_ANALYTICS_ORG_UUID=<local-organization-uuid>
 LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID=<source-organization-uuid>
-LIGHTDASH_LOCAL_ANALYTICS_START_DATE=2026-09-07
-LIGHTDASH_LOCAL_ANALYTICS_END_DATE=2026-09-07
 ```
 
 Preserve other enabled flags if needed. Explicitly disabling `analytics-project`
@@ -33,7 +31,9 @@ As a signed-in organization administrator, call the same-origin endpoint from
 the browser console on your assigned local frontend:
 
 ```javascript
-const response = await fetch('/api/v1/org/analytics-project', { method: 'POST' });
+const response = await fetch('/api/v1/org/analytics-project', {
+  method: 'POST',
+});
 const body = await response.json();
 if (!response.ok) throw new Error(JSON.stringify(body));
 window.location.assign(body.results.url);
@@ -57,7 +57,9 @@ previews with no upstream. No admin navigation has been added.
 ## Read path and safeguards
 
 The backend lists `events/compacted/org_id=<uuid>/stream=<name>/dt=<date>/*.parquet`
-for `query_events` and `ai_usage` within the inclusive configured date range.
+for `query_events` and `ai_usage` across all retained dates. Filter dates in
+Explore; legacy `LIGHTDASH_LOCAL_ANALYTICS_START_DATE` and
+`LIGHTDASH_LOCAL_ANALYTICS_END_DATE` settings are no longer read.
 Files and authentication are refreshed per session. DuckDB views bind exact
 HTTPS URLs; Explore SQL uses table names. Reads use HTTP ranges, with no import
 into a persistent database and no writes to the source bucket.
@@ -87,8 +89,9 @@ slice does not issue export URLs that outlive these checks.
 - Production provisioning, admin navigation, and feature-flag-service integration.
 - Latest resource names, additional domain metrics, schema evolution, empty
   streams, retention and query performance.
-- Result-cache freshness and manifest/view caching at scale. The configured
-  date range is a triage bound, not the final UX.
+- Result-cache freshness, date-aware discovery and manifest/view caching at scale
+  (PROD-11111). All retained dates are exposed, subject to fail-closed listing/file
+  caps; large-history and concurrent query performance still need benchmarking.
 - Reevaluate direct Parquet writes and optional compaction separately. This
   slice only reads existing compacted data; the writer/nightly job is unchanged.
 

@@ -56,7 +56,7 @@ describe('local analytics project gate', () => {
         expect(createS3AnalyticsSourceResolver).not.toHaveBeenCalled();
     });
 
-    it('binds the existing writer configuration to the signed-URL resolver', () => {
+    it('binds writer configuration and org without forwarding legacy date limits', () => {
         const storage = {
             endpoint: 'https://storage.googleapis.com',
             bucket: 'example-bucket',
@@ -73,8 +73,6 @@ describe('local analytics project gate', () => {
         expect(createS3AnalyticsSourceResolver).toHaveBeenCalledWith({
             storage,
             organizationUuid: 'source-org',
-            startDate: '2026-09-07',
-            endDate: '2026-09-07',
         });
     });
 });

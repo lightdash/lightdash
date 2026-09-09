@@ -39,8 +39,6 @@ export const createLocalAnalyticsClient = (
         // Explicit local demo binding only; production must use the persisted org.
         organizationUuid:
             process.env.LIGHTDASH_LOCAL_ANALYTICS_SOURCE_ORG_UUID ?? '',
-        startDate: process.env.LIGHTDASH_LOCAL_ANALYTICS_START_DATE ?? '',
-        endDate: process.env.LIGHTDASH_LOCAL_ANALYTICS_END_DATE ?? '',
     });
     return new DuckdbWarehouseClient({
         type: 'duckdb_parquet',
