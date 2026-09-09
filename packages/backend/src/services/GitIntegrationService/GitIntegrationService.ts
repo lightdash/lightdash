@@ -484,11 +484,6 @@ Affected charts:
 
             let updatedYml: string;
             if (fieldType === 'customDimensions') {
-                if (yamlSchema instanceof LightdashModelEditor) {
-                    throw new ParameterError(
-                        'Native custom dimension write-back is not supported yet',
-                    );
-                }
                 const warehouseCredentials =
                     await this.projectModel.getWarehouseCredentialsForProject(
                         projectUuid,
@@ -907,11 +902,6 @@ Affected charts:
                 projectUuid,
                 table,
             });
-            if (yamlSchema instanceof LightdashModelEditor) {
-                throw new ParameterError(
-                    'Native custom dimension write-back is not supported yet',
-                );
-            }
             customDimensions
                 .filter((dimension) => dimension.table === table)
                 .forEach((dimension) => {
@@ -924,7 +914,12 @@ Affected charts:
         }
 
         return {
-            yaml: yaml.dump(definitions, { quotingType: yamlQuoteChar }),
+            yaml: yaml.dump(
+                gitProps.semanticLayer === 'lightdash'
+                    ? { dimensions: Object.values(definitions) }
+                    : definitions,
+                { quotingType: yamlQuoteChar },
+            ),
         };
     }
 
@@ -1028,7 +1023,7 @@ Affected charts:
             args.type === 'customDimensions' &&
             args.fields.some(isCustomBinDimension);
         const replacementGuidance = containsCustomBins
-            ? '> ℹ️ **Existing saved charts keep their custom bin dimensions.** Lightdash does not automatically replace them with these YAML dimensions, so their current bin ordering remains unchanged. Use the new dimensions after refreshing the project, and define a separate numeric ordering dimension in dbt when bin order matters.'
+            ? '> ℹ️ **Existing saved charts keep their custom bin dimensions.** Lightdash does not automatically replace them with these YAML dimensions, so their current bin ordering remains unchanged. Use the new dimensions after refreshing the project, and define a separate numeric ordering dimension in your model when bin order matters.'
             : `> ⚠️ **Note: Do not change the \`label\` or \`id\` of your ${typeName}s in this pull request.** Your ${typeName}s _will not be replaced_ with YAML ${typeName}s if you change the \`label\` or \`id\` of the ${typeName}s in this pull request. Lightdash requires the IDs and labels to match 1:1 in order to replace custom ${typeName}s with YAML ${typeName}s.`;
         const eventProperties: WriteBackEvent['properties'] = {
             name: fieldsInfo,

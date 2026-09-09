@@ -155,7 +155,7 @@ describe('custom bin write-back in Explorer trees', () => {
         await user.hover(action.parentElement!);
         expect(
             await screen.findByText(
-                /Fixed-number bins cannot be written back because they require a dbt model CTE/,
+                /Fixed-number bins cannot be written back because their boundaries depend on query results/,
             ),
         ).toBeVisible();
     });
