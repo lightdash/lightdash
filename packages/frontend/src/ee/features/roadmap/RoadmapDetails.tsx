@@ -42,6 +42,9 @@ export function RoadmapDetails({
             opened={opened}
             onClose={onClose}
             size="72rem"
+            modalContentProps={
+                compact ? { className: styles.compactModalContent } : undefined
+            }
             title={
                 <Text
                     component="span"

@@ -10,6 +10,12 @@
     height: auto;
 }
 
+.compactModalContent {
+    min-height: 400px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+}
+
 .detailHeaderTitle {
     color: var(--mantine-color-text);
     font-size: 16px;

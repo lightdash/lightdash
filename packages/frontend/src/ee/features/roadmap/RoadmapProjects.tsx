@@ -266,7 +266,11 @@ function ProjectCard({
                         {group.project.description}
                     </Text>
                 )}
-                <Group justify="space-between" gap="xs">
+                <Group
+                    justify="space-between"
+                    gap="xs"
+                    className={classes.cardMetadata}
+                >
                     <ItemBadges priority={presentation.priority} />
                     {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
@@ -330,7 +334,11 @@ function TicketCard({
                 />
                 <Text className={classes.ticketTitle}>{ticket.title}</Text>
             </Group>
-            <ItemBadges ticketId={ticket.ticketId} priority={ticket.priority} />
+            <ItemBadges
+                className={classes.cardMetadata}
+                ticketId={ticket.ticketId}
+                priority={ticket.priority}
+            />
         </UnstyledButton>
     );
 }
@@ -338,12 +346,14 @@ function TicketCard({
 function ItemBadges({
     priority,
     ticketId,
+    className,
 }: {
     priority: RoadmapItemPriority;
     ticketId?: string;
+    className?: string;
 }) {
     return (
-        <Group gap="xs" wrap="nowrap">
+        <Group gap="xs" wrap="nowrap" className={className}>
             {ticketId && (
                 <Badge
                     size="xs"
@@ -537,9 +547,8 @@ function BoardError({
 export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
     const { pathname } = useLocation();
     const [view, setView] = useState('board');
-    const [itemType, setItemType] = useState<'all' | 'projects' | 'tickets'>(
-        'all',
-    );
+    const [itemTypes, setItemTypes] = useState<string[]>([]);
+    const itemType = itemTypes.length === 1 ? itemTypes[0] : 'all';
     const [onlyInterested, setOnlyInterested] = useState<boolean | null>(null);
     const initializingInterest = onlyInterested === null;
     const [mainStatuses, setMainStatuses] = useState<string[]>([]);
@@ -641,14 +650,14 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
         ? setProjectPriorities
         : setMainPriorities;
     const hasFilters =
-        (!projectBoard && itemType !== 'all') ||
+        (!projectBoard && itemTypes.length > 0) ||
         statuses.length > 0 ||
         priorities.length > 0 ||
         (projectBoard ? projectSearch : mainSearch) !== '';
     const clearFilters = () => {
         setStatuses([]);
         setPriorities([]);
-        if (!projectBoard) setItemType('all');
+        if (!projectBoard) setItemTypes([]);
         (projectBoard ? setProjectSearch : setMainSearch)('');
     };
     const loading =
@@ -801,11 +810,7 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
             >
                 <Group gap="sm">
                     <ContentTableSearchInput
-                        tooltipLabel={
-                            projectBoard
-                                ? 'Search project tickets'
-                                : 'Search roadmap'
-                        }
+                        tooltipLabel="Search by title, description, or ticket ID"
                         aria-label={
                             projectBoard
                                 ? 'Search project tickets'
@@ -824,23 +829,29 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         }
                     />
                     {!projectBoard && (
+                        <SegmentedControl
+                            aria-label="Roadmap interest"
+                            size="xs"
+                            disabled={initializingInterest}
+                            value={
+                                onlyInterested === false ? 'all' : 'following'
+                            }
+                            onChange={(value) =>
+                                setOnlyInterested(value === 'following')
+                            }
+                            data={[
+                                { value: 'following', label: 'Following' },
+                                { value: 'all', label: 'All' },
+                            ]}
+                        />
+                    )}
+                    {!projectBoard && (
                         <FilterFacet
                             label="Type"
                             icon={IconFilter}
-                            mode="single"
-                            showSelectionCount={false}
-                            selected={[itemType]}
-                            onChange={(selected) =>
-                                setItemType(
-                                    selected.includes('projects')
-                                        ? 'projects'
-                                        : selected.includes('tickets')
-                                          ? 'tickets'
-                                          : 'all',
-                                )
-                            }
+                            selected={itemTypes}
+                            onChange={setItemTypes}
                             options={[
-                                { value: 'all', label: 'Projects and tickets' },
                                 { value: 'projects', label: 'Projects' },
                                 { value: 'tickets', label: 'Tickets' },
                             ]}
@@ -882,37 +893,6 @@ export function RoadmapProjects({ cacheKey }: { cacheKey: string }) {
                         )}
                         tooltipLabel="Filter by priority"
                     />
-                    {!projectBoard && (
-                        <FilterFacet
-                            label="Interest"
-                            showSelectionCount={false}
-                            icon={IconEye}
-                            mode="single"
-                            selected={
-                                onlyInterested === null
-                                    ? []
-                                    : onlyInterested
-                                      ? ['following']
-                                      : ['all']
-                            }
-                            onChange={(selected) =>
-                                setOnlyInterested(
-                                    selected.includes('following'),
-                                )
-                            }
-                            options={[
-                                {
-                                    value: 'following',
-                                    label: 'Following',
-                                },
-                                {
-                                    value: 'all',
-                                    label: 'All',
-                                },
-                            ]}
-                            tooltipLabel="Filter by your organization’s interests"
-                        />
-                    )}
                 </Group>
                 <Group gap="md" className={classes.viewControls}>
                     <SegmentedControl

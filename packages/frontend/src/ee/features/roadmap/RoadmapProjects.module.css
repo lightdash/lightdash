@@ -180,3 +180,7 @@
 .projectCardFooter:focus-visible {
     outline-offset: -2px;
 }
+
+.cardMetadata {
+    margin-top: var(--mantine-spacing-xs);
+}
