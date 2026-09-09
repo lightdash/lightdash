@@ -10,7 +10,9 @@ import {
     VizIndexType,
 } from '@lightdash/common';
 import {
+    bigqueryClientMock,
     EXPLORE,
+    EXPLORE_BIGQUERY,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     QUERY_BUILDER_UTC_TIMEZONE,
@@ -185,6 +187,45 @@ describe('QueryComposer', () => {
                 expect(composer.getSql({ columnLimit: 100 })).toMatchSnapshot();
             },
         );
+
+        it('returns valid empty BigQuery SQL when no totalable fields remain', () => {
+            const composer = new QueryComposer(
+                {
+                    metricQuery: {
+                        ...TOTALS_SOURCE_METRIC_QUERY,
+                        dimensions: ['table1_dim1'],
+                        metrics: [],
+                        filters: {
+                            dimensions: {
+                                id: 'root',
+                                and: [
+                                    {
+                                        id: 'filter',
+                                        target: { fieldId: 'table1_dim1' },
+                                        operator: FilterOperator.NOT_EQUALS,
+                                        values: [1, 2],
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                    totalConfiguration: {
+                        kind: 'columnTotal',
+                        subtotalDimensions: undefined,
+                    },
+                },
+                {
+                    ...CONTEXT,
+                    explore: EXPLORE_BIGQUERY,
+                    warehouseSqlBuilder: bigqueryClientMock,
+                },
+            );
+
+            expect(composer.getFields()).toEqual({});
+            expect(composer.getSql({ columnLimit: 100 })).toBe(
+                'SELECT NULL AS __lightdash_empty_total WHERE 1 = 0',
+            );
+        });
 
         describe('metric-filtered source (filtered dimension groups)', () => {
             const METRIC_FILTERED_TOTALS_SOURCE: MetricQuery = {

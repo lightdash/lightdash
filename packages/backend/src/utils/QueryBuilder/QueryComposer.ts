@@ -333,6 +333,14 @@ export class QueryComposer {
      */
     getSql({ columnLimit }: { columnLimit: number }): string {
         const compiledQuery = this.compile();
+
+        if (
+            this.definition.totalConfiguration &&
+            Object.keys(compiledQuery.fields).length === 0
+        ) {
+            return 'SELECT NULL AS __lightdash_empty_total WHERE 1 = 0';
+        }
+
         const pivotConfiguration = this.getPivotConfiguration();
 
         if (!pivotConfiguration) {
