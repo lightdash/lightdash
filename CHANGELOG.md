@@ -1,3 +1,10 @@
+# [2.177.0](https://github.com/lightdash/lightdash/compare/2.176.1...2.177.0) (2026-09-09)
+
+
+### Features
+
+* **sql-runner:** add Bitbucket Cloud model writeback ([#28936](https://github.com/lightdash/lightdash/issues/28936)) ([24e4d77](https://github.com/lightdash/lightdash/commit/24e4d77b11637175bbeb4b70715df79493bffcbe))
+
 ## [2.176.1](https://github.com/lightdash/lightdash/compare/2.176.0...2.176.1) (2026-09-09)
 
 
