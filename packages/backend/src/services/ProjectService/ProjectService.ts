@@ -96,6 +96,7 @@ import {
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
+    getDashboardFilterableFieldKey,
     getDashboardFilterRulesForTables,
     getDbtEnvironmentVariableKeyError,
     getDimensions,
@@ -10397,12 +10398,13 @@ export class ProjectService extends BaseService {
             },
         );
 
+        // Explores that relabel a shared join alias keep their own entries
         const allFilterableFields: FilterableDimension[] = [];
         const filterIndexMap: Record<string, number> = {};
 
         allFilters.forEach((filterSet) => {
             filterSet.filters.forEach((filter) => {
-                const fieldId = getItemId(filter);
+                const fieldId = getDashboardFilterableFieldKey(filter);
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
@@ -10415,7 +10417,7 @@ export class ProjectService extends BaseService {
 
         allFilters.forEach((filterSet) => {
             filterSet.metricFilters.forEach((metric) => {
-                const fieldId = getItemId(metric);
+                const fieldId = getDashboardFilterableFieldKey(metric);
                 if (!(fieldId in metricIndexMap)) {
                     metricIndexMap[fieldId] = allFilterableMetrics.length;
                     allFilterableMetrics.push(metric);
@@ -10433,7 +10435,8 @@ export class ProjectService extends BaseService {
             if (!filterResult || !filterResult.filters.length) return acc;
 
             const filterIndexes = filterResult.filters.map(
-                (filter) => filterIndexMap[getItemId(filter)],
+                (filter) =>
+                    filterIndexMap[getDashboardFilterableFieldKey(filter)],
             );
             return {
                 ...acc,
@@ -10451,7 +10454,8 @@ export class ProjectService extends BaseService {
             if (!filterResult || !filterResult.metricFilters.length) return acc;
 
             const metricIndexes = filterResult.metricFilters.map(
-                (metric) => metricIndexMap[getItemId(metric)],
+                (metric) =>
+                    metricIndexMap[getDashboardFilterableFieldKey(metric)],
             );
             return {
                 ...acc,

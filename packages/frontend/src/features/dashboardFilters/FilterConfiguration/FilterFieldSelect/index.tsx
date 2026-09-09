@@ -1,5 +1,4 @@
 import {
-    getItemId,
     getItemLabelWithoutTableName,
     isField,
     type DashboardFilterableField,
@@ -23,7 +22,11 @@ import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
 import styles from './FilterFieldSelect.module.css';
-import { useFilterFieldSections } from './useFilterFieldSections';
+import {
+    getCollidingFieldIds,
+    getFieldOptionValue,
+    useFilterFieldSections,
+} from './useFilterFieldSections';
 
 interface FilterFieldSelectProps {
     fields: DashboardFilterableField[];
@@ -151,15 +154,27 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         overscan: 10,
     });
 
+    const collidingFieldIds = useMemo(
+        () => getCollidingFieldIds(fields),
+        [fields],
+    );
+    const getOptionValue = useCallback(
+        (field: DashboardFilterableField) =>
+            getFieldOptionValue(field, collidingFieldIds),
+        [collidingFieldIds],
+    );
+
     const handleOptionSubmit = (value: string) => {
-        const field = fields.find((f) => getItemId(f) === value);
+        const field = fields.find((f) => getOptionValue(f) === value);
         if (field) {
             onChange(field);
         }
         combobox.closeDropdown();
     };
 
-    const selectedFieldId = selectedField ? getItemId(selectedField) : null;
+    const selectedFieldId = selectedField
+        ? getOptionValue(selectedField)
+        : null;
 
     const renderVirtualItem = useCallback(
         (item: VirtualItem) => {
@@ -185,7 +200,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         </div>
                     );
                 case 'field': {
-                    const fieldId = getItemId(item.field);
+                    const fieldId = getOptionValue(item.field);
                     return (
                         <Combobox.Option
                             value={fieldId}
@@ -220,7 +235,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                 }
             }
         },
-        [selectedFieldId],
+        [getOptionValue, selectedFieldId],
     );
 
     const isOpen = combobox.dropdownOpened;

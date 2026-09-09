@@ -27,7 +27,7 @@ import { EventName } from '../../../types/Events';
 import classes from './FilterRequirements.module.css';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import { AndSeparator } from './RuleSeparators';
-import { useFilterableItemsMap } from './useFilterableItemsMap';
+import { useDashboardFilterField } from './useDashboardFilterField';
 import { useFilterBarPopovers } from './useFilterBarPopovers';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
@@ -156,18 +156,12 @@ const FilterRequirementsButton: FC = () => {
         [dashboardFilters],
     );
 
-    const fieldsMap = useFilterableItemsMap();
+    const getFilterItem = useDashboardFilterField();
 
     const getFilterLabel = useCallback(
         (filterRule: DashboardFilterRule) =>
-            getDashboardFilterRuleLabel(filterRule, fieldsMap),
-        [fieldsMap],
-    );
-
-    const getFilterItem = useCallback(
-        (filterRule: DashboardFilterRule) =>
-            fieldsMap[filterRule.target.fieldId],
-        [fieldsMap],
+            getDashboardFilterRuleLabel(filterRule, getFilterItem),
+        [getFilterItem],
     );
 
     // Saved filters with staged edits applied on top; drives the rule cards
@@ -198,8 +192,8 @@ const FilterRequirementsButton: FC = () => {
 
     const selectableFiltersFor = useCallback(
         (memberIds: string[]): SelectableFilter[] =>
-            getSelectableFilters(allFilterRules, memberIds, fieldsMap),
-        [allFilterRules, fieldsMap],
+            getSelectableFilters(allFilterRules, memberIds, getFilterItem),
+        [allFilterRules, getFilterItem],
     );
 
     const updateFilterRule = useUpdateDashboardFilterRule();

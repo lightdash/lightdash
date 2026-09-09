@@ -16,6 +16,7 @@ import {
     TableCalculationType,
     type CompiledField,
     type CustomSqlDimension,
+    type DashboardFilterableField,
     type Dimension,
     type Field,
     type FilterableDimension,
@@ -39,6 +40,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DateFilterRule,
+    type FieldTarget,
     type FilterDashboardToRule,
     type FilterGroup,
     type FilterGroupItem,
@@ -487,6 +489,35 @@ export const createFilterRuleFromField = (
 export const matchFieldExact = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name && a.table === b.table;
 
+/** Same query field and the same labels; explores that relabel a shared join alias yield distinct dashboard fields. */
+const matchDashboardFilterableField = (a: Field) => (b: Field) =>
+    matchFieldExact(a)(b) &&
+    a.label === b.label &&
+    a.tableLabel === b.tableLabel;
+
+export const getDashboardFilterableFieldKey = (field: Field): string =>
+    `${getItemId(field)}::${field.tableLabel}::${field.label}`;
+
+/** The field a dashboard filter displays: an explicitly targeted tile carries its own explore's labels. */
+export const getDashboardFilterField = <T extends ItemsMap[string]>(
+    itemsMap: Record<string, T>,
+    rule: {
+        target: FieldTarget;
+        tileTargets?: DashboardFilterRule['tileTargets'];
+    },
+    fieldsByTile?: Record<string, DashboardFilterableField[]>,
+): T | DashboardFilterableField | undefined => {
+    for (const [tileUuid, target] of Object.entries(rule.tileTargets ?? {})) {
+        if (target && target.fieldId === rule.target.fieldId) {
+            const field = fieldsByTile?.[tileUuid]?.find(
+                (candidate) => getItemId(candidate) === target.fieldId,
+            );
+            if (field) return field;
+        }
+    }
+    return itemsMap[rule.target.fieldId];
+};
+
 export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
     a.type === b.type && a.name === b.name;
 
@@ -577,7 +608,9 @@ const getDefaultTileTargets = (
     >((acc, [tileUuid, availableFilters]) => {
         if (!availableFilters) return acc;
 
-        const filterableField = availableFilters.find(matchFieldExact(field));
+        const filterableField = availableFilters.find(
+            matchDashboardFilterableField(field),
+        );
         if (!filterableField) return acc;
 
         return {
@@ -588,6 +621,30 @@ const getDefaultTileTargets = (
             },
         };
     }, {});
+
+/** Tiles that carry the same query field under different labels are excluded, not left to auto-apply */
+const getRelabelledTileExclusions = (
+    field: FilterableDimension | Metric | Field,
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >,
+) =>
+    Object.entries(availableTileFilters).reduce<Record<string, false>>(
+        (acc, [tileUuid, availableFilters]) => {
+            if (!availableFilters) return acc;
+            const sameQueryField = availableFilters.some(
+                matchFieldExact(field),
+            );
+            const sameLabels = availableFilters.some(
+                matchDashboardFilterableField(field),
+            );
+            return sameQueryField && !sameLabels
+                ? { ...acc, [tileUuid]: false }
+                : acc;
+        },
+        {},
+    );
 
 export const applyDefaultTileTargets = (
     filterRule: DashboardFilterRule<
@@ -638,7 +695,10 @@ export const createDashboardFilterRuleFromField = ({
                 tableName: field.table,
                 fieldName: field.name,
             },
-            tileTargets: getDefaultTileTargets(field, availableTileFilters),
+            tileTargets: {
+                ...getRelabelledTileExclusions(field, availableTileFilters),
+                ...getDefaultTileTargets(field, availableTileFilters),
+            },
             disabled: !isTemporary,
             label: undefined,
         },

@@ -17,7 +17,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
-import { useFilterableItemsMap } from './useFilterableItemsMap';
+import { useDashboardFilterField } from './useDashboardFilterField';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import { getDashboardFilterRuleLabel, getSelectableFilters } from './utils';
 
@@ -40,7 +40,7 @@ const RequiredFilterCard: FC<Props> = ({
 
     const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
 
-    const fieldsMap = useFilterableItemsMap();
+    const getField = useDashboardFilterField();
 
     const allFilterRules = useMemo(
         () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
@@ -72,8 +72,8 @@ const RequiredFilterCard: FC<Props> = ({
     );
 
     const selectableFilters = useMemo<SelectableFilter[]>(
-        () => getSelectableFilters(allFilterRules, [filterRule.id], fieldsMap),
-        [allFilterRules, filterRule.id, fieldsMap],
+        () => getSelectableFilters(allFilterRules, [filterRule.id], getField),
+        [allFilterRules, filterRule.id, getField],
     );
 
     const handleAddAlternative = useCallback(
@@ -167,7 +167,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 color="yellow"
                                 radius="xl"
                             >
-                                {getDashboardFilterRuleLabel(member, fieldsMap)}
+                                {getDashboardFilterRuleLabel(member, getField)}
                             </Badge>
                         ))}
                         {onEditRules && (

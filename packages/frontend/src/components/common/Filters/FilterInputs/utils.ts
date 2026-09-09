@@ -19,15 +19,18 @@ export const getFilterRuleTables = (
     filterRule: BaseFilterRule,
     field: DashboardFilterableField,
     filterableFields: DashboardFilterableField[],
+    fieldsByTile?: Record<string, DashboardFilterableField[]>,
 ): string[] => {
     if (
         isDashboardFilterRule(filterRule) &&
         filterRule.tileTargets &&
         !isEmpty(filterRule.tileTargets)
     ) {
-        return Object.values(filterRule.tileTargets).reduce<string[]>(
-            (tables, tileTarget) => {
-                const targetField = filterableFields.find(
+        return Object.entries(filterRule.tileTargets).reduce<string[]>(
+            (tables, [tileUuid, tileTarget]) => {
+                const targetField = (
+                    fieldsByTile?.[tileUuid] ?? filterableFields
+                ).find(
                     (f) =>
                         tileTarget !== false &&
                         isDashboardFieldTarget(tileTarget) &&

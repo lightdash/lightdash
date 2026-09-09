@@ -305,6 +305,7 @@ const onboardingModel = {
     ),
 };
 const savedChartModel = {
+    getInfoForAvailableFilters: vi.fn(),
     getAllSpaces: vi.fn(async () => spacesWithSavedCharts),
     find: vi.fn(async () => [] as ChartSummary[]),
     get: vi.fn(),
@@ -7648,5 +7649,114 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 },
             }),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+});
+
+describe('dashboard available filters', () => {
+    test('keeps a field per distinct label set and shares indexes across explores that agree', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        // event_c reuses the team alias with event_a's labels
+        const explores = [
+            ['event_a', 'A'],
+            ['event_b', 'B'],
+            ['event_c', 'A'],
+        ].map(([name, event]) => ({
+            ...validExplore,
+            name,
+            tables: {
+                team: {
+                    ...validExplore.tables.a,
+                    name: 'team',
+                    dimensions: {
+                        name: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table: 'team',
+                            name: 'name',
+                            tableLabel: `Team at Event ${event}`,
+                            label: `Name at Event ${event}`,
+                        },
+                    },
+                    metrics: {
+                        total: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table: 'team',
+                            name: 'total',
+                            label: `Total at Event ${event}`,
+                        },
+                    },
+                },
+            },
+        }));
+        const charts = ['event_a', 'event_b', 'event_c'].map(
+            (tableName, index) => ({
+                uuid: `chart-${index}`,
+                name: `Chart ${index}`,
+                tableName,
+                projectUuid: projectSummary.projectUuid,
+                spaceUuid: 'space',
+                dashboardUuid: null,
+            }),
+        );
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
+            explores,
+        );
+        const service = getMockedProjectService(lightdashConfigMock, {
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn().mockResolvedValue(
+                    charts.map((chart) => ({
+                        target: { type: 'chart', chartUuid: chart.uuid },
+                        context: {
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            projectUuid: projectSummary.projectUuid,
+                            inheritsFromOrgOrProject: true,
+                            access: [],
+                        },
+                    })),
+                ),
+            } as unknown as SpacePermissionService,
+        });
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart, index) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${index}`,
+            })),
+        );
+        expect(
+            result.allFilterableFields.map(({ tableLabel, label }) => ({
+                tableLabel,
+                label,
+            })),
+        ).toEqual([
+            { tableLabel: 'Team at Event A', label: 'Name at Event A' },
+            { tableLabel: 'Team at Event B', label: 'Name at Event B' },
+        ]);
+        expect(result.allFilterableMetrics.map(({ label }) => label)).toEqual([
+            'Total at Event A',
+            'Total at Event B',
+        ]);
+        expect(result.savedQueryFilters).toEqual({
+            'tile-0': [0],
+            'tile-1': [1],
+            'tile-2': [0],
+        });
+        expect(result.savedQueryMetricFilters).toEqual({
+            'tile-0': [0],
+            'tile-1': [1],
+            'tile-2': [0],
+        });
     });
 });

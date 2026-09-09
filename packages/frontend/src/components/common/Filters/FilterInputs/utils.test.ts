@@ -4,11 +4,14 @@ import {
     FilterOperator,
     FilterType,
     type BaseFilterRule,
+    type DashboardFilterRule,
+    type DashboardFilterableField,
     type FilterableItem,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getConditionalRuleLabel,
+    getFilterRuleTables,
     getConditionalRuleLabelFromItem,
 } from './utils';
 
@@ -160,5 +163,48 @@ describe('getConditionalRuleLabelFromItem', () => {
             operator: 'is',
             value: 'test-value',
         });
+    });
+});
+
+describe('getFilterRuleTables', () => {
+    it("uses each targeted tile's own join label when aliases collide", () => {
+        const fieldA: DashboardFilterableField = {
+            table: 'team',
+            name: 'name',
+            tableLabel: 'Team at Event A',
+            label: 'Name',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            sql: '${TABLE}.name',
+            hidden: false,
+        };
+        const fieldB = {
+            ...fieldA,
+            tableLabel: 'Team at Event B',
+        };
+        const target = { fieldId: 'team_name', tableName: 'team' };
+        const rule: DashboardFilterRule = {
+            id: 'filter',
+            label: undefined,
+            operator: FilterOperator.EQUALS,
+            target,
+            tileTargets: { 'tile-a': false, 'tile-b': target },
+        };
+        const fieldsByTile = { 'tile-a': [fieldA], 'tile-b': [fieldB] };
+        expect(
+            getFilterRuleTables(rule, fieldB, [fieldA, fieldB], fieldsByTile),
+        ).toEqual(['Team at Event B']);
+        const sharedRule: DashboardFilterRule = {
+            ...rule,
+            tileTargets: { 'tile-a': target, 'tile-b': target },
+        };
+        expect(
+            getFilterRuleTables(
+                sharedRule,
+                fieldB,
+                [fieldA, fieldB],
+                fieldsByTile,
+            ),
+        ).toEqual(['Team at Event A', 'Team at Event B']);
     });
 });

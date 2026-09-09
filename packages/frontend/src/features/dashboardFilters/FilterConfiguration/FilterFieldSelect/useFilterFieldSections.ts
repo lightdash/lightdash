@@ -1,4 +1,5 @@
 import {
+    getDashboardFilterableFieldKey,
     getItemId,
     getItemLabel,
     getItemLabelWithoutTableName,
@@ -85,16 +86,39 @@ const groupByTable = (fields: DashboardFilterableField[]): FieldGroup[] => {
         const tableName = field.table;
         const tableLabel = field.tableLabel || field.table;
 
-        const existing = groupMap.get(tableName);
+        const groupKey = `${tableName}:${tableLabel}`;
+        const existing = groupMap.get(groupKey);
         if (existing) {
             existing.fields.push(field);
         } else {
-            groupMap.set(tableName, { tableLabel, tableName, fields: [field] });
+            groupMap.set(groupKey, { tableLabel, tableName, fields: [field] });
         }
     }
 
     return Array.from(groupMap.values());
 };
+
+/** Fields with one query id but different labels (a join alias relabelled per explore) need distinct option values */
+export const getCollidingFieldIds = (
+    fields: DashboardFilterableField[],
+): Set<string> => {
+    const seen = new Set<string>();
+    const colliding = new Set<string>();
+    for (const field of fields) {
+        const id = getItemId(field);
+        if (seen.has(id)) colliding.add(id);
+        seen.add(id);
+    }
+    return colliding;
+};
+
+export const getFieldOptionValue = (
+    field: DashboardFilterableField,
+    collidingFieldIds: Set<string>,
+): string =>
+    collidingFieldIds.has(getItemId(field))
+        ? getDashboardFilterableFieldKey(field)
+        : getItemId(field);
 
 const matchesSearch = (
     field: DashboardFilterableField,
@@ -141,13 +165,16 @@ export const useFilterFieldSections = ({
             tiles.filter((t) => t.tabUuid === activeTabUuid).map((t) => t.uuid),
         );
 
+        const collidingFieldIds = getCollidingFieldIds(fields);
         const activeTabFieldIds = new Set<string>();
         for (const [tileUuid, tileFields] of Object.entries(
             availableTileFilters,
         )) {
             if (activeTabTileUuids.has(tileUuid)) {
                 for (const f of tileFields) {
-                    activeTabFieldIds.add(getItemId(f));
+                    activeTabFieldIds.add(
+                        getFieldOptionValue(f, collidingFieldIds),
+                    );
                 }
             }
         }
@@ -156,7 +183,11 @@ export const useFilterFieldSections = ({
         const otherFields: DashboardFilterableField[] = [];
 
         for (const field of filtered) {
-            if (activeTabFieldIds.has(getItemId(field))) {
+            if (
+                activeTabFieldIds.has(
+                    getFieldOptionValue(field, collidingFieldIds),
+                )
+            ) {
                 activeTabFields.push(field);
             } else {
                 otherFields.push(field);

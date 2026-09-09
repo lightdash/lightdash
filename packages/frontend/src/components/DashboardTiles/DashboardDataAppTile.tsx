@@ -4,6 +4,7 @@ import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterTypeFromItemType,
+    getDashboardFilterField,
     hashStringToBase36,
     ProjectType,
     type DashboardDataAppTile,
@@ -50,10 +51,17 @@ const DashboardFiltersIndicator: FC<{
     filterRules: DashboardFilterRule[];
     filterableItems: Record<string, FilterableItem>;
 }> = ({ filterRules, filterableItems }) => {
+    const fieldsByTile = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     if (filterRules.length === 0) return null;
 
     const labelledRules = filterRules.map((filterRule) => {
-        const filterableItem = filterableItems[filterRule.target.fieldId];
+        const filterableItem = getDashboardFilterField(
+            filterableItems,
+            filterRule,
+            fieldsByTile,
+        );
         const labels = filterableItem
             ? getConditionalRuleLabelFromItem(filterRule, filterableItem)
             : getConditionalRuleLabel(
