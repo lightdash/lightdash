@@ -267,10 +267,7 @@ function ProjectCard({
                     </Text>
                 )}
                 <Group justify="space-between" gap="xs">
-                    <ItemBadges
-                        type="project"
-                        priority={presentation.priority}
-                    />
+                    <ItemBadges priority={presentation.priority} />
                     {group.ownRequestCount === 0 && group.hasDirectNeed && (
                         <Text fz="xs" c="dimmed">
                             Interested
@@ -333,29 +330,20 @@ function TicketCard({
                 />
                 <Text className={classes.ticketTitle}>{ticket.title}</Text>
             </Group>
-            <ItemBadges
-                type="ticket"
-                ticketId={ticket.ticketId}
-                priority={ticket.priority}
-            />
+            <ItemBadges ticketId={ticket.ticketId} priority={ticket.priority} />
         </UnstyledButton>
     );
 }
 
 function ItemBadges({
-    type,
     priority,
     ticketId,
 }: {
-    type: 'project' | 'ticket';
     priority: RoadmapItemPriority;
     ticketId?: string;
 }) {
     return (
         <Group gap="xs" wrap="nowrap">
-            <Badge size="xs" variant="light" color="gray">
-                {type === 'project' ? 'Project' : 'Ticket'}
-            </Badge>
             {ticketId && (
                 <Badge
                     size="xs"
@@ -480,10 +468,7 @@ function RoadmapTable({ entries }: { entries: RoadmapEntry[] }) {
                                     </Group>
                                 </Table.Td>
                                 <Table.Td>
-                                    <ItemBadges
-                                        type={entry.type}
-                                        priority={entry.priority}
-                                    />
+                                    <ItemBadges priority={entry.priority} />
                                 </Table.Td>
                                 <Table.Td>
                                     {entry.type === 'project' ? (
