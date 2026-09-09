@@ -18,6 +18,7 @@ import {
     assertEmbeddedAuth,
     assertUnreachable,
     ChartType,
+    chartTypeIconSchema,
     checkThemeLimits,
     compareSemverVersions,
     DATA_APP_CLAUDE_MODELS,
@@ -40,6 +41,7 @@ import {
     getEffectiveFieldAiHints,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
+    isChartTypeIcon,
     isDashboardChartTileType,
     isExploreError,
     isSemverVersion,
@@ -77,6 +79,7 @@ import {
     type ChartConfig,
     type ChartReference,
     type ChartSampleData,
+    type ChartTypeIcon,
     type CompiledExploreJoin,
     type CompiledTable,
     type DashboardBlueprint,
@@ -4087,6 +4090,9 @@ export class AppGenerateService extends BaseService {
      * mirrors the clarify flow (org-resolved copilot config, BYO-key-aware
      * fast model). Returns a null name when no provider is configured or the
      * response is unusable — the app keeps its "Untitled" fallback.
+     *
+     * For a chart type the same call also suggests a curated icon, so the
+     * icon costs no extra model round trip.
      */
     private async generateAppMetadataFromPrompt(
         appUuid: string,
@@ -4094,7 +4100,12 @@ export class AppGenerateService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
         userUuid: string,
-    ): Promise<{ name: string | null; description: string }> {
+        isChartType: boolean,
+    ): Promise<{
+        name: string | null;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         const copilot =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
@@ -4110,7 +4121,7 @@ export class AppGenerateService extends BaseService {
             this.logger.info(
                 `App ${appUuid}: skipping auto-name — no LLM provider configured (${getErrorMessage(err)})`,
             );
-            return { name: null, description: '' };
+            return { name: null, description: '', icon: null };
         }
 
         const metadataSchema = z.object({
@@ -4122,6 +4133,13 @@ export class AppGenerateService extends BaseService {
             description: z
                 .string()
                 .describe('One-sentence description of what the app shows'),
+            ...(isChartType
+                ? {
+                      icon: chartTypeIconSchema.describe(
+                          'Icon from the list that best represents how the chart looks',
+                      ),
+                  }
+                : {}),
         });
 
         const METADATA_TIMEOUT_MS = 15_000;
@@ -4144,8 +4162,11 @@ export class AppGenerateService extends BaseService {
             messages: [
                 {
                     role: 'system',
-                    content:
-                        'You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.',
+                    content: `You write display metadata for a data app that is being generated from the prompt the user provides. Respond with a short name (3-6 words, title case) and a one-sentence description of the app.${
+                        isChartType
+                            ? ' This app is a reusable chart type, so also pick the icon that best matches how the chart looks.'
+                            : ''
+                    }`,
                 },
                 { role: 'user', content: prompt },
             ],
@@ -4154,13 +4175,16 @@ export class AppGenerateService extends BaseService {
         const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
         const name = stripHtml(result.object.name).slice(0, 255);
         const description = stripHtml(result.object.description).slice(0, 1024);
+        const icon = isChartTypeIcon(result.object.icon)
+            ? result.object.icon
+            : null;
         if (!name) {
             this.logger.warn(
                 `App ${appUuid}: auto-name returned an empty name`,
             );
-            return { name: null, description };
+            return { name: null, description, icon };
         }
-        return { name, description };
+        return { name, description, icon };
     }
 
     private async runBuild(
@@ -4977,6 +5001,7 @@ export class AppGenerateService extends BaseService {
                 payload.organizationUuid,
                 projectUuid,
                 payload.userUuid,
+                isDataAppViz,
             )
                 .then(async (metadata) => {
                     if (metadata.name) {
@@ -4990,6 +5015,7 @@ export class AppGenerateService extends BaseService {
                                 {
                                     name: metadata.name,
                                     description: metadata.description,
+                                    icon: metadata.icon,
                                 },
                             );
                         this.logger.info(
@@ -7570,6 +7596,7 @@ export class AppGenerateService extends BaseService {
         const metadata = {
             name: sourceApp.name,
             description: sourceApp.description,
+            icon: sourceApp.icon,
             space_uuid: targetSpaceUuid,
             design_uuid: targetDesignUuid,
         };
@@ -7927,6 +7954,7 @@ export class AppGenerateService extends BaseService {
                     created_by_user_uuid: user.userUuid,
                     name: newAppName,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: null,
                     // A fork is a plain local chart type — registry lineage
@@ -8192,6 +8220,7 @@ export class AppGenerateService extends BaseService {
                     name: sourceApp.name,
                     slug: sourceApp.slug,
                     description: sourceApp.description,
+                    icon: sourceApp.icon,
                     template: sourceApp.template,
                     space_uuid: previewSpaceUuid,
                     design_uuid: targetDesignUuid,
@@ -8407,6 +8436,7 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
         latestReadyVersion: number | null;
         registrySlug: string | null;
+        icon: ChartTypeIcon | null;
     }> {
         await this.assertDataAppsEnabled(user);
 
@@ -8421,6 +8451,7 @@ export class AppGenerateService extends BaseService {
         const {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -8516,6 +8547,8 @@ export class AppGenerateService extends BaseService {
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
             registrySlug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(icon) ? icon : null,
         };
     }
 
@@ -8597,6 +8630,8 @@ export class AppGenerateService extends BaseService {
             createdAt: app.created_at,
             createdByUserUuid: app.created_by_user_uuid,
             registrySlug: app.registry_slug,
+            // An icon retired from the curated set reads back as no icon.
+            icon: isChartTypeIcon(app.icon) ? app.icon : null,
         };
     }
 
@@ -9388,8 +9423,17 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        update: { name?: string; description?: string },
-    ): Promise<{ appUuid: string; name: string; description: string }> {
+        update: {
+            name?: string;
+            description?: string;
+            icon?: ChartTypeIcon | null;
+        },
+    ): Promise<{
+        appUuid: string;
+        name: string;
+        description: string;
+        icon: ChartTypeIcon | null;
+    }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -9399,8 +9443,11 @@ export class AppGenerateService extends BaseService {
         );
         AppGenerateService.assertNotRegistryManaged(app, 'renamed');
 
-        const fieldsToUpdate: Partial<{ name: string; description: string }> =
-            {};
+        const fieldsToUpdate: Partial<{
+            name: string;
+            description: string;
+            icon: string | null;
+        }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
             if (trimmedName.length === 0) {
@@ -9422,10 +9469,23 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.description = trimmedDescription;
         }
+        if (update.icon !== undefined) {
+            if (app.template !== DATA_APP_VIZ_TEMPLATE) {
+                throw new ParameterError(
+                    'Only custom chart types can have an icon',
+                );
+            }
+            if (update.icon !== null && !isChartTypeIcon(update.icon)) {
+                throw new ParameterError(
+                    `Invalid chart type icon: ${String(update.icon)}`,
+                );
+            }
+            fieldsToUpdate.icon = update.icon;
+        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name or description must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -9438,6 +9498,7 @@ export class AppGenerateService extends BaseService {
             appUuid: updatedApp.app_id,
             name: updatedApp.name,
             description: updatedApp.description,
+            icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
         };
     }
 

@@ -96,6 +96,7 @@ const dataAppViz = {
     },
     createdAt: new Date('2026-08-19T00:00:00Z'),
     createdByUserUuid: 'user-uuid',
+    icon: null,
     registrySlug: null,
 } satisfies DataAppViz;
 

@@ -17,6 +17,7 @@ export * from './apps/elementReference';
 export * from './apps/sdkFeatures';
 export * from './apps/dataAppVizSchemaChanges';
 export * from './apps/types';
+export * from './apps/chartTypeIcons';
 export * from './apps/code';
 export * from './apps/dataReferenceChecker';
 export * from './apps/dataReferences';

@@ -42,6 +42,7 @@ const app: ApiGetAppResponse['results'] = {
     versions: [],
     hasMore: false,
     latestReadyVersion: 3,
+    icon: null,
 };
 
 const userMessage = (

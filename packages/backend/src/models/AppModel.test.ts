@@ -20,6 +20,7 @@ const appRow: DbApp = {
     space_uuid: null,
     sandbox_id: null,
     template: null,
+    icon: null,
     design_uuid: null,
     upstream_app_uuid: null,
     registry_slug: null,
@@ -163,6 +164,56 @@ describe('AppModel.setMetadataIfUnset', () => {
         expect(tracker.history.update[0].bindings).toContain(
             'sales-performance-overview-1',
         );
+    });
+
+    it('writes the suggested icon when the app has none', async () => {
+        const updatedApp = {
+            ...appRow,
+            name: 'Radial Gauge',
+            slug: 'radial-gauge',
+            icon: 'gauge',
+        };
+        tracker.on.select(AppsTableName).responseOnce(appRow);
+        tracker.on.select(AppsTableName).responseOnce([]);
+        tracker.on.update(AppsTableName).responseOnce([updatedApp]);
+
+        const result = await model.setMetadataIfUnset(appId, projectUuid, {
+            name: 'Radial Gauge',
+            description: 'A radial gauge.',
+            icon: 'gauge',
+        });
+
+        expect(result.icon).toBe('gauge');
+        expect(tracker.history.update[0].bindings).toContain('gauge');
+    });
+
+    it('does not overwrite an icon the author already chose', async () => {
+        const appWithIcon = { ...appRow, icon: 'chart-pie' };
+        tracker.on.select(AppsTableName).responseOnce(appWithIcon);
+        tracker.on.select(AppsTableName).responseOnce([]);
+        tracker.on.update(AppsTableName).responseOnce([appWithIcon]);
+
+        await model.setMetadataIfUnset(appId, projectUuid, {
+            name: 'Radial Gauge',
+            description: 'A radial gauge.',
+            icon: 'gauge',
+        });
+
+        expect(tracker.history.update[0].sql).not.toContain('"icon"');
+        expect(tracker.history.update[0].bindings).not.toContain('gauge');
+    });
+
+    it('leaves the icon alone when the metadata suggests none', async () => {
+        tracker.on.select(AppsTableName).responseOnce(appRow);
+        tracker.on.select(AppsTableName).responseOnce([]);
+        tracker.on.update(AppsTableName).responseOnce([appRow]);
+
+        await model.setMetadataIfUnset(appId, projectUuid, {
+            name: 'Sales Performance Overview',
+            description: 'A view of sales performance.',
+        });
+
+        expect(tracker.history.update[0].sql).not.toContain('"icon"');
     });
 
     it('does not change the name or slug after a user has named the app', async () => {

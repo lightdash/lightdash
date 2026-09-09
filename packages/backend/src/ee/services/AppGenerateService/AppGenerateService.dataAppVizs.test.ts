@@ -6,6 +6,7 @@ import {
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
@@ -45,6 +46,7 @@ const makeDataAppVizRow = (overrides: Record<string, unknown> = {}) => ({
     space_uuid: null,
     sandbox_id: null,
     template: DATA_APP_VIZ_TEMPLATE,
+    icon: null,
     viz_schema: vizSchema,
     design_uuid: null,
     upstream_app_uuid: null,
@@ -231,6 +233,7 @@ describe('AppGenerateService data app vizs', () => {
                     schema: vizSchema,
                     createdAt: new Date('2026-06-30'),
                     createdByUserUuid: 'user-1',
+                    icon: null,
                 },
             ],
             pagination,
@@ -1105,6 +1108,114 @@ describe('moving a viz into a space', () => {
                 targetSpaceUuid: 'space-1',
             },
             { tx: undefined },
+        );
+    });
+});
+
+describe('choosing a chart type icon', () => {
+    const buildIconService = (app: Record<string, unknown>) => {
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(app),
+            updateApp: vi
+                .fn()
+                .mockImplementation(async (_appId, _projectUuid, update) => ({
+                    ...app,
+                    ...update,
+                })),
+        };
+        return { service: buildService(appModel), appModel };
+    };
+
+    it('rejects an icon on an app that is not a chart type', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ template: null, registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'chart-pie',
+            }),
+        ).rejects.toThrow('Only custom chart types can have an icon');
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('rejects an icon that is not in the curated set', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {
+                icon: 'skull' as never,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('sets a curated icon', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: 'gauge' },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: 'gauge' },
+        );
+        expect(result.icon).toBe('gauge');
+    });
+
+    it('clears the icon with null', async () => {
+        const { service, appModel } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'gauge' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { icon: null },
+        );
+
+        expect(appModel.updateApp).toHaveBeenCalledWith(
+            'data-app-viz-1',
+            'project-1',
+            { icon: null },
+        );
+        expect(result.icon).toBeNull();
+    });
+
+    it('reads an icon retired from the curated set back as none', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null, icon: 'retired-icon' }),
+        );
+
+        const result = await service.updateApp(
+            USER,
+            'project-1',
+            'data-app-viz-1',
+            { name: 'Renamed' },
+        );
+
+        expect(result.icon).toBeNull();
+    });
+
+    it('requires at least one of name, description or icon', async () => {
+        const { service } = buildIconService(
+            makeDataAppVizRow({ registry_slug: null }),
+        );
+
+        await expect(
+            service.updateApp(USER, 'project-1', 'data-app-viz-1', {}),
+        ).rejects.toThrow(
+            'At least one of name, description or icon must be provided',
         );
     });
 });

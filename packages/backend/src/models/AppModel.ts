@@ -89,6 +89,7 @@ export class AppModel {
                     | 'name'
                     | 'description'
                     | 'template'
+                    | 'icon'
                     | 'space_uuid'
                     | 'design_uuid'
                     | 'registry_slug'
@@ -752,6 +753,7 @@ export class AppModel {
     ): Promise<{
         name: string;
         description: string;
+        icon: string | null;
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
@@ -814,6 +816,7 @@ export class AppModel {
                 `${AppVersionsTableName}.*`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
+                `${AppsTableName}.icon`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${SpaceTableName}.name as space_name`,
@@ -841,6 +844,7 @@ export class AppModel {
         const rows: ((DbAppVersion | Record<string, null>) & {
             name: string;
             description: string;
+            icon: string | null;
             created_by_user_uuid: string;
             space_uuid: string | null;
             space_name: string | null;
@@ -864,6 +868,7 @@ export class AppModel {
         const {
             name,
             description,
+            icon,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             space_name: spaceName,
@@ -883,6 +888,7 @@ export class AppModel {
             ): r is DbAppVersion & {
                 name: string;
                 description: string;
+                icon: string | null;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
                 space_name: string | null;
@@ -901,6 +907,7 @@ export class AppModel {
         return {
             name,
             description,
+            icon,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -919,7 +926,7 @@ export class AppModel {
     async updateApp(
         appId: string,
         projectUuid: string,
-        update: Partial<Pick<DbApp, 'name' | 'description'>>,
+        update: Partial<Pick<DbApp, 'name' | 'description' | 'icon'>>,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
             .where({ app_id: appId, project_uuid: projectUuid })
@@ -1336,7 +1343,7 @@ export class AppModel {
         appId: string,
         update: Pick<
             DbApp,
-            'name' | 'description' | 'space_uuid' | 'design_uuid'
+            'name' | 'description' | 'icon' | 'space_uuid' | 'design_uuid'
         >,
     ): Promise<DbApp> {
         const [row] = await this.database(AppsTableName)
@@ -1358,7 +1365,7 @@ export class AppModel {
     async setMetadataIfUnset(
         appId: string,
         projectUuid: string,
-        metadata: { name: string; description: string },
+        metadata: { name: string; description: string; icon?: string | null },
     ): Promise<DbApp> {
         return this.database.transaction(async (trx) => {
             const app = await trx(AppsTableName)
@@ -1371,13 +1378,18 @@ export class AppModel {
             }
 
             const update: Partial<
-                Pick<DbApp, 'name' | 'description' | 'slug'>
+                Pick<DbApp, 'name' | 'description' | 'slug' | 'icon'>
             > = {
                 description: trx.raw(
                     `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
                     [metadata.description],
                 ) as unknown as string,
             };
+
+            // An icon the author already chose is never overwritten.
+            if (metadata.icon !== undefined && app.icon === null) {
+                update.icon = metadata.icon;
+            }
 
             if (app.name === '') {
                 const baseSlug = generateSlug(metadata.name).slice(0, 255);

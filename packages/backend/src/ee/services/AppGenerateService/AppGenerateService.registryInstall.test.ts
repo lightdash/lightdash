@@ -64,6 +64,7 @@ function makeEntry(
         tags: [],
         changelog: '',
         minLightdashVersion: null,
+        icon: null,
         vizSchema: VIZ_SCHEMA,
         thumbnail: null,
         screenshots: [],
