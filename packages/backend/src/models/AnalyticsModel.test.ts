@@ -52,10 +52,7 @@ describe('AnalyticsModel', () => {
     );
 
     it('includes organization custom-role users in the project population', () => {
-        const sql = usersInProjectSql(projectUuid, organizationUuid).replace(
-            /\s+/g,
-            ' ',
-        );
+        const sql = usersInProjectSql().replace(/\s+/g, ' ');
 
         expect(sql).toContain(
             "organization_memberships.role != 'member' OR organization_memberships.role_uuid IS NOT NULL",
@@ -70,12 +67,10 @@ describe('AnalyticsModel', () => {
             .any(/100 \* COUNT\(DISTINCT\(user_uuid\)\) \/ 0/i)
             .response({ rows: [{ count: '0' }] });
         tracker.on
-            .any(/FROM public\.analytics_dashboard_views dv/i)
+            .any(/FROM analytics_dashboard_views dv/i)
             .response({ rows: [] });
         tracker.on.any(/WITH RankedResults AS/i).response({ rows: [] });
-        tracker.on
-            .any(/FROM public\.analytics_chart_views/i)
-            .response({ rows: [] });
+        tracker.on.any(/FROM analytics_chart_views/i).response({ rows: [] });
         tracker.on.any(() => true).response({ rows: [] });
 
         await expect(
