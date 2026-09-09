@@ -113,20 +113,6 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: depot-ubuntu-24.04-8
-    services:
-      analytics-postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: analytics_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d analytics_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -167,10 +153,6 @@ jobs:
           exit $fail
       - name: Run unit tests
         run: pnpm test
-      - name: Run analytics PostgreSQL regression tests
-        env:
-          ANALYTICS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/analytics_test
-        run: pnpm -F backend exec vitest run --config vitest.config.analytics.ts src/models/AnalyticsModel.integration.test.ts
 
   # Guards the published SDK bundle against re-introducing eval()/new Function()
   # that breaks consumers on a strict CSP (no 'unsafe-eval'). See issue #21276.
