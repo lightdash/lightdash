@@ -119,7 +119,12 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     // limitations (see: https://github.com/orgs/mantinedev/discussions/4803).
     // The manual `data-mantine-color-scheme="dark"` attribute helps CSS selectors match correctly.
     return (
-        <Box id="navbar-header" data-mantine-color-scheme="dark">
+        <Box
+            id="navbar-header"
+            data-mantine-color-scheme="dark"
+            data-has-visible-fixed-navbar={isFixed && !isFullscreen}
+            data-has-banner={hasBanner}
+        >
             <MantineBaseProvider
                 forceColorScheme="dark"
                 cssVariablesSelector="#navbar-header"

@@ -25,6 +25,24 @@
     flex-direction: column;
 }
 
+/* Shift only Mantine's viewport inner below the fixed navbar;
+   the dialog content fills the remaining space with 24px gutters. */
+:global(body:has(#navbar-header[data-has-visible-fixed-navbar='true']))
+    .fullScreenContent.fullScreenContent:not([data-modal-content]) {
+    height: calc(100% - var(--navbar-height));
+    margin-top: var(--navbar-height);
+}
+
+:global(
+        body:has(
+            #navbar-header[data-has-visible-fixed-navbar='true'][data-has-banner='true']
+        )
+    )
+    .fullScreenContent.fullScreenContent:not([data-modal-content]) {
+    height: calc(100% - var(--navbar-height) - var(--banner-height));
+    margin-top: calc(var(--navbar-height) + var(--banner-height));
+}
+
 .fullScreenBody {
     flex: 1;
     min-height: 0;
