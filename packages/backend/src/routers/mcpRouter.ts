@@ -398,9 +398,6 @@ mcpRouter.all(
                 ]);
                 const toolOptions: McpServerToolOptions = {
                     projectPinned: pinnedProjectUuid !== undefined,
-                    // The run_ai_writeback tool is always registered now that
-                    // AI writeback has graduated from its dark-launch flag.
-                    aiWritebackEnabled: true,
                     mcpContentWritesEnabled,
                     scheduledDeliveryEnabled,
                     runSqlEnabled,
