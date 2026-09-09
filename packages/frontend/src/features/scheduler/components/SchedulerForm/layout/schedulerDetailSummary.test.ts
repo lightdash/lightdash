@@ -75,8 +75,16 @@ describe('getAlertConditionSummaries', () => {
                 },
             ]),
         ).toEqual([
-            'Orders order count is greater than 100',
-            'Payments total revenue increased by 10%',
+            {
+                field: 'Orders order count',
+                operator: 'is greater than',
+                value: '100',
+            },
+            {
+                field: 'Payments total revenue',
+                operator: 'increased by',
+                value: '10%',
+            },
         ]);
     });
 });
@@ -107,7 +115,13 @@ describe('getSchedulerFilterSummaries', () => {
             }),
         );
 
-        expect(summaries).toEqual(['Orders status is completed']);
+        expect(summaries).toEqual([
+            {
+                field: 'Orders status',
+                operator: 'is',
+                value: 'completed',
+            },
+        ]);
     });
 
     it('summarises dashboard filter overrides and skips disabled rules', () => {
@@ -139,7 +153,13 @@ describe('getSchedulerFilterSummaries', () => {
             }),
         );
 
-        expect(summaries).toEqual(['Status is completed']);
+        expect(summaries).toEqual([
+            {
+                field: 'Status',
+                operator: 'is',
+                value: 'completed',
+            },
+        ]);
     });
 });
 
@@ -151,8 +171,16 @@ describe('getSchedulerParameterSummaries', () => {
                 status: ['completed', 'pending'],
             }),
         ).toEqual([
-            'Date granularity is month',
-            'Status is completed, pending',
+            {
+                field: 'Date granularity',
+                operator: 'is',
+                value: 'month',
+            },
+            {
+                field: 'Status',
+                operator: 'is',
+                value: 'completed, pending',
+            },
         ]);
     });
 });

@@ -14,6 +14,12 @@ import {
     type ThresholdOptions,
 } from '@lightdash/common'; // pragma: allowlist secret
 
+export type ConditionSummary = {
+    field: string;
+    operator: string;
+    value: string;
+};
+
 const THRESHOLD_OPERATOR_TEXT: Record<ThresholdOperator, string> = {
     [ThresholdOperator.GREATER_THAN]: 'is greater than',
     [ThresholdOperator.LESS_THAN]: 'is less than',
@@ -23,17 +29,20 @@ const THRESHOLD_OPERATOR_TEXT: Record<ThresholdOperator, string> = {
 
 export const getAlertConditionSummaries = (
     thresholds: ThresholdOptions[] | undefined,
-): string[] => {
+): ConditionSummary[] => {
     if (!thresholds?.length) return [];
 
     return thresholds.map((threshold) => {
         const isPercent =
             threshold.operator === ThresholdOperator.INCREASED_BY ||
             threshold.operator === ThresholdOperator.DECREASED_BY;
-        const operator =
-            THRESHOLD_OPERATOR_TEXT[threshold.operator] ?? threshold.operator;
-        const value = `${threshold.value}${isPercent ? '%' : ''}`;
-        return `${friendlyName(threshold.fieldId)} ${operator} ${value}`;
+        return {
+            field: friendlyName(threshold.fieldId),
+            operator:
+                THRESHOLD_OPERATOR_TEXT[threshold.operator] ??
+                threshold.operator,
+            value: `${threshold.value}${isPercent ? '%' : ''}`,
+        };
     });
 };
 
@@ -49,13 +58,17 @@ const getFilterTargetLabel = (
 const formatFilterRule = (
     rule: FilterRule,
     fallbackLabel?: string | null,
-): string => {
+): ConditionSummary => {
     const { field, operator, value } = getConditionalRuleLabel(
         rule,
         rule.settings ? FilterType.DATE : FilterType.STRING,
         getFilterTargetLabel(rule, fallbackLabel),
     );
-    return [field, operator, value].filter(Boolean).join(' ');
+    return {
+        field,
+        operator,
+        value: value ?? '',
+    };
 };
 
 const isActiveFilterRule = (rule: FilterRule): boolean =>
@@ -63,7 +76,7 @@ const isActiveFilterRule = (rule: FilterRule): boolean =>
 
 export const getSchedulerFilterSummaries = (
     scheduler: SchedulerAndTargets,
-): string[] => {
+): ConditionSummary[] => {
     if (isDashboardScheduler(scheduler) && Array.isArray(scheduler.filters)) {
         return scheduler.filters
             .filter(isActiveFilterRule)
@@ -87,11 +100,12 @@ export const getSchedulerFilterSummaries = (
 
 export const getSchedulerParameterSummaries = (
     parameters: ParametersValuesMap | undefined,
-): string[] => {
+): ConditionSummary[] => {
     if (!parameters) return [];
 
-    return Object.entries(parameters).map(([key, value]) => {
-        const display = Array.isArray(value) ? value.join(', ') : String(value);
-        return `${friendlyName(key)} is ${display}`;
-    });
+    return Object.entries(parameters).map(([key, value]) => ({
+        field: friendlyName(key),
+        operator: 'is',
+        value: Array.isArray(value) ? value.join(', ') : String(value),
+    }));
 };
