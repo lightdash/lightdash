@@ -1239,3 +1239,4 @@ export * from './compiler/compileLightdashModels';
 
 export * from './lightdash/LightdashModelEditor';
 export * from './lightdash/convertCustomMetricToLightdash';
+export * from './types/recentContent';
