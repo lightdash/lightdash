@@ -205,6 +205,8 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !treemapSeriesOption) return;
 
+        const animation = !(isInDashboard || minimal);
+
         return {
             textStyle: {
                 fontFamily: sanitizeEchartsFontFamily(theme?.other?.chartFont),
@@ -213,8 +215,9 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 ...getTooltipStyle({ appendToBody: !isTouchDevice }),
                 trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
             },
-            series: [treemapSeriesOption],
-            animation: !(isInDashboard || minimal),
+            // The treemap series runs its own animation and ignores the root flag.
+            series: [{ ...treemapSeriesOption, animation }],
+            animation,
         };
     }, [
         chartConfig,

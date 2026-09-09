@@ -97,7 +97,9 @@ const renderTreemap = (
 
 afterEach(cleanup);
 
-describe('SimpleTreemap screenshot readiness', () => {
+// The first render in a worker pays for echarts' one-off setup, which is
+// several seconds on CI even though the rest of the file runs in milliseconds.
+describe('SimpleTreemap screenshot readiness', { timeout: 20_000 }, () => {
     it('waits for the treemap to render and signals only once', async () => {
         const context = makeContext();
         const onScreenshotReady = vi.fn(() => {
