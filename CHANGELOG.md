@@ -1,3 +1,10 @@
+# [2.179.0](https://github.com/lightdash/lightdash/compare/2.178.0...2.179.0) (2026-09-09)
+
+
+### Features
+
+* add internal analytics Parquet connector and feature flag ([#28909](https://github.com/lightdash/lightdash/issues/28909)) ([ab274e3](https://github.com/lightdash/lightdash/commit/ab274e3ee4eb547b38038fdbb3df014918986fd8)), closes [#28916](https://github.com/lightdash/lightdash/issues/28916) [#28849](https://github.com/lightdash/lightdash/issues/28849) [#28924](https://github.com/lightdash/lightdash/issues/28924)
+
 # [2.178.0](https://github.com/lightdash/lightdash/compare/2.177.0...2.178.0) (2026-09-09)
 
 

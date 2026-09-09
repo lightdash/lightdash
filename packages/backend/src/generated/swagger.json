@@ -30910,6 +30910,45 @@
             "DuckdbEmbeddedCredentials": {
                 "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
             },
+            "DuckdbConnectionType.ANALYTICS": {
+                "enum": ["analytics"],
+                "type": "string"
+            },
+            "DuckdbAnalyticsCredentials": {
+                "properties": {
+                    "startOfWeek": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean",
+                        "enum": [false],
+                        "nullable": false
+                    },
+                    "schema": {
+                        "type": "string",
+                        "enum": ["main"],
+                        "nullable": false
+                    },
+                    "database": {
+                        "type": "string",
+                        "enum": ["memory"],
+                        "nullable": false
+                    },
+                    "connectionType": {
+                        "$ref": "#/components/schemas/DuckdbConnectionType.ANALYTICS"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["schema", "database", "connectionType", "type"],
+                "type": "object",
+                "description": "An identifier only: storage locations and credentials belong to the backend."
+            },
             "DuckdbCredentials": {
                 "anyOf": [
                     {
@@ -30920,6 +30959,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DuckdbEmbeddedCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbAnalyticsCredentials"
                     }
                 ]
             },
@@ -31976,6 +32018,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateDuckdbEmbeddedCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbAnalyticsCredentials"
                     }
                 ]
             },
@@ -47866,6 +47911,30 @@
                     }
                 ]
             },
+            "Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {},
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_DuckdbAnalyticsCredentials_": {
+                "properties": {},
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "WithOptionalSecrets_DuckdbAnalyticsCredentials_": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_DuckdbAnalyticsCredentials_"
+                    }
+                ]
+            },
             "CreateWarehouseCredentialsWithOptionalSecrets": {
                 "anyOf": [
                     {
@@ -47900,6 +47969,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithOptionalSecrets_DuckdbAnalyticsCredentials_"
                     }
                 ]
             },
@@ -60778,7 +60850,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.178.0",
+        "version": "2.179.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

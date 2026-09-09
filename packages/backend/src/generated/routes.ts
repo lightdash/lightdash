@@ -30814,6 +30814,35 @@ const models: TsoaRoute.Models = {
         type: { ref: 'CreateDuckdbEmbeddedCredentials', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DuckdbConnectionType.ANALYTICS': {
+        dataType: 'refEnum',
+        enums: ['analytics'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DuckdbAnalyticsCredentials: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                startOfWeek: { dataType: 'double' },
+                dataTimezone: { dataType: 'string' },
+                requireUserCredentials: { dataType: 'enum', enums: [false] },
+                schema: { dataType: 'enum', enums: ['main'], required: true },
+                database: {
+                    dataType: 'enum',
+                    enums: ['memory'],
+                    required: true,
+                },
+                connectionType: {
+                    ref: 'DuckdbConnectionType.ANALYTICS',
+                    required: true,
+                },
+                type: { ref: 'WarehouseTypes.DUCKDB', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DuckdbCredentials: {
         dataType: 'refAlias',
         type: {
@@ -30822,6 +30851,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DuckdbMotherduckCredentials' },
                 { ref: 'DuckdbDucklakeCredentials' },
                 { ref: 'DuckdbEmbeddedCredentials' },
+                { ref: 'DuckdbAnalyticsCredentials' },
             ],
             validators: {},
         },
@@ -31518,6 +31548,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'CreateDuckdbMotherduckCredentials' },
                 { ref: 'CreateDuckdbDucklakeCredentials' },
                 { ref: 'CreateDuckdbEmbeddedCredentials' },
+                { ref: 'DuckdbAnalyticsCredentials' },
             ],
             validators: {},
         },
@@ -47704,6 +47735,47 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_DuckdbAnalyticsCredentials.Exclude_keyofDuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_DuckdbAnalyticsCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    WithOptionalSecrets_DuckdbAnalyticsCredentials_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Omit_DuckdbAnalyticsCredentials.SensitiveCredentialsFieldNames_',
+                },
+                { ref: 'Partial_DuckdbAnalyticsCredentials_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateWarehouseCredentialsWithOptionalSecrets: {
         dataType: 'refAlias',
         type: {
@@ -47722,6 +47794,7 @@ const models: TsoaRoute.Models = {
                 },
                 { ref: 'WithOptionalSecrets_CreateDuckdbDucklakeCredentials_' },
                 { ref: 'WithOptionalSecrets_CreateDuckdbEmbeddedCredentials_' },
+                { ref: 'WithOptionalSecrets_DuckdbAnalyticsCredentials_' },
             ],
             validators: {},
         },
