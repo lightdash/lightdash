@@ -27,6 +27,7 @@ import classes from './ChartTypeBuilderHeader.module.css';
 
 type Props = {
     projectUuid: string;
+    appUuidOrSlug?: string;
     backLink: {
         label: string;
         to: To;
@@ -45,6 +46,7 @@ type Props = {
 
 const ChartTypeBuilderHeader: FC<Props> = ({
     projectUuid,
+    appUuidOrSlug,
     backLink,
     app,
     latestReadyVersion,
@@ -166,6 +168,7 @@ const ChartTypeBuilderHeader: FC<Props> = ({
                     onConfirm={() => setIsEditingDetails(false)}
                     projectUuid={projectUuid}
                     uuid={app.appUuid}
+                    appUuidOrSlug={appUuidOrSlug}
                     initialName={getAppDisplayName(app.name, app.appUuid)}
                     initialDescription={app.description}
                     resourceLabel="Chart Type"

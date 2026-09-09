@@ -21,6 +21,8 @@ interface AppUpdateModalProps {
     onClose: ModalProps['onClose'];
     projectUuid: string;
     uuid: string;
+    /** Original detail-query identifier when the app was loaded by slug. */
+    appUuidOrSlug?: string;
     initialName: string;
     initialDescription: string;
     /** What the app is called to the user; chart types are apps too. */
@@ -43,6 +45,7 @@ type FormState = z.infer<typeof updateAppSchema>;
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     projectUuid,
     uuid,
+    appUuidOrSlug,
     initialName,
     initialDescription,
     resourceLabel = 'Data App',
@@ -53,6 +56,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
 }) => {
     const { mutateAsync, isLoading: isUpdating } = useUpdateApp({
         resourceLabel,
+        appUuidOrSlug,
     });
 
     const initialIcon = iconPicker?.initialIcon ?? null;
