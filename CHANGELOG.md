@@ -1,3 +1,10 @@
+# [2.168.0](https://github.com/lightdash/lightdash/compare/2.167.4...2.168.0) (2026-09-09)
+
+
+### Features
+
+* **query-sdk:** render chart types in local preview via a dev fixture fallback ([#28863](https://github.com/lightdash/lightdash/issues/28863)) ([0b1b2c9](https://github.com/lightdash/lightdash/commit/0b1b2c90c9b3ef54dc8f502bfc40dc4ca9edaec5))
+
 ## [2.167.4](https://github.com/lightdash/lightdash/compare/2.167.3...2.167.4) (2026-09-09)
 
 
