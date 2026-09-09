@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +49,12 @@ def fake_command(kind, args):
             {'number': 1, 'headRefOid': 'head-main', 'baseRefName': 'main'},
             {'number': 2, 'headRefOid': 'head-stack', 'baseRefName': 'parent'},
         ]
+        if 'pull_pages' in state:
+            limit = int(args[args.index('--limit') + 1])
+            result = [
+                {'number': item['number'], 'headRefOid': item['head']['sha'], 'baseRefName': item['base']['ref']}
+                for page in state['pull_pages'] for item in page
+            ][:limit]
     elif args[0] == 'api':
         endpoint = next(a for a in args if a.startswith('repos/'))
         method = args[args.index('--method') + 1] if '--method' in args else 'GET'
@@ -60,6 +67,19 @@ def fake_command(kind, args):
             result = [{'variables': []}, {'variables': items}]
             if 'variable_response' in state:
                 result = state['variable_response']
+        elif '/pulls?' in endpoint:
+            assert '--paginate' in args and '--slurp' in args
+            if state.get('fail_pull_pages'):
+                sys.exit(1)
+            result = state.get('pull_pages', [[
+                {'number': 1, 'head': {'sha': 'head-main'}, 'base': {'ref': 'main'}},
+                {'number': 2, 'head': {'sha': 'head-stack'}, 'base': {'ref': 'parent'}},
+            ]])
+        elif '/rules/branches/' in endpoint:
+            assert '--paginate' in args and '--slurp' in args
+            if state.get('fail_branch_rules'):
+                sys.exit(1)
+            result = state.get('branch_rule_pages', [state['ruleset']['rules']])
         elif '/rulesets/' in endpoint:
             ruleset_id = endpoint.rsplit('/', 1)[1]
             rulesets = state.get('rulesets', {'7': state['ruleset']})
@@ -180,7 +200,7 @@ class MergeFreezeTests(unittest.TestCase):
         output, summary, _ = self.run_toggle(slack=SLACK_OTHER)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
         self.assertIn('changed=false', output)
-        self.assertIn(f'Only **{SLACK_OWNER}**', summary)
+        self.assertIn('Any Lightdash employee can ask Cloudy', summary)
         self.assertIn(SLACK_OWNER, self.state['statuses'][0]['description'])
         self.assertFalse(any('PUT' in c for c in self.state['calls']))
         self.assertFalse(any(c[1:4] == ['variable', 'set', 'MERGE_FREEZE_ACTOR'] for c in self.state['calls']))
@@ -213,24 +233,28 @@ class MergeFreezeTests(unittest.TestCase):
                 self.assertNotIn(slack, log)
                 self.assertEqual(self.mutations(), [])
 
-    def test_other_slack_user_cannot_unfreeze(self):
+    def test_other_verified_slack_employee_can_unfreeze(self):
+        original = copy.deepcopy(self.state['ruleset'])
         self.frozen()
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
-        self.assertEqual(self.mutations(), [])
+        output, _, _ = self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        self.assertEqual(self.state['ruleset'], original)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
+        self.assertIn(f'actor={SLACK_OTHER}', output)
 
     def test_github_user_cannot_unfreeze_slack_owner(self):
         self.frozen()
         self.run_toggle(action='unfreeze', actor='alice', slack='', success=False)
         self.assertEqual(self.mutations(), [])
 
-    def test_slack_cannot_unfreeze_github_or_unknown_owner(self):
+    def test_verified_slack_employee_can_unfreeze_github_or_unknown_owner(self):
         for owner in ['alice', 'cloudy[bot]', None]:
             with self.subTest(owner=owner):
                 self.state['variables'].pop('MERGE_FREEZE_ACTOR', None)
                 self.state['ruleset']['rules'][1]['parameters']['required_status_checks'] = [{'context': 'ci'}]
                 self.frozen(owner)
-                self.run_toggle(action='unfreeze', success=False)
-                self.assertEqual(self.mutations(), [])
+                self.run_toggle(action='unfreeze')
+                self.assertEqual(self.state['variables']['MERGE_FREEZE'], 'false')
+                self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
 
     def test_owner_unfreezes_and_preserves_ruleset(self):
         original = copy.deepcopy(self.state['ruleset'])
@@ -329,9 +353,9 @@ class MergeFreezeTests(unittest.TestCase):
     def test_serialized_requests_use_live_owner(self):
         self.run_toggle()
         self.run_toggle(slack=SLACK_OTHER)
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
-        self.run_toggle(action='unfreeze')
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
         self.run_toggle(slack=SLACK_OTHER)
         self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OTHER)
 
@@ -348,7 +372,8 @@ class MergeFreezeTests(unittest.TestCase):
             'WEBHOOK': 'https://example.invalid/webhook', 'WORKFLOW_URL': 'https://example.invalid/workflow',
         })
         self.assertIn('<@U0123456789>', self.state['announcements'][0]['text'])
-        self.assertNotIn('cloudy', self.state['announcements'][0]['text'])
+        self.assertIn('Any Lightdash employee can ask Cloudy', self.state['announcements'][0]['text'])
+        self.assertNotIn('Only ', self.state['announcements'][0]['text'])
 
     def two_live_shaped_rulesets(self, pin='7546338'):
         main = copy.deepcopy(self.state['ruleset'])
@@ -503,15 +528,99 @@ class MergeFreezeTests(unittest.TestCase):
         self.state['rulesets']['7546338']['conditions']['ref_name']['include'] = ['~ALL']
         self.run_toggle()
 
-    def test_pin_preserves_owner_checks(self):
+    def test_pin_allows_another_employee_and_preserves_other_rulesets(self):
         self.two_live_shaped_rulesets()
-        self.run_toggle()
         original = copy.deepcopy(self.state['rulesets'])
-        self.state['calls'] = []
-        self.run_toggle(action='unfreeze', slack=SLACK_OTHER, success=False)
-        self.assertEqual(self.mutations(), [])
+        self.run_toggle()
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
         self.assertEqual(self.state['rulesets'], original)
-        self.assertEqual(self.state['variables']['MERGE_FREEZE_ACTOR'], SLACK_OWNER)
+        self.assertNotIn('MERGE_FREEZE_ACTOR', self.state['variables'])
+
+    def test_unfreeze_recovers_prs_beyond_the_first_500(self):
+        self.state['pull_pages'] = [
+            [{'number': index, 'head': {'sha': f'head-{index}'}, 'base': {'ref': 'parent'}}
+             for index in range(1, 501)],
+            [{'number': 501, 'head': {'sha': 'head-501'}, 'base': {'ref': 'main'}}],
+        ]
+        self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        writes = [call for call in self.state['calls'] if 'POST' in call]
+        self.assertEqual(len(writes), 1)
+        self.assertIn('repos/example/test/statuses/head-501', writes[0])
+        self.assertEqual(self.state['statuses'][-1]['state'], 'success')
+
+    def test_unfreeze_reports_pull_listing_failure(self):
+        self.state['fail_pull_pages'] = True
+        self.run_toggle(action='unfreeze', success=False)
+        self.assertEqual(self.state['statuses'], [])
+
+    def test_invalid_pull_pages_fail_recovery(self):
+        for response in [None, {}, [], [None]]:
+            with self.subTest(response=response):
+                self.state['pull_pages'] = response
+                self.run_toggle(action='unfreeze', success=False)
+                self.assertEqual(self.state['statuses'], [])
+
+    def run_status(self, success=True):
+        workflow = ROOT / '.github/workflows/merge-freeze-status.yml'
+        script = textwrap.dedent(workflow.read_text().split('run: |\n', 1)[1])
+        script = script.replace('${{ github.event.pull_request.number }}', '1')
+        return self.run_script(script, {
+            'SHA': 'head-main', 'BRANCH': 'main', 'FREEZE_ACTOR': SLACK_OWNER,
+            'FREEZE_URL': 'https://example.invalid/workflow',
+        }, success)
+
+    def test_delayed_status_writer_observes_completed_unfreeze(self):
+        self.frozen()
+        self.run_toggle(action='unfreeze')
+        self.run_status()
+        self.assertEqual(self.state['statuses'][-1]['state'], 'success')
+
+    def test_unfreeze_reconciles_a_status_writer_that_finishes_first(self):
+        self.frozen()
+        self.run_status()
+        self.assertEqual(self.state['statuses'][-1]['state'], 'failure')
+        self.run_toggle(action='unfreeze')
+        self.assertEqual(self.state['statuses'][-1]['state'], 'success')
+
+    def test_repeat_unfreeze_refreshes_stale_statuses(self):
+        self.state['statuses'].append({'context': 'merge-freeze', 'state': 'failure'})
+        output, _, _ = self.run_toggle(action='unfreeze', slack=SLACK_OTHER)
+        self.assertIn('changed=false', output)
+        self.assertEqual(self.state['statuses'][-1]['state'], 'success')
+        self.assertFalse(any('PUT' in call for call in self.state['calls']))
+
+    def test_status_writer_checks_every_page_of_effective_rules(self):
+        self.state['branch_rule_pages'] = [[], [{'type': 'required_status_checks', 'parameters': {
+            'required_status_checks': [{'context': 'merge-freeze', 'integration_id': 123}],
+        }}]]
+        self.run_status()
+        self.assertEqual(self.state['statuses'][-1]['state'], 'failure')
+
+    def test_status_read_failure_does_not_publish_success(self):
+        self.state['fail_branch_rules'] = True
+        self.run_status(success=False)
+        self.assertEqual(self.state['statuses'], [])
+
+    def test_malformed_rules_do_not_publish_success(self):
+        for response in [None, {}, [], [None], [[None]], [[{'type': 'required_status_checks'}]]]:
+            with self.subTest(response=response):
+                self.state['branch_rule_pages'] = response
+                self.run_status(success=False)
+                self.assertEqual(self.state['statuses'], [])
+
+    def test_status_and_toggle_share_a_non_replacing_lock(self):
+        status = (ROOT / '.github/workflows/merge-freeze-status.yml').read_text()
+        toggle = WORKFLOW.read_text()
+        for workflow in [status, toggle]:
+            concurrency = workflow.split('\nconcurrency:\n', 1)[1].split('\n\n', 1)[0]
+            self.assertIn('group: merge-freeze-${{ github.repository }}', concurrency)
+            self.assertIn('cancel-in-progress: false', concurrency)
+            self.assertIn('queue: max', concurrency)
+        self.assertNotIn('vars.MERGE_FREEZE', status)
+        self.assertNotIn('contents: write', status)
+        self.assertNotIn('MERGE_FREEZE_TOKEN', status)
+        self.assertNotIn('actions/checkout', status)
+        self.assertIn('github.event.pull_request.head.repo.full_name == github.repository', status)
 
     def test_workflow_contract(self):
         workflow = WORKFLOW.read_text()

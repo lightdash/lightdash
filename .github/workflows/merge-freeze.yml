@@ -45,6 +45,7 @@ permissions: {}
 concurrency:
   group: merge-freeze-${{ github.repository }}
   cancel-in-progress: false
+  queue: max
 
 env:
   FREEZE_CONTEXT: merge-freeze
@@ -228,15 +229,14 @@ jobs:
             fi
           fi
 
-          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ]; then
+          if [ "$ACTION" = "unfreeze" ] && [ "$was_required" = "true" ] && [ -z "${SLACK_ACTOR:-}" ]; then
             owner_key=$FREEZE_ACTOR
             effective_key=$effective_actor
-            if [[ "$FREEZE_ACTOR" != *:* ]] && [ -z "${SLACK_ACTOR:-}" ]; then
+            if [[ "$FREEZE_ACTOR" != *:* ]]; then
               owner_key=$(printf '%s' "$FREEZE_ACTOR" | tr '[:upper:]' '[:lower:]')
               effective_key=$actor_key
             fi
-            if { [ -n "$FREEZE_ACTOR" ] && [ "$owner_key" != "$effective_key" ]; } \
-               || { [ -z "$FREEZE_ACTOR" ] && [ -n "${SLACK_ACTOR:-}" ]; }; then
+            if [ -n "$FREEZE_ACTOR" ] && [ "$owner_key" != "$effective_key" ]; then
               echo "::error::Only the recorded freeze owner can unfreeze main. Ask the owner or a repository admin."
               exit 1
             fi
@@ -330,7 +330,7 @@ jobs:
           # than hunting the Actions tab to work out who to ask.
           if [ "$ACTION" = "freeze" ]; then
             state=failure
-            description="Merges to main are frozen by $display_owner - ask them in Slack"
+            description="Merges to main are frozen by $display_owner - ask Cloudy in Slack"
           else
             state=success
             description="Merges to main are open"
@@ -368,10 +368,12 @@ jobs:
           # must not be told it is. Assigned before the loop so a failure to
           # list is fatal here, rather than a process substitution silently
           # yielding zero PRs to update.
-          open_prs=$(gh pr list --repo "$REPO" --state open --limit 500 \
-            --json number,headRefOid,baseRefName \
-            | jq -r --arg branch "$default_branch" \
-                '.[] | select(.baseRefName == $branch) | "\(.number)\t\(.headRefOid)"')
+          open_prs=$(gh api --paginate --slurp "repos/$REPO/pulls?state=open&per_page=100" \
+            | jq -sr --arg branch "$default_branch" '
+                if length == 1 then .[0] else error("Missing pull request pages") end
+                | if type == "array" and length > 0 and all(.[]; type == "array")
+                then .[][] else error("Invalid pull request pages") end
+                | select(.base.ref == $branch) | "\(.number)\t\(.head.sha)"')
 
           # Best-effort by design: the freeze is already in force by this point,
           # and one unpostable status must not fail the run. Fork PRs are
@@ -416,23 +418,19 @@ jobs:
                 echo "> Main was **already frozen** - this run only refreshed the PR statuses."
                 echo
               fi
-              if [[ "$display_owner" == T0163M87MB9:U* ]]; then
-                echo "Ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`."
-              else
-                echo "Run this workflow again with **unfreeze** to reopen merges."
-              fi
+              echo "Any Lightdash employee can ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`."
               echo
               if [ "$display_owner" = "an unknown owner" ]; then
-                echo "No owner is recorded. Use a direct GitHub dispatch or ask a repository admin to recover the freeze."
+                echo "No owner is recorded. A direct GitHub dispatch or repository admin can also recover the freeze."
               else
-                echo "Only **$display_owner** can do that here. If they are unavailable, a repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
+                echo "Direct GitHub dispatch remains available to the recorded owner. A repo admin can remove the \`$CONTEXT\` check from the \`$ruleset_name\` ruleset by hand."
               fi
             else
               if [ "$was_required" = "false" ]; then
                 echo "> Main was **not frozen** - this run only cleared any stale \`$CONTEXT\` statuses."
                 echo
               fi
-              echo "Merges are unblocked. Anyone whose PR still shows a stale \`$CONTEXT\` failure can push or reopen it to clear."
+              echo "Merges are open. If a PR still shows a stale \`$CONTEXT\` failure, ask Cloudy to unfreeze merges to \`${REPO##*/}\` again, then check the linked run."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -468,18 +466,16 @@ jobs:
           # froze main can say why in the thread if it matters.
           if [[ "$ACTOR_LOGIN" == T0163M87MB9:U* ]]; then
             actor_mention="<@${ACTOR_LOGIN#*:}>"
-            unfreeze_instructions="ask Cloudy in Slack to unfreeze merges to \`${REPO##*/}\`"
           else
             actor_mention="@$ACTOR_LOGIN"
-            unfreeze_instructions="<${WORKFLOW_URL}|Merge freeze / unfreeze>"
           fi
 
           if [ "$ACTION" = "freeze" ]; then
             text=":lock: *[merge-freeze-on]* Merges to \`main\` are frozen by ${actor_mention}."
-            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Only ${actor_mention} can lift it: ${unfreeze_instructions}. If they are unavailable, a repo admin can remove the check from the main ruleset by hand."
+            text="$text"$'\n'"Your PRs will show a red \`merge-freeze\` check until it lifts. Any Lightdash employee can ask Cloudy to unfreeze merges to \`${REPO##*/}\`. A repo admin can also remove the check from the main ruleset by hand."
           else
             text=":unlock: *[merge-freeze-off]* Merges to \`main\` are open again, lifted by ${actor_mention}."
-            text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, push or reopen it to clear."
+            text="$text"$'\n'"If your PR still shows a stale \`merge-freeze\` failure, ask Cloudy to unfreeze merges to \`${REPO##*/}\` again, then check the linked run."
           fi
           text="$text"$'\n'"<${RUN_URL}|View run>"
 
