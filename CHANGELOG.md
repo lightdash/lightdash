@@ -1,3 +1,10 @@
+## [2.169.1](https://github.com/lightdash/lightdash/compare/2.169.0...2.169.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **scheduler:** show alert filters and local next-run times ([#28919](https://github.com/lightdash/lightdash/issues/28919)) ([d2b9d43](https://github.com/lightdash/lightdash/commit/d2b9d4389f46b7ac6e6263b8bbbb44f6f7412f2f))
+
 # [2.169.0](https://github.com/lightdash/lightdash/compare/2.168.3...2.169.0) (2026-09-09)
 
 
