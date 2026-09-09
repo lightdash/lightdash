@@ -2,7 +2,6 @@ import { chartTypeIconSchema, type ChartTypeIcon } from '@lightdash/common';
 import {
     Button,
     Group,
-    Input,
     Stack,
     Textarea,
     TextInput,
@@ -112,15 +111,13 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
                 <Stack>
                     <Group align="flex-end" gap="xs" wrap="nowrap">
                         {iconPicker !== null && (
-                            <Input.Wrapper label="Icon">
-                                <ChartTypeIconPicker
-                                    value={form.values.icon}
-                                    onChange={(next) =>
-                                        form.setFieldValue('icon', next)
-                                    }
-                                    disabled={isUpdating}
-                                />
-                            </Input.Wrapper>
+                            <ChartTypeIconPicker
+                                value={form.values.icon}
+                                onChange={(next) =>
+                                    form.setFieldValue('icon', next)
+                                }
+                                disabled={isUpdating}
+                            />
                         )}
 
                         <TextInput
