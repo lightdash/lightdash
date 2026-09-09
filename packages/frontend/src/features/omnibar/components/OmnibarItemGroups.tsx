@@ -7,6 +7,7 @@ import {
     type OmnibarGroup,
     type SearchItem,
 } from '../types/searchItem';
+import { getOmnibarItemKey } from '../utils/getFocusedItemIndex';
 import OmnibarItem from './OmnibarItem';
 import classes from './OmnibarItemGroups.module.css';
 
@@ -31,13 +32,18 @@ const OmnibarItemGroups: FC<Props> = ({
     onToggleGroup,
     scrollRef,
 }) => {
+    const focusedItem = focusedItemIndex
+        ? groups[focusedItemIndex.groupIndex]?.items[focusedItemIndex.itemIndex]
+        : undefined;
+    const focusedItemKey = focusedItem && getOmnibarItemKey(focusedItem);
+
     useEffect(() => {
-        if (scrollRef?.current && focusedItemIndex) {
+        if (scrollRef?.current && focusedItemKey) {
             scrollRef.current.scrollIntoView({
                 block: 'nearest',
             });
         }
-    }, [scrollRef, focusedItemIndex]);
+    }, [scrollRef, focusedItemKey]);
 
     return (
         <Box className={classes.groups}>
