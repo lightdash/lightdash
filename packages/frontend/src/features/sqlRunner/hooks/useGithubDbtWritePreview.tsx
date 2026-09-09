@@ -40,10 +40,10 @@ export const useGithubDbtWritePreview = () => {
     >(createPullRequest, {
         mutationKey: ['sqlRunner', 'githubDbtWritePreview'],
 
-        onError: () => {
+        onError: (error) => {
             showToastError({
-                title: 'Failed to get github preview',
-                subtitle: 'Please check your Github settings.',
+                title: 'Failed to preview dbt writeback',
+                subtitle: error.error.message,
             });
         },
     });
