@@ -138,6 +138,28 @@ describe('parseGitlabConnection', () => {
 });
 
 describe('buildCloneTarget', () => {
+    it('keeps the Bitbucket API token out of the clone URL', () => {
+        expect(
+            buildCloneTarget(
+                {
+                    provider: PullRequestProvider.BITBUCKET,
+                    owner: 'acme',
+                    repo: 'analytics',
+                    projectUuid: 'project',
+                    projectDbtSourceUuid: 'source',
+                    username: 'developer',
+                    projectSubPath: '.',
+                    branch: 'release/dbt',
+                },
+                'project-token',
+            ),
+        ).toEqual({
+            url: 'https://bitbucket.org/acme/analytics.git',
+            username: 'x-bitbucket-api-token-auth',
+            password: 'project-token',
+        });
+    });
+
     it('builds a GitHub x-access-token target', () => {
         expect(
             buildCloneTarget(parseGithubConnection(githubConfig()), 'tok'),

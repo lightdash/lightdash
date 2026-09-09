@@ -32,8 +32,14 @@ const pullRequestSchema = z.object({
     id: z.number().int().positive(),
     title: z.string(),
     state: z.enum(['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED']),
-    source: z.object({ branch: z.object({ name: z.string() }) }),
-    destination: z.object({ branch: z.object({ name: z.string() }) }),
+    source: z.object({
+        branch: z.object({ name: z.string() }),
+        repository: z.object({ full_name: z.string() }).nullish(),
+    }),
+    destination: z.object({
+        branch: z.object({ name: z.string() }),
+        repository: z.object({ full_name: z.string() }).nullish(),
+    }),
 });
 
 export type BitbucketPullRequest = {
@@ -43,6 +49,8 @@ export type BitbucketPullRequest = {
     state: PullRequestState;
     head: string;
     base: string;
+    sourceRepository?: string | null;
+    destinationRepository?: string | null;
 };
 
 const encodeSegment = (value: string): string => {
@@ -57,9 +65,9 @@ const encodeSegment = (value: string): string => {
     return encodeURIComponent(value);
 };
 
-export const resolveBitbucketCredentials = (
+export const resolveBitbucketRepository = (
     connection: DbtProjectConfig,
-): BitbucketCredentials => {
+): Pick<BitbucketCredentials, 'owner' | 'repo'> => {
     if (connection.type !== DbtProjectType.BITBUCKET) {
         throw new ParameterError('The project is not connected to Bitbucket');
     }
@@ -81,6 +89,16 @@ export const resolveBitbucketCredentials = (
     const [owner, repo] = repository.split('/');
     encodeSegment(owner);
     encodeSegment(repo);
+    return { owner, repo };
+};
+
+export const resolveBitbucketCredentials = (
+    connection: DbtProjectConfig,
+): BitbucketCredentials => {
+    const { owner, repo } = resolveBitbucketRepository(connection);
+    if (connection.type !== DbtProjectType.BITBUCKET) {
+        throw new ParameterError('The project is not connected to Bitbucket');
+    }
     const token = connection.personal_access_token?.trim();
     if (!token) {
         throw new ParameterError(
@@ -305,6 +323,8 @@ const readPullRequest = async (
         state: states[result.state],
         head: result.source.branch.name,
         base: result.destination.branch.name,
+        sourceRepository: result.source.repository?.full_name ?? null,
+        destinationRepository: result.destination.repository?.full_name ?? null,
     };
 };
 

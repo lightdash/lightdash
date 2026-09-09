@@ -12,6 +12,7 @@ import {
     RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
+    type DbtBitBucketProjectConfig,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
@@ -54,10 +55,12 @@ import {
 import { DeniedPathError } from './deniedPaths';
 import {
     RepoTooLargeError,
+    WritebackCredentialCleanupError,
     WritebackGitNotConnectedError,
     WritebackRunAbortedError,
     WritebackThreadPrClosedError,
 } from './errors';
+import { BitbucketProvider } from './providers/BitbucketProvider';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -76,6 +79,15 @@ vi.mock('../SandboxRuntime', async () => ({
         '../SandboxRuntime',
     )),
     createSandboxManager: vi.fn(),
+}));
+vi.mock('../../../clients/bitbucket/Bitbucket', async () => ({
+    ...(await vi.importActual<
+        typeof import('../../../clients/bitbucket/Bitbucket')
+    >('../../../clients/bitbucket/Bitbucket')),
+    getRepository: vi.fn().mockResolvedValue({
+        full_name: 'acme/bitbucket-analytics',
+        mainbranch: { name: 'main' },
+    }),
 }));
 vi.mock('../../../clients/github/Github', () => ({
     createBranch: vi.fn().mockResolvedValue(undefined),
@@ -105,6 +117,14 @@ const PRIMARY_SOURCE_UUID = 'primary-source-uuid';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
+const bitbucketConnection: DbtBitBucketProjectConfig = {
+    type: DbtProjectType.BITBUCKET,
+    username: 'developer',
+    repository: 'acme/bitbucket-analytics',
+    branch: 'release/dbt',
+    project_sub_path: '/',
+    personal_access_token: 'project-bitbucket-token',
+};
 
 // The commit a provider lands this turn (SHA + line stat). open/update return
 // it so the card can pin CI and show the diff stat; no-change turns return nulls.
@@ -412,6 +432,37 @@ describe('AiWritebackService.prepareTurn', () => {
         });
         return prepared.kind === 'run' ? prepared.turn : prepared;
     };
+
+    it.each([undefined, '   '])(
+        'carries the selected project identity into a token-free Bitbucket turn connection with host %s',
+        async (host_domain) => {
+            const service = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        ...githubProject(),
+                        dbtConnection: { ...bitbucketConnection, host_domain },
+                    }),
+                },
+            });
+            const turn = await prepareTurn(service, userWithOrg(true));
+            expect(turn.gitConnection).toMatchObject({
+                provider: PullRequestProvider.BITBUCKET,
+                projectUuid: 'p1',
+                projectDbtSourceUuid: null,
+                repo: 'bitbucket-analytics',
+                branch: 'release/dbt',
+            });
+            expect(JSON.stringify(turn.gitConnection)).not.toContain(
+                'project-bitbucket-token',
+            );
+            expect(turn.gitConnection).not.toHaveProperty(
+                'personal_access_token',
+            );
+        },
+    );
 
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
@@ -836,6 +887,49 @@ describe('AiWritebackService dbt source targeting', () => {
             dbtSourceUuid: args.dbtSourceUuid,
             existingRow: args.existingRow ?? null,
         });
+
+    it.each([false, true])(
+        'selects an additional Cloud source, including a resumed binding (%s)',
+        async (resume) => {
+            const source = {
+                ...marketingSource(),
+                dbtConnection: bitbucketConnection,
+            };
+            const result = await resolve(serviceWithSources([source]), {
+                dbtSourceUuid: resume
+                    ? PRIMARY_SOURCE_UUID
+                    : source.projectDbtSourceUuid,
+                existingRow: resume
+                    ? { project_dbt_source_uuid: source.projectDbtSourceUuid }
+                    : null,
+            });
+            expect(result).toMatchObject({
+                kind: 'resolved',
+                candidate: {
+                    sourceUuid: 'src-marketing',
+                    connection: {
+                        type: DbtProjectType.BITBUCKET,
+                        branch: 'release/dbt',
+                    },
+                },
+            });
+        },
+    );
+
+    it('excludes Bitbucket Server sources from AI writeback choices', async () => {
+        const source = {
+            ...marketingSource(),
+            dbtConnection: {
+                ...bitbucketConnection,
+                host_domain: 'bitbucket.acme.com',
+            },
+        };
+        const result = await resolve(serviceWithSources([source]), {});
+        expect(result).toMatchObject({
+            kind: 'resolved',
+            candidate: { sourceUuid: null },
+        });
+    });
 
     it('targets the primary connection when the project has no additional sources', async () => {
         const result = await resolve(serviceWithSources([]), {
@@ -1393,6 +1487,186 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             html_url: PR_7,
         });
     });
+
+    const bitbucketProjectModel = () => ({
+        get: vi.fn().mockResolvedValue({
+            organizationUuid: ORG,
+            name: 'Bitbucket analytics',
+            dbtConnection: {
+                ...bitbucketConnection,
+                personal_access_token: undefined,
+            },
+            warehouseConnection: null,
+            dbtVersion: SupportedDbtVersions.V1_9,
+        }),
+        getSummary: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+        getWithSensitiveFields: vi
+            .fn()
+            .mockResolvedValue({ dbtConnection: bitbucketConnection }),
+    });
+
+    it('clones the configured Bitbucket branch with the project token and creates no PR without changes', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const result = await runService(
+            sandbox,
+            {},
+            { projectModel: bitbucketProjectModel() },
+        );
+        expect(sandbox.git.clone).toHaveBeenCalledWith(
+            'https://bitbucket.org/acme/bitbucket-analytics.git',
+            expect.objectContaining({
+                branch: 'release/dbt',
+                username: 'x-bitbucket-api-token-auth',
+                password: 'project-bitbucket-token',
+            }),
+        );
+        expect(sandbox.commands.run).toHaveBeenCalledWith(
+            expect.stringContaining(
+                '--disallowedTools "Read(//home/user/repo/.git/**),Grep(//home/user/repo/.git/**),Edit(//home/user/repo/.git/**),Write(//home/user/repo/.git/**)"',
+            ),
+            expect.anything(),
+        );
+        expect(result).toMatchObject({
+            prAction: null,
+            prUrl: null,
+            repository: 'acme/bitbucket-analytics',
+        });
+        expect(createPullRequest).not.toHaveBeenCalled();
+        expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('clones an adopted Bitbucket PR branch instead of the configured base', async () => {
+        const sandbox = fakeSandbox(0, false);
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+        const adopt = vi
+            .spyOn(BitbucketProvider.prototype, 'adoptPullRequest')
+            .mockResolvedValue({
+                prUrl,
+                owner: 'acme',
+                repo: 'bitbucket-analytics',
+                pullNumber: 9,
+                headRef: 'feature/existing-change',
+            });
+        try {
+            const result = await runService(
+                sandbox,
+                { prUrl },
+                { projectModel: bitbucketProjectModel() },
+            );
+            expect(sandbox.git.clone).toHaveBeenCalledWith(
+                'https://bitbucket.org/acme/bitbucket-analytics.git',
+                expect.objectContaining({ branch: 'feature/existing-change' }),
+            );
+            expect(result.prUrl).toBe(prUrl);
+            expect(createPullRequest).not.toHaveBeenCalled();
+        } finally {
+            adopt.mockRestore();
+        }
+    });
+
+    it('destroys a resumed sandbox and removes its workstream if push credentials cannot be cleared', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.connect.mockResolvedValue(sandbox);
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/9';
+        const existingRow = {
+            ...threadRow(prUrl),
+            project_dbt_source_uuid: null,
+            target_repo: 'acme/bitbucket-analytics',
+        };
+        const deleteByUuid = vi.fn().mockResolvedValue(undefined);
+        const editState = vi
+            .spyOn(BitbucketProvider.prototype, 'getPullRequestEditState')
+            .mockResolvedValue({ editable: true, reason: null });
+        const update = vi
+            .spyOn(BitbucketProvider.prototype, 'updatePullRequest')
+            .mockRejectedValue(new WritebackCredentialCleanupError());
+        try {
+            await expect(
+                runService(
+                    sandbox,
+                    { aiThreadUuid: 'thread-1' },
+                    {
+                        projectModel: bitbucketProjectModel(),
+                        aiWritebackThreadModel: {
+                            findByAiThreadUuid: vi
+                                .fn()
+                                .mockResolvedValue(existingRow),
+                            findActiveWorkstreamByRepo: vi
+                                .fn()
+                                .mockResolvedValue(existingRow),
+                            acquireWorkstreamLock: vi.fn().mockResolvedValue({
+                                release: vi.fn().mockResolvedValue(undefined),
+                            }),
+                            deleteByUuid,
+                        },
+                        sandboxRegistryModel: {
+                            findBySandboxUuid: vi.fn().mockResolvedValue({
+                                providerSandboxId: 'sbx-1',
+                            }),
+                            markRunning: vi.fn().mockResolvedValue(undefined),
+                            deleteBySandboxUuid: vi
+                                .fn()
+                                .mockResolvedValue(undefined),
+                        },
+                    },
+                ),
+            ).rejects.toBeInstanceOf(WritebackCredentialCleanupError);
+            expect(update).toHaveBeenCalledTimes(1);
+            expect(deleteByUuid).toHaveBeenCalledWith('w-1');
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledWith('sbx-1');
+            expect(fakeSandboxProvider.persist).not.toHaveBeenCalled();
+            expect(sandbox.git.clone).not.toHaveBeenCalled();
+        } finally {
+            editState.mockRestore();
+            update.mockRestore();
+        }
+    });
+
+    it.each(['clone', 'cleanup'])(
+        'stops before running the agent and destroys the sandbox on Bitbucket %s failure',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, false);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            if (failure === 'clone') {
+                sandbox.git.clone.mockRejectedValue(
+                    new Error('secret project-bitbucket-token'),
+                );
+            } else {
+                sandbox.commands.run.mockRejectedValue(
+                    new Error('secret project-bitbucket-token'),
+                );
+            }
+            const result = runService(
+                sandbox,
+                {},
+                {
+                    projectModel: bitbucketProjectModel(),
+                    sandboxRegistryModel: {
+                        create: vi.fn().mockResolvedValue('sbx-uuid'),
+                        findBySandboxUuid: vi
+                            .fn()
+                            .mockResolvedValue({ providerSandboxId: 'sbx-1' }),
+                        deleteBySandboxUuid: vi
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+            );
+            await expect(result).rejects.toThrow(
+                failure === 'clone'
+                    ? 'Could not clone the Bitbucket repository'
+                    : 'Could not remove Bitbucket clone credentials',
+            );
+            await expect(result).rejects.not.toThrow('project-bitbucket-token');
+            expect(sandbox.files.write).not.toHaveBeenCalled();
+            expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
+            expect(createPullRequest).not.toHaveBeenCalled();
+        },
+    );
 
     it('opens a PR and kills the sandbox for a one-shot run with changes', async () => {
         const sandbox = fakeSandbox(0, true);
@@ -3160,6 +3434,71 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
             }),
         ).rejects.toThrow(ForbiddenError);
         expect(providerClose).not.toHaveBeenCalled();
+    });
+
+    it('closes a Bitbucket PR using its additional source token and never routes to GitHub', async () => {
+        const prUrl =
+            'https://bitbucket.org/acme/bitbucket-analytics/pull-requests/7';
+        const source = {
+            projectUuid: 'p1',
+            projectDbtSourceUuid: 'bb-source',
+            name: 'Bitbucket',
+            isPrimary: false,
+            precedence: 1,
+            dbtConnection: bitbucketConnection,
+        };
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ organizationUuid: ORG }),
+            },
+            projectDbtSourcesModel: {
+                getSources: vi.fn().mockResolvedValue([source]),
+                getSource: vi.fn().mockResolvedValue(source),
+            },
+            aiWritebackThreadModel: {
+                findByAiThreadUuidAndPrUrl: vi.fn().mockResolvedValue({
+                    project_dbt_source_uuid: 'bb-source',
+                }),
+            },
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(
+                    recordedPr({
+                        provider: PullRequestProvider.BITBUCKET,
+                        repo: 'bitbucket-analytics',
+                        prUrl,
+                        prNumber: 7,
+                    }),
+                ),
+            },
+        });
+        const close = vi
+            .spyOn(service['bitbucketProvider'], 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+        const githubClose = vi.spyOn(
+            service['githubProvider'],
+            'closePullRequest',
+        );
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl,
+        });
+        expect(result).toEqual({ state: 'closed' });
+        expect(close).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prUrl,
+                installation: expect.objectContaining({
+                    provider: PullRequestProvider.BITBUCKET,
+                    token: 'project-bitbucket-token',
+                    repo: 'bitbucket-analytics',
+                }),
+            }),
+        );
+        expect(githubClose).not.toHaveBeenCalled();
     });
 
     it('routes a recorded GitLab MR to the GitLab provider', async () => {

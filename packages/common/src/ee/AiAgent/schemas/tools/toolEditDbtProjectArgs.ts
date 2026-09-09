@@ -103,6 +103,7 @@ export const toolEditDbtProjectOutputSchema = z.object({
                 .enum([
                     'github_not_installed',
                     'gitlab_not_installed',
+                    'bitbucket_token_missing',
                     'unsupported_source_control',
                     'pull_request_not_open',
                     'git_write_permission',

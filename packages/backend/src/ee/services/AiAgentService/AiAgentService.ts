@@ -452,6 +452,7 @@ import {
     buildDashboardSuggestionContext,
     getPinnedSuggestionContextInput,
 } from './suggestionPinnedContext';
+import { getWritebackConnectionSupport } from './writebackConnection';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -9699,6 +9700,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
         }
 
+        const isBitbucketPullRequest =
+            result.prUrl?.startsWith('https://bitbucket.org/') === true;
         let previewDeployConfigured: boolean | null = null;
         try {
             const { enabled: previewDeploySetupEnabled } =
@@ -9706,7 +9709,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     user,
                     featureFlagId: FeatureFlags.AiPreviewDeploySetup,
                 });
-            if (previewDeploySetupEnabled) {
+            if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
                 const ciStatus =
                     await this.previewDeploySetupService.getOrScanProjectCiStatus(
                         user,
@@ -9724,7 +9727,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         let previewUrl: string | null = null;
-        if (result.prUrl && !suppressWritebackPreview && !reviewRemediation) {
+        if (
+            result.prUrl &&
+            !isBitbucketPullRequest &&
+            !suppressWritebackPreview &&
+            !reviewRemediation
+        ) {
             const preview =
                 await this.writebackPreviewService.createPreviewForPullRequest({
                     user,
@@ -11291,15 +11299,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
         }
-        // Writeback opens a pull request and only supports GitHub and GitLab
-        // dbt connections (see AiWritebackService.getGitProvider, which throws
-        // for any other type). Without this guard the agent would expose the
-        // writeback section + editDbtProject tool — and offer to open PRs — on
-        // projects where editDbtProject can only fail.
-        const writebackSupportedConnection =
-            promptProject.dbtConnection.type === DbtProjectType.GITHUB ||
-            promptProject.dbtConnection.type === DbtProjectType.GITLAB;
-        if (aiWritebackEnabled && !writebackSupportedConnection) {
+        const writebackConnectionSupport = getWritebackConnectionSupport(
+            promptProject.dbtConnection,
+        );
+        if (aiWritebackEnabled && !writebackConnectionSupport.editDbtProject) {
             aiWritebackEnabled = false;
         }
 
@@ -11321,7 +11324,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
             codingAgentEnabled = false;
         }
-        if (codingAgentEnabled && !writebackSupportedConnection) {
+        if (codingAgentEnabled && !writebackConnectionSupport.editRepo) {
             codingAgentEnabled = false;
         }
 
@@ -11360,6 +11363,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const projectContextEnabled =
             aiWritebackEnabled &&
+            writebackConnectionSupport.editRepo &&
             (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
                 user,
             ));
@@ -11376,7 +11380,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 featureFlagId: FeatureFlags.AiPreviewDeploySetup,
             });
         const aiPreviewDeploySetupEnabled =
-            aiWritebackEnabled && aiPreviewDeploySetupFlag;
+            aiWritebackEnabled &&
+            writebackConnectionSupport.editRepo &&
+            aiPreviewDeploySetupFlag;
 
         // exploreRepo/discoverRepos read repo source and the view:SourceCode
         // check evaluates against the resolved user. On Slack without

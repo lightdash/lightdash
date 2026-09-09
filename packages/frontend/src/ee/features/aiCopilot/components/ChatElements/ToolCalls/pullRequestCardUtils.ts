@@ -9,18 +9,18 @@ import {
 // without tripping react-refresh's only-export-components rule.
 
 /**
- * Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
- * so the user can verify which repo the PR landed in at a glance. Best-effort —
- * any non-GitHub host or malformed path falls back to the raw hostname.
+ * Summarizes supported pull request URLs as workspace/repository; other hosts
+ * fall back to the hostname.
  */
 export const summarisePrUrl = (prUrl: string): string | null => {
     try {
         const url = new URL(prUrl);
         const segments = url.pathname.split('/').filter(Boolean);
         if (
-            url.hostname === 'github.com' &&
             segments.length >= 4 &&
-            segments[2] === 'pull'
+            ((url.hostname === 'github.com' && segments[2] === 'pull') ||
+                (url.hostname === 'bitbucket.org' &&
+                    segments[2] === 'pull-requests'))
         ) {
             const [owner, repo] = segments;
             return `${owner}/${repo}`;
@@ -51,4 +51,17 @@ export const INSTALL_ACTIONS: Record<
         installUrl: '/api/v1/gitlab/install',
         cta: 'Connect GitLab',
     },
+};
+
+export const isBitbucketPullRequest = (
+    prUrl: string | null | undefined,
+): boolean => {
+    if (!prUrl) {
+        return false;
+    }
+    try {
+        return new URL(prUrl).hostname === 'bitbucket.org';
+    } catch {
+        return false;
+    }
 };
