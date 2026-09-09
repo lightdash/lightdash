@@ -1,11 +1,7 @@
 import {
     AgentSqlScope,
     AnyType,
-    CompiledField,
-    CompiledTable,
     DbtProjectType,
-    Explore,
-    ExploreError,
     GroupType,
     ProjectDefaults,
     ProjectType,
@@ -117,61 +113,20 @@ export type DbCachedExplores = {
 
 export type CachedExploresTable = Knex.CompositeTableType<DbCachedExplores>;
 
-// Only metadata used by omnibar matching, result display and authorization.
-// Keep in sync with the cached_explore_search_metadata database function.
-export type CachedExploreSearchField = Pick<
-    CompiledField,
-    | 'name'
-    | 'label'
-    | 'description'
-    | 'type'
-    | 'fieldType'
-    | 'table'
-    | 'tableLabel'
-    | 'hidden'
-    | 'requiredAttributes'
-    | 'anyAttributes'
-    | 'tablesRequiredAttributes'
-    | 'tablesAnyAttributes'
->;
-
-export type CachedExploreSearchMetadata = Pick<Explore, 'name' | 'label'> &
-    Partial<Pick<Explore, 'tags' | 'type'>> & {
-        errors?: ExploreError['errors'];
-        tables: Record<
-            string,
-            Pick<
-                CompiledTable,
-                | 'name'
-                | 'label'
-                | 'description'
-                | 'requiredAttributes'
-                | 'anyAttributes'
-            > & {
-                dimensions: Record<string, CachedExploreSearchField>;
-                metrics: Record<string, CachedExploreSearchField>;
-            }
-        >;
-    };
-
 export type DbCachedExplore = {
     cached_explore_uuid: string;
     project_uuid: string;
     name: string;
     table_names: string[];
     explore: AnyType;
-    search_metadata: CachedExploreSearchMetadata | null;
 };
 
 export type CachedExploreTable = Knex.CompositeTableType<
     DbCachedExplore,
-    Omit<DbCachedExplore, 'cached_explore_uuid' | 'search_metadata'>
+    Omit<DbCachedExplore, 'cached_explore_uuid'>
 >;
 
-export type DbCachedExploreStaging = Omit<
-    DbCachedExplore,
-    'search_metadata'
-> & {
+export type DbCachedExploreStaging = DbCachedExplore & {
     save_uuid: string;
     created_at: Date;
 };

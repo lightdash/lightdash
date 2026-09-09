@@ -11,11 +11,11 @@ import {
 } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import { up } from '../../database/migrations/20260909190000_add_cached_explore_search_metadata';
 import { SearchService } from '../../services/SearchService/SearchService';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { mockExploreWithOutdatedMetricFilters } from '../ProjectModel/ProjectModel.mock';
 import { SearchModel } from './index';
+import { getExploreSearchCandidatePath } from './utils/search';
 
 describe('Omnibar explore search', () => {
     let database: Knex;
@@ -76,7 +76,6 @@ describe('Omnibar explore search', () => {
             table.text('model_name');
             table.integer('job_id');
         });
-        await up(database);
         model = new SearchModel({
             database,
             contentVerificationModel: new ContentVerificationModel({
@@ -110,12 +109,24 @@ describe('Omnibar explore search', () => {
         }
     });
 
-    it('returns the same fields without loading compiled SQL into Node', async () => {
-        const query = 'Fulfillment';
+    it('loads matching explores without transferring unrelated compiled JSON', async () => {
+        const matchingExplore = structuredClone(explore);
+        matchingExplore.name = 'matching_payments';
+        matchingExplore.tables.orders.metrics.fulfillment_rate.label =
+            'Unique needle';
+        matchingExplore.tables.orders.metrics.fulfillment_rate.compiledSql =
+            '1';
+        await database<Record<string, unknown>>('cached_explore').insert({
+            cached_explore_uuid: randomUUID(),
+            project_uuid: projectUuid,
+            name: matchingExplore.name,
+            explore: matchingExplore,
+        });
+        const query = 'needle';
         const filters = { type: SearchItemType.FIELD };
         const [, expectedFields] = SearchModel.searchTablesAndFields(
             query,
-            [explore],
+            [matchingExplore],
             filters,
         );
         const cacheResponses: unknown[] = [];
@@ -191,6 +202,137 @@ describe('Omnibar explore search', () => {
         });
         expect(results.fields).toEqual(expected);
         expect(results.fields).toHaveLength(10);
+    });
+
+    it('preserves literal punctuation, multiple words and Unicode matching', async () => {
+        const labels = [
+            'a.b',
+            'a*b',
+            'a+b',
+            'a?b',
+            '^cost$',
+            '[amount]',
+            '(AUD)',
+            '{amount}',
+            'foo|bar',
+            'back\\slash',
+            'path/to',
+            'account_id',
+            'a-b',
+            'say "hello"',
+            "customer's",
+            'foo  bar',
+            '") || true || ("',
+            'I i İ ı',
+            'K k K',
+            'S s ſ',
+            'Éclair é',
+            'Σ σ ς',
+            '中文',
+            'line\nbreak',
+        ];
+        const varied = structuredClone(explore);
+        varied.tables = { payments: varied.tables.payments };
+        varied.tables.payments.metrics = {};
+        const dimension = varied.tables.payments.dimensions.amount;
+        varied.tables.payments.dimensions = Object.fromEntries(
+            labels.map((label, index) => [
+                `f${index}`,
+                {
+                    ...dimension,
+                    name: `f${index}`,
+                    label,
+                    description: undefined,
+                    compiledSql: '1',
+                },
+            ]),
+        );
+        await database<Record<string, unknown>>('cached_explore').update({
+            explore: varied,
+        });
+        const fullRows = await database<Record<string, unknown>>(
+            'cached_explore',
+        )
+            .select<{ explore: Explore }[]>('explore')
+            .orderBy('name');
+        const fullExplores = fullRows.map((row) => row.explore);
+
+        await Promise.all(
+            [...labels, '\\', '/', '"', "'", 'I', 'k', 's', 'é', 'σ', '  '].map(
+                async (query) => {
+                    const [, expected] = SearchModel.searchTablesAndFields(
+                        query,
+                        fullExplores,
+                    );
+                    const result = await model.search(projectUuid, query, {
+                        type: SearchItemType.FIELD,
+                    });
+                    expect({ query, fields: result.fields }).toEqual({
+                        query,
+                        fields: expected,
+                    });
+
+                    // Exercise the default omnibar path, which considers tables and fields.
+                    const candidatePath = getExploreSearchCandidatePath(query);
+                    const candidates: { explore: Explore }[] = await database<
+                        Record<string, unknown>
+                    >('cached_explore')
+                        .select<{ explore: Explore }[]>('explore')
+                        .modify((builder) => {
+                            if (candidatePath)
+                                void builder.whereRaw(
+                                    "jsonb_path_exists(explore, ?::jsonpath, '{}', true)",
+                                    [candidatePath],
+                                );
+                        })
+                        .orderBy('name');
+                    expect(
+                        SearchModel.searchTablesAndFields(
+                            query,
+                            candidates.map((row) => row.explore),
+                        ),
+                    ).toEqual(
+                        SearchModel.searchTablesAndFields(query, fullExplores),
+                    );
+                },
+            ),
+        );
+    });
+
+    it('does not load another project’s matching explores', async () => {
+        const foreignExplore = structuredClone(explore);
+        foreignExplore.name = 'foreign_payments';
+        await database<Record<string, unknown>>('cached_explore').insert({
+            cached_explore_uuid: randomUUID(),
+            project_uuid: randomUUID(),
+            name: foreignExplore.name,
+            explore: foreignExplore,
+        });
+        const result = await model.search(projectUuid, 'Fulfillment', {
+            type: SearchItemType.FIELD,
+        });
+        expect(result.fields.map((field) => field.explore)).toEqual([
+            explore.name,
+        ]);
+    });
+
+    it('avoids loading successful explores for non-explore search types', async () => {
+        const responses: unknown[] = [];
+        const capture = (rows: unknown, statement: { sql: string }) => {
+            if (statement.sql.includes('from "cached_explore"'))
+                responses.push(rows);
+        };
+        database.on('query-response', capture);
+        try {
+            const result = await model.search(projectUuid, 'Fulfillment', {
+                type: SearchItemType.PAGE,
+            });
+            expect(result.fields).toEqual([]);
+            expect(result.tables).toEqual([]);
+            expect(responses).toEqual([[]]);
+        } finally {
+            database.off('query-response', capture);
+        }
     });
 
     it.each([
@@ -292,16 +434,6 @@ describe('Omnibar explore search', () => {
                 validationErrors: [{ validationUuid, validationId: 1 }],
             },
         ]);
-    });
-
-    it('searches an unpopulated row through the compact fallback', async () => {
-        await database<Record<string, unknown>>('cached_explore').update({
-            search_metadata: null,
-        });
-        const result = await model.search(projectUuid, 'Fulfillment', {
-            type: SearchItemType.FIELD,
-        });
-        expect(result.fields).toHaveLength(1);
     });
 
     describe('authorization through SearchService', () => {
@@ -497,6 +629,38 @@ describe('Omnibar explore search', () => {
             );
             expect(allowed.fields).toHaveLength(2);
             expect(denied.fields).toEqual([]);
+        });
+
+        it('enforces changed field restrictions on the next search', async () => {
+            const user = makeUser();
+            const service = makeService({ [user.userUuid]: allowedAttributes });
+            const before = await service.getSearchResults(
+                user,
+                projectUuid,
+                'Sensitive',
+                'omnibar',
+                { type: SearchItemType.FIELD },
+            );
+            expect(before.fields).toHaveLength(2);
+            const row = await database<Record<string, unknown>>(
+                'cached_explore',
+            )
+                .select<{ explore: Explore }>('explore')
+                .first();
+            const updatedExplore = row!.explore;
+            updatedExplore.tables.payments.metrics.total_revenue.requiredAttributes =
+                { clearance: 'executive' };
+            await database<Record<string, unknown>>('cached_explore').update({
+                explore: updatedExplore,
+            });
+            const after = await service.getSearchResults(
+                user,
+                projectUuid,
+                'Sensitive',
+                'omnibar',
+                { type: SearchItemType.FIELD },
+            );
+            expect(after.fields.map((field) => field.name)).toEqual(['amount']);
         });
 
         it('hides explores without Explore permission even when attributes match', async () => {

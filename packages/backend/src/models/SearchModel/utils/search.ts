@@ -1,6 +1,13 @@
-import { CompiledTable } from '@lightdash/common';
+import {
+    CompiledField,
+    CompiledTable,
+    ExploreType,
+    SearchFilters,
+    SearchItemType,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import { compact, escapeRegExp } from 'lodash';
+import { shouldSearchForType } from './filters';
 
 // Exact/prefix name boosts sit above typical ts_rank_cd values (0–1) so a
 // short exact title always outranks longer partial matches.
@@ -181,6 +188,54 @@ export function getRegexFromUserQuery(query: string) {
     return new RegExp(splitQuery.join('|'), 'ig');
 }
 
+/**
+ * Only discard explores that cannot produce a result. Matching explores stay
+ * complete so ranking and per-user authorization still use the original data.
+ */
+export function getExploreSearchCandidatePath(
+    query: string,
+    filters?: SearchFilters,
+): string | undefined {
+    const tables = shouldSearchForType(SearchItemType.TABLE, filters?.type);
+    const fields = shouldSearchForType(SearchItemType.FIELD, filters?.type);
+    const excludePreAggregates = `!exists(@.type ? (@ == ${JSON.stringify(ExploreType.PRE_AGGREGATE)}))`;
+
+    // Validation errors are returned independently of the item-type filter.
+    if (!tables && !fields) {
+        return `$ ? (${excludePreAggregates} && exists(@.errors))`;
+    }
+
+    // PostgreSQL and JavaScript have different Unicode case-folding rules.
+    // Keep the existing read for Unicode, control characters and empty queries.
+    // eslint-disable-next-line no-control-regex
+    if (!query.trim() || !/^[\x20-\x7e]+$/.test(query)) return undefined;
+
+    // Spell out ASCII case pairs instead of relying on the database locale.
+    // Escape the user's text before adding classes, then encode the JSON literal.
+    const pattern = JSON.stringify(
+        getRegexFromUserQuery(query).source.replace(
+            /[a-z]/gi,
+            (letter) => `[${letter.toLowerCase()}${letter.toUpperCase()}]`,
+        ),
+    );
+    const match = ['name', 'label', 'description']
+        .map((property) => `@.${property} like_regex ${pattern}`)
+        .join(' || ');
+    const candidates = [
+        ...(tables ? [match] : []),
+        ...(fields
+            ? [
+                  `exists(@.dimensions.* ? (${match}))`,
+                  `exists(@.metrics.* ? (${match}))`,
+              ]
+            : []),
+    ].join(' || ');
+
+    // Combine type and candidate checks so PostgreSQL reads the compiled JSON
+    // once for filtering. No SQL result limit: the existing ranking chooses it.
+    return `$ ? (${excludePreAggregates} && (exists(@.errors) || exists(@.tables.* ? (${candidates}))))`;
+}
+
 export function getColumnMatchRegexQuery(
     queryBuilder: Knex.QueryBuilder,
     searchQuery: string,
@@ -198,7 +253,7 @@ export function getColumnMatchRegexQuery(
 
 export function getTableOrFieldMatchCount(
     regex: RegExp,
-    tableOrField: Pick<CompiledTable, 'name' | 'label' | 'description'>,
+    tableOrField: CompiledTable | CompiledField,
 ) {
     const labelMatches = tableOrField.label.match(regex) ?? [];
     const nameMatches = tableOrField.name.match(regex) ?? [];

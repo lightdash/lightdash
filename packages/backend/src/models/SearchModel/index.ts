@@ -6,9 +6,12 @@ import {
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
+    Explore,
+    ExploreError,
     ExploreType,
     FieldSearchResult,
     hasIntersection,
+    isExploreError,
     isUserManagedExplore,
     NotFoundError,
     SavedChartSearchResult,
@@ -33,7 +36,6 @@ import {
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
 import {
-    CachedExploreSearchMetadata,
     CachedExploreTableName,
     ProjectTableName,
 } from '../../database/entities/projects';
@@ -51,6 +53,7 @@ import {
 } from './utils/filters';
 import {
     getExactOrPrefixLabelScore,
+    getExploreSearchCandidatePath,
     getFullTextSearchFilterSql,
     getFullTextSearchRankCalcSql,
     getRegexFromUserQuery,
@@ -1594,7 +1597,9 @@ export class SearchModel {
 
     private async getProjectExplores(
         projectUuid: string,
-    ): Promise<CachedExploreSearchMetadata[]> {
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<Explore[]> {
         const projects = await this.database(ProjectTableName)
             .select(['table_selection_type', 'table_selection_value'])
             .where('project_uuid', projectUuid)
@@ -1609,24 +1614,31 @@ export class SearchModel {
             value: projects[0].table_selection_value,
         };
 
-        // Reading compiled explores here transfers and parses SQL, lineage and other
-        // compilation data for every search. The trigger maintains a compact projection.
-        // Fall back for an unpopulated row without returning its full compiled JSON.
-        const metadataSql =
-            'COALESCE(search_metadata, cached_explore_search_metadata(explore))';
-        const rows = await this.database(CachedExploreTableName)
-            .select<{ explore: CachedExploreSearchMetadata }[]>(
-                this.database.raw(`${metadataSql} AS explore`),
-            )
+        const candidatePath = getExploreSearchCandidatePath(query, filters);
+        const rows: { explore: Explore | ExploreError }[] = await this.database(
+            CachedExploreTableName,
+        )
+            .select('explore')
             .where('project_uuid', projectUuid)
-            .whereRaw(`${metadataSql}->>'type' IS DISTINCT FROM ?`, [
-                ExploreType.PRE_AGGREGATE,
-            ])
+            .modify((builder) => {
+                if (candidatePath) {
+                    void builder.whereRaw(
+                        "jsonb_path_exists(explore, ?::jsonpath, '{}', true)",
+                        [candidatePath],
+                    );
+                } else {
+                    // Preserve the legacy read when SQL cannot safely mirror matching.
+                    void builder.whereRaw(
+                        "explore->>'type' IS DISTINCT FROM ?",
+                        [ExploreType.PRE_AGGREGATE],
+                    );
+                }
+            })
             .orderBy('name');
 
         return rows
             .map(({ explore }) => explore)
-            .filter((explore) => {
+            .filter((explore: Explore | ExploreError) => {
                 if (tableSelection.type === TableSelectionType.WITH_TAGS) {
                     return (
                         hasIntersection(
@@ -1642,12 +1654,12 @@ export class SearchModel {
                     );
                 }
                 return true;
-            });
+            }) as Explore[];
     }
 
     static searchTablesAndFields(
         query: string,
-        explores: CachedExploreSearchMetadata[],
+        explores: Explore[],
         filters?: SearchFilters,
     ): [TableSearchResult[], FieldSearchResult[]] {
         const shouldSearchForTables = shouldSearchForType(
@@ -1665,7 +1677,7 @@ export class SearchModel {
         const queryRegex = getRegexFromUserQuery(query);
 
         const [unsortedTables, unsortedFields] = explores
-            .filter((explore) => !('errors' in explore))
+            .filter((explore) => !isExploreError(explore))
             .reduce<[TableSearchResult[], FieldSearchResult[]]>(
                 (acc, explore) =>
                     Object.values(explore.tables).reduce<
@@ -1759,7 +1771,7 @@ export class SearchModel {
     private async searchTableErrors(
         projectUuid: string,
         query: string,
-        explores: CachedExploreSearchMetadata[],
+        explores: Explore[],
     ): Promise<TableErrorSearchResult[]> {
         const lowerCaseQuery = query.toLowerCase();
 
@@ -1793,7 +1805,7 @@ export class SearchModel {
 
         return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {
             if (
-                'errors' in explore &&
+                isExploreError(explore) &&
                 explore.name.toLowerCase().includes(lowerCaseQuery) &&
                 explore.name in validationErrors
             ) {
@@ -1896,7 +1908,11 @@ export class SearchModel {
         );
         const dataApps = await this.searchDataApps(projectUuid, query, filters);
 
-        const explores = await this.getProjectExplores(projectUuid);
+        const explores = await this.getProjectExplores(
+            projectUuid,
+            query,
+            filters,
+        );
         const tableErrors = await this.searchTableErrors(
             projectUuid,
             query,
