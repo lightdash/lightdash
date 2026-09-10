@@ -136,8 +136,8 @@ const UnsavedChangesBridge: FC<{
 
 type Props = {
     opened: boolean;
-    dashboardUuid: string;
-    dashboardName: string;
+    /** Null when hosted outside a dashboard (e.g. the AI agent thread view). */
+    dashboard: { uuid: string; name: string } | null;
     editChart?: SavedChart;
     /** Shared-metrics layer: seed, collect, badge, registry mutations */
     customMetricsEnabled: boolean;
@@ -153,8 +153,7 @@ type Props = {
  */
 const DashboardChartEditorModal: FC<Props> = ({
     opened,
-    dashboardUuid,
-    dashboardName,
+    dashboard,
     editChart,
     customMetricsEnabled,
     onChartSaved,
@@ -174,7 +173,9 @@ const DashboardChartEditorModal: FC<Props> = ({
     );
 
     const { showToastSuccess, showToastError } = useToaster();
-    const deleteRegistryMetric = useDeleteDashboardCustomMetric(dashboardUuid);
+    const deleteRegistryMetric = useDeleteDashboardCustomMetric(
+        dashboard?.uuid,
+    );
     const [registryDeletePreview, setRegistryDeletePreview] = useState<{
         metric: AdditionalMetric;
         affectedCharts: DashboardCustomMetricAffectedChart[];
@@ -251,7 +252,7 @@ const DashboardChartEditorModal: FC<Props> = ({
         () => ({
             isModalHosted: true,
             onChartSaved: handleChartSaved,
-            dashboard: { uuid: dashboardUuid, name: dashboardName },
+            dashboard: dashboard ?? undefined,
             dashboardMetricIds: customMetricsEnabled
                 ? dashboardMetricIds
                 : undefined,
@@ -260,8 +261,7 @@ const DashboardChartEditorModal: FC<Props> = ({
         }),
         [
             handleChartSaved,
-            dashboardUuid,
-            dashboardName,
+            dashboard,
             dashboardMetricIds,
             customMetricsEnabled,
             onRegistryMetricEdited,
@@ -297,19 +297,23 @@ const DashboardChartEditorModal: FC<Props> = ({
             onClose={handleClose}
             title={
                 <Group gap={6} wrap="nowrap">
-                    <Anchor
-                        c="dimmed"
-                        fw={500}
-                        underline="hover"
-                        truncate="end"
-                        maw={300}
-                        onClick={handleClose}
-                    >
-                        {dashboardName}
-                    </Anchor>
-                    <Text c="dimmed" fw={500}>
-                        /
-                    </Text>
+                    {dashboard && (
+                        <>
+                            <Anchor
+                                c="dimmed"
+                                fw={500}
+                                underline="hover"
+                                truncate="end"
+                                maw={300}
+                                onClick={handleClose}
+                            >
+                                {dashboard.name}
+                            </Anchor>
+                            <Text c="dimmed" fw={500}>
+                                /
+                            </Text>
+                        </>
+                    )}
                     {editChart ? (
                         <TruncatedText fw={600} fz="md" maxWidth="100%" miw={0}>
                             {`Edit ${editChart.name}`}
@@ -329,9 +333,9 @@ const DashboardChartEditorModal: FC<Props> = ({
                     <PageSpinner />
                 ) : (
                     <DashboardChartEditorContent
-                        key={`${dashboardUuid}-${exploreId ?? 'picker'}-${
-                            editChart?.uuid ?? 'new'
-                        }`}
+                        key={`${dashboard?.uuid ?? 'standalone'}-${
+                            exploreId ?? 'picker'
+                        }-${editChart?.uuid ?? 'new'}`}
                         exploreId={exploreId ?? ''}
                         editChart={editChart}
                         seededMetrics={seededMetrics}

@@ -158,8 +158,10 @@ describe('Explorer chart configuration in alternate hosts', () => {
             <MemoryRouter>
                 <DashboardChartEditorModal
                     opened
-                    dashboardUuid="dashboard-uuid"
-                    dashboardName="Orders dashboard"
+                    dashboard={{
+                        uuid: 'dashboard-uuid',
+                        name: 'Orders dashboard',
+                    }}
                     customMetricsEnabled={false}
                     onChartSaved={vi.fn()}
                     onRegistryMetricEdited={vi.fn()}

@@ -2,7 +2,7 @@ import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
 import { Anchor, Box, Card, Group, Stack, Text, Tooltip } from '@mantine/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
-import { type FC } from 'react';
+import { type FC, type MouseEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
@@ -10,6 +10,7 @@ import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
+import { useAiThreadChartEdit } from '../ThreadChartEditor/useAiThreadChartEdit';
 import styles from './AgentChatUserBubble.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import {
@@ -17,6 +18,7 @@ import {
     getPromptContextItemHref,
     getPromptContextItemKey,
 } from './contentReferenceUtils';
+import { isPlainLeftClick } from './useDataAppPreviewLink';
 
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
@@ -47,6 +49,7 @@ export const UserBubble: FC<Props> = ({
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
+    const openChartEditor = useAiThreadChartEdit();
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -160,6 +163,21 @@ export const UserBubble: FC<Props> = ({
                                 segment.item,
                                 projectUuid,
                             );
+                            // Chart references open the in-place editor when
+                            // the host provides one; the href keeps modified
+                            // clicks (new tab) working.
+                            const chartUuid =
+                                segment.item.type === 'chart'
+                                    ? segment.item.chartUuid
+                                    : null;
+                            const handleClick =
+                                chartUuid && openChartEditor
+                                    ? (e: MouseEvent<HTMLAnchorElement>) => {
+                                          if (!isPlainLeftClick(e)) return;
+                                          e.preventDefault();
+                                          openChartEditor(chartUuid);
+                                      }
+                                    : undefined;
                             return (
                                 <ContentReferenceLink
                                     key={`${segment.key}-${idx}`}
@@ -170,6 +188,7 @@ export const UserBubble: FC<Props> = ({
                                             : undefined
                                     }
                                     kind={segment.item.type}
+                                    onClick={handleClick}
                                     rel={href ? 'noreferrer' : undefined}
                                     target={href ? '_blank' : undefined}
                                     to={href ?? undefined}

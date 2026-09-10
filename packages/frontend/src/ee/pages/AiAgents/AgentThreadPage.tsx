@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine/core';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -15,6 +15,8 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
+import AiThreadChartEditorModal from '../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal';
+import { AiThreadChartEditContext } from '../../features/aiCopilot/components/ThreadChartEditor/useAiThreadChartEdit';
 import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { findRetryableDeepResearchRun } from '../../features/aiCopilot/deepResearch/deepResearchRegistry';
 import { runDeepResearchAgain } from '../../features/aiCopilot/deepResearch/runAgain';
@@ -106,6 +108,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         action: 'manage',
         projectUuid,
     });
+
+    // Chart references edit in place; embed viewers keep plain navigation.
+    const [editChartUuid, setEditChartUuid] = useState<string | null>(null);
+    const openChartEditor = useCallback(
+        (chartUuid: string) => setEditChartUuid(chartUuid),
+        [],
+    );
 
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
@@ -388,71 +397,80 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
 
     return (
         <Flex h="100%" gap={0} wrap="nowrap" align="stretch">
+            <AiThreadChartEditorModal
+                chartUuid={editChartUuid}
+                projectUuid={projectUuid}
+                onClose={() => setEditChartUuid(null)}
+            />
             <Box flex={1} miw={0} h="100%">
-                <AgentChatDisplay
-                    thread={thread}
-                    agentName={agentQuery.data?.name ?? 'AI'}
-                    enableAutoScroll={!isEmbed}
-                    promptUuid={promptUuid}
-                    debug={debug}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    showAddToEvalsButton={canManage}
-                    onDashboardLinkClick={handleDashboardLinkClick}
-                    canRetryDeepResearch={
-                        canStartDeepResearch && !inputDisabled && !isBusy
-                    }
-                    onRunDeepResearchAgain={(registration) => {
-                        void handleRunDeepResearchAgain(registration).catch(
-                            () => undefined,
-                        );
-                    }}
+                <AiThreadChartEditContext.Provider
+                    value={isEmbed ? undefined : openChartEditor}
                 >
-                    {workstreams && workstreams.length > 0 && (
-                        <ThreadWorkstreamsPanel workstreams={workstreams} />
-                    )}
-                    <AgentChatInput
-                        disabled={inputDisabled}
-                        disabledReason={inputDisabledReason}
-                        footerNotice={
-                            <ThreadRetentionNotice
-                                agentThreadRetentionHours={
-                                    agent.threadRetentionHours ?? null
-                                }
-                            />
-                        }
-                        loading={isBusy}
-                        onSubmit={handleSubmit}
-                        onStartDeepResearch={
-                            canStartDeepResearch
-                                ? handleStartDeepResearch
-                                : undefined
-                        }
-                        placeholder={`Ask ${agent.name} anything about your data...`}
-                        messageCount={thread.messages?.length || 0}
+                    <AgentChatDisplay
+                        thread={thread}
+                        agentName={agentQuery.data?.name ?? 'AI'}
+                        enableAutoScroll={!isEmbed}
+                        promptUuid={promptUuid}
+                        debug={debug}
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
-                        threadUuid={threadUuid}
-                        contentMentionPriorityItems={contentMentionItems}
-                        latestAssistantMessageUuid={
-                            [...(thread.messages ?? [])]
-                                .reverse()
-                                .find((m) => m.role === 'assistant')?.uuid
+                        showAddToEvalsButton={canManage}
+                        onDashboardLinkClick={handleDashboardLinkClick}
+                        canRetryDeepResearch={
+                            canStartDeepResearch && !inputDisabled && !isBusy
                         }
-                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                        onSqlModeChange={
-                            sqlModeAvailable && threadUuid
-                                ? (enabled) =>
-                                      dispatch(
-                                          setThreadSqlMode({
-                                              threadUuid,
-                                              enabled,
-                                          }),
-                                      )
-                                : undefined
-                        }
-                    />
-                </AgentChatDisplay>
+                        onRunDeepResearchAgain={(registration) => {
+                            void handleRunDeepResearchAgain(registration).catch(
+                                () => undefined,
+                            );
+                        }}
+                    >
+                        {workstreams && workstreams.length > 0 && (
+                            <ThreadWorkstreamsPanel workstreams={workstreams} />
+                        )}
+                        <AgentChatInput
+                            disabled={inputDisabled}
+                            disabledReason={inputDisabledReason}
+                            footerNotice={
+                                <ThreadRetentionNotice
+                                    agentThreadRetentionHours={
+                                        agent.threadRetentionHours ?? null
+                                    }
+                                />
+                            }
+                            loading={isBusy}
+                            onSubmit={handleSubmit}
+                            onStartDeepResearch={
+                                canStartDeepResearch
+                                    ? handleStartDeepResearch
+                                    : undefined
+                            }
+                            placeholder={`Ask ${agent.name} anything about your data...`}
+                            messageCount={thread.messages?.length || 0}
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            threadUuid={threadUuid}
+                            contentMentionPriorityItems={contentMentionItems}
+                            latestAssistantMessageUuid={
+                                [...(thread.messages ?? [])]
+                                    .reverse()
+                                    .find((m) => m.role === 'assistant')?.uuid
+                            }
+                            sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                            onSqlModeChange={
+                                sqlModeAvailable && threadUuid
+                                    ? (enabled) =>
+                                          dispatch(
+                                              setThreadSqlMode({
+                                                  threadUuid,
+                                                  enabled,
+                                              }),
+                                          )
+                                    : undefined
+                            }
+                        />
+                    </AgentChatDisplay>
+                </AiThreadChartEditContext.Provider>
             </Box>
             {reviewItem && (
                 <ReviewVerificationPanel
