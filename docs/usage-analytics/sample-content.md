@@ -29,7 +29,7 @@ action beside **Explore**, with a tooltip explaining its overwrite behavior. Syn
 never deletes or recreates the project. Custom dashboards and copies with other
 slugs are preserved; built-in slugs are reserved for managed content.
 Every sync iterates the built-in dashboard list, creating missing dashboards and
-updating existing ones in the same transaction. Add future dashboards with a new
+updating existing ones through the content-as-code service. Add future dashboards with a new
 stable key to this list. Removing a definition does not automatically delete its
 previously installed dashboard.
 
@@ -38,8 +38,9 @@ previously installed dashboard.
 The stable bundle key is the dashboard slug; each chart uses
 `<bundle-key>-<chart-key>`. Sync looks up these exact slugs **within the authorized
 analytics project**, then updates the existing rows by their stored UUIDs. New
-content uses normal model creation and database-generated UUIDs: no UUID overrides,
-`forceSlug`, or changes to the shared dashboard/chart creation models are needed.
+content uses existing content-as-code creation with database-generated UUIDs. The
+standard upsert path uses exact slugs internally; analytics adds no UUID overrides
+or changes to shared dashboard/chart creation models.
 
 This deliberately treats a matching dashboard slug as managed content. On initial
 project creation the slugs are unused. If a user later creates a dashboard with a
@@ -58,14 +59,28 @@ to keep them. Other dashboards and their charts are untouched. Removed chart
 definitions are no longer included in the dashboard layout; their saved rows and
 historical versions are retained rather than hard-deleted.
 
-Installation runs in one transaction under a project row lock and the existing
-project-scoped slug locks. If normal creation returns a suffixed slug (for example
-because a chart's historical alias reserves the canonical one), Sync rolls back
-instead of making a new suffixed copy on every attempt. Failed syncs
-roll back, preserving the previous content. A soft-deleted managed dashboard or
-sample chart can be restored by Sync. Sync fails if its space is deleted
-(restore the space first) or a managed chart has moved outside that dashboard.
-Every existing target is checked for project/dashboard ownership before updating.
+## Content-as-code implementation
+
+`analyticsContentAsCode` produces typed `ChartAsCode` and `DashboardAsCode`
+definitions from the bundle. `AnalyticsProjectService` calls the existing
+`CoderService.upsertChart` and `upsertDashboard` methods directly: no CLI subprocess,
+HTTP upload, or custom content SQL. Dashboard tiles reference charts by slug.
+Spaces keep the original project-permission inheritance behavior.
+
+The existing organization provisioning lock serializes create/sync/delete actions.
+Before uploading anything, the service uses `SavedChartModel.get` (including
+soft-deleted rows) to reject chart aliases or charts belonging to another dashboard.
+A missing or deleted dashboard is created/restored with an empty layout before
+its charts are uploaded, then its final layout is applied. This ensures the first
+chart is also updated when restoring a deleted dashboard. Restore and space
+resolution otherwise follow the standard content-as-code behavior.
+
+Uploads are **not one atomic bundle transaction**. On failure, earlier item
+updates can remain, and a newly created dashboard can have an empty layout.
+The endpoint reports the error; retrying Sync applies the same slug targets and
+completes the installation without creating duplicate dashboards. The installer
+does not opt into Git-backed snapshot/version tracking. Existing content-as-code
+project settings still govern any snapshot behavior.
 
 Earlier local prototypes used deterministic UUIDs. Existing rows at canonical
 slugs are updated without changing those UUIDs; noncanonical/suffixed prototype

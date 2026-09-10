@@ -1,8 +1,34 @@
 import { CartesianSeriesType, ChartType } from '@lightdash/common';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
-import { analyticsSampleDashboards } from './sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsSampleDashboards,
+} from './sampleContent';
 
 describe('analytics sample content', () => {
+    it('exports portable content-as-code with dashboard-owned chart references', () => {
+        for (const { dashboard, charts } of analyticsContentAsCode) {
+            expect(dashboard.version).toBe(1);
+            expect(dashboard.tiles.map((tile) => tile.properties)).toEqual(
+                charts.map(({ slug }) => ({ chartSlug: slug })),
+            );
+            expect(
+                charts.every((chart) => chart.dashboardSlug === dashboard.slug),
+            ).toBe(true);
+            expect(
+                charts.every(
+                    (chart) => chart.spaceSlug === dashboard.spaceSlug,
+                ),
+            ).toBe(true);
+            expect(
+                dashboard.tiles.every((tile) => tile.uuid === undefined),
+            ).toBe(true);
+            for (const tile of dashboard.tiles) {
+                expect(tile.x + tile.w).toBeLessThanOrEqual(36);
+            }
+        }
+        expect(analyticsContentAsCode[1].dashboard.tiles.at(-1)?.w).toBe(36);
+    });
     it('uses unique stable keys and fields available in the system explores', () => {
         const explores = createAnalyticsExplores();
         const dashboardKeys = analyticsSampleDashboards.map(({ key }) => key);

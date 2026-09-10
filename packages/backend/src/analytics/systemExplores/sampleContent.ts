@@ -2,10 +2,16 @@ import {
     CartesianSeriesType,
     ChartType,
     Compact,
-    type CreateChartInDashboard,
+    DashboardTileTypes,
+    generateSlug,
+    type ChartAsCode,
+    type DashboardAsCode,
 } from '@lightdash/common';
 
-type SampleChart = Omit<CreateChartInDashboard, 'dashboardUuid'> & {
+type SampleChart = Omit<
+    ChartAsCode,
+    'slug' | 'version' | 'spaceSlug' | 'dashboardSlug'
+> & {
     key: string;
 };
 
@@ -275,3 +281,50 @@ export const analyticsSampleDashboards = [
         ],
     },
 ];
+
+export const analyticsContentAsCode: {
+    dashboard: DashboardAsCode;
+    charts: ChartAsCode[];
+}[] = analyticsSampleDashboards.map((bundle) => {
+    const spaceSlug = generateSlug(bundle.name);
+    const charts = bundle.charts.map(({ key, ...definition }) => ({
+        ...definition,
+        slug: `${bundle.key}-${key}`,
+        dashboardSlug: bundle.key,
+        spaceSlug,
+        version: 1,
+    }));
+    return {
+        charts,
+        dashboard: {
+            name: bundle.name,
+            description: bundle.description,
+            slug: bundle.key,
+            spaceSlug,
+            version: 1,
+            tabs: [],
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: charts.map(({ slug }, index) => {
+                let width = index < 4 ? 9 : 18;
+                if (
+                    index >= 4 &&
+                    index === charts.length - 1 &&
+                    index % 2 === 0
+                ) {
+                    width = 36;
+                }
+                return {
+                    uuid: undefined,
+                    tileSlug: slug,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: index < 4 ? index * 9 : ((index - 4) % 2) * 18,
+                    y: index < 4 ? 0 : 3 + Math.floor((index - 4) / 2) * 8,
+                    w: width,
+                    h: index < 4 ? 3 : 8,
+                    tabSlug: null,
+                    properties: { chartSlug: slug },
+                };
+            }),
+        },
+    };
+});
