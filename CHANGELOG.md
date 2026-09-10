@@ -1,3 +1,10 @@
+## [2.190.1](https://github.com/lightdash/lightdash/compare/2.190.0...2.190.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* show data app name in browser tab title ([#29007](https://github.com/lightdash/lightdash/issues/29007)) ([db50b2b](https://github.com/lightdash/lightdash/commit/db50b2bb50b27735cfaf0df2460d34b44b50f9e5))
+
 # [2.190.0](https://github.com/lightdash/lightdash/compare/2.189.0...2.190.0) (2026-09-10)
 
 
