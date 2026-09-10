@@ -20,13 +20,13 @@ import Logger from '../logging/logger';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
-import { gitErrorHandler } from './gitRepository';
 import {
     configureDbtGitProjectCache,
     type DbtGitCacheLease,
 } from './dbtGitProjectCache';
 import { inspectDbtGitProject } from './dbtGitProjectInspection';
 import * as dbtGitVersion from './dbtGitVersion';
+import { gitErrorHandler } from './gitRepository';
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
