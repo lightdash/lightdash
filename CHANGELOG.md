@@ -1,3 +1,10 @@
+## [2.190.2](https://github.com/lightdash/lightdash/compare/2.190.1...2.190.2) (2026-09-10)
+
+
+### Bug Fixes
+
+* **underlying-data:** include the explore base table in underlying data columns ([#29010](https://github.com/lightdash/lightdash/issues/29010)) ([ff9dc7b](https://github.com/lightdash/lightdash/commit/ff9dc7b89bff3e4dc8f965aa28a5a892d18294b4)), closes [#28536](https://github.com/lightdash/lightdash/issues/28536)
+
 ## [2.190.1](https://github.com/lightdash/lightdash/compare/2.190.0...2.190.1) (2026-09-10)
 
 
